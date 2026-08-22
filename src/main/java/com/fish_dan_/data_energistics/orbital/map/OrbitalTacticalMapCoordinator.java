@@ -23,9 +23,10 @@ import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -78,13 +79,14 @@ public final class OrbitalTacticalMapCoordinator {
 
         long gameTime = server.overworld().getGameTime();
         ServerState state = this.serverStates.computeIfAbsent(server, ignored -> new ServerState());
-        Session session = state.sessions.get(player.getUUID());
+        UUID playerId = player.getUUID();
+        Session session = state.sessions.containsKey(playerId) ? state.sessions.get(playerId) : null;
         if (session == null || session.expiresAt <= gameTime || !session.weaponId.equals(weaponId) || !session.token.equals(sessionToken)) {
             if (!BOOTSTRAP_TOKEN.equals(sessionToken)) {
                 return Optional.empty();
             }
             session = new Session(weaponId, UUID.randomUUID(), gameTime + SESSION_TICKS, gameTime);
-            state.sessions.put(player.getUUID(), session);
+            state.sessions.put(playerId, session);
         }
         if (session.nonces.contains(nonce)) {
             return Optional.empty();
@@ -101,7 +103,7 @@ public final class OrbitalTacticalMapCoordinator {
         session.nonces.add(nonce);
         int side = radius * 2 + 1;
         LongSet publicAttackChunks = publicAttackChunks(level);
-        ArrayList<OrbitalMapTile> tiles = new ArrayList<>(side * side);
+        ObjectArrayList<OrbitalMapTile> tiles = new ObjectArrayList<>(side * side);
         for (int offsetX = -radius; offsetX <= radius; offsetX++) {
             for (int offsetZ = -radius; offsetZ <= radius; offsetZ++) {
                 int chunkX = centerChunkX + offsetX;
@@ -119,7 +121,9 @@ public final class OrbitalTacticalMapCoordinator {
         }
         long revision = ++state.revision;
         return Optional.of(new OrbitalTacticalMapSnapshot(
+                weaponId,
                 session.token,
+                nonce,
                 revision,
                 dimensionId,
                 centerChunkX,
@@ -199,7 +203,7 @@ public final class OrbitalTacticalMapCoordinator {
 
     private static final class ServerState {
 
-        private final Map<UUID, Session> sessions = new Object2ObjectOpenHashMap<>();
+        private final Object2ObjectMap<UUID, Session> sessions = new Object2ObjectOpenHashMap<>();
         private long revision;
     }
 

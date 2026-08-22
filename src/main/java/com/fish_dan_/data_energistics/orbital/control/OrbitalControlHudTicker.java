@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.orbital.control;
 
 import com.fish_dan_.data_energistics.item.orbital.OrbitalControlTerminalItem;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
+import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlPresentation;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -10,10 +11,10 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 /** Publishes bounded orbital status changes to players actively holding the control terminal. */
@@ -21,7 +22,7 @@ public final class OrbitalControlHudTicker {
 
     private static final long PUBLISH_INTERVAL = 5L;
 
-    private final Map<UUID, PublishedState> publishedStates = new HashMap<>();
+    private final Object2ObjectMap<UUID, PublishedState> publishedStates = new Object2ObjectOpenHashMap<>();
     private @Nullable MinecraftServer trackedServer;
 
     public OrbitalControlHudTicker() {}
@@ -47,8 +48,7 @@ public final class OrbitalControlHudTicker {
                         new OrbitalControlHudSnapshotPayload(
                                 gameTime,
                                 state.visible(),
-                                state.status(),
-                                state.selectedWeaponId()));
+                                state.status()));
             }
         }
         this.publishedStates.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
@@ -62,15 +62,15 @@ public final class OrbitalControlHudTicker {
         if (snapshot.selectedWeaponId() == null) {
             return PublishedState.HIDDEN;
         }
-        return new PublishedState(true, snapshot.toHudComponent(), snapshot.selectedWeaponId());
+        return new PublishedState(true, OrbitalControlPresentation.hud(snapshot));
     }
 
     private static boolean holdsTerminal(ServerPlayer player) {
         return OrbitalControlTerminalItem.isHeldBy(player);
     }
 
-    private record PublishedState(boolean visible, Component status, @Nullable UUID selectedWeaponId) {
+    private record PublishedState(boolean visible, Component status) {
 
-        private static final PublishedState HIDDEN = new PublishedState(false, Component.empty(), null);
+        private static final PublishedState HIDDEN = new PublishedState(false, Component.empty());
     }
 }

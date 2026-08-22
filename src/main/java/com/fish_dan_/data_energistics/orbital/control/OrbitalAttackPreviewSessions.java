@@ -111,7 +111,7 @@ public final class OrbitalAttackPreviewSessions {
     }
 
     /** Starts the confirmation clock for an existing target preview without replacing its captured estimate. */
-    public boolean beginHold(MinecraftServer server, UUID playerId, OrbitalAttackMode mode) {
+    public boolean beginHold(MinecraftServer server, UUID playerId, OrbitalAttackMode mode, UUID nonce) {
         requireServerThread(server);
         trackServer(server);
         if (!this.sessions.containsKey(playerId)) {
@@ -119,7 +119,7 @@ public final class OrbitalAttackPreviewSessions {
         }
         Preview preview = this.sessions.get(playerId);
         long now = server.overworld().getGameTime();
-        if (preview.expired(now) || preview.mode() != mode) {
+        if (preview.expired(now) || preview.mode() != mode || !preview.nonce().equals(nonce)) {
             this.sessions.remove(playerId);
             return false;
         }
@@ -148,14 +148,15 @@ public final class OrbitalAttackPreviewSessions {
     public Optional<Preview> release(
                                      MinecraftServer server,
                                      UUID playerId,
-                                     OrbitalAttackMode mode) {
+                                     OrbitalAttackMode mode,
+                                     UUID nonce) {
         requireServerThread(server);
         trackServer(server);
         if (!this.sessions.containsKey(playerId)) {
             return Optional.empty();
         }
         Preview preview = this.sessions.get(playerId);
-        if (preview.mode() != mode) {
+        if (preview.mode() != mode || !preview.nonce().equals(nonce)) {
             this.sessions.remove(playerId);
             return Optional.empty();
         }

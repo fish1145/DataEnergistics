@@ -6,15 +6,12 @@ import net.minecraft.network.chat.Component;
 
 import org.jspecify.annotations.Nullable;
 
-import java.util.UUID;
-
 /** Client cache for the latest server-authoritative orbital HUD snapshot. */
 public final class OrbitalControlHudClientState {
 
     private static long revision = -1L;
     private static boolean visible;
     private static Component status = Component.empty();
-    private static @Nullable UUID selectedWeaponId;
 
     private OrbitalControlHudClientState() {}
 
@@ -25,7 +22,6 @@ public final class OrbitalControlHudClientState {
         revision = payload.revision();
         visible = payload.visible();
         status = payload.status();
-        selectedWeaponId = payload.selectedWeaponId();
     }
 
     /** Clears the server-scoped HUD baseline when the client leaves a server. */
@@ -33,7 +29,6 @@ public final class OrbitalControlHudClientState {
         revision = -1L;
         visible = false;
         status = Component.empty();
-        selectedWeaponId = null;
     }
 
     public static boolean visible() {
@@ -43,10 +38,5 @@ public final class OrbitalControlHudClientState {
     @Nullable
     public static Component status() {
         return visible ? status : null;
-    }
-
-    /** Returns the server-selected weapon identity exposed to client map requests, even when the HUD is hidden. */
-    public static @Nullable UUID selectedWeaponId() {
-        return selectedWeaponId;
     }
 }

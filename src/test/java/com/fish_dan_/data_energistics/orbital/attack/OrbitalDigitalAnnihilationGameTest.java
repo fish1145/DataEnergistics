@@ -380,8 +380,10 @@ public final class OrbitalDigitalAnnihilationGameTest {
                     UUID payloadId = delivery.payloadEntityId();
                     OrbitalEnergyReserve reserveBeforeAbort = weapons.find(weaponId).orElseThrow().reserve();
                     helper.assertTrue(
-                            OrbitalControlActionDispatcher.cancelOrAbortFirst(owner),
-                            "The LDLib2 stop action must route a committed attack to emergency abort");
+                            OrbitalControlActionDispatcher.cancelOrAbortSelectedMode(
+                                    owner,
+                                    OrbitalAttackMode.DIGITAL_ANNIHILATION),
+                            "The selected digital task action must route a committed attack to emergency abort");
                     OrbitalAttackRecord aborted = attacks.find(attackId.get()).orElseThrow();
                     helper.assertValueEqual(
                             aborted.phase(),
@@ -470,7 +472,9 @@ public final class OrbitalDigitalAnnihilationGameTest {
                                 level.getBlockState(absoluteOutsideSnapshot).is(Blocks.STONE),
                                 "Reloaded settings must not expand the confirmed orbital world effect");
                     } finally {
-                        OrbitalControlActionDispatcher.cancelOrAbortFirst(owner);
+                        OrbitalControlActionDispatcher.cancelOrAbortSelectedMode(
+                                owner,
+                                OrbitalAttackMode.DIGITAL_ANNIHILATION);
                     }
                 })
                 .thenSucceed();
@@ -566,7 +570,9 @@ public final class OrbitalDigitalAnnihilationGameTest {
                 .thenWaitUntil(() -> helper.assertTrue(
                         level.getBlockState(absoluteTarget).isAir(),
                         "The retried attack must complete real delivery, fuse and terrain work after the border recovers"))
-                .thenExecute(() -> OrbitalControlActionDispatcher.cancelOrAbortFirst(owner))
+                .thenExecute(() -> OrbitalControlActionDispatcher.cancelOrAbortSelectedMode(
+                        owner,
+                        OrbitalAttackMode.DIGITAL_ANNIHILATION))
                 .thenSucceed();
     }
 

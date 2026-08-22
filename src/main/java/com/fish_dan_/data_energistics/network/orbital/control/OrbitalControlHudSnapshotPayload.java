@@ -10,16 +10,11 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import org.jspecify.annotations.Nullable;
-
-import java.util.UUID;
-
 /** Server-authoritative status pushed to the LDLib2 orbital HUD while its terminal is held. */
 public record OrbitalControlHudSnapshotPayload(
                                                long revision,
                                                boolean visible,
-                                               Component status,
-                                               @Nullable UUID selectedWeaponId)
+                                               Component status)
         implements CustomPacketPayload {
 
     public static final Type<OrbitalControlHudSnapshotPayload> TYPE = new Type<>(
@@ -32,27 +27,19 @@ public record OrbitalControlHudSnapshotPayload(
         if (revision < 0L) {
             throw new IllegalArgumentException("Orbital HUD revision must not be negative: " + revision);
         }
-        if (visible && selectedWeaponId == null) {
-            throw new IllegalArgumentException("A visible orbital HUD must identify its selected weapon");
-        }
     }
 
     private OrbitalControlHudSnapshotPayload(RegistryFriendlyByteBuf buffer) {
         this(
                 buffer.readVarLong(),
                 buffer.readBoolean(),
-                ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer),
-                buffer.readBoolean() ? buffer.readUUID() : null);
+                ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer));
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
         buffer.writeVarLong(this.revision);
         buffer.writeBoolean(this.visible);
         ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buffer, this.status);
-        buffer.writeBoolean(this.selectedWeaponId != null);
-        if (this.selectedWeaponId != null) {
-            buffer.writeUUID(this.selectedWeaponId);
-        }
     }
 
     @Override

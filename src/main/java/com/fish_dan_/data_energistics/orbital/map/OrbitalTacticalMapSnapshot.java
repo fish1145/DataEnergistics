@@ -7,7 +7,9 @@ import java.util.UUID;
 
 /** Bounded, revisioned server result for one tactical-map viewport request. */
 public record OrbitalTacticalMapSnapshot(
+                                         UUID weaponId,
                                          UUID sessionToken,
+                                         long requestNonce,
                                          long revision,
                                          ResourceLocation dimensionId,
                                          int centerChunkX,
@@ -19,7 +21,7 @@ public record OrbitalTacticalMapSnapshot(
 
     public OrbitalTacticalMapSnapshot {
         tiles = List.copyOf(tiles);
-        if (revision < 0L || radius < 0 || radius > 3 || tiles.size() > MAX_TILES) {
+        if (requestNonce <= 0L || revision < 0L || radius < 0 || radius > 3 || tiles.size() > MAX_TILES) {
             throw new IllegalArgumentException("Orbital tactical-map snapshot exceeds its bounded range");
         }
         int expected = (radius * 2 + 1) * (radius * 2 + 1);

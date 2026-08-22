@@ -10,23 +10,28 @@ import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.core.UUIDUtil;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
-import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Immutable opening snapshot for the orbital control terminal.
+ * Immutable, bounded view state shared by the orbital console, handheld terminal and HUD presentation.
  *
  * <p>
- * The server creates this value from the current player's UUID-indexed SavedData view. The terminal never stores a
- * weapon identity in its item stack; the snapshot is rebuilt from the current UUID whenever the LDLib2 UI synchronizes.
+ * The server captures this value from UUID-indexed SavedData. LDLib2 synchronizes the typed record directly, so UI
+ * components bind fields instead of parsing or duplicating preformatted status text.
  * </p>
  */
 public record OrbitalControlTerminalSnapshot(
@@ -34,26 +39,45 @@ public record OrbitalControlTerminalSnapshot(
                                              List<WeaponEntry> weapons,
                                              boolean truncated) {
 
-    /** Maximum number of entries kept in one synchronized terminal snapshot. */
+    /** Maximum number of accessible weapons carried by one menu snapshot. */
     public static final int MAX_WEAPONS = 128;
+    /** A weapon has three live mode slots; the larger bound also tolerates terminal history during transitions. */
+    public static final int MAX_ATTACKS_PER_WEAPON = 16;
+
+    private static final Codec<OrbitalAttackMode> ATTACK_MODE_CODEC = enumCodec(OrbitalAttackMode.class);
+    private static final Codec<OrbitalAttackPhase> ATTACK_PHASE_CODEC = enumCodec(OrbitalAttackPhase.class);
+    private static final Codec<OrbitalAccessRole> ACCESS_ROLE_CODEC = enumCodec(OrbitalAccessRole.class);
+    private static final Codec<OrbitalWeaponLifecycleState> LIFECYCLE_CODEC = enumCodec(
+            OrbitalWeaponLifecycleState.class);
+
+    public static final OrbitalControlTerminalSnapshot EMPTY = new OrbitalControlTerminalSnapshot(
+            null,
+            List.of(),
+            false);
+    public static final Codec<OrbitalControlTerminalSnapshot> CODEC = RecordCodecBuilder.create(instance -> instance
+            .group(
+                    UUIDUtil.CODEC.optionalFieldOf("selected_weapon_id").forGetter(snapshot -> Optional.ofNullable(snapshot.selectedWeaponId)),
+                    WeaponEntry.CODEC.listOf().fieldOf("weapons").forGetter(OrbitalControlTerminalSnapshot::weapons),
+                    Codec.BOOL.fieldOf("truncated").forGetter(OrbitalControlTerminalSnapshot::truncated))
+            .apply(instance, (selectedWeaponId, weapons, truncated) -> new OrbitalControlTerminalSnapshot(
+                    selectedWeaponId.orElse(null),
+                    weapons,
+                    truncated)));
+    public static final StreamCodec<RegistryFriendlyByteBuf, OrbitalControlTerminalSnapshot> STREAM_CODEC = StreamCodec.of(
+            OrbitalControlTerminalSnapshot::encode,
+            OrbitalControlTerminalSnapshot::decode);
 
     public OrbitalControlTerminalSnapshot {
         weapons = List.copyOf(weapons);
         if (weapons.size() > MAX_WEAPONS) {
-            throw new IllegalArgumentException("Orbital terminal snapshot exceeds its bounded entry limit");
+            throw new IllegalArgumentException("Orbital terminal snapshot exceeds its bounded weapon limit");
         }
         if (selectedWeaponId != null && weapons.stream().noneMatch(entry -> entry.weaponId().equals(selectedWeaponId))) {
             throw new IllegalArgumentException("Orbital terminal selection is not present in its weapon list");
         }
     }
 
-    /**
-     * Captures the weapons currently visible to one server player.
-     *
-     * @param server   authoritative server whose SavedData must be read on its main thread
-     * @param playerId UUID used for the owner and delegated-access indexes
-     * @return stable weapon-ID ordered opening snapshot
-     */
+    /** Captures the stable-ID ordered weapons currently visible to one server player. */
     public static OrbitalControlTerminalSnapshot capture(MinecraftServer server, UUID playerId) {
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         OrbitalWeaponSavedData weaponData = OrbitalWeaponSavedData.get(server);
@@ -76,112 +100,62 @@ public record OrbitalControlTerminalSnapshot(
         return new OrbitalControlTerminalSnapshot(selected, entries, truncated);
     }
 
-    /**
-     * Builds the read-only overview rendered by the LDLib2 label. Translation keys remain on the component tree, so
-     * the same server-authoritative state can be rendered in either supported client language.
-     */
-    public Component toComponent() {
-        if (this.weapons.isEmpty()) {
-            return Component.translatable("screen.data_energistics.orbital_control_terminal.empty");
-        }
-
-        MutableComponent result = Component.translatable(
-                "screen.data_energistics.orbital_control_terminal.available",
-                Integer.toString(this.weapons.size()));
-        for (WeaponEntry entry : this.weapons) {
-            if (entry.weaponId().equals(this.selectedWeaponId)) {
-                result = result
-                        .append(Component.literal("\n"))
-                        .append(Component.translatable("screen.data_energistics.orbital_control_terminal.selected_marker"));
-            }
-            result = result
-                    .append(Component.literal("\n"))
-                    .append(Component.translatable(
-                            "screen.data_energistics.orbital_control_terminal.weapon",
-                            Component.literal(entry.weaponId().toString()),
-                            Component.literal(entry.ownerId().toString()),
-                            entry.roleComponent(),
-                            entry.lifecycleComponent(),
-                            Integer.toString(entry.endpointCount()),
-                            Long.toString(entry.celestialEnergy()),
-                            Long.toString(entry.aeEnergy())));
-            for (AttackEntry attack : entry.attacks()) {
-                result = result
-                        .append(Component.literal("\n  "))
-                        .append(Component.translatable(
-                                "screen.data_energistics.orbital_control_terminal.attack",
-                                attack.modeComponent(),
-                                attack.phaseComponent(),
-                                Component.literal(attack.dimensionId().toString()),
-                                Integer.toString(attack.target().getX()),
-                                Integer.toString(attack.target().getY()),
-                                Integer.toString(attack.target().getZ()),
-                                Integer.toString(attack.warningTicksRemaining()),
-                                Integer.toString(attack.cooldownTicksRemaining()),
-                                Long.toString(attack.workCursor())));
-            }
-        }
-        if (this.truncated) {
-            result = result
-                    .append(Component.literal("\n"))
-                    .append(Component.translatable("screen.data_energistics.orbital_control_terminal.truncated"));
-        }
-        return result;
-    }
-
-    /**
-     * Builds the compact status sent to the world HUD. Only the persisted selected weapon is included, keeping the
-     * server-to-client update bounded even when a player can access many delegated weapons.
-     */
-    public Component toHudComponent() {
+    /** Returns the selected weapon view without exposing a nullable UI lookup. */
+    public Optional<WeaponEntry> selectedWeapon() {
         if (this.selectedWeaponId == null) {
-            return Component.translatable("screen.data_energistics.orbital_control_hud.empty");
+            return Optional.empty();
         }
-        WeaponEntry selected = this.weapons.stream()
+        return this.weapons.stream()
                 .filter(entry -> entry.weaponId().equals(this.selectedWeaponId))
-                .findFirst()
-                .orElse(null);
-        if (selected == null) {
-            return Component.translatable("screen.data_energistics.orbital_control_hud.empty");
-        }
-
-        MutableComponent result = Component.translatable(
-                "screen.data_energistics.orbital_control_hud.selected",
-                Component.literal(selected.weaponId().toString()),
-                selected.roleComponent(),
-                selected.lifecycleComponent(),
-                Long.toString(selected.celestialEnergy()),
-                Long.toString(selected.aeEnergy()));
-        if (selected.attacks().isEmpty()) {
-            return result
-                    .append(Component.literal("\n"))
-                    .append(Component.translatable("screen.data_energistics.orbital_control_hud.idle"));
-        }
-
-        int shown = 0;
-        for (AttackEntry attack : selected.attacks()) {
-            if (shown++ >= 8) {
-                result = result
-                        .append(Component.literal("\n"))
-                        .append(Component.translatable("screen.data_energistics.orbital_control_hud.more"));
-                break;
-            }
-            result = result
-                    .append(Component.literal("\n"))
-                    .append(Component.translatable(
-                            "screen.data_energistics.orbital_control_hud.attack",
-                            attack.modeComponent(),
-                            attack.phaseComponent(),
-                            Integer.toString(attack.target().getX()),
-                            Integer.toString(attack.target().getY()),
-                            Integer.toString(attack.target().getZ()),
-                            Integer.toString(attack.warningTicksRemaining()),
-                            Integer.toString(attack.cooldownTicksRemaining())));
-        }
-        return result;
+                .findFirst();
     }
 
-    /** One accessible weapon and the resources needed by the opening overview. */
+    private static void encode(RegistryFriendlyByteBuf buffer, OrbitalControlTerminalSnapshot snapshot) {
+        buffer.writeBoolean(snapshot.selectedWeaponId != null);
+        if (snapshot.selectedWeaponId != null) {
+            buffer.writeUUID(snapshot.selectedWeaponId);
+        }
+        buffer.writeVarInt(snapshot.weapons.size());
+        for (WeaponEntry weapon : snapshot.weapons) {
+            WeaponEntry.encode(buffer, weapon);
+        }
+        buffer.writeBoolean(snapshot.truncated);
+    }
+
+    private static OrbitalControlTerminalSnapshot decode(RegistryFriendlyByteBuf buffer) {
+        UUID selectedWeaponId = buffer.readBoolean() ? buffer.readUUID() : null;
+        int weaponCount = boundedCount(buffer, MAX_WEAPONS, "weapon");
+        ObjectArrayList<WeaponEntry> weapons = new ObjectArrayList<>(weaponCount);
+        for (int index = 0; index < weaponCount; index++) {
+            weapons.add(WeaponEntry.decode(buffer));
+        }
+        return new OrbitalControlTerminalSnapshot(selectedWeaponId, weapons, buffer.readBoolean());
+    }
+
+    private static int boundedCount(RegistryFriendlyByteBuf buffer, int maximum, String description) {
+        int count = buffer.readVarInt();
+        if (count < 0 || count > maximum) {
+            throw new IllegalArgumentException("Orbital terminal " + description + " count exceeds " + maximum);
+        }
+        return count;
+    }
+
+    private static <E extends Enum<E>> Codec<E> enumCodec(Class<E> type) {
+        return Codec.STRING.xmap(name -> Enum.valueOf(type, name), Enum::name);
+    }
+
+    private static <E extends Enum<E>> E readEnum(
+                                                  RegistryFriendlyByteBuf buffer,
+                                                  E[] values,
+                                                  String description) {
+        int ordinal = buffer.readVarInt();
+        if (ordinal < 0 || ordinal >= values.length) {
+            throw new IllegalArgumentException("Invalid orbital terminal " + description + " ordinal " + ordinal);
+        }
+        return values[ordinal];
+    }
+
+    /** Selected-weapon data required by the overview, fire-control permissions and HUD. */
     public record WeaponEntry(
                               UUID weaponId,
                               UUID ownerId,
@@ -194,8 +168,36 @@ public record OrbitalControlTerminalSnapshot(
                               long aeEnergy,
                               List<AttackEntry> attacks) {
 
+        public static final Codec<WeaponEntry> CODEC = RecordCodecBuilder.create(instance -> instance
+                .group(
+                        UUIDUtil.CODEC.fieldOf("weapon_id").forGetter(WeaponEntry::weaponId),
+                        UUIDUtil.CODEC.fieldOf("owner_id").forGetter(WeaponEntry::ownerId),
+                        Codec.BOOL.fieldOf("owner").forGetter(WeaponEntry::owner),
+                        ACCESS_ROLE_CODEC.optionalFieldOf("delegated_role").forGetter(entry -> Optional.ofNullable(entry.delegatedRole)),
+                        Codec.INT.fieldOf("endpoint_count").forGetter(WeaponEntry::endpointCount),
+                        LIFECYCLE_CODEC.fieldOf("lifecycle_state").forGetter(WeaponEntry::lifecycleState),
+                        Codec.INT.fieldOf("grace_ticks_remaining").forGetter(WeaponEntry::graceTicksRemaining),
+                        Codec.LONG.fieldOf("celestial_energy").forGetter(WeaponEntry::celestialEnergy),
+                        Codec.LONG.fieldOf("ae_energy").forGetter(WeaponEntry::aeEnergy),
+                        AttackEntry.CODEC.listOf().fieldOf("attacks").forGetter(WeaponEntry::attacks))
+                .apply(instance, (weaponId, ownerId, owner, delegatedRole, endpointCount, lifecycleState,
+                                  graceTicksRemaining, celestialEnergy, aeEnergy, attacks) -> new WeaponEntry(
+                                          weaponId,
+                                          ownerId,
+                                          owner,
+                                          delegatedRole.orElse(null),
+                                          endpointCount,
+                                          lifecycleState,
+                                          graceTicksRemaining,
+                                          celestialEnergy,
+                                          aeEnergy,
+                                          attacks)));
+
         public WeaponEntry {
             attacks = List.copyOf(attacks);
+            if (attacks.size() > MAX_ATTACKS_PER_WEAPON) {
+                throw new IllegalArgumentException("Orbital terminal weapon exceeds its bounded attack limit");
+            }
             if (endpointCount < 0 || graceTicksRemaining < 0 || celestialEnergy < 0L || aeEnergy < 0L) {
                 throw new IllegalArgumentException("Orbital terminal reserve values must not be negative");
             }
@@ -205,6 +207,16 @@ public record OrbitalControlTerminalSnapshot(
             if (!owner && delegatedRole == null) {
                 throw new IllegalArgumentException("A non-owner entry must carry its delegated role");
             }
+        }
+
+        /** Owners and operators may use fire control and act on their selected mode task. */
+        public boolean canOperate() {
+            return this.owner || this.delegatedRole == OrbitalAccessRole.OPERATOR;
+        }
+
+        /** Returns the one persisted task for a mode, if that mode is active or cooling down. */
+        public Optional<AttackEntry> attack(OrbitalAttackMode mode) {
+            return this.attacks.stream().filter(attack -> attack.mode() == mode).findFirst();
         }
 
         private static WeaponEntry from(
@@ -222,24 +234,63 @@ public record OrbitalControlTerminalSnapshot(
                     weapon.lifecycle().graceTicksRemaining(),
                     weapon.reserve().celestialEnergy(),
                     weapon.reserve().aeEnergy(),
-                    attacks.stream().map(AttackEntry::from).toList());
+                    attacks.stream().limit(MAX_ATTACKS_PER_WEAPON).map(AttackEntry::from).toList());
         }
 
-        private Component roleComponent() {
-            String key = this.owner ? "screen.data_energistics.orbital_control_terminal.role.owner" : switch (this.delegatedRole) {
-                case OPERATOR -> "screen.data_energistics.orbital_control_terminal.role.operator";
-                case OBSERVER -> "screen.data_energistics.orbital_control_terminal.role.observer";
-            };
-            return Component.translatable(key);
+        private static void encode(RegistryFriendlyByteBuf buffer, WeaponEntry entry) {
+            buffer.writeUUID(entry.weaponId);
+            buffer.writeUUID(entry.ownerId);
+            buffer.writeBoolean(entry.owner);
+            if (!entry.owner) {
+                buffer.writeVarInt(Objects.requireNonNull(entry.delegatedRole).ordinal());
+            }
+            buffer.writeVarInt(entry.endpointCount);
+            buffer.writeVarInt(entry.lifecycleState.ordinal());
+            buffer.writeVarInt(entry.graceTicksRemaining);
+            buffer.writeVarLong(entry.celestialEnergy);
+            buffer.writeVarLong(entry.aeEnergy);
+            buffer.writeVarInt(entry.attacks.size());
+            for (AttackEntry attack : entry.attacks) {
+                AttackEntry.encode(buffer, attack);
+            }
         }
 
-        private Component lifecycleComponent() {
-            String key = "screen.data_energistics.orbital_control_terminal.lifecycle." + this.lifecycleState.name().toLowerCase(Locale.ROOT);
-            return this.lifecycleState == OrbitalWeaponLifecycleState.RESERVE_GRACE ? Component.translatable(key, Integer.toString(this.graceTicksRemaining)) : Component.translatable(key);
+        private static WeaponEntry decode(RegistryFriendlyByteBuf buffer) {
+            UUID weaponId = buffer.readUUID();
+            UUID ownerId = buffer.readUUID();
+            boolean owner = buffer.readBoolean();
+            OrbitalAccessRole delegatedRole = owner ? null : readEnum(
+                    buffer,
+                    OrbitalAccessRole.values(),
+                    "access role");
+            int endpointCount = buffer.readVarInt();
+            OrbitalWeaponLifecycleState lifecycleState = readEnum(
+                    buffer,
+                    OrbitalWeaponLifecycleState.values(),
+                    "lifecycle state");
+            int graceTicksRemaining = buffer.readVarInt();
+            long celestialEnergy = buffer.readVarLong();
+            long aeEnergy = buffer.readVarLong();
+            int attackCount = boundedCount(buffer, MAX_ATTACKS_PER_WEAPON, "attack");
+            ObjectArrayList<AttackEntry> attacks = new ObjectArrayList<>(attackCount);
+            for (int index = 0; index < attackCount; index++) {
+                attacks.add(AttackEntry.decode(buffer));
+            }
+            return new WeaponEntry(
+                    weaponId,
+                    ownerId,
+                    owner,
+                    delegatedRole,
+                    endpointCount,
+                    lifecycleState,
+                    graceTicksRemaining,
+                    celestialEnergy,
+                    aeEnergy,
+                    attacks);
         }
     }
 
-    /** Public attack state needed by the read-only LDLib2 overview and HUD cache. */
+    /** Public attack state needed by the overview, safety action and compact HUD. */
     public record AttackEntry(
                               UUID attackId,
                               OrbitalAttackMode mode,
@@ -249,6 +300,18 @@ public record OrbitalControlTerminalSnapshot(
                               int warningTicksRemaining,
                               int cooldownTicksRemaining,
                               long workCursor) {
+
+        public static final Codec<AttackEntry> CODEC = RecordCodecBuilder.create(instance -> instance
+                .group(
+                        UUIDUtil.CODEC.fieldOf("attack_id").forGetter(AttackEntry::attackId),
+                        ATTACK_MODE_CODEC.fieldOf("mode").forGetter(AttackEntry::mode),
+                        ATTACK_PHASE_CODEC.fieldOf("phase").forGetter(AttackEntry::phase),
+                        ResourceLocation.CODEC.fieldOf("dimension_id").forGetter(AttackEntry::dimensionId),
+                        BlockPos.CODEC.fieldOf("target").forGetter(AttackEntry::target),
+                        Codec.INT.fieldOf("warning_ticks_remaining").forGetter(AttackEntry::warningTicksRemaining),
+                        Codec.INT.fieldOf("cooldown_ticks_remaining").forGetter(AttackEntry::cooldownTicksRemaining),
+                        Codec.LONG.fieldOf("work_cursor").forGetter(AttackEntry::workCursor))
+                .apply(instance, AttackEntry::new));
 
         public AttackEntry {
             target = target.immutable();
@@ -269,14 +332,27 @@ public record OrbitalControlTerminalSnapshot(
                     attack.workCursor());
         }
 
-        private Component modeComponent() {
-            return Component.translatable(
-                    "screen.data_energistics.orbital_control_terminal.mode." + this.mode.name().toLowerCase(Locale.ROOT));
+        private static void encode(RegistryFriendlyByteBuf buffer, AttackEntry entry) {
+            buffer.writeUUID(entry.attackId);
+            buffer.writeVarInt(entry.mode.ordinal());
+            buffer.writeVarInt(entry.phase.ordinal());
+            buffer.writeResourceLocation(entry.dimensionId);
+            buffer.writeBlockPos(entry.target);
+            buffer.writeVarInt(entry.warningTicksRemaining);
+            buffer.writeVarInt(entry.cooldownTicksRemaining);
+            buffer.writeVarLong(entry.workCursor);
         }
 
-        private Component phaseComponent() {
-            return Component.translatable(
-                    "screen.data_energistics.orbital_control_terminal.phase." + this.phase.name().toLowerCase(Locale.ROOT));
+        private static AttackEntry decode(RegistryFriendlyByteBuf buffer) {
+            return new AttackEntry(
+                    buffer.readUUID(),
+                    readEnum(buffer, OrbitalAttackMode.values(), "attack mode"),
+                    readEnum(buffer, OrbitalAttackPhase.values(), "attack phase"),
+                    buffer.readResourceLocation(),
+                    buffer.readBlockPos(),
+                    buffer.readVarInt(),
+                    buffer.readVarInt(),
+                    buffer.readVarLong());
         }
     }
 }

@@ -4,7 +4,9 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalTargetYMode;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
@@ -60,7 +62,7 @@ public final class OrbitalKineticAttackGameTest {
 
     @TestHolder("orbital_kinetic_attack_refunds_warning_then_commits_world_effect_and_cooldown")
     @EmptyTemplate("50x32x50")
-    @GameTest(template = "empty_50x32x50", timeoutTicks = 1_000)
+    @GameTest(template = "empty_50x32x50", batch = "orbital_fire_control_nonce", timeoutTicks = 1_000)
     public static void refundsWarningThenCommitsWorldEffectAndCooldown(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
@@ -235,6 +237,81 @@ public final class OrbitalKineticAttackGameTest {
                 .thenSucceed();
     }
 
+    @TestHolder("orbital_fire_control_rejects_stale_nonce_then_executes_current_preview")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 1_000)
+    public static void rejectsStaleNonceThenExecutesCurrentPreview(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        ServerPlayer owner = createPlayer(level, "fire-control-owner");
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        OrbitalAttackCost cost = OrbitalAttackCost.kinetic(settings);
+        OrbitalAttackGeometry.Kinetic geometry = OrbitalAttackGeometry.Kinetic.fromSettings(settings);
+
+        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
+        placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
+        placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
+        installInfiniteCell(helper);
+        BlockPos absoluteTarget = helper.absolutePos(TARGET);
+        helper.setBlock(TARGET, Blocks.STONE);
+        loadTerrainChunks(level, absoluteTarget, geometry.terrainRadius());
+
+        UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
+        AtomicReference<UUID> previewNonce = new AtomicReference<>();
+
+        helper.startSequence()
+                .thenIdle(40)
+                .thenWaitUntil(() -> helper.assertTrue(
+                        weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
+                        "Fire control must use a real powered endpoint in the target dimension"))
+                .thenExecute(() -> {
+                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    primeReserve(weapons, server, weaponId, settings, cost);
+                    captureKineticPreview(owner, level, absoluteTarget);
+                    UUID currentNonce = UUID.fromString(OrbitalControlActionDispatcher.currentPreviewNonce(owner));
+                    UUID staleNonce = new UUID(
+                            currentNonce.getMostSignificantBits() ^ 1L,
+                            currentNonce.getLeastSignificantBits());
+                    helper.assertFalse(
+                            OrbitalControlActionDispatcher.startFireHold(
+                                    owner,
+                                    OrbitalAttackMode.KINETIC,
+                                    staleNonce,
+                                    () -> true),
+                            "A confirmation hold must reject a nonce from a different preview");
+                })
+                .thenIdle(65)
+                .thenExecute(() -> {
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                            "A stale preview nonce must not start the real kinetic world effect");
+                    helper.assertTrue(
+                            attacks.forWeapon(weaponId).isEmpty(),
+                            "A stale preview nonce must not create an attack task");
+                    captureKineticPreview(owner, level, absoluteTarget);
+                    previewNonce.set(UUID.fromString(OrbitalControlActionDispatcher.currentPreviewNonce(owner)));
+                    if (!OrbitalControlActionDispatcher.startFireHold(
+                            owner,
+                            OrbitalAttackMode.KINETIC,
+                            previewNonce.get(),
+                            () -> true)) {
+                        throw new IllegalStateException("The current preview nonce did not start its confirmation hold");
+                    }
+                })
+                .thenIdle(60)
+                .thenExecute(() -> OrbitalControlActionDispatcher.releaseFireAtTarget(
+                        owner,
+                        OrbitalAttackMode.KINETIC,
+                        previewNonce.get(),
+                        () -> true))
+                .thenWaitUntil(() -> helper.assertTrue(
+                        level.getBlockState(absoluteTarget).isAir(),
+                        "The nonce-bound preview must complete the real warning, impact and terrain mutation"))
+                .thenSucceed();
+    }
+
     @TestHolder("orbital_kinetic_attack_keeps_confirmed_geometry_after_live_config_changes")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50", batch = "orbital_kinetic_geometry_snapshot", timeoutTicks = 400)
@@ -363,6 +440,23 @@ public final class OrbitalKineticAttackGameTest {
             throw new IllegalStateException("The kinetic test drive has no block entity");
         }
         drive.getInternalInventory().setItemDirect(0, DEItems.DATA_CELL_INFINITY.toStack());
+    }
+
+    private static void captureKineticPreview(ServerPlayer owner, ServerLevel level, BlockPos target) {
+        OrbitalControlActionDispatcher.previewFireAtTarget(
+                owner,
+                OrbitalAttackMode.KINETIC,
+                level.dimension().location(),
+                target.getX(),
+                target.getZ(),
+                OrbitalTargetYMode.ABSOLUTE,
+                target.getY(),
+                0,
+                null,
+                () -> true);
+        if (OrbitalControlActionDispatcher.currentPreviewNonce(owner).isEmpty()) {
+            throw new IllegalStateException("The server did not capture the kinetic fire-control preview");
+        }
     }
 
     private static void insertCelestialEnergy(GameTestHelper helper, long amount) {

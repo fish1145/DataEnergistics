@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.control.ui;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.client.hud.orbital.OrbitalControlHudClientState;
 import com.fish_dan_.data_energistics.client.map.orbital.OrbitalTacticalMapClientState;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapRequestPayload;
@@ -9,7 +8,9 @@ import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyStrike;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalTargetYMode;
+import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiTheme.Tone;
 import com.fish_dan_.data_energistics.orbital.map.OrbitalMapTile;
 
 import net.minecraft.network.chat.Component;
@@ -22,56 +23,50 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEmitter;
 import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEventBuilder;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.utils.UIElementProvider;
-import dev.vfyjxf.taffy.style.TaffyPosition;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/**
- * Shared LDLib2 coordinate fire-control panel for both the held terminal and the bound console.
- *
- * <p>
- * The panel sends only a bounded target intent through its current menu RPC route. The server-side executor keeps
- * the exact source-validity predicate captured by that menu, resolves every enum from an explicit wire code, and then
- * delegates preview and confirmation to the authoritative orbital SavedData path.
- * </p>
- */
+/** One target draft, one map viewport and one confirmation path shared by both orbital control sources. */
 final class OrbitalFireControlPanel {
 
-    static final int WIDTH = 404;
-    static final int HEIGHT = 310;
+    static final int WIDTH = 412;
+    static final int HEIGHT = 304;
 
-    private static final int NO_MODE = -1;
     private static final int NO_DEPTH = -1;
     private static final int FIELD_HEIGHT = 18;
     private static final int BUTTON_HEIGHT = 22;
-    private static final int MAP_TOP = 146;
-    private static final int MAP_GRID_TOP = 164;
+    private static final int TARGET_CARD_HEIGHT = 112;
+    private static final int LOWER_TOP = 120;
+    private static final int MAP_CARD_WIDTH = 154;
+    private static final int PREVIEW_CARD_LEFT = 162;
+    private static final int PREVIEW_CARD_WIDTH = WIDTH - PREVIEW_CARD_LEFT;
+    private static final int MAP_GRID_LEFT = 7;
+    private static final int MAP_GRID_TOP = 30;
     private static final int MAP_CELL_SIZE = 20;
     private static final int MAP_RADIUS = 3;
-    private static final String TRANSLATION_PREFIX = "screen.data_energistics.orbital_control_terminal.fire_control.";
+    private static final String PREFIX = "screen.data_energistics.orbital_control_terminal.fire_control.";
 
     private OrbitalFireControlPanel() {}
 
-    static UIElement create(
-                            UIElement rpcRoot,
-                            Player player,
-                            BooleanSupplier sourceValid,
-                            boolean clientSide) {
+    static View create(
+                       UIElement rpcRoot,
+                       Player player,
+                       BooleanSupplier sourceValid,
+                       boolean clientSide) {
         ClientPanelState state = new ClientPanelState();
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         RPCEmitter previewEmitter = previewEmitter(rpcRoot, player, sourceValid);
@@ -79,154 +74,154 @@ final class OrbitalFireControlPanel {
         RPCEmitter releaseEmitter = releaseEmitter(rpcRoot, player, sourceValid);
         RPCEmitter cancelHoldEmitter = cancelHoldEmitter(rpcRoot, player);
 
-        UIElement panel = new UIElement();
-        panel.setId("orbital_fire_control_panel");
-        panel.layout(layout -> layout.width(WIDTH).height(HEIGHT));
+        UIElement root = new UIElement();
+        root.setId("orbital_fire_control_panel");
+        root.layout(layout -> layout.width(WIDTH).height(HEIGHT));
 
-        Label title = label(
-                "orbital_fire_control_title",
-                TRANSLATION_PREFIX + "title",
+        UIElement targetCard = OrbitalControlUiTheme.panel(
+                "orbital_fire_control_target_card",
                 0,
                 0,
                 WIDTH,
-                16);
+                TARGET_CARD_HEIGHT,
+                Tone.PANEL);
+        targetCard.style(style -> style.tooltips(Component.translatable(PREFIX + "hint")));
 
         TextField dimension = textField(
                 "orbital_fire_control_dimension",
                 player.level().dimension().location().toString(),
-                54,
-                18,
-                174);
+                52,
+                8,
+                164);
         dimension.setResourceLocationOnly();
-        Label dimensionLabel = label(
+        Label dimensionLabel = fieldLabel(
                 "orbital_fire_control_dimension_label",
-                TRANSLATION_PREFIX + "dimension",
-                0,
-                18,
-                50,
-                FIELD_HEIGHT);
+                PREFIX + "dimension",
+                8,
+                8,
+                40);
 
         Selector<OrbitalAttackMode> mode = selector(
                 "orbital_fire_control_mode",
-                280,
-                18,
-                124,
+                264,
+                8,
+                140,
                 List.of(OrbitalAttackMode.values()),
                 OrbitalAttackMode.KINETIC,
                 OrbitalFireControlPanel::modeName);
-        Label modeLabel = label(
-                "orbital_fire_control_mode_label",
-                TRANSLATION_PREFIX + "mode",
-                234,
-                18,
-                42,
-                FIELD_HEIGHT);
+        Label modeLabel = fieldLabel("orbital_fire_control_mode_label", PREFIX + "mode", 224, 8, 36);
 
         TextField targetX = integerField(
                 "orbital_fire_control_x",
                 player.blockPosition().getX(),
                 -30_000_000,
                 30_000_000,
-                18,
-                40,
-                70);
-        Label xLabel = label("orbital_fire_control_x_label", TRANSLATION_PREFIX + "x", 0, 40, 14, FIELD_HEIGHT);
+                20,
+                32,
+                66);
+        Label xLabel = fieldLabel("orbital_fire_control_x_label", PREFIX + "x", 8, 32, 10);
 
         TextField targetZ = integerField(
                 "orbital_fire_control_z",
                 player.blockPosition().getZ(),
                 -30_000_000,
                 30_000_000,
-                110,
-                40,
-                70);
-        Label zLabel = label("orbital_fire_control_z_label", TRANSLATION_PREFIX + "z", 92, 40, 14, FIELD_HEIGHT);
+                106,
+                32,
+                66);
+        Label zLabel = fieldLabel("orbital_fire_control_z_label", PREFIX + "z", 94, 32, 10);
 
         Selector<OrbitalTargetYMode> targetYMode = selector(
                 "orbital_fire_control_y_mode",
-                232,
-                40,
-                98,
+                220,
+                32,
+                100,
                 List.of(OrbitalTargetYMode.values()),
                 OrbitalTargetYMode.SURFACE_OFFSET,
                 OrbitalFireControlPanel::targetYModeName);
         targetYMode.setOnValueChanged(state::selectTargetYMode);
-        Label targetYModeLabel = label(
+        Label targetYModeLabel = fieldLabel(
                 "orbital_fire_control_y_mode_label",
-                TRANSLATION_PREFIX + "y_mode",
-                184,
-                40,
-                44,
-                FIELD_HEIGHT);
+                PREFIX + "y_mode",
+                180,
+                32,
+                36);
 
         TextField targetYValue = integerField(
                 "orbital_fire_control_y",
                 0,
                 Integer.MIN_VALUE,
                 Integer.MAX_VALUE,
-                348,
-                40,
-                56);
-        Label yLabel = label("orbital_fire_control_y_label", TRANSLATION_PREFIX + "y", 334, 40, 10, FIELD_HEIGHT);
+                340,
+                32,
+                64);
+        Label yLabel = fieldLabel("orbital_fire_control_y_label", PREFIX + "y", 328, 32, 10);
 
         TextField radius = integerField(
                 "orbital_fire_control_radius",
                 settings.directedEnergyMinimumRadius,
                 settings.directedEnergyMinimumRadius,
                 settings.directedEnergyMaximumRadius,
-                54,
-                62,
-                70);
+                52,
+                56,
+                64);
         radius.setActive(false);
-        Label radiusLabel = label(
+        Label radiusLabel = fieldLabel(
                 "orbital_fire_control_radius_label",
-                TRANSLATION_PREFIX + "radius",
-                0,
-                62,
-                50,
-                FIELD_HEIGHT);
+                PREFIX + "radius",
+                8,
+                56,
+                40);
 
         Selector<OrbitalDirectedEnergyDepth> depth = selector(
                 "orbital_fire_control_depth",
-                184,
-                62,
-                146,
+                168,
+                56,
+                130,
                 List.of(OrbitalDirectedEnergyDepth.values()),
                 OrbitalDirectedEnergyDepth.DEPTH_32,
                 OrbitalFireControlPanel::depthName);
         depth.setActive(false);
         depth.setOnValueChanged(state::selectDepth);
-        Label depthLabel = label(
+        Label depthLabel = fieldLabel(
                 "orbital_fire_control_depth_label",
-                TRANSLATION_PREFIX + "depth",
-                132,
-                62,
-                48,
-                FIELD_HEIGHT);
+                PREFIX + "depth",
+                124,
+                56,
+                40);
 
         mode.setOnValueChanged(selected -> {
             state.selectMode(selected);
             boolean directed = selected == OrbitalAttackMode.DIRECTED_ENERGY;
-            radius.setActive(directed);
-            depth.setActive(directed);
+            radius.setActive(directed && state.operable());
+            depth.setActive(directed && state.operable());
         });
 
-        Button refreshPreview = button(
+        Button refreshPreview = OrbitalControlUiTheme.button(
                 "orbital_fire_control_preview",
-                TRANSLATION_PREFIX + "preview",
-                0);
+                Component.translatable(PREFIX + "preview"),
+                8,
+                82,
+                190,
+                BUTTON_HEIGHT,
+                Tone.ACCENT);
+        Button confirm = OrbitalControlUiTheme.button(
+                "orbital_fire_control_confirm",
+                Component.translatable(PREFIX + "confirm"),
+                206,
+                82,
+                198,
+                BUTTON_HEIGHT,
+                Tone.DANGER);
+
         refreshPreview.setOnClick(event -> {
-            if (!clientSide) {
+            if (!clientSide || !state.operable()) {
                 return;
             }
             try {
-                TargetDraft draft = readDraft(
-                        state,
-                        dimension,
-                        targetX,
-                        targetZ,
-                        targetYValue,
-                        radius);
+                TargetDraft draft = readDraft(state, dimension, targetX, targetZ, targetYValue, radius);
+                cancelClientHold(state, cancelHoldEmitter);
+                state.previewRequested(draft);
                 previewEmitter.send(
                         draft.mode().wireCode(),
                         draft.dimension(),
@@ -241,16 +236,22 @@ final class OrbitalFireControlPanel {
             }
         });
 
-        Button confirm = button(
-                "orbital_fire_control_confirm",
-                TRANSLATION_PREFIX + "confirm",
-                206);
         confirm.addEventListener(UIEvents.MOUSE_DOWN, event -> {
-            if (!clientSide || event.button != 0 || state.holding()) {
+            if (!clientSide || event.button != 0 || state.holding() || !state.operable()) {
                 return;
             }
-            int modeCode = state.beginHold();
-            if (!startHoldEmitter.send(modeCode)) {
+            try {
+                HoldRequest hold = state.beginHold(readDraft(
+                        state,
+                        dimension,
+                        targetX,
+                        targetZ,
+                        targetYValue,
+                        radius));
+                if (!startHoldEmitter.send(hold.modeCode(), hold.nonce().toString())) {
+                    state.clearHold();
+                }
+            } catch (IllegalArgumentException ignored) {
                 state.clearHold();
             }
         });
@@ -265,76 +266,7 @@ final class OrbitalFireControlPanel {
                 state,
                 releaseEmitter));
 
-        Label hint = label(
-                "orbital_fire_control_hint",
-                TRANSLATION_PREFIX + "hint",
-                0,
-                114,
-                WIDTH,
-                32);
-        hint.textStyle(style -> style.textAlignVertical(Vertical.TOP).textWrap(TextWrap.WRAP));
-
-        Label mapTitle = label(
-                "orbital_fire_control_map_title",
-                TRANSLATION_PREFIX + "map.title",
-                0,
-                MAP_TOP,
-                154,
-                FIELD_HEIGHT);
-        Label mapStatus = label(
-                "orbital_fire_control_map_status",
-                TRANSLATION_PREFIX + "map.status",
-                168,
-                MAP_GRID_TOP,
-                WIDTH - 168,
-                118);
-        mapStatus.textStyle(style -> style.textAlignVertical(Vertical.TOP).textWrap(TextWrap.WRAP));
-
-        Button mapRefresh = new Button();
-        mapRefresh.setId("orbital_fire_control_map_refresh");
-        mapRefresh.setText(Component.translatable(TRANSLATION_PREFIX + "map.refresh"));
-        mapRefresh.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(168)
-                .top(MAP_TOP)
-                .width(WIDTH - 168)
-                .height(BUTTON_HEIGHT));
-        mapRefresh.setOnClick(event -> {
-            if (clientSide) {
-                requestMap(dimension, targetX, targetZ);
-            }
-        });
-
-        ObjectArrayList<Button> mapCells = new ObjectArrayList<>((MAP_RADIUS * 2 + 1) * (MAP_RADIUS * 2 + 1));
-        for (int offsetZ = -MAP_RADIUS; offsetZ <= MAP_RADIUS; offsetZ++) {
-            for (int offsetX = -MAP_RADIUS; offsetX <= MAP_RADIUS; offsetX++) {
-                int cellOffsetX = offsetX;
-                int cellOffsetZ = offsetZ;
-                Button cell = new Button();
-                cell.setId("orbital_fire_control_map_cell_" + (cellOffsetX + MAP_RADIUS) + "_" + (cellOffsetZ + MAP_RADIUS));
-                cell.setText(Component.literal("?"));
-                cell.layout(layout -> layout
-                        .positionType(TaffyPosition.ABSOLUTE)
-                        .left((cellOffsetX + MAP_RADIUS) * MAP_CELL_SIZE)
-                        .top(MAP_GRID_TOP + (cellOffsetZ + MAP_RADIUS) * MAP_CELL_SIZE)
-                        .width(MAP_CELL_SIZE - 1)
-                        .height(MAP_CELL_SIZE - 1));
-                cell.setOnClick(event -> {
-                    if (clientSide) {
-                        selectMapCell(state, dimension, targetX, targetZ, targetYMode, targetYValue, cellOffsetX, cellOffsetZ);
-                    }
-                });
-                mapCells.add(cell);
-            }
-        }
-        panel.addEventListener(UIEvents.TICK, event -> {
-            if (clientSide) {
-                updateMapCells(mapCells, mapStatus);
-            }
-        });
-
-        panel.addChildren(
-                title,
+        targetCard.addChildren(
                 dimensionLabel,
                 dimension,
                 modeLabel,
@@ -352,13 +284,169 @@ final class OrbitalFireControlPanel {
                 depthLabel,
                 depth,
                 refreshPreview,
-                confirm,
-                hint);
-        panel.addChildren(mapTitle, mapStatus, mapRefresh);
+                confirm);
+
+        UIElement mapCard = OrbitalControlUiTheme.panel(
+                "orbital_fire_control_map_card",
+                0,
+                LOWER_TOP,
+                MAP_CARD_WIDTH,
+                HEIGHT - LOWER_TOP,
+                Tone.PANEL_ALT);
+        Label mapTitle = OrbitalControlUiTheme.label(
+                "orbital_fire_control_map_title",
+                Component.translatable(PREFIX + "map.title_compact"),
+                8,
+                8,
+                MAP_CARD_WIDTH - 16,
+                14,
+                OrbitalControlUiTheme.ACCENT_TEXT,
+                9,
+                TextWrap.HOVER_ROLL);
+        ObjectArrayList<Button> mapCells = createMapCells(
+                state,
+                clientSide,
+                dimension,
+                targetX,
+                targetZ,
+                targetYMode,
+                targetYValue);
+        mapCard.addChild(mapTitle);
         for (Button mapCell : mapCells) {
-            panel.addChildren(mapCell);
+            mapCard.addChild(mapCell);
         }
-        return panel;
+
+        UIElement previewCard = OrbitalControlUiTheme.panel(
+                "orbital_fire_control_preview_card",
+                PREVIEW_CARD_LEFT,
+                LOWER_TOP,
+                PREVIEW_CARD_WIDTH,
+                HEIGHT - LOWER_TOP,
+                Tone.PANEL);
+        Button mapRefresh = OrbitalControlUiTheme.button(
+                "orbital_fire_control_map_refresh",
+                Component.translatable(PREFIX + "map.refresh"),
+                8,
+                8,
+                PREVIEW_CARD_WIDTH - 16,
+                BUTTON_HEIGHT,
+                Tone.ACCENT);
+        mapRefresh.setOnClick(event -> {
+            if (clientSide && state.operable()) {
+                requestMap(state, dimension, targetX, targetZ);
+            }
+        });
+        Label mapStatus = OrbitalControlUiTheme.label(
+                "orbital_fire_control_map_status",
+                Component.translatable(PREFIX + "map.status"),
+                8,
+                36,
+                PREVIEW_CARD_WIDTH - 16,
+                40,
+                OrbitalControlUiTheme.MUTED_TEXT,
+                8,
+                TextWrap.WRAP);
+        Label previewTitle = OrbitalControlUiTheme.label(
+                "orbital_fire_control_preview_title",
+                Component.translatable(PREFIX + "preview.title"),
+                8,
+                82,
+                PREVIEW_CARD_WIDTH - 16,
+                14,
+                OrbitalControlUiTheme.ACCENT_TEXT,
+                9,
+                TextWrap.HOVER_ROLL);
+        Label preview = OrbitalControlUiTheme.label(
+                "orbital_fire_control_preview_status",
+                Component.translatable("screen.data_energistics.orbital_control_terminal.preview.none"),
+                8,
+                100,
+                PREVIEW_CARD_WIDTH - 16,
+                76,
+                OrbitalControlUiTheme.TEXT,
+                8,
+                TextWrap.WRAP);
+        previewCard.addChildren(mapRefresh, mapStatus, previewTitle, preview);
+
+        root.addChildren(targetCard, mapCard, previewCard);
+        ObjectArrayList<UIElement> interactive = new ObjectArrayList<>(11 + mapCells.size());
+        interactive.addAll(List.of(
+                dimension,
+                mode,
+                targetX,
+                targetZ,
+                targetYMode,
+                targetYValue,
+                radius,
+                depth,
+                refreshPreview,
+                confirm,
+                mapRefresh));
+        interactive.addAll(mapCells);
+        root.addEventListener(UIEvents.TICK, event -> {
+            if (!clientSide) {
+                return;
+            }
+            if (state.previewDraftChanged(() -> readDraft(
+                    state,
+                    dimension,
+                    targetX,
+                    targetZ,
+                    targetYValue,
+                    radius))) {
+                cancelClientHold(state, cancelHoldEmitter);
+            }
+            updateMapCells(state, mapCells, mapStatus);
+        });
+        return new View(
+                root,
+                preview,
+                radius,
+                depth,
+                interactive,
+                state,
+                cancelHoldEmitter,
+                clientSide);
+    }
+
+    private static ObjectArrayList<Button> createMapCells(
+                                                          ClientPanelState state,
+                                                          boolean clientSide,
+                                                          TextField dimension,
+                                                          TextField targetX,
+                                                          TextField targetZ,
+                                                          Selector<OrbitalTargetYMode> targetYMode,
+                                                          TextField targetYValue) {
+        ObjectArrayList<Button> cells = new ObjectArrayList<>((MAP_RADIUS * 2 + 1) * (MAP_RADIUS * 2 + 1));
+        for (int offsetZ = -MAP_RADIUS; offsetZ <= MAP_RADIUS; offsetZ++) {
+            for (int offsetX = -MAP_RADIUS; offsetX <= MAP_RADIUS; offsetX++) {
+                int cellOffsetX = offsetX;
+                int cellOffsetZ = offsetZ;
+                Button cell = OrbitalControlUiTheme.button(
+                        "orbital_fire_control_map_cell_" + (cellOffsetX + MAP_RADIUS) + "_" + (cellOffsetZ + MAP_RADIUS),
+                        Component.literal("?"),
+                        MAP_GRID_LEFT + (cellOffsetX + MAP_RADIUS) * MAP_CELL_SIZE,
+                        MAP_GRID_TOP + (cellOffsetZ + MAP_RADIUS) * MAP_CELL_SIZE,
+                        MAP_CELL_SIZE - 1,
+                        MAP_CELL_SIZE - 1,
+                        Tone.PANEL);
+                cell.setOnClick(event -> {
+                    if (clientSide && state.operable()) {
+                        selectMapCell(
+                                state,
+                                dimension,
+                                targetX,
+                                targetZ,
+                                targetYMode,
+                                targetYValue,
+                                cellOffsetX,
+                                cellOffsetZ);
+                    }
+                });
+                cells.add(cell);
+            }
+        }
+        return cells;
     }
 
     private static RPCEmitter previewEmitter(
@@ -405,29 +493,53 @@ final class OrbitalFireControlPanel {
                                                UIElement root,
                                                Player player,
                                                BooleanSupplier sourceValid) {
-        return root.addRPCEvent(RPCEventBuilder.simple(Integer.class, modeCode -> runServerRpc(player, "start confirmation hold", serverPlayer -> {
-            OrbitalAttackMode mode = OrbitalAttackMode.fromWireCode(modeCode);
-            if (!OrbitalControlActionDispatcher.startFireHold(serverPlayer, mode, sourceValid)) {
-                serverPlayer.displayClientMessage(
-                        Component.translatable(
-                                "message.data_energistics.orbital_control_terminal.preview_expired"),
-                        true);
-            }
-        })));
+        return root.addRPCEvent(RPCEventBuilder.create()
+                .args(Integer.class, String.class)
+                .executor(arguments -> {
+                    runServerRpc(player, "start confirmation hold", serverPlayer -> {
+                        OrbitalAttackMode mode = OrbitalAttackMode.fromWireCode((Integer) arguments[0]);
+                        UUID nonce = parseNonce((String) arguments[1]);
+                        if (!OrbitalControlActionDispatcher.startFireHold(serverPlayer, mode, nonce, sourceValid)) {
+                            serverPlayer.displayClientMessage(
+                                    Component.translatable("message.data_energistics.orbital_control_terminal.preview_expired"),
+                                    true);
+                        }
+                    });
+                    return null;
+                })
+                .build());
     }
 
     private static RPCEmitter releaseEmitter(
                                              UIElement root,
                                              Player player,
                                              BooleanSupplier sourceValid) {
-        return root.addRPCEvent(RPCEventBuilder.simple(Integer.class, modeCode -> runServerRpc(player, "release confirmation hold", serverPlayer -> OrbitalControlActionDispatcher.releaseFireAtTarget(
-                serverPlayer,
-                OrbitalAttackMode.fromWireCode(modeCode),
-                sourceValid))));
+        return root.addRPCEvent(RPCEventBuilder.create()
+                .args(Integer.class, String.class)
+                .executor(arguments -> {
+                    runServerRpc(player, "release confirmation hold", serverPlayer -> OrbitalControlActionDispatcher.releaseFireAtTarget(
+                            serverPlayer,
+                            OrbitalAttackMode.fromWireCode((Integer) arguments[0]),
+                            parseNonce((String) arguments[1]),
+                            sourceValid));
+                    return null;
+                })
+                .build());
     }
 
     private static RPCEmitter cancelHoldEmitter(UIElement root, Player player) {
-        return root.addRPCEvent(RPCEventBuilder.simple(Integer.class, ignored -> runServerRpc(player, "cancel confirmation hold", OrbitalControlActionDispatcher::cancelFireHold)));
+        return root.addRPCEvent(RPCEventBuilder.simple(Integer.class, ignored -> runServerRpc(
+                player,
+                "cancel confirmation hold",
+                OrbitalControlActionDispatcher::cancelFireHold)));
+    }
+
+    private static UUID parseNonce(String value) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Invalid orbital preview nonce", exception);
+        }
     }
 
     private static void runServerRpc(
@@ -462,7 +574,8 @@ final class OrbitalFireControlPanel {
                                          TextField targetZ,
                                          TextField targetY,
                                          TextField radius) {
-        if (dimension.isError() || targetX.isError() || targetZ.isError() || targetY.isError() || (state.mode() == OrbitalAttackMode.DIRECTED_ENERGY && radius.isError())) {
+        if (dimension.isError() || targetX.isError() || targetZ.isError() || targetY.isError() ||
+                (state.mode() == OrbitalAttackMode.DIRECTED_ENERGY && radius.isError())) {
             throw new IllegalArgumentException("Orbital target form contains an invalid value");
         }
         int directedRadius = 0;
@@ -490,10 +603,13 @@ final class OrbitalFireControlPanel {
                                           boolean clientSide,
                                           ClientPanelState state,
                                           RPCEmitter releaseEmitter) {
-        if (!clientSide || button != 0 || !state.holding()) {
+        if (!clientSide || button != 0) {
             return;
         }
-        releaseEmitter.send(state.takeHoldMode());
+        HoldRequest hold = state.takeHold();
+        if (hold != null) {
+            releaseEmitter.send(hold.modeCode(), hold.nonce().toString());
+        }
     }
 
     private static void cancelClientHold(ClientPanelState state, RPCEmitter cancelEmitter) {
@@ -504,8 +620,12 @@ final class OrbitalFireControlPanel {
         cancelEmitter.send(0);
     }
 
-    private static void requestMap(TextField dimension, TextField targetX, TextField targetZ) {
-        UUID weaponId = OrbitalControlHudClientState.selectedWeaponId();
+    private static void requestMap(
+                                   ClientPanelState state,
+                                   TextField dimension,
+                                   TextField targetX,
+                                   TextField targetZ) {
+        UUID weaponId = state.selectedWeaponId();
         if (weaponId == null || dimension.isError() || targetX.isError() || targetZ.isError()) {
             return;
         }
@@ -526,6 +646,11 @@ final class OrbitalFireControlPanel {
         }
         ChunkPos center = new ChunkPos(Math.floorDiv(x, 16), Math.floorDiv(z, 16));
         UUID sessionToken = OrbitalTacticalMapClientState.sessionTokenFor(weaponId, dimensionId);
+        long requestNonce = OrbitalTacticalMapClientState.nextRequestNonce();
+        OrbitalTacticalMapClientState.expectResponse(
+                weaponId,
+                dimensionId,
+                requestNonce);
         PacketDistributor.sendToServer(new OrbitalTacticalMapRequestPayload(
                 weaponId,
                 sessionToken,
@@ -533,7 +658,7 @@ final class OrbitalFireControlPanel {
                 center.x,
                 center.z,
                 MAP_RADIUS,
-                OrbitalTacticalMapClientState.nextRequestNonce()));
+                requestNonce));
     }
 
     private static void selectMapCell(
@@ -555,57 +680,41 @@ final class OrbitalFireControlPanel {
         targetX.setText(Integer.toString(chunkX * 16 + 8), false);
         targetZ.setText(Integer.toString(chunkZ * 16 + 8), false);
         if (tile.known()) {
-            state.selectTargetYMode(OrbitalTargetYMode.ABSOLUTE);
-            targetYMode.setSelected(OrbitalTargetYMode.ABSOLUTE, false);
-            targetYValue.setText(Integer.toString(tile.surfaceY()), false);
+            state.selectTargetYMode(OrbitalTargetYMode.SURFACE_OFFSET);
+            targetYMode.setSelected(OrbitalTargetYMode.SURFACE_OFFSET, false);
+            targetYValue.setText("0", false);
         }
     }
 
-    private static void updateMapCells(ObjectArrayList<Button> cells, Label status) {
+    private static void updateMapCells(
+                                       ClientPanelState state,
+                                       ObjectArrayList<Button> cells,
+                                       Label status) {
+        long revision = OrbitalTacticalMapClientState.revision();
+        if (!state.consumeMapRevision(revision)) {
+            return;
+        }
         int centerX = OrbitalTacticalMapClientState.centerChunkX();
         int centerZ = OrbitalTacticalMapClientState.centerChunkZ();
         int index = 0;
         for (int offsetZ = -MAP_RADIUS; offsetZ <= MAP_RADIUS; offsetZ++) {
             for (int offsetX = -MAP_RADIUS; offsetX <= MAP_RADIUS; offsetX++) {
-                cells.get(index++).setText(mapCellText(
+                cells.get(index++).setText(OrbitalTacticalMapClientState.cellComponent(
                         OrbitalTacticalMapClientState.tileAt(centerX + offsetX, centerZ + offsetZ)));
             }
         }
-        status.setValue(OrbitalTacticalMapClientState.revision() < 0L ? Component.translatable(TRANSLATION_PREFIX + "map.status") : OrbitalTacticalMapClientState.summary());
-    }
-
-    private static Component mapCellText(@Nullable OrbitalMapTile tile) {
-        if (tile == null) {
-            return Component.literal("?").withStyle(style -> style.withColor(0x777777));
-        }
-        char marker = tileMarker(tile);
-        int color = tile.known() ? tile.biomeColor() : 0x777777;
-        return Component.literal(Character.toString(marker)).withStyle(style -> style.withColor(color));
-    }
-
-    private static char tileMarker(OrbitalMapTile tile) {
-        if ((tile.markerFlags() & OrbitalMapTile.MARKER_ACTIVE_PUBLIC_ATTACK) != 0) {
-            return 'A';
-        }
-        if ((tile.markerFlags() & OrbitalMapTile.MARKER_PRIMARY_ANCHOR) != 0) {
-            return 'P';
-        }
-        if ((tile.markerFlags() & OrbitalMapTile.MARKER_UPLINK_BEACON) != 0) {
-            return 'B';
-        }
-        return tile.known() ? '.' : '?';
+        status.setValue(revision < 0L ? Component.translatable(PREFIX + "map.status") : Component.translatable(
+                PREFIX + "map.viewport",
+                OrbitalTacticalMapClientState.dimensionId(),
+                centerX,
+                centerZ));
     }
 
     private static TextField textField(String id, String initialValue, int left, int top, int width) {
         TextField field = new TextField();
         field.setId(id);
         field.setText(initialValue, false);
-        field.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(left)
-                .top(top)
-                .width(width)
-                .height(FIELD_HEIGHT));
+        OrbitalControlUiTheme.place(field, left, top, width, FIELD_HEIGHT);
         return field;
     }
 
@@ -636,64 +745,21 @@ final class OrbitalFireControlPanel {
         selector.setCandidateUIProvider(UIElementProvider.text(label));
         selector.setSelected(selected, false);
         selector.selectorStyle(style -> style.closeAfterSelect(true).maxItemCount(candidates.size()));
-        selector.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(left)
-                .top(top)
-                .width(width)
-                .height(FIELD_HEIGHT));
+        OrbitalControlUiTheme.place(selector, left, top, width, FIELD_HEIGHT);
         return selector;
     }
 
-    private static Label label(
-                               String id,
-                               String translationKey,
-                               int left,
-                               int top,
-                               int width,
-                               int height) {
-        Label label = new Label();
-        label.setId(id);
-        label.setText(Component.translatable(translationKey));
-        label.setAllowHitTest(false);
-        label.textStyle(style -> style
-                .adaptiveWidth(false)
-                .adaptiveHeight(false)
-                .textAlignHorizontal(Horizontal.LEFT)
-                .textAlignVertical(Vertical.CENTER)
-                .textWrap(TextWrap.HOVER_ROLL));
-        label.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(left)
-                .top(top)
-                .width(width)
-                .height(height));
-        return label;
-    }
-
-    private static Button button(String id, String translationKey, int left) {
-        Button button = new Button();
-        button.setId(id);
-        button.setText(Component.translatable(translationKey));
-        button.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(left)
-                .top(88)
-                .width(198)
-                .height(BUTTON_HEIGHT));
-        return button;
-    }
-
-    private static Component modeName(@Nullable OrbitalAttackMode mode) {
-        // LDLib2 may render a selector once on the server before its selected value is assigned.
-        if (mode == null) {
-            return Component.empty();
-        }
-        return Component.translatable(switch (mode) {
-            case KINETIC -> "screen.data_energistics.orbital_control_terminal.mode.kinetic";
-            case DIRECTED_ENERGY -> "screen.data_energistics.orbital_control_terminal.mode.directed_energy";
-            case DIGITAL_ANNIHILATION -> "screen.data_energistics.orbital_control_terminal.mode.digital_annihilation";
-        });
+    private static Label fieldLabel(String id, String translationKey, int left, int top, int width) {
+        return OrbitalControlUiTheme.label(
+                id,
+                Component.translatable(translationKey),
+                left,
+                top,
+                width,
+                FIELD_HEIGHT,
+                OrbitalControlUiTheme.MUTED_TEXT,
+                8,
+                TextWrap.HOVER_ROLL);
     }
 
     private static Component targetYModeName(@Nullable OrbitalTargetYMode mode) {
@@ -701,9 +767,13 @@ final class OrbitalFireControlPanel {
             return Component.empty();
         }
         return Component.translatable(switch (mode) {
-            case ABSOLUTE -> TRANSLATION_PREFIX + "y_mode.absolute";
-            case SURFACE_OFFSET -> TRANSLATION_PREFIX + "y_mode.surface_offset";
+            case ABSOLUTE -> PREFIX + "y_mode.absolute";
+            case SURFACE_OFFSET -> PREFIX + "y_mode.surface_offset";
         });
+    }
+
+    private static Component modeName(@Nullable OrbitalAttackMode mode) {
+        return mode == null ? Component.empty() : OrbitalControlPresentation.modeName(mode);
     }
 
     private static Component depthName(@Nullable OrbitalDirectedEnergyDepth depth) {
@@ -718,22 +788,97 @@ final class OrbitalFireControlPanel {
         });
     }
 
-    private record TargetDraft(
-                               OrbitalAttackMode mode,
-                               String dimension,
-                               int targetX,
-                               int targetZ,
-                               OrbitalTargetYMode targetYMode,
-                               int targetYValue,
-                               int directedRadius,
-                               int depthCode) {}
+    record TargetDraft(
+                       OrbitalAttackMode mode,
+                       String dimension,
+                       int targetX,
+                       int targetZ,
+                       OrbitalTargetYMode targetYMode,
+                       int targetYValue,
+                       int directedRadius,
+                       int depthCode) {}
+
+    record HoldRequest(int modeCode, UUID nonce) {}
+
+    static final class View {
+
+        private final UIElement root;
+        private final Label preview;
+        private final TextField radius;
+        private final Selector<OrbitalDirectedEnergyDepth> depth;
+        private final List<UIElement> interactive;
+        private final ClientPanelState state;
+        private final RPCEmitter cancelHoldEmitter;
+        private final boolean clientSide;
+
+        private View(
+                     UIElement root,
+                     Label preview,
+                     TextField radius,
+                     Selector<OrbitalDirectedEnergyDepth> depth,
+                     List<UIElement> interactive,
+                     ClientPanelState state,
+                     RPCEmitter cancelHoldEmitter,
+                     boolean clientSide) {
+            this.root = root;
+            this.preview = preview;
+            this.radius = radius;
+            this.depth = depth;
+            this.interactive = List.copyOf(interactive);
+            this.state = state;
+            this.cancelHoldEmitter = cancelHoldEmitter;
+            this.clientSide = clientSide;
+        }
+
+        UIElement root() {
+            return this.root;
+        }
+
+        void updateSnapshot(OrbitalControlTerminalSnapshot snapshot) {
+            UUID selectedWeaponId = snapshot.selectedWeaponId();
+            boolean changed = this.state.selectWeapon(selectedWeaponId);
+            boolean operable = snapshot.selectedWeapon().map(OrbitalControlTerminalSnapshot.WeaponEntry::canOperate).orElse(false);
+            this.state.setOperable(operable);
+            for (UIElement element : this.interactive) {
+                element.setActive(operable);
+            }
+            boolean directed = this.state.mode() == OrbitalAttackMode.DIRECTED_ENERGY;
+            this.radius.setActive(operable && directed);
+            this.depth.setActive(operable && directed);
+            if ((changed || !operable) && this.clientSide) {
+                cancelHold();
+            }
+            if (changed && this.clientSide) {
+                OrbitalTacticalMapClientState.clear();
+            }
+        }
+
+        void updatePreview(Component status) {
+            this.preview.setValue(status);
+        }
+
+        void updatePreviewNonce(String value) {
+            this.state.setPreviewNonce(value);
+        }
+
+        void cancelHold() {
+            if (this.clientSide) {
+                cancelClientHold(this.state, this.cancelHoldEmitter);
+            }
+        }
+    }
 
     private static final class ClientPanelState {
 
         private OrbitalAttackMode mode = OrbitalAttackMode.KINETIC;
         private OrbitalTargetYMode targetYMode = OrbitalTargetYMode.SURFACE_OFFSET;
         private OrbitalDirectedEnergyDepth depth = OrbitalDirectedEnergyDepth.DEPTH_32;
-        private int heldModeCode = NO_MODE;
+        private @Nullable UUID selectedWeaponId;
+        private @Nullable TargetDraft previewedDraft;
+        private @Nullable UUID previewNonce;
+        private @Nullable HoldRequest hold;
+        private long renderedMapRevision = Long.MIN_VALUE;
+        private boolean operable;
 
         private OrbitalAttackMode mode() {
             return this.mode;
@@ -745,6 +890,29 @@ final class OrbitalFireControlPanel {
 
         private OrbitalDirectedEnergyDepth depth() {
             return this.depth;
+        }
+
+        private @Nullable UUID selectedWeaponId() {
+            return this.selectedWeaponId;
+        }
+
+        private boolean selectWeapon(@Nullable UUID selectedWeaponId) {
+            if (Objects.equals(this.selectedWeaponId, selectedWeaponId)) {
+                return false;
+            }
+            this.selectedWeaponId = selectedWeaponId;
+            this.previewedDraft = null;
+            this.previewNonce = null;
+            this.renderedMapRevision = Long.MIN_VALUE;
+            return true;
+        }
+
+        private boolean operable() {
+            return this.operable;
+        }
+
+        private void setOperable(boolean operable) {
+            this.operable = operable;
         }
 
         private void selectMode(OrbitalAttackMode mode) {
@@ -759,23 +927,69 @@ final class OrbitalFireControlPanel {
             this.depth = depth;
         }
 
-        private int beginHold() {
-            this.heldModeCode = this.mode.wireCode();
-            return this.heldModeCode;
+        private void previewRequested(TargetDraft draft) {
+            this.previewedDraft = draft;
+            this.previewNonce = null;
+            this.hold = null;
+        }
+
+        private void setPreviewNonce(String value) {
+            this.previewNonce = value.isEmpty() ? null : parseNonce(value);
+            if (this.previewNonce == null) {
+                this.hold = null;
+            }
+        }
+
+        private HoldRequest beginHold(TargetDraft draft) {
+            if (this.previewNonce == null || !draft.equals(this.previewedDraft)) {
+                throw new IllegalArgumentException("Orbital confirmation has no matching target preview");
+            }
+            this.hold = new HoldRequest(this.mode.wireCode(), this.previewNonce);
+            return this.hold;
         }
 
         private boolean holding() {
-            return this.heldModeCode != NO_MODE;
+            return this.hold != null;
         }
 
-        private int takeHoldMode() {
-            int modeCode = this.heldModeCode;
-            this.heldModeCode = NO_MODE;
-            return modeCode;
+        private @Nullable HoldRequest takeHold() {
+            HoldRequest current = this.hold;
+            this.hold = null;
+            return current;
         }
 
         private void clearHold() {
-            this.heldModeCode = NO_MODE;
+            this.hold = null;
         }
+
+        private boolean previewDraftChanged(DraftSupplier currentDraft) {
+            if (this.previewedDraft == null) {
+                return false;
+            }
+            try {
+                if (this.previewedDraft.equals(currentDraft.get())) {
+                    return false;
+                }
+            } catch (IllegalArgumentException ignored) {
+                // An invalid edit invalidates the previously captured preview just like a valid different draft.
+            }
+            this.previewedDraft = null;
+            this.previewNonce = null;
+            return true;
+        }
+
+        private boolean consumeMapRevision(long revision) {
+            if (this.renderedMapRevision == revision) {
+                return false;
+            }
+            this.renderedMapRevision = revision;
+            return true;
+        }
+    }
+
+    @FunctionalInterface
+    private interface DraftSupplier {
+
+        TargetDraft get();
     }
 }

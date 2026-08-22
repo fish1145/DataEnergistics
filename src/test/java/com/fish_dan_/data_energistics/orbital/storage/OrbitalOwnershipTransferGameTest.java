@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfig
 import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackCost;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackRecord;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
@@ -130,7 +131,9 @@ public final class OrbitalOwnershipTransferGameTest {
                                 level.getBlockState(absoluteTarget).is(Blocks.STONE),
                                 "A disconnected owner must not leave a transferable deployed weapon for unilateral use");
                     } finally {
-                        OrbitalControlActionDispatcher.cancelOrAbortFirst(recipient);
+                        OrbitalControlActionDispatcher.cancelOrAbortSelectedMode(
+                                recipient,
+                                OrbitalAttackMode.DIGITAL_ANNIHILATION);
                     }
                 })
                 .thenSucceed();

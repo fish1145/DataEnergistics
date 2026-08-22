@@ -24,12 +24,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 
 import org.jspecify.annotations.Nullable;
 
-import java.util.Comparator;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
@@ -45,72 +42,9 @@ import java.util.function.BooleanSupplier;
  */
 public final class OrbitalControlActionDispatcher {
 
-    private static final double TARGET_DISTANCE = 256.0D;
-    private static final float TARGET_TICK_DELTA = 1.0F;
     private static final OrbitalAttackPreviewSessions PREVIEWS = new OrbitalAttackPreviewSessions();
 
     private OrbitalControlActionDispatcher() {}
-
-    /**
-     * Captures a server-side target preview. No reserve is debited until the matching release has held for the full
-     * confirmation interval.
-     */
-    public static void beginFireAtLookTarget(
-                                             ServerPlayer player,
-                                             OrbitalAttackMode mode,
-                                             BooleanSupplier sourceValid) {
-        MinecraftServer server = player.getServer();
-        if (server == null || !server.isSameThread() || !sourceValid.getAsBoolean()) {
-            return;
-        }
-        BlockPos target = blockTarget(player);
-        if (target == null) {
-            player.displayClientMessage(
-                    Component.translatable(
-                            "message.data_energistics.orbital_control_terminal.no_block_target"),
-                    true);
-            return;
-        }
-        OrbitalDirectedEnergyDepth depth = mode == OrbitalAttackMode.DIRECTED_ENERGY ? OrbitalDirectedEnergyDepth.DEPTH_32 : null;
-        int directedRadius = mode == OrbitalAttackMode.DIRECTED_ENERGY ? DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.directedEnergyMinimumRadius : 0;
-        beginFireAtTarget(
-                player,
-                mode,
-                player.level().dimension().location(),
-                target.getX(),
-                target.getZ(),
-                OrbitalTargetYMode.ABSOLUTE,
-                target.getY(),
-                directedRadius,
-                depth,
-                sourceValid);
-    }
-
-    /** Captures a map-selected target and immediately starts its confirmation hold. */
-    public static Optional<OrbitalAttackPreviewSessions.Preview> beginFireAtTarget(
-                                                                                   ServerPlayer player,
-                                                                                   OrbitalAttackMode mode,
-                                                                                   ResourceLocation dimensionId,
-                                                                                   int targetX,
-                                                                                   int targetZ,
-                                                                                   OrbitalTargetYMode targetYMode,
-                                                                                   int targetYValue,
-                                                                                   int directedRadius,
-                                                                                   @Nullable OrbitalDirectedEnergyDepth directedDepth,
-                                                                                   BooleanSupplier sourceValid) {
-        return captureFireTarget(
-                player,
-                mode,
-                dimensionId,
-                targetX,
-                targetZ,
-                targetYMode,
-                targetYValue,
-                directedRadius,
-                directedDepth,
-                sourceValid,
-                true);
-    }
 
     /** Captures a server-side preview without starting its independent 60-tick confirmation hold. */
     public static void previewFireAtTarget(
@@ -134,30 +68,29 @@ public final class OrbitalControlActionDispatcher {
                 targetYValue,
                 directedRadius,
                 directedDepth,
-                sourceValid,
-                false);
+                sourceValid);
     }
 
     /**
      * Captures a server-side preview for a map-selected target. Surface-relative height is resolved only from an
      * already loaded chunk; the map intent never causes an unbounded synchronous generation.
      */
-    private static Optional<OrbitalAttackPreviewSessions.Preview> captureFireTarget(
-                                                                                    ServerPlayer player,
-                                                                                    OrbitalAttackMode mode,
-                                                                                    ResourceLocation dimensionId,
-                                                                                    int targetX,
-                                                                                    int targetZ,
-                                                                                    OrbitalTargetYMode targetYMode,
-                                                                                    int targetYValue,
-                                                                                    int directedRadius,
-                                                                                    @Nullable OrbitalDirectedEnergyDepth directedDepth,
-                                                                                    BooleanSupplier sourceValid,
-                                                                                    boolean startHold) {
+    private static void captureFireTarget(
+                                          ServerPlayer player,
+                                          OrbitalAttackMode mode,
+                                          ResourceLocation dimensionId,
+                                          int targetX,
+                                          int targetZ,
+                                          OrbitalTargetYMode targetYMode,
+                                          int targetYValue,
+                                          int directedRadius,
+                                          @Nullable OrbitalDirectedEnergyDepth directedDepth,
+                                          BooleanSupplier sourceValid) {
         MinecraftServer server = player.getServer();
         if (server == null || !server.isSameThread() || !sourceValid.getAsBoolean()) {
-            return Optional.empty();
+            return;
         }
+        PREVIEWS.cancel(server, player.getUUID());
         DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
         boolean attackEnabled = switch (mode) {
             case KINETIC -> configuration.orbitalWeapon.kineticAttackEnabled;
@@ -165,7 +98,7 @@ public final class OrbitalControlActionDispatcher {
             case DIGITAL_ANNIHILATION -> configuration.orbitalWeapon.digitalAnnihilationAttackEnabled;
         };
         if (!attackEnabled) {
-            return Optional.empty();
+            return;
         }
         if (mode == OrbitalAttackMode.DIRECTED_ENERGY) {
             try {
@@ -173,18 +106,18 @@ public final class OrbitalControlActionDispatcher {
                         directedRadius,
                         configuration.orbitalWeapon);
             } catch (IllegalArgumentException | IllegalStateException exception) {
-                return Optional.empty();
+                return;
             }
             if (directedDepth == null) {
-                return Optional.empty();
+                return;
             }
         } else if (directedRadius != 0 || directedDepth != null) {
-            return Optional.empty();
+            return;
         }
         PREVIEWS.expire(server);
         ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
         if (targetLevel == null) {
-            return Optional.empty();
+            return;
         }
         int targetY;
         try {
@@ -193,7 +126,7 @@ public final class OrbitalControlActionDispatcher {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.target_out_of_bounds"),
                     true);
-            return Optional.empty();
+            return;
         }
         BlockPos target = new BlockPos(targetX, targetY, targetZ);
         int boundaryRadius = switch (mode) {
@@ -205,7 +138,7 @@ public final class OrbitalControlActionDispatcher {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.target_out_of_bounds"),
                     true);
-            return Optional.empty();
+            return;
         }
 
         OrbitalWeaponSavedData weaponData = OrbitalWeaponSavedData.get(server);
@@ -216,17 +149,17 @@ public final class OrbitalControlActionDispatcher {
                 .filter(candidate -> candidate.canPerform(player.getUUID(), OrbitalWeaponAction.FIRE))
                 .findFirst();
         if (weapon.isEmpty()) {
-            return Optional.empty();
+            return;
         }
         UUID weaponId = weapon.orElseThrow().weaponId();
         if (!weaponData.hasOnlineEndpoint(server, weaponId, dimensionId)) {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.endpoint_unavailable"),
                     true);
-            return Optional.empty();
+            return;
         }
         if (!PREVIEWS.acceptsBegin(server, player.getUUID())) {
-            return Optional.empty();
+            return;
         }
         try {
             OrbitalAttackPreviewEstimate estimate = OrbitalAttackPreviewEstimate.capture(
@@ -249,16 +182,11 @@ public final class OrbitalControlActionDispatcher {
                     configuration.revision(),
                     stateRevision(weapon.orElseThrow()),
                     estimate);
-            if (startHold && preview.isPresent() && !PREVIEWS.beginHold(server, player.getUUID(), mode)) {
-                PREVIEWS.cancel(server, player.getUUID());
-                return Optional.empty();
-            }
             preview.ifPresent(ignored -> player.displayClientMessage(
                     Component.translatable(
-                            startHold ? "message.data_energistics.orbital_control_terminal.preview_started" : "message.data_energistics.orbital_control_terminal.preview_ready",
+                            "message.data_energistics.orbital_control_terminal.preview_ready",
                             mode.name()),
                     true));
-            return preview;
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Orbital control target preview {} failed for player {} at {}",
@@ -266,7 +194,6 @@ public final class OrbitalControlActionDispatcher {
                     player.getUUID(),
                     target,
                     exception);
-            return Optional.empty();
         }
     }
 
@@ -298,12 +225,13 @@ public final class OrbitalControlActionDispatcher {
     public static boolean startFireHold(
                                         ServerPlayer player,
                                         OrbitalAttackMode mode,
+                                        UUID nonce,
                                         BooleanSupplier sourceValid) {
         MinecraftServer server = player.getServer();
         if (server == null || !server.isSameThread() || !sourceValid.getAsBoolean()) {
             return false;
         }
-        boolean started = PREVIEWS.beginHold(server, player.getUUID(), mode);
+        boolean started = PREVIEWS.beginHold(server, player.getUUID(), mode, nonce);
         if (started) {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.hold_started"),
@@ -326,12 +254,17 @@ public final class OrbitalControlActionDispatcher {
     public static void releaseFireAtTarget(
                                            ServerPlayer player,
                                            OrbitalAttackMode mode,
+                                           UUID nonce,
                                            BooleanSupplier sourceValid) {
         MinecraftServer server = player.getServer();
         if (server == null || !server.isSameThread()) {
             return;
         }
-        Optional<OrbitalAttackPreviewSessions.Preview> released = PREVIEWS.release(server, player.getUUID(), mode);
+        Optional<OrbitalAttackPreviewSessions.Preview> released = PREVIEWS.release(
+                server,
+                player.getUUID(),
+                mode,
+                nonce);
         if (released.isEmpty()) {
             if (sourceValid.getAsBoolean()) {
                 player.displayClientMessage(
@@ -409,12 +342,6 @@ public final class OrbitalControlActionDispatcher {
         }
     }
 
-    /** Cancels a player's uncommitted target hold without touching weapon reserves. */
-    public static boolean cancelFirePreview(ServerPlayer player) {
-        MinecraftServer server = player.getServer();
-        return server != null && server.isSameThread() && PREVIEWS.cancel(server, player.getUUID());
-    }
-
     /** Expires abandoned previews from the server tick lifecycle. */
     public static void expirePreviews(MinecraftServer server) {
         if (server.isSameThread()) {
@@ -478,6 +405,17 @@ public final class OrbitalControlActionDispatcher {
         return status;
     }
 
+    /** Returns the exact nonce required by the open menu's current preview, or an empty value when none exists. */
+    public static String currentPreviewNonce(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server == null || !server.isSameThread()) {
+            return "";
+        }
+        return PREVIEWS.current(server, player.getUUID())
+                .map(preview -> preview.nonce().toString())
+                .orElse("");
+    }
+
     private static Component modeName(OrbitalAttackMode mode) {
         return Component.translatable(switch (mode) {
             case KINETIC -> "screen.data_energistics.orbital_control_terminal.mode.kinetic";
@@ -507,88 +445,51 @@ public final class OrbitalControlActionDispatcher {
         if (server == null || !server.isSameThread()) {
             return Optional.empty();
         }
+        PREVIEWS.cancel(server, player.getUUID());
         return OrbitalWeaponSavedData.get(server).selectNext(server, player.getUUID(), forward);
     }
 
-    /**
-     * Cancels the first warning attack the player is currently authorized to cancel.
-     *
-     * @return true only after the warning escrow was refunded by the authoritative attack store
-     */
-    public static boolean cancelFirstWarning(ServerPlayer player) {
+    /** Cancels or aborts only the selected weapon's explicitly displayed mode task. */
+    public static boolean cancelOrAbortSelectedMode(ServerPlayer player, OrbitalAttackMode mode) {
         MinecraftServer server = player.getServer();
         if (server == null || !server.isSameThread()) {
             return false;
         }
-        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         try {
-            return OrbitalWeaponSavedData.get(server)
-                    .accessibleTo(player.getUUID())
-                    .stream()
-                    .flatMap(weapon -> attacks.forWeapon(weapon.weaponId()).stream())
-                    .filter(attack -> attack.phase() == OrbitalAttackPhase.RESERVED_WARNING)
-                    .sorted(Comparator.comparing(OrbitalAttackRecord::attackId))
-                    .map(attack -> attacks.cancelWarning(server, player.getUUID(), attack.attackId()))
-                    .filter(Boolean::booleanValue)
-                    .findFirst()
-                    .orElse(false);
+            OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+            UUID weaponId = weapons.preferredWeaponId(player.getUUID()).orElse(null);
+            if (weaponId == null) {
+                return false;
+            }
+            OrbitalAttackRecord matching = null;
+            for (OrbitalAttackRecord attack : OrbitalAttackSavedData.get(server).forWeapon(weaponId)) {
+                boolean actionable = attack.mode() == mode &&
+                        (attack.phase() == OrbitalAttackPhase.RESERVED_WARNING ||
+                                attack.phase() == OrbitalAttackPhase.COMMITTED ||
+                                attack.phase() == OrbitalAttackPhase.DELIVERY);
+                if (!actionable) {
+                    continue;
+                }
+                if (matching != null) {
+                    return false;
+                }
+                matching = attack;
+            }
+            if (matching == null) {
+                return false;
+            }
+            OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+            return matching.phase() == OrbitalAttackPhase.RESERVED_WARNING ?
+                    attacks.cancelWarning(server, player.getUUID(), matching.attackId()) :
+                    attacks.emergencyAbort(server, player.getUUID(), matching.attackId());
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
-                    "Orbital warning cancellation failed for player {}",
+                    "Orbital selected-mode safety action failed for player {} and mode {}",
                     player.getUUID(),
+                    mode,
                     exception);
             return false;
         }
-    }
-
-    /**
-     * Performs the button's stop action: refunds a warning when one exists, otherwise emergency-aborts the first
-     * committed or delivered attack. The server decides which weapon and attack are eligible.
-     */
-    public static boolean cancelOrAbortFirst(ServerPlayer player) {
-        if (cancelFirePreview(player)) {
-            return true;
-        }
-        if (cancelFirstWarning(player)) {
-            return true;
-        }
-        return emergencyAbortFirst(player);
-    }
-
-    /** Aborts the first active attack for which the player has the server-side emergency-abort permission. */
-    public static boolean emergencyAbortFirst(ServerPlayer player) {
-        MinecraftServer server = player.getServer();
-        if (server == null || !server.isSameThread()) {
-            return false;
-        }
-        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
-        try {
-            return OrbitalWeaponSavedData.get(server)
-                    .accessibleTo(player.getUUID())
-                    .stream()
-                    .flatMap(weapon -> attacks.forWeapon(weapon.weaponId()).stream())
-                    .filter(attack -> attack.phase() == OrbitalAttackPhase.COMMITTED || attack.phase() == OrbitalAttackPhase.DELIVERY)
-                    .sorted(Comparator.comparing(OrbitalAttackRecord::attackId))
-                    .map(attack -> attacks.emergencyAbort(server, player.getUUID(), attack.attackId()))
-                    .filter(Boolean::booleanValue)
-                    .findFirst()
-                    .orElse(false);
-        } catch (RuntimeException exception) {
-            Data_Energistics.LOGGER.error(
-                    "Orbital emergency abort failed for player {}",
-                    player.getUUID(),
-                    exception);
-            return false;
-        }
-    }
-
-    @Nullable
-    private static BlockPos blockTarget(ServerPlayer player) {
-        HitResult hit = player.pick(TARGET_DISTANCE, TARGET_TICK_DELTA, false);
-        if (hit.getType() != HitResult.Type.BLOCK || !(hit instanceof BlockHitResult blockHit)) {
-            return null;
-        }
-        return blockHit.getBlockPos().immutable();
     }
 
     private static boolean validTarget(ServerLevel level, BlockPos target, int radius) {

@@ -11,13 +11,16 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.List;
 import java.util.UUID;
 
 /** S2C revisioned tactical-map viewport; at most 64 cells travel in one packet. */
 public record OrbitalTacticalMapResponsePayload(
+                                                UUID weaponId,
                                                 UUID sessionToken,
+                                                long requestNonce,
                                                 long revision,
                                                 ResourceLocation dimensionId,
                                                 int centerChunkX,
@@ -35,7 +38,9 @@ public record OrbitalTacticalMapResponsePayload(
 
     public OrbitalTacticalMapResponsePayload(OrbitalTacticalMapSnapshot snapshot) {
         this(
+                snapshot.weaponId(),
                 snapshot.sessionToken(),
+                snapshot.requestNonce(),
                 snapshot.revision(),
                 snapshot.dimensionId(),
                 snapshot.centerChunkX(),
@@ -46,8 +51,11 @@ public record OrbitalTacticalMapResponsePayload(
 
     public OrbitalTacticalMapResponsePayload {
         tiles = List.copyOf(tiles);
+        if (requestNonce <= 0L || revision < 0L || radius < 0 || radius > 3) {
+            throw new IllegalArgumentException("Orbital tactical-map response is outside its bounded viewport");
+        }
         int expected = (radius * 2 + 1) * (radius * 2 + 1);
-        if (revision < 0L || radius < 0 || radius > 3 || tiles.size() != expected || tiles.size() > MAX_TILES) {
+        if (tiles.size() != expected || tiles.size() > MAX_TILES) {
             throw new IllegalArgumentException("Orbital tactical-map response is outside its bounded viewport");
         }
     }
@@ -55,6 +63,8 @@ public record OrbitalTacticalMapResponsePayload(
     private OrbitalTacticalMapResponsePayload(RegistryFriendlyByteBuf buffer) {
         this(
                 buffer.readUUID(),
+                buffer.readUUID(),
+                buffer.readVarLong(),
                 buffer.readVarLong(),
                 buffer.readResourceLocation(),
                 buffer.readVarInt(),
@@ -64,7 +74,9 @@ public record OrbitalTacticalMapResponsePayload(
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
+        buffer.writeUUID(this.weaponId);
         buffer.writeUUID(this.sessionToken);
+        buffer.writeVarLong(this.requestNonce);
         buffer.writeVarLong(this.revision);
         buffer.writeResourceLocation(this.dimensionId);
         buffer.writeVarInt(this.centerChunkX);
@@ -97,7 +109,7 @@ public record OrbitalTacticalMapResponsePayload(
         if (count < 0 || count > MAX_TILES) {
             throw new IllegalArgumentException("Orbital tactical-map tile count exceeds " + MAX_TILES);
         }
-        ArrayList<OrbitalMapTile> tiles = new ArrayList<>(count);
+        ObjectArrayList<OrbitalMapTile> tiles = new ObjectArrayList<>(count);
         for (int index = 0; index < count; index++) {
             int chunkX = buffer.readVarInt();
             int chunkZ = buffer.readVarInt();
@@ -111,6 +123,6 @@ public record OrbitalTacticalMapResponsePayload(
             int markerFlags = buffer.readVarInt();
             tiles.add(known ? new OrbitalMapTile(chunkX, chunkZ, true, surfaceY, biomeColor, markerFlags) : OrbitalMapTile.unknown(chunkX, chunkZ, markerFlags));
         }
-        return List.copyOf(tiles);
+        return tiles;
     }
 }

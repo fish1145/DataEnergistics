@@ -57,7 +57,7 @@ public final class OrbitalControlTerminalItem extends Item implements HeldItemUI
     public ModularUI createUI(HeldItemUIMenuType.HeldItemUIHolder holder) {
         return OrbitalControlUiFactory.create(
                 holder.player,
-                () -> snapshot(holder).toComponent(),
+                () -> snapshot(holder),
                 () -> stillValid(holder));
     }
 

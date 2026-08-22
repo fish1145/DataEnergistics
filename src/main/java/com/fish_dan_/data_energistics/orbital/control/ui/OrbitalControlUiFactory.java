@@ -1,7 +1,8 @@
 package com.fish_dan_.data_energistics.orbital.control.ui;
 
-import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
+import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiTheme.Tone;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,304 +12,259 @@ import com.lowdragmc.lowdraglib2.gui.sync.SyncValue;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
-import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
-import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
-import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
-/**
- * Builds the shared LDLib2 control surface used by a handheld terminal and its bound console.
- *
- * <p>
- * The status supplier is server-side only and must resolve the current player UUID against authoritative
- * {@code SavedData}. The factory deliberately does not retain a weapon ID in the item stack or client UI tree.
- * </p>
- */
+/** Builds the one LDLib2 control surface shared by a handheld terminal and bound console. */
 public final class OrbitalControlUiFactory {
 
-    private static final String STATUS_SYNC_NAME = "orbital_control_terminal_status";
-    private static final String PREVIEW_SYNC_NAME = "orbital_control_terminal_preview";
-    private static final int UI_WIDTH = 420;
-    private static final int UI_HEIGHT = 480;
-    private static final int PAGE_TOP = 58;
-    private static final int PAGE_HEIGHT = 412;
-    private static final int SELECTOR_TOP = 172;
-    private static final int FIRE_CONTROL_TOP = 0;
-    private static final int PREVIEW_TOP = OrbitalFireControlPanel.HEIGHT + 6;
-    private static final int ACTION_TOP = 204;
-    private static final int ACTION_HEIGHT = 22;
-    private static final int ACTION_GAP = 4;
-    private static final int ACTION_WIDTH = 98;
+    private static final String SNAPSHOT_SYNC_NAME = "orbital_control_snapshot";
+    private static final String PREVIEW_SYNC_NAME = "orbital_control_preview";
+    private static final String PREVIEW_NONCE_SYNC_NAME = "orbital_control_preview_nonce";
+    private static final int UI_WIDTH = 540;
+    private static final int UI_HEIGHT = 360;
+    private static final int HEADER_HEIGHT = 34;
+    private static final int SIDEBAR_LEFT = 8;
+    private static final int SIDEBAR_TOP = 42;
+    private static final int SIDEBAR_WIDTH = 112;
+    private static final int CONTENT_LEFT = 120;
+    private static final int CONTENT_TOP = 42;
 
     private OrbitalControlUiFactory() {}
 
     /**
-     * Creates the shared component tree and its server-to-client status synchronization.
-     *
-     * @param player         player owning the menu lifecycle
-     * @param statusSupplier authoritative status supplier, invoked only on the logical server
-     * @param sourceValid    authoritative check that the terminal or console is still the active control source
-     * @return a new LDLib2 modular UI instance
+     * Creates one typed, server-authoritative UI tree. Entry points differ only in their source-validity predicate.
      */
     public static ModularUI create(
                                    Player player,
-                                   Supplier<Component> statusSupplier,
+                                   Supplier<OrbitalControlTerminalSnapshot> snapshotSupplier,
                                    BooleanSupplier sourceValid) {
+        OrbitalControlUiSyncAccessors.init();
         boolean clientSide = player.level().isClientSide();
+        OrbitalControlTerminalSnapshot initialSnapshot = clientSide ?
+                OrbitalControlTerminalSnapshot.EMPTY : snapshotSupplier.get();
+
         UIElement root = new UIElement();
-        root.setId("orbital_control_terminal_root");
+        root.setId("orbital_control_root");
         root.layout(layout -> layout.width(UI_WIDTH).height(UI_HEIGHT));
+        OrbitalControlUiTheme.stylePanel(root, Tone.SHELL);
 
-        Label title = new Label();
-        title.setId("orbital_control_terminal_title");
-        title.setValue(Component.translatable("screen.data_energistics.orbital_control_terminal.title"));
-        title.setAllowHitTest(false);
-        title.textStyle(style -> style
-                .adaptiveWidth(false)
-                .adaptiveHeight(false)
-                .textAlignHorizontal(Horizontal.CENTER)
-                .textAlignVertical(Vertical.CENTER));
-        title.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(8)
-                .top(8)
-                .width(UI_WIDTH - 16)
-                .height(18));
+        UIElement header = OrbitalControlUiTheme.panel(
+                "orbital_control_header",
+                0,
+                0,
+                UI_WIDTH,
+                HEADER_HEIGHT,
+                Tone.ACCENT);
+        Label title = OrbitalControlUiTheme.label(
+                "orbital_control_title",
+                Component.translatable("screen.data_energistics.orbital_control_terminal.title"),
+                12,
+                8,
+                250,
+                18,
+                OrbitalControlUiTheme.TEXT,
+                12,
+                TextWrap.HOVER_ROLL);
+        Label subtitle = OrbitalControlUiTheme.label(
+                "orbital_control_subtitle",
+                Component.translatable("screen.data_energistics.orbital_control_terminal.subtitle"),
+                270,
+                10,
+                UI_WIDTH - 282,
+                16,
+                OrbitalControlUiTheme.MUTED_TEXT,
+                8,
+                TextWrap.HOVER_ROLL);
+        header.addChildren(title, subtitle);
 
-        UIElement overviewPage = new UIElement();
-        overviewPage.setId("orbital_control_terminal_overview_page");
-        overviewPage.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(PAGE_TOP)
-                .width(UI_WIDTH)
-                .height(PAGE_HEIGHT));
-
-        UIElement fireControlPage = new UIElement();
-        fireControlPage.setId("orbital_control_terminal_fire_control_page");
-        fireControlPage.setDisplay(false);
-        fireControlPage.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(0)
-                .top(PAGE_TOP)
-                .width(UI_WIDTH)
-                .height(PAGE_HEIGHT));
+        UIElement sidebar = OrbitalControlUiTheme.panel(
+                "orbital_control_sidebar",
+                SIDEBAR_LEFT,
+                SIDEBAR_TOP,
+                SIDEBAR_WIDTH - 8,
+                OrbitalControlOverviewPanel.HEIGHT,
+                Tone.PANEL_ALT);
+        Label selectorTitle = OrbitalControlUiTheme.label(
+                "orbital_control_selector_title",
+                Component.translatable("screen.data_energistics.orbital_control_terminal.selector.title"),
+                8,
+                10,
+                SIDEBAR_WIDTH - 24,
+                14,
+                OrbitalControlUiTheme.ACCENT_TEXT,
+                9,
+                TextWrap.HOVER_ROLL);
+        Label selectorPosition = OrbitalControlUiTheme.label(
+                "orbital_control_selector_position",
+                Component.empty(),
+                8,
+                30,
+                SIDEBAR_WIDTH - 24,
+                28,
+                OrbitalControlUiTheme.TEXT,
+                9,
+                TextWrap.WRAP);
+        Button previousWeapon = OrbitalControlUiTheme.button(
+                "orbital_control_previous_weapon",
+                Component.translatable("screen.data_energistics.orbital_control_terminal.action.previous_weapon"),
+                8,
+                64,
+                42,
+                22,
+                Tone.PANEL);
+        Button nextWeapon = OrbitalControlUiTheme.button(
+                "orbital_control_next_weapon",
+                Component.translatable("screen.data_energistics.orbital_control_terminal.action.next_weapon"),
+                54,
+                64,
+                42,
+                22,
+                Tone.PANEL);
+        previousWeapon.setOnServerClick(event -> cycleWeapon(player, false, sourceValid));
+        nextWeapon.setOnServerClick(event -> cycleWeapon(player, true, sourceValid));
 
         Button overviewTab = pageButton(
-                "orbital_control_terminal_overview_tab",
+                "orbital_control_overview_tab",
                 "screen.data_energistics.orbital_control_terminal.page.overview",
-                8);
+                100);
         Button fireControlTab = pageButton(
-                "orbital_control_terminal_fire_control_tab",
+                "orbital_control_fire_control_tab",
                 "screen.data_energistics.orbital_control_terminal.page.fire_control",
-                214);
+                130);
+        Label navigationHint = OrbitalControlUiTheme.label(
+                "orbital_control_navigation_hint",
+                Component.translatable("screen.data_energistics.orbital_control_terminal.navigation.hint"),
+                8,
+                168,
+                SIDEBAR_WIDTH - 24,
+                120,
+                OrbitalControlUiTheme.MUTED_TEXT,
+                8,
+                TextWrap.WRAP);
+        sidebar.addChildren(
+                selectorTitle,
+                selectorPosition,
+                previousWeapon,
+                nextWeapon,
+                overviewTab,
+                fireControlTab,
+                navigationHint);
+
+        OrbitalControlOverviewPanel overview = OrbitalControlOverviewPanel.create(player, sourceValid);
+        OrbitalControlUiTheme.place(
+                overview.root(),
+                CONTENT_LEFT,
+                CONTENT_TOP,
+                OrbitalControlOverviewPanel.WIDTH,
+                OrbitalControlOverviewPanel.HEIGHT);
+        OrbitalFireControlPanel.View fireControl = OrbitalFireControlPanel.create(
+                root,
+                player,
+                sourceValid,
+                clientSide);
+        OrbitalControlUiTheme.place(
+                fireControl.root(),
+                CONTENT_LEFT,
+                CONTENT_TOP,
+                OrbitalFireControlPanel.WIDTH,
+                OrbitalFireControlPanel.HEIGHT);
+        fireControl.root().setDisplay(false);
+
         overviewTab.setOnClick(event -> {
             if (clientSide) {
-                overviewPage.setDisplay(true);
-                fireControlPage.setDisplay(false);
+                fireControl.cancelHold();
+                overview.root().setDisplay(true);
+                fireControl.root().setDisplay(false);
             }
         });
         fireControlTab.setOnClick(event -> {
             if (clientSide) {
-                overviewPage.setDisplay(false);
-                fireControlPage.setDisplay(true);
+                overview.root().setDisplay(false);
+                fireControl.root().setDisplay(true);
             }
         });
 
-        Label status = new Label();
-        status.setId("orbital_control_terminal_status");
-        status.setAllowHitTest(false);
-        status.textStyle(style -> style
-                .adaptiveWidth(false)
-                .adaptiveHeight(false)
-                .textAlignHorizontal(Horizontal.LEFT)
-                .textAlignVertical(Vertical.TOP)
-                .textWrap(TextWrap.WRAP));
-        status.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(8)
-                .top(0)
-                .width(UI_WIDTH - 16)
-                .height(164));
+        root.addChildren(header, sidebar, overview.root(), fireControl.root());
+        updateSnapshot(initialSnapshot, overview, fireControl, selectorPosition, previousWeapon, nextWeapon);
 
-        Button previousWeapon = selectionButton(
-                "orbital_control_terminal_previous_weapon",
-                "screen.data_energistics.orbital_control_terminal.action.previous_weapon",
-                8,
-                player,
-                false);
-        Button nextWeapon = selectionButton(
-                "orbital_control_terminal_next_weapon",
-                "screen.data_energistics.orbital_control_terminal.action.next_weapon",
-                112,
-                player,
-                true);
-
-        UIElement fireControl = OrbitalFireControlPanel.create(root, player, sourceValid, clientSide);
-        fireControl.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(8)
-                .top(FIRE_CONTROL_TOP));
-
-        Label preview = new Label();
-        preview.setId("orbital_control_terminal_preview");
-        preview.setAllowHitTest(false);
-        preview.textStyle(style -> style
-                .adaptiveWidth(false)
-                .adaptiveHeight(false)
-                .textAlignHorizontal(Horizontal.LEFT)
-                .textAlignVertical(Vertical.TOP)
-                .textWrap(TextWrap.WRAP));
-        preview.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(8)
-                .top(PREVIEW_TOP)
-                .width(UI_WIDTH - 16)
-                .height(PAGE_HEIGHT - PREVIEW_TOP));
-
-        Button kinetic = actionButton(
-                "orbital_control_terminal_kinetic",
-                "screen.data_energistics.orbital_control_terminal.action.kinetic",
-                8,
-                player,
-                sourceValid,
-                OrbitalAttackMode.KINETIC);
-        Button directed = actionButton(
-                "orbital_control_terminal_directed",
-                "screen.data_energistics.orbital_control_terminal.action.directed_energy",
-                8 + ACTION_WIDTH + ACTION_GAP,
-                player,
-                sourceValid,
-                OrbitalAttackMode.DIRECTED_ENERGY);
-        Button digital = actionButton(
-                "orbital_control_terminal_digital",
-                "screen.data_energistics.orbital_control_terminal.action.digital_annihilation",
-                8 + (ACTION_WIDTH + ACTION_GAP) * 2,
-                player,
-                sourceValid,
-                OrbitalAttackMode.DIGITAL_ANNIHILATION);
-        Button cancel = new Button();
-        cancel.setId("orbital_control_terminal_cancel");
-        cancel.setText(Component.translatable("screen.data_energistics.orbital_control_terminal.action.stop"));
-        cancel.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(8 + (ACTION_WIDTH + ACTION_GAP) * 3)
-                .top(ACTION_TOP)
-                .width(ACTION_WIDTH)
-                .height(ACTION_HEIGHT));
-        cancel.setOnServerClick(event -> {
-            if (player instanceof ServerPlayer serverPlayer) {
-                if (!OrbitalControlActionDispatcher.cancelOrAbortFirst(serverPlayer)) {
-                    serverPlayer.displayClientMessage(
-                            Component.translatable("message.data_energistics.orbital_control_terminal.cancel_rejected"),
-                            true);
-                }
-            }
-        });
-        overviewPage.addChildren(
-                status,
+        SyncValue<OrbitalControlTerminalSnapshot> snapshotSync = new SyncValue<>(
+                SNAPSHOT_SYNC_NAME,
+                OrbitalControlTerminalSnapshot.class,
+                initialSnapshot);
+        snapshotSync.setToSync(!clientSide);
+        snapshotSync.setAcceptSync(clientSide);
+        snapshotSync.addListener(snapshot -> updateSnapshot(
+                snapshot,
+                overview,
+                fireControl,
+                selectorPosition,
                 previousWeapon,
-                nextWeapon,
-                kinetic,
-                directed,
-                digital,
-                cancel);
-        fireControlPage.addChildren(fireControl, preview);
-        root.addChildren(title, overviewTab, fireControlTab, overviewPage, fireControlPage);
-
-        SyncValue<Component> statusSync = new SyncValue<>(STATUS_SYNC_NAME, Component.class, Component.empty());
-        statusSync.setToSync(!clientSide);
-        statusSync.setAcceptSync(clientSide);
-        statusSync.addListener(status::setValue);
+                nextWeapon));
         if (!clientSide) {
-            statusSync.setValueProvider(statusSupplier);
-            statusSync.setValue(statusSupplier.get());
+            snapshotSync.setValueProvider(snapshotSupplier);
         }
 
-        SyncValue<Component> previewSync = new SyncValue<>(PREVIEW_SYNC_NAME, Component.class, Component.empty());
+        SyncValue<Component> previewSync = new SyncValue<>(
+                PREVIEW_SYNC_NAME,
+                Component.class,
+                Component.translatable("screen.data_energistics.orbital_control_terminal.preview.none"));
         previewSync.setToSync(!clientSide);
         previewSync.setAcceptSync(clientSide);
-        previewSync.addListener(preview::setValue);
+        previewSync.addListener(fireControl::updatePreview);
+
+        SyncValue<String> previewNonceSync = new SyncValue<>(PREVIEW_NONCE_SYNC_NAME, String.class, "");
+        previewNonceSync.setToSync(!clientSide);
+        previewNonceSync.setAcceptSync(clientSide);
+        previewNonceSync.addListener(fireControl::updatePreviewNonce);
         if (!clientSide) {
             ServerPlayer serverPlayer = (ServerPlayer) player;
             previewSync.setValueProvider(() -> OrbitalControlActionDispatcher.currentPreviewStatus(serverPlayer));
-            previewSync.setValue(OrbitalControlActionDispatcher.currentPreviewStatus(serverPlayer));
+            previewNonceSync.setValueProvider(() -> OrbitalControlActionDispatcher.currentPreviewNonce(serverPlayer));
+            fireControl.updatePreview(OrbitalControlActionDispatcher.currentPreviewStatus(serverPlayer));
+            fireControl.updatePreviewNonce(OrbitalControlActionDispatcher.currentPreviewNonce(serverPlayer));
         }
 
         ModularUI modularUI = ModularUI.of(UI.of(root), player);
-        modularUI.syncManager.registerSyncValue(statusSync);
+        modularUI.syncManager.registerSyncValue(snapshotSync);
         modularUI.syncManager.registerSyncValue(previewSync);
+        modularUI.syncManager.registerSyncValue(previewNonceSync);
         return modularUI;
     }
 
-    private static Button pageButton(String id, String translationKey, int left) {
-        Button button = new Button();
-        button.setId(id);
-        button.setText(Component.translatable(translationKey));
-        button.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(left)
-                .top(30)
-                .width(198)
-                .height(ACTION_HEIGHT));
-        return button;
+    private static Button pageButton(String id, String translationKey, int top) {
+        return OrbitalControlUiTheme.button(
+                id,
+                Component.translatable(translationKey),
+                8,
+                top,
+                SIDEBAR_WIDTH - 24,
+                24,
+                Tone.PANEL);
     }
 
-    private static Button actionButton(
-                                       String id,
-                                       String translationKey,
-                                       int left,
-                                       Player player,
-                                       BooleanSupplier sourceValid,
-                                       OrbitalAttackMode mode) {
-        Button button = new Button();
-        button.setId(id);
-        button.setText(Component.translatable(translationKey));
-        button.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(left)
-                .top(ACTION_TOP)
-                .width(ACTION_WIDTH)
-                .height(ACTION_HEIGHT));
-        button.addServerEventListener(UIEvents.MOUSE_DOWN, event -> {
-            if (player instanceof ServerPlayer serverPlayer && sourceValid.getAsBoolean()) {
-                OrbitalControlActionDispatcher.beginFireAtLookTarget(serverPlayer, mode, sourceValid);
-            }
-        });
-        button.addServerEventListener(UIEvents.MOUSE_UP, event -> {
-            if (player instanceof ServerPlayer serverPlayer) {
-                OrbitalControlActionDispatcher.releaseFireAtTarget(serverPlayer, mode, sourceValid);
-            }
-        });
-        return button;
+    private static void cycleWeapon(Player player, boolean forward, BooleanSupplier sourceValid) {
+        if (player instanceof ServerPlayer serverPlayer && sourceValid.getAsBoolean()) {
+            OrbitalControlActionDispatcher.cycleWeapon(serverPlayer, forward);
+        }
     }
 
-    private static Button selectionButton(
-                                          String id,
-                                          String translationKey,
-                                          int left,
-                                          Player player,
-                                          boolean forward) {
-        Button button = new Button();
-        button.setId(id);
-        button.setText(Component.translatable(translationKey));
-        button.layout(layout -> layout
-                .positionType(TaffyPosition.ABSOLUTE)
-                .left(left)
-                .top(SELECTOR_TOP)
-                .width(96)
-                .height(ACTION_HEIGHT));
-        button.setOnServerClick(event -> {
-            if (player instanceof ServerPlayer serverPlayer) {
-                OrbitalControlActionDispatcher.cycleWeapon(serverPlayer, forward);
-            }
-        });
-        return button;
+    private static void updateSnapshot(
+                                       OrbitalControlTerminalSnapshot snapshot,
+                                       OrbitalControlOverviewPanel overview,
+                                       OrbitalFireControlPanel.View fireControl,
+                                       Label selectorPosition,
+                                       Button previousWeapon,
+                                       Button nextWeapon) {
+        overview.update(snapshot);
+        fireControl.updateSnapshot(snapshot);
+        selectorPosition.setValue(OrbitalControlPresentation.selectorPosition(snapshot));
+        boolean multipleWeapons = snapshot.weapons().size() > 1;
+        previousWeapon.setActive(multipleWeapons);
+        nextWeapon.setActive(multipleWeapons);
     }
 }
