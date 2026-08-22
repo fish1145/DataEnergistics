@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.item.orbital;
 
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiFactory;
-import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -28,11 +27,6 @@ public final class OrbitalControlTerminalItem extends Item implements HeldItemUI
 
     public OrbitalControlTerminalItem(Properties properties) {
         super(properties.stacksTo(1));
-    }
-
-    /** Returns whether the player is holding the authoritative handheld control source in either hand. */
-    public static boolean isHeldBy(ServerPlayer player) {
-        return player.getMainHandItem().is(DEItems.ORBITAL_CONTROL_TERMINAL.get()) || player.getOffhandItem().is(DEItems.ORBITAL_CONTROL_TERMINAL.get());
     }
 
     @Override

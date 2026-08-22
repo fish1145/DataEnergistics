@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.integration.curios.CuriosOrbitalControlTerminalAccess;
+import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlPlayerMenu;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
@@ -26,6 +28,7 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.mojang.authlib.GameProfile;
+import top.theillusivec4.curios.api.CuriosApi;
 
 import java.util.List;
 import java.util.OptionalInt;
@@ -129,6 +132,68 @@ public final class OrbitalControlTerminalGameTest {
         OrbitalControlTerminalSnapshot afterRevoke = OrbitalControlTerminalSnapshot.capture(server, player.getUUID());
         helper.assertValueEqual(afterRevoke.weapons().size(), 1, "Revoking access must remove the selected weapon");
         helper.assertValueEqual(afterRevoke.selectedWeaponId(), owned.weaponId(), "Selection must fall back to the owned weapon");
+        helper.succeed();
+    }
+
+    @TestHolder("orbital_control_terminal_curios_source_opens_and_invalidates_shared_menu")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void curiosSourceOpensAndInvalidatesSharedMenu(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(server);
+
+        ServerPlayer owner = createPlayer(level, "curios-terminal-owner");
+        data.createForOwner(server, owner.getUUID());
+        var ownerCurios = CuriosApi.getCuriosInventory(owner).orElseThrow();
+        ownerCurios.setEquippedCurio(
+                CuriosOrbitalControlTerminalAccess.SLOT_ID,
+                0,
+                DEItems.ORBITAL_CONTROL_TERMINAL.toStack());
+        helper.assertTrue(
+                OrbitalControlPlayerMenu.open(owner),
+                "A terminal in the dedicated Curios slot must open the shared LDLib2 player menu");
+        AbstractContainerMenu ownerMenu = requireMenu(helper, owner, "Curios owner");
+        helper.assertTrue(ownerMenu.stillValid(owner), "The Curios-backed menu must remain valid while equipped");
+
+        ownerCurios.setEquippedCurio(CuriosOrbitalControlTerminalAccess.SLOT_ID, 0, ItemStack.EMPTY);
+        helper.assertFalse(
+                ownerMenu.stillValid(owner),
+                "Removing the only Curios terminal must invalidate the open player menu");
+        owner.setItemInHand(InteractionHand.MAIN_HAND, DEItems.ORBITAL_CONTROL_TERMINAL.toStack());
+        helper.assertTrue(
+                ownerMenu.stillValid(owner),
+                "A handheld terminal must preserve the same menu after the Curios source is removed");
+        closeMenu(owner, ownerMenu);
+
+        ServerPlayer operator = createPlayer(level, "curios-terminal-operator");
+        OrbitalWeaponRecord shared = data.createForOwner(server, UUID.randomUUID());
+        data.authorize(server, shared.weaponId(), shared.ownerId(), operator.getUUID(), OrbitalAccessRole.OPERATOR);
+        CuriosApi.getCuriosInventory(operator).orElseThrow().setEquippedCurio(
+                CuriosOrbitalControlTerminalAccess.SLOT_ID,
+                0,
+                DEItems.ORBITAL_CONTROL_TERMINAL.toStack());
+        helper.assertTrue(
+                OrbitalControlPlayerMenu.open(operator),
+                "A delegated operator must open the same Curios-backed control menu");
+        AbstractContainerMenu operatorMenu = requireMenu(helper, operator, "Curios operator");
+        data.revoke(server, shared.weaponId(), shared.ownerId(), operator.getUUID());
+        helper.assertFalse(
+                operatorMenu.stillValid(operator),
+                "Revoking weapon access must invalidate the Curios-backed menu even while the terminal stays equipped");
+        closeMenu(operator, operatorMenu);
+
+        ServerPlayer outsider = createPlayer(level, "curios-terminal-outsider");
+        CuriosApi.getCuriosInventory(outsider).orElseThrow().setEquippedCurio(
+                CuriosOrbitalControlTerminalAccess.SLOT_ID,
+                0,
+                DEItems.ORBITAL_CONTROL_TERMINAL.toStack());
+        helper.assertFalse(
+                OrbitalControlPlayerMenu.open(outsider),
+                "A Curios terminal must not open fire control for a player without weapon access");
+        helper.assertTrue(
+                outsider.containerMenu == outsider.inventoryMenu,
+                "A rejected Curios open intent must keep the normal inventory menu");
         helper.succeed();
     }
 

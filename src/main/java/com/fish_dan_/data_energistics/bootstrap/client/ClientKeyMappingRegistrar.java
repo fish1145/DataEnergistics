@@ -12,5 +12,7 @@ final class ClientKeyMappingRegistrar {
         event.register(DEKeyMappings.OPEN_PATTERN_PROVIDER);
         event.register(DEKeyMappings.RENAME_PATTERN_PROVIDER);
         event.register(DEKeyMappings.TOGGLE_DIGITAL_STORAGE_DEPOT_BUCKET_MODE);
+        event.register(DEKeyMappings.OPEN_ORBITAL_CONTROL);
+        event.register(DEKeyMappings.TOGGLE_ORBITAL_CONTROL_HUD);
     }
 }

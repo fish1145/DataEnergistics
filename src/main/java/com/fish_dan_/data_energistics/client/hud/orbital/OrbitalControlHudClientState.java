@@ -11,6 +11,7 @@ public final class OrbitalControlHudClientState {
 
     private static long revision = -1L;
     private static boolean visible;
+    private static boolean userEnabled = true;
     private static Component status = Component.empty();
 
     private OrbitalControlHudClientState() {}
@@ -32,11 +33,15 @@ public final class OrbitalControlHudClientState {
     }
 
     public static boolean visible() {
-        return visible;
+        return visible && userEnabled;
     }
 
     @Nullable
     public static Component status() {
-        return visible ? status : null;
+        return visible() ? status : null;
+    }
+
+    public static void toggleUserEnabled() {
+        userEnabled = !userEnabled;
     }
 }

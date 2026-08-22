@@ -15,6 +15,7 @@ dependencies {
     // Misc libraries
     compileOnly(forge.jech)
     compileOnly(forge.curios)
+    testCompileOnly(forge.curios)
 
     // AE2
     accessCompileOnly(forge.ae2)

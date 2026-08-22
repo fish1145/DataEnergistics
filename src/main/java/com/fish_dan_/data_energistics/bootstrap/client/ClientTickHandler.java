@@ -37,6 +37,12 @@ final class ClientTickHandler {
         while (ClientInputHandler.consumeToggleDepotBucketModeClick()) {
             ClientInputHandler.toggleDepotBucketMode(minecraft);
         }
+        while (ClientInputHandler.consumeOpenOrbitalControlClick()) {
+            ClientInputHandler.requestOrbitalControl(minecraft);
+        }
+        while (ClientInputHandler.consumeToggleOrbitalHudClick()) {
+            ClientInputHandler.toggleOrbitalHud();
+        }
 
         if ((minecraft.player.tickCount & 1) != 0) {
             return;

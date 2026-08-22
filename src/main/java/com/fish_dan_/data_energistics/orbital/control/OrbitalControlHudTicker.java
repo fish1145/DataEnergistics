@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
-import com.fish_dan_.data_energistics.item.orbital.OrbitalControlTerminalItem;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlPresentation;
 
@@ -66,7 +65,7 @@ public final class OrbitalControlHudTicker {
     }
 
     private static boolean holdsTerminal(ServerPlayer player) {
-        return OrbitalControlTerminalItem.isHeldBy(player);
+        return OrbitalControlTerminalAccess.hasTerminal(player);
     }
 
     private record PublishedState(boolean visible, Component status) {

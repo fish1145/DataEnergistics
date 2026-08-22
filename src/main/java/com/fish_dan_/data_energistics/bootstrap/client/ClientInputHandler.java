@@ -1,11 +1,13 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
+import com.fish_dan_.data_energistics.client.hud.orbital.OrbitalControlHudClientState;
 import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumItem;
 import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotBucketModePayload;
 import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotScrollPayload;
 import com.fish_dan_.data_energistics.network.action.MeVacuumLaunchPayload;
+import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlOpenPayload;
 import com.fish_dan_.data_energistics.registry.DEMobEffects;
 
 import net.minecraft.client.Minecraft;
@@ -153,5 +155,23 @@ final class ClientInputHandler {
 
     static boolean consumeToggleDepotBucketModeClick() {
         return DEKeyMappings.TOGGLE_DIGITAL_STORAGE_DEPOT_BUCKET_MODE.consumeClick();
+    }
+
+    static boolean consumeOpenOrbitalControlClick() {
+        return DEKeyMappings.OPEN_ORBITAL_CONTROL.consumeClick();
+    }
+
+    static void requestOrbitalControl(Minecraft minecraft) {
+        if (minecraft.screen == null && minecraft.player != null) {
+            PacketDistributor.sendToServer(OrbitalControlOpenPayload.INSTANCE);
+        }
+    }
+
+    static boolean consumeToggleOrbitalHudClick() {
+        return DEKeyMappings.TOGGLE_ORBITAL_CONTROL_HUD.consumeClick();
+    }
+
+    static void toggleOrbitalHud() {
+        OrbitalControlHudClientState.toggleUserEnabled();
     }
 }
