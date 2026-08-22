@@ -13,6 +13,7 @@ import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.BeforeBatch;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
@@ -28,6 +29,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.border.WorldBorder;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -53,6 +55,25 @@ public final class OrbitalDigitalAnnihilationGameTest {
     private static final BlockPos TARGET = new BlockPos(25, 20, 25);
 
     private OrbitalDigitalAnnihilationGameTest() {}
+
+    @BeforeBatch(batch = "orbital_boundary_recovery")
+    public static void clearPriorBatchAttacks(ServerLevel level) {
+        MinecraftServer server = level.getServer();
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        for (ServerLevel serverLevel : server.getAllLevels()) {
+            for (OrbitalAttackRecord attack : attacks.publicForDimension(serverLevel.dimension().location())) {
+                if (attack.phase() == OrbitalAttackPhase.RESERVED_WARNING) {
+                    weapons.find(attack.weaponId()).ifPresent(weapon -> attacks.cancelWarning(
+                            server,
+                            weapon.ownerId(),
+                            attack.attackId()));
+                } else {
+                    attacks.adminAbort(server, attack.attackId());
+                }
+            }
+        }
+    }
 
     @TestHolder("orbital_digital_annihilation_payload_descends_and_materializes_fuse")
     @EmptyTemplate("50x32x50")
@@ -439,6 +460,100 @@ public final class OrbitalDigitalAnnihilationGameTest {
                         OrbitalControlActionDispatcher.cancelOrAbortFirst(owner);
                     }
                 })
+                .thenSucceed();
+    }
+
+    @TestHolder("orbital_digital_annihilation_recovers_after_world_border_fault")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", batch = "orbital_boundary_recovery", timeoutTicks = 1_000)
+    public static void recoversAfterWorldBorderFault(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        ServerPlayer owner = createPlayer(level, "digital-border-recovery-owner");
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
+        BlockPos absoluteTarget = helper.absolutePos(TARGET);
+
+        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
+        placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
+        placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
+        installInfiniteCell(helper);
+        helper.setBlock(TARGET, Blocks.STONE);
+        level.getChunkAt(absoluteTarget);
+
+        UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
+        AtomicReference<UUID> attackId = new AtomicReference<>();
+        AtomicReference<UUID> firstPayloadId = new AtomicReference<>();
+        helper.startSequence()
+                .thenIdle(40)
+                .thenWaitUntil(() -> helper.assertTrue(
+                        weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
+                        "The boundary-recovery attack must use a real powered target-dimension endpoint"))
+                .thenExecute(() -> {
+                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    primeReserve(weapons, server, weaponId, settings, cost);
+                    var liveNukeSettings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
+                    int originalWarningTicks = settings.attackWarningTicks;
+                    int originalWorkInterval = liveNukeSettings.workIntervalTicks;
+                    int originalMaxRadius = liveNukeSettings.maxRadius;
+                    double originalCenterRadius = liveNukeSettings.centerEntityConsumeRadius;
+                    try {
+                        settings.attackWarningTicks = 1;
+                        liveNukeSettings.workIntervalTicks = 1;
+                        liveNukeSettings.maxRadius = 1;
+                        liveNukeSettings.centerEntityConsumeRadius = 0.0D;
+                        OrbitalAttackRecord warning = attacks.tryConfirmDigitalAnnihilation(
+                                server,
+                                owner.getUUID(),
+                                weaponId,
+                                level.dimension().location(),
+                                absoluteTarget)
+                                .orElseThrow(() -> new IllegalStateException("The funded boundary-recovery attack was rejected"));
+                        attackId.set(warning.attackId());
+                    } finally {
+                        settings.attackWarningTicks = originalWarningTicks;
+                        liveNukeSettings.workIntervalTicks = originalWorkInterval;
+                        liveNukeSettings.maxRadius = originalMaxRadius;
+                        liveNukeSettings.centerEntityConsumeRadius = originalCenterRadius;
+                    }
+                })
+                .thenWaitUntil(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
+                    UUID payloadId = delivery.payloadEntityId();
+                    helper.assertTrue(
+                            payloadId != null && level.getEntity(payloadId) instanceof OrbitalAnnihilatorProjectileEntity,
+                            "The committed boundary-recovery attack must create its real orbital payload");
+                    firstPayloadId.set(payloadId);
+                })
+                .thenExecute(() -> {
+                    WorldBorder border = level.getWorldBorder();
+                    double originalCenterX = border.getCenterX();
+                    double originalCenterZ = border.getCenterZ();
+                    double originalSize = border.getSize();
+                    try {
+                        border.setCenter(absoluteTarget.getX() + 1_024.0D, absoluteTarget.getZ() + 1_024.0D);
+                        border.setSize(16.0D);
+                        attacks.tick(server);
+                    } finally {
+                        border.setCenter(originalCenterX, originalCenterZ);
+                        border.setSize(originalSize);
+                    }
+                    helper.assertTrue(
+                            level.getEntity(firstPayloadId.get()) == null,
+                            "A boundary-faulted attack must discard its in-flight payload");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                            "A boundary fault must not mutate the target before administrator recovery");
+                    helper.assertTrue(
+                            attacks.retryFaulted(server, attackId.get()),
+                            "An administrator retry must resume the faulted attack from its persisted task");
+                })
+                .thenWaitUntil(() -> helper.assertTrue(
+                        level.getBlockState(absoluteTarget).isAir(),
+                        "The retried attack must complete real delivery, fuse and terrain work after the border recovers"))
+                .thenExecute(() -> OrbitalControlActionDispatcher.cancelOrAbortFirst(owner))
                 .thenSucceed();
     }
 

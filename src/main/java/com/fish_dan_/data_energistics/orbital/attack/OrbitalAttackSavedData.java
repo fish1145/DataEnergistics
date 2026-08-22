@@ -282,7 +282,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
 
         ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
-        if (targetLevel == null || !validTarget(targetLevel, target, OrbitalKineticStrike.SHOCKWAVE_RADIUS)) {
+        if (targetLevel == null || targetOutsideBounds(targetLevel, target, OrbitalKineticStrike.SHOCKWAVE_RADIUS)) {
             return Optional.empty();
         }
         if (!weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
@@ -354,7 +354,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
         ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
-        if (targetLevel == null || !validTarget(targetLevel, target, radius)) {
+        if (targetLevel == null || targetOutsideBounds(targetLevel, target, radius)) {
             return Optional.empty();
         }
         if (!weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
@@ -424,7 +424,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             return Optional.empty();
         }
         ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
-        if (targetLevel == null || !validDigitalTarget(targetLevel, target, dataNuke.maxRadius())) {
+        if (targetLevel == null || targetOutsideBounds(targetLevel, target, dataNuke.maxRadius())) {
             return Optional.empty();
         }
         if (!weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
@@ -806,7 +806,8 @@ public final class OrbitalAttackSavedData extends SavedData {
             fault(server, current, "Digital-annihilation attack has incompatible geometry");
             return;
         }
-        if (!validDigitalTarget(level, current.target(), geometry.maxRadius())) {
+        if (targetOutsideBounds(level, current.target(), geometry.maxRadius())) {
+            fault(server, current, "Digital-annihilation target is no longer fully inside the world boundary");
             return;
         }
         ChunkReadiness targetReadiness = this.terrainWorkScheduler.pinChunk(
@@ -1142,6 +1143,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     private void fault(MinecraftServer server, OrbitalAttackRecord current, String reason) {
+        discardPayload(server, current);
         this.terrainWorkScheduler.release(server, current.attackId());
         LOGGER.error("Orbital attack {} entered FAULTED: {}", current.attackId(), reason);
         replaceAttack(server, current, current.faulted(reason));
@@ -1261,18 +1263,13 @@ public final class OrbitalAttackSavedData extends SavedData {
         };
     }
 
-    private static boolean validTarget(ServerLevel level, BlockPos target, int radius) {
+    private static boolean targetOutsideBounds(ServerLevel level, BlockPos target, int radius) {
         if (target.getY() < level.getMinBuildHeight() || target.getY() >= level.getMaxBuildHeight()) {
-            return false;
+            return true;
         }
-        return level.getWorldBorder().isWithinBounds(target) && level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius)) && level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius));
-    }
-
-    private static boolean validDigitalTarget(ServerLevel level, BlockPos target, int radius) {
-        if (target.getY() < level.getMinBuildHeight() || target.getY() >= level.getMaxBuildHeight()) {
-            return false;
-        }
-        return level.getWorldBorder().isWithinBounds(target) && level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius)) && level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius));
+        return !level.getWorldBorder().isWithinBounds(target)
+                || !level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius))
+                || !level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius));
     }
 
     private record VisualEffect(BlockPos position, int radius, long totalWork) {}
