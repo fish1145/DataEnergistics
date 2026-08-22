@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lif
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGatewayLifecycle;
 import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlRequestAdmission;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalOwnershipActionDispatcher;
 
 import net.minecraft.server.MinecraftServer;
@@ -13,9 +14,11 @@ import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 
+import org.jspecify.annotations.Nullable;
+
 public final class ServerLifecycleEventHandler {
 
-    private static volatile MinecraftServer stoppingServer;
+    private static volatile @Nullable MinecraftServer stoppingServer;
 
     ServerLifecycleEventHandler() {}
 
@@ -39,7 +42,11 @@ public final class ServerLifecycleEventHandler {
     @SubscribeEvent
     public void onServerStopped(ServerStoppedEvent event) {
         try {
-            OrbitalOwnershipActionDispatcher.clear(event.getServer());
+            try {
+                OrbitalControlRequestAdmission.clear(event.getServer());
+            } finally {
+                OrbitalOwnershipActionDispatcher.clear(event.getServer());
+            }
             PatternProviderRuntimeBindings.clearLiveBindings();
         } finally {
             try {
@@ -61,6 +68,6 @@ public final class ServerLifecycleEventHandler {
     }
 
     public static boolean isStopping(MinecraftServer server) {
-        return server != null && stoppingServer == server;
+        return stoppingServer == server;
     }
 }

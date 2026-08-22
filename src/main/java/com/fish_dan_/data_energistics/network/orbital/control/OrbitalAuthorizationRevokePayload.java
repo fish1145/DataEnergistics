@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.network.orbital.control;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlRequestAdmission;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalWeaponAdministrationDispatcher;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -39,6 +40,9 @@ public record OrbitalAuthorizationRevokePayload(UUID weaponId, UUID playerId)
     public static void handle(OrbitalAuthorizationRevokePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) {
+                return;
+            }
+            if (OrbitalControlRequestAdmission.authorizationRateExceeded(player)) {
                 return;
             }
             try {

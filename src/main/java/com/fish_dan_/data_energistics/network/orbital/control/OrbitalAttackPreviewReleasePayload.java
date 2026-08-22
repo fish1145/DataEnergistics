@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.orbital.OrbitalControlTerminalItem;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlRequestAdmission;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -37,6 +38,9 @@ public record OrbitalAttackPreviewReleasePayload(OrbitalAttackMode mode) impleme
     public static void handle(OrbitalAttackPreviewReleasePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) {
+                return;
+            }
+            if (OrbitalControlRequestAdmission.confirmationRateExceeded(player)) {
                 return;
             }
             OrbitalControlActionDispatcher.releaseFireAtTarget(
