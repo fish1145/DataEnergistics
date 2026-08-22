@@ -72,18 +72,6 @@ public sealed interface OrbitalAttackGeometry
                     settings.kineticKnockbackStrength);
         }
 
-        /** Restores the exact geometry used by saves written before kinetic settings were persisted. */
-        public static Kinetic legacyDefaults() {
-            return new Kinetic(
-                    DEFAULT_COLUMN_RADIUS,
-                    DEFAULT_COLUMN_DEPTH,
-                    DEFAULT_CRATER_RADIUS,
-                    DEFAULT_CRATER_DEPTH,
-                    DEFAULT_SHOCKWAVE_RADIUS,
-                    DEFAULT_ENTITY_DAMAGE,
-                    DEFAULT_KNOCKBACK_STRENGTH);
-        }
-
         /** Normalizes untrusted persisted numbers once at the SavedData boundary. */
         public static Kinetic fromPersisted(
                                             int columnRadius,

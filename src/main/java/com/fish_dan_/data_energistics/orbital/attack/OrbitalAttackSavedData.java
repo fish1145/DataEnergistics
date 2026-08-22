@@ -35,6 +35,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,8 @@ public final class OrbitalAttackSavedData extends SavedData {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String DATA_NAME = Data_Energistics.MODID + "_orbital_attacks";
+    private static final String SCHEMA_VERSION_TAG = "schema_version";
+    private static final int SCHEMA_VERSION = 1;
     private static final String ATTACKS_TAG = "attacks";
     private static final String ATTACK_ID_TAG = "attack_id";
     private static final String WEAPON_ID_TAG = "weapon_id";
@@ -644,10 +647,11 @@ public final class OrbitalAttackSavedData extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
+        tag.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
         ListTag attackList = new ListTag();
         this.attacks.values()
                 .stream()
-                .map(attack -> writeAttack(attack, this.phaseStartedAt.getOrDefault(attack.attackId(), 0L)))
+                .map(attack -> writeAttack(attack, requirePhaseStartedAt(attack.attackId())))
                 .forEach(attackList::add);
         tag.put(ATTACKS_TAG, attackList);
         return tag;
@@ -655,8 +659,14 @@ public final class OrbitalAttackSavedData extends SavedData {
 
     private static OrbitalAttackSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
         OrbitalAttackSavedData data = new OrbitalAttackSavedData();
+        if (!tag.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)
+                || tag.getInt(SCHEMA_VERSION_TAG) != SCHEMA_VERSION) {
+            LOGGER.warn("Ignoring orbital attack SavedData with an unsupported schema");
+            return data;
+        }
         Tag rawAttacks = tag.get(ATTACKS_TAG);
         if (!(rawAttacks instanceof ListTag attackList)) {
+            LOGGER.warn("Ignoring orbital attack SavedData without its attack list");
             return data;
         }
         for (Tag rawAttack : attackList) {
@@ -666,14 +676,20 @@ public final class OrbitalAttackSavedData extends SavedData {
             OrbitalAttackRecord attack = readAttack(attackTag);
             if (attack == null || data.attacks.putIfAbsent(attack.attackId(), attack) != null) {
                 LOGGER.warn("Ignoring invalid or duplicate orbital attack record");
-            } else if (attackTag.contains(PHASE_STARTED_AT_TAG, Tag.TAG_LONG)) {
-                long phaseStart = attackTag.getLong(PHASE_STARTED_AT_TAG);
-                if (phaseStart >= 0L) {
-                    data.phaseStartedAt.put(attack.attackId(), phaseStart);
-                }
+            } else {
+                data.phaseStartedAt.put(
+                        attack.attackId(),
+                        attackTag.getLong(PHASE_STARTED_AT_TAG));
             }
         }
         return data;
+    }
+
+    private long requirePhaseStartedAt(UUID attackId) {
+        if (!this.phaseStartedAt.containsKey(attackId)) {
+            throw new IllegalStateException("Orbital attack has no persisted phase start: " + attackId);
+        }
+        return this.phaseStartedAt.getLong(attackId);
     }
 
     private static CompoundTag writeAttack(OrbitalAttackRecord attack, long phaseStartedAt) {
@@ -735,7 +751,7 @@ public final class OrbitalAttackSavedData extends SavedData {
 
     @Nullable
     private static OrbitalAttackRecord readAttack(CompoundTag tag) {
-        if (!tag.hasUUID(ATTACK_ID_TAG) || !tag.hasUUID(WEAPON_ID_TAG) || !tag.contains(DIMENSION_TAG, Tag.TAG_STRING) || !tag.contains(TARGET_TAG, Tag.TAG_INT_ARRAY)) {
+        if (!hasCurrentAttackFields(tag)) {
             return null;
         }
         try {
@@ -750,23 +766,12 @@ public final class OrbitalAttackSavedData extends SavedData {
             switch (mode) {
                 case KINETIC -> geometry = readKineticGeometry(tag);
                 case DIRECTED_ENERGY -> geometry = readDirectedEnergyGeometry(tag);
-                case DIGITAL_ANNIHILATION -> {
-                    DataEnergisticsConfiguration.DataNukeSchema fallback = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
-                    geometry = new OrbitalAttackGeometry.DigitalAnnihilation(
-                            tag.contains(DIGITAL_WORK_INTERVAL_TAG) ? tag.getInt(DIGITAL_WORK_INTERVAL_TAG) : fallback.workIntervalTicks,
-                            tag.contains(DIGITAL_MAX_RADIUS_TAG) ? tag.getInt(DIGITAL_MAX_RADIUS_TAG) : fallback.maxRadius,
-                            tag.contains(DIGITAL_CENTER_RADIUS_TAG) ? tag.getDouble(DIGITAL_CENTER_RADIUS_TAG) : fallback.centerEntityConsumeRadius);
-                }
+                case DIGITAL_ANNIHILATION -> geometry = readDigitalAnnihilationGeometry(tag);
                 default -> throw new IllegalArgumentException("Unsupported orbital attack mode");
             }
-            List<UUID> exemptions = new ArrayList<>();
-            Tag rawExemptions = tag.get(EXEMPTIONS_TAG);
-            if (rawExemptions instanceof ListTag exemptionList) {
-                for (Tag rawExemption : exemptionList) {
-                    if (rawExemption instanceof CompoundTag exemption && exemption.hasUUID(UUID_TAG)) {
-                        exemptions.add(exemption.getUUID(UUID_TAG));
-                    }
-                }
+            Set<UUID> exemptions = readDamageExemptions(tag);
+            if (exemptions == null) {
+                return null;
             }
             return new OrbitalAttackRecord(
                     tag.getUUID(ATTACK_ID_TAG),
@@ -779,7 +784,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                     tag.getLong(CONFIGURATION_REVISION_TAG),
                     tag.getInt(WARNING_TICKS_TAG),
                     tag.getLong(WORK_CURSOR_TAG),
-                    tag.contains(WORK_STATE_TAG, Tag.TAG_STRING) ? OrbitalAttackWorkState.valueOf(tag.getString(WORK_STATE_TAG)) : OrbitalAttackWorkState.INACTIVE,
+                    OrbitalAttackWorkState.valueOf(tag.getString(WORK_STATE_TAG)),
                     readFaultReason(tag),
                     tag.hasUUID(PAYLOAD_ENTITY_ID_TAG) ? tag.getUUID(PAYLOAD_ENTITY_ID_TAG) : null,
                     tag.getBoolean(PAYLOAD_ARRIVED_TAG),
@@ -788,17 +793,55 @@ public final class OrbitalAttackSavedData extends SavedData {
                     tag.getInt(COOLDOWN_DURATION_TAG),
                     tag.getLong(CELESTIAL_ESCROW_TAG),
                     tag.getLong(AE_ESCROW_TAG),
-                    Set.copyOf(exemptions));
+                    exemptions);
         } catch (IllegalArgumentException exception) {
             return null;
         }
     }
 
-    private static OrbitalAttackGeometry.Kinetic readKineticGeometry(CompoundTag tag) {
-        boolean hasAnyGeometryField = tag.contains(KINETIC_COLUMN_RADIUS_TAG) || tag.contains(KINETIC_COLUMN_DEPTH_TAG) || tag.contains(KINETIC_CRATER_RADIUS_TAG) || tag.contains(KINETIC_CRATER_DEPTH_TAG) || tag.contains(KINETIC_SHOCKWAVE_RADIUS_TAG) || tag.contains(KINETIC_ENTITY_DAMAGE_TAG) || tag.contains(KINETIC_KNOCKBACK_STRENGTH_TAG);
-        if (!hasAnyGeometryField) {
-            return OrbitalAttackGeometry.Kinetic.legacyDefaults();
+    private static boolean hasCurrentAttackFields(CompoundTag tag) {
+        return tag.hasUUID(ATTACK_ID_TAG)
+                && tag.hasUUID(WEAPON_ID_TAG)
+                && tag.contains(MODE_TAG, Tag.TAG_STRING)
+                && tag.contains(PHASE_TAG, Tag.TAG_STRING)
+                && tag.contains(PHASE_STARTED_AT_TAG, Tag.TAG_LONG)
+                && tag.getLong(PHASE_STARTED_AT_TAG) >= 0L
+                && tag.contains(DIMENSION_TAG, Tag.TAG_STRING)
+                && tag.contains(TARGET_TAG, Tag.TAG_INT_ARRAY)
+                && tag.contains(CONFIGURATION_REVISION_TAG, Tag.TAG_LONG)
+                && tag.contains(WARNING_TICKS_TAG, Tag.TAG_INT)
+                && tag.contains(WORK_CURSOR_TAG, Tag.TAG_LONG)
+                && tag.contains(WORK_STATE_TAG, Tag.TAG_STRING)
+                && (!tag.contains(FAULT_REASON_TAG)
+                    || tag.contains(FAULT_REASON_TAG, Tag.TAG_STRING))
+                && (!tag.contains(PAYLOAD_ENTITY_ID_TAG)
+                    || tag.hasUUID(PAYLOAD_ENTITY_ID_TAG))
+                && tag.contains(PAYLOAD_ARRIVED_TAG, Tag.TAG_BYTE)
+                && tag.contains(IMPACT_APPLIED_TAG, Tag.TAG_BYTE)
+                && tag.contains(COOLDOWN_TICKS_TAG, Tag.TAG_INT)
+                && tag.contains(COOLDOWN_DURATION_TAG, Tag.TAG_INT)
+                && tag.contains(CELESTIAL_ESCROW_TAG, Tag.TAG_LONG)
+                && tag.contains(AE_ESCROW_TAG, Tag.TAG_LONG)
+                && tag.contains(EXEMPTIONS_TAG, Tag.TAG_LIST);
+    }
+
+    private static @Nullable Set<UUID> readDamageExemptions(CompoundTag tag) {
+        Tag rawExemptions = tag.get(EXEMPTIONS_TAG);
+        if (!(rawExemptions instanceof ListTag exemptionList)) {
+            return null;
         }
+        HashSet<UUID> exemptions = new HashSet<>();
+        for (Tag rawExemption : exemptionList) {
+            if (!(rawExemption instanceof CompoundTag exemption)
+                    || !exemption.hasUUID(UUID_TAG)
+                    || !exemptions.add(exemption.getUUID(UUID_TAG))) {
+                return null;
+            }
+        }
+        return Set.copyOf(exemptions);
+    }
+
+    private static OrbitalAttackGeometry.Kinetic readKineticGeometry(CompoundTag tag) {
         boolean hasCompleteGeometry = tag.contains(KINETIC_COLUMN_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_COLUMN_DEPTH_TAG, Tag.TAG_INT) && tag.contains(KINETIC_CRATER_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_CRATER_DEPTH_TAG, Tag.TAG_INT) && tag.contains(KINETIC_SHOCKWAVE_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_ENTITY_DAMAGE_TAG, Tag.TAG_LONG) && tag.contains(KINETIC_KNOCKBACK_STRENGTH_TAG, Tag.TAG_DOUBLE);
         if (!hasCompleteGeometry) {
             throw new IllegalArgumentException("Incomplete persisted kinetic attack geometry");
@@ -823,6 +866,24 @@ public final class OrbitalAttackSavedData extends SavedData {
                 depth,
                 tag.getInt(GEOMETRY_DEPTH_BLOCKS_TAG),
                 tag.getLong(GEOMETRY_DAMAGE_TAG));
+    }
+
+    private static OrbitalAttackGeometry.DigitalAnnihilation readDigitalAnnihilationGeometry(
+                                                                                              CompoundTag tag) {
+        if (!tag.contains(DIGITAL_WORK_INTERVAL_TAG, Tag.TAG_INT)
+                || !tag.contains(DIGITAL_MAX_RADIUS_TAG, Tag.TAG_INT)
+                || !tag.contains(DIGITAL_CENTER_RADIUS_TAG, Tag.TAG_DOUBLE)) {
+            throw new IllegalArgumentException("Incomplete persisted digital-annihilation geometry");
+        }
+        DigitalAnnihilationWork.Settings persistedSettings =
+                DigitalAnnihilationWork.Settings.fromPersisted(
+                        tag.getInt(DIGITAL_WORK_INTERVAL_TAG),
+                        tag.getInt(DIGITAL_MAX_RADIUS_TAG),
+                        tag.getDouble(DIGITAL_CENTER_RADIUS_TAG));
+        return new OrbitalAttackGeometry.DigitalAnnihilation(
+                persistedSettings.workIntervalTicks(),
+                persistedSettings.maxRadius(),
+                persistedSettings.centerEntityConsumeRadius());
     }
 
     @Nullable
