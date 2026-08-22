@@ -249,7 +249,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
         }
 
         int maximumRadius = this.capturedWorkSettings != null ? this.capturedWorkSettings.maxRadius() : DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius;
-        this.expansionRadius = Math.max(0, Math.min(maximumRadius, tag.getInt(TAG_EXPANSION_RADIUS)));
+        this.expansionRadius = Math.clamp(tag.getInt(TAG_EXPANSION_RADIUS), 0, maximumRadius);
         HashSet<UUID> exemptions = new HashSet<>();
         Tag rawExemptions = tag.get(TAG_DAMAGE_EXEMPTIONS);
         if (rawExemptions instanceof ListTag exemptionList) {
