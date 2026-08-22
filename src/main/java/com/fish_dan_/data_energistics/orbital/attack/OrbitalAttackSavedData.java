@@ -113,16 +113,23 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     /**
-     * Returns whether an attack still blocks ownership transfer. Escrow is intentionally considered independently of
-     * the phase so a faulted or cooling task cannot move a partially consumed weapon to another owner.
+     * Returns whether an attack still blocks ownership transfer. A faulted task only blocks while its escrow remains
+     * eligible for administrator recovery; a completed task's consumed cooldown follows the weapon to its new owner.
      */
-    public boolean hasTransferBlockingState(UUID weaponId) {
+    public boolean hasOwnershipTransferBlockingState(UUID weaponId) {
         return this.attacks.values().stream()
                 .filter(attack -> attack.weaponId().equals(weaponId))
                 .anyMatch(attack -> switch (attack.phase()) {
-                    case RESERVED_WARNING, COMMITTED, DELIVERY, ABORTED, COOLDOWN -> true;
+                    case RESERVED_WARNING, COMMITTED, DELIVERY, ABORTED -> true;
+                    case COOLDOWN -> false;
                     case FAULTED -> attack.celestialEscrow() > 0L || attack.aeEscrow() > 0L;
                 });
+    }
+
+    /** Returns whether any persisted attack record still prevents destructive weapon retirement. */
+    public boolean hasRetirementBlockingState(UUID weaponId) {
+        return this.attacks.values().stream()
+                .anyMatch(attack -> attack.weaponId().equals(weaponId));
     }
 
     /** Retries one faulted attack from its persisted cursor without refunding its escrow. */

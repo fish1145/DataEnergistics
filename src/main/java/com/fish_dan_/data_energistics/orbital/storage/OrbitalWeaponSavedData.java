@@ -566,7 +566,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
 
     /**
      * Issues a one-shot, server-owned transfer offer to an online player. The offer is valid for exactly sixty seconds
-     * and is invalidated whenever the weapon gains an active attack, escrow or a non-deployed lifecycle state.
+     * and is invalidated by redeployment, an active attack or recoverable escrow; dormancy and consumed cooldown move
+     * with the weapon.
      */
     public Optional<OrbitalOwnershipTransfer> requestOwnershipTransfer(
                                                                        MinecraftServer server,
@@ -579,7 +580,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (!current.canPerform(actorId, OrbitalWeaponAction.TRANSFER_OWNERSHIP)) {
             throw new SecurityException("Player " + actorId + " cannot transfer orbital weapon " + weaponId);
         }
-        if (recipientId.equals(current.ownerId()) || transferParticipantOffline(server, current.ownerId(), recipientId) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().state() != OrbitalWeaponLifecycleState.DEPLOYED || OrbitalAttackSavedData.get(server).hasTransferBlockingState(weaponId)) {
+        if (recipientId.equals(current.ownerId()) || transferParticipantOffline(server, current.ownerId(), recipientId) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().state() == OrbitalWeaponLifecycleState.REDEPLOYING || OrbitalAttackSavedData.get(server).hasOwnershipTransferBlockingState(weaponId)) {
             return Optional.empty();
         }
         this.ownershipTransfers.values().removeIf(offer -> offer.weaponId().equals(weaponId));
@@ -606,7 +607,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return false;
         }
         OrbitalWeaponRecord current = this.weapons.get(offer.weaponId());
-        if (current == null || !current.ownerId().equals(offer.currentOwnerId()) || transferParticipantOffline(server, offer.currentOwnerId(), recipientId) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().state() != OrbitalWeaponLifecycleState.DEPLOYED || OrbitalAttackSavedData.get(server).hasTransferBlockingState(offer.weaponId())) {
+        if (current == null || !current.ownerId().equals(offer.currentOwnerId()) || transferParticipantOffline(server, offer.currentOwnerId(), recipientId) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().state() == OrbitalWeaponLifecycleState.REDEPLOYING || OrbitalAttackSavedData.get(server).hasOwnershipTransferBlockingState(offer.weaponId())) {
             this.ownershipTransfers.remove(transferId);
             setDirty();
             return false;
@@ -647,7 +648,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (!current.canPerform(actorId, OrbitalWeaponAction.RETIRE)) {
             throw new SecurityException("Player " + actorId + " cannot retire orbital weapon " + weaponId);
         }
-        if (current.lifecycle().state() != OrbitalWeaponLifecycleState.DORMANT || !current.reserve().equals(OrbitalEnergyReserve.empty()) || !current.endpoints().isEmpty() || OrbitalAttackSavedData.get(server).hasTransferBlockingState(weaponId)) {
+        if (current.lifecycle().state() != OrbitalWeaponLifecycleState.DORMANT || !current.reserve().equals(OrbitalEnergyReserve.empty()) || !current.endpoints().isEmpty() || OrbitalAttackSavedData.get(server).hasRetirementBlockingState(weaponId)) {
             return false;
         }
         removeAccessIndex(current);
