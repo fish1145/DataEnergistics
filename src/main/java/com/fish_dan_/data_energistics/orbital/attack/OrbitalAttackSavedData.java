@@ -116,13 +116,6 @@ public final class OrbitalAttackSavedData extends SavedData {
         return Optional.ofNullable(this.attacks.get(attackId));
     }
 
-    /** Returns the persisted diagnostic text for an attack that entered the fault terminal state. */
-    @Nullable
-    public String faultReason(UUID attackId) {
-        OrbitalAttackRecord attack = this.attacks.get(attackId);
-        return attack == null ? null : attack.faultReason();
-    }
-
     /**
      * Returns whether an attack still blocks ownership transfer. A faulted task only blocks while its escrow remains
      * eligible for administrator recovery; a completed task's consumed cooldown follows the weapon to its new owner.

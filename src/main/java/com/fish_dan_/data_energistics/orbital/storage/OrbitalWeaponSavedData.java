@@ -634,11 +634,6 @@ public final class OrbitalWeaponSavedData extends SavedData {
         return true;
     }
 
-    /** Returns a pending transfer offer for an administrator or server-side UI snapshot. */
-    public Optional<OrbitalOwnershipTransfer> findOwnershipTransfer(UUID transferId) {
-        return Optional.ofNullable(this.ownershipTransfers.get(transferId));
-    }
-
     /**
      * Retires an empty dormant weapon. No resource is returned and every endpoint must already have been unbound.
      */
