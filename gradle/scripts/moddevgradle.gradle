@@ -46,7 +46,6 @@ neoForge {
 
             gameDirectory.set(file('run/all/server'))
             programArguments.addAll('--nogui', '--world', 'world-extra')
-            systemProperty('neoforge.enabledGameTestNamespaces', project.mod_id)
         }
 
         loginClient {
@@ -65,7 +64,6 @@ neoForge {
 
             gameDirectory.set(file('run/login/server'))
             programArguments.addAll('--nogui', '--world', 'world-extra')
-            systemProperty('neoforge.enabledGameTestNamespaces', project.mod_id)
         }
 
         // Client with GTM + Jade, EMI, AE2
@@ -84,12 +82,11 @@ neoForge {
 
             gameDirectory.set(file('run/clean/server'))
             programArgument '--nogui'
-            systemProperty('neoforge.enabledGameTestNamespaces', project.mod_id)
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.
         // By default, the server will crash when no gametests are provided.
-        // The gametest system is also enabled by default for other run configs under the /test command.
+        // Ordinary server runs deliberately keep test-only classes disabled.
         gameTestServer {
             type = "gameTestServer"
             sourceSet = sourceSets.test
