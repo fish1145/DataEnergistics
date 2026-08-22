@@ -795,23 +795,11 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     private static OrbitalAttackGeometry.Kinetic readKineticGeometry(CompoundTag tag) {
-        boolean hasAnyGeometryField = tag.contains(KINETIC_COLUMN_RADIUS_TAG)
-                || tag.contains(KINETIC_COLUMN_DEPTH_TAG)
-                || tag.contains(KINETIC_CRATER_RADIUS_TAG)
-                || tag.contains(KINETIC_CRATER_DEPTH_TAG)
-                || tag.contains(KINETIC_SHOCKWAVE_RADIUS_TAG)
-                || tag.contains(KINETIC_ENTITY_DAMAGE_TAG)
-                || tag.contains(KINETIC_KNOCKBACK_STRENGTH_TAG);
+        boolean hasAnyGeometryField = tag.contains(KINETIC_COLUMN_RADIUS_TAG) || tag.contains(KINETIC_COLUMN_DEPTH_TAG) || tag.contains(KINETIC_CRATER_RADIUS_TAG) || tag.contains(KINETIC_CRATER_DEPTH_TAG) || tag.contains(KINETIC_SHOCKWAVE_RADIUS_TAG) || tag.contains(KINETIC_ENTITY_DAMAGE_TAG) || tag.contains(KINETIC_KNOCKBACK_STRENGTH_TAG);
         if (!hasAnyGeometryField) {
             return OrbitalAttackGeometry.Kinetic.legacyDefaults();
         }
-        boolean hasCompleteGeometry = tag.contains(KINETIC_COLUMN_RADIUS_TAG, Tag.TAG_INT)
-                && tag.contains(KINETIC_COLUMN_DEPTH_TAG, Tag.TAG_INT)
-                && tag.contains(KINETIC_CRATER_RADIUS_TAG, Tag.TAG_INT)
-                && tag.contains(KINETIC_CRATER_DEPTH_TAG, Tag.TAG_INT)
-                && tag.contains(KINETIC_SHOCKWAVE_RADIUS_TAG, Tag.TAG_INT)
-                && tag.contains(KINETIC_ENTITY_DAMAGE_TAG, Tag.TAG_LONG)
-                && tag.contains(KINETIC_KNOCKBACK_STRENGTH_TAG, Tag.TAG_DOUBLE);
+        boolean hasCompleteGeometry = tag.contains(KINETIC_COLUMN_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_COLUMN_DEPTH_TAG, Tag.TAG_INT) && tag.contains(KINETIC_CRATER_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_CRATER_DEPTH_TAG, Tag.TAG_INT) && tag.contains(KINETIC_SHOCKWAVE_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_ENTITY_DAMAGE_TAG, Tag.TAG_LONG) && tag.contains(KINETIC_KNOCKBACK_STRENGTH_TAG, Tag.TAG_DOUBLE);
         if (!hasCompleteGeometry) {
             throw new IllegalArgumentException("Incomplete persisted kinetic attack geometry");
         }
@@ -826,10 +814,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     private static OrbitalAttackGeometry.DirectedEnergy readDirectedEnergyGeometry(CompoundTag tag) {
-        if (!tag.contains(GEOMETRY_RADIUS_TAG, Tag.TAG_INT)
-                || !tag.contains(GEOMETRY_DEPTH_TAG, Tag.TAG_STRING)
-                || !tag.contains(GEOMETRY_DEPTH_BLOCKS_TAG, Tag.TAG_INT)
-                || !tag.contains(GEOMETRY_DAMAGE_TAG, Tag.TAG_LONG)) {
+        if (!tag.contains(GEOMETRY_RADIUS_TAG, Tag.TAG_INT) || !tag.contains(GEOMETRY_DEPTH_TAG, Tag.TAG_STRING) || !tag.contains(GEOMETRY_DEPTH_BLOCKS_TAG, Tag.TAG_INT) || !tag.contains(GEOMETRY_DAMAGE_TAG, Tag.TAG_LONG)) {
             throw new IllegalArgumentException("Incomplete persisted directed-energy geometry");
         }
         OrbitalDirectedEnergyDepth depth = OrbitalDirectedEnergyDepth.valueOf(tag.getString(GEOMETRY_DEPTH_TAG));
@@ -1146,8 +1131,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                                             MinecraftServer server,
                                             ServerLevel level,
                                             OrbitalAttackRecord current) {
-        OrbitalAttackGeometry.DirectedEnergy geometry =
-                (OrbitalAttackGeometry.DirectedEnergy) current.geometry();
+        OrbitalAttackGeometry.DirectedEnergy geometry = (OrbitalAttackGeometry.DirectedEnergy) current.geometry();
         try {
             int mutationBudget = this.terrainWorkScheduler.reserveMutationBudget(current.attackId());
             if (mutationBudget <= 0) {
@@ -1348,9 +1332,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (target.getY() < level.getMinBuildHeight() || target.getY() >= level.getMaxBuildHeight()) {
             return true;
         }
-        return !level.getWorldBorder().isWithinBounds(target)
-                || !level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius))
-                || !level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius));
+        return !level.getWorldBorder().isWithinBounds(target) || !level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius)) || !level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius));
     }
 
     private record VisualEffect(BlockPos position, int radius, long totalWork) {}

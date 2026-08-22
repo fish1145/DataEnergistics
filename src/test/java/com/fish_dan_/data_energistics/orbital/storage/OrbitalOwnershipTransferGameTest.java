@@ -50,8 +50,7 @@ public final class OrbitalOwnershipTransferGameTest {
     private static final BlockPos FIRST_TARGET = new BlockPos(25, 20, 25);
     private static final BlockPos SECOND_TARGET = new BlockPos(35, 20, 25);
     private static final int TEST_DIGITAL_COOLDOWN_TICKS = 400;
-    private static final int REJECTED_DELIVERY_OBSERVATION_TICKS =
-            OrbitalAnnihilatorProjectileEntity.FLIGHT_TICKS + DataNukePrimedEntity.DEFAULT_FUSE_TICKS + 40;
+    private static final int REJECTED_DELIVERY_OBSERVATION_TICKS = OrbitalAnnihilatorProjectileEntity.FLIGHT_TICKS + DataNukePrimedEntity.DEFAULT_FUSE_TICKS + 40;
 
     private OrbitalOwnershipTransferGameTest() {}
 
@@ -149,8 +148,7 @@ public final class OrbitalOwnershipTransferGameTest {
         GameTestPlayer owner = playerHelper.makeTickingMockServerPlayerInLevel(GameType.SURVIVAL);
         GameTestPlayer recipient = playerHelper.makeTickingMockServerPlayerInLevel(GameType.SURVIVAL);
         GameTestPlayer successor = playerHelper.makeTickingMockServerPlayerInLevel(GameType.SURVIVAL);
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings =
-                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
         BlockPos absoluteFirstTarget = helper.absolutePos(FIRST_TARGET);
         BlockPos absoluteSecondTarget = helper.absolutePos(SECOND_TARGET);
@@ -255,12 +253,12 @@ public final class OrbitalOwnershipTransferGameTest {
     }
 
     private static void primeReserve(
-                                      OrbitalWeaponSavedData weapons,
-                                      MinecraftServer server,
-                                      UUID weaponId,
-                                      DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
-                                      OrbitalAttackCost cost,
-                                      int attackCount) {
+                                     OrbitalWeaponSavedData weapons,
+                                     MinecraftServer server,
+                                     UUID weaponId,
+                                     DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
+                                     OrbitalAttackCost cost,
+                                     int attackCount) {
         long requiredCelestialEnergy = Math.max(
                 Math.multiplyExact(cost.celestialEnergy(), attackCount),
                 deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold));
@@ -278,9 +276,9 @@ public final class OrbitalOwnershipTransferGameTest {
     }
 
     private static long requiredCelestialEnergy(
-                                                 DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
-                                                 OrbitalAttackCost cost,
-                                                 int attackCount) {
+                                                DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
+                                                OrbitalAttackCost cost,
+                                                int attackCount) {
         return Math.max(
                 Math.multiplyExact(cost.celestialEnergy(), attackCount),
                 deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold));
@@ -305,8 +303,7 @@ public final class OrbitalOwnershipTransferGameTest {
                                                                           UUID weaponId,
                                                                           ServerLevel level,
                                                                           BlockPos target) {
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings =
-                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         var liveNukeSettings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
         int originalWarningTicks = settings.attackWarningTicks;
         int originalCooldownTicks = settings.digitalAnnihilationCooldownTicks;

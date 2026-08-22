@@ -1002,8 +1002,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
                                                       MinecraftServer server,
                                                       UUID ownerId,
                                                       UUID recipientId) {
-        return server.getPlayerList().getPlayer(ownerId) == null
-                || server.getPlayerList().getPlayer(recipientId) == null;
+        return server.getPlayerList().getPlayer(ownerId) == null || server.getPlayerList().getPlayer(recipientId) == null;
     }
 
     private static void requireEndpointCapacity(

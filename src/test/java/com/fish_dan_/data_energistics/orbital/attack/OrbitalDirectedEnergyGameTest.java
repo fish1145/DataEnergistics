@@ -167,8 +167,7 @@ public final class OrbitalDirectedEnergyGameTest {
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "directed-energy-snapshot-owner");
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings =
-                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         DirectedConfigurationSnapshot original = DirectedConfigurationSnapshot.capture(settings);
         DirectedConfigurationSnapshot confirmed = new DirectedConfigurationSnapshot(
                 1,
@@ -403,7 +402,7 @@ public final class OrbitalDirectedEnergyGameTest {
                                                  long entityDamage) {
 
         private static DirectedConfigurationSnapshot capture(
-                                                               DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                                             DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
             return new DirectedConfigurationSnapshot(
                     settings.attackWarningTicks,
                     settings.directedEnergyCooldownTicks,

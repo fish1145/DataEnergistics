@@ -438,7 +438,6 @@ public final class DataEnergisticsConfiguration {
         @Configurable.Comment({ "Entity-devouring radius checked every tick.", "每 tick 检查的实体吞噬半径。" })
         @Configurable.DecimalRange(min = 0.0, max = 128.0)
         public double centerEntityConsumeRadius = 4.0D;
-
     }
 
     public static final class SolarPanelSchema {
@@ -859,7 +858,6 @@ public final class DataEnergisticsConfiguration {
         @Configurable.Comment({ "Digital annihilation cooldown after its payload completes.", "数位湮灭体载荷完成后的冷却时长。" })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
         public int digitalAnnihilationCooldownTicks = 72_000;
-
     }
 
     public static final class TrinityCraftingSchema {

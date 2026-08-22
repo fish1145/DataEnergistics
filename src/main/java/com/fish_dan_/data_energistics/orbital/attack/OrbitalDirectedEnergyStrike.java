@@ -32,8 +32,7 @@ import java.util.function.Predicate;
 public final class OrbitalDirectedEnergyStrike {
 
     private static final int MAX_CACHED_RADII = 16;
-    private static final LinkedHashMap<Integer, List<Offset>> DISK_OFFSETS =
-            new LinkedHashMap<>(MAX_CACHED_RADII, 0.75F, true);
+    private static final LinkedHashMap<Integer, List<Offset>> DISK_OFFSETS = new LinkedHashMap<>(MAX_CACHED_RADII, 0.75F, true);
 
     private OrbitalDirectedEnergyStrike() {}
 
@@ -143,11 +142,7 @@ public final class OrbitalDirectedEnergyStrike {
         int minimum = settings.directedEnergyMinimumRadius;
         int maximum = settings.directedEnergyMaximumRadius;
         int step = settings.directedEnergyRadiusStep;
-        if (minimum < 1
-                || maximum > OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS
-                || minimum > maximum
-                || step < 1
-                || step > OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS) {
+        if (minimum < 1 || maximum > OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS || minimum > maximum || step < 1 || step > OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS) {
             throw new IllegalStateException("Invalid directed-energy radius configuration");
         }
         if (radius < minimum || radius > maximum || Math.floorMod(radius - minimum, step) != 0) {

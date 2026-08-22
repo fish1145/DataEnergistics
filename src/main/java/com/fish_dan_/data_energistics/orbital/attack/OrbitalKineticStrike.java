@@ -57,15 +57,13 @@ public final class OrbitalKineticStrike {
         if (cursor < 0L || cursor > total) {
             throw new IllegalArgumentException("Kinetic strike cursor is outside its geometry");
         }
-        return total == 0L
-                ? target.immutable()
-                : positionAt(
-                        level,
-                        target,
-                        geometry,
-                        column,
-                        crater,
-                        cursor == total ? total - 1L : cursor);
+        return total == 0L ? target.immutable() : positionAt(
+                level,
+                target,
+                geometry,
+                column,
+                crater,
+                cursor == total ? total - 1L : cursor);
     }
 
     /**

@@ -244,8 +244,7 @@ public final class OrbitalKineticAttackGameTest {
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "kinetic-snapshot-owner");
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings =
-                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         OrbitalAttackCost cost = OrbitalAttackCost.kinetic(settings);
         KineticConfigurationSnapshot original = KineticConfigurationSnapshot.capture(settings);
         KineticConfigurationSnapshot confirmed = new KineticConfigurationSnapshot(
@@ -479,7 +478,7 @@ public final class OrbitalKineticAttackGameTest {
                                                 double knockbackStrength) {
 
         private static KineticConfigurationSnapshot capture(
-                                                              DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                                            DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
             return new KineticConfigurationSnapshot(
                     settings.attackWarningTicks,
                     settings.kineticCooldownTicks,

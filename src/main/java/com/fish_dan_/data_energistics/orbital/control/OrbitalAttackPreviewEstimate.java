@@ -74,11 +74,10 @@ public record OrbitalAttackPreviewEstimate(
                     throw new IllegalArgumentException("Directed-energy preview depth is required");
                 }
                 OrbitalDirectedEnergyStrike.validateRadius(directedRadius, settings);
-                OrbitalAttackGeometry.DirectedEnergy geometry =
-                        OrbitalAttackGeometry.DirectedEnergy.fromSettings(
-                                directedRadius,
-                                directedDepth,
-                                settings);
+                OrbitalAttackGeometry.DirectedEnergy geometry = OrbitalAttackGeometry.DirectedEnergy.fromSettings(
+                        directedRadius,
+                        directedDepth,
+                        settings);
                 scheduledCoordinates = OrbitalDirectedEnergyStrike.scheduledCoordinateCount(directedRadius);
                 cost = OrbitalAttackCost.directedEnergy(settings, scheduledCoordinates);
                 scheduledBlocks = OrbitalDirectedEnergyStrike.totalWork(level, target, geometry);

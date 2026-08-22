@@ -27,7 +27,8 @@ public sealed interface OrbitalAttackGeometry
                    int craterDepth,
                    int shockwaveRadius,
                    long entityDamage,
-                   double knockbackStrength) implements OrbitalAttackGeometry {
+                   double knockbackStrength)
+            implements OrbitalAttackGeometry {
 
         public static final int DEFAULT_COLUMN_RADIUS = 8;
         public static final int DEFAULT_COLUMN_DEPTH = 192;
@@ -42,12 +43,10 @@ public sealed interface OrbitalAttackGeometry
         public static final double MAX_KNOCKBACK_STRENGTH = 128.0D;
 
         public Kinetic {
-            if (columnRadius < 1 || columnRadius > MAX_TERRAIN_RADIUS
-                    || craterRadius < 1 || craterRadius > MAX_TERRAIN_RADIUS) {
+            if (columnRadius < 1 || columnRadius > MAX_TERRAIN_RADIUS || craterRadius < 1 || craterRadius > MAX_TERRAIN_RADIUS) {
                 throw new IllegalArgumentException("Kinetic terrain radius is outside the supported range");
             }
-            if (columnDepth < 1 || columnDepth > MAX_TERRAIN_DEPTH
-                    || craterDepth < 1 || craterDepth > MAX_TERRAIN_DEPTH) {
+            if (columnDepth < 1 || columnDepth > MAX_TERRAIN_DEPTH || craterDepth < 1 || craterDepth > MAX_TERRAIN_DEPTH) {
                 throw new IllegalArgumentException("Kinetic terrain depth is outside the supported range");
             }
             if (shockwaveRadius < 1 || shockwaveRadius > MAX_SHOCKWAVE_RADIUS) {
@@ -56,9 +55,7 @@ public sealed interface OrbitalAttackGeometry
             if (entityDamage < 1L || entityDamage > Integer.MAX_VALUE) {
                 throw new IllegalArgumentException("Kinetic entity damage is outside the supported range");
             }
-            if (!Double.isFinite(knockbackStrength)
-                    || knockbackStrength < 0.0D
-                    || knockbackStrength > MAX_KNOCKBACK_STRENGTH) {
+            if (!Double.isFinite(knockbackStrength) || knockbackStrength < 0.0D || knockbackStrength > MAX_KNOCKBACK_STRENGTH) {
                 throw new IllegalArgumentException("Kinetic knockback strength is outside the supported range");
             }
         }
@@ -96,9 +93,7 @@ public sealed interface OrbitalAttackGeometry
                                             int shockwaveRadius,
                                             long entityDamage,
                                             double knockbackStrength) {
-            double normalizedKnockback = Double.isFinite(knockbackStrength)
-                    ? Math.clamp(knockbackStrength, 0.0D, MAX_KNOCKBACK_STRENGTH)
-                    : DEFAULT_KNOCKBACK_STRENGTH;
+            double normalizedKnockback = Double.isFinite(knockbackStrength) ? Math.clamp(knockbackStrength, 0.0D, MAX_KNOCKBACK_STRENGTH) : DEFAULT_KNOCKBACK_STRENGTH;
             return new Kinetic(
                     Math.clamp(columnRadius, 1, MAX_TERRAIN_RADIUS),
                     Math.clamp(columnDepth, 1, MAX_TERRAIN_DEPTH),
@@ -130,7 +125,8 @@ public sealed interface OrbitalAttackGeometry
                           int radius,
                           OrbitalDirectedEnergyDepth depth,
                           int depthBlocks,
-                          long entityDamage) implements OrbitalAttackGeometry {
+                          long entityDamage)
+            implements OrbitalAttackGeometry {
 
         public static final int DEFAULT_MIN_RADIUS = 16;
         public static final int DEFAULT_MAX_RADIUS = 256;
@@ -173,9 +169,7 @@ public sealed interface OrbitalAttackGeometry
                                                    OrbitalDirectedEnergyDepth depth,
                                                    int depthBlocks,
                                                    long entityDamage) {
-            int normalizedDepth = depth == OrbitalDirectedEnergyDepth.THROUGH
-                    ? 0
-                    : Math.clamp(depthBlocks, 1, MAX_SUPPORTED_DEPTH);
+            int normalizedDepth = depth == OrbitalDirectedEnergyDepth.THROUGH ? 0 : Math.clamp(depthBlocks, 1, MAX_SUPPORTED_DEPTH);
             return new DirectedEnergy(
                     Math.clamp(radius, 1, MAX_SUPPORTED_RADIUS),
                     depth,
@@ -189,9 +183,7 @@ public sealed interface OrbitalAttackGeometry
         }
 
         public int bottomY(ServerLevel level, int targetY) {
-            return this.depth == OrbitalDirectedEnergyDepth.THROUGH
-                    ? level.getMinBuildHeight()
-                    : (int) Math.max(level.getMinBuildHeight(), (long) targetY - this.depthBlocks);
+            return this.depth == OrbitalDirectedEnergyDepth.THROUGH ? level.getMinBuildHeight() : (int) Math.max(level.getMinBuildHeight(), (long) targetY - this.depthBlocks);
         }
     }
 

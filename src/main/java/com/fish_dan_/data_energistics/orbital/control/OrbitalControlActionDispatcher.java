@@ -72,9 +72,7 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
         OrbitalDirectedEnergyDepth depth = mode == OrbitalAttackMode.DIRECTED_ENERGY ? OrbitalDirectedEnergyDepth.DEPTH_32 : null;
-        int directedRadius = mode == OrbitalAttackMode.DIRECTED_ENERGY
-                ? DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.directedEnergyMinimumRadius
-                : 0;
+        int directedRadius = mode == OrbitalAttackMode.DIRECTED_ENERGY ? DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.directedEnergyMinimumRadius : 0;
         return beginFireAtTarget(
                 player,
                 mode,

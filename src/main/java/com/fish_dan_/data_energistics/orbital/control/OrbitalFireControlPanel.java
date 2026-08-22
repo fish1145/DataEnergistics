@@ -71,8 +71,7 @@ final class OrbitalFireControlPanel {
                             BooleanSupplier sourceValid,
                             boolean clientSide) {
         ClientPanelState state = new ClientPanelState();
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings =
-                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         RPCEmitter previewEmitter = previewEmitter(rpcRoot, player, sourceValid);
         RPCEmitter startHoldEmitter = startHoldEmitter(rpcRoot, player, sourceValid);
         RPCEmitter releaseEmitter = releaseEmitter(rpcRoot, player, sourceValid);

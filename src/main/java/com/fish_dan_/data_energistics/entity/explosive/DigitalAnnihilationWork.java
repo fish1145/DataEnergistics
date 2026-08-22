@@ -531,13 +531,7 @@ public final class DigitalAnnihilationWork {
         private static final double MAX_CENTER_ENTITY_CONSUME_RADIUS = 128.0D;
 
         public Settings {
-            if (workIntervalTicks < 1
-                    || workIntervalTicks > MAX_WORK_INTERVAL_TICKS
-                    || maxRadius < 1
-                    || maxRadius > MAX_RADIUS
-                    || !Double.isFinite(centerEntityConsumeRadius)
-                    || centerEntityConsumeRadius < 0.0D
-                    || centerEntityConsumeRadius > MAX_CENTER_ENTITY_CONSUME_RADIUS) {
+            if (workIntervalTicks < 1 || workIntervalTicks > MAX_WORK_INTERVAL_TICKS || maxRadius < 1 || maxRadius > MAX_RADIUS || !Double.isFinite(centerEntityConsumeRadius) || centerEntityConsumeRadius < 0.0D || centerEntityConsumeRadius > MAX_CENTER_ENTITY_CONSUME_RADIUS) {
                 throw new IllegalArgumentException("Invalid digital annihilation work settings");
             }
         }
@@ -547,9 +541,7 @@ public final class DigitalAnnihilationWork {
                                              int workIntervalTicks,
                                              int maxRadius,
                                              double centerEntityConsumeRadius) {
-            double normalizedCenterRadius = Double.isFinite(centerEntityConsumeRadius)
-                    ? Math.clamp(centerEntityConsumeRadius, 0.0D, MAX_CENTER_ENTITY_CONSUME_RADIUS)
-                    : 0.0D;
+            double normalizedCenterRadius = Double.isFinite(centerEntityConsumeRadius) ? Math.clamp(centerEntityConsumeRadius, 0.0D, MAX_CENTER_ENTITY_CONSUME_RADIUS) : 0.0D;
             return new Settings(
                     Math.clamp(workIntervalTicks, 1, MAX_WORK_INTERVAL_TICKS),
                     Math.clamp(maxRadius, 1, MAX_RADIUS),
