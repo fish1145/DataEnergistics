@@ -363,8 +363,8 @@ public class DataNukePrimedEntity extends PrimedTnt {
      * data nukes never call this entry point and retain their standalone work behavior.
      */
     public DigitalAnnihilationWork.TickResult tickOrbitalWork(
-                                                               int mutationBudget,
-                                                               Predicate<ChunkPos> chunkReady) {
+                                                              int mutationBudget,
+                                                              Predicate<ChunkPos> chunkReady) {
         if (this.orbitalAttackId == null) {
             throw new IllegalStateException("A manual data nuke cannot use the orbital work scheduler");
         }
@@ -522,10 +522,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
     }
 
     private void updateChunkTicket() {
-        if (this.orbitalAttackId != null
-                || !this.isAddedToLevel()
-                || this.isRemoved()
-                || !(this.level() instanceof ServerLevel serverLevel)) {
+        if (this.orbitalAttackId != null || !this.isAddedToLevel() || this.isRemoved() || !(this.level() instanceof ServerLevel serverLevel)) {
             return;
         }
 

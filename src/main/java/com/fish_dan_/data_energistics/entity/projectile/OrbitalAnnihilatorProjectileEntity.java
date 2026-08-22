@@ -216,5 +216,4 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
                 settings.maxRadius(),
                 settings.centerEntityConsumeRadius());
     }
-
 }

@@ -936,9 +936,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             OrbitalAttackWorkState workState = switch (result.state()) {
                 case WAITING -> OrbitalAttackWorkState.WORKING;
                 case WAITING_FOR_CHUNK -> persistedWorkState(readiness);
-                case WORKING, SHELL_COMPLETED -> mutationBudget == 0
-                        ? OrbitalAttackWorkState.WAITING_FOR_BUDGET
-                        : OrbitalAttackWorkState.WORKING;
+                case WORKING, SHELL_COMPLETED -> mutationBudget == 0 ? OrbitalAttackWorkState.WAITING_FOR_BUDGET : OrbitalAttackWorkState.WORKING;
                 case FINISHED, FAULTED -> throw new IllegalStateException("Digital work state was handled before persistence");
             };
             updateAttack(
@@ -1188,9 +1186,7 @@ public final class OrbitalAttackSavedData extends SavedData {
 
     private static String workerFailureReason(RuntimeException exception) {
         String message = exception.getMessage();
-        String reason = message == null || message.isBlank()
-                ? exception.getClass().getSimpleName()
-                : exception.getClass().getSimpleName() + ": " + message.replace('\r', ' ').replace('\n', ' ');
+        String reason = message == null || message.isBlank() ? exception.getClass().getSimpleName() : exception.getClass().getSimpleName() + ": " + message.replace('\r', ' ').replace('\n', ' ');
         return reason.length() <= MAX_FAULT_REASON_LENGTH ? reason : reason.substring(0, MAX_FAULT_REASON_LENGTH);
     }
 
