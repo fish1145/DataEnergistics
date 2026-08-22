@@ -91,7 +91,7 @@ public final class OrbitalTerrainWorkScheduler {
      */
     public void settleMutationBudget(UUID attackId, int granted, int visited) {
         requireOpenTick();
-        if (granted < 0 || visited < 0 || visited > granted) {
+        if (visited < 0 || visited > granted) {
             throw new IllegalArgumentException("Invalid orbital terrain mutation settlement");
         }
         int reserved = this.mutationsReservedByTask.getOrDefault(attackId, 0);
@@ -242,7 +242,7 @@ public final class OrbitalTerrainWorkScheduler {
             retainedTicketCount++;
         }
         while (level != null && task.heldTickets.size() > retainedTicketCount) {
-            if (!releaseOldestUnpinnedTicket(level, attackId, task)) {
+            if (releaseOldestUnpinnedTicket(level, attackId, task) == null) {
                 break;
             }
         }
@@ -266,8 +266,7 @@ public final class OrbitalTerrainWorkScheduler {
 
     private void startChunkRequest(ServerLevel level, UUID attackId, TaskState task, ChunkPos chunk) {
         long requestId = ++task.nextRequestId;
-        PendingRequest request = new PendingRequest(chunk, requestId);
-        task.pendingRequest = request;
+        task.pendingRequest = new PendingRequest(chunk, requestId);
         this.pendingRequestCount++;
         this.pendingRequestsByDimension.merge(level.dimension(), 1, Integer::sum);
 
@@ -299,12 +298,12 @@ public final class OrbitalTerrainWorkScheduler {
             return true;
         }
         while (task.heldTickets.size() >= this.maxTicketsPerTask) {
-            if (!releaseOldestUnpinnedTicket(level, attackId, task)) {
+            if (releaseOldestUnpinnedTicket(level, attackId, task) == null) {
                 return false;
             }
         }
         if (this.heldTicketCount >= this.maxTicketsGlobal && !task.heldTickets.isEmpty()) {
-            if (!releaseOldestUnpinnedTicket(level, attackId, task)) {
+            if (releaseOldestUnpinnedTicket(level, attackId, task) == null) {
                 return false;
             }
         }
@@ -331,7 +330,8 @@ public final class OrbitalTerrainWorkScheduler {
         releaseTicket(level, attackId, task, iterator.next());
     }
 
-    private boolean releaseOldestUnpinnedTicket(ServerLevel level, UUID attackId, TaskState task) {
+    @Nullable
+    private ChunkPos releaseOldestUnpinnedTicket(ServerLevel level, UUID attackId, TaskState task) {
         ChunkPos oldestUnpinned = null;
         for (ChunkPos chunk : task.heldTickets) {
             if (!task.pinnedTickets.contains(chunk)) {
@@ -340,10 +340,10 @@ public final class OrbitalTerrainWorkScheduler {
             }
         }
         if (oldestUnpinned == null) {
-            return false;
+            return null;
         }
         releaseTicket(level, attackId, task, oldestUnpinned);
-        return true;
+        return oldestUnpinned;
     }
 
     private void releaseTicket(ServerLevel level, UUID attackId, TaskState task, ChunkPos chunk) {

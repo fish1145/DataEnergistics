@@ -99,22 +99,13 @@ public final class OrbitalTacticalMapCoordinator {
         }
         session.requestCount++;
         session.nonces.add(nonce);
-        while (session.nonces.size() > MAX_REQUESTS_PER_WINDOW) {
-            session.nonces.remove(session.nonces.iterator().nextLong());
-        }
-
         int side = radius * 2 + 1;
-        LongSet seenChunks = new LongOpenHashSet(side * side);
         LongSet publicAttackChunks = publicAttackChunks(level);
         ArrayList<OrbitalMapTile> tiles = new ArrayList<>(side * side);
         for (int offsetX = -radius; offsetX <= radius; offsetX++) {
             for (int offsetZ = -radius; offsetZ <= radius; offsetZ++) {
                 int chunkX = centerChunkX + offsetX;
                 int chunkZ = centerChunkZ + offsetZ;
-                long chunkKey = ChunkPos.asLong(chunkX, chunkZ);
-                if (!seenChunks.add(chunkKey)) {
-                    throw new IllegalStateException("Tactical-map viewport produced a duplicate chunk");
-                }
                 int markers = markerFlags(level, weapon, chunkX, chunkZ, publicAttackChunks);
                 LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
                 if (chunk == null) {
