@@ -7,57 +7,50 @@
 	],
 	"background": {
 		"texture": "guis/data_asynchronous_processing_factory.png",
-		"srcRect": [0, 0, 176, 183]
+		"srcRect": [0, 0, 195, 235]
 	},
 	"slots": {
 		"MACHINE_INPUT": {
-			"left": 19,
-			"top": 22,
-			"grid": "BREAK_AFTER_3COLS"
+			"left": 8,
+			"top": 19,
+			"grid": "BREAK_AFTER_6COLS"
 		},
 		"STORAGE": {
-			"left": 74,
-			"top": 22
+			"left": 116,
+			"top": 19
 		},
 		"DATA_RIPPER_REASSEMBLER_FLUID_INPUT_B": {
-			"left": 74,
-			"top": 58
+			"left": 134,
+			"top": 19
 		},
 		"DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_A": {
-			"left": 143,
-			"top": 22
+			"left": 116,
+			"top": 103
 		},
 		"DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_B": {
-			"left": 143,
-			"top": 58
+			"left": 134,
+			"top": 103
 		},
 		"DATA_RIPPER_REASSEMBLER_KEY_INPUT": {
-			"left": 74,
-			"top": 40
+			"left": 152,
+			"top": 19
 		},
 		"DATA_RIPPER_REASSEMBLER_KEY_OUTPUT": {
-			"left": 143,
-			"top": 40
+			"left": 152,
+			"top": 103
 		},
 		"MACHINE_OUTPUT": {
-			"left": 125,
-			"top": 22
-		},
-		"DATA_RIPPER_REASSEMBLER_OUTPUT_B": {
-			"left": 125,
-			"top": 40
-		},
-		"DATA_RIPPER_REASSEMBLER_OUTPUT_C": {
-			"left": 125,
-			"top": 58
+			"left": 8,
+			"top": 103,
+			"grid": "BREAK_AFTER_6COLS"
 		},
 		"PLAYER_INVENTORY": {
-			"left": 8,
+			"left": 17,
 			"bottom": 84,
 			"grid": "BREAK_AFTER_9COLS"
 		},
 		"PLAYER_HOTBAR": {
-			"left": 8,
+			"left": 17,
 			"bottom": 26,
 			"grid": "HORIZONTAL"
 		},
@@ -82,7 +75,7 @@
 				"translate": "container.inventory"
 			},
 			"position": {
-				"left": 8,
+				"left": 17,
 				"bottom": 94
 			}
 		}
@@ -90,13 +83,21 @@
 	"images": {
 		"progressBar": {
 			"texture": "guis/data_asynchronous_processing_factory.png",
-			"srcRect": [176, 0, 6, 18]
+			"srcRect": [195, 0, 6, 18]
 		}
 	},
 	"widgets": {
 		"progressBar": {
-			"left": 164,
-			"top": 39
+			"left": 42,
+			"top": 77
+		},
+		"progressBarMiddle": {
+			"left": 96,
+			"top": 77
+		},
+		"progressBarRight": {
+			"left": 150,
+			"top": 77
 		},
 		"toolbox": {
 			"right": 2,
@@ -105,7 +106,7 @@
 			"height": 66
 		},
 		"upgrades": {
-			"left": 174,
+			"right": 2,
 			"top": 0
 		}
 	}

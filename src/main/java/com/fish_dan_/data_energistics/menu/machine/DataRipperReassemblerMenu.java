@@ -127,7 +127,7 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
     @Override
     protected void setupInventorySlots() {
         var storage = this.getHost().getStorageInventory();
-        for (int i = 0; i < DataRipperReassemblerBlockEntity.ITEM_INPUT_SLOT_COUNT; i++) {
+        for (int i = 0; i < this.getHost().getItemInputSlotCount(); i++) {
             this.addSlot(new ReassemblerItemSlot(storage, DataRipperReassemblerBlockEntity.ITEM_INPUT_START_SLOT + i), SlotSemantics.MACHINE_INPUT);
         }
         this.addSlot(new AppEngSlot(this.getHost().getFluidMenuInventoryA(), 0), SlotSemantics.STORAGE);
@@ -136,9 +136,15 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
         this.addSlot(new AppEngSlot(this.getHost().getFluidOutputMenuInventoryB(), 0), FLUID_OUTPUT_B);
         this.addSlot(new AppEngSlot(this.getHost().getKeyMenuInventory(), 0), KEY_INPUT);
         this.addSlot(new AppEngSlot(this.getHost().getKeyOutputMenuInventory(), 0), KEY_OUTPUT);
-        this.addSlot(new ReassemblerOutputSlot(storage, DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT), SlotSemantics.MACHINE_OUTPUT);
-        this.addSlot(new ReassemblerOutputSlot(storage, DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT + 1), ITEM_OUTPUT_B);
-        this.addSlot(new ReassemblerOutputSlot(storage, DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT + 2), ITEM_OUTPUT_C);
+        for (int i = 0; i < this.getHost().getItemOutputSlotCount(); i++) {
+            SlotSemantic semantic = switch (i) {
+                case 0 -> SlotSemantics.MACHINE_OUTPUT;
+                case 1 -> ITEM_OUTPUT_B;
+                case 2 -> ITEM_OUTPUT_C;
+                default -> SlotSemantics.MACHINE_OUTPUT;
+            };
+            this.addSlot(new ReassemblerOutputSlot(storage, this.getHost().getItemOutputStartSlot() + i), semantic);
+        }
     }
 
     @Override
@@ -306,9 +312,9 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
         return mask;
     }
 
-    private static final class ReassemblerItemSlot extends AppEngSlot {
+    protected static final class ReassemblerItemSlot extends AppEngSlot {
 
-        private ReassemblerItemSlot(InternalInventory inv, int invSlot) {
+        protected ReassemblerItemSlot(InternalInventory inv, int invSlot) {
             super(inv, invSlot);
         }
 
@@ -318,9 +324,9 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
         }
     }
 
-    private static final class ReassemblerOutputSlot extends OutputSlot {
+    protected static final class ReassemblerOutputSlot extends OutputSlot {
 
-        private ReassemblerOutputSlot(InternalInventory inv, int invSlot) {
+        protected ReassemblerOutputSlot(InternalInventory inv, int invSlot) {
             super(inv, invSlot, null);
         }
 

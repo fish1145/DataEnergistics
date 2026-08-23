@@ -197,7 +197,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
             @Override
             public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-                return slot >= ITEM_INPUT_START_SLOT && slot < ITEM_INPUT_START_SLOT + ITEM_INPUT_SLOT_COUNT;
+                return slot >= ITEM_INPUT_START_SLOT && slot < ITEM_INPUT_START_SLOT + getItemInputSlotCount();
             }
         });
         initializeItemSlotCapacities();
@@ -349,6 +349,39 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     public int getItemSlotCapacity() {
         return ITEM_SLOT_CAPACITY;
+    }
+
+    /**
+     * Returns the number of item slots that accept recipe inputs.
+     *
+     * <p>
+     * Subclasses may enlarge the shared item buffer, but must keep the output range directly after it so
+     * inventory, capability and serialization paths continue to describe the same slots.
+     * </p>
+     */
+    public int getItemInputSlotCount() {
+        return ITEM_INPUT_SLOT_COUNT;
+    }
+
+    /**
+     * Returns the first item output slot for this machine's contiguous item inventory.
+     */
+    public int getItemOutputStartSlot() {
+        return ITEM_INPUT_START_SLOT + getItemInputSlotCount();
+    }
+
+    /**
+     * Returns the number of item slots that accept completed recipe outputs.
+     */
+    public int getItemOutputSlotCount() {
+        return ITEM_OUTPUT_SLOT_COUNT;
+    }
+
+    /**
+     * Returns the total number of item slots allocated by this machine.
+     */
+    public int getStorageSlotCount() {
+        return getItemOutputStartSlot() + getItemOutputSlotCount();
     }
 
     public long getKeyInputCapacity() {
@@ -613,7 +646,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private void initializeItemSlotCapacities() {
-        for (int slot = 0; slot < STORAGE_SLOTS; slot++) {
+        for (int slot = 0; slot < this.storage.size(); slot++) {
             this.storage.setMaxStackSize(slot, ITEM_SLOT_CAPACITY);
         }
     }
@@ -741,8 +774,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private RecipeMatchKey createRecipeMatchKey() {
-        List<RecipeStackIdentity> items = new ArrayList<>(ITEM_INPUT_SLOT_COUNT);
-        for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
+        List<RecipeStackIdentity> items = new ArrayList<>(getItemInputSlotCount());
+        for (int i = 0; i < getItemInputSlotCount(); i++) {
             ItemStack stack = this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + i);
             items.add(createItemStackIdentity(stack));
         }
@@ -791,8 +824,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private DataRipperReassemblerRecipeInput createRecipeInput() {
-        List<ItemStack> inputs = new ArrayList<>(ITEM_INPUT_SLOT_COUNT);
-        for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
+        List<ItemStack> inputs = new ArrayList<>(getItemInputSlotCount());
+        for (int i = 0; i < getItemInputSlotCount(); i++) {
             inputs.add(this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + i).copy());
         }
         List<GenericStack> fluids = new ArrayList<>(DataRipperReassemblerRecipe.FLUID_INPUT_SLOTS);
@@ -808,9 +841,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean canAcceptItemOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> itemOutputs) {
-        ItemStack[] simulated = new ItemStack[ITEM_OUTPUT_SLOT_COUNT];
-        for (int i = 0; i < ITEM_OUTPUT_SLOT_COUNT; i++) {
-            simulated[i] = this.storage.getStackInSlot(ITEM_OUTPUT_START_SLOT + i).copy();
+        ItemStack[] simulated = new ItemStack[getItemOutputSlotCount()];
+        for (int i = 0; i < getItemOutputSlotCount(); i++) {
+            simulated[i] = this.storage.getStackInSlot(getItemOutputStartSlot() + i).copy();
         }
 
         for (ItemStack output : itemOutputs) {
@@ -844,7 +877,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         for (DataRipperReassemblerIngredient countedIngredient : recipe.getItemInputs()) {
             int remaining = countedIngredient.count();
-            for (int i = 0; i < ITEM_INPUT_SLOT_COUNT && remaining > 0; i++) {
+            for (int i = 0; i < getItemInputSlotCount() && remaining > 0; i++) {
                 int slot = ITEM_INPUT_START_SLOT + i;
                 ItemStack stack = this.storage.getStackInSlot(slot);
                 if (stack.isEmpty() || !countedIngredient.ingredient().test(stack)) {
@@ -904,7 +937,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
 
             ItemStack remaining = output.copy();
-            for (int i = 0; i < ITEM_OUTPUT_SLOT_COUNT && !remaining.isEmpty(); i++) {
+            for (int i = 0; i < getItemOutputSlotCount() && !remaining.isEmpty(); i++) {
                 remaining = insertIntoOutputSlot(null, i, remaining, true);
             }
             if (!remaining.isEmpty()) {
@@ -1021,7 +1054,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private RecipeProcessingState captureRecipeProcessingState() {
-        ItemStack[] itemSlots = new ItemStack[STORAGE_SLOTS];
+        ItemStack[] itemSlots = new ItemStack[this.storage.size()];
         for (int slot = 0; slot < itemSlots.length; slot++) {
             itemSlots[slot] = this.storage.getStackInSlot(slot).copy();
         }
@@ -1046,7 +1079,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private ItemStack insertIntoOutputSlot(ItemStack[] simulated, int outputIndex, ItemStack stack, boolean modulate) {
-        int slot = ITEM_OUTPUT_START_SLOT + outputIndex;
+        int slot = getItemOutputStartSlot() + outputIndex;
         ItemStack current = simulated != null ? simulated[outputIndex] : this.storage.getStackInSlot(slot);
         int slotLimit = this.storage.getSlotLimit(slot);
 
@@ -1114,7 +1147,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean hasItemOutput() {
-        for (int slot = ITEM_OUTPUT_START_SLOT; slot < ITEM_OUTPUT_START_SLOT + ITEM_OUTPUT_SLOT_COUNT; slot++) {
+        for (int slot = getItemOutputStartSlot(); slot < getItemOutputStartSlot() + getItemOutputSlotCount(); slot++) {
             if (!this.storage.getStackInSlot(slot).isEmpty()) {
                 return true;
             }
@@ -1133,8 +1166,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private boolean exportItemOutputs(List<IItemHandler> adjacentHandlers) {
         boolean changed = false;
-        for (int i = 0; i < ITEM_OUTPUT_SLOT_COUNT; i++) {
-            int slot = ITEM_OUTPUT_START_SLOT + i;
+        for (int i = 0; i < getItemOutputSlotCount(); i++) {
+            int slot = getItemOutputStartSlot() + i;
             ItemStack stack = this.storage.getStackInSlot(slot);
             if (stack.isEmpty()) {
                 continue;
@@ -1326,8 +1359,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private ItemStack[] copyInputSlots() {
-        ItemStack[] slots = new ItemStack[ITEM_INPUT_SLOT_COUNT];
-        for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
+        ItemStack[] slots = new ItemStack[getItemInputSlotCount()];
+        for (int i = 0; i < getItemInputSlotCount(); i++) {
             slots[i] = this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + i).copy();
         }
         return slots;
@@ -1517,7 +1550,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private void applyPatternPushState(PatternPushState state) {
-        for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
+        for (int i = 0; i < getItemInputSlotCount(); i++) {
             this.storage.setItemDirect(ITEM_INPUT_START_SLOT + i, state.itemInputs[i]);
         }
 
@@ -1552,8 +1585,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private InternalInventory createExternalInput() {
-        InternalInventory[] inputs = new InternalInventory[ITEM_INPUT_SLOT_COUNT];
-        for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
+        InternalInventory[] inputs = new InternalInventory[getItemInputSlotCount()];
+        for (int i = 0; i < getItemInputSlotCount(); i++) {
             inputs[i] = new FilteredInternalInventory(
                     this.storage.getSlotInv(ITEM_INPUT_START_SLOT + i),
                     new SlotFilter(stack -> true, false));
@@ -1562,10 +1595,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private InternalInventory createExternalOutput() {
-        InternalInventory[] outputs = new InternalInventory[ITEM_OUTPUT_SLOT_COUNT];
-        for (int i = 0; i < ITEM_OUTPUT_SLOT_COUNT; i++) {
+        InternalInventory[] outputs = new InternalInventory[getItemOutputSlotCount()];
+        for (int i = 0; i < getItemOutputSlotCount(); i++) {
             outputs[i] = new FilteredInternalInventory(
-                    this.storage.getSlotInv(ITEM_OUTPUT_START_SLOT + i),
+                    this.storage.getSlotInv(getItemOutputStartSlot() + i),
                     new SlotFilter(stack -> false, true));
         }
         return new CombinedInternalInventory(outputs);
@@ -2121,7 +2154,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private final class ReassemblerItemInventory extends AppEngInternalInventory {
 
         private ReassemblerItemInventory() {
-            super(DataRipperReassemblerBlockEntity.this, STORAGE_SLOTS);
+            super(DataRipperReassemblerBlockEntity.this, DataRipperReassemblerBlockEntity.this.getStorageSlotCount());
         }
 
         @Override
