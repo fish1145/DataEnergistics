@@ -99,7 +99,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final int FLUID_CAPACITY = DataChargePressRecipe.MAX_FLUID_AMOUNT;
     public static final int MAX_SPEED_CARDS = 4;
     public static final int MAX_ENERGY_CARDS = 2;
-    public static final int UPGRADE_SLOTS = 5;
+    public static final int UPGRADE_SLOTS = 6;
     public static final int MAX_PROGRESS = 200;
     public static final int BASE_PARALLEL = 1;
     public static final int PARALLEL_MULTIPLIER_PER_ENERGY_CARD = 16;

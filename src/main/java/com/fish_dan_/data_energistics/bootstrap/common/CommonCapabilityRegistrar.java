@@ -77,6 +77,10 @@ final class CommonCapabilityRegistrar {
                 (blockEntity, context) -> blockEntity.getEnergyStorage(context));
         event.registerBlockEntity(
                 Capabilities.EnergyStorage.BLOCK,
+                DEBlockEntities.DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getEnergyStorage(context));
+        event.registerBlockEntity(
+                Capabilities.EnergyStorage.BLOCK,
                 DEBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getEnergyStorage(context));
         event.registerBlockEntity(
@@ -104,16 +108,32 @@ final class CommonCapabilityRegistrar {
                 DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                DEBlockEntities.DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
                 AECapabilities.CRAFTING_MACHINE,
                 DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
+                AECapabilities.CRAFTING_MACHINE,
+                DEBlockEntities.DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.ME_STORAGE,
                 DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalPatternInputStorage());
         event.registerBlockEntity(
+                AECapabilities.ME_STORAGE,
+                DEBlockEntities.DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalPatternInputStorage());
+        event.registerBlockEntity(
                 AECapabilities.GENERIC_INTERNAL_INV,
                 DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalKeyInventory());
+        event.registerBlockEntity(
+                AECapabilities.GENERIC_INTERNAL_INV,
+                DEBlockEntities.DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalKeyInventory());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
@@ -157,8 +177,16 @@ final class CommonCapabilityRegistrar {
                 DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler());
         event.registerBlockEntity(
+                Capabilities.ItemHandler.BLOCK,
+                DEBlockEntities.DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler());
+        event.registerBlockEntity(
                 Capabilities.FluidHandler.BLOCK,
                 DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity.getExternalFluidHandler());
+        event.registerBlockEntity(
+                Capabilities.FluidHandler.BLOCK,
+                DEBlockEntities.DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalFluidHandler());
         event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,

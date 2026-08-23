@@ -36,15 +36,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperReassemblerMenu>
-                                         implements GenericStackLookupScreen {
+public class DataRipperReassemblerScreen<M extends DataRipperReassemblerMenu> extends UpgradeableScreen<M>
+                                        implements GenericStackLookupScreen {
 
     private final ProgressBar progressBar;
     private final ServerSettingToggleButton<YesNo> autoExportButton;
     private final OutputSideActionButton outputSideButton;
 
-    public DataRipperReassemblerScreen(DataRipperReassemblerMenu menu, Inventory playerInventory, Component title,
-                                       ScreenStyle style) {
+    public DataRipperReassemblerScreen(M menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
         this.autoExportButton = new ServerSettingToggleButton<>(Settings.AUTO_EXPORT, YesNo.NO);
         this.addToLeftToolbar(this.autoExportButton);
@@ -58,7 +57,7 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
         if (this.menu.getHost() == null) {
             return;
         }
-        this.switchToScreen(new DataRipperReassemblerOutputSideScreen(
+        this.switchToScreen(new DataRipperReassemblerOutputSideScreen<>(
                 this,
                 this.menu,
                 this.menu.getHost(),

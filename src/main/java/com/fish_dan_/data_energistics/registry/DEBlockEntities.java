@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TuningForkBaseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TuningForkBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.decor.DollBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.machine.DataAsynchronousProcessingFactoryBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataIntegratedChargerBlockEntity;
@@ -62,6 +63,12 @@ public final class DEBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataRipperReassemblerBlockEntity>> DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "data_reassembler",
             () -> BlockEntityType.Builder.of(DataRipperReassemblerBlockEntity::new, DEBlocks.DATA_RIPPER_REASSEMBLER.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataAsynchronousProcessingFactoryBlockEntity>> DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "data_asynchronous_processing_factory",
+            () -> BlockEntityType.Builder.of(
+                    DataAsynchronousProcessingFactoryBlockEntity::new,
+                    DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TrinityDataCoreBlockEntity>> TRINITY_DATA_CORE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "trinity_data_core",

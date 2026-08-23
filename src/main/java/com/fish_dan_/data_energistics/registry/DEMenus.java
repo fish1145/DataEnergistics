@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.registry;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderHost;
 import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumLargeInterfaceHost;
+import com.fish_dan_.data_energistics.blockentity.machine.DataAsynchronousProcessingFactoryBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataIntegratedChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataMimeticFieldBlockEntity;
@@ -18,6 +19,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlo
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.item.order.OrderPackageMenuHost;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumMenuHost;
+import com.fish_dan_.data_energistics.menu.machine.DataAsynchronousProcessingFactoryMenu;
 import com.fish_dan_.data_energistics.menu.machine.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.menu.machine.DataExtractorMenu;
 import com.fish_dan_.data_energistics.menu.machine.DataIntegratedChargerMenu;
@@ -83,6 +85,11 @@ public final class DEMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<DataRipperReassemblerMenu>> DATA_RIPPER_REASSEMBLER = MENUS.register("data_reassembler", () -> MenuTypeBuilder
             .create(DataRipperReassemblerMenu::new, DataRipperReassemblerBlockEntity.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_reassembler")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<DataAsynchronousProcessingFactoryMenu>> DATA_ASYNCHRONOUS_PROCESSING_FACTORY = MENUS.register(
+            "data_asynchronous_processing_factory", () -> MenuTypeBuilder
+                    .create(DataAsynchronousProcessingFactoryMenu::new, DataAsynchronousProcessingFactoryBlockEntity.class)
+                    .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "data_asynchronous_processing_factory")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataIntegratedChargerMenu>> DATA_INTEGRATED_CHARGER = MENUS.register("data_integrated_charger", () -> MenuTypeBuilder
             .create(DataIntegratedChargerMenu::new, DataIntegratedChargerBlockEntity.class)

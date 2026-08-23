@@ -63,6 +63,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_SOLAR_PANEL);
                         output.accept(DEItems.DATA_EXTRACTOR);
                         output.accept(DEItems.DATA_RIPPER_REASSEMBLER);
+                        output.accept(DEItems.DATA_ASYNCHRONOUS_PROCESSING_FACTORY);
                         output.accept(DEItems.DATA_FRAMEWORK);
                         output.accept(DEItems.DATA_DISTRIBUTION_TOWER);
                         output.accept(DEItems.DATA_MIMETIC_FIELD);

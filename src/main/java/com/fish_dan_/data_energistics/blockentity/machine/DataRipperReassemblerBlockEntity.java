@@ -32,6 +32,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -109,7 +110,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final long KEY_INPUT_CAPACITY = 51_200_000L;
     public static final long KEY_OUTPUT_CAPACITY = 51_200_000L;
     public static final int MAX_PROGRESS = 200;
-    public static final int UPGRADE_SLOTS = 5;
+    public static final int UPGRADE_SLOTS = 6;
     public static final int BASE_PARALLEL = 1;
     public static final int MAX_ENERGY_CARDS = 2;
     public static final int PARALLEL_MULTIPLIER_PER_ENERGY_CARD = 16;
@@ -135,7 +136,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String MAX_PROGRESS_TAG = "max_progress";
     private static final String ACTIVE_RECIPE_TAG = "active_recipe";
 
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades;
     private final AppEngInternalInventory storage = new ReassemblerItemInventory();
     private boolean suppressAe2DefaultInventorySerialization;
     private final InternalInventory externalInput = createExternalInput();
@@ -178,9 +179,17 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private RecipeMatchCache recipeMatchCache;
 
     public DataRipperReassemblerBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), blockPos, blockState);
+        this(DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), DEBlocks.DATA_RIPPER_REASSEMBLER.get(), blockPos, blockState);
+    }
+
+    protected DataRipperReassemblerBlockEntity(BlockEntityType<? extends DataRipperReassemblerBlockEntity> blockEntityType,
+                                               Block machineBlock,
+                                               BlockPos blockPos,
+                                               BlockState blockState) {
+        super(blockEntityType, blockPos, blockState);
+        this.upgrades = UpgradeInventories.forMachine(machineBlock, UPGRADE_SLOTS, this::onUpgradesChanged);
         this.getMainNode()
-                .setVisualRepresentation(DEBlocks.DATA_RIPPER_REASSEMBLER.get())
+                .setVisualRepresentation(machineBlock)
                 .setIdlePowerUsage(1.0D);
         this.setInternalMaxPower(ENERGY_CAPACITY);
         this.configManager.registerSetting(Settings.AUTO_EXPORT, YesNo.NO);
@@ -265,8 +274,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public PatternContainerGroup getCraftingMachineInfo() {
-        return new PatternContainerGroup(AEItemKey.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get()),
-                DEBlocks.DATA_RIPPER_REASSEMBLER.get().getName(), List.of());
+        return new PatternContainerGroup(AEItemKey.of(getMachineBlock()), getMachineBlock().getName(), List.of());
     }
 
     @Override
@@ -1992,8 +2000,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public Component getDescription() {
-            return DEBlocks.DATA_RIPPER_REASSEMBLER.get().getName();
+            return getMachineBlock().getName();
         }
+    }
+
+    protected Block getMachineBlock() {
+        return DEBlocks.DATA_RIPPER_REASSEMBLER.get();
     }
 
     public GenericStack getKeyInputStack() {

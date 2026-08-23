@@ -97,6 +97,7 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> DATA_SOLAR_PANEL = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_SOLAR_PANEL);
     public static final DeferredItem<BlockItem> DATA_EXTRACTOR = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_EXTRACTOR);
     public static final DeferredItem<BlockItem> DATA_RIPPER_REASSEMBLER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_RIPPER_REASSEMBLER);
+    public static final DeferredItem<BlockItem> DATA_ASYNCHRONOUS_PROCESSING_FACTORY = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY);
     public static final DeferredItem<BlockItem> TRINITY_DATA_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.TRINITY_DATA_CORE);
     public static final DeferredItem<BlockItem> DATA_FRAMEWORK = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_FRAMEWORK);
     public static final DeferredItem<BlockItem> DATA_DISTRIBUTION_TOWER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_DISTRIBUTION_TOWER);

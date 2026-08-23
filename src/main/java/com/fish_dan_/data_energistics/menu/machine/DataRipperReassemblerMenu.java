@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.registry.DEMenus;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -79,7 +80,11 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
     public int keyOutputSidesMask = 63;
 
     public DataRipperReassemblerMenu(int id, Inventory playerInventory, DataRipperReassemblerBlockEntity host) {
-        super(DEMenus.DATA_RIPPER_REASSEMBLER.get(), id, playerInventory, host);
+        this(DEMenus.DATA_RIPPER_REASSEMBLER.get(), id, playerInventory, host);
+    }
+
+    protected DataRipperReassemblerMenu(MenuType<?> menuType, int id, Inventory playerInventory, DataRipperReassemblerBlockEntity host) {
+        super(menuType, id, playerInventory, host);
         registerClientAction(ACTION_SET_AUTO_EXPORT, Boolean.class, this::setAutoExportEnabled);
         registerClientAction(ACTION_SET_OUTPUT_SIDE, String.class, this::setOutputSide);
     }

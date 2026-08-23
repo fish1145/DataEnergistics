@@ -1,0 +1,112 @@
+{
+	"$schema": "schema.json",
+	"includes": [
+		"common/common.json",
+		"common/player_inventory.json",
+		"common/toolbox.json"
+	],
+	"background": {
+		"texture": "guis/data_asynchronous_processing_factory.png",
+		"srcRect": [0, 0, 176, 183]
+	},
+	"slots": {
+		"MACHINE_INPUT": {
+			"left": 19,
+			"top": 22,
+			"grid": "BREAK_AFTER_3COLS"
+		},
+		"STORAGE": {
+			"left": 74,
+			"top": 22
+		},
+		"DATA_RIPPER_REASSEMBLER_FLUID_INPUT_B": {
+			"left": 74,
+			"top": 58
+		},
+		"DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_A": {
+			"left": 143,
+			"top": 22
+		},
+		"DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_B": {
+			"left": 143,
+			"top": 58
+		},
+		"DATA_RIPPER_REASSEMBLER_KEY_INPUT": {
+			"left": 74,
+			"top": 40
+		},
+		"DATA_RIPPER_REASSEMBLER_KEY_OUTPUT": {
+			"left": 143,
+			"top": 40
+		},
+		"MACHINE_OUTPUT": {
+			"left": 125,
+			"top": 22
+		},
+		"DATA_RIPPER_REASSEMBLER_OUTPUT_B": {
+			"left": 125,
+			"top": 40
+		},
+		"DATA_RIPPER_REASSEMBLER_OUTPUT_C": {
+			"left": 125,
+			"top": 58
+		},
+		"PLAYER_INVENTORY": {
+			"left": 8,
+			"bottom": 84,
+			"grid": "BREAK_AFTER_9COLS"
+		},
+		"PLAYER_HOTBAR": {
+			"left": 8,
+			"bottom": 26,
+			"grid": "HORIZONTAL"
+		},
+		"TOOLBOX": {
+			"right": 1,
+			"bottom": 60,
+			"grid": "BREAK_AFTER_3COLS"
+		}
+	},
+	"text": {
+		"dialog_title": {
+			"text": {
+				"translate": "block.data_energistics.data_asynchronous_processing_factory"
+			},
+			"position": {
+				"left": 8,
+				"top": 6
+			}
+		},
+		"player_inventory_title": {
+			"text": {
+				"translate": "container.inventory"
+			},
+			"position": {
+				"left": 8,
+				"bottom": 94
+			}
+		}
+	},
+	"images": {
+		"progressBar": {
+			"texture": "guis/data_asynchronous_processing_factory.png",
+			"srcRect": [176, 0, 6, 18]
+		}
+	},
+	"widgets": {
+		"progressBar": {
+			"left": 164,
+			"top": 39
+		},
+		"toolbox": {
+			"right": 2,
+			"bottom": 66,
+			"width": 59,
+			"height": 66
+		},
+		"upgrades": {
+			"left": 174,
+			"top": 0
+		}
+	}
+}

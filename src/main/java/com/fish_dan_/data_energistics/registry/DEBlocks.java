@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.block.TuningForkBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
 import com.fish_dan_.data_energistics.block.explosive.DataNukeBlock;
 import com.fish_dan_.data_energistics.block.explosive.TntConfigurableBlock;
+import com.fish_dan_.data_energistics.block.machine.DataAsynchronousProcessingFactoryBlock;
 import com.fish_dan_.data_energistics.block.machine.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.machine.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.machine.DataIntegratedChargerBlock;
@@ -63,6 +64,11 @@ public final class DEBlocks {
     public static final DeferredBlock<Block> DATA_RIPPER_REASSEMBLER = BLOCKS.registerBlock(
             "data_reassembler",
             DataRipperReassemblerMainBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> DATA_ASYNCHRONOUS_PROCESSING_FACTORY = BLOCKS.registerBlock(
+            "data_asynchronous_processing_factory",
+            DataAsynchronousProcessingFactoryBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> TRINITY_DATA_CORE = BLOCKS.registerBlock(
