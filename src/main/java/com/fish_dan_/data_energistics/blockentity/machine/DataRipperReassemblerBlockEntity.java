@@ -87,6 +87,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -1007,17 +1008,42 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
 
         if (match == null) {
-            for (RecipeHolder<DataRipperReassemblerRecipe> holder : currentLevel.getRecipeManager()
-                    .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
-                if (holder.value().matches(input, currentLevel)) {
-                    match = holder;
-                    break;
-                }
-            }
+            match = findMatchingRecipe(currentLevel, input, getOtherActiveRecipeIds(channel));
+        }
+        if (match == null) {
+            match = findMatchingRecipe(currentLevel, input, Set.of());
         }
 
         processingChannel.recipeMatchCache = new RecipeMatchCache(cacheKey, match == null ? null : match.id());
         return match;
+    }
+
+    private @Nullable RecipeHolder<DataRipperReassemblerRecipe> findMatchingRecipe(
+                                                                                   Level level,
+                                                                                   DataRipperReassemblerRecipeInput input,
+                                                                                   Set<ResourceLocation> excludedRecipeIds) {
+        for (RecipeHolder<DataRipperReassemblerRecipe> holder : level.getRecipeManager()
+                .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
+            if (!excludedRecipeIds.contains(holder.id()) && holder.value().matches(input, level)) {
+                return holder;
+            }
+        }
+        return null;
+    }
+
+    private Set<ResourceLocation> getOtherActiveRecipeIds(int excludedChannel) {
+        Set<ResourceLocation> recipeIds = new HashSet<>();
+        for (int channel = 0; channel < this.processingChannels.length; channel++) {
+            if (channel == excludedChannel) {
+                continue;
+            }
+
+            ResourceLocation activeRecipeId = this.processingChannels[channel].activeRecipeId;
+            if (activeRecipeId != null) {
+                recipeIds.add(activeRecipeId);
+            }
+        }
+        return recipeIds;
     }
 
     private RecipeMatchKey createRecipeMatchKey(int channel) {
@@ -1043,7 +1069,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 processingChannel.activeRecipeId,
                 List.copyOf(items),
                 List.copyOf(fluids),
-                List.copyOf(keys));
+                List.copyOf(keys),
+                Set.copyOf(getOtherActiveRecipeIds(channel)));
     }
 
     private static RecipeStackIdentity createItemStackIdentity(ItemStack stack) {
@@ -2846,7 +2873,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private record RecipeMatchKey(long reloadEpoch, @Nullable ResourceLocation activeRecipeId,
                                   List<RecipeStackIdentity> itemInputs,
                                   List<RecipeStackIdentity> fluidInputs,
-                                  List<RecipeStackIdentity> keyInputs) {}
+                                  List<RecipeStackIdentity> keyInputs,
+                                  Set<ResourceLocation> otherActiveRecipeIds) {}
 
     private record RecipeMatchCache(RecipeMatchKey key, @Nullable ResourceLocation recipeId) {}
 
