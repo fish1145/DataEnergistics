@@ -327,7 +327,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, Direction ejectionDirection) {
-        int patternColor = getPatternColor(patternDetails);
+        int patternColor = usesPatternInputColors() ? getPatternColor(patternDetails) : 0;
         PatternPushState state = findPatternPushState(inputHolder, patternColor);
         if (state == null) {
             return false;
@@ -496,6 +496,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return 1;
     }
 
+    protected boolean usesPatternInputColors() {
+        return false;
+    }
+
     protected int getItemInputStartSlotForChannel(int channel) {
         requireProcessingChannel(channel);
         return ITEM_INPUT_START_SLOT;
@@ -562,15 +566,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public int getItemInputPatternColor(int slot) {
-        return this.itemInputPatternColors[slot];
+        return usesPatternInputColors() ? this.itemInputPatternColors[slot] : 0;
     }
 
     public int getFluidInputPatternColor(int slot) {
-        return this.fluidInputPatternColors[slot];
+        return usesPatternInputColors() ? this.fluidInputPatternColors[slot] : 0;
     }
 
     public int getKeyInputPatternColor(int slot) {
-        return this.keyInputPatternColors[slot];
+        return usesPatternInputColors() ? this.keyInputPatternColors[slot] : 0;
     }
 
     public static int computeParallel(int energyCardCount) {
@@ -726,6 +730,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private void readInputPatternColors(CompoundTag data) {
+        if (!usesPatternInputColors()) {
+            clearInputPatternColors();
+            return;
+        }
         readInputPatternColors(data, ITEM_INPUT_PATTERN_COLORS_TAG, this.itemInputPatternColors);
         readInputPatternColors(data, FLUID_INPUT_PATTERN_COLORS_TAG, this.fluidInputPatternColors);
         readInputPatternColors(data, KEY_INPUT_PATTERN_COLORS_TAG, this.keyInputPatternColors);
@@ -742,6 +750,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private void writeInputPatternColors(CompoundTag data) {
+        if (!usesPatternInputColors()) {
+            data.remove(ITEM_INPUT_PATTERN_COLORS_TAG);
+            data.remove(FLUID_INPUT_PATTERN_COLORS_TAG);
+            data.remove(KEY_INPUT_PATTERN_COLORS_TAG);
+            return;
+        }
         data.putIntArray(ITEM_INPUT_PATTERN_COLORS_TAG, this.itemInputPatternColors);
         data.putIntArray(FLUID_INPUT_PATTERN_COLORS_TAG, this.fluidInputPatternColors);
         data.putIntArray(KEY_INPUT_PATTERN_COLORS_TAG, this.keyInputPatternColors);

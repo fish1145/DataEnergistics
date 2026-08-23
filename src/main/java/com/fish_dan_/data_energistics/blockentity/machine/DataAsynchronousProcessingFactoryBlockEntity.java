@@ -35,6 +35,11 @@ public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipp
     }
 
     @Override
+    protected boolean usesPatternInputColors() {
+        return true;
+    }
+
+    @Override
     public int getItemInputSlotCount() {
         return ITEM_INPUT_SLOT_COUNT;
     }
