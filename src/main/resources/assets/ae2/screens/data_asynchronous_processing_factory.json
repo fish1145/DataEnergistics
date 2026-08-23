@@ -114,15 +114,15 @@
 	},
 	"widgets": {
 		"progressBar": {
-			"left": 42,
+			"left": 48,
 			"top": 77
 		},
 		"progressBarMiddle": {
-			"left": 96,
+			"left": 102,
 			"top": 77
 		},
 		"progressBarRight": {
-			"left": 150,
+			"left": 156,
 			"top": 77
 		},
 		"toolbox": {
