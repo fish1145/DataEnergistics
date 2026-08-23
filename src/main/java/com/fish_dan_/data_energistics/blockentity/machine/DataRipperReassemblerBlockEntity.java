@@ -27,7 +27,6 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -89,7 +88,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -137,16 +138,24 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String PROGRESS_TAG = "progress";
     private static final String MAX_PROGRESS_TAG = "max_progress";
     private static final String ACTIVE_RECIPE_TAG = "active_recipe";
+    private static final String ACTIVE_INPUT_PATTERN_COLOR_TAG = "active_input_pattern_color";
     private static final String PROCESSING_CHANNELS_TAG = "processing_channels";
     private static final String ITEM_INPUT_PATTERN_COLORS_TAG = "item_input_pattern_colors";
     private static final String FLUID_INPUT_PATTERN_COLORS_TAG = "fluid_input_pattern_colors";
     private static final String KEY_INPUT_PATTERN_COLORS_TAG = "key_input_pattern_colors";
+    private static final String PATTERN_INPUT_COLOR_ASSIGNMENTS_TAG = "pattern_input_color_assignments";
+    private static final String PATTERN_DEFINITION_TAG = "definition";
+    private static final String PATTERN_COLOR_TAG = "color";
+    private static final int PATTERN_COLOR_MASK = 0xBFBFBF;
+    private static final int MINIMUM_PATTERN_COLOR = 0x404040;
+    private static final int PATTERN_COLOR_PROBE_STEP = 0x9E3779B9;
 
     private final IUpgradeInventory upgrades;
     private final AppEngInternalInventory storage = new ReassemblerItemInventory();
     private final int[] itemInputPatternColors = new int[getItemInputSlotCount()];
     private final int[] fluidInputPatternColors = new int[getFluidInputSlotCount()];
     private final int[] keyInputPatternColors = new int[getKeyInputSlotCount()];
+    private final Map<AEItemKey, Integer> patternInputColorAssignments = new HashMap<>();
     private boolean suppressAe2DefaultInventorySerialization;
     private boolean preservingInputPatternColors;
     private final InternalInventory externalInput = createExternalInput();
@@ -333,6 +342,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return false;
         }
 
+        if (usesPatternInputColors()) {
+            this.patternInputColorAssignments.putIfAbsent(patternDetails.getDefinition(), patternColor);
+        }
         applyPatternPushState(state);
         saveChanges();
         markForClientUpdate();
@@ -644,7 +656,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
         readKeyStacks(data, registries, this.keyInputStacks, true);
         readKeyStacks(data, registries, this.keyOutputStacks, false);
-        readInputPatternColors(data);
+        readInputPatternColors(data, registries);
         if (data.contains(AUTO_EXPORT_TAG)) {
             this.configManager.readFromNBT(data.getCompound(AUTO_EXPORT_TAG), registries);
         } else {
@@ -692,7 +704,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         data.put(KEY_OUTPUT_SIDES_TAG, createOutputSidesTag(this.keyOutputSides));
         data.put(OUTPUT_SIDES_TAG, createOutputSidesTag(this.itemOutputSides));
         writeProcessingChannels(data);
-        writeInputPatternColors(data);
+        writeInputPatternColors(data, registries);
         writeKeyStacks(data, registries, this.keyInputStacks, true);
         writeKeyStacks(data, registries, this.keyOutputStacks, false);
     }
@@ -729,7 +741,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         data.put(PROCESSING_CHANNELS_TAG, serializedChannels);
     }
 
-    private void readInputPatternColors(CompoundTag data) {
+    private void readInputPatternColors(CompoundTag data, HolderLookup.Provider registries) {
+        this.patternInputColorAssignments.clear();
         if (!usesPatternInputColors()) {
             clearInputPatternColors();
             return;
@@ -737,6 +750,24 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         readInputPatternColors(data, ITEM_INPUT_PATTERN_COLORS_TAG, this.itemInputPatternColors);
         readInputPatternColors(data, FLUID_INPUT_PATTERN_COLORS_TAG, this.fluidInputPatternColors);
         readInputPatternColors(data, KEY_INPUT_PATTERN_COLORS_TAG, this.keyInputPatternColors);
+        if (!data.contains(PATTERN_INPUT_COLOR_ASSIGNMENTS_TAG, Tag.TAG_LIST)) {
+            return;
+        }
+
+        ListTag assignments = data.getList(PATTERN_INPUT_COLOR_ASSIGNMENTS_TAG, Tag.TAG_COMPOUND);
+        for (int index = 0; index < assignments.size(); index++) {
+            CompoundTag assignment = assignments.getCompound(index);
+            if (!assignment.contains(PATTERN_DEFINITION_TAG, Tag.TAG_COMPOUND) ||
+                    !assignment.contains(PATTERN_COLOR_TAG, Tag.TAG_INT)) {
+                continue;
+            }
+
+            AEItemKey patternDefinition = AEItemKey.fromTag(registries, assignment.getCompound(PATTERN_DEFINITION_TAG));
+            int color = assignment.getInt(PATTERN_COLOR_TAG);
+            if (patternDefinition != null && color != 0 && !this.patternInputColorAssignments.containsValue(color)) {
+                this.patternInputColorAssignments.put(patternDefinition, color);
+            }
+        }
     }
 
     private static void readInputPatternColors(CompoundTag data, String tag, int[] target) {
@@ -749,22 +780,32 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         System.arraycopy(storedColors, 0, target, 0, Math.min(storedColors.length, target.length));
     }
 
-    private void writeInputPatternColors(CompoundTag data) {
+    private void writeInputPatternColors(CompoundTag data, HolderLookup.Provider registries) {
         if (!usesPatternInputColors()) {
             data.remove(ITEM_INPUT_PATTERN_COLORS_TAG);
             data.remove(FLUID_INPUT_PATTERN_COLORS_TAG);
             data.remove(KEY_INPUT_PATTERN_COLORS_TAG);
+            data.remove(PATTERN_INPUT_COLOR_ASSIGNMENTS_TAG);
             return;
         }
         data.putIntArray(ITEM_INPUT_PATTERN_COLORS_TAG, this.itemInputPatternColors);
         data.putIntArray(FLUID_INPUT_PATTERN_COLORS_TAG, this.fluidInputPatternColors);
         data.putIntArray(KEY_INPUT_PATTERN_COLORS_TAG, this.keyInputPatternColors);
+        ListTag assignments = new ListTag();
+        for (Map.Entry<AEItemKey, Integer> assignment : this.patternInputColorAssignments.entrySet()) {
+            CompoundTag serializedAssignment = new CompoundTag();
+            serializedAssignment.put(PATTERN_DEFINITION_TAG, assignment.getKey().toTag(registries));
+            serializedAssignment.putInt(PATTERN_COLOR_TAG, assignment.getValue());
+            assignments.add(serializedAssignment);
+        }
+        data.put(PATTERN_INPUT_COLOR_ASSIGNMENTS_TAG, assignments);
     }
 
     private void clearInputPatternColors() {
         Arrays.fill(this.itemInputPatternColors, 0);
         Arrays.fill(this.fluidInputPatternColors, 0);
         Arrays.fill(this.keyInputPatternColors, 0);
+        this.patternInputColorAssignments.clear();
     }
 
     private void clearEmptyInputPatternColors() {
@@ -789,6 +830,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         channel.progress = Math.max(0, data.getInt(PROGRESS_TAG));
         channel.maxProgress = data.contains(MAX_PROGRESS_TAG) ? Math.max(1, data.getInt(MAX_PROGRESS_TAG)) : MAX_PROGRESS;
         channel.activeRecipeId = data.contains(ACTIVE_RECIPE_TAG) ? ResourceLocation.tryParse(data.getString(ACTIVE_RECIPE_TAG)) : null;
+        channel.hasActiveInputPatternColor = data.contains(ACTIVE_INPUT_PATTERN_COLOR_TAG, Tag.TAG_INT);
+        channel.activeInputPatternColor = channel.hasActiveInputPatternColor ?
+                data.getInt(ACTIVE_INPUT_PATTERN_COLOR_TAG) : 0;
         channel.recipeMatchCache = null;
         channel.inputReservation = null;
     }
@@ -798,6 +842,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         data.putInt(MAX_PROGRESS_TAG, channel.maxProgress);
         if (channel.activeRecipeId != null) {
             data.putString(ACTIVE_RECIPE_TAG, channel.activeRecipeId.toString());
+        }
+        if (channel.hasActiveInputPatternColor) {
+            data.putInt(ACTIVE_INPUT_PATTERN_COLOR_TAG, channel.activeInputPatternColor);
         }
     }
 
@@ -975,12 +1022,13 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return RecipeAdvance.blocked(tickBudget);
         }
 
-        RecipeHolder<DataRipperReassemblerRecipe> recipeHolder = getActiveOrMatchingRecipe(channel);
-        if (recipeHolder == null) {
+        ColorMatchedRecipe matchedRecipe = getActiveOrMatchingRecipe(channel);
+        if (matchedRecipe == null) {
             resetProcessingState(channel);
             return RecipeAdvance.blocked(tickBudget);
         }
 
+        RecipeHolder<DataRipperReassemblerRecipe> recipeHolder = matchedRecipe.recipeHolder();
         DataRipperReassemblerRecipe recipe = recipeHolder.value();
         if (!canAcceptItemOutputs(recipe, recipe.getItemOutputs())) {
             resetProcessingState(channel);
@@ -988,8 +1036,13 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
 
         ProcessingChannelState processingChannel = getProcessingChannel(channel);
-        if (!recipeHolder.id().equals(processingChannel.activeRecipeId)) {
+        boolean inputPatternColorChanged = usesPatternInputColors() &&
+                (!processingChannel.hasActiveInputPatternColor ||
+                        processingChannel.activeInputPatternColor != matchedRecipe.inputPatternColor());
+        if (!recipeHolder.id().equals(processingChannel.activeRecipeId) || inputPatternColorChanged) {
             processingChannel.activeRecipeId = recipeHolder.id();
+            processingChannel.activeInputPatternColor = usesPatternInputColors() ? matchedRecipe.inputPatternColor() : 0;
+            processingChannel.hasActiveInputPatternColor = usesPatternInputColors();
             processingChannel.progress = 0;
             processingChannel.maxProgress = getEffectiveProcessTicks(recipe);
             processingChannel.inputReservation = null;
@@ -1063,7 +1116,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return Math.max(1, reducedTicks);
     }
 
-    private RecipeHolder<DataRipperReassemblerRecipe> getActiveOrMatchingRecipe(int channel) {
+    private @Nullable ColorMatchedRecipe getActiveOrMatchingRecipe(int channel) {
         Level currentLevel = this.level;
         if (currentLevel == null) {
             return null;
@@ -1080,38 +1133,54 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
             RecipeHolder<DataRipperReassemblerRecipe> cachedRecipe = getRecipeById(currentLevel, recipeId);
             if (cachedRecipe != null) {
-                return cachedRecipe;
+                return new ColorMatchedRecipe(cachedRecipe, cached.inputPatternColor());
             }
         }
 
-        DataRipperReassemblerRecipeInput input = createRecipeInput(channel);
-        RecipeHolder<DataRipperReassemblerRecipe> match = null;
+        ColorMatchedRecipe match = null;
         if (processingChannel.activeRecipeId != null) {
             RecipeHolder<DataRipperReassemblerRecipe> active = getRecipeById(currentLevel, processingChannel.activeRecipeId);
-            if (active != null && active.value().matches(input, currentLevel)) {
-                match = active;
+            if (active != null) {
+                List<Integer> colors = processingChannel.hasActiveInputPatternColor ?
+                        List.of(processingChannel.activeInputPatternColor) : getAvailableInputPatternColors(channel);
+                for (int color : colors) {
+                    if (active.value().matches(createRecipeInput(channel, color), currentLevel)) {
+                        match = new ColorMatchedRecipe(active, color);
+                        break;
+                    }
+                }
             }
         }
 
         if (match == null) {
-            match = findMatchingRecipe(currentLevel, input, getOtherActiveRecipeIds(channel));
+            match = findMatchingRecipe(currentLevel, channel, getOtherActiveRecipeIds(channel));
         }
         if (match == null) {
-            match = findMatchingRecipe(currentLevel, input, Set.of());
+            match = findMatchingRecipe(currentLevel, channel, Set.of());
         }
 
-        processingChannel.recipeMatchCache = new RecipeMatchCache(cacheKey, match == null ? null : match.id());
+        processingChannel.recipeMatchCache = new RecipeMatchCache(
+                cacheKey,
+                match == null ? null : match.recipeHolder().id(),
+                match == null ? 0 : match.inputPatternColor());
         return match;
     }
 
-    private @Nullable RecipeHolder<DataRipperReassemblerRecipe> findMatchingRecipe(
-                                                                                   Level level,
-                                                                                   DataRipperReassemblerRecipeInput input,
-                                                                                   Set<ResourceLocation> excludedRecipeIds) {
+    private @Nullable ColorMatchedRecipe findMatchingRecipe(Level level, int channel,
+                                                            Set<ResourceLocation> excludedRecipeIds) {
+        List<Integer> colors = getAvailableInputPatternColors(channel);
+        if (colors.isEmpty()) {
+            return null;
+        }
         for (RecipeHolder<DataRipperReassemblerRecipe> holder : level.getRecipeManager()
                 .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
-            if (!excludedRecipeIds.contains(holder.id()) && holder.value().matches(input, level)) {
-                return holder;
+            if (excludedRecipeIds.contains(holder.id())) {
+                continue;
+            }
+            for (int color : colors) {
+                if (holder.value().matches(createRecipeInput(channel, color), level)) {
+                    return new ColorMatchedRecipe(holder, color);
+                }
             }
         }
         return null;
@@ -1138,46 +1207,50 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         List<RecipeStackIdentity> items = new ArrayList<>(getItemInputSlotCountForChannel(channel));
         for (int i = 0; i < getItemInputSlotCountForChannel(channel); i++) {
             int slot = getItemInputStartSlotForChannel(channel) + i;
-            items.add(createItemStackIdentity(getAvailableItemInput(slot, reservedInputs)));
+            items.add(createItemStackIdentity(getAvailableItemInput(slot, reservedInputs), getItemInputPatternColor(i)));
         }
         List<RecipeStackIdentity> fluids = new ArrayList<>(getFluidInputSlotCountForChannel(channel));
         for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
             int inputSlot = getFluidInputStartSlotForChannel(channel) + slot;
-            fluids.add(createFluidStackIdentity(getAvailableFluidInput(inputSlot, reservedInputs)));
+            fluids.add(createFluidStackIdentity(getAvailableFluidInput(inputSlot, reservedInputs),
+                    getFluidInputPatternColor(slot)));
         }
         List<RecipeStackIdentity> keys = new ArrayList<>(getKeyInputSlotCountForChannel(channel));
         for (int slot = 0; slot < getKeyInputSlotCountForChannel(channel); slot++) {
             int inputSlot = getKeyInputStartSlotForChannel(channel) + slot;
-            keys.add(createKeyStackIdentity(getAvailableKeyInput(inputSlot, reservedInputs)));
+            keys.add(createKeyStackIdentity(getAvailableKeyInput(inputSlot, reservedInputs),
+                    getKeyInputPatternColor(slot)));
         }
         return new RecipeMatchKey(
                 RecipeReloadEpoch.current(),
                 processingChannel.activeRecipeId,
+                processingChannel.hasActiveInputPatternColor,
+                processingChannel.activeInputPatternColor,
                 List.copyOf(items),
                 List.copyOf(fluids),
                 List.copyOf(keys),
                 Set.copyOf(getOtherActiveRecipeIds(channel)));
     }
 
-    private static RecipeStackIdentity createItemStackIdentity(ItemStack stack) {
+    private static RecipeStackIdentity createItemStackIdentity(ItemStack stack, int patternColor) {
         if (stack.isEmpty()) {
             return RecipeStackIdentity.EMPTY;
         }
-        return new RecipeStackIdentity(AEItemKey.of(stack), stack.getCount());
+        return new RecipeStackIdentity(AEItemKey.of(stack), stack.getCount(), patternColor);
     }
 
-    private static RecipeStackIdentity createFluidStackIdentity(FluidStack stack) {
+    private static RecipeStackIdentity createFluidStackIdentity(FluidStack stack, int patternColor) {
         if (stack.isEmpty()) {
             return RecipeStackIdentity.EMPTY;
         }
-        return new RecipeStackIdentity(AEFluidKey.of(stack), stack.getAmount());
+        return new RecipeStackIdentity(AEFluidKey.of(stack), stack.getAmount(), patternColor);
     }
 
-    private static RecipeStackIdentity createKeyStackIdentity(@Nullable GenericStack stack) {
+    private static RecipeStackIdentity createKeyStackIdentity(@Nullable GenericStack stack, int patternColor) {
         if (stack == null || stack.amount() <= 0L) {
             return RecipeStackIdentity.EMPTY;
         }
-        return new RecipeStackIdentity(stack.what(), stack.amount());
+        return new RecipeStackIdentity(stack.what(), stack.amount(), patternColor);
     }
 
     private static @Nullable RecipeHolder<DataRipperReassemblerRecipe> getRecipeById(
@@ -1192,25 +1265,62 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return typedHolder;
     }
 
-    private DataRipperReassemblerRecipeInput createRecipeInput(int channel) {
+    private DataRipperReassemblerRecipeInput createRecipeInput(int channel, int patternColor) {
         InputReservationUsage reservedInputs = getReservedInputUsage(channel);
         List<ItemStack> inputs = new ArrayList<>(getItemInputSlotCountForChannel(channel));
         for (int i = 0; i < getItemInputSlotCountForChannel(channel); i++) {
-            inputs.add(getAvailableItemInput(getItemInputStartSlotForChannel(channel) + i, reservedInputs));
+            inputs.add(matchesInputPatternColor(getItemInputPatternColor(i), patternColor) ?
+                    getAvailableItemInput(getItemInputStartSlotForChannel(channel) + i, reservedInputs) : ItemStack.EMPTY);
         }
         List<GenericStack> fluids = new ArrayList<>(getFluidInputSlotCountForChannel(channel));
         for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
-            GenericStack fluid = createFluidGenericStack(
-                    getAvailableFluidInput(getFluidInputStartSlotForChannel(channel) + slot, reservedInputs));
+            GenericStack fluid = matchesInputPatternColor(getFluidInputPatternColor(slot), patternColor) ?
+                    createFluidGenericStack(getAvailableFluidInput(
+                            getFluidInputStartSlotForChannel(channel) + slot, reservedInputs)) :
+                    null;
             if (fluid != null) {
                 fluids.add(fluid);
             }
         }
         List<GenericStack> keys = new ArrayList<>(getKeyInputSlotCountForChannel(channel));
         for (int slot = 0; slot < getKeyInputSlotCountForChannel(channel); slot++) {
-            keys.add(getAvailableKeyInput(getKeyInputStartSlotForChannel(channel) + slot, reservedInputs));
+            keys.add(matchesInputPatternColor(getKeyInputPatternColor(slot), patternColor) ?
+                    getAvailableKeyInput(getKeyInputStartSlotForChannel(channel) + slot, reservedInputs) : null);
         }
         return new DataRipperReassemblerRecipeInput(inputs, fluids, keys);
+    }
+
+    private List<Integer> getAvailableInputPatternColors(int channel) {
+        if (!usesPatternInputColors()) {
+            return List.of(0);
+        }
+
+        InputReservationUsage reservedInputs = getReservedInputUsage(channel);
+        Set<Integer> colors = new LinkedHashSet<>();
+        for (int slot = 0; slot < getItemInputSlotCountForChannel(channel); slot++) {
+            int storageSlot = getItemInputStartSlotForChannel(channel) + slot;
+            if (!getAvailableItemInput(storageSlot, reservedInputs).isEmpty()) {
+                colors.add(getItemInputPatternColor(slot));
+            }
+        }
+        for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
+            int inputSlot = getFluidInputStartSlotForChannel(channel) + slot;
+            if (!getAvailableFluidInput(inputSlot, reservedInputs).isEmpty()) {
+                colors.add(getFluidInputPatternColor(slot));
+            }
+        }
+        for (int slot = 0; slot < getKeyInputSlotCountForChannel(channel); slot++) {
+            int inputSlot = getKeyInputStartSlotForChannel(channel) + slot;
+            GenericStack key = getAvailableKeyInput(inputSlot, reservedInputs);
+            if (key != null && key.amount() > 0L) {
+                colors.add(getKeyInputPatternColor(slot));
+            }
+        }
+        return List.copyOf(colors);
+    }
+
+    private boolean matchesInputPatternColor(int actualColor, int requiredColor) {
+        return !usesPatternInputColors() || actualColor == requiredColor;
     }
 
     private boolean canAcceptItemOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> itemOutputs) {
@@ -1243,7 +1353,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return isRecipeInputReservationAvailable(processingChannel.inputReservation);
         }
 
-        RecipeInputReservation reservation = createRecipeInputReservation(channel, recipe);
+        RecipeInputReservation reservation = createRecipeInputReservation(
+                channel,
+                recipe,
+                processingChannel.activeInputPatternColor);
         if (reservation == null) {
             return false;
         }
@@ -1253,7 +1366,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private @Nullable RecipeInputReservation createRecipeInputReservation(int channel,
-                                                                          DataRipperReassemblerRecipe recipe) {
+                                                                          DataRipperReassemblerRecipe recipe,
+                                                                          int patternColor) {
         Map<AEFluidKey, Long> requiredFluidAmounts = recipe.getMergedFluidInputAmounts();
         if (requiredFluidAmounts == null) {
             return null;
@@ -1271,7 +1385,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             for (int i = 0; i < getItemInputSlotCountForChannel(channel) && remaining > 0; i++) {
                 int slot = getItemInputStartSlotForChannel(channel) + i;
                 ItemStack stack = this.storage.getStackInSlot(slot);
-                if (stack.isEmpty() || !countedIngredient.ingredient().test(stack)) {
+                if (!matchesInputPatternColor(getItemInputPatternColor(i), patternColor) || stack.isEmpty() ||
+                        !countedIngredient.ingredient().test(stack)) {
                     continue;
                 }
 
@@ -1281,7 +1396,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                     continue;
                 }
 
-                addReservedItemInput(itemInputs, slot, stack, reservedAmount);
+                addReservedItemInput(itemInputs, slot, stack, reservedAmount, patternColor);
                 reservedInputs.itemAmounts[slot] += reservedAmount;
                 remaining -= reservedAmount;
             }
@@ -1298,7 +1413,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             for (int offset = 0; offset < getFluidInputSlotCountForChannel(channel) && remaining > 0; offset++) {
                 int slot = getFluidInputStartSlotForChannel(channel) + offset;
                 FluidTank tank = this.fluidInputTanks.get(slot);
-                if (!matchesFluidKey(tank.getFluid(), requiredFluid)) {
+                if (!matchesInputPatternColor(getFluidInputPatternColor(offset), patternColor) ||
+                        !matchesFluidKey(tank.getFluid(), requiredFluid)) {
                     continue;
                 }
 
@@ -1308,7 +1424,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                     continue;
                 }
 
-                fluidInputs.add(new ReservedFluidInput(slot, requiredFluid, reservedAmount));
+                fluidInputs.add(new ReservedFluidInput(slot, requiredFluid, reservedAmount, patternColor));
                 reservedInputs.fluidAmounts[slot] += reservedAmount;
                 remaining -= reservedAmount;
             }
@@ -1329,7 +1445,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             for (int offset = 0; offset < getKeyInputSlotCountForChannel(channel) && remaining > 0L; offset++) {
                 int slot = getKeyInputStartSlotForChannel(channel) + offset;
                 GenericStack stack = this.keyInputStacks.get(slot);
-                if (stack == null || !requiredKeyType.equals(stack.what())) {
+                if (!matchesInputPatternColor(getKeyInputPatternColor(offset), patternColor) || stack == null ||
+                        !requiredKeyType.equals(stack.what())) {
                     continue;
                 }
 
@@ -1339,7 +1456,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                     continue;
                 }
 
-                keyInputs.add(new ReservedKeyInput(slot, requiredKeyType, reservedAmount));
+                keyInputs.add(new ReservedKeyInput(slot, requiredKeyType, reservedAmount, patternColor));
                 reservedInputs.keyAmounts[slot] += reservedAmount;
                 remaining -= reservedAmount;
             }
@@ -1353,36 +1470,43 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private static void addReservedItemInput(List<ReservedItemInput> reservedInputs, int slot, ItemStack stack,
-                                             int amount) {
+                                             int amount, int patternColor) {
         for (int index = 0; index < reservedInputs.size(); index++) {
             ReservedItemInput existing = reservedInputs.get(index);
             if (existing.slot != slot) {
                 continue;
             }
 
-            reservedInputs.set(index, new ReservedItemInput(slot, stack.copyWithCount(existing.stack.getCount() + amount)));
+            reservedInputs.set(index, new ReservedItemInput(
+                    slot,
+                    stack.copyWithCount(existing.stack.getCount() + amount),
+                    patternColor));
             return;
         }
-        reservedInputs.add(new ReservedItemInput(slot, stack.copyWithCount(amount)));
+        reservedInputs.add(new ReservedItemInput(slot, stack.copyWithCount(amount), patternColor));
     }
 
     private boolean isRecipeInputReservationAvailable(RecipeInputReservation reservation) {
         for (ReservedItemInput reservedInput : reservation.itemInputs) {
             ItemStack stack = this.storage.getStackInSlot(reservedInput.slot);
-            if (stack.isEmpty() || !ItemStack.isSameItemSameComponents(stack, reservedInput.stack) ||
+            int inputSlot = reservedInput.slot - ITEM_INPUT_START_SLOT;
+            if (!matchesInputPatternColor(getItemInputPatternColor(inputSlot), reservedInput.patternColor) ||
+                    stack.isEmpty() || !ItemStack.isSameItemSameComponents(stack, reservedInput.stack) ||
                     stack.getCount() < reservedInput.stack.getCount()) {
                 return false;
             }
         }
         for (ReservedFluidInput reservedInput : reservation.fluidInputs) {
             FluidTank tank = this.fluidInputTanks.get(reservedInput.slot);
-            if (!matchesFluidKey(tank.getFluid(), reservedInput.key) || tank.getFluidAmount() < reservedInput.amount) {
+            if (!matchesInputPatternColor(getFluidInputPatternColor(reservedInput.slot), reservedInput.patternColor) ||
+                    !matchesFluidKey(tank.getFluid(), reservedInput.key) || tank.getFluidAmount() < reservedInput.amount) {
                 return false;
             }
         }
         for (ReservedKeyInput reservedInput : reservation.keyInputs) {
             GenericStack stack = this.keyInputStacks.get(reservedInput.slot);
-            if (stack == null || !reservedInput.key.equals(stack.what()) || stack.amount() < reservedInput.amount) {
+            if (!matchesInputPatternColor(getKeyInputPatternColor(reservedInput.slot), reservedInput.patternColor) ||
+                    stack == null || !reservedInput.key.equals(stack.what()) || stack.amount() < reservedInput.amount) {
                 return false;
             }
         }
@@ -2147,9 +2271,24 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return remaining == 0L;
     }
 
-    private static int getPatternColor(IPatternDetails patternDetails) {
-        double hue = Integer.toUnsignedLong(patternDetails.getDefinition().hashCode()) / 4_294_967_296.0D;
-        return Mth.hsvToRgb((float) hue, 0.68F, 0.92F);
+    private int getPatternColor(IPatternDetails patternDetails) {
+        AEItemKey patternDefinition = patternDetails.getDefinition();
+        Integer assignedColor = this.patternInputColorAssignments.get(patternDefinition);
+        if (assignedColor != null) {
+            return assignedColor;
+        }
+
+        int colorSeed = patternDefinition.hashCode();
+        int color = createPatternColor(colorSeed);
+        while (this.patternInputColorAssignments.containsValue(color)) {
+            colorSeed += PATTERN_COLOR_PROBE_STEP;
+            color = createPatternColor(colorSeed);
+        }
+        return color;
+    }
+
+    private static int createPatternColor(int seed) {
+        return MINIMUM_PATTERN_COLOR | (seed & PATTERN_COLOR_MASK);
     }
 
     private void applyPatternPushState(PatternPushState state) {
@@ -3093,24 +3232,27 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    private record RecipeStackIdentity(@Nullable AEKey what, long amount) {
+    private record RecipeStackIdentity(@Nullable AEKey what, long amount, int patternColor) {
 
-        private static final RecipeStackIdentity EMPTY = new RecipeStackIdentity(null, 0L);
+        private static final RecipeStackIdentity EMPTY = new RecipeStackIdentity(null, 0L, 0);
     }
 
     private record RecipeMatchKey(long reloadEpoch, @Nullable ResourceLocation activeRecipeId,
+                                  boolean hasActiveInputPatternColor, int activeInputPatternColor,
                                   List<RecipeStackIdentity> itemInputs,
                                   List<RecipeStackIdentity> fluidInputs,
                                   List<RecipeStackIdentity> keyInputs,
                                   Set<ResourceLocation> otherActiveRecipeIds) {}
 
-    private record RecipeMatchCache(RecipeMatchKey key, @Nullable ResourceLocation recipeId) {}
+    private record RecipeMatchCache(RecipeMatchKey key, @Nullable ResourceLocation recipeId, int inputPatternColor) {}
 
-    private record ReservedItemInput(int slot, ItemStack stack) {}
+    private record ColorMatchedRecipe(RecipeHolder<DataRipperReassemblerRecipe> recipeHolder, int inputPatternColor) {}
 
-    private record ReservedFluidInput(int slot, AEFluidKey key, int amount) {}
+    private record ReservedItemInput(int slot, ItemStack stack, int patternColor) {}
 
-    private record ReservedKeyInput(int slot, AEKey key, long amount) {}
+    private record ReservedFluidInput(int slot, AEFluidKey key, int amount, int patternColor) {}
+
+    private record ReservedKeyInput(int slot, AEKey key, long amount, int patternColor) {}
 
     private static final class RecipeInputReservation {
 
@@ -3144,17 +3286,22 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         private int progress;
         private int maxProgress = MAX_PROGRESS;
         private ResourceLocation activeRecipeId;
+        private boolean hasActiveInputPatternColor;
+        private int activeInputPatternColor;
         private RecipeMatchCache recipeMatchCache;
         private RecipeInputReservation inputReservation;
 
         private boolean isIdle() {
-            return this.progress == 0 && this.maxProgress == MAX_PROGRESS && this.activeRecipeId == null;
+            return this.progress == 0 && this.maxProgress == MAX_PROGRESS && this.activeRecipeId == null &&
+                    !this.hasActiveInputPatternColor;
         }
 
         private void reset() {
             this.progress = 0;
             this.maxProgress = MAX_PROGRESS;
             this.activeRecipeId = null;
+            this.hasActiveInputPatternColor = false;
+            this.activeInputPatternColor = 0;
             this.recipeMatchCache = null;
             this.inputReservation = null;
         }
