@@ -479,7 +479,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     /**
      * Returns how many independent recipe-processing channels this machine has.
-     * Input resources belong to exactly one channel, while all output resources remain shared.
+     * Subclasses may assign separate or shared input buffers to those channels; all output resources remain shared.
      */
     protected int getProcessingChannelCount() {
         return 1;

@@ -51,32 +51,32 @@ public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipp
 
     @Override
     protected int getItemInputStartSlotForChannel(int channel) {
-        return ITEM_INPUT_START_SLOT + channel * 7;
+        return ITEM_INPUT_START_SLOT;
     }
 
     @Override
     protected int getItemInputSlotCountForChannel(int channel) {
-        return 7;
+        return ITEM_INPUT_SLOT_COUNT;
     }
 
     @Override
     protected int getFluidInputStartSlotForChannel(int channel) {
-        return channel * 2;
+        return 0;
     }
 
     @Override
     protected int getFluidInputSlotCountForChannel(int channel) {
-        return 2;
+        return FLUID_INPUT_SLOT_COUNT;
     }
 
     @Override
     protected int getKeyInputStartSlotForChannel(int channel) {
-        return channel;
+        return 0;
     }
 
     @Override
     protected int getKeyInputSlotCountForChannel(int channel) {
-        return 1;
+        return KEY_INPUT_SLOT_COUNT;
     }
 
     @Override
