@@ -1,0 +1,19 @@
+{
+	"values": [
+		"#c:storage_blocks/data_crystal",
+		"#c:storage_blocks/resonance_crystal",
+		"#c:storage_blocks/data_crystal_cluster",
+		"#c:storage_blocks/resonance_crystal_cluster",
+		"#c:storage_blocks/small_data_crystal_bud",
+		"#c:storage_blocks/medium_data_crystal_bud",
+		"#c:storage_blocks/large_data_crystal_bud",
+		"#c:storage_blocks/small_resonance_crystal_bud",
+		"#c:storage_blocks/medium_resonance_crystal_bud",
+		"#c:storage_blocks/large_resonance_crystal_bud",
+		"#c:storage_blocks/budding_data_crystal_0",
+		"#c:storage_blocks/budding_data_crystal_1",
+		"#c:storage_blocks/budding_data_crystal_2",
+		"#c:storage_blocks/budding_data_crystal_3",
+		"#c:storage_blocks/budding_data_crystal_4"
+	]
+}
