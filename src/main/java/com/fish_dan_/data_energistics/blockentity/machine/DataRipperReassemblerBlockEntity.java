@@ -2008,7 +2008,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         long remaining = amount;
         for (int i = 0; i < state.itemInputs.length && remaining > 0; i++) {
             ItemStack current = state.itemInputs[i];
-            if (current.isEmpty() || !ItemStack.isSameItemSameComponents(current, prototype)) {
+            if (current.isEmpty() || !ItemStack.isSameItemSameComponents(current, prototype) ||
+                    state.itemInputColors[i] != state.patternColor) {
                 continue;
             }
 
@@ -2051,7 +2052,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         int remaining = (int) amount;
         for (int slot = 0; slot < state.fluidInputs.size() && remaining > 0; slot++) {
             FluidStack current = state.fluidInputs.get(slot);
-            if (!matchesFluidKey(current, fluidKey)) {
+            if (!matchesFluidKey(current, fluidKey) || state.fluidInputColors[slot] != state.patternColor) {
                 continue;
             }
             remaining -= fillSimulatedTank(state, slot, fluidKey, remaining);
@@ -2100,7 +2101,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         long capacity = getKeyInputCapacity();
         for (int slot = 0; slot < state.keyInputs.size() && remaining > 0L; slot++) {
             GenericStack stack = state.keyInputs.get(slot);
-            if (stack == null || stack.what() == null || !key.equals(stack.what())) {
+            if (stack == null || stack.what() == null || !key.equals(stack.what()) ||
+                    state.keyInputColors[slot] != state.patternColor) {
                 continue;
             }
             remaining -= Math.min(remaining, Math.max(0L, capacity - stack.amount()));
@@ -2120,7 +2122,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         long capacity = getKeyInputCapacity();
         for (int slot = 0; slot < state.keyInputs.size() && remaining > 0L; slot++) {
             GenericStack stack = state.keyInputs.get(slot);
-            if (stack == null || stack.what() == null || !key.equals(stack.what())) {
+            if (stack == null || stack.what() == null || !key.equals(stack.what()) ||
+                    state.keyInputColors[slot] != state.patternColor) {
                 continue;
             }
             long inserted = Math.min(remaining, Math.max(0L, capacity - stack.amount()));
@@ -2671,6 +2674,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             if (slot < 0 || slot >= getKeyInputSlotCount() || !isAllowedMenuKey(what)) {
                 return false;
             }
+            if (usesPatternInputColors() && keyInputPatternColors[slot] != 0) {
+                return false;
+            }
             GenericStack current = keyInputStacks.get(slot);
             return current == null || current.what() == null || current.what().equals(what);
         }
@@ -2878,6 +2884,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 if (filled >= resource.getAmount()) {
                     break;
                 }
+                if (usesPatternInputColors() && fluidInputPatternColors[slot] != 0) {
+                    continue;
+                }
                 FluidStack remaining = resource.copy();
                 remaining.shrink(filled);
                 filled += fluidInputTanks.get(slot).fill(remaining, action);
@@ -2990,6 +2999,11 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
             ItemStack inSlot = getStackInSlot(slot);
             if (!inSlot.isEmpty() && !ItemStack.isSameItemSameComponents(inSlot, stack)) {
+                return stack;
+            }
+            if (!inSlot.isEmpty() && usesPatternInputColors() && slot >= ITEM_INPUT_START_SLOT &&
+                    slot < ITEM_INPUT_START_SLOT + getItemInputSlotCount() &&
+                    itemInputPatternColors[slot - ITEM_INPUT_START_SLOT] != 0) {
                 return stack;
             }
 
