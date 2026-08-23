@@ -143,7 +143,7 @@ public class DataRipperReassemblerScreen<M extends DataRipperReassemblerMenu> ex
         return isGenericSemantic(this.menu.getSlotSemantic(slot));
     }
 
-    private static boolean isGenericSemantic(SlotSemantic semantic) {
+    protected boolean isGenericSemantic(SlotSemantic semantic) {
         return semantic == SlotSemantics.STORAGE ||
                 semantic == DataRipperReassemblerMenu.FLUID_INPUT_B ||
                 semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A ||
@@ -152,14 +152,14 @@ public class DataRipperReassemblerScreen<M extends DataRipperReassemblerMenu> ex
                 semantic == DataRipperReassemblerMenu.KEY_OUTPUT;
     }
 
-    private Component getEmptySlotTooltip(SlotSemantic semantic) {
+    protected Component getEmptySlotTooltip(SlotSemantic semantic) {
         if (semantic == DataRipperReassemblerMenu.KEY_INPUT || semantic == DataRipperReassemblerMenu.KEY_OUTPUT) {
             return Component.translatable("screen.data_energistics.data_reassembler.key.empty");
         }
         return Component.translatable("screen.data_energistics.data_reassembler.fluid.empty");
     }
 
-    private Component getAmountTooltip(SlotSemantic semantic, long amount) {
+    protected Component getAmountTooltip(SlotSemantic semantic, long amount) {
         if (semantic == SlotSemantics.STORAGE || semantic == DataRipperReassemblerMenu.FLUID_INPUT_B) {
             return Component.literal(amount + " mB / " + this.menu.getFluidInputCapacity() + " mB")
                     .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);
@@ -186,7 +186,7 @@ public class DataRipperReassemblerScreen<M extends DataRipperReassemblerMenu> ex
                 GenericStackDisplayHelper.formatCompactAmount(genericStack));
     }
 
-    private @Nullable GenericStack getDisplayedGenericStack(@Nullable Slot slot) {
+    protected @Nullable GenericStack getDisplayedGenericStack(@Nullable Slot slot) {
         if (slot == null || !slot.isActive()) {
             return null;
         }
@@ -210,7 +210,7 @@ public class DataRipperReassemblerScreen<M extends DataRipperReassemblerMenu> ex
         return null;
     }
 
-    private static @Nullable GenericStack fluidStack(String fluidId, int amount) {
+    protected static @Nullable GenericStack fluidStack(String fluidId, int amount) {
         if (fluidId == null || fluidId.isBlank() || amount <= 0) {
             return null;
         }

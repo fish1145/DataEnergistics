@@ -14,6 +14,10 @@ public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipp
 
     public static final int ITEM_INPUT_SLOT_COUNT = 18;
     public static final int ITEM_OUTPUT_SLOT_COUNT = 12;
+    public static final int FLUID_INPUT_SLOT_COUNT = 6;
+    public static final int FLUID_OUTPUT_SLOT_COUNT = 4;
+    public static final int KEY_INPUT_SLOT_COUNT = 3;
+    public static final int KEY_OUTPUT_SLOT_COUNT = 2;
     private static final String STORAGE_LAYOUT_VERSION_TAG = "storage_layout_version";
     private static final int STORAGE_LAYOUT_VERSION = 2;
 
@@ -35,6 +39,26 @@ public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipp
     @Override
     public int getItemOutputSlotCount() {
         return ITEM_OUTPUT_SLOT_COUNT;
+    }
+
+    @Override
+    public int getFluidInputSlotCount() {
+        return FLUID_INPUT_SLOT_COUNT;
+    }
+
+    @Override
+    public int getFluidOutputSlotCount() {
+        return FLUID_OUTPUT_SLOT_COUNT;
+    }
+
+    @Override
+    public int getKeyInputSlotCount() {
+        return KEY_INPUT_SLOT_COUNT;
+    }
+
+    @Override
+    public int getKeyOutputSlotCount() {
+        return KEY_OUTPUT_SLOT_COUNT;
     }
 
     @Override

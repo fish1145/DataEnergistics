@@ -10,39 +10,55 @@
 		"srcRect": [0, 0, 195, 235]
 	},
 	"slots": {
-		"MACHINE_INPUT": {
+		"DATA_ASYNCHRONOUS_FACTORY_INPUT_LEFT": {
 			"left": 8,
 			"top": 21,
-			"grid": "BREAK_AFTER_6COLS"
+			"grid": "BREAK_AFTER_3COLS"
 		},
-		"STORAGE": {
+		"DATA_ASYNCHRONOUS_FACTORY_INPUT_RIGHT": {
+			"left": 62,
+			"top": 21,
+			"grid": "BREAK_AFTER_3COLS"
+		},
+		"DATA_ASYNCHRONOUS_FACTORY_FLUID_INPUT_LEFT": {
 			"left": 116,
-			"top": 21
+			"top": 21,
+			"grid": "VERTICAL"
 		},
-		"DATA_RIPPER_REASSEMBLER_FLUID_INPUT_B": {
+		"DATA_ASYNCHRONOUS_FACTORY_FLUID_INPUT_RIGHT": {
 			"left": 134,
-			"top": 21
+			"top": 21,
+			"grid": "VERTICAL"
 		},
-		"DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_A": {
+		"DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT": {
+			"left": 152,
+			"top": 21,
+			"grid": "VERTICAL"
+		},
+		"DATA_ASYNCHRONOUS_FACTORY_FLUID_OUTPUT_LEFT": {
 			"left": 116,
-			"top": 103
+			"top": 103,
+			"grid": "VERTICAL"
 		},
-		"DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_B": {
+		"DATA_ASYNCHRONOUS_FACTORY_FLUID_OUTPUT_RIGHT": {
 			"left": 134,
-			"top": 103
+			"top": 103,
+			"grid": "VERTICAL"
 		},
-		"DATA_RIPPER_REASSEMBLER_KEY_INPUT": {
+		"DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT": {
 			"left": 152,
-			"top": 21
+			"top": 103,
+			"grid": "VERTICAL"
 		},
-		"DATA_RIPPER_REASSEMBLER_KEY_OUTPUT": {
-			"left": 152,
-			"top": 103
-		},
-		"MACHINE_OUTPUT": {
+		"DATA_ASYNCHRONOUS_FACTORY_OUTPUT_LEFT": {
 			"left": 8,
 			"top": 103,
-			"grid": "BREAK_AFTER_6COLS"
+			"grid": "BREAK_AFTER_3COLS"
+		},
+		"DATA_ASYNCHRONOUS_FACTORY_OUTPUT_RIGHT": {
+			"left": 62,
+			"top": 103,
+			"grid": "BREAK_AFTER_3COLS"
 		},
 		"PLAYER_INVENTORY": {
 			"left": 17,
