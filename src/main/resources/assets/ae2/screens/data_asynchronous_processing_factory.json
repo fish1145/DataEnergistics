@@ -12,16 +12,16 @@
 	"slots": {
 		"MACHINE_INPUT": {
 			"left": 8,
-			"top": 19,
+			"top": 21,
 			"grid": "BREAK_AFTER_6COLS"
 		},
 		"STORAGE": {
 			"left": 116,
-			"top": 19
+			"top": 21
 		},
 		"DATA_RIPPER_REASSEMBLER_FLUID_INPUT_B": {
 			"left": 134,
-			"top": 19
+			"top": 21
 		},
 		"DATA_RIPPER_REASSEMBLER_FLUID_OUTPUT_A": {
 			"left": 116,
@@ -33,7 +33,7 @@
 		},
 		"DATA_RIPPER_REASSEMBLER_KEY_INPUT": {
 			"left": 152,
-			"top": 19
+			"top": 21
 		},
 		"DATA_RIPPER_REASSEMBLER_KEY_OUTPUT": {
 			"left": 152,
