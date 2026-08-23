@@ -143,12 +143,9 @@ public final class OrbitalControlActionDispatcher {
         }
 
         OrbitalWeaponSavedData weaponData = OrbitalWeaponSavedData.get(server);
-        Optional<UUID> preferredWeaponId = weaponData.preferredWeaponId(player.getUUID());
-        Optional<OrbitalWeaponRecord> weapon = weaponData.accessibleTo(player.getUUID())
-                .stream()
-                .filter(candidate -> preferredWeaponId.map(id -> id.equals(candidate.weaponId())).orElse(true))
-                .filter(candidate -> candidate.canPerform(player.getUUID(), OrbitalWeaponAction.FIRE))
-                .findFirst();
+        Optional<OrbitalWeaponRecord> weapon = weaponData.accessibleSelection(player.getUUID())
+                .selectedWeapon()
+                .filter(candidate -> candidate.canPerform(player.getUUID(), OrbitalWeaponAction.FIRE));
         if (weapon.isEmpty()) {
             return false;
         }

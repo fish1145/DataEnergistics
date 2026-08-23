@@ -30,6 +30,10 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.AABB;
 
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
@@ -193,10 +197,32 @@ public final class OrbitalAttackSavedData extends SavedData {
      * </p>
      */
     public List<OrbitalAttackRecord> forWeapon(UUID weaponId) {
-        return this.attacks.values().stream()
-                .filter(attack -> attack.weaponId().equals(weaponId))
-                .sorted(Comparator.comparing(OrbitalAttackRecord::attackId))
-                .toList();
+        ObjectOpenHashSet<UUID> weaponIds = new ObjectOpenHashSet<>(1);
+        weaponIds.add(weaponId);
+        return forWeapons(weaponIds).getOrDefault(weaponId, List.of());
+    }
+
+    /**
+     * Groups attacks for all requested weapon IDs with one traversal of the authoritative attack store.
+     * Each returned group is immutable and ordered by stable attack ID.
+     */
+    public Map<UUID, List<OrbitalAttackRecord>> forWeapons(ObjectSet<UUID> weaponIds) {
+        if (weaponIds.isEmpty()) {
+            return Map.of();
+        }
+        Object2ObjectOpenHashMap<UUID, ObjectArrayList<OrbitalAttackRecord>> grouped = new Object2ObjectOpenHashMap<>();
+        for (OrbitalAttackRecord attack : this.attacks.values()) {
+            if (weaponIds.contains(attack.weaponId())) {
+                grouped.computeIfAbsent(attack.weaponId(), ignored -> new ObjectArrayList<>()).add(attack);
+            }
+        }
+        Object2ObjectOpenHashMap<UUID, List<OrbitalAttackRecord>> immutableGroups = new Object2ObjectOpenHashMap<>(
+                grouped.size());
+        grouped.forEach((weaponId, attacks) -> {
+            attacks.sort(Comparator.comparing(OrbitalAttackRecord::attackId));
+            immutableGroups.put(weaponId, List.copyOf(attacks));
+        });
+        return Map.copyOf(immutableGroups);
     }
 
     /** Returns only publicly visible attacks in one dimension for tactical-map marker sampling. */

@@ -19,9 +19,12 @@ import net.minecraft.server.MinecraftServer;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -81,18 +84,24 @@ public record OrbitalControlTerminalSnapshot(
     public static OrbitalControlTerminalSnapshot capture(MinecraftServer server, UUID playerId) {
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         OrbitalWeaponSavedData weaponData = OrbitalWeaponSavedData.get(server);
-        List<OrbitalWeaponRecord> accessibleWeapons = weaponData
-                .accessibleTo(playerId)
+        OrbitalWeaponSavedData.AccessibleWeaponSelection selection = weaponData.accessibleSelection(playerId);
+        boolean truncated = selection.weapons().size() > MAX_WEAPONS;
+        List<OrbitalWeaponRecord> accessibleWeapons = selection.weapons()
                 .stream()
-                .toList();
-        boolean truncated = accessibleWeapons.size() > MAX_WEAPONS;
-        List<WeaponEntry> entries = accessibleWeapons.stream()
                 .limit(MAX_WEAPONS)
-                .map(weapon -> WeaponEntry.from(weapon, playerId, attacks.forWeapon(weapon.weaponId())))
                 .toList();
-        UUID preferred = weaponData.preferredWeaponId(playerId).orElse(null);
+        ObjectSet<UUID> weaponIds = new ObjectOpenHashSet<>(accessibleWeapons.size());
+        accessibleWeapons.forEach(weapon -> weaponIds.add(weapon.weaponId()));
+        Map<UUID, List<OrbitalAttackRecord>> attacksByWeapon = attacks.forWeapons(weaponIds);
+        List<WeaponEntry> entries = accessibleWeapons.stream()
+                .map(weapon -> WeaponEntry.from(
+                        weapon,
+                        playerId,
+                        attacksByWeapon.getOrDefault(weapon.weaponId(), List.of())))
+                .toList();
+        UUID preferred = selection.selectedWeaponId();
         UUID selected = null;
-        if (preferred != null && entries.stream().anyMatch(entry -> entry.weaponId().equals(preferred))) {
+        if (preferred != null && weaponIds.contains(preferred)) {
             selected = preferred;
         } else if (!entries.isEmpty()) {
             selected = entries.getFirst().weaponId();

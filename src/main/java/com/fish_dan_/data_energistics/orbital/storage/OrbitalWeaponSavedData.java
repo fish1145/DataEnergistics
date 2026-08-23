@@ -25,6 +25,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
@@ -72,13 +74,39 @@ public final class OrbitalWeaponSavedData extends SavedData {
 
     private final Map<UUID, OrbitalWeaponRecord> weapons = new LinkedHashMap<>();
     private final Map<UUID, UUID> ownerIndex = new HashMap<>();
-    private final Map<UUID, Set<UUID>> accessIndex = new HashMap<>();
+    private final Map<UUID, ObjectSet<UUID>> accessIndex = new HashMap<>();
     private final Map<OrbitalEndpointLocation, UUID> endpointIndex = new HashMap<>();
     private final Set<UUID> reserveChargeFaults = new HashSet<>();
     private final Map<UUID, UUID> lastSelectedWeaponByPlayer = new HashMap<>();
     private final Map<UUID, OrbitalOwnershipTransfer> ownershipTransfers = new LinkedHashMap<>();
 
     private OrbitalWeaponSavedData() {}
+
+    /** Stable, immutable accessible-weapon list paired with the player's currently resolved selection. */
+    public record AccessibleWeaponSelection(
+                                            List<OrbitalWeaponRecord> weapons,
+                                            @Nullable UUID selectedWeaponId) {
+
+        public AccessibleWeaponSelection {
+            weapons = List.copyOf(weapons);
+            if (weapons.isEmpty() != (selectedWeaponId == null)) {
+                throw new IllegalArgumentException("Accessible orbital selection must match its weapon list");
+            }
+            if (selectedWeaponId != null && weapons.stream().noneMatch(weapon -> weapon.weaponId().equals(selectedWeaponId))) {
+                throw new IllegalArgumentException("Selected orbital weapon is not accessible");
+            }
+        }
+
+        /** Returns the selected immutable record without requiring a second SavedData lookup. */
+        public Optional<OrbitalWeaponRecord> selectedWeapon() {
+            if (this.selectedWeaponId == null) {
+                return Optional.empty();
+            }
+            return this.weapons.stream()
+                    .filter(weapon -> weapon.weaponId().equals(this.selectedWeaponId))
+                    .findFirst();
+        }
+    }
 
     /**
      * Returns the overworld-owned SavedData instance shared by all dimensions.
@@ -447,28 +475,37 @@ public final class OrbitalWeaponSavedData extends SavedData {
      * Returns every owned or delegated weapon visible to a player in stable weapon-ID order.
      */
     public List<OrbitalWeaponRecord> accessibleTo(UUID playerId) {
-        HashSet<UUID> weaponIds = new HashSet<>(
-                this.accessIndex.getOrDefault(playerId, Set.of()));
+        return accessibleSelection(playerId).weapons();
+    }
+
+    /**
+     * Resolves the stable accessible list and its still-valid remembered selection in one index traversal.
+     */
+    public AccessibleWeaponSelection accessibleSelection(UUID playerId) {
+        ObjectOpenHashSet<UUID> weaponIds = new ObjectOpenHashSet<>();
+        ObjectSet<UUID> delegatedWeaponIds = this.accessIndex.get(playerId);
+        if (delegatedWeaponIds != null) {
+            weaponIds.addAll(delegatedWeaponIds);
+        }
         UUID ownedWeaponId = this.ownerIndex.get(playerId);
         if (ownedWeaponId != null) {
             weaponIds.add(ownedWeaponId);
         }
-        return weaponIds.stream()
+        List<OrbitalWeaponRecord> accessible = weaponIds.stream()
                 .map(this::requireWeapon)
                 .sorted(Comparator.comparing(OrbitalWeaponRecord::weaponId))
                 .toList();
+        UUID remembered = this.lastSelectedWeaponByPlayer.get(playerId);
+        UUID selected = remembered != null && weaponIds.contains(remembered) ? remembered :
+                accessible.isEmpty() ? null : accessible.getFirst().weaponId();
+        return new AccessibleWeaponSelection(accessible, selected);
     }
 
     /**
      * Returns the player's remembered weapon when it is still accessible, otherwise the first stable accessible ID.
      */
     public Optional<UUID> preferredWeaponId(UUID playerId) {
-        List<OrbitalWeaponRecord> accessible = accessibleTo(playerId);
-        UUID remembered = this.lastSelectedWeaponByPlayer.get(playerId);
-        if (remembered != null && accessible.stream().anyMatch(weapon -> weapon.weaponId().equals(remembered))) {
-            return Optional.of(remembered);
-        }
-        return accessible.stream().map(OrbitalWeaponRecord::weaponId).findFirst();
+        return Optional.ofNullable(accessibleSelection(playerId).selectedWeaponId());
     }
 
     /**
@@ -479,7 +516,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
      */
     public Optional<UUID> selectNext(MinecraftServer server, UUID playerId, boolean forward) {
         requireServerThread(server);
-        List<UUID> accessible = accessibleTo(playerId).stream()
+        AccessibleWeaponSelection selection = accessibleSelection(playerId);
+        List<UUID> accessible = selection.weapons().stream()
                 .map(OrbitalWeaponRecord::weaponId)
                 .toList();
         if (accessible.isEmpty()) {
@@ -489,7 +527,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return Optional.empty();
         }
 
-        UUID remembered = this.lastSelectedWeaponByPlayer.get(playerId);
+        UUID remembered = selection.selectedWeaponId();
         int currentIndex = accessible.indexOf(remembered);
         if (currentIndex < 0) {
             // The opening snapshot defaults to the first stable UUID even before a button is pressed.
@@ -517,8 +555,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
                           OrbitalAccessRole role) {
         requireServerThread(server);
         OrbitalWeaponRecord current = requireAuthorizedOwner(weaponId, actorId);
-        Set<UUID> accessibleWeaponIds = this.accessIndex.getOrDefault(playerId, Set.of());
-        boolean indexed = accessibleWeaponIds.contains(weaponId);
+        ObjectSet<UUID> accessibleWeaponIds = this.accessIndex.get(playerId);
+        boolean indexed = accessibleWeaponIds != null && accessibleWeaponIds.contains(weaponId);
         if (current.delegatedRoles().containsKey(playerId) != indexed) {
             throw new IllegalStateException("Access index is inconsistent for weapon " + weaponId);
         }
@@ -529,7 +567,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         }
 
         if (!indexed) {
-            this.accessIndex.computeIfAbsent(playerId, ignored -> new HashSet<>()).add(weaponId);
+            this.accessIndex.computeIfAbsent(playerId, ignored -> new ObjectOpenHashSet<>()).add(weaponId);
         }
         this.weapons.put(weaponId, updated);
         setDirty();
@@ -545,8 +583,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
                        UUID playerId) {
         requireServerThread(server);
         OrbitalWeaponRecord current = requireAuthorizedOwner(weaponId, actorId);
-        Set<UUID> accessibleWeaponIds = this.accessIndex.getOrDefault(playerId, Set.of());
-        boolean indexed = accessibleWeaponIds.contains(weaponId);
+        ObjectSet<UUID> accessibleWeaponIds = this.accessIndex.get(playerId);
+        boolean indexed = accessibleWeaponIds != null && accessibleWeaponIds.contains(weaponId);
         if (current.delegatedRoles().containsKey(playerId) != indexed) {
             throw new IllegalStateException("Access index is inconsistent for weapon " + weaponId);
         }
@@ -790,7 +828,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         this.weapons.put(weapon.weaponId(), weapon);
         this.ownerIndex.put(weapon.ownerId(), weapon.weaponId());
         for (UUID playerId : weapon.delegatedRoles().keySet()) {
-            this.accessIndex.computeIfAbsent(playerId, ignored -> new HashSet<>()).add(weapon.weaponId());
+            this.accessIndex.computeIfAbsent(playerId, ignored -> new ObjectOpenHashSet<>()).add(weapon.weaponId());
         }
         for (OrbitalEndpointLocation location : weapon.endpoints().keySet()) {
             this.endpointIndex.put(location, weapon.weaponId());
@@ -799,13 +837,13 @@ public final class OrbitalWeaponSavedData extends SavedData {
 
     private void addAccessIndex(OrbitalWeaponRecord weapon) {
         for (UUID playerId : weapon.delegatedRoles().keySet()) {
-            this.accessIndex.computeIfAbsent(playerId, ignored -> new HashSet<>()).add(weapon.weaponId());
+            this.accessIndex.computeIfAbsent(playerId, ignored -> new ObjectOpenHashSet<>()).add(weapon.weaponId());
         }
     }
 
     private void removeAccessIndex(OrbitalWeaponRecord weapon) {
         for (UUID playerId : weapon.delegatedRoles().keySet()) {
-            Set<UUID> weaponIds = this.accessIndex.get(playerId);
+            ObjectSet<UUID> weaponIds = this.accessIndex.get(playerId);
             if (weaponIds == null) {
                 continue;
             }
