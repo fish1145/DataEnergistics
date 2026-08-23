@@ -2,13 +2,36 @@ package com.fish_dan_.data_energistics.orbital.attack;
 
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+
 /**
  * Immutable resource escrow and cooldown captured when an attack is confirmed.
  */
 public record OrbitalAttackCost(
                                 long celestialEnergy,
-                                long aeEnergy,
-                                int cooldownTicks) {
+                                 long aeEnergy,
+                                 int cooldownTicks) {
+
+    public static final Codec<OrbitalAttackCost> CODEC = RecordCodecBuilder.create(instance -> instance
+            .group(
+                    Codec.LONG.fieldOf("celestial_energy").forGetter(OrbitalAttackCost::celestialEnergy),
+                    Codec.LONG.fieldOf("ae_energy").forGetter(OrbitalAttackCost::aeEnergy),
+                    Codec.INT.fieldOf("cooldown_ticks").forGetter(OrbitalAttackCost::cooldownTicks))
+            .apply(instance, OrbitalAttackCost::new));
+    public static final StreamCodec<RegistryFriendlyByteBuf, OrbitalAttackCost> STREAM_CODEC = StreamCodec.of(
+            (buffer, cost) -> {
+                buffer.writeVarLong(cost.celestialEnergy);
+                buffer.writeVarLong(cost.aeEnergy);
+                buffer.writeVarInt(cost.cooldownTicks);
+            },
+            buffer -> new OrbitalAttackCost(
+                    buffer.readVarLong(),
+                    buffer.readVarLong(),
+                    buffer.readVarInt()));
 
     public OrbitalAttackCost {
         if (celestialEnergy <= 0L || aeEnergy <= 0L || cooldownTicks <= 0) {

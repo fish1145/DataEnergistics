@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalAcce
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiSource;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiSource.Console;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiSource.Terminal;
-import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalFireControlDraft;
+import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlDraft;
 
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;

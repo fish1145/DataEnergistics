@@ -1,15 +1,14 @@
 package com.fish_dan_.data_energistics.orbital.control.ui;
 
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
-import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot.WeaponEntry;
+import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalControlIntent;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiTheme.Tone;
 
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
 
+import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEmitter;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
@@ -17,7 +16,6 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 
 import java.util.EnumMap;
 import java.util.Locale;
-import java.util.function.BooleanSupplier;
 
 /** Structured selected-weapon overview shared by both control entry points. */
 final class OrbitalControlOverviewPanel {
@@ -41,7 +39,7 @@ final class OrbitalControlOverviewPanel {
     private final EnumMap<OrbitalAttackMode, Label> modeLabels = new EnumMap<>(OrbitalAttackMode.class);
     private final EnumMap<OrbitalAttackMode, Button> modeActions = new EnumMap<>(OrbitalAttackMode.class);
 
-    private OrbitalControlOverviewPanel(Player player, BooleanSupplier sourceValid) {
+    private OrbitalControlOverviewPanel(RPCEmitter commandEmitter, boolean clientSide) {
         this.root = new UIElement();
         this.root.setId("orbital_control_overview");
         this.root.layout(layout -> layout.width(WIDTH).height(HEIGHT));
@@ -120,7 +118,7 @@ final class OrbitalControlOverviewPanel {
         this.aeEnergy = resourceLabel("orbital_control_overview_ae", aeCard);
 
         for (OrbitalAttackMode mode : OrbitalAttackMode.values()) {
-            createModeCard(player, sourceValid, mode);
+            createModeCard(commandEmitter, clientSide, mode);
         }
 
         this.content.addChildren(identityCard, celestialCard, aeCard);
@@ -128,8 +126,8 @@ final class OrbitalControlOverviewPanel {
         update(OrbitalControlTerminalSnapshot.EMPTY);
     }
 
-    static OrbitalControlOverviewPanel create(Player player, BooleanSupplier sourceValid) {
-        return new OrbitalControlOverviewPanel(player, sourceValid);
+    static OrbitalControlOverviewPanel create(RPCEmitter commandEmitter, boolean clientSide) {
+        return new OrbitalControlOverviewPanel(commandEmitter, clientSide);
     }
 
     UIElement root() {
@@ -175,7 +173,7 @@ final class OrbitalControlOverviewPanel {
         return label;
     }
 
-    private void createModeCard(Player player, BooleanSupplier sourceValid, OrbitalAttackMode mode) {
+    private void createModeCard(RPCEmitter commandEmitter, boolean clientSide, OrbitalAttackMode mode) {
         int left = mode.ordinal() * (MODE_WIDTH + MODE_GAP);
         String id = "orbital_control_overview_mode_" + mode.name().toLowerCase(Locale.ROOT);
         UIElement card = OrbitalControlUiTheme.panel(
@@ -203,16 +201,9 @@ final class OrbitalControlOverviewPanel {
                 MODE_WIDTH - 16,
                 24,
                 Tone.PANEL_ALT);
-        action.setOnServerClick(event -> {
-            if (!(player instanceof ServerPlayer serverPlayer) || !sourceValid.getAsBoolean()) {
-                return;
-            }
-            if (!OrbitalControlActionDispatcher.cancelOrAbortSelectedMode(serverPlayer, mode)) {
-                serverPlayer.displayClientMessage(
-                        Component.translatable("message.data_energistics.orbital_control_terminal.cancel_rejected"),
-                        true);
-            }
-        });
+        if (clientSide) {
+            action.setOnClick(event -> commandEmitter.send(new OrbitalControlIntent.CancelOrAbortMode(mode)));
+        }
         card.addChildren(label, action);
         this.content.addChild(card);
         this.modeLabels.put(mode, label);

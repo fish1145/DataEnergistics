@@ -23,6 +23,7 @@ public final class OrbitalControlPlayerMenu {
 
     /** Registers the same holder factory on logical client and server during common setup. */
     public static void register() {
+        OrbitalControlUiSyncAccessors.register();
         PlayerUIMenuType.register(MENU_ID, OrbitalPlayerUiHolder::new);
     }
 

@@ -1,8 +1,10 @@
 package com.fish_dan_.data_energistics.orbital.control.ui;
 
 import com.fish_dan_.data_energistics.client.map.orbital.OrbitalMapSelectionClientSession;
-import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
+import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalControlIntent;
+import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalControlMenuSnapshot;
+import com.fish_dan_.data_energistics.orbital.control.session.OrbitalControlServerSession;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiTheme.Tone;
 
 import net.minecraft.network.chat.Component;
@@ -10,6 +12,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 
 import com.lowdragmc.lowdraglib2.gui.sync.SyncValue;
+import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEmitter;
+import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEventBuilder;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
@@ -23,9 +27,7 @@ import java.util.function.Supplier;
 /** Builds the one LDLib2 control surface shared by a handheld terminal and bound console. */
 public final class OrbitalControlUiFactory {
 
-    private static final String SNAPSHOT_SYNC_NAME = "orbital_control_snapshot";
-    private static final String PREVIEW_SYNC_NAME = "orbital_control_preview";
-    private static final String PREVIEW_NONCE_SYNC_NAME = "orbital_control_preview_nonce";
+    private static final String MENU_SNAPSHOT_SYNC_NAME = "orbital_control_menu_snapshot";
     private static final int UI_WIDTH = 540;
     private static final int UI_HEIGHT = 384;
     private static final int HEADER_HEIGHT = 34;
@@ -45,15 +47,23 @@ public final class OrbitalControlUiFactory {
                                    Supplier<OrbitalControlTerminalSnapshot> snapshotSupplier,
                                    BooleanSupplier sourceValid,
                                    OrbitalControlUiSource source) {
-        OrbitalControlUiSyncAccessors.init();
         boolean clientSide = player.level().isClientSide();
-        OrbitalControlTerminalSnapshot initialSnapshot = clientSide ?
-                OrbitalControlTerminalSnapshot.EMPTY : snapshotSupplier.get();
+        OrbitalControlServerSession serverSession = player instanceof ServerPlayer serverPlayer ?
+                new OrbitalControlServerSession(serverPlayer, snapshotSupplier, sourceValid) : null;
+        OrbitalControlMenuSnapshot initialSnapshot = clientSide || serverSession == null ?
+                OrbitalControlMenuSnapshot.EMPTY : serverSession.snapshot();
 
         UIElement root = new UIElement();
         root.setId("orbital_control_root");
         root.layout(layout -> layout.width(UI_WIDTH).height(UI_HEIGHT));
         OrbitalControlUiTheme.stylePanel(root, Tone.SHELL);
+        RPCEmitter commandEmitter = root.addRPCEvent(RPCEventBuilder.simple(
+                OrbitalControlIntent.class,
+                intent -> {
+                    if (serverSession != null) {
+                        serverSession.handle(intent);
+                    }
+                }));
 
         UIElement header = OrbitalControlUiTheme.panel(
                 "orbital_control_header",
@@ -127,8 +137,10 @@ public final class OrbitalControlUiFactory {
                 42,
                 22,
                 Tone.PANEL);
-        previousWeapon.setOnServerClick(event -> cycleWeapon(player, false, sourceValid));
-        nextWeapon.setOnServerClick(event -> cycleWeapon(player, true, sourceValid));
+        if (clientSide) {
+            previousWeapon.setOnClick(event -> commandEmitter.send(new OrbitalControlIntent.CycleWeapon(false)));
+            nextWeapon.setOnClick(event -> commandEmitter.send(new OrbitalControlIntent.CycleWeapon(true)));
+        }
 
         Button overviewTab = pageButton(
                 "orbital_control_overview_tab",
@@ -157,7 +169,7 @@ public final class OrbitalControlUiFactory {
                 fireControlTab,
                 navigationHint);
 
-        OrbitalControlOverviewPanel overview = OrbitalControlOverviewPanel.create(player, sourceValid);
+        OrbitalControlOverviewPanel overview = OrbitalControlOverviewPanel.create(commandEmitter, clientSide);
         OrbitalControlUiTheme.place(
                 overview.root(),
                 CONTENT_LEFT,
@@ -167,9 +179,9 @@ public final class OrbitalControlUiFactory {
         OrbitalFireControlPanel.View fireControl = OrbitalFireControlPanel.create(
                 root,
                 player,
-                sourceValid,
                 source,
-                clientSide);
+                clientSide,
+                commandEmitter);
         OrbitalControlUiTheme.place(
                 fireControl.root(),
                 CONTENT_LEFT,
@@ -180,26 +192,24 @@ public final class OrbitalControlUiFactory {
         overview.root().setDisplay(!returningFromMap);
         fireControl.root().setDisplay(returningFromMap);
 
-        overviewTab.setOnClick(event -> {
-            if (clientSide) {
+        if (clientSide) {
+            overviewTab.setOnClick(event -> {
                 fireControl.cancelHold();
                 overview.root().setDisplay(true);
                 fireControl.root().setDisplay(false);
-            }
-        });
-        fireControlTab.setOnClick(event -> {
-            if (clientSide) {
+            });
+            fireControlTab.setOnClick(event -> {
                 overview.root().setDisplay(false);
                 fireControl.root().setDisplay(true);
-            }
-        });
+            });
+        }
 
         root.addChildren(header, sidebar, overview.root(), fireControl.root());
         updateSnapshot(initialSnapshot, overview, fireControl, selectorPosition, previousWeapon, nextWeapon);
 
-        SyncValue<OrbitalControlTerminalSnapshot> snapshotSync = new SyncValue<>(
-                SNAPSHOT_SYNC_NAME,
-                OrbitalControlTerminalSnapshot.class,
+        SyncValue<OrbitalControlMenuSnapshot> snapshotSync = new SyncValue<>(
+                MENU_SNAPSHOT_SYNC_NAME,
+                OrbitalControlMenuSnapshot.class,
                 initialSnapshot);
         snapshotSync.setToSync(!clientSide);
         snapshotSync.setAcceptSync(clientSide);
@@ -210,34 +220,15 @@ public final class OrbitalControlUiFactory {
                 selectorPosition,
                 previousWeapon,
                 nextWeapon));
-        if (!clientSide) {
-            snapshotSync.setValueProvider(snapshotSupplier);
-        }
-
-        SyncValue<Component> previewSync = new SyncValue<>(
-                PREVIEW_SYNC_NAME,
-                Component.class,
-                Component.translatable("screen.data_energistics.orbital_control_terminal.preview.none"));
-        previewSync.setToSync(!clientSide);
-        previewSync.setAcceptSync(clientSide);
-        previewSync.addListener(fireControl::updatePreview);
-
-        SyncValue<String> previewNonceSync = new SyncValue<>(PREVIEW_NONCE_SYNC_NAME, String.class, "");
-        previewNonceSync.setToSync(!clientSide);
-        previewNonceSync.setAcceptSync(clientSide);
-        previewNonceSync.addListener(fireControl::updatePreviewNonce);
-        if (!clientSide) {
-            ServerPlayer serverPlayer = (ServerPlayer) player;
-            previewSync.setValueProvider(() -> OrbitalControlActionDispatcher.currentPreviewStatus(serverPlayer));
-            previewNonceSync.setValueProvider(() -> OrbitalControlActionDispatcher.currentPreviewNonce(serverPlayer));
-            fireControl.updatePreview(OrbitalControlActionDispatcher.currentPreviewStatus(serverPlayer));
-            fireControl.updatePreviewNonce(OrbitalControlActionDispatcher.currentPreviewNonce(serverPlayer));
+        if (serverSession != null) {
+            snapshotSync.setValueProvider(serverSession::snapshot);
         }
 
         ModularUI modularUI = ModularUI.of(UI.of(root), player);
+        if (serverSession != null) {
+            serverSession.attach(modularUI);
+        }
         modularUI.syncManager.registerSyncValue(snapshotSync);
-        modularUI.syncManager.registerSyncValue(previewSync);
-        modularUI.syncManager.registerSyncValue(previewNonceSync);
         return modularUI;
     }
 
@@ -252,23 +243,19 @@ public final class OrbitalControlUiFactory {
                 Tone.PANEL);
     }
 
-    private static void cycleWeapon(Player player, boolean forward, BooleanSupplier sourceValid) {
-        if (player instanceof ServerPlayer serverPlayer && sourceValid.getAsBoolean()) {
-            OrbitalControlActionDispatcher.cycleWeapon(serverPlayer, forward);
-        }
-    }
-
     private static void updateSnapshot(
-                                       OrbitalControlTerminalSnapshot snapshot,
+                                       OrbitalControlMenuSnapshot snapshot,
                                        OrbitalControlOverviewPanel overview,
                                        OrbitalFireControlPanel.View fireControl,
                                        Label selectorPosition,
                                        Button previousWeapon,
                                        Button nextWeapon) {
-        overview.update(snapshot);
-        fireControl.updateSnapshot(snapshot);
-        selectorPosition.setValue(OrbitalControlPresentation.selectorPosition(snapshot));
-        boolean multipleWeapons = snapshot.weapons().size() > 1;
+        OrbitalControlTerminalSnapshot terminal = snapshot.terminal();
+        overview.update(terminal);
+        fireControl.updateSnapshot(terminal);
+        fireControl.updateSession(snapshot.fireControl(), snapshot.feedback());
+        selectorPosition.setValue(OrbitalControlPresentation.selectorPosition(terminal));
+        boolean multipleWeapons = terminal.weapons().size() > 1;
         previousWeapon.setActive(multipleWeapons);
         nextWeapon.setActive(multipleWeapons);
     }

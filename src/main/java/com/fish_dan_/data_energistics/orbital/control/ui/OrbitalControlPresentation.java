@@ -2,9 +2,14 @@ package com.fish_dan_.data_energistics.orbital.control.ui;
 
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalAttackPreviewEstimate;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot.AttackEntry;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot.WeaponEntry;
+import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalControlFeedback;
+import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlSessionSnapshot;
+import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlSessionSnapshot.PreviewDetails;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 
 import net.minecraft.network.chat.Component;
@@ -100,6 +105,22 @@ public final class OrbitalControlPresentation {
         };
     }
 
+    /** Builds all localized fire-control text on the receiving client from typed server state. */
+    public static Component fireControl(
+                                        OrbitalFireControlSessionSnapshot snapshot,
+                                        OrbitalControlFeedback feedback) {
+        return switch (snapshot.phase()) {
+            case IDLE -> feedback(feedback);
+            case REJECTED -> feedback(feedback == OrbitalControlFeedback.NONE ?
+                    OrbitalControlFeedback.ACTION_REJECTED : feedback);
+            case CALCULATING -> Component.translatable(
+                    PREFIX + "preview.calculating",
+                    snapshot.checkedChunks(),
+                    snapshot.totalChunks());
+            case READY, HOLDING -> preview(snapshot);
+        };
+    }
+
     public static boolean modeActionAvailable(WeaponEntry weapon, OrbitalAttackMode mode) {
         if (!weapon.canOperate()) {
             return false;
@@ -148,6 +169,77 @@ public final class OrbitalControlPresentation {
 
     public static Component phaseName(OrbitalAttackPhase phase) {
         return Component.translatable(PREFIX + "phase." + phase.name().toLowerCase(Locale.ROOT));
+    }
+
+    private static Component preview(OrbitalFireControlSessionSnapshot snapshot) {
+        PreviewDetails details = Objects.requireNonNull(snapshot.preview());
+        OrbitalAttackPreviewEstimate estimate = Objects.requireNonNull(details.estimate());
+        long remainingTicks = Math.max(0L, snapshot.expiresAt() - snapshot.serverGameTime());
+        long remainingSeconds = remainingTicks == 0L ? 0L : 1L + (remainingTicks - 1L) / 20L;
+        MutableComponent status = Component.translatable(
+                PREFIX + "preview.target",
+                modeName(details.mode()),
+                Component.literal(details.dimensionId().toString()),
+                details.target().getX(),
+                details.target().getY(),
+                details.target().getZ());
+        status.append("\n").append(Component.translatable(
+                PREFIX + "preview.geometry",
+                estimate.effectRadius(),
+                details.mode() == OrbitalAttackMode.DIRECTED_ENERGY ?
+                        depthName(Objects.requireNonNull(details.directedDepth())) :
+                        Component.translatable(PREFIX + "preview.depth.not_applicable")));
+        status.append("\n").append(Component.translatable(
+                PREFIX + "preview.chunks",
+                estimate.affectedChunks(),
+                estimate.unloadedChunks()));
+        status.append("\n").append(Component.translatable(
+                PREFIX + "preview.work",
+                estimate.scheduledBlocks(),
+                estimate.minimumExecutionTicks()));
+        if (estimate.scheduledCoordinates() > 0L) {
+            status.append("\n").append(Component.translatable(
+                    PREFIX + "preview.coordinates",
+                    estimate.scheduledCoordinates()));
+        }
+        status.append("\n").append(Component.translatable(
+                PREFIX + "preview.cost",
+                estimate.cost().celestialEnergy(),
+                estimate.cost().aeEnergy()));
+        status.append("\n").append(Component.translatable(
+                PREFIX + "preview.reserve",
+                estimate.availableCelestialEnergy(),
+                estimate.availableAeEnergy(),
+                Component.translatable(estimate.affordable() ?
+                        PREFIX + "preview.affordable" : PREFIX + "preview.unaffordable")));
+        status.append("\n").append(Component.translatable(
+                snapshot.phase() == OrbitalFireControlSessionSnapshot.Phase.HOLDING ?
+                        PREFIX + "preview.holding" : PREFIX + "preview.ready",
+                Math.min(snapshot.heldTicks(), snapshot.requiredHoldTicks()),
+                snapshot.requiredHoldTicks(),
+                remainingSeconds));
+        return status;
+    }
+
+    private static Component feedback(OrbitalControlFeedback feedback) {
+        return switch (feedback) {
+            case SOURCE_INVALID -> Component.translatable(
+                    "message.data_energistics.orbital_control_terminal.action_rejected");
+            case PREVIEW_STALE -> Component.translatable(
+                    "message.data_energistics.orbital_control_terminal.preview_expired");
+            case ACTION_REJECTED, INTERNAL_FAILURE -> Component.translatable(
+                    "message.data_energistics.orbital_control_terminal.action_rejected");
+            default -> Component.translatable(PREFIX + "preview.none");
+        };
+    }
+
+    private static Component depthName(OrbitalDirectedEnergyDepth depth) {
+        return Component.translatable(switch (depth) {
+            case DEPTH_32 -> "screen.data_energistics.orbital_control_terminal.depth.32";
+            case DEPTH_128 -> "screen.data_energistics.orbital_control_terminal.depth.128";
+            case DEPTH_512 -> "screen.data_energistics.orbital_control_terminal.depth.512";
+            case THROUGH -> "screen.data_energistics.orbital_control_terminal.depth.through";
+        });
     }
 
     private static Component role(WeaponEntry weapon) {

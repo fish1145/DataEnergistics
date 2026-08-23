@@ -13,9 +13,13 @@ import com.fish_dan_.data_energistics.orbital.attack.OrbitalKineticStrike;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -35,8 +39,24 @@ public record OrbitalAttackPreviewEstimate(
                                            long scheduledBlocks,
                                            int effectRadius,
                                            int affectedChunks,
-                                           int unloadedChunks,
-                                           long minimumExecutionTicks) {
+                                            int unloadedChunks,
+                                            long minimumExecutionTicks) {
+
+    public static final Codec<OrbitalAttackPreviewEstimate> CODEC = RecordCodecBuilder.create(instance -> instance
+            .group(
+                    OrbitalAttackCost.CODEC.fieldOf("cost").forGetter(OrbitalAttackPreviewEstimate::cost),
+                    Codec.LONG.fieldOf("available_celestial_energy").forGetter(OrbitalAttackPreviewEstimate::availableCelestialEnergy),
+                    Codec.LONG.fieldOf("available_ae_energy").forGetter(OrbitalAttackPreviewEstimate::availableAeEnergy),
+                    Codec.LONG.fieldOf("scheduled_coordinates").forGetter(OrbitalAttackPreviewEstimate::scheduledCoordinates),
+                    Codec.LONG.fieldOf("scheduled_blocks").forGetter(OrbitalAttackPreviewEstimate::scheduledBlocks),
+                    Codec.INT.fieldOf("effect_radius").forGetter(OrbitalAttackPreviewEstimate::effectRadius),
+                    Codec.INT.fieldOf("affected_chunks").forGetter(OrbitalAttackPreviewEstimate::affectedChunks),
+                    Codec.INT.fieldOf("unloaded_chunks").forGetter(OrbitalAttackPreviewEstimate::unloadedChunks),
+                    Codec.LONG.fieldOf("minimum_execution_ticks").forGetter(OrbitalAttackPreviewEstimate::minimumExecutionTicks))
+            .apply(instance, OrbitalAttackPreviewEstimate::new));
+    public static final StreamCodec<RegistryFriendlyByteBuf, OrbitalAttackPreviewEstimate> STREAM_CODEC = StreamCodec.of(
+            OrbitalAttackPreviewEstimate::encode,
+            OrbitalAttackPreviewEstimate::decode);
 
     public OrbitalAttackPreviewEstimate {
         if (availableCelestialEnergy < 0L || availableAeEnergy < 0L || scheduledCoordinates < 0L || scheduledBlocks < 0L || effectRadius < 1 || affectedChunks < 1 || unloadedChunks < 0 || unloadedChunks > affectedChunks || minimumExecutionTicks < 1L) {
@@ -120,6 +140,31 @@ public record OrbitalAttackPreviewEstimate(
     /** Returns whether the reserve snapshot shown in this preview can cover both independent escrow resources. */
     public boolean affordable() {
         return this.availableCelestialEnergy >= this.cost.celestialEnergy() && this.availableAeEnergy >= this.cost.aeEnergy();
+    }
+
+    private static void encode(RegistryFriendlyByteBuf buffer, OrbitalAttackPreviewEstimate estimate) {
+        OrbitalAttackCost.STREAM_CODEC.encode(buffer, estimate.cost);
+        buffer.writeVarLong(estimate.availableCelestialEnergy);
+        buffer.writeVarLong(estimate.availableAeEnergy);
+        buffer.writeVarLong(estimate.scheduledCoordinates);
+        buffer.writeVarLong(estimate.scheduledBlocks);
+        buffer.writeVarInt(estimate.effectRadius);
+        buffer.writeVarInt(estimate.affectedChunks);
+        buffer.writeVarInt(estimate.unloadedChunks);
+        buffer.writeVarLong(estimate.minimumExecutionTicks);
+    }
+
+    private static OrbitalAttackPreviewEstimate decode(RegistryFriendlyByteBuf buffer) {
+        return new OrbitalAttackPreviewEstimate(
+                OrbitalAttackCost.STREAM_CODEC.decode(buffer),
+                buffer.readVarLong(),
+                buffer.readVarLong(),
+                buffer.readVarLong(),
+                buffer.readVarLong(),
+                buffer.readVarInt(),
+                buffer.readVarInt(),
+                buffer.readVarInt(),
+                buffer.readVarLong());
     }
 
     private static ChunkEstimate countChunks(ServerLevel level, BlockPos target, int radius) {
