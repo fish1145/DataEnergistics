@@ -17,6 +17,7 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
 
     public static final SlotSemantic ITEM_INPUT_LEFT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_INPUT_LEFT", false);
     public static final SlotSemantic ITEM_INPUT_RIGHT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_INPUT_RIGHT", false);
+    public static final SlotSemantic ITEM_INPUT_END = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_INPUT_END", false);
     public static final SlotSemantic FLUID_INPUT_LEFT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_FLUID_INPUT_LEFT", false);
     public static final SlotSemantic FLUID_INPUT_RIGHT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_FLUID_INPUT_RIGHT", false);
     public static final SlotSemantic KEY_INPUT_TOP = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_TOP", false);
@@ -28,6 +29,7 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
     public static final SlotSemantic KEY_OUTPUT_BOTTOM = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT_BOTTOM", false);
     public static final SlotSemantic ITEM_OUTPUT_LEFT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_OUTPUT_LEFT", false);
     public static final SlotSemantic ITEM_OUTPUT_RIGHT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_OUTPUT_RIGHT", false);
+    public static final SlotSemantic ITEM_OUTPUT_END = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_OUTPUT_END", false);
 
     @GuiSync(870)
     public String fluidInputCId = "";
@@ -78,7 +80,8 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
         var host = this.getHost();
         InternalInventory storage = host.getStorageInventory();
         for (int slot = 0; slot < host.getItemInputSlotCount(); slot++) {
-            SlotSemantic semantic = slot % 6 < 3 ? ITEM_INPUT_LEFT : ITEM_INPUT_RIGHT;
+            int column = slot % 7;
+            SlotSemantic semantic = column < 3 ? ITEM_INPUT_LEFT : column < 6 ? ITEM_INPUT_RIGHT : ITEM_INPUT_END;
             this.addSlot(new ReassemblerItemSlot(storage, slot), semantic);
         }
 
@@ -90,7 +93,7 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
             this.addSlot(new AppEngSlot(host.getKeyInputMenuInventory(slot), 0), getKeyInputSemantic(slot));
         }
         for (int slot = 0; slot < host.getFluidOutputSlotCount(); slot++) {
-            SlotSemantic semantic = slot < 2 ? FLUID_OUTPUT_LEFT : FLUID_OUTPUT_RIGHT;
+            SlotSemantic semantic = slot % 2 == 0 ? FLUID_OUTPUT_LEFT : FLUID_OUTPUT_RIGHT;
             this.addSlot(new AppEngSlot(host.getFluidOutputMenuInventory(slot), 0), semantic);
         }
         for (int slot = 0; slot < host.getKeyOutputSlotCount(); slot++) {
@@ -98,7 +101,8 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
         }
 
         for (int slot = 0; slot < host.getItemOutputSlotCount(); slot++) {
-            SlotSemantic semantic = slot % 6 < 3 ? ITEM_OUTPUT_LEFT : ITEM_OUTPUT_RIGHT;
+            int column = slot % 7;
+            SlotSemantic semantic = column < 3 ? ITEM_OUTPUT_LEFT : column < 6 ? ITEM_OUTPUT_RIGHT : ITEM_OUTPUT_END;
             this.addSlot(new ReassemblerOutputSlot(storage, host.getItemOutputStartSlot() + slot), semantic);
         }
     }

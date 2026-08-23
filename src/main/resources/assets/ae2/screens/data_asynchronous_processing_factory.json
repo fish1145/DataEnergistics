@@ -20,44 +20,49 @@
 			"top": 21,
 			"grid": "BREAK_AFTER_3COLS"
 		},
-		"DATA_ASYNCHRONOUS_FACTORY_FLUID_INPUT_LEFT": {
+		"DATA_ASYNCHRONOUS_FACTORY_INPUT_END": {
 			"left": 116,
+			"top": 21,
+			"grid": "VERTICAL"
+		},
+		"DATA_ASYNCHRONOUS_FACTORY_FLUID_INPUT_LEFT": {
+			"left": 134,
 			"top": 21,
 			"grid": "VERTICAL"
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_FLUID_INPUT_RIGHT": {
-			"left": 134,
+			"left": 152,
 			"top": 21,
 			"grid": "VERTICAL"
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_TOP": {
-			"left": 152,
+			"left": 170,
 			"top": 21
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_MIDDLE": {
-			"left": 152,
+			"left": 170,
 			"top": 39
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_BOTTOM": {
-			"left": 152,
+			"left": 170,
 			"top": 57
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_FLUID_OUTPUT_LEFT": {
-			"left": 116,
-			"top": 103,
-			"grid": "VERTICAL"
-		},
-		"DATA_ASYNCHRONOUS_FACTORY_FLUID_OUTPUT_RIGHT": {
 			"left": 134,
 			"top": 103,
 			"grid": "VERTICAL"
 		},
-		"DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT_TOP": {
+		"DATA_ASYNCHRONOUS_FACTORY_FLUID_OUTPUT_RIGHT": {
 			"left": 152,
+			"top": 103,
+			"grid": "VERTICAL"
+		},
+		"DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT_TOP": {
+			"left": 170,
 			"top": 103
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT_BOTTOM": {
-			"left": 152,
+			"left": 170,
 			"top": 121
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_OUTPUT_LEFT": {
@@ -69,6 +74,11 @@
 			"left": 62,
 			"top": 103,
 			"grid": "BREAK_AFTER_3COLS"
+		},
+		"DATA_ASYNCHRONOUS_FACTORY_OUTPUT_END": {
+			"left": 116,
+			"top": 103,
+			"grid": "VERTICAL"
 		},
 		"PLAYER_INVENTORY": {
 			"left": 17,

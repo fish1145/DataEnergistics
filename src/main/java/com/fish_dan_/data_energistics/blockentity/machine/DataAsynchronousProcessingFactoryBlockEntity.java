@@ -12,14 +12,16 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipperReassemblerBlockEntity {
 
-    public static final int ITEM_INPUT_SLOT_COUNT = 18;
-    public static final int ITEM_OUTPUT_SLOT_COUNT = 12;
+    public static final int ITEM_INPUT_SLOT_COUNT = 21;
+    public static final int ITEM_OUTPUT_SLOT_COUNT = 14;
     public static final int FLUID_INPUT_SLOT_COUNT = 6;
     public static final int FLUID_OUTPUT_SLOT_COUNT = 4;
     public static final int KEY_INPUT_SLOT_COUNT = 3;
     public static final int KEY_OUTPUT_SLOT_COUNT = 2;
+    private static final int PREVIOUS_ITEM_INPUT_SLOT_COUNT = 18;
+    private static final int PREVIOUS_ITEM_OUTPUT_SLOT_COUNT = 12;
     private static final String STORAGE_LAYOUT_VERSION_TAG = "storage_layout_version";
-    private static final int STORAGE_LAYOUT_VERSION = 2;
+    private static final int STORAGE_LAYOUT_VERSION = 3;
 
     public DataAsynchronousProcessingFactoryBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(DEBlockEntities.DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY.get(),
@@ -63,21 +65,22 @@ public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipp
 
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
-        boolean migrateLegacyOutputSlots = !data.contains(STORAGE_LAYOUT_VERSION_TAG);
+        int storageLayoutVersion = data.contains(STORAGE_LAYOUT_VERSION_TAG) ? data.getInt(STORAGE_LAYOUT_VERSION_TAG) : 0;
         super.loadTag(data, registries);
-        if (!migrateLegacyOutputSlots) {
+        if (storageLayoutVersion >= STORAGE_LAYOUT_VERSION) {
             return;
         }
 
-        for (int slot = 0; slot < DataRipperReassemblerBlockEntity.ITEM_OUTPUT_SLOT_COUNT; slot++) {
-            int legacyOutputSlot = DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT + slot;
-            ItemStack output = this.getStorageInventory().getStackInSlot(legacyOutputSlot);
-            if (output.isEmpty()) {
-                continue;
-            }
-
-            this.getStorageInventory().setItemDirect(this.getItemOutputStartSlot() + slot, output.copy());
+        int legacyInputSlotCount = storageLayoutVersion == 2 ? PREVIOUS_ITEM_INPUT_SLOT_COUNT : DataRipperReassemblerBlockEntity.ITEM_INPUT_SLOT_COUNT;
+        int legacyOutputSlotCount = storageLayoutVersion == 2 ? PREVIOUS_ITEM_OUTPUT_SLOT_COUNT : DataRipperReassemblerBlockEntity.ITEM_OUTPUT_SLOT_COUNT;
+        ItemStack[] legacyOutputs = new ItemStack[legacyOutputSlotCount];
+        for (int slot = 0; slot < legacyOutputSlotCount; slot++) {
+            int legacyOutputSlot = legacyInputSlotCount + slot;
+            legacyOutputs[slot] = this.getStorageInventory().getStackInSlot(legacyOutputSlot).copy();
             this.getStorageInventory().setItemDirect(legacyOutputSlot, ItemStack.EMPTY);
+        }
+        for (int slot = 0; slot < legacyOutputs.length; slot++) {
+            this.getStorageInventory().setItemDirect(this.getItemOutputStartSlot() + slot, legacyOutputs[slot]);
         }
         this.setChanged();
     }
