@@ -93,6 +93,19 @@ public final class OrbitalControlPresentation {
                 progress(attack));
     }
 
+    /** Compact mode state used by the dashboard rail without repeating target coordinates. */
+    public static Component modeRail(WeaponEntry weapon, OrbitalAttackMode mode) {
+        AttackEntry attack = weapon.attack(mode).orElse(null);
+        if (attack == null) {
+            return Component.translatable(PREFIX + "overview.mode.idle", modeName(mode));
+        }
+        return Component.translatable(
+                "screen.data_energistics.orbital_control_hud.attack_compact",
+                modeName(mode),
+                phaseName(attack.phase()),
+                progress(attack));
+    }
+
     public static Component modeAction(WeaponEntry weapon, OrbitalAttackMode mode) {
         AttackEntry attack = weapon.attack(mode).orElse(null);
         if (attack == null) {
@@ -110,7 +123,7 @@ public final class OrbitalControlPresentation {
                                         OrbitalFireControlSessionSnapshot snapshot,
                                         OrbitalControlFeedback feedback) {
         return switch (snapshot.phase()) {
-            case IDLE -> feedback(feedback);
+            case IDLE -> Component.translatable(PREFIX + "preview.none");
             case REJECTED -> feedback(feedback == OrbitalControlFeedback.NONE ?
                     OrbitalControlFeedback.ACTION_REJECTED : feedback);
             case CALCULATING -> Component.translatable(
@@ -221,16 +234,10 @@ public final class OrbitalControlPresentation {
         return status;
     }
 
-    private static Component feedback(OrbitalControlFeedback feedback) {
-        return switch (feedback) {
-            case SOURCE_INVALID -> Component.translatable(
-                    "message.data_energistics.orbital_control_terminal.action_rejected");
-            case PREVIEW_STALE -> Component.translatable(
-                    "message.data_energistics.orbital_control_terminal.preview_expired");
-            case ACTION_REJECTED, INTERNAL_FAILURE -> Component.translatable(
-                    "message.data_energistics.orbital_control_terminal.action_rejected");
-            default -> Component.translatable(PREFIX + "preview.none");
-        };
+    /** Returns the one compact header message for the latest server command result. */
+    public static Component feedback(OrbitalControlFeedback feedback) {
+        return feedback == OrbitalControlFeedback.NONE ? Component.translatable(PREFIX + "subtitle") :
+                Component.translatable(PREFIX + "feedback." + feedback.name().toLowerCase(Locale.ROOT));
     }
 
     private static Component depthName(OrbitalDirectedEnergyDepth depth) {

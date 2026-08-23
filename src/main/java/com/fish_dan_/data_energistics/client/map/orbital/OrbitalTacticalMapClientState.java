@@ -8,9 +8,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 
+import com.lowdragmc.lowdraglib2.syncdata.ISubscription;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.UUID;
 
 /** Client cache for one fully identified, server-authoritative tactical-map viewport. */
@@ -18,6 +21,7 @@ public final class OrbitalTacticalMapClientState {
 
     private static final UUID BOOTSTRAP_TOKEN = new UUID(0L, 0L);
     private static final Long2ObjectOpenHashMap<OrbitalMapTile> TILES = new Long2ObjectOpenHashMap<>();
+    private static final ObjectArrayList<Runnable> LISTENERS = new ObjectArrayList<>();
     private static long revision = -1L;
     private static UUID sessionToken = BOOTSTRAP_TOKEN;
     private static ResourceLocation dimensionId = Level.OVERWORLD.location();
@@ -53,6 +57,7 @@ public final class OrbitalTacticalMapClientState {
         centerChunkZ = payload.centerChunkZ();
         radius = payload.radius();
         expectedResponseNonce = 0L;
+        notifyListeners();
     }
 
     /** Clears the cache when the client changes world or closes the tactical-map session. */
@@ -67,6 +72,13 @@ public final class OrbitalTacticalMapClientState {
         expectedResponseNonce = 0L;
         requestedWeaponId = null;
         requestedDimension = null;
+        notifyListeners();
+    }
+
+    /** Registers one client-thread viewport listener and returns its removal subscription. */
+    public static ISubscription subscribe(Runnable listener) {
+        LISTENERS.add(listener);
+        return () -> LISTENERS.remove(listener);
     }
 
     public static long revision() {
@@ -144,5 +156,11 @@ public final class OrbitalTacticalMapClientState {
         }
         int color = tile.known() ? tile.biomeColor() : 0x777777;
         return Component.literal(Character.toString(marker)).withStyle(style -> style.withColor(color));
+    }
+
+    private static void notifyListeners() {
+        for (Runnable listener : List.copyOf(LISTENERS)) {
+            listener.run();
+        }
     }
 }
