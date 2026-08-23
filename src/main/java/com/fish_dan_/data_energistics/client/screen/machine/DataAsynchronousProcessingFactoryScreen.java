@@ -97,15 +97,15 @@ public final class DataAsynchronousProcessingFactoryScreen
         if (semantic == DataAsynchronousProcessingFactoryMenu.FLUID_INPUT_LEFT) {
             return switch (slot.y) {
                 case 21 -> fluidStack(this.menu.fluidInputAId, this.menu.fluidInputAAmount);
-                case 39 -> fluidStack(this.menu.fluidInputBId, this.menu.fluidInputBAmount);
-                case 57 -> fluidStack(this.menu.fluidInputCId, this.menu.fluidInputCAmount);
+                case 39 -> fluidStack(this.menu.fluidInputCId, this.menu.fluidInputCAmount);
+                case 57 -> fluidStack(this.menu.fluidInputEId, this.menu.fluidInputEAmount);
                 default -> null;
             };
         }
         if (semantic == DataAsynchronousProcessingFactoryMenu.FLUID_INPUT_RIGHT) {
             return switch (slot.y) {
-                case 21 -> fluidStack(this.menu.fluidInputDId, this.menu.fluidInputDAmount);
-                case 39 -> fluidStack(this.menu.fluidInputEId, this.menu.fluidInputEAmount);
+                case 21 -> fluidStack(this.menu.fluidInputBId, this.menu.fluidInputBAmount);
+                case 39 -> fluidStack(this.menu.fluidInputDId, this.menu.fluidInputDAmount);
                 case 57 -> fluidStack(this.menu.fluidInputFId, this.menu.fluidInputFAmount);
                 default -> null;
             };
@@ -113,13 +113,13 @@ public final class DataAsynchronousProcessingFactoryScreen
         if (semantic == DataAsynchronousProcessingFactoryMenu.FLUID_OUTPUT_LEFT) {
             return switch (slot.y) {
                 case 103 -> fluidStack(this.menu.fluidOutputAId, this.menu.fluidOutputAAmount);
-                case 121 -> fluidStack(this.menu.fluidOutputBId, this.menu.fluidOutputBAmount);
+                case 121 -> fluidStack(this.menu.fluidOutputCId, this.menu.fluidOutputCAmount);
                 default -> null;
             };
         }
         if (semantic == DataAsynchronousProcessingFactoryMenu.FLUID_OUTPUT_RIGHT) {
             return switch (slot.y) {
-                case 103 -> fluidStack(this.menu.fluidOutputCId, this.menu.fluidOutputCAmount);
+                case 103 -> fluidStack(this.menu.fluidOutputBId, this.menu.fluidOutputBAmount);
                 case 121 -> fluidStack(this.menu.fluidOutputDId, this.menu.fluidOutputDAmount);
                 default -> null;
             };

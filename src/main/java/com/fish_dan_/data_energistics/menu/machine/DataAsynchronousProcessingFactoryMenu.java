@@ -78,12 +78,12 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
         var host = this.getHost();
         InternalInventory storage = host.getStorageInventory();
         for (int slot = 0; slot < host.getItemInputSlotCount(); slot++) {
-            SlotSemantic semantic = slot < 9 ? ITEM_INPUT_LEFT : ITEM_INPUT_RIGHT;
+            SlotSemantic semantic = slot % 6 < 3 ? ITEM_INPUT_LEFT : ITEM_INPUT_RIGHT;
             this.addSlot(new ReassemblerItemSlot(storage, slot), semantic);
         }
 
         for (int slot = 0; slot < host.getFluidInputSlotCount(); slot++) {
-            SlotSemantic semantic = slot < 3 ? FLUID_INPUT_LEFT : FLUID_INPUT_RIGHT;
+            SlotSemantic semantic = slot % 2 == 0 ? FLUID_INPUT_LEFT : FLUID_INPUT_RIGHT;
             this.addSlot(new AppEngSlot(host.getFluidInputMenuInventory(slot), 0), semantic);
         }
         for (int slot = 0; slot < host.getKeyInputSlotCount(); slot++) {
@@ -98,7 +98,7 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
         }
 
         for (int slot = 0; slot < host.getItemOutputSlotCount(); slot++) {
-            SlotSemantic semantic = slot < 6 ? ITEM_OUTPUT_LEFT : ITEM_OUTPUT_RIGHT;
+            SlotSemantic semantic = slot % 6 < 3 ? ITEM_OUTPUT_LEFT : ITEM_OUTPUT_RIGHT;
             this.addSlot(new ReassemblerOutputSlot(storage, host.getItemOutputStartSlot() + slot), semantic);
         }
     }
