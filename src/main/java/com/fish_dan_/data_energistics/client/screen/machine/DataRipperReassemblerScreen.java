@@ -187,12 +187,12 @@ public class DataRipperReassemblerScreen<M extends DataRipperReassemblerMenu> ex
     }
 
     private static void renderPatternInputBackground(GuiGraphics guiGraphics, Slot slot, int color) {
-        guiGraphics.fill(slot.x + 1, slot.y + 1, slot.x + 15, slot.y + 15, 0x50000000 | color);
+        guiGraphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0x50000000 | color);
     }
 
     private static void renderPatternInputMarker(GuiGraphics guiGraphics, Slot slot, int color) {
         if (color != 0) {
-            guiGraphics.fill(slot.x + 1, slot.y + 1, slot.x + 5, slot.y + 5, 0xFF000000 | color);
+            guiGraphics.fill(slot.x + 12, slot.y, slot.x + 16, slot.y + 4, 0xFF000000 | color);
         }
     }
 
