@@ -41,7 +41,21 @@ public final class OrbitalDirectedEnergyStrike {
      * Returns the number of scheduled disk coordinates, which is also the per-coordinate billing multiplier count.
      */
     public static long scheduledCoordinateCount(int radius) {
-        return offsetsFor(radius).size();
+        validateSupportedRadius(radius);
+        long radiusSquared = (long) radius * radius;
+        long coordinates = 2L * radius + 1L;
+        for (int offsetZ = 1; offsetZ <= radius; offsetZ++) {
+            long maximumXSquared = radiusSquared - (long) offsetZ * offsetZ;
+            int maximumX = (int) Math.sqrt(maximumXSquared);
+            while ((long) (maximumX + 1) * (maximumX + 1) <= maximumXSquared) {
+                maximumX++;
+            }
+            while ((long) maximumX * maximumX > maximumXSquared) {
+                maximumX--;
+            }
+            coordinates += 2L * (2L * maximumX + 1L);
+        }
+        return coordinates;
     }
 
     /**

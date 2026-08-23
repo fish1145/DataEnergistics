@@ -42,6 +42,7 @@ public final class OrbitalControlServerSession {
         this.player = player;
         this.terminalSnapshot = terminalSnapshot;
         this.sourceValid = sourceValid;
+        OrbitalControlActionDispatcher.discardPreview(player);
     }
 
     /** Attaches the completed UI exactly once so later RPCs cannot be replayed through another menu. */
@@ -64,6 +65,11 @@ public final class OrbitalControlServerSession {
         }
         OrbitalFireControlSessionSnapshot fireControl = OrbitalControlActionDispatcher.currentFireControlSnapshot(
                 this.player);
+        if (fireControl.phase() == OrbitalFireControlSessionSnapshot.Phase.REJECTED &&
+                (this.feedback == OrbitalControlFeedback.PREVIEW_REQUESTED ||
+                        this.feedback == OrbitalControlFeedback.HOLD_STARTED)) {
+            this.feedback = OrbitalControlFeedback.PREVIEW_STALE;
+        }
         if (fireControl.phase() == OrbitalFireControlSessionSnapshot.Phase.IDLE && isRejected(this.feedback)) {
             fireControl = OrbitalFireControlSessionSnapshot.REJECTED;
         }
@@ -122,7 +128,7 @@ public final class OrbitalControlServerSession {
                 draft.targetYValue(),
                 draft.directedRadius(),
                 draft.directedDepth(),
-                this.sourceValid);
+                this::canHandle);
         return accepted ? OrbitalControlFeedback.PREVIEW_REQUESTED : OrbitalControlFeedback.ACTION_REJECTED;
     }
 
@@ -135,7 +141,7 @@ public final class OrbitalControlServerSession {
                 this.player,
                 current.preview().mode(),
                 start.nonce(),
-                this.sourceValid) ? OrbitalControlFeedback.HOLD_STARTED : OrbitalControlFeedback.PREVIEW_STALE;
+                this::canHandle) ? OrbitalControlFeedback.HOLD_STARTED : OrbitalControlFeedback.PREVIEW_STALE;
     }
 
     private OrbitalControlFeedback releaseHold(OrbitalControlIntent.ReleaseHold release) {
@@ -147,7 +153,7 @@ public final class OrbitalControlServerSession {
                 this.player,
                 current.preview().mode(),
                 release.nonce(),
-                this.sourceValid) ? OrbitalControlFeedback.ATTACK_CONFIRMED : OrbitalControlFeedback.ACTION_REJECTED;
+                this::canHandle) ? OrbitalControlFeedback.ATTACK_CONFIRMED : OrbitalControlFeedback.ACTION_REJECTED;
     }
 
     private boolean canHandle() {

@@ -1,22 +1,16 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
-import com.fish_dan_.data_energistics.entity.explosive.DigitalAnnihilationWork;
-import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackCost;
-import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackGeometry;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
-import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyStrike;
-import com.fish_dan_.data_energistics.orbital.attack.OrbitalKineticStrike;
+import com.fish_dan_.data_energistics.orbital.control.session.OrbitalAttackPreviewCalculation;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.ChunkPos;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -39,8 +33,10 @@ public record OrbitalAttackPreviewEstimate(
                                            long scheduledBlocks,
                                            int effectRadius,
                                            int affectedChunks,
-                                            int unloadedChunks,
-                                            long minimumExecutionTicks) {
+                                           int unloadedChunks,
+                                           long minimumExecutionTicks) {
+
+    private static final int SYNCHRONOUS_CAPTURE_CHUNK_BUDGET = 4_096;
 
     public static final Codec<OrbitalAttackPreviewEstimate> CODEC = RecordCodecBuilder.create(instance -> instance
             .group(
@@ -73,68 +69,18 @@ public record OrbitalAttackPreviewEstimate(
                                                        int directedRadius,
                                                        @Nullable OrbitalDirectedEnergyDepth directedDepth,
                                                        OrbitalEnergyReserve reserve) {
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = configuration.orbitalWeapon;
-        OrbitalAttackCost cost;
-        long scheduledCoordinates = 0L;
-        long scheduledBlocks;
-        long workingTicks;
-        int effectRadius;
-        switch (mode) {
-            case KINETIC -> {
-                OrbitalAttackGeometry.Kinetic geometry = OrbitalAttackGeometry.Kinetic.fromSettings(settings);
-                cost = OrbitalAttackCost.kinetic(settings);
-                scheduledBlocks = OrbitalKineticStrike.totalWork(level, target, geometry);
-                workingTicks = divideRoundingUp(
-                        scheduledBlocks,
-                        settings.maxAttackBlockMutationsPerTaskTick);
-                effectRadius = geometry.maximumRadius();
-            }
-            case DIRECTED_ENERGY -> {
-                if (directedDepth == null) {
-                    throw new IllegalArgumentException("Directed-energy preview depth is required");
-                }
-                OrbitalDirectedEnergyStrike.validateRadius(directedRadius, settings);
-                OrbitalAttackGeometry.DirectedEnergy geometry = OrbitalAttackGeometry.DirectedEnergy.fromSettings(
-                        directedRadius,
-                        directedDepth,
-                        settings);
-                scheduledCoordinates = OrbitalDirectedEnergyStrike.scheduledCoordinateCount(directedRadius);
-                cost = OrbitalAttackCost.directedEnergy(settings, scheduledCoordinates);
-                scheduledBlocks = OrbitalDirectedEnergyStrike.totalWork(level, target, geometry);
-                workingTicks = divideRoundingUp(
-                        scheduledBlocks,
-                        settings.maxAttackBlockMutationsPerTaskTick);
-                effectRadius = directedRadius;
-            }
-            case DIGITAL_ANNIHILATION -> {
-                cost = OrbitalAttackCost.digitalAnnihilation(settings);
-                DigitalAnnihilationWork.WorkEstimate work = DigitalAnnihilationWork.estimate(
-                        level,
-                        target,
-                        configuration.explosives.dataNuke);
-                scheduledBlocks = work.scheduledBlocks();
-                workingTicks = Math.addExact(
-                        Math.addExact(
-                                OrbitalAnnihilatorProjectileEntity.FLIGHT_TICKS,
-                                DataNukePrimedEntity.DEFAULT_FUSE_TICKS),
-                        work.minimumTicks());
-                effectRadius = configuration.explosives.dataNuke.maxRadius;
-            }
-            default -> throw new IllegalStateException("Unsupported orbital attack mode " + mode);
+        OrbitalAttackPreviewCalculation calculation = OrbitalAttackPreviewCalculation.begin(
+                configuration,
+                level,
+                target,
+                mode,
+                directedRadius,
+                directedDepth,
+                reserve);
+        while (!calculation.complete()) {
+            calculation.advance(level, SYNCHRONOUS_CAPTURE_CHUNK_BUDGET);
         }
-
-        ChunkEstimate chunks = countChunks(level, target, effectRadius);
-        long minimumExecutionTicks = Math.addExact(settings.attackWarningTicks, workingTicks);
-        return new OrbitalAttackPreviewEstimate(
-                cost,
-                reserve.celestialEnergy(),
-                reserve.aeEnergy(),
-                scheduledCoordinates,
-                scheduledBlocks,
-                effectRadius,
-                chunks.affected(),
-                chunks.unloaded(),
-                minimumExecutionTicks);
+        return calculation.finish();
     }
 
     /** Returns whether the reserve snapshot shown in this preview can cover both independent escrow resources. */
@@ -167,39 +113,4 @@ public record OrbitalAttackPreviewEstimate(
                 buffer.readVarLong());
     }
 
-    private static ChunkEstimate countChunks(ServerLevel level, BlockPos target, int radius) {
-        int minimumChunkX = Math.floorDiv(target.getX() - radius, 16);
-        int maximumChunkX = Math.floorDiv(target.getX() + radius, 16);
-        int minimumChunkZ = Math.floorDiv(target.getZ() - radius, 16);
-        int maximumChunkZ = Math.floorDiv(target.getZ() + radius, 16);
-        int affected = 0;
-        int unloaded = 0;
-        for (int chunkX = minimumChunkX; chunkX <= maximumChunkX; chunkX++) {
-            for (int chunkZ = minimumChunkZ; chunkZ <= maximumChunkZ; chunkZ++) {
-                ChunkPos chunk = new ChunkPos(chunkX, chunkZ);
-                if (!intersectsCircle(chunk, target, radius)) {
-                    continue;
-                }
-                affected++;
-                if (level.getChunkSource().getChunkNow(chunkX, chunkZ) == null) {
-                    unloaded++;
-                }
-            }
-        }
-        return new ChunkEstimate(affected, unloaded);
-    }
-
-    private static boolean intersectsCircle(ChunkPos chunk, BlockPos target, int radius) {
-        int closestX = Math.clamp(target.getX(), chunk.getMinBlockX(), chunk.getMaxBlockX());
-        int closestZ = Math.clamp(target.getZ(), chunk.getMinBlockZ(), chunk.getMaxBlockZ());
-        long offsetX = (long) closestX - target.getX();
-        long offsetZ = (long) closestZ - target.getZ();
-        return offsetX * offsetX + offsetZ * offsetZ <= (long) radius * radius;
-    }
-
-    private static long divideRoundingUp(long value, int divisor) {
-        return value == 0L ? 0L : 1L + (value - 1L) / divisor;
-    }
-
-    private record ChunkEstimate(int affected, int unloaded) {}
 }

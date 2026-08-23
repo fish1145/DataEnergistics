@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lif
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGatewayLifecycle;
 import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.orbital.control.OrbitalControlRequestAdmission;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalOwnershipActionDispatcher;
 
 import net.minecraft.server.MinecraftServer;
@@ -43,7 +43,7 @@ public final class ServerLifecycleEventHandler {
     public void onServerStopped(ServerStoppedEvent event) {
         try {
             try {
-                OrbitalControlRequestAdmission.clear(event.getServer());
+                OrbitalControlActionDispatcher.clearPreviews(event.getServer());
             } finally {
                 OrbitalOwnershipActionDispatcher.clear(event.getServer());
             }

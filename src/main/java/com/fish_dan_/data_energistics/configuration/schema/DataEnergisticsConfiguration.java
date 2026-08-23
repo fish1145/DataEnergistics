@@ -713,6 +713,16 @@ public final class DataEnergisticsConfiguration {
         public int maxAttackBlockMutationsGlobalTick = 32_768;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum preview chunk cells checked by one player per tick.", "单名玩家的攻击预览每 tick 检查的区块单元上限。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int previewChunkChecksPerTaskTick = 4_096;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum preview chunk cells checked across the server per tick.", "全服攻击预览每 tick 检查的区块单元总上限。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int previewChunkChecksGlobalTick = 16_384;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Maximum warning, committed and delivering orbital attack tasks.", "全服预警、已提交和投送中的轨道攻击任务上限。" })
         @Configurable.Range(min = 1, max = 1024)
         public int maxCommittedAttackTasks = 32;

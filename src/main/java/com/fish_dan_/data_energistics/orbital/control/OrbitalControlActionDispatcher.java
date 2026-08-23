@@ -10,7 +10,8 @@ import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyStrike;
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlSessionSnapshot;
-import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlSessionSnapshot.PreviewDetails;
+import com.fish_dan_.data_energistics.orbital.control.session.OrbitalAttackPreviewCalculation;
+import com.fish_dan_.data_energistics.orbital.control.session.OrbitalPreviewCalculationCoordinator;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
@@ -43,7 +44,7 @@ import java.util.function.BooleanSupplier;
  */
 public final class OrbitalControlActionDispatcher {
 
-    private static final OrbitalAttackPreviewSessions PREVIEWS = new OrbitalAttackPreviewSessions();
+    private static final OrbitalPreviewCalculationCoordinator FIRE_CONTROL = new OrbitalPreviewCalculationCoordinator();
 
     private OrbitalControlActionDispatcher() {}
 
@@ -91,7 +92,7 @@ public final class OrbitalControlActionDispatcher {
         if (server == null || !server.isSameThread() || !sourceValid.getAsBoolean()) {
             return false;
         }
-        PREVIEWS.cancel(server, player.getUUID());
+        FIRE_CONTROL.discard(server, player.getUUID());
         DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
         boolean attackEnabled = switch (mode) {
             case KINETIC -> configuration.orbitalWeapon.kineticAttackEnabled;
@@ -115,7 +116,6 @@ public final class OrbitalControlActionDispatcher {
         } else if (directedRadius != 0 || directedDepth != null) {
             return false;
         }
-        PREVIEWS.expire(server);
         ServerLevel targetLevel = server.getLevel(ResourceKey.create(Registries.DIMENSION, dimensionId));
         if (targetLevel == null) {
             return false;
@@ -152,43 +152,48 @@ public final class OrbitalControlActionDispatcher {
         if (weapon.isEmpty()) {
             return false;
         }
-        UUID weaponId = weapon.orElseThrow().weaponId();
+        OrbitalWeaponRecord selectedWeapon = weapon.orElseThrow();
+        UUID weaponId = selectedWeapon.weaponId();
         if (!weaponData.hasOnlineEndpoint(server, weaponId, dimensionId)) {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.endpoint_unavailable"),
                     true);
             return false;
         }
-        if (!PREVIEWS.acceptsBegin(server, player.getUUID())) {
-            return false;
-        }
         try {
-            OrbitalAttackPreviewEstimate estimate = OrbitalAttackPreviewEstimate.capture(
+            long configurationRevision = configuration.revision();
+            long weaponRevision = stateRevision(selectedWeapon);
+            OrbitalAttackPreviewCalculation calculation = OrbitalAttackPreviewCalculation.begin(
                     configuration,
                     targetLevel,
                     target,
                     mode,
                     mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedRadius : 0,
                     mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedDepth : null,
-                    weapon.orElseThrow().reserve());
-            Optional<OrbitalAttackPreviewSessions.Preview> preview = PREVIEWS.begin(
+                    selectedWeapon.reserve());
+            BooleanSupplier stateValid = () -> {
+                if (!sourceValid.getAsBoolean() || configuration.revision() != configurationRevision) {
+                    return false;
+                }
+                OrbitalWeaponRecord current = weaponData.find(weaponId).orElse(null);
+                return current != null &&
+                        current.canPerform(player.getUUID(), OrbitalWeaponAction.FIRE) &&
+                        stateRevision(current) == weaponRevision &&
+                        weaponData.hasOnlineEndpoint(server, weaponId, dimensionId);
+            };
+            return FIRE_CONTROL.begin(
                     server,
                     player.getUUID(),
+                    weaponId,
                     mode,
                     dimensionId,
                     target,
-                    weaponId,
                     mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedRadius : 0,
                     mode == OrbitalAttackMode.DIRECTED_ENERGY ? directedDepth : null,
-                    configuration.revision(),
-                    stateRevision(weapon.orElseThrow()),
-                    estimate);
-            preview.ifPresent(ignored -> player.displayClientMessage(
-                    Component.translatable(
-                            "message.data_energistics.orbital_control_terminal.preview_ready",
-                            mode.name()),
-                    true));
-            return preview.isPresent();
+                    configurationRevision,
+                    weaponRevision,
+                    calculation,
+                    stateValid);
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Orbital control target preview {} failed for player {} at {}",
@@ -234,7 +239,7 @@ public final class OrbitalControlActionDispatcher {
         if (server == null || !server.isSameThread() || !sourceValid.getAsBoolean()) {
             return false;
         }
-        boolean started = PREVIEWS.beginHold(server, player.getUUID(), mode, nonce);
+        boolean started = FIRE_CONTROL.startHold(server, player.getUUID(), mode, nonce);
         if (started) {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.hold_started"),
@@ -247,7 +252,7 @@ public final class OrbitalControlActionDispatcher {
     public static void cancelFireHold(ServerPlayer player) {
         MinecraftServer server = player.getServer();
         if (server != null && server.isSameThread()) {
-            PREVIEWS.cancelHold(server, player.getUUID());
+            FIRE_CONTROL.cancelHold(server, player.getUUID());
         }
     }
 
@@ -263,7 +268,7 @@ public final class OrbitalControlActionDispatcher {
         if (server == null || !server.isSameThread()) {
             return false;
         }
-        Optional<OrbitalAttackPreviewSessions.Preview> released = PREVIEWS.release(
+        Optional<OrbitalAttackPreviewSessions.Preview> released = FIRE_CONTROL.release(
                 server,
                 player.getUUID(),
                 mode,
@@ -349,8 +354,13 @@ public final class OrbitalControlActionDispatcher {
     /** Expires abandoned previews from the server tick lifecycle. */
     public static void expirePreviews(MinecraftServer server) {
         if (server.isSameThread()) {
-            PREVIEWS.expire(server);
+            FIRE_CONTROL.tick(server);
         }
+    }
+
+    /** Releases every transient fire-control calculation and hold when its server stops. */
+    public static void clearPreviews(MinecraftServer server) {
+        FIRE_CONTROL.clear(server);
     }
 
     /** Returns the typed, presentation-free preview state synchronized into the open control menu. */
@@ -359,37 +369,13 @@ public final class OrbitalControlActionDispatcher {
         if (server == null || !server.isSameThread()) {
             return OrbitalFireControlSessionSnapshot.IDLE;
         }
-        Optional<OrbitalAttackPreviewSessions.Preview> current = PREVIEWS.current(server, player.getUUID());
-        if (current.isEmpty()) {
-            return OrbitalFireControlSessionSnapshot.IDLE;
-        }
-        OrbitalAttackPreviewSessions.Preview preview = current.orElseThrow();
-        long now = server.overworld().getGameTime();
-        PreviewDetails details = new PreviewDetails(
-                preview.weaponId(),
-                preview.mode(),
-                preview.dimensionId(),
-                preview.target(),
-                preview.directedRadius(),
-                preview.directedDepth(),
-                preview.nonce(),
-                preview.estimate());
-        return preview.holdStarted() ? OrbitalFireControlSessionSnapshot.holding(
-                details,
-                Math.min(preview.heldTicks(now), OrbitalAttackPreviewSessions.DEFAULT_HOLD_TICKS),
-                OrbitalAttackPreviewSessions.DEFAULT_HOLD_TICKS,
-                now,
-                preview.expiresAt()) : OrbitalFireControlSessionSnapshot.ready(
-                        details,
-                        OrbitalAttackPreviewSessions.DEFAULT_HOLD_TICKS,
-                        now,
-                        preview.expiresAt());
+        return FIRE_CONTROL.snapshot(server, player.getUUID());
     }
 
     /** Discards any calculation-independent preview state owned by this player. */
     public static boolean discardPreview(ServerPlayer player) {
         MinecraftServer server = player.getServer();
-        return server != null && server.isSameThread() && PREVIEWS.cancel(server, player.getUUID());
+        return server != null && server.isSameThread() && FIRE_CONTROL.discard(server, player.getUUID());
     }
 
     /**
@@ -401,7 +387,7 @@ public final class OrbitalControlActionDispatcher {
         if (server == null || !server.isSameThread()) {
             return Optional.empty();
         }
-        PREVIEWS.cancel(server, player.getUUID());
+        FIRE_CONTROL.discard(server, player.getUUID());
         return OrbitalWeaponSavedData.get(server).selectNext(server, player.getUUID(), forward);
     }
 

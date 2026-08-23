@@ -16,7 +16,6 @@ public final class OrbitalControlPreviewTicker {
     @SubscribeEvent
     public void onServerTickPost(ServerTickEvent.Post event) {
         OrbitalControlActionDispatcher.expirePreviews(event.getServer());
-        OrbitalControlRequestAdmission.expire(event.getServer());
         OrbitalOwnershipActionDispatcher.expire(event.getServer());
     }
 }
