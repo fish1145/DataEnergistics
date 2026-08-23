@@ -832,7 +832,7 @@ final class OrbitalFireControlPanel {
         }
         status.setValue(revision < 0L ? Component.translatable(PREFIX + "map.status") : Component.translatable(
                 PREFIX + "map.viewport",
-                OrbitalTacticalMapClientState.dimensionId(),
+                Component.literal(OrbitalTacticalMapClientState.dimensionId().toString()),
                 centerX,
                 centerZ));
     }

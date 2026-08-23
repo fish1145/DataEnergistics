@@ -367,7 +367,7 @@ public final class OrbitalControlActionDispatcher {
         MutableComponent status = Component.translatable(
                 "screen.data_energistics.orbital_control_terminal.preview.target",
                 modeName(preview.mode()),
-                preview.dimensionId(),
+                Component.literal(preview.dimensionId().toString()),
                 preview.target().getX(),
                 preview.target().getY(),
                 preview.target().getZ());
