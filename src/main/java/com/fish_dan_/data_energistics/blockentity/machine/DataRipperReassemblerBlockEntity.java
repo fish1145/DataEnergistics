@@ -705,6 +705,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         channel.maxProgress = data.contains(MAX_PROGRESS_TAG) ? Math.max(1, data.getInt(MAX_PROGRESS_TAG)) : MAX_PROGRESS;
         channel.activeRecipeId = data.contains(ACTIVE_RECIPE_TAG) ? ResourceLocation.tryParse(data.getString(ACTIVE_RECIPE_TAG)) : null;
         channel.recipeMatchCache = null;
+        channel.inputReservation = null;
     }
 
     private static void writeProcessingChannel(CompoundTag data, ProcessingChannelState channel) {
@@ -905,7 +906,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             processingChannel.activeRecipeId = recipeHolder.id();
             processingChannel.progress = 0;
             processingChannel.maxProgress = getEffectiveProcessTicks(recipe);
+            processingChannel.inputReservation = null;
             setChanged();
+        }
+        if (!ensureRecipeInputReservation(channel, recipe)) {
+            resetProcessingState(channel);
+            return RecipeAdvance.blocked(tickBudget);
         }
 
         processingChannel.maxProgress = getEffectiveProcessTicks(recipe);
@@ -931,9 +937,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             if (!canAcceptItemOutputs(recipe, batchOutputs)) {
                 break;
             }
+            if (batch > 0 && !ensureRecipeInputReservation(channel, recipe)) {
+                break;
+            }
 
             RecipeProcessingState processingState = captureRecipeProcessingState();
-            if (!consumeRecipeInputs(channel, recipe) || !insertRecipeOutputs(recipe, batchOutputs)) {
+            if (!consumeReservedRecipeInputs(channel) || !insertRecipeOutputs(recipe, batchOutputs)) {
                 restoreRecipeProcessingState(processingState);
                 break;
             }
@@ -1013,18 +1022,21 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private RecipeMatchKey createRecipeMatchKey(int channel) {
         ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        InputReservationUsage reservedInputs = getReservedInputUsage(channel);
         List<RecipeStackIdentity> items = new ArrayList<>(getItemInputSlotCountForChannel(channel));
         for (int i = 0; i < getItemInputSlotCountForChannel(channel); i++) {
-            ItemStack stack = this.storage.getStackInSlot(getItemInputStartSlotForChannel(channel) + i);
-            items.add(createItemStackIdentity(stack));
+            int slot = getItemInputStartSlotForChannel(channel) + i;
+            items.add(createItemStackIdentity(getAvailableItemInput(slot, reservedInputs)));
         }
         List<RecipeStackIdentity> fluids = new ArrayList<>(getFluidInputSlotCountForChannel(channel));
         for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
-            fluids.add(createFluidStackIdentity(this.fluidInputTanks.get(getFluidInputStartSlotForChannel(channel) + slot).getFluid()));
+            int inputSlot = getFluidInputStartSlotForChannel(channel) + slot;
+            fluids.add(createFluidStackIdentity(getAvailableFluidInput(inputSlot, reservedInputs)));
         }
         List<RecipeStackIdentity> keys = new ArrayList<>(getKeyInputSlotCountForChannel(channel));
         for (int slot = 0; slot < getKeyInputSlotCountForChannel(channel); slot++) {
-            keys.add(createKeyStackIdentity(this.keyInputStacks.get(getKeyInputStartSlotForChannel(channel) + slot)));
+            int inputSlot = getKeyInputStartSlotForChannel(channel) + slot;
+            keys.add(createKeyStackIdentity(getAvailableKeyInput(inputSlot, reservedInputs)));
         }
         return new RecipeMatchKey(
                 RecipeReloadEpoch.current(),
@@ -1068,20 +1080,24 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private DataRipperReassemblerRecipeInput createRecipeInput(int channel) {
+        InputReservationUsage reservedInputs = getReservedInputUsage(channel);
         List<ItemStack> inputs = new ArrayList<>(getItemInputSlotCountForChannel(channel));
         for (int i = 0; i < getItemInputSlotCountForChannel(channel); i++) {
-            inputs.add(this.storage.getStackInSlot(getItemInputStartSlotForChannel(channel) + i).copy());
+            inputs.add(getAvailableItemInput(getItemInputStartSlotForChannel(channel) + i, reservedInputs));
         }
         List<GenericStack> fluids = new ArrayList<>(getFluidInputSlotCountForChannel(channel));
         for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
             GenericStack fluid = createFluidGenericStack(
-                    this.fluidInputTanks.get(getFluidInputStartSlotForChannel(channel) + slot).getFluid());
+                    getAvailableFluidInput(getFluidInputStartSlotForChannel(channel) + slot, reservedInputs));
             if (fluid != null) {
                 fluids.add(fluid);
             }
         }
-        return new DataRipperReassemblerRecipeInput(inputs, fluids,
-                copyKeyStacks(this.keyInputStacks, getKeyInputStartSlotForChannel(channel), getKeyInputSlotCountForChannel(channel)));
+        List<GenericStack> keys = new ArrayList<>(getKeyInputSlotCountForChannel(channel));
+        for (int slot = 0; slot < getKeyInputSlotCountForChannel(channel); slot++) {
+            keys.add(getAvailableKeyInput(getKeyInputStartSlotForChannel(channel) + slot, reservedInputs));
+        }
+        return new DataRipperReassemblerRecipeInput(inputs, fluids, keys);
     }
 
     private boolean canAcceptItemOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> itemOutputs) {
@@ -1108,17 +1124,35 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return canAcceptFluidOutputs(recipe) && canAcceptKeyOutput(recipe);
     }
 
-    private boolean consumeRecipeInputs(int channel, DataRipperReassemblerRecipe recipe) {
+    private boolean ensureRecipeInputReservation(int channel, DataRipperReassemblerRecipe recipe) {
+        ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        if (processingChannel.inputReservation != null) {
+            return isRecipeInputReservationAvailable(processingChannel.inputReservation);
+        }
+
+        RecipeInputReservation reservation = createRecipeInputReservation(channel, recipe);
+        if (reservation == null) {
+            return false;
+        }
+
+        processingChannel.inputReservation = reservation;
+        return true;
+    }
+
+    private @Nullable RecipeInputReservation createRecipeInputReservation(int channel,
+                                                                          DataRipperReassemblerRecipe recipe) {
         Map<AEFluidKey, Long> requiredFluidAmounts = recipe.getMergedFluidInputAmounts();
         if (requiredFluidAmounts == null) {
-            return false;
+            return null;
         }
         for (long amount : requiredFluidAmounts.values()) {
             if (amount > Integer.MAX_VALUE) {
-                return false;
+                return null;
             }
         }
 
+        InputReservationUsage reservedInputs = getReservedInputUsage(channel);
+        List<ReservedItemInput> itemInputs = new ArrayList<>();
         for (DataRipperReassemblerIngredient countedIngredient : recipe.getItemInputs()) {
             int remaining = countedIngredient.count();
             for (int i = 0; i < getItemInputSlotCountForChannel(channel) && remaining > 0; i++) {
@@ -1128,49 +1162,205 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                     continue;
                 }
 
-                int consumed = Math.min(remaining, stack.getCount());
-                ItemStack updated = stack.copy();
-                updated.shrink(consumed);
-                this.storage.setItemDirect(slot, updated);
-                remaining -= consumed;
+                int available = Math.max(0, stack.getCount() - reservedInputs.itemAmounts[slot]);
+                int reservedAmount = Math.min(remaining, available);
+                if (reservedAmount <= 0) {
+                    continue;
+                }
+
+                addReservedItemInput(itemInputs, slot, stack, reservedAmount);
+                reservedInputs.itemAmounts[slot] += reservedAmount;
+                remaining -= reservedAmount;
             }
 
             if (remaining > 0) {
-                return false;
+                return null;
             }
         }
 
+        List<ReservedFluidInput> fluidInputs = new ArrayList<>();
+        for (Map.Entry<AEFluidKey, Long> requirement : requiredFluidAmounts.entrySet()) {
+            AEFluidKey requiredFluid = requirement.getKey();
+            int remaining = requirement.getValue().intValue();
+            for (int offset = 0; offset < getFluidInputSlotCountForChannel(channel) && remaining > 0; offset++) {
+                int slot = getFluidInputStartSlotForChannel(channel) + offset;
+                FluidTank tank = this.fluidInputTanks.get(slot);
+                if (!matchesFluidKey(tank.getFluid(), requiredFluid)) {
+                    continue;
+                }
+
+                int available = Math.max(0, tank.getFluidAmount() - reservedInputs.fluidAmounts[slot]);
+                int reservedAmount = Math.min(remaining, available);
+                if (reservedAmount <= 0) {
+                    continue;
+                }
+
+                fluidInputs.add(new ReservedFluidInput(slot, requiredFluid, reservedAmount));
+                reservedInputs.fluidAmounts[slot] += reservedAmount;
+                remaining -= reservedAmount;
+            }
+
+            if (remaining > 0) {
+                return null;
+            }
+        }
+
+        List<ReservedKeyInput> keyInputs = new ArrayList<>();
         GenericStack requiredKey = recipe.getKeyInput();
         if (requiredKey != null) {
-            int keyInputStartSlot = getKeyInputStartSlotForChannel(channel);
-            int keyInputSlotCount = getKeyInputSlotCountForChannel(channel);
-            if (!hasKeyAmount(this.keyInputStacks, keyInputStartSlot, keyInputSlotCount, requiredKey)) {
+            AEKey requiredKeyType = requiredKey.what();
+            if (requiredKeyType == null || requiredKey.amount() <= 0L) {
+                return null;
+            }
+            long remaining = requiredKey.amount();
+            for (int offset = 0; offset < getKeyInputSlotCountForChannel(channel) && remaining > 0L; offset++) {
+                int slot = getKeyInputStartSlotForChannel(channel) + offset;
+                GenericStack stack = this.keyInputStacks.get(slot);
+                if (stack == null || !requiredKeyType.equals(stack.what())) {
+                    continue;
+                }
+
+                long available = Math.max(0L, stack.amount() - reservedInputs.keyAmounts[slot]);
+                long reservedAmount = Math.min(remaining, available);
+                if (reservedAmount <= 0L) {
+                    continue;
+                }
+
+                keyInputs.add(new ReservedKeyInput(slot, requiredKeyType, reservedAmount));
+                reservedInputs.keyAmounts[slot] += reservedAmount;
+                remaining -= reservedAmount;
+            }
+
+            if (remaining > 0) {
+                return null;
+            }
+        }
+
+        return new RecipeInputReservation(itemInputs, fluidInputs, keyInputs);
+    }
+
+    private static void addReservedItemInput(List<ReservedItemInput> reservedInputs, int slot, ItemStack stack,
+                                             int amount) {
+        for (int index = 0; index < reservedInputs.size(); index++) {
+            ReservedItemInput existing = reservedInputs.get(index);
+            if (existing.slot != slot) {
+                continue;
+            }
+
+            reservedInputs.set(index, new ReservedItemInput(slot, stack.copyWithCount(existing.stack.getCount() + amount)));
+            return;
+        }
+        reservedInputs.add(new ReservedItemInput(slot, stack.copyWithCount(amount)));
+    }
+
+    private boolean isRecipeInputReservationAvailable(RecipeInputReservation reservation) {
+        for (ReservedItemInput reservedInput : reservation.itemInputs) {
+            ItemStack stack = this.storage.getStackInSlot(reservedInput.slot);
+            if (stack.isEmpty() || !ItemStack.isSameItemSameComponents(stack, reservedInput.stack) ||
+                    stack.getCount() < reservedInput.stack.getCount()) {
                 return false;
             }
-            extractKeyAmount(this.keyInputStacks, keyInputStartSlot, keyInputSlotCount, requiredKey.what(), requiredKey.amount());
+        }
+        for (ReservedFluidInput reservedInput : reservation.fluidInputs) {
+            FluidTank tank = this.fluidInputTanks.get(reservedInput.slot);
+            if (!matchesFluidKey(tank.getFluid(), reservedInput.key) || tank.getFluidAmount() < reservedInput.amount) {
+                return false;
+            }
+        }
+        for (ReservedKeyInput reservedInput : reservation.keyInputs) {
+            GenericStack stack = this.keyInputStacks.get(reservedInput.slot);
+            if (stack == null || !reservedInput.key.equals(stack.what()) || stack.amount() < reservedInput.amount) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean consumeReservedRecipeInputs(int channel) {
+        ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        RecipeInputReservation reservation = processingChannel.inputReservation;
+        if (reservation == null || !isRecipeInputReservationAvailable(reservation)) {
+            return false;
+        }
+
+        for (ReservedItemInput reservedInput : reservation.itemInputs) {
+            ItemStack stack = this.storage.getStackInSlot(reservedInput.slot);
+            ItemStack updated = stack.copy();
+            updated.shrink(reservedInput.stack.getCount());
+            this.storage.setItemDirect(reservedInput.slot, updated);
+        }
+        for (ReservedFluidInput reservedInput : reservation.fluidInputs) {
+            FluidTank tank = this.fluidInputTanks.get(reservedInput.slot);
+            tank.drain(reservedInput.amount, IFluidHandler.FluidAction.EXECUTE);
+        }
+
+        if (!reservation.keyInputs.isEmpty()) {
+            for (ReservedKeyInput reservedInput : reservation.keyInputs) {
+                GenericStack stack = this.keyInputStacks.get(reservedInput.slot);
+                long remaining = stack.amount() - reservedInput.amount;
+                this.keyInputStacks.set(reservedInput.slot,
+                        remaining <= 0L ? null : new GenericStack(reservedInput.key, remaining));
+            }
             syncKeyMenuFromStack();
         }
 
-        for (Map.Entry<AEFluidKey, Long> requirement : requiredFluidAmounts.entrySet()) {
-            AEFluidKey requiredKeyFluid = requirement.getKey();
-            int remaining = requirement.getValue().intValue();
+        processingChannel.inputReservation = null;
+        return true;
+    }
 
-            for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
-                FluidTank tank = this.fluidInputTanks.get(getFluidInputStartSlotForChannel(channel) + slot);
-                if (remaining <= 0 || !matchesFluidKey(tank.getFluid(), requiredKeyFluid)) {
-                    continue;
-                }
-                int drained = tank.drain(Math.min(remaining, tank.getFluidAmount()),
-                        IFluidHandler.FluidAction.EXECUTE).getAmount();
-                remaining -= drained;
+    private InputReservationUsage getReservedInputUsage(int excludedChannel) {
+        InputReservationUsage usage = new InputReservationUsage(
+                new int[this.storage.size()],
+                new int[this.fluidInputTanks.size()],
+                new long[this.keyInputStacks.size()]);
+        for (int channel = 0; channel < this.processingChannels.length; channel++) {
+            if (channel == excludedChannel) {
+                continue;
             }
 
-            if (remaining > 0) {
-                return false;
+            RecipeInputReservation reservation = this.processingChannels[channel].inputReservation;
+            if (reservation == null) {
+                continue;
+            }
+            for (ReservedItemInput reservedInput : reservation.itemInputs) {
+                usage.itemAmounts[reservedInput.slot] += reservedInput.stack.getCount();
+            }
+            for (ReservedFluidInput reservedInput : reservation.fluidInputs) {
+                usage.fluidAmounts[reservedInput.slot] += reservedInput.amount;
+            }
+            for (ReservedKeyInput reservedInput : reservation.keyInputs) {
+                usage.keyAmounts[reservedInput.slot] += reservedInput.amount;
             }
         }
+        return usage;
+    }
 
-        return true;
+    private ItemStack getAvailableItemInput(int slot, InputReservationUsage reservedInputs) {
+        ItemStack stack = this.storage.getStackInSlot(slot);
+        int available = Math.max(0, stack.getCount() - reservedInputs.itemAmounts[slot]);
+        return available <= 0 ? ItemStack.EMPTY : stack.copyWithCount(available);
+    }
+
+    private FluidStack getAvailableFluidInput(int slot, InputReservationUsage reservedInputs) {
+        FluidStack stack = this.fluidInputTanks.get(slot).getFluid();
+        int available = Math.max(0, stack.getAmount() - reservedInputs.fluidAmounts[slot]);
+        if (available <= 0) {
+            return FluidStack.EMPTY;
+        }
+
+        FluidStack availableStack = stack.copy();
+        availableStack.setAmount(available);
+        return availableStack;
+    }
+
+    private @Nullable GenericStack getAvailableKeyInput(int slot, InputReservationUsage reservedInputs) {
+        GenericStack stack = this.keyInputStacks.get(slot);
+        if (stack == null || stack.what() == null) {
+            return null;
+        }
+
+        long available = Math.max(0L, stack.amount() - reservedInputs.keyAmounts[slot]);
+        return available <= 0L ? null : new GenericStack(stack.what(), available);
     }
 
     private boolean insertRecipeOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> itemOutputs) {
@@ -2122,39 +2312,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return stacks.stream().anyMatch(stack -> stack != null && stack.what() != null && stack.amount() > 0L);
     }
 
-    private static boolean hasKeyAmount(List<GenericStack> stacks, int startSlot, int slotCount, GenericStack requirement) {
-        if (requirement.what() == null || requirement.amount() <= 0L) {
-            return false;
-        }
-        long available = 0L;
-        for (int slot = 0; slot < slotCount; slot++) {
-            GenericStack stack = stacks.get(startSlot + slot);
-            if (stack == null || !requirement.what().equals(stack.what())) {
-                continue;
-            }
-            if (Long.MAX_VALUE - available < stack.amount()) {
-                return true;
-            }
-            available += stack.amount();
-        }
-        return available >= requirement.amount();
-    }
-
-    private static void extractKeyAmount(List<GenericStack> stacks, int startSlot, int slotCount, AEKey key, long amount) {
-        long remaining = amount;
-        for (int offset = 0; offset < slotCount && remaining > 0L; offset++) {
-            int slot = startSlot + offset;
-            GenericStack stack = stacks.get(slot);
-            if (stack == null || !key.equals(stack.what())) {
-                continue;
-            }
-            long extracted = Math.min(remaining, stack.amount());
-            long updatedAmount = stack.amount() - extracted;
-            stacks.set(slot, updatedAmount <= 0L ? null : new GenericStack(key, updatedAmount));
-            remaining -= extracted;
-        }
-    }
-
     private static boolean canStoreKeyAmount(List<GenericStack> stacks, GenericStack incoming, long capacity) {
         AEKey key = incoming.what();
         if (key == null || incoming.amount() <= 0L) {
@@ -2693,12 +2850,46 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private record RecipeMatchCache(RecipeMatchKey key, @Nullable ResourceLocation recipeId) {}
 
+    private record ReservedItemInput(int slot, ItemStack stack) {}
+
+    private record ReservedFluidInput(int slot, AEFluidKey key, int amount) {}
+
+    private record ReservedKeyInput(int slot, AEKey key, long amount) {}
+
+    private static final class RecipeInputReservation {
+
+        private final List<ReservedItemInput> itemInputs;
+        private final List<ReservedFluidInput> fluidInputs;
+        private final List<ReservedKeyInput> keyInputs;
+
+        private RecipeInputReservation(List<ReservedItemInput> itemInputs, List<ReservedFluidInput> fluidInputs,
+                                       List<ReservedKeyInput> keyInputs) {
+            this.itemInputs = List.copyOf(itemInputs);
+            this.fluidInputs = List.copyOf(fluidInputs);
+            this.keyInputs = List.copyOf(keyInputs);
+        }
+    }
+
+    private static final class InputReservationUsage {
+
+        private final int[] itemAmounts;
+        private final int[] fluidAmounts;
+        private final long[] keyAmounts;
+
+        private InputReservationUsage(int[] itemAmounts, int[] fluidAmounts, long[] keyAmounts) {
+            this.itemAmounts = itemAmounts;
+            this.fluidAmounts = fluidAmounts;
+            this.keyAmounts = keyAmounts;
+        }
+    }
+
     private static final class ProcessingChannelState {
 
         private int progress;
         private int maxProgress = MAX_PROGRESS;
         private ResourceLocation activeRecipeId;
         private RecipeMatchCache recipeMatchCache;
+        private RecipeInputReservation inputReservation;
 
         private boolean isIdle() {
             return this.progress == 0 && this.maxProgress == MAX_PROGRESS && this.activeRecipeId == null;
@@ -2709,6 +2900,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             this.maxProgress = MAX_PROGRESS;
             this.activeRecipeId = null;
             this.recipeMatchCache = null;
+            this.inputReservation = null;
         }
     }
 
