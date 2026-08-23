@@ -86,6 +86,7 @@ import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -136,10 +137,31 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String MAX_PROGRESS_TAG = "max_progress";
     private static final String ACTIVE_RECIPE_TAG = "active_recipe";
     private static final String PROCESSING_CHANNELS_TAG = "processing_channels";
+    private static final String ITEM_INPUT_PATTERN_COLORS_TAG = "item_input_pattern_colors";
+    private static final String FLUID_INPUT_PATTERN_COLORS_TAG = "fluid_input_pattern_colors";
+    private static final String KEY_INPUT_PATTERN_COLORS_TAG = "key_input_pattern_colors";
+    private static final int[] PATTERN_INPUT_COLORS = {
+            0x5B8CFF,
+            0x3DBF9A,
+            0xF2A93B,
+            0xD967B6,
+            0x8E76E8,
+            0x57B9D2,
+            0xD7775D,
+            0x9AAF4C,
+            0xCF6B7D,
+            0x63A8D6,
+            0xB994E6,
+            0xC5A54A
+    };
 
     private final IUpgradeInventory upgrades;
     private final AppEngInternalInventory storage = new ReassemblerItemInventory();
+    private final int[] itemInputPatternColors = new int[getItemInputSlotCount()];
+    private final int[] fluidInputPatternColors = new int[getFluidInputSlotCount()];
+    private final int[] keyInputPatternColors = new int[getKeyInputSlotCount()];
     private boolean suppressAe2DefaultInventorySerialization;
+    private boolean preservingInputPatternColors;
     private final InternalInventory externalInput = createExternalInput();
     private final InternalInventory externalOutput = createExternalOutput();
     @Getter
@@ -323,7 +345,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return false;
         }
 
-        applyPatternPushState(state);
+        applyPatternPushState(state, getPatternColor(patternDetails));
         saveChanges();
         markForClientUpdate();
         return true;
@@ -551,6 +573,18 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return KEY_OUTPUT_CAPACITY;
     }
 
+    public int getItemInputPatternColor(int slot) {
+        return this.itemInputPatternColors[slot];
+    }
+
+    public int getFluidInputPatternColor(int slot) {
+        return this.fluidInputPatternColors[slot];
+    }
+
+    public int getKeyInputPatternColor(int slot) {
+        return this.keyInputPatternColors[slot];
+    }
+
     public static int computeParallel(int energyCardCount) {
         int installedCards = Math.min(MAX_ENERGY_CARDS, Math.max(0, energyCardCount));
         return installedCards == 0 ? BASE_PARALLEL : BASE_PARALLEL * installedCards * PARALLEL_MULTIPLIER_PER_ENERGY_CARD;
@@ -618,6 +652,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
         readKeyStacks(data, registries, this.keyInputStacks, true);
         readKeyStacks(data, registries, this.keyOutputStacks, false);
+        readInputPatternColors(data);
         if (data.contains(AUTO_EXPORT_TAG)) {
             this.configManager.readFromNBT(data.getCompound(AUTO_EXPORT_TAG), registries);
         } else {
@@ -665,6 +700,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         data.put(KEY_OUTPUT_SIDES_TAG, createOutputSidesTag(this.keyOutputSides));
         data.put(OUTPUT_SIDES_TAG, createOutputSidesTag(this.itemOutputSides));
         writeProcessingChannels(data);
+        writeInputPatternColors(data);
         writeKeyStacks(data, registries, this.keyInputStacks, true);
         writeKeyStacks(data, registries, this.keyOutputStacks, false);
     }
@@ -699,6 +735,52 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             serializedChannels.add(serializedChannel);
         }
         data.put(PROCESSING_CHANNELS_TAG, serializedChannels);
+    }
+
+    private void readInputPatternColors(CompoundTag data) {
+        readInputPatternColors(data, ITEM_INPUT_PATTERN_COLORS_TAG, this.itemInputPatternColors);
+        readInputPatternColors(data, FLUID_INPUT_PATTERN_COLORS_TAG, this.fluidInputPatternColors);
+        readInputPatternColors(data, KEY_INPUT_PATTERN_COLORS_TAG, this.keyInputPatternColors);
+    }
+
+    private static void readInputPatternColors(CompoundTag data, String tag, int[] target) {
+        Arrays.fill(target, 0);
+        if (!data.contains(tag, Tag.TAG_INT_ARRAY)) {
+            return;
+        }
+
+        int[] storedColors = data.getIntArray(tag);
+        System.arraycopy(storedColors, 0, target, 0, Math.min(storedColors.length, target.length));
+    }
+
+    private void writeInputPatternColors(CompoundTag data) {
+        data.putIntArray(ITEM_INPUT_PATTERN_COLORS_TAG, this.itemInputPatternColors);
+        data.putIntArray(FLUID_INPUT_PATTERN_COLORS_TAG, this.fluidInputPatternColors);
+        data.putIntArray(KEY_INPUT_PATTERN_COLORS_TAG, this.keyInputPatternColors);
+    }
+
+    private void clearInputPatternColors() {
+        Arrays.fill(this.itemInputPatternColors, 0);
+        Arrays.fill(this.fluidInputPatternColors, 0);
+        Arrays.fill(this.keyInputPatternColors, 0);
+    }
+
+    private void clearEmptyInputPatternColors() {
+        for (int slot = 0; slot < this.itemInputPatternColors.length; slot++) {
+            if (this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + slot).isEmpty()) {
+                this.itemInputPatternColors[slot] = 0;
+            }
+        }
+        for (int slot = 0; slot < this.fluidInputPatternColors.length; slot++) {
+            if (this.fluidInputTanks.get(slot).isEmpty()) {
+                this.fluidInputPatternColors[slot] = 0;
+            }
+        }
+        for (int slot = 0; slot < this.keyInputPatternColors.length; slot++) {
+            if (this.keyInputStacks.get(slot) == null) {
+                this.keyInputPatternColors[slot] = 0;
+            }
+        }
     }
 
     private static void readProcessingChannel(CompoundTag data, ProcessingChannelState channel) {
@@ -797,6 +879,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         this.fluidOutputTanks.forEach(tank -> tank.setFluid(FluidStack.EMPTY));
         clearKeyStacks(this.keyInputStacks);
         clearKeyStacks(this.keyOutputStacks);
+        clearInputPatternColors();
         resetProcessingState();
         syncKeyMenuFromStack();
     }
@@ -947,6 +1030,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 restoreRecipeProcessingState(processingState);
                 break;
             }
+            clearEmptyInputPatternColors();
         }
 
         resetProcessingState(channel);
@@ -1310,25 +1394,31 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return false;
         }
 
-        for (ReservedItemInput reservedInput : reservation.itemInputs) {
-            ItemStack stack = this.storage.getStackInSlot(reservedInput.slot);
-            ItemStack updated = stack.copy();
-            updated.shrink(reservedInput.stack.getCount());
-            this.storage.setItemDirect(reservedInput.slot, updated);
-        }
-        for (ReservedFluidInput reservedInput : reservation.fluidInputs) {
-            FluidTank tank = this.fluidInputTanks.get(reservedInput.slot);
-            tank.drain(reservedInput.amount, IFluidHandler.FluidAction.EXECUTE);
-        }
-
-        if (!reservation.keyInputs.isEmpty()) {
-            for (ReservedKeyInput reservedInput : reservation.keyInputs) {
-                GenericStack stack = this.keyInputStacks.get(reservedInput.slot);
-                long remaining = stack.amount() - reservedInput.amount;
-                this.keyInputStacks.set(reservedInput.slot,
-                        remaining <= 0L ? null : new GenericStack(reservedInput.key, remaining));
+        boolean previousPreservation = this.preservingInputPatternColors;
+        this.preservingInputPatternColors = true;
+        try {
+            for (ReservedItemInput reservedInput : reservation.itemInputs) {
+                ItemStack stack = this.storage.getStackInSlot(reservedInput.slot);
+                ItemStack updated = stack.copy();
+                updated.shrink(reservedInput.stack.getCount());
+                this.storage.setItemDirect(reservedInput.slot, updated);
             }
-            syncKeyMenuFromStack();
+            for (ReservedFluidInput reservedInput : reservation.fluidInputs) {
+                FluidTank tank = this.fluidInputTanks.get(reservedInput.slot);
+                tank.drain(reservedInput.amount, IFluidHandler.FluidAction.EXECUTE);
+            }
+
+            if (!reservation.keyInputs.isEmpty()) {
+                for (ReservedKeyInput reservedInput : reservation.keyInputs) {
+                    GenericStack stack = this.keyInputStacks.get(reservedInput.slot);
+                    long remaining = stack.amount() - reservedInput.amount;
+                    this.keyInputStacks.set(reservedInput.slot,
+                            remaining <= 0L ? null : new GenericStack(reservedInput.key, remaining));
+                }
+                syncKeyMenuFromStack();
+            }
+        } finally {
+            this.preservingInputPatternColors = previousPreservation;
         }
 
         processingChannel.inputReservation = null;
@@ -1501,13 +1591,19 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private void restoreRecipeProcessingState(RecipeProcessingState state) {
-        for (int slot = 0; slot < state.itemSlots.length; slot++) {
-            this.storage.setItemDirect(slot, state.itemSlots[slot].copy());
+        boolean previousPreservation = this.preservingInputPatternColors;
+        this.preservingInputPatternColors = true;
+        try {
+            for (int slot = 0; slot < state.itemSlots.length; slot++) {
+                this.storage.setItemDirect(slot, state.itemSlots[slot].copy());
+            }
+            restoreFluidStacks(this.fluidInputTanks, state.fluidInputs);
+            restoreFluidStacks(this.fluidOutputTanks, state.fluidOutputs);
+            restoreKeyStacks(this.keyInputStacks, state.keyInputs);
+            restoreKeyStacks(this.keyOutputStacks, state.keyOutputs);
+        } finally {
+            this.preservingInputPatternColors = previousPreservation;
         }
-        restoreFluidStacks(this.fluidInputTanks, state.fluidInputs);
-        restoreFluidStacks(this.fluidOutputTanks, state.fluidOutputs);
-        restoreKeyStacks(this.keyInputStacks, state.keyInputs);
-        restoreKeyStacks(this.keyOutputStacks, state.keyOutputs);
         syncMenuFluidsFromTanks();
         syncKeyMenuFromStack();
     }
@@ -1986,14 +2082,56 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 storeKeyAmount(state.keyInputs, key, amount, getKeyInputCapacity());
     }
 
-    private void applyPatternPushState(PatternPushState state) {
-        for (int i = 0; i < state.itemInputs.length; i++) {
-            this.storage.setItemDirect(getItemInputStartSlotForChannel(state.channel) + i, state.itemInputs[i]);
-        }
+    private static int getPatternColor(IPatternDetails patternDetails) {
+        return PATTERN_INPUT_COLORS[Math.floorMod(patternDetails.getDefinition().hashCode(), PATTERN_INPUT_COLORS.length)];
+    }
 
-        restoreFluidStacks(this.fluidInputTanks, getFluidInputStartSlotForChannel(state.channel), state.fluidInputs);
-        restoreKeyStacks(this.keyInputStacks, getKeyInputStartSlotForChannel(state.channel), state.keyInputs);
+    private void applyPatternPushState(PatternPushState state, int patternColor) {
+        boolean previousPreservation = this.preservingInputPatternColors;
+        this.preservingInputPatternColors = true;
+        try {
+            for (int i = 0; i < state.itemInputs.length; i++) {
+                int slot = getItemInputStartSlotForChannel(state.channel) + i;
+                ItemStack updated = state.itemInputs[i];
+                if (!hasSameItemInput(this.storage.getStackInSlot(slot), updated)) {
+                    this.itemInputPatternColors[slot] = updated.isEmpty() ? 0 : patternColor;
+                }
+                this.storage.setItemDirect(slot, updated);
+            }
+
+            for (int i = 0; i < state.fluidInputs.size(); i++) {
+                int slot = getFluidInputStartSlotForChannel(state.channel) + i;
+                FluidStack updated = state.fluidInputs.get(i);
+                if (!hasSameFluidInput(this.fluidInputTanks.get(slot).getFluid(), updated)) {
+                    this.fluidInputPatternColors[slot] = updated.isEmpty() ? 0 : patternColor;
+                }
+            }
+            for (int i = 0; i < state.keyInputs.size(); i++) {
+                int slot = getKeyInputStartSlotForChannel(state.channel) + i;
+                GenericStack updated = state.keyInputs.get(i);
+                if (!hasSameKeyInput(this.keyInputStacks.get(slot), updated)) {
+                    this.keyInputPatternColors[slot] = updated == null ? 0 : patternColor;
+                }
+            }
+
+            restoreFluidStacks(this.fluidInputTanks, getFluidInputStartSlotForChannel(state.channel), state.fluidInputs);
+            restoreKeyStacks(this.keyInputStacks, getKeyInputStartSlotForChannel(state.channel), state.keyInputs);
+        } finally {
+            this.preservingInputPatternColors = previousPreservation;
+        }
         syncKeyMenuFromStack();
+    }
+
+    private static boolean hasSameItemInput(ItemStack first, ItemStack second) {
+        return ItemStack.isSameItemSameComponents(first, second) && first.getCount() == second.getCount();
+    }
+
+    private static boolean hasSameFluidInput(FluidStack first, FluidStack second) {
+        return FluidStack.isSameFluidSameComponents(first, second) && first.getAmount() == second.getAmount();
+    }
+
+    private static boolean hasSameKeyInput(@Nullable GenericStack first, @Nullable GenericStack second) {
+        return first == null ? second == null : first.equals(second);
     }
 
     private static boolean matchesFluidKey(FluidStack stack, AEFluidKey key) {
@@ -2243,6 +2381,9 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             } else {
                 stacks.set(slot, clampKeyStack(stack, capacity));
             }
+            if (input) {
+                this.keyInputPatternColors[slot] = 0;
+            }
             saveChanges();
             markForClientUpdate();
         } finally {
@@ -2470,6 +2611,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
 
             keyInputStacks.set(slot, normalized);
+            keyInputPatternColors[slot] = 0;
             syncKeyMenuFromStack();
             onChange();
         }
@@ -2503,6 +2645,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
             if (mode == Actionable.MODULATE) {
                 keyInputStacks.set(slot, new GenericStack(what, stored + inserted));
+                keyInputPatternColors[slot] = 0;
                 syncKeyMenuFromStack();
                 onChange();
             }
@@ -2593,7 +2736,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
 
             if (mode == Actionable.MODULATE) {
-                applyPatternPushState(state);
+                applyPatternPushState(state, 0);
                 saveChanges();
                 markForClientUpdate();
             }
@@ -2649,6 +2792,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         protected void onContentsChanged() {
+            if (!preservingInputPatternColors) {
+                int inputSlot = fluidInputTanks.indexOf(this);
+                if (inputSlot >= 0) {
+                    fluidInputPatternColors[inputSlot] = 0;
+                }
+            }
             syncMenuFluidsFromTanks();
             saveChanges();
             markForClientUpdate();
@@ -2733,6 +2882,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         private ReassemblerItemInventory() {
             super(DataRipperReassemblerBlockEntity.this, DataRipperReassemblerBlockEntity.this.getStorageSlotCount());
+        }
+
+        @Override
+        public void setItemDirect(int slot, ItemStack stack) {
+            super.setItemDirect(slot, stack);
+            if (!preservingInputPatternColors && slot >= ITEM_INPUT_START_SLOT &&
+                    slot < ITEM_INPUT_START_SLOT + getItemInputSlotCount()) {
+                itemInputPatternColors[slot - ITEM_INPUT_START_SLOT] = 0;
+            }
         }
 
         @Override
@@ -2825,7 +2983,18 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             if (!simulate) {
                 ItemStack remainder = stack.copy();
                 remainder.shrink(extracted);
-                setItemDirect(slot, remainder);
+                boolean preservesPatternColor = slot >= ITEM_INPUT_START_SLOT &&
+                        slot < ITEM_INPUT_START_SLOT + getItemInputSlotCount();
+                boolean previousPreservation = preservingInputPatternColors;
+                preservingInputPatternColors = preservesPatternColor || previousPreservation;
+                try {
+                    setItemDirect(slot, remainder);
+                } finally {
+                    preservingInputPatternColors = previousPreservation;
+                }
+                if (remainder.isEmpty() && preservesPatternColor) {
+                    itemInputPatternColors[slot - ITEM_INPUT_START_SLOT] = 0;
+                }
             }
             return result;
         }

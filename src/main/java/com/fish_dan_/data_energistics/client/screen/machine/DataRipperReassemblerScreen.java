@@ -110,12 +110,17 @@ public class DataRipperReassemblerScreen<M extends DataRipperReassemblerMenu> ex
                     .blit(guiGraphics);
         }
 
+        int patternInputColor = this.menu.getPatternInputColor(slot);
         GenericStack genericStack = getDisplayedGenericStack(slot);
         if (genericStack != null) {
             renderGenericSlot(guiGraphics, slot, genericStack);
+            renderPatternInputMarker(guiGraphics, slot, patternInputColor);
             return;
         }
 
+        if (patternInputColor != 0 && !slot.getItem().isEmpty()) {
+            renderPatternInputBackground(guiGraphics, slot, patternInputColor);
+        }
         super.renderSlot(guiGraphics, slot);
     }
 
@@ -179,6 +184,16 @@ public class DataRipperReassemblerScreen<M extends DataRipperReassemblerMenu> ex
                 slot.x,
                 slot.y,
                 GenericStackDisplayHelper.formatCompactAmount(genericStack));
+    }
+
+    private static void renderPatternInputBackground(GuiGraphics guiGraphics, Slot slot, int color) {
+        guiGraphics.fill(slot.x + 1, slot.y + 1, slot.x + 15, slot.y + 15, 0x50000000 | color);
+    }
+
+    private static void renderPatternInputMarker(GuiGraphics guiGraphics, Slot slot, int color) {
+        if (color != 0) {
+            guiGraphics.fill(slot.x + 1, slot.y + 1, slot.x + 5, slot.y + 5, 0xFF000000 | color);
+        }
     }
 
     protected @Nullable GenericStack getDisplayedGenericStack(@Nullable Slot slot) {

@@ -64,6 +64,42 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
     public int rightProgress;
     @GuiSync(885)
     public int rightMaxProgress = DataAsynchronousProcessingFactoryBlockEntity.MAX_PROGRESS;
+    @GuiSync(898)
+    public int itemInputPatternColor9;
+    @GuiSync(899)
+    public int itemInputPatternColor10;
+    @GuiSync(900)
+    public int itemInputPatternColor11;
+    @GuiSync(901)
+    public int itemInputPatternColor12;
+    @GuiSync(902)
+    public int itemInputPatternColor13;
+    @GuiSync(903)
+    public int itemInputPatternColor14;
+    @GuiSync(904)
+    public int itemInputPatternColor15;
+    @GuiSync(905)
+    public int itemInputPatternColor16;
+    @GuiSync(906)
+    public int itemInputPatternColor17;
+    @GuiSync(907)
+    public int itemInputPatternColor18;
+    @GuiSync(908)
+    public int itemInputPatternColor19;
+    @GuiSync(909)
+    public int itemInputPatternColor20;
+    @GuiSync(910)
+    public int fluidInputPatternColor2;
+    @GuiSync(911)
+    public int fluidInputPatternColor3;
+    @GuiSync(912)
+    public int fluidInputPatternColor4;
+    @GuiSync(913)
+    public int fluidInputPatternColor5;
+    @GuiSync(914)
+    public int keyInputPatternColor1;
+    @GuiSync(915)
+    public int keyInputPatternColor2;
 
     private final IProgressProvider middleProgressProvider = new IProgressProvider() {
 
@@ -98,7 +134,7 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
     @Override
     public void broadcastChanges() {
         if (this.isServerSide()) {
-            var host = this.getHost();
+            var host = (DataAsynchronousProcessingFactoryBlockEntity) this.getHost();
             this.middleProgress = host.getProgress(1);
             this.middleMaxProgress = host.getMaxProgress(1);
             this.rightProgress = host.getProgress(2);
@@ -109,6 +145,7 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
             syncExtraFluid(host.getFluidInput(5), 3);
             syncExtraFluid(host.getFluidOutput(2), 4);
             syncExtraFluid(host.getFluidOutput(3), 5);
+            syncExtraInputPatternColors(host);
         }
         super.broadcastChanges();
     }
@@ -133,10 +170,10 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
 
         for (int slot = 0; slot < host.getFluidInputSlotCount(); slot++) {
             SlotSemantic semantic = slot % 2 == 0 ? FLUID_INPUT_LEFT : FLUID_INPUT_RIGHT;
-            this.addSlot(new AppEngSlot(host.getFluidInputMenuInventory(slot), 0), semantic);
+            this.addSlot(new PatternInputSlot(host.getFluidInputMenuInventory(slot), 0, PatternInputType.FLUID, slot), semantic);
         }
         for (int slot = 0; slot < host.getKeyInputSlotCount(); slot++) {
-            this.addSlot(new AppEngSlot(host.getKeyInputMenuInventory(slot), 0), getKeyInputSemantic(slot));
+            this.addSlot(new PatternInputSlot(host.getKeyInputMenuInventory(slot), 0, PatternInputType.KEY, slot), getKeyInputSemantic(slot));
         }
         for (int slot = 0; slot < host.getFluidOutputSlotCount(); slot++) {
             SlotSemantic semantic = slot % 2 == 0 ? FLUID_OUTPUT_LEFT : FLUID_OUTPUT_RIGHT;
@@ -183,6 +220,69 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
             }
             default -> throw new IndexOutOfBoundsException("Invalid factory fluid sync index: " + index);
         }
+    }
+
+    private void syncExtraInputPatternColors(DataAsynchronousProcessingFactoryBlockEntity host) {
+        this.itemInputPatternColor9 = host.getItemInputPatternColor(9);
+        this.itemInputPatternColor10 = host.getItemInputPatternColor(10);
+        this.itemInputPatternColor11 = host.getItemInputPatternColor(11);
+        this.itemInputPatternColor12 = host.getItemInputPatternColor(12);
+        this.itemInputPatternColor13 = host.getItemInputPatternColor(13);
+        this.itemInputPatternColor14 = host.getItemInputPatternColor(14);
+        this.itemInputPatternColor15 = host.getItemInputPatternColor(15);
+        this.itemInputPatternColor16 = host.getItemInputPatternColor(16);
+        this.itemInputPatternColor17 = host.getItemInputPatternColor(17);
+        this.itemInputPatternColor18 = host.getItemInputPatternColor(18);
+        this.itemInputPatternColor19 = host.getItemInputPatternColor(19);
+        this.itemInputPatternColor20 = host.getItemInputPatternColor(20);
+        this.fluidInputPatternColor2 = host.getFluidInputPatternColor(2);
+        this.fluidInputPatternColor3 = host.getFluidInputPatternColor(3);
+        this.fluidInputPatternColor4 = host.getFluidInputPatternColor(4);
+        this.fluidInputPatternColor5 = host.getFluidInputPatternColor(5);
+        this.keyInputPatternColor1 = host.getKeyInputPatternColor(1);
+        this.keyInputPatternColor2 = host.getKeyInputPatternColor(2);
+    }
+
+    @Override
+    public int getItemInputPatternColor(int slot) {
+        return switch (slot) {
+            case 0, 1, 2, 3, 4, 5, 6, 7, 8 -> super.getItemInputPatternColor(slot);
+            case 9 -> this.itemInputPatternColor9;
+            case 10 -> this.itemInputPatternColor10;
+            case 11 -> this.itemInputPatternColor11;
+            case 12 -> this.itemInputPatternColor12;
+            case 13 -> this.itemInputPatternColor13;
+            case 14 -> this.itemInputPatternColor14;
+            case 15 -> this.itemInputPatternColor15;
+            case 16 -> this.itemInputPatternColor16;
+            case 17 -> this.itemInputPatternColor17;
+            case 18 -> this.itemInputPatternColor18;
+            case 19 -> this.itemInputPatternColor19;
+            case 20 -> this.itemInputPatternColor20;
+            default -> throw new IndexOutOfBoundsException("Invalid factory item input pattern color slot: " + slot);
+        };
+    }
+
+    @Override
+    public int getFluidInputPatternColor(int slot) {
+        return switch (slot) {
+            case 0, 1 -> super.getFluidInputPatternColor(slot);
+            case 2 -> this.fluidInputPatternColor2;
+            case 3 -> this.fluidInputPatternColor3;
+            case 4 -> this.fluidInputPatternColor4;
+            case 5 -> this.fluidInputPatternColor5;
+            default -> throw new IndexOutOfBoundsException("Invalid factory fluid input pattern color slot: " + slot);
+        };
+    }
+
+    @Override
+    public int getKeyInputPatternColor(int slot) {
+        return switch (slot) {
+            case 0 -> super.getKeyInputPatternColor(slot);
+            case 1 -> this.keyInputPatternColor1;
+            case 2 -> this.keyInputPatternColor2;
+            default -> throw new IndexOutOfBoundsException("Invalid factory key input pattern color slot: " + slot);
+        };
     }
 
     private static SlotSemantic getKeyInputSemantic(int slot) {
