@@ -19,10 +19,13 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
     public static final SlotSemantic ITEM_INPUT_RIGHT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_INPUT_RIGHT", false);
     public static final SlotSemantic FLUID_INPUT_LEFT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_FLUID_INPUT_LEFT", false);
     public static final SlotSemantic FLUID_INPUT_RIGHT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_FLUID_INPUT_RIGHT", false);
-    public static final SlotSemantic KEY_INPUT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT", false);
+    public static final SlotSemantic KEY_INPUT_TOP = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_TOP", false);
+    public static final SlotSemantic KEY_INPUT_MIDDLE = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_MIDDLE", false);
+    public static final SlotSemantic KEY_INPUT_BOTTOM = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_BOTTOM", false);
     public static final SlotSemantic FLUID_OUTPUT_LEFT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_FLUID_OUTPUT_LEFT", false);
     public static final SlotSemantic FLUID_OUTPUT_RIGHT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_FLUID_OUTPUT_RIGHT", false);
-    public static final SlotSemantic KEY_OUTPUT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT", false);
+    public static final SlotSemantic KEY_OUTPUT_TOP = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT_TOP", false);
+    public static final SlotSemantic KEY_OUTPUT_BOTTOM = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT_BOTTOM", false);
     public static final SlotSemantic ITEM_OUTPUT_LEFT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_OUTPUT_LEFT", false);
     public static final SlotSemantic ITEM_OUTPUT_RIGHT = SlotSemantics.register("DATA_ASYNCHRONOUS_FACTORY_OUTPUT_RIGHT", false);
 
@@ -84,14 +87,14 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
             this.addSlot(new AppEngSlot(host.getFluidInputMenuInventory(slot), 0), semantic);
         }
         for (int slot = 0; slot < host.getKeyInputSlotCount(); slot++) {
-            this.addSlot(new AppEngSlot(host.getKeyInputMenuInventory(slot), 0), KEY_INPUT);
+            this.addSlot(new AppEngSlot(host.getKeyInputMenuInventory(slot), 0), getKeyInputSemantic(slot));
         }
         for (int slot = 0; slot < host.getFluidOutputSlotCount(); slot++) {
             SlotSemantic semantic = slot < 2 ? FLUID_OUTPUT_LEFT : FLUID_OUTPUT_RIGHT;
             this.addSlot(new AppEngSlot(host.getFluidOutputMenuInventory(slot), 0), semantic);
         }
         for (int slot = 0; slot < host.getKeyOutputSlotCount(); slot++) {
-            this.addSlot(new AppEngSlot(host.getKeyOutputMenuInventory(slot), 0), KEY_OUTPUT);
+            this.addSlot(new AppEngSlot(host.getKeyOutputMenuInventory(slot), 0), getKeyOutputSemantic(slot));
         }
 
         for (int slot = 0; slot < host.getItemOutputSlotCount(); slot++) {
@@ -130,5 +133,22 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
             }
             default -> throw new IndexOutOfBoundsException("Invalid factory fluid sync index: " + index);
         }
+    }
+
+    private static SlotSemantic getKeyInputSemantic(int slot) {
+        return switch (slot) {
+            case 0 -> KEY_INPUT_TOP;
+            case 1 -> KEY_INPUT_MIDDLE;
+            case 2 -> KEY_INPUT_BOTTOM;
+            default -> throw new IndexOutOfBoundsException("Invalid factory key input slot: " + slot);
+        };
+    }
+
+    private static SlotSemantic getKeyOutputSemantic(int slot) {
+        return switch (slot) {
+            case 0 -> KEY_OUTPUT_TOP;
+            case 1 -> KEY_OUTPUT_BOTTOM;
+            default -> throw new IndexOutOfBoundsException("Invalid factory key output slot: " + slot);
+        };
     }
 }

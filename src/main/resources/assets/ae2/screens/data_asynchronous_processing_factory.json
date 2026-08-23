@@ -30,10 +30,17 @@
 			"top": 21,
 			"grid": "VERTICAL"
 		},
-		"DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT": {
+		"DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_TOP": {
 			"left": 152,
-			"top": 21,
-			"grid": "VERTICAL"
+			"top": 21
+		},
+		"DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_MIDDLE": {
+			"left": 152,
+			"top": 39
+		},
+		"DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_BOTTOM": {
+			"left": 152,
+			"top": 57
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_FLUID_OUTPUT_LEFT": {
 			"left": 116,
@@ -45,10 +52,13 @@
 			"top": 103,
 			"grid": "VERTICAL"
 		},
-		"DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT": {
+		"DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT_TOP": {
 			"left": 152,
-			"top": 103,
-			"grid": "VERTICAL"
+			"top": 103
+		},
+		"DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT_BOTTOM": {
+			"left": 152,
+			"top": 121
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_OUTPUT_LEFT": {
 			"left": 8,

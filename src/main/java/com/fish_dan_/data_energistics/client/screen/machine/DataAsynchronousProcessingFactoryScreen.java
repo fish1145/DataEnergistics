@@ -50,16 +50,15 @@ public final class DataAsynchronousProcessingFactoryScreen
     protected boolean isGenericSemantic(SlotSemantic semantic) {
         return super.isGenericSemantic(semantic) || semantic == DataAsynchronousProcessingFactoryMenu.FLUID_INPUT_LEFT ||
                 semantic == DataAsynchronousProcessingFactoryMenu.FLUID_INPUT_RIGHT ||
-                semantic == DataAsynchronousProcessingFactoryMenu.KEY_INPUT ||
+                isKeyInputSemantic(semantic) ||
                 semantic == DataAsynchronousProcessingFactoryMenu.FLUID_OUTPUT_LEFT ||
                 semantic == DataAsynchronousProcessingFactoryMenu.FLUID_OUTPUT_RIGHT ||
-                semantic == DataAsynchronousProcessingFactoryMenu.KEY_OUTPUT;
+                isKeyOutputSemantic(semantic);
     }
 
     @Override
     protected Component getEmptySlotTooltip(SlotSemantic semantic) {
-        if (semantic == DataAsynchronousProcessingFactoryMenu.KEY_INPUT ||
-                semantic == DataAsynchronousProcessingFactoryMenu.KEY_OUTPUT) {
+        if (isKeyInputSemantic(semantic) || isKeyOutputSemantic(semantic)) {
             return Component.translatable("screen.data_energistics.data_reassembler.key.empty");
         }
         return super.getEmptySlotTooltip(semantic);
@@ -77,11 +76,11 @@ public final class DataAsynchronousProcessingFactoryScreen
             return Component.literal(amount + " mB / " + this.menu.getFluidOutputCapacity() + " mB")
                     .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);
         }
-        if (semantic == DataAsynchronousProcessingFactoryMenu.KEY_INPUT) {
+        if (isKeyInputSemantic(semantic)) {
             return Component.literal(amount + " / " + this.menu.getKeyInputCapacity())
                     .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);
         }
-        if (semantic == DataAsynchronousProcessingFactoryMenu.KEY_OUTPUT) {
+        if (isKeyOutputSemantic(semantic)) {
             return Component.literal(amount + " / " + this.menu.getKeyOutputCapacity())
                     .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);
         }
@@ -125,10 +124,20 @@ public final class DataAsynchronousProcessingFactoryScreen
                 default -> null;
             };
         }
-        if (semantic == DataAsynchronousProcessingFactoryMenu.KEY_INPUT ||
-                semantic == DataAsynchronousProcessingFactoryMenu.KEY_OUTPUT) {
+        if (isKeyInputSemantic(semantic) || isKeyOutputSemantic(semantic)) {
             return GenericStack.fromItemStack(slot.getItem());
         }
         return super.getDisplayedGenericStack(slot);
+    }
+
+    private static boolean isKeyInputSemantic(SlotSemantic semantic) {
+        return semantic == DataAsynchronousProcessingFactoryMenu.KEY_INPUT_TOP ||
+                semantic == DataAsynchronousProcessingFactoryMenu.KEY_INPUT_MIDDLE ||
+                semantic == DataAsynchronousProcessingFactoryMenu.KEY_INPUT_BOTTOM;
+    }
+
+    private static boolean isKeyOutputSemantic(SlotSemantic semantic) {
+        return semantic == DataAsynchronousProcessingFactoryMenu.KEY_OUTPUT_TOP ||
+                semantic == DataAsynchronousProcessingFactoryMenu.KEY_OUTPUT_BOTTOM;
     }
 }
