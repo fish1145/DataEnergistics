@@ -11,6 +11,7 @@ import appeng.api.inventories.InternalInventory;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
+import appeng.menu.interfaces.IProgressProvider;
 import appeng.menu.slot.AppEngSlot;
 
 public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReassemblerMenu {
@@ -55,6 +56,39 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
     public String fluidOutputDId = "";
     @GuiSync(881)
     public int fluidOutputDAmount;
+    @GuiSync(882)
+    public int middleProgress;
+    @GuiSync(883)
+    public int middleMaxProgress = DataAsynchronousProcessingFactoryBlockEntity.MAX_PROGRESS;
+    @GuiSync(884)
+    public int rightProgress;
+    @GuiSync(885)
+    public int rightMaxProgress = DataAsynchronousProcessingFactoryBlockEntity.MAX_PROGRESS;
+
+    private final IProgressProvider middleProgressProvider = new IProgressProvider() {
+
+        @Override
+        public int getCurrentProgress() {
+            return DataAsynchronousProcessingFactoryMenu.this.middleProgress;
+        }
+
+        @Override
+        public int getMaxProgress() {
+            return DataAsynchronousProcessingFactoryMenu.this.middleMaxProgress;
+        }
+    };
+    private final IProgressProvider rightProgressProvider = new IProgressProvider() {
+
+        @Override
+        public int getCurrentProgress() {
+            return DataAsynchronousProcessingFactoryMenu.this.rightProgress;
+        }
+
+        @Override
+        public int getMaxProgress() {
+            return DataAsynchronousProcessingFactoryMenu.this.rightMaxProgress;
+        }
+    };
 
     public DataAsynchronousProcessingFactoryMenu(int id, Inventory playerInventory,
                                                  DataAsynchronousProcessingFactoryBlockEntity host) {
@@ -65,6 +99,10 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
     public void broadcastChanges() {
         if (this.isServerSide()) {
             var host = this.getHost();
+            this.middleProgress = host.getProgress(1);
+            this.middleMaxProgress = host.getMaxProgress(1);
+            this.rightProgress = host.getProgress(2);
+            this.rightMaxProgress = host.getMaxProgress(2);
             syncExtraFluid(host.getFluidInput(2), 0);
             syncExtraFluid(host.getFluidInput(3), 1);
             syncExtraFluid(host.getFluidInput(4), 2);
@@ -73,6 +111,14 @@ public final class DataAsynchronousProcessingFactoryMenu extends DataRipperReass
             syncExtraFluid(host.getFluidOutput(3), 5);
         }
         super.broadcastChanges();
+    }
+
+    public IProgressProvider getMiddleProgressProvider() {
+        return this.middleProgressProvider;
+    }
+
+    public IProgressProvider getRightProgressProvider() {
+        return this.rightProgressProvider;
     }
 
     @Override

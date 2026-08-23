@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipperReassemblerBlockEntity {
 
+    public static final int PROCESSING_CHANNEL_COUNT = 3;
     public static final int ITEM_INPUT_SLOT_COUNT = 21;
     public static final int ITEM_OUTPUT_SLOT_COUNT = 14;
     public static final int FLUID_INPUT_SLOT_COUNT = 6;
@@ -41,6 +42,41 @@ public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipp
     @Override
     public int getItemOutputSlotCount() {
         return ITEM_OUTPUT_SLOT_COUNT;
+    }
+
+    @Override
+    protected int getProcessingChannelCount() {
+        return PROCESSING_CHANNEL_COUNT;
+    }
+
+    @Override
+    protected int getItemInputStartSlotForChannel(int channel) {
+        return ITEM_INPUT_START_SLOT + channel * 7;
+    }
+
+    @Override
+    protected int getItemInputSlotCountForChannel(int channel) {
+        return 7;
+    }
+
+    @Override
+    protected int getFluidInputStartSlotForChannel(int channel) {
+        return channel * 2;
+    }
+
+    @Override
+    protected int getFluidInputSlotCountForChannel(int channel) {
+        return 2;
+    }
+
+    @Override
+    protected int getKeyInputStartSlotForChannel(int channel) {
+        return channel;
+    }
+
+    @Override
+    protected int getKeyInputSlotCountForChannel(int channel) {
+        return 1;
     }
 
     @Override

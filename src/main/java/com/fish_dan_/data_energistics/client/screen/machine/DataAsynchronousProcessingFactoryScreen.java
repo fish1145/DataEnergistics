@@ -11,6 +11,7 @@ import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
 import appeng.core.localization.Tooltips;
 import appeng.menu.SlotSemantic;
+import appeng.menu.interfaces.IProgressProvider;
 import org.jspecify.annotations.Nullable;
 
 public final class DataAsynchronousProcessingFactoryScreen
@@ -24,8 +25,10 @@ public final class DataAsynchronousProcessingFactoryScreen
                                                    Component title,
                                                    ScreenStyle style) {
         super(menu, playerInventory, title, style);
-        this.middleProgressBar = new ProgressBar(this.menu, style.getImage("progressBar"), ProgressBar.Direction.VERTICAL);
-        this.rightProgressBar = new ProgressBar(this.menu, style.getImage("progressBar"), ProgressBar.Direction.VERTICAL);
+        this.middleProgressBar = new ProgressBar(this.menu.getMiddleProgressProvider(), style.getImage("progressBar"),
+                ProgressBar.Direction.VERTICAL);
+        this.rightProgressBar = new ProgressBar(this.menu.getRightProgressProvider(), style.getImage("progressBar"),
+                ProgressBar.Direction.VERTICAL);
         this.widgets.add("progressBarMiddle", this.middleProgressBar);
         this.widgets.add("progressBarRight", this.rightProgressBar);
     }
@@ -33,17 +36,18 @@ public final class DataAsynchronousProcessingFactoryScreen
     @Override
     protected void updateBeforeRender() {
         super.updateBeforeRender();
-        boolean visible = this.menu.getMaxProgress() > 0;
-        this.middleProgressBar.visible = visible;
-        this.rightProgressBar.visible = visible;
-        if (!visible) {
+        updateProgressBar(this.middleProgressBar, this.menu.getMiddleProgressProvider());
+        updateProgressBar(this.rightProgressBar, this.menu.getRightProgressProvider());
+    }
+
+    private static void updateProgressBar(ProgressBar progressBar, IProgressProvider progressProvider) {
+        progressBar.visible = progressProvider.getMaxProgress() > 0;
+        if (!progressBar.visible) {
             return;
         }
 
-        int percent = this.menu.getCurrentProgress() * 100 / Math.max(1, this.menu.getMaxProgress());
-        Component tooltip = Component.literal(percent + "%");
-        this.middleProgressBar.setFullMsg(tooltip);
-        this.rightProgressBar.setFullMsg(tooltip);
+        int percent = progressProvider.getCurrentProgress() * 100 / Math.max(1, progressProvider.getMaxProgress());
+        progressBar.setFullMsg(Component.literal(percent + "%"));
     }
 
     @Override

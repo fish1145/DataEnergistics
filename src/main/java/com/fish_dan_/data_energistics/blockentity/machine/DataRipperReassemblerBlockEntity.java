@@ -134,6 +134,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String PROGRESS_TAG = "progress";
     private static final String MAX_PROGRESS_TAG = "max_progress";
     private static final String ACTIVE_RECIPE_TAG = "active_recipe";
+    private static final String PROCESSING_CHANNELS_TAG = "processing_channels";
 
     private final IUpgradeInventory upgrades;
     private final AppEngInternalInventory storage = new ReassemblerItemInventory();
@@ -168,12 +169,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
     private AdjacentBlockCapabilityCache<IFluidHandler> adjacentFluidHandlers;
     private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentKeyInventories;
-    @Getter
-    private int progress;
-    @Getter
-    private int maxProgress = MAX_PROGRESS;
-    private ResourceLocation activeRecipeId;
-    private RecipeMatchCache recipeMatchCache;
+    private final ProcessingChannelState[] processingChannels = createProcessingChannels();
 
     private static String getFluidInputTag(int slot) {
         return switch (slot) {
@@ -197,6 +193,19 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private static String getKeyOutputTag(int slot) {
         return slot == 0 ? KEY_OUTPUT_TAG : "key_output_" + slot;
+    }
+
+    private ProcessingChannelState[] createProcessingChannels() {
+        int channelCount = getProcessingChannelCount();
+        if (channelCount <= 0) {
+            throw new IllegalStateException("Processing channel count must be positive");
+        }
+
+        ProcessingChannelState[] channels = new ProcessingChannelState[channelCount];
+        for (int channel = 0; channel < channelCount; channel++) {
+            channels[channel] = new ProcessingChannelState();
+        }
+        return channels;
     }
 
     public DataRipperReassemblerBlockEntity(BlockPos blockPos, BlockState blockState) {
@@ -267,11 +276,14 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         while (remainingTicks > 0) {
             boolean hasOutputBeforeWork = hasAnyOutput();
             int progressBudget = isAutoExportEnabled() && hasOutputBeforeWork && !autoExportStalled ? 1 : remainingTicks;
-            RecipeAdvance advance = processRecipe(progressBudget);
-            remainingTicks -= advance.elapsedTicks();
+            boolean completedRecipe = false;
+            for (int channel = 0; channel < this.processingChannels.length; channel++) {
+                completedRecipe |= advanceProcessingChannel(channel, progressBudget);
+            }
+            remainingTicks -= progressBudget;
 
             boolean shouldAttemptExport = isAutoExportEnabled() && hasAnyOutput() &&
-                    (!autoExportStalled || advance.completedRecipe());
+                    (!autoExportStalled || completedRecipe);
             if (shouldAttemptExport) {
                 autoExportStalled = !tryAutoExport();
             }
@@ -285,7 +297,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public boolean isWorking() {
-        return this.getProgress() > 0;
+        for (ProcessingChannelState channel : this.processingChannels) {
+            if (channel.progress > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -300,9 +317,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, Direction ejectionDirection) {
-        PatternPushState state = new PatternPushState(copyInputSlots(), copyFluidStacks(this.fluidInputTanks),
-                copyKeyStacks(this.keyInputStacks));
-        if (!canAcceptPatternInputs(state, inputHolder)) {
+        PatternPushState state = findPatternPushState(inputHolder);
+        if (state == null) {
             return false;
         }
 
@@ -461,6 +477,71 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return getItemOutputStartSlot() + getItemOutputSlotCount();
     }
 
+    /**
+     * Returns how many independent recipe-processing channels this machine has.
+     * Input resources belong to exactly one channel, while all output resources remain shared.
+     */
+    protected int getProcessingChannelCount() {
+        return 1;
+    }
+
+    protected int getItemInputStartSlotForChannel(int channel) {
+        requireProcessingChannel(channel);
+        return ITEM_INPUT_START_SLOT;
+    }
+
+    protected int getItemInputSlotCountForChannel(int channel) {
+        requireProcessingChannel(channel);
+        return getItemInputSlotCount();
+    }
+
+    protected int getFluidInputStartSlotForChannel(int channel) {
+        requireProcessingChannel(channel);
+        return 0;
+    }
+
+    protected int getFluidInputSlotCountForChannel(int channel) {
+        requireProcessingChannel(channel);
+        return getFluidInputSlotCount();
+    }
+
+    protected int getKeyInputStartSlotForChannel(int channel) {
+        requireProcessingChannel(channel);
+        return 0;
+    }
+
+    protected int getKeyInputSlotCountForChannel(int channel) {
+        requireProcessingChannel(channel);
+        return getKeyInputSlotCount();
+    }
+
+    public int getProgress() {
+        return getProgress(0);
+    }
+
+    public int getProgress(int channel) {
+        return getProcessingChannel(channel).progress;
+    }
+
+    public int getMaxProgress() {
+        return getMaxProgress(0);
+    }
+
+    public int getMaxProgress(int channel) {
+        return getProcessingChannel(channel).maxProgress;
+    }
+
+    private ProcessingChannelState getProcessingChannel(int channel) {
+        requireProcessingChannel(channel);
+        return this.processingChannels[channel];
+    }
+
+    private void requireProcessingChannel(int channel) {
+        if (channel < 0 || channel >= this.processingChannels.length) {
+            throw new IndexOutOfBoundsException("Invalid processing channel: " + channel);
+        }
+    }
+
     public long getKeyInputCapacity() {
         return KEY_INPUT_CAPACITY;
     }
@@ -553,9 +634,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         } else {
             copyOutputSidesToAllTypes(EnumSet.allOf(Direction.class));
         }
-        this.progress = data.getInt(PROGRESS_TAG);
-        this.maxProgress = data.contains(MAX_PROGRESS_TAG) ? Math.max(1, data.getInt(MAX_PROGRESS_TAG)) : MAX_PROGRESS;
-        this.activeRecipeId = data.contains(ACTIVE_RECIPE_TAG) ? ResourceLocation.tryParse(data.getString(ACTIVE_RECIPE_TAG)) : null;
+        readProcessingChannels(data);
         syncMenuFluidsFromTanks();
         syncKeyMenuFromStack();
     }
@@ -584,13 +663,56 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         data.put(FLUID_OUTPUT_SIDES_TAG, createOutputSidesTag(this.fluidOutputSides));
         data.put(KEY_OUTPUT_SIDES_TAG, createOutputSidesTag(this.keyOutputSides));
         data.put(OUTPUT_SIDES_TAG, createOutputSidesTag(this.itemOutputSides));
-        data.putInt(PROGRESS_TAG, this.progress);
-        data.putInt(MAX_PROGRESS_TAG, this.maxProgress);
-        if (this.activeRecipeId != null) {
-            data.putString(ACTIVE_RECIPE_TAG, this.activeRecipeId.toString());
-        }
+        writeProcessingChannels(data);
         writeKeyStacks(data, registries, this.keyInputStacks, true);
         writeKeyStacks(data, registries, this.keyOutputStacks, false);
+    }
+
+    private void readProcessingChannels(CompoundTag data) {
+        readProcessingChannel(data, this.processingChannels[0]);
+        for (int channel = 1; channel < this.processingChannels.length; channel++) {
+            this.processingChannels[channel].reset();
+        }
+
+        if (!data.contains(PROCESSING_CHANNELS_TAG, Tag.TAG_LIST)) {
+            return;
+        }
+
+        ListTag serializedChannels = data.getList(PROCESSING_CHANNELS_TAG, Tag.TAG_COMPOUND);
+        int channelsToRead = Math.min(serializedChannels.size(), this.processingChannels.length);
+        for (int channel = 0; channel < channelsToRead; channel++) {
+            readProcessingChannel(serializedChannels.getCompound(channel), this.processingChannels[channel]);
+        }
+    }
+
+    private void writeProcessingChannels(CompoundTag data) {
+        writeProcessingChannel(data, this.processingChannels[0]);
+        if (this.processingChannels.length == 1) {
+            return;
+        }
+
+        ListTag serializedChannels = new ListTag();
+        for (ProcessingChannelState channel : this.processingChannels) {
+            CompoundTag serializedChannel = new CompoundTag();
+            writeProcessingChannel(serializedChannel, channel);
+            serializedChannels.add(serializedChannel);
+        }
+        data.put(PROCESSING_CHANNELS_TAG, serializedChannels);
+    }
+
+    private static void readProcessingChannel(CompoundTag data, ProcessingChannelState channel) {
+        channel.progress = Math.max(0, data.getInt(PROGRESS_TAG));
+        channel.maxProgress = data.contains(MAX_PROGRESS_TAG) ? Math.max(1, data.getInt(MAX_PROGRESS_TAG)) : MAX_PROGRESS;
+        channel.activeRecipeId = data.contains(ACTIVE_RECIPE_TAG) ? ResourceLocation.tryParse(data.getString(ACTIVE_RECIPE_TAG)) : null;
+        channel.recipeMatchCache = null;
+    }
+
+    private static void writeProcessingChannel(CompoundTag data, ProcessingChannelState channel) {
+        data.putInt(PROGRESS_TAG, channel.progress);
+        data.putInt(MAX_PROGRESS_TAG, channel.maxProgress);
+        if (channel.activeRecipeId != null) {
+            data.putString(ACTIVE_RECIPE_TAG, channel.activeRecipeId.toString());
+        }
     }
 
     private static void readKeyStacks(CompoundTag data, HolderLookup.Provider registries, List<GenericStack> stacks,
@@ -746,38 +868,53 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    private RecipeAdvance processRecipe(int tickBudget) {
+    private boolean advanceProcessingChannel(int channel, int tickBudget) {
+        int remainingTicks = tickBudget;
+        boolean completedRecipe = false;
+        while (remainingTicks > 0) {
+            RecipeAdvance advance = processRecipe(channel, remainingTicks);
+            if (advance.elapsedTicks() <= 0) {
+                throw new IllegalStateException("Processing channel did not consume its tick budget");
+            }
+            remainingTicks -= advance.elapsedTicks();
+            completedRecipe |= advance.completedRecipe();
+        }
+        return completedRecipe;
+    }
+
+    private RecipeAdvance processRecipe(int channel, int tickBudget) {
         if (!isOnline()) {
-            resetProcessingState();
+            resetProcessingState(channel);
             return RecipeAdvance.blocked(tickBudget);
         }
 
-        RecipeHolder<DataRipperReassemblerRecipe> recipeHolder = getActiveOrMatchingRecipe();
+        RecipeHolder<DataRipperReassemblerRecipe> recipeHolder = getActiveOrMatchingRecipe(channel);
         if (recipeHolder == null) {
-            resetProcessingState();
+            resetProcessingState(channel);
             return RecipeAdvance.blocked(tickBudget);
         }
 
         DataRipperReassemblerRecipe recipe = recipeHolder.value();
         if (!canAcceptItemOutputs(recipe, recipe.getItemOutputs())) {
-            resetProcessingState();
+            resetProcessingState(channel);
             return RecipeAdvance.blocked(tickBudget);
         }
 
-        if (!recipeHolder.id().equals(this.activeRecipeId)) {
-            this.activeRecipeId = recipeHolder.id();
-            this.progress = 0;
-            this.maxProgress = getEffectiveProcessTicks(recipe);
+        ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        if (!recipeHolder.id().equals(processingChannel.activeRecipeId)) {
+            processingChannel.activeRecipeId = recipeHolder.id();
+            processingChannel.progress = 0;
+            processingChannel.maxProgress = getEffectiveProcessTicks(recipe);
             setChanged();
         }
 
-        this.maxProgress = getEffectiveProcessTicks(recipe);
-        this.progress = Math.max(0, Math.min(this.progress, this.maxProgress - 1));
+        processingChannel.maxProgress = getEffectiveProcessTicks(recipe);
+        processingChannel.progress = Math.max(0, Math.min(processingChannel.progress, processingChannel.maxProgress - 1));
         BatchTickProgression.Segment segment = BatchTickProgression.advanceToBoundary(
-                this.progress,
-                this.maxProgress,
+                processingChannel.progress,
+                processingChannel.maxProgress,
                 tickBudget);
-        this.progress = segment.progress();
+        processingChannel.progress = segment.progress();
         setChanged();
 
         if (!segment.reachedBoundary()) {
@@ -786,7 +923,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         List<ItemStack> itemOutputs = recipe.getCraftedItemOutputs();
         if (!canAcceptItemOutputs(recipe, itemOutputs)) {
-            resetProcessingState();
+            resetProcessingState(channel);
             return RecipeAdvance.blocked(segment.elapsedTicks());
         }
         for (int batch = 0; batch < getParallel(); batch++) {
@@ -796,26 +933,31 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
 
             RecipeProcessingState processingState = captureRecipeProcessingState();
-            if (!consumeRecipeInputs(recipe) || !insertRecipeOutputs(recipe, batchOutputs)) {
+            if (!consumeRecipeInputs(channel, recipe) || !insertRecipeOutputs(recipe, batchOutputs)) {
                 restoreRecipeProcessingState(processingState);
                 break;
             }
         }
 
-        resetProcessingState();
+        resetProcessingState(channel);
         saveChanges();
         markForClientUpdate();
         return RecipeAdvance.completed(segment.elapsedTicks());
     }
 
     private void resetProcessingState() {
-        if (this.progress == 0 && this.maxProgress == MAX_PROGRESS && this.activeRecipeId == null) {
+        for (int channel = 0; channel < this.processingChannels.length; channel++) {
+            resetProcessingState(channel);
+        }
+    }
+
+    private void resetProcessingState(int channel) {
+        ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        if (processingChannel.isIdle()) {
             return;
         }
 
-        this.progress = 0;
-        this.maxProgress = MAX_PROGRESS;
-        this.activeRecipeId = null;
+        processingChannel.reset();
         setChanged();
     }
 
@@ -825,14 +967,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return Math.max(1, reducedTicks);
     }
 
-    private RecipeHolder<DataRipperReassemblerRecipe> getActiveOrMatchingRecipe() {
+    private RecipeHolder<DataRipperReassemblerRecipe> getActiveOrMatchingRecipe(int channel) {
         Level currentLevel = this.level;
         if (currentLevel == null) {
             return null;
         }
 
-        RecipeMatchKey cacheKey = createRecipeMatchKey();
-        RecipeMatchCache cached = this.recipeMatchCache;
+        ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        RecipeMatchKey cacheKey = createRecipeMatchKey(channel);
+        RecipeMatchCache cached = processingChannel.recipeMatchCache;
         if (cached != null && cached.key().equals(cacheKey)) {
             ResourceLocation recipeId = cached.recipeId();
             if (recipeId == null) {
@@ -845,10 +988,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
         }
 
-        DataRipperReassemblerRecipeInput input = createRecipeInput();
+        DataRipperReassemblerRecipeInput input = createRecipeInput(channel);
         RecipeHolder<DataRipperReassemblerRecipe> match = null;
-        if (this.activeRecipeId != null) {
-            RecipeHolder<DataRipperReassemblerRecipe> active = getRecipeById(currentLevel, this.activeRecipeId);
+        if (processingChannel.activeRecipeId != null) {
+            RecipeHolder<DataRipperReassemblerRecipe> active = getRecipeById(currentLevel, processingChannel.activeRecipeId);
             if (active != null && active.value().matches(input, currentLevel)) {
                 match = active;
             }
@@ -864,27 +1007,28 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
         }
 
-        this.recipeMatchCache = new RecipeMatchCache(cacheKey, match == null ? null : match.id());
+        processingChannel.recipeMatchCache = new RecipeMatchCache(cacheKey, match == null ? null : match.id());
         return match;
     }
 
-    private RecipeMatchKey createRecipeMatchKey() {
-        List<RecipeStackIdentity> items = new ArrayList<>(getItemInputSlotCount());
-        for (int i = 0; i < getItemInputSlotCount(); i++) {
-            ItemStack stack = this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + i);
+    private RecipeMatchKey createRecipeMatchKey(int channel) {
+        ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        List<RecipeStackIdentity> items = new ArrayList<>(getItemInputSlotCountForChannel(channel));
+        for (int i = 0; i < getItemInputSlotCountForChannel(channel); i++) {
+            ItemStack stack = this.storage.getStackInSlot(getItemInputStartSlotForChannel(channel) + i);
             items.add(createItemStackIdentity(stack));
         }
-        List<RecipeStackIdentity> fluids = new ArrayList<>(this.fluidInputTanks.size());
-        for (FluidTank tank : this.fluidInputTanks) {
-            fluids.add(createFluidStackIdentity(tank.getFluid()));
+        List<RecipeStackIdentity> fluids = new ArrayList<>(getFluidInputSlotCountForChannel(channel));
+        for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
+            fluids.add(createFluidStackIdentity(this.fluidInputTanks.get(getFluidInputStartSlotForChannel(channel) + slot).getFluid()));
         }
-        List<RecipeStackIdentity> keys = new ArrayList<>(this.keyInputStacks.size());
-        for (GenericStack keyStack : this.keyInputStacks) {
-            keys.add(createKeyStackIdentity(keyStack));
+        List<RecipeStackIdentity> keys = new ArrayList<>(getKeyInputSlotCountForChannel(channel));
+        for (int slot = 0; slot < getKeyInputSlotCountForChannel(channel); slot++) {
+            keys.add(createKeyStackIdentity(this.keyInputStacks.get(getKeyInputStartSlotForChannel(channel) + slot)));
         }
         return new RecipeMatchKey(
                 RecipeReloadEpoch.current(),
-                this.activeRecipeId,
+                processingChannel.activeRecipeId,
                 List.copyOf(items),
                 List.copyOf(fluids),
                 List.copyOf(keys));
@@ -923,19 +1067,21 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return typedHolder;
     }
 
-    private DataRipperReassemblerRecipeInput createRecipeInput() {
-        List<ItemStack> inputs = new ArrayList<>(getItemInputSlotCount());
-        for (int i = 0; i < getItemInputSlotCount(); i++) {
-            inputs.add(this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + i).copy());
+    private DataRipperReassemblerRecipeInput createRecipeInput(int channel) {
+        List<ItemStack> inputs = new ArrayList<>(getItemInputSlotCountForChannel(channel));
+        for (int i = 0; i < getItemInputSlotCountForChannel(channel); i++) {
+            inputs.add(this.storage.getStackInSlot(getItemInputStartSlotForChannel(channel) + i).copy());
         }
-        List<GenericStack> fluids = new ArrayList<>(this.fluidInputTanks.size());
-        for (FluidTank tank : this.fluidInputTanks) {
-            GenericStack fluid = createFluidGenericStack(tank.getFluid());
+        List<GenericStack> fluids = new ArrayList<>(getFluidInputSlotCountForChannel(channel));
+        for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
+            GenericStack fluid = createFluidGenericStack(
+                    this.fluidInputTanks.get(getFluidInputStartSlotForChannel(channel) + slot).getFluid());
             if (fluid != null) {
                 fluids.add(fluid);
             }
         }
-        return new DataRipperReassemblerRecipeInput(inputs, fluids, copyKeyStacks(this.keyInputStacks));
+        return new DataRipperReassemblerRecipeInput(inputs, fluids,
+                copyKeyStacks(this.keyInputStacks, getKeyInputStartSlotForChannel(channel), getKeyInputSlotCountForChannel(channel)));
     }
 
     private boolean canAcceptItemOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> itemOutputs) {
@@ -962,7 +1108,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return canAcceptFluidOutputs(recipe) && canAcceptKeyOutput(recipe);
     }
 
-    private boolean consumeRecipeInputs(DataRipperReassemblerRecipe recipe) {
+    private boolean consumeRecipeInputs(int channel, DataRipperReassemblerRecipe recipe) {
         Map<AEFluidKey, Long> requiredFluidAmounts = recipe.getMergedFluidInputAmounts();
         if (requiredFluidAmounts == null) {
             return false;
@@ -975,8 +1121,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         for (DataRipperReassemblerIngredient countedIngredient : recipe.getItemInputs()) {
             int remaining = countedIngredient.count();
-            for (int i = 0; i < getItemInputSlotCount() && remaining > 0; i++) {
-                int slot = ITEM_INPUT_START_SLOT + i;
+            for (int i = 0; i < getItemInputSlotCountForChannel(channel) && remaining > 0; i++) {
+                int slot = getItemInputStartSlotForChannel(channel) + i;
                 ItemStack stack = this.storage.getStackInSlot(slot);
                 if (stack.isEmpty() || !countedIngredient.ingredient().test(stack)) {
                     continue;
@@ -996,10 +1142,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         GenericStack requiredKey = recipe.getKeyInput();
         if (requiredKey != null) {
-            if (!hasKeyAmount(this.keyInputStacks, requiredKey)) {
+            int keyInputStartSlot = getKeyInputStartSlotForChannel(channel);
+            int keyInputSlotCount = getKeyInputSlotCountForChannel(channel);
+            if (!hasKeyAmount(this.keyInputStacks, keyInputStartSlot, keyInputSlotCount, requiredKey)) {
                 return false;
             }
-            extractKeyAmount(this.keyInputStacks, requiredKey.what(), requiredKey.amount());
+            extractKeyAmount(this.keyInputStacks, keyInputStartSlot, keyInputSlotCount, requiredKey.what(), requiredKey.amount());
             syncKeyMenuFromStack();
         }
 
@@ -1007,7 +1155,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             AEFluidKey requiredKeyFluid = requirement.getKey();
             int remaining = requirement.getValue().intValue();
 
-            for (FluidTank tank : this.fluidInputTanks) {
+            for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
+                FluidTank tank = this.fluidInputTanks.get(getFluidInputStartSlotForChannel(channel) + slot);
                 if (remaining <= 0 || !matchesFluidKey(tank.getFluid(), requiredKeyFluid)) {
                     continue;
                 }
@@ -1438,10 +1587,28 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return tag;
     }
 
-    private ItemStack[] copyInputSlots() {
-        ItemStack[] slots = new ItemStack[getItemInputSlotCount()];
-        for (int i = 0; i < getItemInputSlotCount(); i++) {
-            slots[i] = this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + i).copy();
+    private PatternPushState findPatternPushState(@Nullable KeyCounter[] inputHolder) {
+        for (int channel = 0; channel < this.processingChannels.length; channel++) {
+            PatternPushState state = createPatternPushState(channel);
+            if (canAcceptPatternInputs(state, inputHolder)) {
+                return state;
+            }
+        }
+        return null;
+    }
+
+    private PatternPushState createPatternPushState(int channel) {
+        return new PatternPushState(
+                channel,
+                copyInputSlots(channel),
+                copyFluidStacks(this.fluidInputTanks, getFluidInputStartSlotForChannel(channel), getFluidInputSlotCountForChannel(channel)),
+                copyKeyStacks(this.keyInputStacks, getKeyInputStartSlotForChannel(channel), getKeyInputSlotCountForChannel(channel)));
+    }
+
+    private ItemStack[] copyInputSlots(int channel) {
+        ItemStack[] slots = new ItemStack[getItemInputSlotCountForChannel(channel)];
+        for (int i = 0; i < slots.length; i++) {
+            slots[i] = this.storage.getStackInSlot(getItemInputStartSlotForChannel(channel) + i).copy();
         }
         return slots;
     }
@@ -1520,7 +1687,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 continue;
             }
 
-            int maxCount = this.storage.getSlotLimit(ITEM_INPUT_START_SLOT + i);
+            int maxCount = this.storage.getSlotLimit(getItemInputStartSlotForChannel(state.channel) + i);
             int free = maxCount - current.getCount();
             if (free <= 0) {
                 continue;
@@ -1537,7 +1704,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 continue;
             }
 
-            int maxCount = this.storage.getSlotLimit(ITEM_INPUT_START_SLOT + i);
+            int maxCount = this.storage.getSlotLimit(getItemInputStartSlotForChannel(state.channel) + i);
             if (maxCount <= 0) {
                 continue;
             }
@@ -1574,7 +1741,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private int fillSimulatedTank(PatternPushState state, int slot, AEFluidKey fluidKey, int amount) {
         FluidStack current = state.fluidInputs.get(slot);
-        int inserted = Math.min(amount, this.fluidInputTanks.get(slot).getCapacity() - current.getAmount());
+        int inputSlot = getFluidInputStartSlotForChannel(state.channel) + slot;
+        int inserted = Math.min(amount, this.fluidInputTanks.get(inputSlot).getCapacity() - current.getAmount());
         if (inserted <= 0) {
             return 0;
         }
@@ -1585,7 +1753,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private int setSimulatedTank(PatternPushState state, int slot, AEFluidKey fluidKey, int amount) {
-        int inserted = Math.min(amount, this.fluidInputTanks.get(slot).getCapacity());
+        int inputSlot = getFluidInputStartSlotForChannel(state.channel) + slot;
+        int inserted = Math.min(amount, this.fluidInputTanks.get(inputSlot).getCapacity());
         if (inserted > 0) {
             state.fluidInputs.set(slot, fluidKey.toStack(inserted));
         }
@@ -1601,12 +1770,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private void applyPatternPushState(PatternPushState state) {
-        for (int i = 0; i < getItemInputSlotCount(); i++) {
-            this.storage.setItemDirect(ITEM_INPUT_START_SLOT + i, state.itemInputs[i]);
+        for (int i = 0; i < state.itemInputs.length; i++) {
+            this.storage.setItemDirect(getItemInputStartSlotForChannel(state.channel) + i, state.itemInputs[i]);
         }
 
-        restoreFluidStacks(this.fluidInputTanks, state.fluidInputs);
-        restoreKeyStacks(this.keyInputStacks, state.keyInputs);
+        restoreFluidStacks(this.fluidInputTanks, getFluidInputStartSlotForChannel(state.channel), state.fluidInputs);
+        restoreKeyStacks(this.keyInputStacks, getKeyInputStartSlotForChannel(state.channel), state.keyInputs);
         syncKeyMenuFromStack();
     }
 
@@ -1895,10 +2064,26 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return copies;
     }
 
+    private static List<FluidStack> copyFluidStacks(List<FluidTank> tanks, int startSlot, int slotCount) {
+        List<FluidStack> copies = new ArrayList<>(slotCount);
+        for (int slot = 0; slot < slotCount; slot++) {
+            copies.add(tanks.get(startSlot + slot).getFluid().copy());
+        }
+        return copies;
+    }
+
     private static List<GenericStack> copyKeyStacks(List<GenericStack> stacks) {
         List<GenericStack> copies = new ArrayList<>(stacks.size());
         for (GenericStack stack : stacks) {
             copies.add(copyKeyStack(stack));
+        }
+        return copies;
+    }
+
+    private static List<GenericStack> copyKeyStacks(List<GenericStack> stacks, int startSlot, int slotCount) {
+        List<GenericStack> copies = new ArrayList<>(slotCount);
+        for (int slot = 0; slot < slotCount; slot++) {
+            copies.add(copyKeyStack(stacks.get(startSlot + slot)));
         }
         return copies;
     }
@@ -1909,9 +2094,21 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
+    private static void restoreFluidStacks(List<FluidTank> tanks, int startSlot, List<FluidStack> stacks) {
+        for (int slot = 0; slot < stacks.size(); slot++) {
+            tanks.get(startSlot + slot).setFluid(stacks.get(slot).copy());
+        }
+    }
+
     private static void restoreKeyStacks(List<GenericStack> target, List<GenericStack> source) {
         for (int slot = 0; slot < target.size(); slot++) {
             target.set(slot, copyKeyStack(source.get(slot)));
+        }
+    }
+
+    private static void restoreKeyStacks(List<GenericStack> target, int startSlot, List<GenericStack> source) {
+        for (int slot = 0; slot < source.size(); slot++) {
+            target.set(startSlot + slot, copyKeyStack(source.get(slot)));
         }
     }
 
@@ -1925,12 +2122,13 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return stacks.stream().anyMatch(stack -> stack != null && stack.what() != null && stack.amount() > 0L);
     }
 
-    private static boolean hasKeyAmount(List<GenericStack> stacks, GenericStack requirement) {
+    private static boolean hasKeyAmount(List<GenericStack> stacks, int startSlot, int slotCount, GenericStack requirement) {
         if (requirement.what() == null || requirement.amount() <= 0L) {
             return false;
         }
         long available = 0L;
-        for (GenericStack stack : stacks) {
+        for (int slot = 0; slot < slotCount; slot++) {
+            GenericStack stack = stacks.get(startSlot + slot);
             if (stack == null || !requirement.what().equals(stack.what())) {
                 continue;
             }
@@ -1942,9 +2140,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return available >= requirement.amount();
     }
 
-    private static void extractKeyAmount(List<GenericStack> stacks, AEKey key, long amount) {
+    private static void extractKeyAmount(List<GenericStack> stacks, int startSlot, int slotCount, AEKey key, long amount) {
         long remaining = amount;
-        for (int slot = 0; slot < stacks.size() && remaining > 0L; slot++) {
+        for (int offset = 0; offset < slotCount && remaining > 0L; offset++) {
+            int slot = startSlot + offset;
             GenericStack stack = stacks.get(slot);
             if (stack == null || !key.equals(stack.what())) {
                 continue;
@@ -2197,9 +2396,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 return 0L;
             }
 
-            PatternPushState state = new PatternPushState(copyInputSlots(), copyFluidStacks(fluidInputTanks),
-                    copyKeyStacks(keyInputStacks));
-            if (!canAcceptPatternInput(state, what, amount)) {
+            PatternPushState state = null;
+            for (int channel = 0; channel < processingChannels.length; channel++) {
+                PatternPushState candidate = createPatternPushState(channel);
+                if (canAcceptPatternInput(candidate, what, amount)) {
+                    state = candidate;
+                    break;
+                }
+            }
+            if (state == null) {
                 return 0L;
             }
 
@@ -2488,14 +2693,35 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private record RecipeMatchCache(RecipeMatchKey key, @Nullable ResourceLocation recipeId) {}
 
+    private static final class ProcessingChannelState {
+
+        private int progress;
+        private int maxProgress = MAX_PROGRESS;
+        private ResourceLocation activeRecipeId;
+        private RecipeMatchCache recipeMatchCache;
+
+        private boolean isIdle() {
+            return this.progress == 0 && this.maxProgress == MAX_PROGRESS && this.activeRecipeId == null;
+        }
+
+        private void reset() {
+            this.progress = 0;
+            this.maxProgress = MAX_PROGRESS;
+            this.activeRecipeId = null;
+            this.recipeMatchCache = null;
+        }
+    }
+
     private static final class PatternPushState {
 
+        private final int channel;
         private final ItemStack[] itemInputs;
         private final List<FluidStack> fluidInputs;
         private final List<GenericStack> keyInputs;
 
-        private PatternPushState(ItemStack[] itemInputs, List<FluidStack> fluidInputs,
+        private PatternPushState(int channel, ItemStack[] itemInputs, List<FluidStack> fluidInputs,
                                  List<GenericStack> keyInputs) {
+            this.channel = channel;
             this.itemInputs = itemInputs;
             this.fluidInputs = fluidInputs;
             this.keyInputs = keyInputs;
