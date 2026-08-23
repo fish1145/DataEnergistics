@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfig
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalTargetYMode;
+import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlSessionSnapshot;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
@@ -270,7 +271,12 @@ public final class OrbitalKineticAttackGameTest {
                     insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
                     primeReserve(weapons, server, weaponId, settings, cost);
                     captureKineticPreview(owner, level, absoluteTarget);
-                    UUID currentNonce = UUID.fromString(OrbitalControlActionDispatcher.currentPreviewNonce(owner));
+                })
+                .thenWaitUntil(() -> helper.assertTrue(
+                        previewReady(owner),
+                        "The stale-nonce scenario must wait for its budgeted preview calculation"))
+                .thenExecute(() -> {
+                    UUID currentNonce = currentPreviewNonce(owner);
                     UUID staleNonce = new UUID(
                             currentNonce.getMostSignificantBits() ^ 1L,
                             currentNonce.getLeastSignificantBits());
@@ -291,7 +297,12 @@ public final class OrbitalKineticAttackGameTest {
                             attacks.forWeapon(weaponId).isEmpty(),
                             "A stale preview nonce must not create an attack task");
                     captureKineticPreview(owner, level, absoluteTarget);
-                    previewNonce.set(UUID.fromString(OrbitalControlActionDispatcher.currentPreviewNonce(owner)));
+                })
+                .thenWaitUntil(() -> helper.assertTrue(
+                        previewReady(owner),
+                        "The real confirmation must wait for its budgeted preview calculation"))
+                .thenExecute(() -> {
+                    previewNonce.set(currentPreviewNonce(owner));
                     if (!OrbitalControlActionDispatcher.startFireHold(
                             owner,
                             OrbitalAttackMode.KINETIC,
@@ -443,7 +454,7 @@ public final class OrbitalKineticAttackGameTest {
     }
 
     private static void captureKineticPreview(ServerPlayer owner, ServerLevel level, BlockPos target) {
-        OrbitalControlActionDispatcher.previewFireAtTarget(
+        boolean accepted = OrbitalControlActionDispatcher.previewFireAtTarget(
                 owner,
                 OrbitalAttackMode.KINETIC,
                 level.dimension().location(),
@@ -454,9 +465,24 @@ public final class OrbitalKineticAttackGameTest {
                 0,
                 null,
                 () -> true);
-        if (OrbitalControlActionDispatcher.currentPreviewNonce(owner).isEmpty()) {
-            throw new IllegalStateException("The server did not capture the kinetic fire-control preview");
+        if (!accepted) {
+            throw new IllegalStateException("The server did not queue the kinetic fire-control preview");
         }
+    }
+
+    private static boolean previewReady(ServerPlayer owner) {
+        return OrbitalControlActionDispatcher.currentFireControlSnapshot(owner).phase() ==
+                OrbitalFireControlSessionSnapshot.Phase.READY;
+    }
+
+    private static UUID currentPreviewNonce(ServerPlayer owner) {
+        OrbitalFireControlSessionSnapshot.PreviewDetails preview = OrbitalControlActionDispatcher
+                .currentFireControlSnapshot(owner)
+                .preview();
+        if (preview == null || preview.nonce() == null) {
+            throw new IllegalStateException("The server did not finish the kinetic fire-control preview");
+        }
+        return preview.nonce();
     }
 
     private static void insertCelestialEnergy(GameTestHelper helper, long amount) {
