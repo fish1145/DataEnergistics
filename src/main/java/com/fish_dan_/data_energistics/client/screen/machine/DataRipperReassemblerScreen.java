@@ -18,6 +18,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.neoforged.neoforge.fluids.FluidStack;
 
+import appeng.api.client.AEKeyRendering;
 import appeng.api.config.Settings;
 import appeng.api.config.YesNo;
 import appeng.api.stacks.AEFluidKey;
@@ -78,20 +79,22 @@ public class DataRipperReassemblerScreen<M extends DataRipperReassemblerMenu> ex
 
     @Override
     protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        if (this.menu.getCarried().isEmpty() && isEmptyGenericSlot(this.hoveredSlot)) {
+        if (this.menu.getCarried().isEmpty() && isActiveGenericSlot(this.hoveredSlot)) {
             SlotSemantic semantic = this.menu.getSlotSemantic(this.hoveredSlot);
-            List<Component> tooltip = new ArrayList<>();
-            tooltip.add(getEmptySlotTooltip(semantic));
-            tooltip.add(getAmountTooltip(semantic, 0));
-            this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
-            return;
-        }
+            GenericStack stack = getDisplayedGenericStack(this.hoveredSlot);
+            if (stack == null) {
+                List<Component> tooltip = new ArrayList<>();
+                tooltip.add(getEmptySlotTooltip(semantic));
+                tooltip.add(getAmountTooltip(semantic, 0));
+                this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
+                return;
+            }
 
-        if (this.menu.getCarried().isEmpty() && isGenericStorageSlot(this.hoveredSlot)) {
-            List<Component> tooltip = new ArrayList<>(this.getTooltipFromContainerItem(this.hoveredSlot.getItem()));
-            GenericStack stack = GenericStack.fromItemStack(this.hoveredSlot.getItem());
-            long amount = stack != null ? stack.amount() : 0L;
-            tooltip.add(getAmountTooltip(this.menu.getSlotSemantic(this.hoveredSlot), amount));
+            List<Component> tooltip = new ArrayList<>(AEKeyRendering.getTooltip(stack.what()));
+            if (tooltip.isEmpty()) {
+                tooltip.add(stack.what().getDisplayName());
+            }
+            tooltip.add(getAmountTooltip(semantic, stack.amount()));
             this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
             return;
         }
@@ -127,16 +130,8 @@ public class DataRipperReassemblerScreen<M extends DataRipperReassemblerMenu> ex
                 new Rect2i(this.leftPos + this.hoveredSlot.x, this.topPos + this.hoveredSlot.y, 16, 16));
     }
 
-    private boolean isEmptyGenericSlot(@Nullable Slot slot) {
-        if (slot == null || !slot.isActive() || !slot.getItem().isEmpty()) {
-            return false;
-        }
-
-        return isGenericSemantic(this.menu.getSlotSemantic(slot));
-    }
-
-    private boolean isGenericStorageSlot(@Nullable Slot slot) {
-        if (slot == null || !slot.isActive() || slot.getItem().isEmpty()) {
+    private boolean isActiveGenericSlot(@Nullable Slot slot) {
+        if (slot == null || !slot.isActive()) {
             return false;
         }
 
