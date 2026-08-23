@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.item.orbital;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiFactory;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiSource;
+import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -41,7 +42,7 @@ public final class OrbitalControlTerminalItem extends Item implements HeldItemUI
         }
 
         MinecraftServer server = serverPlayer.getServer();
-        if (server == null || OrbitalControlTerminalSnapshot.capture(server, serverPlayer.getUUID()).weapons().isEmpty()) {
+        if (server == null || !OrbitalWeaponSavedData.get(server).hasAccessibleWeapon(serverPlayer.getUUID())) {
             return InteractionResultHolder.fail(stack);
         }
         boolean opened = HeldItemUIMenuType.openUI(serverPlayer, usedHand);
@@ -66,7 +67,7 @@ public final class OrbitalControlTerminalItem extends Item implements HeldItemUI
             return true;
         }
         MinecraftServer server = serverPlayer.getServer();
-        return server != null && !snapshot(serverPlayer).weapons().isEmpty();
+        return server != null && OrbitalWeaponSavedData.get(server).hasAccessibleWeapon(serverPlayer.getUUID());
     }
 
     private static OrbitalControlTerminalSnapshot snapshot(HeldItemUIMenuType.HeldItemUIHolder holder) {

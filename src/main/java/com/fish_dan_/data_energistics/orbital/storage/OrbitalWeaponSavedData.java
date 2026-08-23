@@ -478,6 +478,15 @@ public final class OrbitalWeaponSavedData extends SavedData {
         return accessibleSelection(playerId).weapons();
     }
 
+    /** Checks the ownership and delegation indexes without allocating a terminal network snapshot. */
+    public boolean hasAccessibleWeapon(UUID playerId) {
+        if (this.ownerIndex.containsKey(playerId)) {
+            return true;
+        }
+        ObjectSet<UUID> delegatedWeaponIds = this.accessIndex.get(playerId);
+        return delegatedWeaponIds != null && !delegatedWeaponIds.isEmpty();
+    }
+
     /**
      * Resolves the stable accessible list and its still-valid remembered selection in one index traversal.
      */

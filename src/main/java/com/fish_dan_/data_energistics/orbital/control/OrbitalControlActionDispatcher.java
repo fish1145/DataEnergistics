@@ -92,7 +92,6 @@ public final class OrbitalControlActionDispatcher {
         if (server == null || !server.isSameThread() || !sourceValid.getAsBoolean()) {
             return false;
         }
-        FIRE_CONTROL.discard(server, player.getUUID());
         DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
         boolean attackEnabled = switch (mode) {
             case KINETIC -> configuration.orbitalWeapon.kineticAttackEnabled;

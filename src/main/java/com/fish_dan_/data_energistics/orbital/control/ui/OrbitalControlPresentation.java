@@ -77,22 +77,6 @@ public final class OrbitalControlPresentation {
                 formatAmount(weapon.aeEnergy()));
     }
 
-    public static Component modeCard(WeaponEntry weapon, OrbitalAttackMode mode) {
-        AttackEntry attack = weapon.attack(mode).orElse(null);
-        if (attack == null) {
-            return Component.translatable(PREFIX + "overview.mode.idle", modeName(mode));
-        }
-        return Component.translatable(
-                PREFIX + "overview.mode.active",
-                modeName(mode),
-                phaseName(attack.phase()),
-                Component.literal(attack.dimensionId().toString()),
-                attack.target().getX(),
-                attack.target().getY(),
-                attack.target().getZ(),
-                progress(attack));
-    }
-
     /** Compact mode state used by the dashboard rail without repeating target coordinates. */
     public static Component modeRail(WeaponEntry weapon, OrbitalAttackMode mode) {
         AttackEntry attack = weapon.attack(mode).orElse(null);
@@ -180,7 +164,7 @@ public final class OrbitalControlPresentation {
         return Component.translatable(PREFIX + "mode." + mode.name().toLowerCase(Locale.ROOT));
     }
 
-    public static Component phaseName(OrbitalAttackPhase phase) {
+    private static Component phaseName(OrbitalAttackPhase phase) {
         return Component.translatable(PREFIX + "phase." + phase.name().toLowerCase(Locale.ROOT));
     }
 

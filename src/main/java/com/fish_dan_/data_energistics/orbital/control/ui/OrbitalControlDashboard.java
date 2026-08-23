@@ -471,6 +471,7 @@ public final class OrbitalControlDashboard {
         this.radius.setActive(operable && directed);
         this.depth.setActive(operable && directed);
         OrbitalFireControlSessionSnapshot.Phase phase = snapshot.fireControl().phase();
+        this.refreshPreview.setActive(operable && phase != OrbitalFireControlSessionSnapshot.Phase.CALCULATING);
         this.confirm.setActive(operable &&
                 (phase == OrbitalFireControlSessionSnapshot.Phase.READY ||
                         phase == OrbitalFireControlSessionSnapshot.Phase.HOLDING));

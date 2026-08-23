@@ -56,15 +56,14 @@ public final class OrbitalPreviewCalculationCoordinator {
                          BooleanSupplier stateValid) {
         requireServerThread(server);
         trackServer(server);
-        discard(server, playerId);
         long now = server.overworld().getGameTime();
         if (this.lastRequestedAt.containsKey(playerId)) {
             long previous = this.lastRequestedAt.getLong(playerId);
             if (now >= previous && now - previous < MINIMUM_REQUEST_INTERVAL_TICKS) {
-                this.rejected.add(playerId);
                 return false;
             }
         }
+        discard(server, playerId);
         this.lastRequestedAt.put(playerId, now);
         ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, dimensionId);
         this.calculations.put(playerId, new PendingPreview(
