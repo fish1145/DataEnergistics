@@ -27,6 +27,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -140,20 +141,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String ITEM_INPUT_PATTERN_COLORS_TAG = "item_input_pattern_colors";
     private static final String FLUID_INPUT_PATTERN_COLORS_TAG = "fluid_input_pattern_colors";
     private static final String KEY_INPUT_PATTERN_COLORS_TAG = "key_input_pattern_colors";
-    private static final int[] PATTERN_INPUT_COLORS = {
-            0x5B8CFF,
-            0x3DBF9A,
-            0xF2A93B,
-            0xD967B6,
-            0x8E76E8,
-            0x57B9D2,
-            0xD7775D,
-            0x9AAF4C,
-            0xCF6B7D,
-            0x63A8D6,
-            0xB994E6,
-            0xC5A54A
-    };
 
     private final IUpgradeInventory upgrades;
     private final AppEngInternalInventory storage = new ReassemblerItemInventory();
@@ -2083,7 +2070,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private static int getPatternColor(IPatternDetails patternDetails) {
-        return PATTERN_INPUT_COLORS[Math.floorMod(patternDetails.getDefinition().hashCode(), PATTERN_INPUT_COLORS.length)];
+        double hue = Integer.toUnsignedLong(patternDetails.getDefinition().hashCode()) / 4_294_967_296.0D;
+        return Mth.hsvToRgb((float) hue, 0.68F, 0.92F);
     }
 
     private void applyPatternPushState(PatternPushState state, int patternColor) {
