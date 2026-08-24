@@ -89,30 +89,12 @@ public class CommonProxy {
             DEUpgrades.init();
             OrbitalControlPlayerMenu.register();
             if (ModFlags.isCuriosLoaded()) {
-                try {
-                    CuriosDataDistributionConnectorAccess.register();
-                } catch (RuntimeException | LinkageError exception) {
-                    Data_Energistics.LOGGER.error(
-                            "Could not initialize distribution connector Curios access",
-                            exception);
-                }
-                try {
-                    CuriosOrbitalControlTerminalAccess.register();
-                } catch (RuntimeException | LinkageError exception) {
-                    Data_Energistics.LOGGER.error(
-                            "Could not initialize orbital terminal Curios access",
-                            exception);
-                }
+                CuriosDataDistributionConnectorAccess.register();
+                CuriosOrbitalControlTerminalAccess.register();
             }
             if (ModFlags.isFtbChunksLoaded()) {
-                try {
-                    OrbitalClaimHints.install(FtbChunksOrbitalClaimHints::isClaimed);
-                    Data_Energistics.LOGGER.info("Registered FTB Chunks orbital tactical-map claim hints");
-                } catch (RuntimeException | LinkageError exception) {
-                    Data_Energistics.LOGGER.error(
-                            "Could not register FTB Chunks orbital tactical-map claim hints",
-                            exception);
-                }
+                OrbitalClaimHints.install(FtbChunksOrbitalClaimHints::isClaimed);
+                Data_Energistics.LOGGER.info("Registered FTB Chunks orbital tactical-map claim hints");
             }
             if (Data_Energistics.isModLoaded("ftbultimine")) {
                 Data_Energistics.LOGGER.info("Registering Data Crystal Pickaxe FTB Ultimine duplicate ore integration");
