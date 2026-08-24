@@ -25,6 +25,8 @@ public record OrbitalFireControlDraft(
                                       int directedRadius,
                                       @Nullable OrbitalDirectedEnergyDepth directedDepth) {
 
+    public static final int MAX_TARGET_COORDINATE = 30_000_000;
+
     private static final Codec<OrbitalAttackMode> MODE_CODEC = Codec.STRING.xmap(
             OrbitalAttackMode::valueOf,
             OrbitalAttackMode::name);
@@ -60,7 +62,7 @@ public record OrbitalFireControlDraft(
             OrbitalFireControlDraft::decode);
 
     public OrbitalFireControlDraft {
-        if (Math.abs((long) targetX) > 30_000_000L || Math.abs((long) targetZ) > 30_000_000L) {
+        if (Math.abs((long) targetX) > MAX_TARGET_COORDINATE || Math.abs((long) targetZ) > MAX_TARGET_COORDINATE) {
             throw new IllegalArgumentException("Orbital target coordinates exceed the supported world boundary");
         }
         if (mode == OrbitalAttackMode.DIRECTED_ENERGY) {

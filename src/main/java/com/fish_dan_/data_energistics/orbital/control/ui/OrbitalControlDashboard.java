@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnap
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot.WeaponEntry;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalTargetYMode;
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalControlMenuSnapshot;
+import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlDraft;
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlSessionSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiTheme.Tone;
 
@@ -238,8 +239,22 @@ public final class OrbitalControlDashboard {
         this.dimension.setResourceLocationOnly();
         target.addChildren(fieldLabel("orbital_fire_control_dimension_label", PREFIX + "fire_control.dimension", 6, 43, 32), this.dimension);
 
-        this.targetX = integerField("orbital_fire_control_x", player.blockPosition().getX(), -30_000_000, 30_000_000, 20, 65, 82);
-        this.targetZ = integerField("orbital_fire_control_z", player.blockPosition().getZ(), -30_000_000, 30_000_000, 132, 65, 92);
+        this.targetX = integerField(
+                "orbital_fire_control_x",
+                player.blockPosition().getX(),
+                -OrbitalFireControlDraft.MAX_TARGET_COORDINATE,
+                OrbitalFireControlDraft.MAX_TARGET_COORDINATE,
+                20,
+                65,
+                82);
+        this.targetZ = integerField(
+                "orbital_fire_control_z",
+                player.blockPosition().getZ(),
+                -OrbitalFireControlDraft.MAX_TARGET_COORDINATE,
+                OrbitalFireControlDraft.MAX_TARGET_COORDINATE,
+                132,
+                65,
+                92);
         target.addChildren(
                 fieldLabel("orbital_fire_control_x_label", PREFIX + "fire_control.x", 6, 65, 12),
                 this.targetX,

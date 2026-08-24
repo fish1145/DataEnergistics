@@ -56,6 +56,9 @@ public final class OrbitalMapSelectionClientSession {
                                             int targetX,
                                             int targetZ) {
         expire();
+        if (targetCoordinatesUnsupported(targetX, targetZ)) {
+            return false;
+        }
         ActiveSelection selection = active;
         if (selection == null ||
                 !selection.providerId().equals(providerId) ||
@@ -75,6 +78,9 @@ public final class OrbitalMapSelectionClientSession {
                                       int targetX,
                                       int targetZ) {
         expire();
+        if (targetCoordinatesUnsupported(targetX, targetZ)) {
+            return false;
+        }
         ActiveSelection selection = active;
         if (selection != null) {
             if (!selection.providerId().equals(providerId)) {
@@ -113,12 +119,6 @@ public final class OrbitalMapSelectionClientSession {
         pending = null;
         return selection.weaponId() == null || Objects.equals(selection.weaponId(), selectedWeaponId) ?
                 selection.draft() : null;
-    }
-
-    /** Returns whether a validated menu return is waiting, allowing LDLib2 to reopen directly on fire control. */
-    public static boolean hasPending() {
-        expire();
-        return pending != null;
     }
 
     /** Expires old state on the client tick even when no map event is firing. */
@@ -160,6 +160,11 @@ public final class OrbitalMapSelectionClientSession {
             case Console(ResourceLocation dimensionId, var blockPos) -> PacketDistributor.sendToServer(
                     new OrbitalControlConsoleOpenPayload(dimensionId, blockPos));
         }
+    }
+
+    private static boolean targetCoordinatesUnsupported(int targetX, int targetZ) {
+        return Math.abs((long) targetX) > OrbitalFireControlDraft.MAX_TARGET_COORDINATE ||
+                Math.abs((long) targetZ) > OrbitalFireControlDraft.MAX_TARGET_COORDINATE;
     }
 
     private static void expire() {

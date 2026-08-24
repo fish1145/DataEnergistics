@@ -463,7 +463,8 @@ public final class OrbitalControlClientBindings {
             }
             long targetX = (long) chunkX * 16L + 8L;
             long targetZ = (long) chunkZ * 16L + 8L;
-            if (Math.abs(targetX) > 30_000_000L || Math.abs(targetZ) > 30_000_000L) {
+            if (Math.abs(targetX) > OrbitalFireControlDraft.MAX_TARGET_COORDINATE ||
+                    Math.abs(targetZ) > OrbitalFireControlDraft.MAX_TARGET_COORDINATE) {
                 return;
             }
             this.dashboard.dimension.setText(OrbitalTacticalMapClientState.dimensionId().toString(), false);
