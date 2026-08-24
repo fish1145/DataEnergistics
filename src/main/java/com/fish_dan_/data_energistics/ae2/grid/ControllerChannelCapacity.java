@@ -78,7 +78,9 @@ public final class ControllerChannelCapacity implements TowerChannelCapacity {
     }
 
     /**
-     * Computes one snapshot without touching the revision cache.
+     * Computes one snapshot without touching the revision cache. Controller removal, Grid topology changes, and repath
+     * can temporarily leave the pathing state online after the controller node snapshot is already empty; that snapshot
+     * uses the controllerless budget until AE finishes updating its state.
      *
      * @param grid            grid whose controllers are requested
      * @param controllerState current controller state
@@ -107,13 +109,14 @@ public final class ControllerChannelCapacity implements TowerChannelCapacity {
             totalSupply = Math.addExact(totalSupply, requireNonNegativeSupply(owner, controllerSupply));
         }
         if (controllerOwners.isEmpty()) {
-            throw new IllegalArgumentException("An online controller grid must contain at least one controller owner");
+            return calculate(controllerState, channelMode, Set.of());
         }
         return totalSupply;
     }
 
     /**
-     * Applies controller-state and controller-count rules to an explicit snapshot.
+     * Applies controller-state and controller-count rules to an explicit snapshot. An empty snapshot takes precedence
+     * over a temporarily stale online state and uses the controllerless budget.
      *
      * @param controllerState     controller validation result
      * @param channelMode         active AE channel multiplier
@@ -131,12 +134,12 @@ public final class ControllerChannelCapacity implements TowerChannelCapacity {
             return Integer.MAX_VALUE;
         }
         if (controllerState == ControllerState.NO_CONTROLLER) {
-            return Math.multiplyExact(CHANNELS_PER_CONTROLLER_FACE, channelMode.getCableCapacityFactor());
+            return controllerlessCapacity(channelMode);
         }
 
         Set<BlockPos> positions = immutablePositionSet(controllerPositions);
         if (positions.isEmpty()) {
-            throw new IllegalArgumentException("An online controller grid must contain at least one controller position");
+            return controllerlessCapacity(channelMode);
         }
 
         return Math.multiplyExact(positions.size(), nativeControllerSupply(channelMode));
@@ -159,6 +162,10 @@ public final class ControllerChannelCapacity implements TowerChannelCapacity {
     private static int nativeControllerSupply(ChannelMode channelMode) {
         int faceSupply = Math.multiplyExact(CHANNELS_PER_CONTROLLER_FACE, channelMode.getCableCapacityFactor());
         return Math.multiplyExact(FACES_PER_CONTROLLER, faceSupply);
+    }
+
+    private static int controllerlessCapacity(ChannelMode channelMode) {
+        return Math.multiplyExact(CHANNELS_PER_CONTROLLER_FACE, channelMode.getCableCapacityFactor());
     }
 
     private static int requireNonNegativeSupply(Object owner, int supply) {

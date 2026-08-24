@@ -128,10 +128,11 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
                 this.coreLoadState = CoreLoadState.REJECTED;
             }
         }
-        this.observedReloadEpoch = TrinityPatternCoreReloadEpoch.current();
+        long reloadEpoch = TrinityPatternCoreReloadEpoch.current();
         if (isCoreStateReady() && levelChanged && !hydratedStagedState) {
             refreshPatternCachesWithDiagnostics();
         }
+        this.observedReloadEpoch = reloadEpoch;
     }
 
     /**
@@ -165,8 +166,8 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         }
         long reloadEpoch = TrinityPatternCoreReloadEpoch.current();
         if (this.observedReloadEpoch != reloadEpoch) {
-            this.observedReloadEpoch = reloadEpoch;
             refreshPatternCachesWithDiagnostics();
+            this.observedReloadEpoch = reloadEpoch;
         }
     }
 
@@ -712,7 +713,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
             }
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
-                    "Rejected Trinity pattern core state at {} because its persisted definitions are invalid",
+                    "Rejected Trinity pattern core state at {} because its persisted state is structurally invalid",
                     this.worldPosition,
                     exception);
             return false;
@@ -723,7 +724,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         if (migrated && this.level != null && !this.level.isClientSide()) {
             setChanged();
             Data_Energistics.LOGGER.info(
-                    "Migrated Trinity pattern core state at {} to the current versioned schema",
+                    "Rewrote Trinity pattern core state at {} to its canonical persisted form",
                     this.worldPosition);
         }
         return true;
@@ -750,7 +751,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
         if (!pattern.isEmpty() && this.core.decodedPattern(slot) == null) {
             Data_Energistics.LOGGER.warn(
                     "Retaining unpublished pattern {} in Trinity pattern core {} slot {} at {} because it no longer " +
-                            "decodes to an IMolecularAssemblerSupportedPattern",
+                            "resolves to its persisted recipe identity",
                     pattern,
                     coreId(),
                     slot,

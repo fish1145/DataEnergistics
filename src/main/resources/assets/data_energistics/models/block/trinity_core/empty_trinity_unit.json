@@ -2,7 +2,7 @@
 	"parent": "minecraft:block/cube_all",
 	"render_type": "cutout",
 	"textures": {
-		"all": "data_energistics:block/trinity_core/empty_trinity_unit_ctm",
+		"all": "data_energistics:block/trinity_core/empty_trinity_unit",
 		"particle": "data_energistics:block/trinity_core/empty_trinity_unit"
 	}
 }
