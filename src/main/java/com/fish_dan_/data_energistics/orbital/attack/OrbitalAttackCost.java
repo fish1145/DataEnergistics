@@ -34,8 +34,8 @@ public record OrbitalAttackCost(
                     buffer.readVarInt()));
 
     public OrbitalAttackCost {
-        if (celestialEnergy <= 0L || aeEnergy <= 0L || cooldownTicks <= 0) {
-            throw new IllegalArgumentException("Attack costs and cooldown must be positive");
+        if (celestialEnergy <= 0L || aeEnergy <= 0L || cooldownTicks < 0) {
+            throw new IllegalArgumentException("Attack costs must be positive and cooldown must not be negative");
         }
     }
 

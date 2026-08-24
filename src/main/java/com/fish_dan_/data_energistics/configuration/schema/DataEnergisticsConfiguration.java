@@ -790,9 +790,9 @@ public final class DataEnergisticsConfiguration {
         public int attackWarningTicks = 300;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Kinetic strike cooldown after its effect completes.", "动能攻击效果完成后的冷却时长。" })
-        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
-        public int kineticCooldownTicks = 6_000;
+        @Configurable.Comment({ "Kinetic strike cooldown after its effect completes; zero disables cooldown.", "动能攻击效果完成后的冷却时长；设为零时无冷却。" })
+        @Configurable.Range(min = 0, max = Integer.MAX_VALUE)
+        public int kineticCooldownTicks = 0;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Minimum selectable directed-energy scan radius.", "定向能扫描可选的最小半径。" })
@@ -847,7 +847,7 @@ public final class DataEnergisticsConfiguration {
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Directed-energy cooldown after its scan completes.", "定向能扫描完成后的冷却时长。" })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
-        public int directedEnergyCooldownTicks = 12_000;
+        public int directedEnergyCooldownTicks = 100;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Damage applied to a living entity each time a directed-energy beam column covers it.", "定向能光束每次覆盖实体时造成的伤害。" })

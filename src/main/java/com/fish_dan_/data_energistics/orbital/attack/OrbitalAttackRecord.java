@@ -45,14 +45,14 @@ public record OrbitalAttackRecord(
         if (geometry.mode() != mode) {
             throw new IllegalArgumentException("Orbital attack geometry does not match its mode");
         }
-        if (configurationRevision < 0L || warningTicksRemaining < 0 || workCursor < 0L || cooldownTicksRemaining < 0 || cooldownDurationTicks <= 0 || celestialEscrow < 0L || aeEscrow < 0L) {
+        if (configurationRevision < 0L || warningTicksRemaining < 0 || workCursor < 0L || cooldownTicksRemaining < 0 || cooldownDurationTicks < 0 || celestialEscrow < 0L || aeEscrow < 0L) {
             throw new IllegalArgumentException("Orbital attack state must not contain negative values");
         }
         if (phase == OrbitalAttackPhase.RESERVED_WARNING && warningTicksRemaining == 0) {
             throw new IllegalArgumentException("A warning attack must have remaining warning ticks");
         }
-        if (phase == OrbitalAttackPhase.COOLDOWN && cooldownTicksRemaining == 0) {
-            throw new IllegalArgumentException("A cooldown attack must have remaining cooldown ticks");
+        if (phase == OrbitalAttackPhase.COOLDOWN && (cooldownTicksRemaining == 0 || cooldownDurationTicks == 0)) {
+            throw new IllegalArgumentException("A cooldown attack must have a positive cooldown duration and remainder");
         }
     }
 

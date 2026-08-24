@@ -1045,9 +1045,7 @@ public final class OrbitalAttackSavedData extends SavedData {
 
     /** Completes the scheduler-owned payload after its resumable terrain work has finished. */
     private void completeDigitalPayload(MinecraftServer server, OrbitalAttackRecord current) {
-        this.terrainWorkScheduler.release(server, current.attackId());
-        replaceAttack(server, current, current.cooldown(current.cooldownDurationTicks()));
-        setDirty();
+        finishAttack(server, current, current);
     }
 
     private boolean reconcileLoadedDigitalProjectile(
@@ -1156,8 +1154,8 @@ public final class OrbitalAttackSavedData extends SavedData {
             OrbitalAttackWorkState workState = slice.waitingForChunk() ? persistedWorkState(readiness) : OrbitalAttackWorkState.WORKING;
             OrbitalAttackRecord updated = delivery.withWork(slice.nextCursor(), workState);
             if (slice.complete()) {
-                this.terrainWorkScheduler.release(server, current.attackId());
-                updated = updated.cooldown(current.cooldownDurationTicks());
+                finishAttack(server, current, updated);
+                return;
             }
             updateAttack(server, current, updated);
         } finally {
@@ -1195,8 +1193,8 @@ public final class OrbitalAttackSavedData extends SavedData {
             OrbitalAttackWorkState workState = slice.waitingForChunk() ? persistedWorkState(readiness) : OrbitalAttackWorkState.WORKING;
             OrbitalAttackRecord updated = current.withWork(slice.nextCursor(), workState);
             if (slice.complete()) {
-                this.terrainWorkScheduler.release(server, current.attackId());
-                updated = updated.cooldown(current.cooldownDurationTicks());
+                finishAttack(server, current, updated);
+                return;
             }
             updateAttack(server, current, updated);
         } finally {
@@ -1224,9 +1222,21 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     private void tickAborted(MinecraftServer server, OrbitalAttackRecord current) {
+        finishAttack(server, current, current);
+    }
+
+    private void finishAttack(
+                              MinecraftServer server,
+                              OrbitalAttackRecord current,
+                              OrbitalAttackRecord completed) {
         this.terrainWorkScheduler.release(server, current.attackId());
-        replaceAttack(server, current, current.cooldown(current.cooldownDurationTicks()));
-        setDirty();
+        if (completed.cooldownDurationTicks() == 0) {
+            this.attacks.remove(current.attackId());
+            this.phaseStartedAt.removeLong(current.attackId());
+            setDirty();
+            return;
+        }
+        updateAttack(server, current, completed.cooldown(completed.cooldownDurationTicks()));
     }
 
     private static void discardPayload(MinecraftServer server, OrbitalAttackRecord attack) {
