@@ -17,7 +17,6 @@ neoForge {
 
     addModdingDependenciesTo(sourceSets.test)
     addModdingDependenciesTo(sourceSets.extra)
-    addModdingDependenciesTo(sourceSets.clientExtra)
 
     mods {
         // define mod <-> source bindings
@@ -92,7 +91,7 @@ neoForge {
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.
         // By default, the server will crash when no gametests are provided.
-        // Ordinary server runs deliberately keep test-only classes disabled.
+        // The gametest system is also enabled by default for other run configs under the /test command.
         gameTestServer {
             type = "gameTestServer"
             sourceSet = sourceSets.test
@@ -105,7 +104,8 @@ neoForge {
 
         gameTestClient {
             client()
-            sourceSet = sourceSets.clientGameTest
+            sourceSet = sourceSets.test
+            sourceSet = sourceSets.clientExtra
             ideName = "Game Tests (Client)"
 
             gameDirectory.set(file('run/gametest/client'))
@@ -124,7 +124,6 @@ neoForge {
             programArguments.addAll('--all')
             programArguments.addAll('--output', file('src/generated/resources/').getAbsolutePath())
             programArguments.addAll('--existing', file('src/main/resources/').getAbsolutePath())
-            systemProperty('neoforge.enabledGameTestNamespaces', project.mod_id)
         }
 
         configureEach {
