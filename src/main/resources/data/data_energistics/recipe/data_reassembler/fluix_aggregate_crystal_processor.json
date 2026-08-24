@@ -3,7 +3,7 @@
 	"inputs": {
 		"items": [
 			{
-				"item": "ae2:fluix_crystal",
+				"tag": "c:gems/fluix",
 				"count": 8
 			},
 			{
