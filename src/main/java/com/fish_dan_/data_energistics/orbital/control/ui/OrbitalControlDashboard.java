@@ -47,6 +47,8 @@ public final class OrbitalControlDashboard {
     private static final int MAP_LEFT = 368;
     private static final int MAP_WIDTH = 146;
     private static final int FIELD_HEIGHT = 18;
+    private static final int SELECTOR_OPTION_HEIGHT = 14;
+    private static final int SELECTOR_MAX_VISIBLE_OPTIONS = 8;
     private static final int MAP_CELL_SIZE = 18;
     private static final String PREFIX = "screen.data_energistics.orbital_control_terminal.";
 
@@ -428,6 +430,7 @@ public final class OrbitalControlDashboard {
                 this.mapRefresh));
         this.operableElements.addAll(this.mapCells);
         this.root.addChildren(header, status, target, map);
+        updateWeaponNavigation(false);
         updateDirectedFields(false);
     }
 
@@ -441,8 +444,7 @@ public final class OrbitalControlDashboard {
         WeaponEntry weapon = terminal.selectedWeapon().orElse(null);
         this.feedback.setValue(OrbitalControlPresentation.feedback(snapshot.feedback()));
         this.selectorPosition.setValue(OrbitalControlPresentation.selectorPosition(terminal));
-        this.previousWeapon.setActive(terminal.weapons().size() > 1);
-        this.nextWeapon.setActive(terminal.weapons().size() > 1);
+        updateWeaponNavigation(terminal.weapons().size() > 1);
         this.weaponTitle.setValue(OrbitalControlPresentation.weaponTitle(terminal));
         boolean operable = weapon != null && weapon.canOperate();
         if (weapon == null) {
@@ -458,17 +460,20 @@ public final class OrbitalControlDashboard {
         }
         for (OrbitalAttackMode attackMode : OrbitalAttackMode.values()) {
             ModeRow row = this.modeRows[attackMode.ordinal()];
+            boolean available = false;
             if (weapon == null) {
                 row.status.setValue(Component.translatable(PREFIX + "overview.mode.idle", OrbitalControlPresentation.modeName(attackMode)));
-                row.action.setText(Component.translatable(PREFIX + "overview.action.none"));
-                row.action.setActive(false);
             } else {
                 row.status.setValue(OrbitalControlPresentation.modeRail(weapon, attackMode));
-                row.action.setText(OrbitalControlPresentation.modeAction(weapon, attackMode));
-                boolean available = OrbitalControlPresentation.modeActionAvailable(weapon, attackMode);
-                row.action.setActive(available);
-                OrbitalControlUiTheme.stylePanel(row.action, available ? Tone.DANGER : Tone.PANEL_ALT);
+                available = OrbitalControlPresentation.modeActionAvailable(weapon, attackMode);
+                if (available) {
+                    row.action.setText(OrbitalControlPresentation.modeAction(weapon, attackMode));
+                    OrbitalControlUiTheme.styleButton(row.action, Tone.DANGER);
+                }
             }
+            row.action.setActive(available);
+            row.action.setDisplay(available);
+            OrbitalControlUiTheme.place(row.status, 4, 4, available ? 58 : 104, 26);
         }
         for (UIElement element : this.operableElements) {
             element.setActive(operable);
@@ -498,6 +503,27 @@ public final class OrbitalControlDashboard {
         OrbitalControlUiTheme.place(this.confirm, 116, actionTop, 108, 22);
         OrbitalControlUiTheme.place(this.previewTitle, 6, titleTop, TARGET_WIDTH - 12, 14);
         OrbitalControlUiTheme.place(this.preview, 6, previewTop, TARGET_WIDTH - 12, directed ? 108 : 132);
+    }
+
+    private void updateWeaponNavigation(boolean multipleWeapons) {
+        this.previousWeapon.setDisplay(multipleWeapons);
+        this.previousWeapon.setActive(multipleWeapons);
+        this.nextWeapon.setDisplay(multipleWeapons);
+        this.nextWeapon.setActive(multipleWeapons);
+        int detailsOffset = multipleWeapons ? 0 : -25;
+        OrbitalControlUiTheme.place(this.weaponTitle, 6, 52 + detailsOffset, STATUS_WIDTH - 12, 16);
+        OrbitalControlUiTheme.place(this.identity, 6, 70 + detailsOffset, STATUS_WIDTH - 12, 14);
+        OrbitalControlUiTheme.place(this.lifecycle, 6, 86 + detailsOffset, STATUS_WIDTH - 12, 30);
+        OrbitalControlUiTheme.place(this.celestialEnergy, 6, 120 + detailsOffset, STATUS_WIDTH - 12, 26);
+        OrbitalControlUiTheme.place(this.aeEnergy, 6, 150 + detailsOffset, STATUS_WIDTH - 12, 26);
+        for (OrbitalAttackMode attackMode : OrbitalAttackMode.values()) {
+            OrbitalControlUiTheme.place(
+                    this.modeRows[attackMode.ordinal()].root,
+                    6,
+                    182 + detailsOffset + attackMode.ordinal() * 36,
+                    STATUS_WIDTH - 12,
+                    34);
+        }
     }
 
     private Label resourceLabel(String id, int top, Tone tone) {
@@ -541,6 +567,7 @@ public final class OrbitalControlDashboard {
                 44,
                 20,
                 Tone.PANEL_ALT);
+        action.setDisplay(false);
         row.addChildren(status, action);
         return new ModeRow(mode, row, status, action);
     }
@@ -553,6 +580,7 @@ public final class OrbitalControlDashboard {
         TextField field = new TextField();
         field.setId(id);
         field.setText(initial, false);
+        OrbitalControlUiTheme.styleTextField(field);
         OrbitalControlUiTheme.place(field, left, top, width, FIELD_HEIGHT);
         return field;
     }
@@ -585,8 +613,9 @@ public final class OrbitalControlDashboard {
         selector.setCandidateUIProvider(value -> selectorOption(selectorLabel(value, label)));
         selector.selectorStyle(style -> style
                 .closeAfterSelect(true)
-                .maxItemCount(Math.clamp(candidates.size(), 1, 8))
-                .scrollerViewHeight(FIELD_HEIGHT * 8));
+                .maxItemCount(Math.clamp(candidates.size(), 1, SELECTOR_MAX_VISIBLE_OPTIONS))
+                .scrollerViewHeight(SELECTOR_OPTION_HEIGHT * SELECTOR_MAX_VISIBLE_OPTIONS + 4));
+        OrbitalControlUiTheme.styleSelector(selector);
         OrbitalControlUiTheme.place(selector, left, top, width, FIELD_HEIGHT);
         return selector;
     }
@@ -599,7 +628,7 @@ public final class OrbitalControlDashboard {
         Label option = new Label();
         option.setValue(value);
         option.setAllowHitTest(false);
-        option.layout(layout -> layout.widthPercent(100).height(FIELD_HEIGHT));
+        option.layout(layout -> layout.widthPercent(100).height(SELECTOR_OPTION_HEIGHT));
         option.textStyle(style -> style
                 .adaptiveWidth(false)
                 .adaptiveHeight(false)
@@ -608,7 +637,7 @@ public final class OrbitalControlDashboard {
                 .textAlignVertical(Vertical.CENTER)
                 .textWrap(TextWrap.HOVER_ROLL)
                 .textColor(OrbitalControlUiTheme.TEXT)
-                .textShadow(true));
+                .textShadow(false));
         return option;
     }
 
