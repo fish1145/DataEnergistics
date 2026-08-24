@@ -50,6 +50,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 import appeng.api.stacks.GenericStack;
 import appeng.api.upgrades.Upgrades;
+import appeng.block.networking.EnergyCellBlockItem;
 import appeng.items.parts.PartItem;
 import appeng.items.storage.StorageTier;
 
@@ -108,6 +109,9 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> DATA_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_CHARGER);
     public static final DeferredItem<BlockItem> EXTENDED_DATA_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.EXTENDED_DATA_CHARGER);
     public static final DeferredItem<BlockItem> DATA_INTEGRATED_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_INTEGRATED_CHARGER);
+    public static final DeferredItem<EnergyCellBlockItem> DATA_ENERGY_CELL = ITEMS.register(
+            "data_energy_cell",
+            () -> new EnergyCellBlockItem(DEBlocks.DATA_ENERGY_CELL.get(), new Item.Properties()));
     public static final DeferredItem<DataSanctumInterfaceUpgradeItem> DATA_SANCTUM_INTERFACE_UPGRADE = ITEMS.register(
             "data_sanctum_interface_upgrade",
             () -> new DataSanctumInterfaceUpgradeItem(new Item.Properties()));

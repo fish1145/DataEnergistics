@@ -60,6 +60,10 @@ final class CommonCapabilityRegistrar {
                 DEBlockEntities.DATA_INTEGRATED_CHARGER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                DEBlockEntities.DATA_ENERGY_CELL_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
                 Capabilities.ItemHandler.BLOCK,
                 DEBlockEntities.DATA_INTEGRATED_CHARGER_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity.getExternalInventory().toItemHandler());
@@ -165,6 +169,7 @@ final class CommonCapabilityRegistrar {
         registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_16M.get());
         registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_64M.get());
         registerPoweredItemEnergyStorage(event, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_256M.get());
+        registerPoweredItemEnergyStorage(event, DEItems.DATA_ENERGY_CELL.get());
         registerPoweredItemEnergyStorage(event, DEItems.ME_VACUUM.get());
         registerPoweredItemEnergyStorage(event, DEItems.RADIX_CONTAINMENT_SPHERE.get());
         registerPoweredItemEnergyStorage(event, DEItems.MATTER_CONVERGING_CROSSBOW.get());

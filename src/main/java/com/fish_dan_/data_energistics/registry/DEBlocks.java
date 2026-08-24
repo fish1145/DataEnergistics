@@ -46,6 +46,8 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
+import appeng.block.networking.EnergyCellBlock;
+
 public final class DEBlocks {
 
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Data_Energistics.MODID);
@@ -138,6 +140,10 @@ public final class DEBlocks {
             DataIntegratedChargerBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .noOcclusion());
+
+    public static final DeferredBlock<EnergyCellBlock> DATA_ENERGY_CELL = BLOCKS.registerBlock(
+            "data_energy_cell",
+            properties -> new EnergyCellBlock(43_200_000.0D, 1_600.0D, 1_600));
 
     public static final DeferredBlock<Block> GUIDE_ENDER_DISPLAY = BLOCKS.registerBlock(
             "guide_ender_display",

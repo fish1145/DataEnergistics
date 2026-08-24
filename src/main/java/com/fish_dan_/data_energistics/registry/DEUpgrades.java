@@ -42,6 +42,7 @@ public final class DEUpgrades {
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), DEBlocks.DATA_RIPPER_REASSEMBLER.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY.get(), DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_INTEGRATED_CHARGER_BLOCK_ENTITY.get(), DEBlocks.DATA_INTEGRATED_CHARGER.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_ENERGY_CELL_BLOCK_ENTITY.get(), DEBlocks.DATA_ENERGY_CELL.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get(), DEBlocks.TRINITY_DATA_CORE.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DEBlocks.DATA_DISTRIBUTION_TOWER.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), DEBlocks.DATA_MIMETIC_FIELD.get().asItem());

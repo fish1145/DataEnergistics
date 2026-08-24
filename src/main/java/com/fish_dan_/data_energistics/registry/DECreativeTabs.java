@@ -73,6 +73,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_CHARGER);
                         output.accept(DEItems.EXTENDED_DATA_CHARGER);
                         output.accept(DEItems.DATA_INTEGRATED_CHARGER);
+                        output.accept(DEItems.DATA_ENERGY_CELL);
                         output.accept(DEItems.DATA_SANCTUM_INTERFACE_PART);
                         output.accept(DEItems.DATA_SANCTUM_INTERFACE_UPGRADE);
                         output.accept(DEItems.ADAPTIVE_PATTERN_PROVIDER);
