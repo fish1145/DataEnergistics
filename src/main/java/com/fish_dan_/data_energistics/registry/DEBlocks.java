@@ -143,7 +143,7 @@ public final class DEBlocks {
 
     public static final DeferredBlock<EnergyCellBlock> DATA_ENERGY_CELL = BLOCKS.registerBlock(
             "data_energy_cell",
-            properties -> new EnergyCellBlock(43_200_000.0D, 1_600.0D, 1_600));
+            properties -> new EnergyCellBlock(32_000_000.0D, 16_000.0D, 16_000));
 
     public static final DeferredBlock<Block> GUIDE_ENDER_DISPLAY = BLOCKS.registerBlock(
             "guide_ender_display",
