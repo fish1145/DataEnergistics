@@ -89,8 +89,20 @@ public class CommonProxy {
             DEUpgrades.init();
             OrbitalControlPlayerMenu.register();
             if (ModFlags.isCuriosLoaded()) {
-                CuriosDataDistributionConnectorAccess.register();
-                CuriosOrbitalControlTerminalAccess.register();
+                try {
+                    CuriosDataDistributionConnectorAccess.register();
+                } catch (RuntimeException | LinkageError exception) {
+                    Data_Energistics.LOGGER.error(
+                            "Could not initialize distribution connector Curios access",
+                            exception);
+                }
+                try {
+                    CuriosOrbitalControlTerminalAccess.register();
+                } catch (RuntimeException | LinkageError exception) {
+                    Data_Energistics.LOGGER.error(
+                            "Could not initialize orbital terminal Curios access",
+                            exception);
+                }
             }
             if (ModFlags.isFtbChunksLoaded()) {
                 try {

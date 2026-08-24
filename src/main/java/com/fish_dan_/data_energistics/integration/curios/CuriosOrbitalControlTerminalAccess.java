@@ -20,6 +20,7 @@ public final class CuriosOrbitalControlTerminalAccess {
 
     public static final String SLOT_ID = "data_energistics_orbital_terminal";
 
+    private static final int SLOT_INDEX = 0;
     private static final TagKey<Item> TERMINAL_SLOT_TAG = TagKey.create(
             Registries.ITEM,
             ResourceLocation.fromNamespaceAndPath(CuriosApi.MODID, SLOT_ID));
@@ -29,9 +30,16 @@ public final class CuriosOrbitalControlTerminalAccess {
 
     /** Registers the validator referenced by the dedicated terminal slot data. */
     public static void register() {
-        CuriosApi.registerCurioPredicate(
-                ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "orbital_terminal_slot"),
-                slotResult -> slotResult.stack().is(TERMINAL_SLOT_TAG));
+        if (failed) {
+            return;
+        }
+        try {
+            CuriosApi.registerCurioPredicate(
+                    ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "orbital_terminal_slot"),
+                    slotResult -> slotResult.stack().is(TERMINAL_SLOT_TAG));
+        } catch (RuntimeException | LinkageError exception) {
+            disable("slot validator registration", exception);
+        }
     }
 
     /** Returns the active terminal stack from the dedicated slot without copying it. */
@@ -41,15 +49,22 @@ public final class CuriosOrbitalControlTerminalAccess {
         }
         try {
             return CuriosApi.getCuriosInventory(player)
-                    .flatMap(handler -> handler.findCurio(SLOT_ID, 0, false))
+                    .flatMap(handler -> handler.findCurio(SLOT_ID, SLOT_INDEX, false))
                     .filter(result -> result.stack().is(DEItems.ORBITAL_CONTROL_TERMINAL.get()))
                     .map(SlotResult::stack);
-        } catch (RuntimeException exception) {
+        } catch (RuntimeException | LinkageError exception) {
+            disable("inventory lookup", exception);
+            return Optional.empty();
+        }
+    }
+
+    private static synchronized void disable(String operation, Throwable exception) {
+        if (!failed) {
             failed = true;
             Data_Energistics.LOGGER.error(
-                    "Disabling orbital terminal Curios access after its inventory lookup failed",
+                    "Disabling orbital terminal Curios access after {} failed",
+                    operation,
                     exception);
-            return Optional.empty();
         }
     }
 }
