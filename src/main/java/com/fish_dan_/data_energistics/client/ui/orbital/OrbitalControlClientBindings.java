@@ -196,6 +196,7 @@ public final class OrbitalControlClientBindings {
         private void configureMapProviders() {
             List<TacticalMapAdapter> available = TacticalMapAdapters.available();
             ObjectArrayList<MapProviderOption> options = new ObjectArrayList<>(available.size());
+            this.mapAdapters.clear();
             for (TacticalMapAdapter adapter : available) {
                 this.mapAdapters.put(adapter.id(), adapter);
                 options.add(new MapProviderOption(adapter.id(), adapter.displayName()));
@@ -390,6 +391,7 @@ public final class OrbitalControlClientBindings {
                 requestMap();
             } else if (result == TacticalMapAdapter.SelectionStart.FAILED) {
                 OrbitalMapSelectionClientSession.cancel();
+                configureMapProviders();
                 this.dashboard.feedback.setValue(Component.translatable(PREFIX + "map.failed"));
             }
         }

@@ -48,6 +48,9 @@ public final class XaeroWorldMapOrbitalAdapter implements TacticalMapAdapter {
 
     @Override
     public SelectionStart startSelection(Minecraft minecraft, UUID sessionToken) {
+        if (!XaeroOrbitalMapBridge.class.isAssignableFrom(GuiMap.class)) {
+            throw new IllegalStateException("Xaero World Map orbital Mixin bridge is unavailable");
+        }
         Entity cameraEntity = minecraft.getCameraEntity();
         if (minecraft.player == null || cameraEntity == null) {
             return SelectionStart.FAILED;

@@ -105,8 +105,7 @@
 		"guideme.GuideNavBarRowMixin",
 		"jei.JeiEncodePatternTransferHandlerMixin",
 		"neoecoae.NeoECOAEClientMixin",
-		"viewer.jei.RecipeTransferUtilMixin",
-		"xaeroworldmap.GuiMapMixin"
+		"viewer.jei.RecipeTransferUtilMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

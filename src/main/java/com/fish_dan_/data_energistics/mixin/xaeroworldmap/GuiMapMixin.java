@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.mixin.xaeroworldmap;
 
+import com.fish_dan_.data_energistics.integration.map.xaero.client.XaeroOrbitalMapBridge;
 import com.fish_dan_.data_energistics.integration.map.xaero.client.XaeroOrbitalRightClickOption;
 import com.fish_dan_.data_energistics.integration.map.xaero.client.XaeroWorldMapOrbitalAdapter;
 
@@ -20,7 +21,7 @@ import java.util.ArrayList;
 
 /** Reads the coordinates already calculated by Xaero and delegates without consuming its normal map behavior. */
 @Mixin(value = GuiMap.class, remap = false)
-public abstract class GuiMapMixin {
+public abstract class GuiMapMixin implements XaeroOrbitalMapBridge {
 
     @Shadow
     private int mouseBlockPosX;
