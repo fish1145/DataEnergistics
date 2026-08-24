@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.ftbchunks;
 
 import com.fish_dan_.data_energistics.integration.map.ftbchunks.client.FtbChunksOrbitalAdapter;
+import com.fish_dan_.data_energistics.integration.map.ftbchunks.client.FtbChunksOrbitalMapBridge;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -18,7 +19,7 @@ import java.util.List;
 
 /** Appends one preview action while preserving FTB Chunks' existing waypoint menu construction and handling. */
 @Mixin(value = LargeMapScreen.class, remap = false)
-public abstract class LargeMapScreenMixin {
+public abstract class LargeMapScreenMixin implements FtbChunksOrbitalMapBridge.Input {
 
     @Redirect(
               method = "mousePressed",

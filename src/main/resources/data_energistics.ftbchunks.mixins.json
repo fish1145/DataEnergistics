@@ -1,0 +1,16 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"package": "com.fish_dan_.data_energistics.mixin",
+	"plugin": "com.fish_dan_.data_energistics.mixin.DataEnergisticsMixinPlugin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"ftbchunks.LargeMapScreenAccessor",
+		"ftbchunks.LargeMapScreenMixin",
+		"ftbchunks.RegionMapPanelAccessor",
+		"ftbchunks.RegionMapPanelMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

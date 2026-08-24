@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.ftbchunks;
 
 import com.fish_dan_.data_energistics.integration.map.ftbchunks.client.FtbChunksOrbitalAdapter;
+import com.fish_dan_.data_energistics.integration.map.ftbchunks.client.FtbChunksOrbitalMapBridge;
 
 import net.minecraft.core.BlockPos;
 
@@ -16,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** Distinguishes a true background click from FTB Chunks icon clicks and map dragging before selecting a target. */
 @Mixin(value = RegionMapPanel.class, remap = false)
-public abstract class RegionMapPanelMixin {
+public abstract class RegionMapPanelMixin implements FtbChunksOrbitalMapBridge.Input {
 
     @Unique
     private boolean dataEnergistics$trackingLeftPress;
