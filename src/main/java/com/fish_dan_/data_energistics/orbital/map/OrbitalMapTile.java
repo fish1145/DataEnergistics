@@ -14,7 +14,11 @@ public record OrbitalMapTile(
     public static final int MARKER_UPLINK_BEACON = 1;
     public static final int MARKER_PRIMARY_ANCHOR = 1 << 1;
     public static final int MARKER_ACTIVE_PUBLIC_ATTACK = 1 << 2;
-    public static final int KNOWN_MARKERS = MARKER_UPLINK_BEACON | MARKER_PRIMARY_ANCHOR | MARKER_ACTIVE_PUBLIC_ATTACK;
+    public static final int MARKER_CLAIMED_CHUNK = 1 << 3;
+    public static final int KNOWN_MARKERS = MARKER_UPLINK_BEACON |
+            MARKER_PRIMARY_ANCHOR |
+            MARKER_ACTIVE_PUBLIC_ATTACK |
+            MARKER_CLAIMED_CHUNK;
 
     public OrbitalMapTile {
         if (known && surfaceY == UNKNOWN_SURFACE) {

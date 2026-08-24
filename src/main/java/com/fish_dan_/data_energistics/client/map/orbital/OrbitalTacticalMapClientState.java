@@ -151,10 +151,12 @@ public final class OrbitalTacticalMapClientState {
             marker = 'P';
         } else if ((tile.markerFlags() & OrbitalMapTile.MARKER_UPLINK_BEACON) != 0) {
             marker = 'B';
+        } else if ((tile.markerFlags() & OrbitalMapTile.MARKER_CLAIMED_CHUNK) != 0) {
+            marker = 'C';
         } else {
             marker = tile.known() ? '.' : '?';
         }
-        int color = tile.known() ? tile.biomeColor() : 0x777777;
+        int color = marker == 'C' ? 0xB06C00 : tile.known() ? tile.biomeColor() : 0x777777;
         return Component.literal(Character.toString(marker)).withStyle(style -> style.withColor(color));
     }
 

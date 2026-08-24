@@ -188,6 +188,9 @@ public final class OrbitalTacticalMapCoordinator {
         if (publicAttackChunks.contains(ChunkPos.asLong(chunkX, chunkZ))) {
             markers |= OrbitalMapTile.MARKER_ACTIVE_PUBLIC_ATTACK;
         }
+        if (OrbitalClaimHints.isClaimed(level, chunkX, chunkZ)) {
+            markers |= OrbitalMapTile.MARKER_CLAIMED_CHUNK;
+        }
         return markers;
     }
 

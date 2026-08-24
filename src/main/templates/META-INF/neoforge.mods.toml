@@ -118,7 +118,7 @@ modId = "ftbchunks"
 type = "optional"
 versionRange = "[${ftbchunks_version},2101.1.10)"
 ordering = "AFTER"
-side = "CLIENT"
+side = "BOTH"
 
 [[dependencies.${ mod_id }]]
 modId = "ae2cs"
