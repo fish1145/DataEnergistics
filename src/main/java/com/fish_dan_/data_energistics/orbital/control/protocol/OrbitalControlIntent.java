@@ -14,13 +14,13 @@ import java.util.UUID;
 
 /** Bounded C2S commands accepted by one open, server-authoritative orbital control menu. */
 public sealed interface OrbitalControlIntent permits
-        OrbitalControlIntent.CycleWeapon,
-        OrbitalControlIntent.CancelOrAbortMode,
-        OrbitalControlIntent.RequestPreview,
-        OrbitalControlIntent.StartHold,
-        OrbitalControlIntent.ReleaseHold,
-        OrbitalControlIntent.CancelHold,
-        OrbitalControlIntent.DiscardPreview {
+                                             OrbitalControlIntent.CycleWeapon,
+                                             OrbitalControlIntent.CancelOrAbortMode,
+                                             OrbitalControlIntent.RequestPreview,
+                                             OrbitalControlIntent.StartHold,
+                                             OrbitalControlIntent.ReleaseHold,
+                                             OrbitalControlIntent.CancelHold,
+                                             OrbitalControlIntent.DiscardPreview {
 
     Codec<OrbitalControlIntent> CODEC = Kind.CODEC.dispatch(
             "type",
@@ -51,10 +51,8 @@ public sealed interface OrbitalControlIntent permits
             case RequestPreview preview -> OrbitalFireControlDraft.STREAM_CODEC.encode(buffer, preview.draft);
             case StartHold start -> buffer.writeUUID(start.nonce);
             case ReleaseHold release -> buffer.writeUUID(release.nonce);
-            case CancelHold ignored -> {
-            }
-            case DiscardPreview ignored -> {
-            }
+            case CancelHold ignored -> {}
+            case DiscardPreview ignored -> {}
         }
     }
 

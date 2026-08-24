@@ -23,9 +23,11 @@ import java.util.function.Supplier;
 /**
  * Menu-lifetime authority for one server player's orbital control surface.
  *
- * <p>Every RPC is accepted only while this exact {@link ModularUI} remains the player's current menu and the source
+ * <p>
+ * Every RPC is accepted only while this exact {@link ModularUI} remains the player's current menu and the source
  * gate still validates the held terminal, Curios terminal or bound console. Expected rejections become typed feedback;
- * unexpected failures are logged once at this top-level boundary.</p>
+ * unexpected failures are logged once at this top-level boundary.
+ * </p>
  */
 public final class OrbitalControlServerSession {
 

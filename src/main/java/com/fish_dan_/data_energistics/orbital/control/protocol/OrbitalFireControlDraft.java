@@ -87,9 +87,9 @@ public record OrbitalFireControlDraft(
 
     /** Creates the conservative kinetic draft exposed by a third-party map context action. */
     public static OrbitalFireControlDraft directKineticTarget(
-                                                               ResourceLocation dimensionId,
-                                                               int targetX,
-                                                               int targetZ) {
+                                                              ResourceLocation dimensionId,
+                                                              int targetX,
+                                                              int targetZ) {
         return new OrbitalFireControlDraft(
                 OrbitalAttackMode.KINETIC,
                 dimensionId,

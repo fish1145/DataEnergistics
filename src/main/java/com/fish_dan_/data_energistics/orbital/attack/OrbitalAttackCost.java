@@ -13,8 +13,8 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
  */
 public record OrbitalAttackCost(
                                 long celestialEnergy,
-                                 long aeEnergy,
-                                 int cooldownTicks) {
+                                long aeEnergy,
+                                int cooldownTicks) {
 
     public static final Codec<OrbitalAttackCost> CODEC = RecordCodecBuilder.create(instance -> instance
             .group(

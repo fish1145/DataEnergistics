@@ -74,9 +74,9 @@ public final class OrbitalControlClientBindings {
     }
 
     private static OrbitalControlClientBinding bind(
-                                                     OrbitalControlDashboard dashboard,
-                                                     OrbitalControlUiSource source,
-                                                     RPCEmitter commandEmitter) {
+                                                    OrbitalControlDashboard dashboard,
+                                                    OrbitalControlUiSource source,
+                                                    RPCEmitter commandEmitter) {
         return new Session(dashboard, source, commandEmitter);
     }
 

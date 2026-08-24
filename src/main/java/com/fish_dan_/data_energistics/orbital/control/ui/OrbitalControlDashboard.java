@@ -635,5 +635,4 @@ public final class OrbitalControlDashboard {
             this.action = action;
         }
     }
-
 }

@@ -24,9 +24,11 @@ import org.jspecify.annotations.Nullable;
 /**
  * Server-thread cursor that captures one attack preview without scanning all affected chunks in one tick.
  *
- * <p>The immutable cost, reserve and workload values are frozen by {@link #begin}; only the rectangular chunk cursor
+ * <p>
+ * The immutable cost, reserve and workload values are frozen by {@link #begin}; only the rectangular chunk cursor
  * and its two result counters change afterwards. Chunk inspection uses {@code getChunkNow}, so advancing this cursor
- * never loads or generates terrain.</p>
+ * never loads or generates terrain.
+ * </p>
  */
 public final class OrbitalAttackPreviewCalculation {
 

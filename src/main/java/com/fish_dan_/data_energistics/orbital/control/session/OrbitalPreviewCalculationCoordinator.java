@@ -184,7 +184,8 @@ public final class OrbitalPreviewCalculationCoordinator {
                     Math.min(preview.heldTicks(gameTime), OrbitalAttackPreviewSessions.DEFAULT_HOLD_TICKS),
                     OrbitalAttackPreviewSessions.DEFAULT_HOLD_TICKS,
                     gameTime,
-                    preview.expiresAt()) : OrbitalFireControlSessionSnapshot.ready(
+                    preview.expiresAt()) :
+                    OrbitalFireControlSessionSnapshot.ready(
                             details,
                             OrbitalAttackPreviewSessions.DEFAULT_HOLD_TICKS,
                             gameTime,

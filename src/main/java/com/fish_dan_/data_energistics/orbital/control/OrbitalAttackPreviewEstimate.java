@@ -112,5 +112,4 @@ public record OrbitalAttackPreviewEstimate(
                 buffer.readVarInt(),
                 buffer.readVarLong());
     }
-
 }

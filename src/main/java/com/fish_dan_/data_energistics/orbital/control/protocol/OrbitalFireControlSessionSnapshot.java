@@ -106,9 +106,9 @@ public record OrbitalFireControlSessionSnapshot(
     }
 
     public static OrbitalFireControlSessionSnapshot calculating(
-                                                                 PreviewDetails preview,
-                                                                 int checkedChunks,
-                                                                 int totalChunks) {
+                                                                PreviewDetails preview,
+                                                                int checkedChunks,
+                                                                int totalChunks) {
         return new OrbitalFireControlSessionSnapshot(
                 Phase.CALCULATING,
                 preview,
@@ -121,10 +121,10 @@ public record OrbitalFireControlSessionSnapshot(
     }
 
     public static OrbitalFireControlSessionSnapshot ready(
-                                                           PreviewDetails preview,
-                                                           long requiredHoldTicks,
-                                                           long serverGameTime,
-                                                           long expiresAt) {
+                                                          PreviewDetails preview,
+                                                          long requiredHoldTicks,
+                                                          long serverGameTime,
+                                                          long expiresAt) {
         int chunks = Objects.requireNonNull(preview.estimate()).affectedChunks();
         return new OrbitalFireControlSessionSnapshot(
                 Phase.READY,
@@ -138,11 +138,11 @@ public record OrbitalFireControlSessionSnapshot(
     }
 
     public static OrbitalFireControlSessionSnapshot holding(
-                                                             PreviewDetails preview,
-                                                             long heldTicks,
-                                                             long requiredHoldTicks,
-                                                             long serverGameTime,
-                                                             long expiresAt) {
+                                                            PreviewDetails preview,
+                                                            long heldTicks,
+                                                            long requiredHoldTicks,
+                                                            long serverGameTime,
+                                                            long expiresAt) {
         int chunks = Objects.requireNonNull(preview.estimate()).affectedChunks();
         return new OrbitalFireControlSessionSnapshot(
                 Phase.HOLDING,

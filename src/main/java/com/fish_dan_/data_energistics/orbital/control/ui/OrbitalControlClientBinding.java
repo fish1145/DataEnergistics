@@ -7,8 +7,10 @@ import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 /**
  * Client-thread lifecycle attached to a common orbital dashboard component tree.
  *
- * <p>The common UI factory invokes these callbacks only for a logical-client player. Implementations may bind input,
- * optional map APIs and screen lifecycle, but must never mutate server state except through the supplied menu RPC.</p>
+ * <p>
+ * The common UI factory invokes these callbacks only for a logical-client player. Implementations may bind input,
+ * optional map APIs and screen lifecycle, but must never mutate server state except through the supplied menu RPC.
+ * </p>
  */
 public interface OrbitalControlClientBinding {
 
@@ -18,6 +20,8 @@ public interface OrbitalControlClientBinding {
     /** Receives each atomic S2C menu snapshot after LDLib2 has decoded it on the client thread. */
     void acceptSnapshot(OrbitalControlMenuSnapshot snapshot);
 
-    /** Releases map listeners and cancels any local pointer hold when the screen is replaced or the client disconnects. */
+    /**
+     * Releases map listeners and cancels any local pointer hold when the screen is replaced or the client disconnects.
+     */
     void close();
 }
