@@ -15,6 +15,8 @@ import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
@@ -160,7 +162,11 @@ public final class OrbitalControlPresentation {
         return result;
     }
 
-    public static Component modeName(OrbitalAttackMode mode) {
+    /** Formats selector and status values; LDLib2 may request a label before a selector has a value. */
+    public static Component modeName(@Nullable OrbitalAttackMode mode) {
+        if (mode == null) {
+            return Component.empty();
+        }
         return Component.translatable(PREFIX + "mode." + mode.name().toLowerCase(Locale.ROOT));
     }
 

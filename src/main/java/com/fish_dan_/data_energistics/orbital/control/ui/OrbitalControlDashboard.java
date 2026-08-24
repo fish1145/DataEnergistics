@@ -343,7 +343,7 @@ public final class OrbitalControlDashboard {
                 9,
                 TextWrap.HOVER_ROLL));
         MapProviderOption builtin = new MapProviderOption(
-                Data_Energistics.id("builtin_tactical_map"),
+                ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "builtin_tactical_map"),
                 Component.translatable(PREFIX + "fire_control.map.provider.builtin"));
         this.mapProvider = selector(
                 "orbital_fire_control_map_provider",
@@ -352,7 +352,7 @@ public final class OrbitalControlDashboard {
                 MAP_WIDTH - 12,
                 List.of(builtin),
                 builtin,
-                option -> option == null ? Component.empty() : option.label);
+                option -> option.label);
         this.selectOnMap = button(
                 "orbital_fire_control_select_on_map",
                 Component.translatable(PREFIX + "fire_control.map.select"),
@@ -566,11 +566,15 @@ public final class OrbitalControlDashboard {
         Selector<T> selector = new Selector<>();
         selector.setId(id);
         selector.setCandidates(candidates);
-        selector.setCandidateUIProvider(UIElementProvider.text(label));
         selector.setSelected(selected, false);
+        selector.setCandidateUIProvider(UIElementProvider.text(value -> selectorLabel(value, label)));
         selector.selectorStyle(style -> style.closeAfterSelect(true).maxItemCount(Math.max(1, candidates.size())));
         OrbitalControlUiTheme.place(selector, left, top, width, FIELD_HEIGHT);
         return selector;
+    }
+
+    private static <T> Component selectorLabel(@Nullable T value, Function<T, Component> label) {
+        return value == null ? Component.empty() : label.apply(value);
     }
 
     private static Component targetYModeName(@Nullable OrbitalTargetYMode mode) {
