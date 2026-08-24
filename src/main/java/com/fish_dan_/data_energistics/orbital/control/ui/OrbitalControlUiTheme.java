@@ -63,7 +63,7 @@ public final class OrbitalControlUiTheme {
                 .adaptiveHeight(false)
                 .fontSize(fontSize)
                 .textAlignHorizontal(Horizontal.LEFT)
-                .textAlignVertical(Vertical.TOP)
+                .textAlignVertical(textWrap == TextWrap.WRAP ? Vertical.TOP : Vertical.CENTER)
                 .textWrap(textWrap)
                 .textColor(color)
                 .textShadow(true));
@@ -83,6 +83,7 @@ public final class OrbitalControlUiTheme {
         button.setId(id);
         button.setText(text);
         button.style(style -> style.backgroundTexture(texture(tone)));
+        button.text.layout(layout -> layout.flex(1).heightPercent(100));
         button.text.textStyle(style -> style
                 .adaptiveWidth(false)
                 .adaptiveHeight(false)

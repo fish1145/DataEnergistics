@@ -16,12 +16,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
+import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
-import com.lowdragmc.lowdraglib2.gui.ui.utils.UIElementProvider;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
@@ -60,7 +61,7 @@ public final class OrbitalControlDashboard {
     public final TextField targetZ;
     public final Selector<OrbitalTargetYMode> targetYMode;
     public final TextField targetYValue;
-    public final TextField radius;
+    public final Selector<Integer> radius;
     public final Selector<OrbitalDirectedEnergyDepth> depth;
     public final Selector<MapProviderOption> mapProvider;
     public final Button selectOnMap;
@@ -77,6 +78,9 @@ public final class OrbitalControlDashboard {
     private final Label lifecycle;
     private final Label celestialEnergy;
     private final Label aeEnergy;
+    private final Label radiusLabel;
+    private final Label depthLabel;
+    private final Label previewTitle;
     private final ObjectArrayList<UIElement> operableElements;
 
     private OrbitalControlDashboard(Player player) {
@@ -263,14 +267,15 @@ public final class OrbitalControlDashboard {
                 this.targetYValue);
 
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
-        this.radius = integerField(
+        List<Integer> directedRadiusOptions = directedRadiusOptions(settings);
+        this.radius = selector(
                 "orbital_fire_control_radius",
-                settings.directedEnergyMinimumRadius,
-                settings.directedEnergyMinimumRadius,
-                settings.directedEnergyMaximumRadius,
                 42,
                 109,
-                56);
+                56,
+                directedRadiusOptions,
+                directedRadiusOptions.getFirst(),
+                OrbitalControlDashboard::radiusName);
         this.depth = selector(
                 "orbital_fire_control_depth",
                 126,
@@ -279,12 +284,12 @@ public final class OrbitalControlDashboard {
                 List.of(OrbitalDirectedEnergyDepth.values()),
                 OrbitalDirectedEnergyDepth.DEPTH_32,
                 OrbitalControlDashboard::depthName);
-        this.radius.setActive(false);
-        this.depth.setActive(false);
+        this.radiusLabel = fieldLabel("orbital_fire_control_radius_label", PREFIX + "fire_control.radius", 6, 109, 32);
+        this.depthLabel = fieldLabel("orbital_fire_control_depth_label", PREFIX + "fire_control.depth", 104, 109, 18);
         target.addChildren(
-                fieldLabel("orbital_fire_control_radius_label", PREFIX + "fire_control.radius", 6, 109, 32),
+                this.radiusLabel,
                 this.radius,
-                fieldLabel("orbital_fire_control_depth_label", PREFIX + "fire_control.depth", 104, 109, 18),
+                this.depthLabel,
                 this.depth);
 
         this.refreshPreview = button(
@@ -303,7 +308,7 @@ public final class OrbitalControlDashboard {
                 108,
                 22,
                 Tone.DANGER);
-        Label previewTitle = label(
+        this.previewTitle = label(
                 "orbital_fire_control_preview_title",
                 Component.translatable(PREFIX + "fire_control.preview.title"),
                 6,
@@ -323,7 +328,7 @@ public final class OrbitalControlDashboard {
                 OrbitalControlUiTheme.TEXT,
                 8,
                 TextWrap.WRAP);
-        target.addChildren(this.refreshPreview, this.confirm, previewTitle, this.preview);
+        target.addChildren(this.refreshPreview, this.confirm, this.previewTitle, this.preview);
 
         UIElement map = OrbitalControlUiTheme.panel(
                 "orbital_control_tactical_map",
@@ -423,6 +428,7 @@ public final class OrbitalControlDashboard {
                 this.mapRefresh));
         this.operableElements.addAll(this.mapCells);
         this.root.addChildren(header, status, target, map);
+        updateDirectedFields(false);
     }
 
     public static OrbitalControlDashboard create(Player player) {
@@ -467,9 +473,7 @@ public final class OrbitalControlDashboard {
         for (UIElement element : this.operableElements) {
             element.setActive(operable);
         }
-        boolean directed = this.mode.getValue() == OrbitalAttackMode.DIRECTED_ENERGY;
-        this.radius.setActive(operable && directed);
-        this.depth.setActive(operable && directed);
+        updateDirectedFields(operable);
         OrbitalFireControlSessionSnapshot.Phase phase = snapshot.fireControl().phase();
         this.refreshPreview.setActive(operable && phase != OrbitalFireControlSessionSnapshot.Phase.CALCULATING);
         this.confirm.setActive(operable &&
@@ -481,8 +485,19 @@ public final class OrbitalControlDashboard {
     /** Applies the selected target mode immediately rather than waiting for another server snapshot. */
     public void updateDirectedFields(boolean operable) {
         boolean directed = this.mode.getValue() == OrbitalAttackMode.DIRECTED_ENERGY;
+        this.radiusLabel.setDisplay(directed);
+        this.radius.setDisplay(directed);
+        this.depthLabel.setDisplay(directed);
+        this.depth.setDisplay(directed);
         this.radius.setActive(operable && directed);
         this.depth.setActive(operable && directed);
+        int actionTop = directed ? 136 : 112;
+        int titleTop = directed ? 164 : 140;
+        int previewTop = directed ? 180 : 156;
+        OrbitalControlUiTheme.place(this.refreshPreview, 6, actionTop, 106, 22);
+        OrbitalControlUiTheme.place(this.confirm, 116, actionTop, 108, 22);
+        OrbitalControlUiTheme.place(this.previewTitle, 6, titleTop, TARGET_WIDTH - 12, 14);
+        OrbitalControlUiTheme.place(this.preview, 6, previewTop, TARGET_WIDTH - 12, directed ? 108 : 132);
     }
 
     private Label resourceLabel(String id, int top, Tone tone) {
@@ -567,14 +582,52 @@ public final class OrbitalControlDashboard {
         selector.setId(id);
         selector.setCandidates(candidates);
         selector.setSelected(selected, false);
-        selector.setCandidateUIProvider(UIElementProvider.text(value -> selectorLabel(value, label)));
-        selector.selectorStyle(style -> style.closeAfterSelect(true).maxItemCount(Math.max(1, candidates.size())));
+        selector.setCandidateUIProvider(value -> selectorOption(selectorLabel(value, label)));
+        selector.selectorStyle(style -> style
+                .closeAfterSelect(true)
+                .maxItemCount(Math.clamp(candidates.size(), 1, 8))
+                .scrollerViewHeight(FIELD_HEIGHT * 8));
         OrbitalControlUiTheme.place(selector, left, top, width, FIELD_HEIGHT);
         return selector;
     }
 
     private static <T> Component selectorLabel(@Nullable T value, Function<T, Component> label) {
         return value == null ? Component.empty() : label.apply(value);
+    }
+
+    private static Label selectorOption(Component value) {
+        Label option = new Label();
+        option.setValue(value);
+        option.setAllowHitTest(false);
+        option.layout(layout -> layout.widthPercent(100).height(FIELD_HEIGHT));
+        option.textStyle(style -> style
+                .adaptiveWidth(false)
+                .adaptiveHeight(false)
+                .fontSize(9)
+                .textAlignHorizontal(Horizontal.CENTER)
+                .textAlignVertical(Vertical.CENTER)
+                .textWrap(TextWrap.HOVER_ROLL)
+                .textColor(OrbitalControlUiTheme.TEXT)
+                .textShadow(true));
+        return option;
+    }
+
+    private static List<Integer> directedRadiusOptions(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+        int minimum = settings.directedEnergyMinimumRadius;
+        int maximum = settings.directedEnergyMaximumRadius;
+        int step = settings.directedEnergyRadiusStep;
+        if (minimum < 1 || maximum < minimum || step < 1) {
+            throw new IllegalStateException("Invalid directed-energy radius configuration");
+        }
+        ObjectArrayList<Integer> options = new ObjectArrayList<>();
+        for (long radius = minimum; radius <= maximum; radius += step) {
+            options.add((int) radius);
+        }
+        return List.copyOf(options);
+    }
+
+    private static Component radiusName(@Nullable Integer radius) {
+        return radius == null ? Component.empty() : Component.translatable(PREFIX + "fire_control.radius.blocks", radius);
     }
 
     private static Component targetYModeName(@Nullable OrbitalTargetYMode mode) {

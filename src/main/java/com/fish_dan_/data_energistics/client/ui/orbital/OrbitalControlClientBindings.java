@@ -57,10 +57,10 @@ public final class OrbitalControlClientBindings {
         if (modularUI == null) {
             return;
         }
-        Session session = SESSIONS.remove(modularUI);
-        if (session != null) {
-            session.close();
+        if (!SESSIONS.containsKey(modularUI)) {
+            return;
         }
+        SESSIONS.remove(modularUI).close();
     }
 
     /** Releases every menu session and process-local map selection when the client disconnects. */
@@ -237,9 +237,12 @@ public final class OrbitalControlClientBindings {
                 this.dashboard.mapCells.get(cellIndex).setOnClick(ignored -> selectMapCell(offsetX, offsetZ));
             }
             this.dashboard.confirm.addEventListener(UIEvents.MOUSE_DOWN, event -> {
-                if (event.button == 0 && canStartHold()) {
-                    this.holdNonce = this.previewNonce;
-                    send(new OrbitalControlIntent.StartHold(this.holdNonce));
+                if (event.button == 0) {
+                    UUID nonce = startableHoldNonce();
+                    if (nonce != null) {
+                        this.holdNonce = nonce;
+                        send(new OrbitalControlIntent.StartHold(nonce));
+                    }
                 }
             });
             this.dashboard.confirm.addEventListener(UIEvents.MOUSE_LEAVE, ignored -> cancelLocalHold());
@@ -257,14 +260,15 @@ public final class OrbitalControlClientBindings {
             send(new OrbitalControlIntent.CycleWeapon(forward));
         }
 
-        private boolean canStartHold() {
-            if (!this.operable || this.previewNonce == null || this.holdNonce != null || this.previewedDraft == null) {
-                return false;
+        private @Nullable UUID startableHoldNonce() {
+            UUID nonce = this.previewNonce;
+            if (!this.operable || nonce == null || this.holdNonce != null || this.previewedDraft == null) {
+                return null;
             }
             try {
-                return this.previewedDraft.equals(readDraft());
+                return this.previewedDraft.equals(readDraft()) ? nonce : null;
             } catch (IllegalArgumentException ignored) {
-                return false;
+                return null;
             }
         }
 
@@ -321,11 +325,12 @@ public final class OrbitalControlClientBindings {
             int directedRadius = 0;
             OrbitalDirectedEnergyDepth directedDepth = null;
             if (mode == OrbitalAttackMode.DIRECTED_ENERGY) {
-                directedRadius = parseInteger(this.dashboard.radius.getRawText(), "directed radius");
+                Integer selectedRadius = this.dashboard.radius.getValue();
                 directedDepth = this.dashboard.depth.getValue();
-                if (directedDepth == null) {
-                    throw new IllegalArgumentException("Directed-energy depth is not selected");
+                if (selectedRadius == null || directedDepth == null) {
+                    throw new IllegalArgumentException("Directed-energy range is not selected");
                 }
+                directedRadius = selectedRadius;
             }
             return new OrbitalFireControlDraft(
                     mode,
@@ -346,7 +351,7 @@ public final class OrbitalControlClientBindings {
             this.dashboard.targetYMode.setSelected(draft.targetYMode(), false);
             this.dashboard.targetYValue.setText(Integer.toString(draft.targetYValue()), false);
             if (draft.mode() == OrbitalAttackMode.DIRECTED_ENERGY) {
-                this.dashboard.radius.setText(Integer.toString(draft.directedRadius()), false);
+                this.dashboard.radius.setSelected(draft.directedRadius(), false);
                 this.dashboard.depth.setSelected(Objects.requireNonNull(draft.directedDepth()), false);
             }
             this.dashboard.updateDirectedFields(this.operable);
