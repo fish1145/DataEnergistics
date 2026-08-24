@@ -96,6 +96,7 @@ public final class DEItems {
     public static final DeferredItem<PortableDigitalStorageCellItem> PORTABLE_DIGITAL_STORAGE_CELL_256K = registerPortableDigitalStorageCell("portable_digital_storage_cell_256k", StorageTier.SIZE_256K, 0xFF72C8);
 
     public static final DeferredItem<BlockItem> DATA_SOLAR_PANEL = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_SOLAR_PANEL);
+    public static final DeferredItem<BlockItem> ME_DATA_SOLAR_PANEL = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DATA_SOLAR_PANEL);
     public static final DeferredItem<BlockItem> DATA_EXTRACTOR = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_EXTRACTOR);
     public static final DeferredItem<BlockItem> DATA_RIPPER_REASSEMBLER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_RIPPER_REASSEMBLER);
     public static final DeferredItem<BlockItem> DATA_ASYNCHRONOUS_PROCESSING_FACTORY = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY);
@@ -195,6 +196,9 @@ public final class DEItems {
             () -> new PartItem<>(new Item.Properties(), AdaptivePatternProviderPart.class, AdaptivePatternProviderPart::new));
     public static final DeferredItem<PartItem<MeSolarPanelPart>> ME_SOLAR_PANEL_PART = ITEMS.register(
             "me_solar_panel_part",
+            () -> new PartItem<>(new Item.Properties(), MeSolarPanelPart.class, MeSolarPanelPart::new));
+    public static final DeferredItem<PartItem<MeSolarPanelPart>> ME_DATA_SOLAR_PANEL_PART = ITEMS.register(
+            "me_data_solar_panel_part",
             () -> new PartItem<>(new Item.Properties(), MeSolarPanelPart.class, MeSolarPanelPart::new));
     public static final DeferredItem<PartItem<UniversalTerminalPart>> UNIVERSAL_TERMINAL = ITEMS.register(
             "universal_terminal",

@@ -58,6 +58,12 @@ public final class DEBlocks {
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .noOcclusion());
 
+    public static final DeferredBlock<Block> ME_DATA_SOLAR_PANEL = BLOCKS.registerBlock(
+            "me_data_solar_panel",
+            DataSolarPanelBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .noOcclusion());
+
     public static final DeferredBlock<Block> DATA_EXTRACTOR = BLOCKS.registerBlock(
             "data_extractor",
             DataExtractorBlock::new,

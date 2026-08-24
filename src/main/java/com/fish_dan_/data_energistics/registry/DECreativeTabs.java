@@ -61,6 +61,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_STORAGE_COMPONENT_256M);
 
                         output.accept(DEItems.DATA_SOLAR_PANEL);
+                        output.accept(DEItems.ME_DATA_SOLAR_PANEL);
                         output.accept(DEItems.DATA_EXTRACTOR);
                         output.accept(DEItems.DATA_RIPPER_REASSEMBLER);
                         output.accept(DEItems.DATA_ASYNCHRONOUS_PROCESSING_FACTORY);
@@ -109,6 +110,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_CRYSTAL_CLUSTER);
                         output.accept(DEItems.ADAPTIVE_PATTERN_PROVIDER_PART);
                         output.accept(DEItems.ME_SOLAR_PANEL_PART);
+                        output.accept(DEItems.ME_DATA_SOLAR_PANEL_PART);
                         output.accept(DEItems.UNIVERSAL_TERMINAL);
                         output.accept(DEItems.DATA_CRYSTAL);
                         output.accept(DEItems.DATA_CRYSTAL_SWORD);

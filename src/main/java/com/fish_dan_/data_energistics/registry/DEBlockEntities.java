@@ -42,7 +42,10 @@ public final class DEBlockEntities {
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataSolarPanelBlockEntity>> DATA_SOLAR_PANEL_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "me_solar_panel",
-            () -> BlockEntityType.Builder.of(DataSolarPanelBlockEntity::new, DEBlocks.DATA_SOLAR_PANEL.get()).build(null));
+            () -> BlockEntityType.Builder.of(
+                    DataSolarPanelBlockEntity::new,
+                    DEBlocks.DATA_SOLAR_PANEL.get(),
+                    DEBlocks.ME_DATA_SOLAR_PANEL.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DigitalStorageDepotBlockEntity>> DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "digital_storage_depot",

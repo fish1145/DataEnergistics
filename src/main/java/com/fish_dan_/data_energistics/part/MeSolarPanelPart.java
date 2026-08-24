@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.blockentity.machine.DataSolarPanelBlockEnt
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.SolarPanelSchema;
 import com.fish_dan_.data_energistics.menu.machine.DataSolarPanelMenuHost;
+import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.BlockPos;
@@ -36,6 +37,8 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
 
     private static final ResourceLocation MODEL_OFF = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/me_solar_panel_part_off");
     private static final ResourceLocation MODEL_ON = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/me_solar_panel_part_on");
+    private static final ResourceLocation DATA_MODEL_OFF = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/me_data_solar_panel_part_off");
+    private static final ResourceLocation DATA_MODEL_ON = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/me_data_solar_panel_part_on");
     private static final String STORED_POWER_TAG = "storedPower";
     private static final String REDSTONE_CONTROLLED_TAG = "redstoneControlled";
     private static final TickingRequest TICKING_REQUEST = new TickingRequest(1, 1, false);
@@ -46,6 +49,12 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
     private static final PartModel MODELS_ON = new PartModel(MODEL_ON);
     @PartModels
     private static final PartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_ON);
+    @PartModels
+    private static final PartModel DATA_MODELS_OFF = new PartModel(DATA_MODEL_OFF);
+    @PartModels
+    private static final PartModel DATA_MODELS_ON = new PartModel(DATA_MODEL_ON);
+    @PartModels
+    private static final PartModel DATA_MODELS_HAS_CHANNEL = new PartModel(DATA_MODEL_ON);
 
     private double storedPower;
     private double maxPower;
@@ -62,7 +71,7 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
 
     @Override
     protected int getUpgradeSlots() {
-        return DataSolarPanelBlockEntity.UPGRADE_SLOTS;
+        return this.getPartItem() == DEItems.ME_DATA_SOLAR_PANEL_PART.get() ? DataSolarPanelBlockEntity.ME_DATA_UPGRADE_SLOTS : DataSolarPanelBlockEntity.UPGRADE_SLOTS;
     }
 
     @Override
@@ -82,12 +91,13 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
 
     @Override
     public IPartModel getStaticModels() {
+        boolean dataVariant = this.getPartItem() == DEItems.ME_DATA_SOLAR_PANEL_PART.get();
         if (this.isActive() && this.isPowered()) {
-            return MODELS_HAS_CHANNEL;
+            return dataVariant ? DATA_MODELS_HAS_CHANNEL : MODELS_HAS_CHANNEL;
         } else if (this.isPowered()) {
-            return MODELS_ON;
+            return dataVariant ? DATA_MODELS_ON : MODELS_ON;
         } else {
-            return MODELS_OFF;
+            return dataVariant ? DATA_MODELS_OFF : MODELS_OFF;
         }
     }
 
@@ -184,7 +194,7 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
                 baseGeneration,
                 this.getUpgrades(),
                 settings);
-        return adjustedGeneration * getFacingGenerationMultiplier();
+        return adjustedGeneration * getFacingGenerationMultiplier() * getGenerationMultiplier();
     }
 
     @Override
@@ -242,6 +252,10 @@ public class MeSolarPanelPart extends UpgradeablePart implements IGridTickable, 
         }
 
         return 1.0D;
+    }
+
+    private double getGenerationMultiplier() {
+        return this.getPartItem() == DEItems.ME_DATA_SOLAR_PANEL_PART.get() ? DataSolarPanelBlockEntity.ME_DATA_GENERATION_MULTIPLIER : 1.0D;
     }
 
     private BlockPos getSkyAccessCheckPos() {
