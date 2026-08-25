@@ -1,0 +1,10 @@
+{
+	"values": [
+		"data_energistics:small_data_crystal_bud",
+		"data_energistics:medium_data_crystal_bud",
+		"data_energistics:large_data_crystal_bud",
+		"data_energistics:small_resonance_crystal_bud",
+		"data_energistics:medium_resonance_crystal_bud",
+		"data_energistics:large_resonance_crystal_bud"
+	]
+}
