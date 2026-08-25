@@ -3,7 +3,7 @@
 	"inputs": {
 		"items": [
 			{
-				"item": "data_energistics:data_reassembler",
+				"item": "ae2:terminal",
 				"count": 4
 			},
 			{
@@ -27,11 +27,11 @@
 			},
 			{
 				"item": "data_energistics:data_storage_component_64m",
-				"count": 17
+				"count": 7
 			},
 			{
 				"tag": "c:ingots/digisidian_memorize",
-				"count": 41
+				"count": 14
 			},
 			{
 				"item": "data_energistics:time_core",
@@ -41,17 +41,17 @@
 		"fluids": [
 			{
 				"fluid": "data_energistics:ender",
-				"amount": 13250
+				"amount": 6625
 			},
 			{
 				"fluid": "data_energistics:data_corrosion_liquid",
-				"amount": 14500
+				"amount": 7250
 			}
 		],
 		"resource": {
 			"key_type": "data_energistics:digitalization",
 			"resource": "data_energistics:data_flow",
-			"amount": 204700
+			"amount": 102350
 		}
 	},
 	"outputs": {
