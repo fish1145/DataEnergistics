@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.registry.DEMenus;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -77,9 +78,37 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
     public int fluidOutputSidesMask = 63;
     @GuiSync(858)
     public int keyOutputSidesMask = 63;
+    @GuiSync(886)
+    public int itemInputPatternColor0;
+    @GuiSync(887)
+    public int itemInputPatternColor1;
+    @GuiSync(888)
+    public int itemInputPatternColor2;
+    @GuiSync(889)
+    public int itemInputPatternColor3;
+    @GuiSync(890)
+    public int itemInputPatternColor4;
+    @GuiSync(891)
+    public int itemInputPatternColor5;
+    @GuiSync(892)
+    public int itemInputPatternColor6;
+    @GuiSync(893)
+    public int itemInputPatternColor7;
+    @GuiSync(894)
+    public int itemInputPatternColor8;
+    @GuiSync(895)
+    public int fluidInputPatternColor0;
+    @GuiSync(896)
+    public int fluidInputPatternColor1;
+    @GuiSync(897)
+    public int keyInputPatternColor0;
 
     public DataRipperReassemblerMenu(int id, Inventory playerInventory, DataRipperReassemblerBlockEntity host) {
-        super(DEMenus.DATA_RIPPER_REASSEMBLER.get(), id, playerInventory, host);
+        this(DEMenus.DATA_RIPPER_REASSEMBLER.get(), id, playerInventory, host);
+    }
+
+    protected DataRipperReassemblerMenu(MenuType<?> menuType, int id, Inventory playerInventory, DataRipperReassemblerBlockEntity host) {
+        super(menuType, id, playerInventory, host);
         registerClientAction(ACTION_SET_AUTO_EXPORT, Boolean.class, this::setAutoExportEnabled);
         registerClientAction(ACTION_SET_OUTPUT_SIDE, String.class, this::setOutputSide);
     }
@@ -109,6 +138,7 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
                 this.keyOutputLabel = keyOutput.what().getDisplayName().getString();
                 this.keyOutputAmount = keyOutput.amount();
             }
+            syncInputPatternColors(host);
             this.progress = host.getProgress();
             this.maxProgress = host.getMaxProgress();
             this.autoExport = host.isAutoExportEnabled() ? YesNo.YES : YesNo.NO;
@@ -122,18 +152,24 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
     @Override
     protected void setupInventorySlots() {
         var storage = this.getHost().getStorageInventory();
-        for (int i = 0; i < DataRipperReassemblerBlockEntity.ITEM_INPUT_SLOT_COUNT; i++) {
+        for (int i = 0; i < this.getHost().getItemInputSlotCount(); i++) {
             this.addSlot(new ReassemblerItemSlot(storage, DataRipperReassemblerBlockEntity.ITEM_INPUT_START_SLOT + i), SlotSemantics.MACHINE_INPUT);
         }
-        this.addSlot(new AppEngSlot(this.getHost().getFluidMenuInventoryA(), 0), SlotSemantics.STORAGE);
-        this.addSlot(new AppEngSlot(this.getHost().getFluidMenuInventoryB(), 0), FLUID_INPUT_B);
+        this.addSlot(new PatternInputSlot(this.getHost().getFluidMenuInventoryA(), 0, PatternInputType.FLUID, 0), SlotSemantics.STORAGE);
+        this.addSlot(new PatternInputSlot(this.getHost().getFluidMenuInventoryB(), 0, PatternInputType.FLUID, 1), FLUID_INPUT_B);
         this.addSlot(new AppEngSlot(this.getHost().getFluidOutputMenuInventoryA(), 0), FLUID_OUTPUT_A);
         this.addSlot(new AppEngSlot(this.getHost().getFluidOutputMenuInventoryB(), 0), FLUID_OUTPUT_B);
-        this.addSlot(new AppEngSlot(this.getHost().getKeyMenuInventory(), 0), KEY_INPUT);
+        this.addSlot(new PatternInputSlot(this.getHost().getKeyMenuInventory(), 0, PatternInputType.KEY, 0), KEY_INPUT);
         this.addSlot(new AppEngSlot(this.getHost().getKeyOutputMenuInventory(), 0), KEY_OUTPUT);
-        this.addSlot(new ReassemblerOutputSlot(storage, DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT), SlotSemantics.MACHINE_OUTPUT);
-        this.addSlot(new ReassemblerOutputSlot(storage, DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT + 1), ITEM_OUTPUT_B);
-        this.addSlot(new ReassemblerOutputSlot(storage, DataRipperReassemblerBlockEntity.ITEM_OUTPUT_START_SLOT + 2), ITEM_OUTPUT_C);
+        for (int i = 0; i < this.getHost().getItemOutputSlotCount(); i++) {
+            SlotSemantic semantic = switch (i) {
+                case 0 -> SlotSemantics.MACHINE_OUTPUT;
+                case 1 -> ITEM_OUTPUT_B;
+                case 2 -> ITEM_OUTPUT_C;
+                default -> SlotSemantics.MACHINE_OUTPUT;
+            };
+            this.addSlot(new ReassemblerOutputSlot(storage, this.getHost().getItemOutputStartSlot() + i), semantic);
+        }
     }
 
     @Override
@@ -168,6 +204,62 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
                 this.fluidOutputBAmount = amount;
             }
         }
+    }
+
+    private void syncInputPatternColors(DataRipperReassemblerBlockEntity host) {
+        this.itemInputPatternColor0 = host.getItemInputPatternColor(0);
+        this.itemInputPatternColor1 = host.getItemInputPatternColor(1);
+        this.itemInputPatternColor2 = host.getItemInputPatternColor(2);
+        this.itemInputPatternColor3 = host.getItemInputPatternColor(3);
+        this.itemInputPatternColor4 = host.getItemInputPatternColor(4);
+        this.itemInputPatternColor5 = host.getItemInputPatternColor(5);
+        this.itemInputPatternColor6 = host.getItemInputPatternColor(6);
+        this.itemInputPatternColor7 = host.getItemInputPatternColor(7);
+        this.itemInputPatternColor8 = host.getItemInputPatternColor(8);
+        this.fluidInputPatternColor0 = host.getFluidInputPatternColor(0);
+        this.fluidInputPatternColor1 = host.getFluidInputPatternColor(1);
+        this.keyInputPatternColor0 = host.getKeyInputPatternColor(0);
+    }
+
+    public int getPatternInputColor(Slot slot) {
+        if (!(slot instanceof PatternInputSlot patternInputSlot)) {
+            return 0;
+        }
+        return switch (patternInputSlot.inputType) {
+            case ITEM -> getItemInputPatternColor(patternInputSlot.inputSlot);
+            case FLUID -> getFluidInputPatternColor(patternInputSlot.inputSlot);
+            case KEY -> getKeyInputPatternColor(patternInputSlot.inputSlot);
+        };
+    }
+
+    public int getItemInputPatternColor(int slot) {
+        return switch (slot) {
+            case 0 -> this.itemInputPatternColor0;
+            case 1 -> this.itemInputPatternColor1;
+            case 2 -> this.itemInputPatternColor2;
+            case 3 -> this.itemInputPatternColor3;
+            case 4 -> this.itemInputPatternColor4;
+            case 5 -> this.itemInputPatternColor5;
+            case 6 -> this.itemInputPatternColor6;
+            case 7 -> this.itemInputPatternColor7;
+            case 8 -> this.itemInputPatternColor8;
+            default -> throw new IndexOutOfBoundsException("Invalid item input pattern color slot: " + slot);
+        };
+    }
+
+    public int getFluidInputPatternColor(int slot) {
+        return switch (slot) {
+            case 0 -> this.fluidInputPatternColor0;
+            case 1 -> this.fluidInputPatternColor1;
+            default -> throw new IndexOutOfBoundsException("Invalid fluid input pattern color slot: " + slot);
+        };
+    }
+
+    public int getKeyInputPatternColor(int slot) {
+        if (slot != 0) {
+            throw new IndexOutOfBoundsException("Invalid key input pattern color slot: " + slot);
+        }
+        return this.keyInputPatternColor0;
     }
 
     @Override
@@ -301,10 +393,28 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
         return mask;
     }
 
-    private static final class ReassemblerItemSlot extends AppEngSlot {
+    protected enum PatternInputType {
+        ITEM,
+        FLUID,
+        KEY
+    }
 
-        private ReassemblerItemSlot(InternalInventory inv, int invSlot) {
+    protected static class PatternInputSlot extends AppEngSlot {
+
+        private final PatternInputType inputType;
+        private final int inputSlot;
+
+        protected PatternInputSlot(InternalInventory inv, int invSlot, PatternInputType inputType, int inputSlot) {
             super(inv, invSlot);
+            this.inputType = inputType;
+            this.inputSlot = inputSlot;
+        }
+    }
+
+    protected static final class ReassemblerItemSlot extends PatternInputSlot {
+
+        protected ReassemblerItemSlot(InternalInventory inv, int invSlot) {
+            super(inv, invSlot, PatternInputType.ITEM, invSlot);
         }
 
         @Override
@@ -313,9 +423,9 @@ public class DataRipperReassemblerMenu extends UpgradeableMenu<DataRipperReassem
         }
     }
 
-    private static final class ReassemblerOutputSlot extends OutputSlot {
+    protected static final class ReassemblerOutputSlot extends OutputSlot {
 
-        private ReassemblerOutputSlot(InternalInventory inv, int invSlot) {
+        protected ReassemblerOutputSlot(InternalInventory inv, int invSlot) {
             super(inv, invSlot, null);
         }
 

@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.block.TuningForkBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
 import com.fish_dan_.data_energistics.block.explosive.DataNukeBlock;
 import com.fish_dan_.data_energistics.block.explosive.TntConfigurableBlock;
+import com.fish_dan_.data_energistics.block.machine.DataAsynchronousProcessingFactoryBlock;
 import com.fish_dan_.data_energistics.block.machine.DataChargerBlock;
 import com.fish_dan_.data_energistics.block.machine.DataExtractorBlock;
 import com.fish_dan_.data_energistics.block.machine.DataIntegratedChargerBlock;
@@ -45,12 +46,20 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
+import appeng.block.networking.EnergyCellBlock;
+
 public final class DEBlocks {
 
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Data_Energistics.MODID);
 
     public static final DeferredBlock<Block> DATA_SOLAR_PANEL = BLOCKS.registerBlock(
             "me_solar_panel",
+            DataSolarPanelBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .noOcclusion());
+
+    public static final DeferredBlock<Block> ME_DATA_SOLAR_PANEL = BLOCKS.registerBlock(
+            "me_data_solar_panel",
             DataSolarPanelBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .noOcclusion());
@@ -63,6 +72,11 @@ public final class DEBlocks {
     public static final DeferredBlock<Block> DATA_RIPPER_REASSEMBLER = BLOCKS.registerBlock(
             "data_reassembler",
             DataRipperReassemblerMainBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> DATA_ASYNCHRONOUS_PROCESSING_FACTORY = BLOCKS.registerBlock(
+            "data_asynchronous_processing_factory",
+            DataAsynchronousProcessingFactoryBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
 
     public static final DeferredBlock<Block> TRINITY_DATA_CORE = BLOCKS.registerBlock(
@@ -132,6 +146,10 @@ public final class DEBlocks {
             DataIntegratedChargerBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .noOcclusion());
+
+    public static final DeferredBlock<EnergyCellBlock> DATA_ENERGY_CELL = BLOCKS.registerBlock(
+            "data_energy_cell",
+            properties -> new EnergyCellBlock(32_000_000.0D, 16_000.0D, 16_000));
 
     public static final DeferredBlock<Block> GUIDE_ENDER_DISPLAY = BLOCKS.registerBlock(
             "guide_ender_display",

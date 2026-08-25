@@ -1,11 +1,12 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.screen.machine.AdaptivePatternProviderScreen;
+import com.fish_dan_.data_energistics.client.screen.machine.DataAsynchronousProcessingFactoryScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataExtractorScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataIntegratedChargerScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataMimeticFieldScreen;
-import com.fish_dan_.data_energistics.client.screen.machine.DataRipperReassemblerScreen;
+import com.fish_dan_.data_energistics.client.screen.machine.DataRipperReassemblerMainScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataRipperScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataSanctumInterfaceScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataSanctumLargeInterfaceScreen;
@@ -39,7 +40,10 @@ final class ClientScreenRegistrar {
         InitScreens.register(event, DEMenus.DATA_RIPPER.get(), DataRipperScreen::new, "/screens/data_ripper.json");
         InitScreens.register(event, DEMenus.DATA_DISTRIBUTION_TOWER.get(), DataDistributionTowerScreen::new, "/screens/data_distribution_tower.json");
         InitScreens.register(event, DEMenus.DATA_EXTRACTOR.get(), DataExtractorScreen::new, "/screens/data_extractor.json");
-        InitScreens.register(event, DEMenus.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerScreen::new, "/screens/data_reassembler.json");
+        InitScreens.register(event, DEMenus.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerMainScreen::new,
+                "/screens/data_reassembler.json");
+        InitScreens.register(event, DEMenus.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get(), DataAsynchronousProcessingFactoryScreen::new,
+                "/screens/data_asynchronous_processing_factory.json");
         InitScreens.register(event, DEMenus.DATA_INTEGRATED_CHARGER.get(), DataIntegratedChargerScreen::new,
                 "/screens/data_integrated_charger.json");
         event.register(DEMenus.TRINITY_INFORMATION_EXCHANGE_DEPOT.get(), TrinityInformationExchangeDepotScreen::new);

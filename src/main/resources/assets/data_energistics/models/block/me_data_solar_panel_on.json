@@ -1,0 +1,8 @@
+{
+	"format_version": "1.21.11",
+	"credit": "Made with Blockbench",
+	"parent": "data_energistics:block/me_solar_panel_off",
+	"textures": {
+		"1": "data_energistics:block/solar_panel/me_data_solar_panel_on"
+	}
+}

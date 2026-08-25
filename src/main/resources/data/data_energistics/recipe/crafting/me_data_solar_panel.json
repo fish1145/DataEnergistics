@@ -1,0 +1,22 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["   ", "XBX", "ACA"],
+	"key": {
+		"A": {
+			"tag": "c:ingots/iron"
+		},
+		"B": {
+			"item": "ae2:quartz_vibrant_glass"
+		},
+		"C": {
+			"item": "ae2:energy_cell"
+		},
+		"X": {
+			"tag": "c:gems/data_crystal"
+		}
+	},
+	"result": {
+		"id": "data_energistics:me_data_solar_panel",
+		"count": 1
+	}
+}

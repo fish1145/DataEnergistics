@@ -141,6 +141,8 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         registration.addRecipeCatalyst(AEBlocks.CONDENSER, CondenserOutputRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEItems.RADIX_CONTAINMENT_SPHERE.get(), TimeShiftRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
+        registration.addRecipeCatalyst(DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get(),
+                DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_INTEGRATED_CHARGER.get(), DataChargePressRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.EXTENDED_DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);

@@ -13,6 +13,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -37,7 +38,9 @@ import java.util.Set;
 public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity implements IUpgradeableObject, DataSolarPanelMenuHost {
 
     public static final double ENERGY_CAPACITY = 160_000.0D;
+    public static final double ME_DATA_GENERATION_MULTIPLIER = 1.75D;
     public static final int UPGRADE_SLOTS = 3;
+    public static final int ME_DATA_UPGRADE_SLOTS = 5;
     public static final int MAX_SPEED_CARDS = 3;
     public static final int MAX_ENERGY_CARDS = 3;
     private static final ResourceLocation SPATIAL_STORAGE_DIMENSION = ResourceLocation.fromNamespaceAndPath("ae2", "spatial_storage");
@@ -45,13 +48,16 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     private static final String UPGRADES_TAG = "upgrades";
     private static final String REDSTONE_CONTROLLED_TAG = "redstone_controlled";
 
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(DEBlocks.DATA_SOLAR_PANEL.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(
+            getUpgradeMachine(),
+            getUpgradeSlots(),
+            this::onUpgradesChanged);
     private boolean redstoneControlled;
 
     public DataSolarPanelBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(DEBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
-                .setVisualRepresentation(DEBlocks.DATA_SOLAR_PANEL.get())
+                .setVisualRepresentation(getUpgradeMachine())
                 .setIdlePowerUsage(0.0D);
         this.setInternalMaxPower(computeMaxPower(this.upgrades));
     }
@@ -129,7 +135,7 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
 
         SolarPanelSchema settings = DataEnergisticsConfiguration.INSTANCE.machines.solarPanel;
         double baseGeneration = specialNightGenerationDimension || !this.level.isDay() ? settings.nightGenerationAEPerTick : settings.dayGenerationAEPerTick;
-        return applySpeedUpgrades(baseGeneration, this.upgrades, settings);
+        return applySpeedUpgrades(baseGeneration, this.upgrades, settings) * getGenerationMultiplier();
     }
 
     @Override
@@ -203,6 +209,18 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
 
     public static int getEnergyCardCount(IUpgradeInventory upgrades) {
         return Math.max(0, upgrades.getInstalledUpgrades(AEItems.ENERGY_CARD));
+    }
+
+    private ItemLike getUpgradeMachine() {
+        return this.getBlockState().getBlock() == DEBlocks.ME_DATA_SOLAR_PANEL.get() ? DEBlocks.ME_DATA_SOLAR_PANEL.get() : DEBlocks.DATA_SOLAR_PANEL.get();
+    }
+
+    private int getUpgradeSlots() {
+        return this.getBlockState().getBlock() == DEBlocks.ME_DATA_SOLAR_PANEL.get() ? ME_DATA_UPGRADE_SLOTS : UPGRADE_SLOTS;
+    }
+
+    private double getGenerationMultiplier() {
+        return this.getBlockState().getBlock() == DEBlocks.ME_DATA_SOLAR_PANEL.get() ? ME_DATA_GENERATION_MULTIPLIER : 1.0D;
     }
 
     private void pushStoredPowerToGrid() {

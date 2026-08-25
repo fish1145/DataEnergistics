@@ -127,7 +127,7 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
 
     @Override
     public boolean matches(DataRipperReassemblerRecipeInput input, Level level) {
-        if (!matchesKeyInput(input.keyInput())) {
+        if (!matchesKeyInput(input.keyInputs())) {
             return false;
         }
         if (!matchesFluidInputs(input.fluidInputs())) {
@@ -302,14 +302,21 @@ public final class DataRipperReassemblerRecipe implements Recipe<DataRipperReass
         return this.keyOutput;
     }
 
-    private boolean matchesKeyInput(@Nullable GenericStack inputKey) {
+    private boolean matchesKeyInput(List<GenericStack> inputKeys) {
         if (this.keyInput == null) {
             return true;
         }
-        if (inputKey == null) {
-            return false;
+        long available = 0L;
+        for (GenericStack inputKey : inputKeys) {
+            if (inputKey == null || !this.keyInput.what().equals(inputKey.what())) {
+                continue;
+            }
+            if (Long.MAX_VALUE - available < inputKey.amount()) {
+                return true;
+            }
+            available += inputKey.amount();
         }
-        return this.keyInput.what().equals(inputKey.what()) && inputKey.amount() >= this.keyInput.amount();
+        return available >= this.keyInput.amount();
     }
 
     private boolean matchesFluidInputs(List<GenericStack> inputFluids) {

@@ -120,9 +120,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
 
     private void addCircuitBoardRecipe(InscriberRecipe recipe) {
         this.catalysts.add(EmiIngredient.of(DataChargePressRecipeSupport.INSCRIBER_MODULES));
-        if (DataChargePressRecipeSupport.hasCircuitBoardTemplate(recipe)) {
-            this.catalysts.add(EmiIngredient.of(DataChargePressRecipeSupport.getTemplate(recipe)));
-        }
         this.inputs.add(EmiIngredient.of(recipe.getMiddleInput(),
                 DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT));
         if (DataChargePressRecipeSupport.getFluidInput().what() instanceof AEFluidKey fluidKey) {
@@ -193,13 +190,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     }
 
     private void addCircuitBoardWidgets(WidgetHolder widgets, InscriberRecipe recipe) {
-        if (DataChargePressRecipeSupport.hasCircuitBoardTemplate(recipe)) {
-            widgets.addSlot(EmiIngredient.of(DataChargePressRecipeSupport.getTemplate(recipe)), FIRST_INPUT_X,
-                    FIRST_INPUT_Y)
-                    .catalyst(true)
-                    .drawBack(false)
-                    .appendTooltip(Component.translatable("recipe.data_energistics.data_charge_press.template"));
-        }
         widgets.addSlot(EmiIngredient.of(recipe.getMiddleInput(),
                 DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT), SECOND_INPUT_X, SECOND_INPUT_Y)
                 .drawBack(false);

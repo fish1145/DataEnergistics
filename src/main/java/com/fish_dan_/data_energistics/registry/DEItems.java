@@ -50,6 +50,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 import appeng.api.stacks.GenericStack;
 import appeng.api.upgrades.Upgrades;
+import appeng.block.networking.EnergyCellBlockItem;
 import appeng.items.parts.PartItem;
 import appeng.items.storage.StorageTier;
 
@@ -95,8 +96,10 @@ public final class DEItems {
     public static final DeferredItem<PortableDigitalStorageCellItem> PORTABLE_DIGITAL_STORAGE_CELL_256K = registerPortableDigitalStorageCell("portable_digital_storage_cell_256k", StorageTier.SIZE_256K, 0xFF72C8);
 
     public static final DeferredItem<BlockItem> DATA_SOLAR_PANEL = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_SOLAR_PANEL);
+    public static final DeferredItem<BlockItem> ME_DATA_SOLAR_PANEL = ITEMS.registerSimpleBlockItem(DEBlocks.ME_DATA_SOLAR_PANEL);
     public static final DeferredItem<BlockItem> DATA_EXTRACTOR = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_EXTRACTOR);
     public static final DeferredItem<BlockItem> DATA_RIPPER_REASSEMBLER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_RIPPER_REASSEMBLER);
+    public static final DeferredItem<BlockItem> DATA_ASYNCHRONOUS_PROCESSING_FACTORY = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY);
     public static final DeferredItem<BlockItem> TRINITY_DATA_CORE = ITEMS.registerSimpleBlockItem(DEBlocks.TRINITY_DATA_CORE);
     public static final DeferredItem<BlockItem> DATA_FRAMEWORK = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_FRAMEWORK);
     public static final DeferredItem<BlockItem> DATA_DISTRIBUTION_TOWER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_DISTRIBUTION_TOWER);
@@ -107,6 +110,9 @@ public final class DEItems {
     public static final DeferredItem<BlockItem> DATA_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_CHARGER);
     public static final DeferredItem<BlockItem> EXTENDED_DATA_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.EXTENDED_DATA_CHARGER);
     public static final DeferredItem<BlockItem> DATA_INTEGRATED_CHARGER = ITEMS.registerSimpleBlockItem(DEBlocks.DATA_INTEGRATED_CHARGER);
+    public static final DeferredItem<EnergyCellBlockItem> DATA_ENERGY_CELL = ITEMS.register(
+            "data_energy_cell",
+            () -> new EnergyCellBlockItem(DEBlocks.DATA_ENERGY_CELL.get(), new Item.Properties()));
     public static final DeferredItem<DataSanctumInterfaceUpgradeItem> DATA_SANCTUM_INTERFACE_UPGRADE = ITEMS.register(
             "data_sanctum_interface_upgrade",
             () -> new DataSanctumInterfaceUpgradeItem(new Item.Properties()));
@@ -191,6 +197,9 @@ public final class DEItems {
     public static final DeferredItem<PartItem<MeSolarPanelPart>> ME_SOLAR_PANEL_PART = ITEMS.register(
             "me_solar_panel_part",
             () -> new PartItem<>(new Item.Properties(), MeSolarPanelPart.class, MeSolarPanelPart::new));
+    public static final DeferredItem<PartItem<MeSolarPanelPart>> ME_DATA_SOLAR_PANEL_PART = ITEMS.register(
+            "me_data_solar_panel_part",
+            () -> new PartItem<>(new Item.Properties(), MeSolarPanelPart.class, MeSolarPanelPart::new));
     public static final DeferredItem<PartItem<UniversalTerminalPart>> UNIVERSAL_TERMINAL = ITEMS.register(
             "universal_terminal",
             () -> new UniversalTerminalPartItem(new Item.Properties()));
@@ -264,6 +273,9 @@ public final class DEItems {
     public static final DeferredItem<Item> DATA_INSCRIBER_TEMPLATE = ITEMS.registerSimpleItem("data_inscriber_template");
     public static final DeferredItem<Item> DATA_CIRCUIT_BOARD = ITEMS.registerSimpleItem("data_circuit_board");
     public static final DeferredItem<Item> DATA_PROCESSOR = ITEMS.registerSimpleItem("data_processor");
+    public static final DeferredItem<Item> FLUIX_AGGREGATE_CRYSTAL_PROCESSOR = ITEMS.register(
+            "fluix_aggregate_crystal_processor",
+            () -> new Item(new Item.Properties().stacksTo(16)));
     public static final DeferredItem<Item> COMPLEXIFIED_BIOCHIPS = ITEMS.registerSimpleItem("complexified_biochips");
     public static final DeferredItem<Item> DIGISIDIAN_MEMORIZE_INGOT = ITEMS.registerSimpleItem("digisidian_memorize_ingot");
     public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_1K = ITEMS.register(
