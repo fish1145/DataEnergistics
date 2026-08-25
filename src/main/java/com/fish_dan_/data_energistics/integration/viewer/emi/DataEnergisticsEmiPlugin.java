@@ -138,6 +138,8 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 .forEach(consumer));
         registry.addCategory(DataRipperReassemblerEmiRecipe.CATEGORY);
         registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY, EmiStack.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get()));
+        registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY,
+                EmiStack.of(DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get()));
         registry.addDeferredRecipes(consumer -> registry.getRecipeManager()
                 .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
                 .map(DataRipperReassemblerEmiRecipe::new)

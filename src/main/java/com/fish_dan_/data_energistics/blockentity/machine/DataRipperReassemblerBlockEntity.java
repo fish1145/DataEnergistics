@@ -32,6 +32,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -85,12 +86,15 @@ import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEntity
                                               implements InternalInventoryHost, IConfigurableObject, IUpgradeableObject, ICraftingMachine,
@@ -109,7 +113,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final long KEY_INPUT_CAPACITY = 51_200_000L;
     public static final long KEY_OUTPUT_CAPACITY = 51_200_000L;
     public static final int MAX_PROGRESS = 200;
-    public static final int UPGRADE_SLOTS = 5;
+    public static final int UPGRADE_SLOTS = 6;
     public static final int BASE_PARALLEL = 1;
     public static final int MAX_ENERGY_CARDS = 2;
     public static final int PARALLEL_MULTIPLIER_PER_ENERGY_CARD = 16;
@@ -134,25 +138,39 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String PROGRESS_TAG = "progress";
     private static final String MAX_PROGRESS_TAG = "max_progress";
     private static final String ACTIVE_RECIPE_TAG = "active_recipe";
+    private static final String ACTIVE_INPUT_PATTERN_COLOR_TAG = "active_input_pattern_color";
+    private static final String PROCESSING_CHANNELS_TAG = "processing_channels";
+    private static final String ITEM_INPUT_PATTERN_COLORS_TAG = "item_input_pattern_colors";
+    private static final String FLUID_INPUT_PATTERN_COLORS_TAG = "fluid_input_pattern_colors";
+    private static final String KEY_INPUT_PATTERN_COLORS_TAG = "key_input_pattern_colors";
+    private static final String PATTERN_INPUT_COLOR_ASSIGNMENTS_TAG = "pattern_input_color_assignments";
+    private static final String PATTERN_DEFINITION_TAG = "definition";
+    private static final String PATTERN_COLOR_TAG = "color";
+    private static final int PATTERN_COLOR_MASK = 0xBFBFBF;
+    private static final int MINIMUM_PATTERN_COLOR = 0x404040;
+    private static final int PATTERN_COLOR_PROBE_STEP = 0x9E3779B9;
 
-    private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
+    private final IUpgradeInventory upgrades;
     private final AppEngInternalInventory storage = new ReassemblerItemInventory();
+    private final int[] itemInputPatternColors = new int[getItemInputSlotCount()];
+    private final int[] fluidInputPatternColors = new int[getFluidInputSlotCount()];
+    private final int[] keyInputPatternColors = new int[getKeyInputSlotCount()];
+    private final Map<AEItemKey, Integer> patternInputColorAssignments = new HashMap<>();
     private boolean suppressAe2DefaultInventorySerialization;
+    private boolean preservingInputPatternColors;
     private final InternalInventory externalInput = createExternalInput();
     private final InternalInventory externalOutput = createExternalOutput();
     @Getter
     private final InternalInventory externalInventory = new CombinedInternalInventory(this.externalInput, this.externalOutput);
 
-    private final FluidTank fluidInputTankA = new SyncFluidTank(FLUID_INPUT_CAPACITY);
-    private final FluidTank fluidInputTankB = new SyncFluidTank(FLUID_INPUT_CAPACITY);
-    private final FluidTank fluidOutputTankA = new SyncFluidTank(FLUID_OUTPUT_CAPACITY);
-    private final FluidTank fluidOutputTankB = new SyncFluidTank(FLUID_OUTPUT_CAPACITY);
-    private final GenericStackInv fluidMenuInventoryA = createFluidMenuInventory(this::syncTankAFromMenuFluid, FLUID_INPUT_CAPACITY, this.fluidInputTankB::getFluid);
-    private final GenericStackInv fluidMenuInventoryB = createFluidMenuInventory(this::syncTankBFromMenuFluid, FLUID_INPUT_CAPACITY, this.fluidInputTankA::getFluid);
-    private final GenericStackInv fluidOutputMenuInventoryA = createFluidMenuInventory(this::syncOutputTankAFromMenuFluid, FLUID_OUTPUT_CAPACITY, this.fluidOutputTankB::getFluid);
-    private final GenericStackInv fluidOutputMenuInventoryB = createFluidMenuInventory(this::syncOutputTankBFromMenuFluid, FLUID_OUTPUT_CAPACITY, this.fluidOutputTankA::getFluid);
-    private final GenericStackInv keyMenuInventory = createKeyMenuInventory();
-    private final GenericStackInv keyOutputMenuInventory = createKeyOutputMenuInventory();
+    private final List<FluidTank> fluidInputTanks = createFluidTanks(getFluidInputSlotCount(), FLUID_INPUT_CAPACITY);
+    private final List<FluidTank> fluidOutputTanks = createFluidTanks(getFluidOutputSlotCount(), FLUID_OUTPUT_CAPACITY);
+    private final List<GenericStackInv> fluidInputMenuInventories = createFluidMenuInventories(this.fluidInputTanks,
+            FLUID_INPUT_CAPACITY);
+    private final List<GenericStackInv> fluidOutputMenuInventories = createFluidMenuInventories(this.fluidOutputTanks,
+            FLUID_OUTPUT_CAPACITY);
+    private final List<GenericStackInv> keyInputMenuInventories = createKeyMenuInventories(getKeyInputSlotCount(), true);
+    private final List<GenericStackInv> keyOutputMenuInventories = createKeyMenuInventories(getKeyOutputSlotCount(), false);
     @Getter
     private final GenericInternalInventory externalKeyInventory = new ReassemblerKeyInventory();
     @Getter
@@ -162,25 +180,65 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private final ConfigManager configManager = new ConfigManager(this::onConfigChanged);
     private boolean syncingFluidMenu;
     private boolean syncingKeyMenu;
-    private GenericStack keyInputStack;
-    private GenericStack keyOutputStack;
+    private final List<GenericStack> keyInputStacks = createKeyStacks(getKeyInputSlotCount());
+    private final List<GenericStack> keyOutputStacks = createKeyStacks(getKeyOutputSlotCount());
     private final Set<Direction> itemOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> fluidOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> keyOutputSides = EnumSet.allOf(Direction.class);
     private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
     private AdjacentBlockCapabilityCache<IFluidHandler> adjacentFluidHandlers;
     private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentKeyInventories;
-    @Getter
-    private int progress;
-    @Getter
-    private int maxProgress = MAX_PROGRESS;
-    private ResourceLocation activeRecipeId;
-    private RecipeMatchCache recipeMatchCache;
+    private final ProcessingChannelState[] processingChannels = createProcessingChannels();
+
+    private static String getFluidInputTag(int slot) {
+        return switch (slot) {
+            case 0 -> FLUID_INPUT_A_TAG;
+            case 1 -> FLUID_INPUT_B_TAG;
+            default -> "fluid_input_" + slot;
+        };
+    }
+
+    private static String getFluidOutputTag(int slot) {
+        return switch (slot) {
+            case 0 -> FLUID_OUTPUT_A_TAG;
+            case 1 -> FLUID_OUTPUT_B_TAG;
+            default -> "fluid_output_" + slot;
+        };
+    }
+
+    private static String getKeyInputTag(int slot) {
+        return slot == 0 ? KEY_INPUT_TAG : "key_input_" + slot;
+    }
+
+    private static String getKeyOutputTag(int slot) {
+        return slot == 0 ? KEY_OUTPUT_TAG : "key_output_" + slot;
+    }
+
+    private ProcessingChannelState[] createProcessingChannels() {
+        int channelCount = getProcessingChannelCount();
+        if (channelCount <= 0) {
+            throw new IllegalStateException("Processing channel count must be positive");
+        }
+
+        ProcessingChannelState[] channels = new ProcessingChannelState[channelCount];
+        for (int channel = 0; channel < channelCount; channel++) {
+            channels[channel] = new ProcessingChannelState();
+        }
+        return channels;
+    }
 
     public DataRipperReassemblerBlockEntity(BlockPos blockPos, BlockState blockState) {
-        super(DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), blockPos, blockState);
+        this(DEBlockEntities.DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY.get(), DEBlocks.DATA_RIPPER_REASSEMBLER.get(), blockPos, blockState);
+    }
+
+    protected DataRipperReassemblerBlockEntity(BlockEntityType<? extends DataRipperReassemblerBlockEntity> blockEntityType,
+                                               Block machineBlock,
+                                               BlockPos blockPos,
+                                               BlockState blockState) {
+        super(blockEntityType, blockPos, blockState);
+        this.upgrades = UpgradeInventories.forMachine(machineBlock, UPGRADE_SLOTS, this::onUpgradesChanged);
         this.getMainNode()
-                .setVisualRepresentation(DEBlocks.DATA_RIPPER_REASSEMBLER.get())
+                .setVisualRepresentation(machineBlock)
                 .setIdlePowerUsage(1.0D);
         this.setInternalMaxPower(ENERGY_CAPACITY);
         this.configManager.registerSetting(Settings.AUTO_EXPORT, YesNo.NO);
@@ -188,7 +246,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
             @Override
             public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
-                return slot >= ITEM_INPUT_START_SLOT && slot < ITEM_INPUT_START_SLOT + ITEM_INPUT_SLOT_COUNT;
+                return slot >= ITEM_INPUT_START_SLOT && slot < ITEM_INPUT_START_SLOT + getItemInputSlotCount();
             }
         });
         initializeItemSlotCapacities();
@@ -237,11 +295,14 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         while (remainingTicks > 0) {
             boolean hasOutputBeforeWork = hasAnyOutput();
             int progressBudget = isAutoExportEnabled() && hasOutputBeforeWork && !autoExportStalled ? 1 : remainingTicks;
-            RecipeAdvance advance = processRecipe(progressBudget);
-            remainingTicks -= advance.elapsedTicks();
+            boolean completedRecipe = false;
+            for (int channel = 0; channel < this.processingChannels.length; channel++) {
+                completedRecipe |= advanceProcessingChannel(channel, progressBudget);
+            }
+            remainingTicks -= progressBudget;
 
             boolean shouldAttemptExport = isAutoExportEnabled() && hasAnyOutput() &&
-                    (!autoExportStalled || advance.completedRecipe());
+                    (!autoExportStalled || completedRecipe);
             if (shouldAttemptExport) {
                 autoExportStalled = !tryAutoExport();
             }
@@ -255,7 +316,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public boolean isWorking() {
-        return this.getProgress() > 0;
+        for (ProcessingChannelState channel : this.processingChannels) {
+            if (channel.progress > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -265,18 +331,20 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     @Override
     public PatternContainerGroup getCraftingMachineInfo() {
-        return new PatternContainerGroup(AEItemKey.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get()),
-                DEBlocks.DATA_RIPPER_REASSEMBLER.get().getName(), List.of());
+        return new PatternContainerGroup(AEItemKey.of(getMachineBlock()), getMachineBlock().getName(), List.of());
     }
 
     @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, Direction ejectionDirection) {
-        PatternPushState state = new PatternPushState(copyInputSlots(), this.fluidInputTankA.getFluid().copy(),
-                this.fluidInputTankB.getFluid().copy(), copyKeyStack(this.keyInputStack));
-        if (!canAcceptPatternInputs(state, inputHolder)) {
+        int patternColor = usesPatternInputColors() ? getPatternColor(patternDetails) : 0;
+        PatternPushState state = findPatternPushState(inputHolder, patternColor);
+        if (state == null) {
             return false;
         }
 
+        if (usesPatternInputColors()) {
+            this.patternInputColorAssignments.putIfAbsent(patternDetails.getDefinition(), patternColor);
+        }
         applyPatternPushState(state);
         saveChanges();
         markForClientUpdate();
@@ -287,52 +355,76 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return this.storage;
     }
 
+    public ConfigMenuInventory getFluidInputMenuInventory(int slot) {
+        return this.fluidInputMenuInventories.get(slot).createMenuWrapper();
+    }
+
+    public ConfigMenuInventory getFluidOutputMenuInventory(int slot) {
+        return this.fluidOutputMenuInventories.get(slot).createMenuWrapper();
+    }
+
+    public ConfigMenuInventory getKeyInputMenuInventory(int slot) {
+        return this.keyInputMenuInventories.get(slot).createMenuWrapper();
+    }
+
+    public ConfigMenuInventory getKeyOutputMenuInventory(int slot) {
+        return this.keyOutputMenuInventories.get(slot).createMenuWrapper();
+    }
+
     public ConfigMenuInventory getFluidMenuInventoryA() {
-        return this.fluidMenuInventoryA.createMenuWrapper();
+        return getFluidInputMenuInventory(0);
     }
 
     public ConfigMenuInventory getFluidMenuInventoryB() {
-        return this.fluidMenuInventoryB.createMenuWrapper();
+        return getFluidInputMenuInventory(1);
     }
 
     public ConfigMenuInventory getFluidOutputMenuInventoryA() {
-        return this.fluidOutputMenuInventoryA.createMenuWrapper();
+        return getFluidOutputMenuInventory(0);
     }
 
     public ConfigMenuInventory getFluidOutputMenuInventoryB() {
-        return this.fluidOutputMenuInventoryB.createMenuWrapper();
+        return getFluidOutputMenuInventory(1);
     }
 
     public ConfigMenuInventory getKeyMenuInventory() {
-        return this.keyMenuInventory.createMenuWrapper();
+        return getKeyInputMenuInventory(0);
     }
 
     public ConfigMenuInventory getKeyOutputMenuInventory() {
-        return this.keyOutputMenuInventory.createMenuWrapper();
+        return getKeyOutputMenuInventory(0);
+    }
+
+    public FluidStack getFluidInput(int slot) {
+        return this.fluidInputTanks.get(slot).getFluid();
+    }
+
+    public FluidStack getFluidOutput(int slot) {
+        return this.fluidOutputTanks.get(slot).getFluid();
     }
 
     public FluidStack getFluidInputA() {
-        return this.fluidInputTankA.getFluid();
+        return getFluidInput(0);
     }
 
     public FluidStack getFluidInputB() {
-        return this.fluidInputTankB.getFluid();
+        return getFluidInput(1);
     }
 
     public FluidStack getFluidOutputA() {
-        return this.fluidOutputTankA.getFluid();
+        return getFluidOutput(0);
     }
 
     public FluidStack getFluidOutputB() {
-        return this.fluidOutputTankB.getFluid();
+        return getFluidOutput(1);
     }
 
     public int getFluidInputCapacity() {
-        return this.fluidInputTankA.getCapacity();
+        return this.fluidInputTanks.getFirst().getCapacity();
     }
 
     public int getFluidOutputCapacity() {
-        return this.fluidOutputTankA.getCapacity();
+        return this.fluidOutputTanks.getFirst().getCapacity();
     }
 
     public int getParallel() {
@@ -343,12 +435,158 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return ITEM_SLOT_CAPACITY;
     }
 
+    /**
+     * Returns the number of independently stored fluid inputs.
+     */
+    public int getFluidInputSlotCount() {
+        return 2;
+    }
+
+    /**
+     * Returns the number of independently stored fluid outputs.
+     */
+    public int getFluidOutputSlotCount() {
+        return 2;
+    }
+
+    /**
+     * Returns the number of independently stored non-item input keys.
+     */
+    public int getKeyInputSlotCount() {
+        return 1;
+    }
+
+    /**
+     * Returns the number of independently stored non-item output keys.
+     */
+    public int getKeyOutputSlotCount() {
+        return 1;
+    }
+
+    public int getKeyOutputStartSlot() {
+        return getKeyInputSlotCount();
+    }
+
+    /**
+     * Returns the number of item slots that accept recipe inputs.
+     *
+     * <p>
+     * Subclasses may enlarge the shared item buffer, but must keep the output range directly after it so
+     * inventory, capability and serialization paths continue to describe the same slots.
+     * </p>
+     */
+    public int getItemInputSlotCount() {
+        return ITEM_INPUT_SLOT_COUNT;
+    }
+
+    /**
+     * Returns the first item output slot for this machine's contiguous item inventory.
+     */
+    public int getItemOutputStartSlot() {
+        return ITEM_INPUT_START_SLOT + getItemInputSlotCount();
+    }
+
+    /**
+     * Returns the number of item slots that accept completed recipe outputs.
+     */
+    public int getItemOutputSlotCount() {
+        return ITEM_OUTPUT_SLOT_COUNT;
+    }
+
+    /**
+     * Returns the total number of item slots allocated by this machine.
+     */
+    public int getStorageSlotCount() {
+        return getItemOutputStartSlot() + getItemOutputSlotCount();
+    }
+
+    /**
+     * Returns how many independent recipe-processing channels this machine has.
+     * Subclasses may assign separate or shared input buffers to those channels; all output resources remain shared.
+     */
+    protected int getProcessingChannelCount() {
+        return 1;
+    }
+
+    protected boolean usesPatternInputColors() {
+        return false;
+    }
+
+    protected int getItemInputStartSlotForChannel(int channel) {
+        requireProcessingChannel(channel);
+        return ITEM_INPUT_START_SLOT;
+    }
+
+    protected int getItemInputSlotCountForChannel(int channel) {
+        requireProcessingChannel(channel);
+        return getItemInputSlotCount();
+    }
+
+    protected int getFluidInputStartSlotForChannel(int channel) {
+        requireProcessingChannel(channel);
+        return 0;
+    }
+
+    protected int getFluidInputSlotCountForChannel(int channel) {
+        requireProcessingChannel(channel);
+        return getFluidInputSlotCount();
+    }
+
+    protected int getKeyInputStartSlotForChannel(int channel) {
+        requireProcessingChannel(channel);
+        return 0;
+    }
+
+    protected int getKeyInputSlotCountForChannel(int channel) {
+        requireProcessingChannel(channel);
+        return getKeyInputSlotCount();
+    }
+
+    public int getProgress() {
+        return getProgress(0);
+    }
+
+    public int getProgress(int channel) {
+        return getProcessingChannel(channel).progress;
+    }
+
+    public int getMaxProgress() {
+        return getMaxProgress(0);
+    }
+
+    public int getMaxProgress(int channel) {
+        return getProcessingChannel(channel).maxProgress;
+    }
+
+    private ProcessingChannelState getProcessingChannel(int channel) {
+        requireProcessingChannel(channel);
+        return this.processingChannels[channel];
+    }
+
+    private void requireProcessingChannel(int channel) {
+        if (channel < 0 || channel >= this.processingChannels.length) {
+            throw new IndexOutOfBoundsException("Invalid processing channel: " + channel);
+        }
+    }
+
     public long getKeyInputCapacity() {
         return KEY_INPUT_CAPACITY;
     }
 
     public long getKeyOutputCapacity() {
         return KEY_OUTPUT_CAPACITY;
+    }
+
+    public int getItemInputPatternColor(int slot) {
+        return usesPatternInputColors() ? this.itemInputPatternColors[slot] : 0;
+    }
+
+    public int getFluidInputPatternColor(int slot) {
+        return usesPatternInputColors() ? this.fluidInputPatternColors[slot] : 0;
+    }
+
+    public int getKeyInputPatternColor(int slot) {
+        return usesPatternInputColors() ? this.keyInputPatternColors[slot] : 0;
     }
 
     public static int computeParallel(int energyCardCount) {
@@ -410,12 +648,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         super.loadTag(data, registries);
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
         this.storage.readFromNBT(data, STORAGE_TAG, registries);
-        this.fluidInputTankA.readFromNBT(registries, data.getCompound(FLUID_INPUT_A_TAG));
-        this.fluidInputTankB.readFromNBT(registries, data.getCompound(FLUID_INPUT_B_TAG));
-        this.fluidOutputTankA.readFromNBT(registries, data.getCompound(FLUID_OUTPUT_A_TAG));
-        this.fluidOutputTankB.readFromNBT(registries, data.getCompound(FLUID_OUTPUT_B_TAG));
-        this.keyInputStack = data.contains(KEY_INPUT_TAG) ? GenericStack.readTag(registries, data.getCompound(KEY_INPUT_TAG)) : null;
-        this.keyOutputStack = data.contains(KEY_OUTPUT_TAG) ? GenericStack.readTag(registries, data.getCompound(KEY_OUTPUT_TAG)) : null;
+        for (int slot = 0; slot < this.fluidInputTanks.size(); slot++) {
+            this.fluidInputTanks.get(slot).readFromNBT(registries, data.getCompound(getFluidInputTag(slot)));
+        }
+        for (int slot = 0; slot < this.fluidOutputTanks.size(); slot++) {
+            this.fluidOutputTanks.get(slot).readFromNBT(registries, data.getCompound(getFluidOutputTag(slot)));
+        }
+        readKeyStacks(data, registries, this.keyInputStacks, true);
+        readKeyStacks(data, registries, this.keyOutputStacks, false);
+        readInputPatternColors(data, registries);
         if (data.contains(AUTO_EXPORT_TAG)) {
             this.configManager.readFromNBT(data.getCompound(AUTO_EXPORT_TAG), registries);
         } else {
@@ -433,9 +674,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         } else {
             copyOutputSidesToAllTypes(EnumSet.allOf(Direction.class));
         }
-        this.progress = data.getInt(PROGRESS_TAG);
-        this.maxProgress = data.contains(MAX_PROGRESS_TAG) ? Math.max(1, data.getInt(MAX_PROGRESS_TAG)) : MAX_PROGRESS;
-        this.activeRecipeId = data.contains(ACTIVE_RECIPE_TAG) ? ResourceLocation.tryParse(data.getString(ACTIVE_RECIPE_TAG)) : null;
+        readProcessingChannels(data);
         syncMenuFluidsFromTanks();
         syncKeyMenuFromStack();
     }
@@ -451,10 +690,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
         this.storage.writeToNBT(data, STORAGE_TAG, registries);
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
-        data.put(FLUID_INPUT_A_TAG, this.fluidInputTankA.writeToNBT(registries, new CompoundTag()));
-        data.put(FLUID_INPUT_B_TAG, this.fluidInputTankB.writeToNBT(registries, new CompoundTag()));
-        data.put(FLUID_OUTPUT_A_TAG, this.fluidOutputTankA.writeToNBT(registries, new CompoundTag()));
-        data.put(FLUID_OUTPUT_B_TAG, this.fluidOutputTankB.writeToNBT(registries, new CompoundTag()));
+        for (int slot = 0; slot < this.fluidInputTanks.size(); slot++) {
+            data.put(getFluidInputTag(slot), this.fluidInputTanks.get(slot).writeToNBT(registries, new CompoundTag()));
+        }
+        for (int slot = 0; slot < this.fluidOutputTanks.size(); slot++) {
+            data.put(getFluidOutputTag(slot), this.fluidOutputTanks.get(slot).writeToNBT(registries, new CompoundTag()));
+        }
         CompoundTag autoExportData = new CompoundTag();
         this.configManager.writeToNBT(autoExportData, registries);
         data.put(AUTO_EXPORT_TAG, autoExportData);
@@ -462,16 +703,168 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         data.put(FLUID_OUTPUT_SIDES_TAG, createOutputSidesTag(this.fluidOutputSides));
         data.put(KEY_OUTPUT_SIDES_TAG, createOutputSidesTag(this.keyOutputSides));
         data.put(OUTPUT_SIDES_TAG, createOutputSidesTag(this.itemOutputSides));
-        data.putInt(PROGRESS_TAG, this.progress);
-        data.putInt(MAX_PROGRESS_TAG, this.maxProgress);
-        if (this.activeRecipeId != null) {
-            data.putString(ACTIVE_RECIPE_TAG, this.activeRecipeId.toString());
+        writeProcessingChannels(data);
+        writeInputPatternColors(data, registries);
+        writeKeyStacks(data, registries, this.keyInputStacks, true);
+        writeKeyStacks(data, registries, this.keyOutputStacks, false);
+    }
+
+    private void readProcessingChannels(CompoundTag data) {
+        readProcessingChannel(data, this.processingChannels[0]);
+        for (int channel = 1; channel < this.processingChannels.length; channel++) {
+            this.processingChannels[channel].reset();
         }
-        if (this.keyInputStack != null && this.keyInputStack.amount() > 0) {
-            data.put(KEY_INPUT_TAG, GenericStack.writeTag(registries, this.keyInputStack));
+
+        if (!data.contains(PROCESSING_CHANNELS_TAG, Tag.TAG_LIST)) {
+            return;
         }
-        if (this.keyOutputStack != null && this.keyOutputStack.amount() > 0) {
-            data.put(KEY_OUTPUT_TAG, GenericStack.writeTag(registries, this.keyOutputStack));
+
+        ListTag serializedChannels = data.getList(PROCESSING_CHANNELS_TAG, Tag.TAG_COMPOUND);
+        int channelsToRead = Math.min(serializedChannels.size(), this.processingChannels.length);
+        for (int channel = 0; channel < channelsToRead; channel++) {
+            readProcessingChannel(serializedChannels.getCompound(channel), this.processingChannels[channel]);
+        }
+    }
+
+    private void writeProcessingChannels(CompoundTag data) {
+        writeProcessingChannel(data, this.processingChannels[0]);
+        if (this.processingChannels.length == 1) {
+            return;
+        }
+
+        ListTag serializedChannels = new ListTag();
+        for (ProcessingChannelState channel : this.processingChannels) {
+            CompoundTag serializedChannel = new CompoundTag();
+            writeProcessingChannel(serializedChannel, channel);
+            serializedChannels.add(serializedChannel);
+        }
+        data.put(PROCESSING_CHANNELS_TAG, serializedChannels);
+    }
+
+    private void readInputPatternColors(CompoundTag data, HolderLookup.Provider registries) {
+        this.patternInputColorAssignments.clear();
+        if (!usesPatternInputColors()) {
+            clearInputPatternColors();
+            return;
+        }
+        readInputPatternColors(data, ITEM_INPUT_PATTERN_COLORS_TAG, this.itemInputPatternColors);
+        readInputPatternColors(data, FLUID_INPUT_PATTERN_COLORS_TAG, this.fluidInputPatternColors);
+        readInputPatternColors(data, KEY_INPUT_PATTERN_COLORS_TAG, this.keyInputPatternColors);
+        if (!data.contains(PATTERN_INPUT_COLOR_ASSIGNMENTS_TAG, Tag.TAG_LIST)) {
+            return;
+        }
+
+        ListTag assignments = data.getList(PATTERN_INPUT_COLOR_ASSIGNMENTS_TAG, Tag.TAG_COMPOUND);
+        for (int index = 0; index < assignments.size(); index++) {
+            CompoundTag assignment = assignments.getCompound(index);
+            if (!assignment.contains(PATTERN_DEFINITION_TAG, Tag.TAG_COMPOUND) ||
+                    !assignment.contains(PATTERN_COLOR_TAG, Tag.TAG_INT)) {
+                continue;
+            }
+
+            AEItemKey patternDefinition = AEItemKey.fromTag(registries, assignment.getCompound(PATTERN_DEFINITION_TAG));
+            int color = assignment.getInt(PATTERN_COLOR_TAG);
+            if (patternDefinition != null && color != 0 && !this.patternInputColorAssignments.containsValue(color)) {
+                this.patternInputColorAssignments.put(patternDefinition, color);
+            }
+        }
+    }
+
+    private static void readInputPatternColors(CompoundTag data, String tag, int[] target) {
+        Arrays.fill(target, 0);
+        if (!data.contains(tag, Tag.TAG_INT_ARRAY)) {
+            return;
+        }
+
+        int[] storedColors = data.getIntArray(tag);
+        System.arraycopy(storedColors, 0, target, 0, Math.min(storedColors.length, target.length));
+    }
+
+    private void writeInputPatternColors(CompoundTag data, HolderLookup.Provider registries) {
+        if (!usesPatternInputColors()) {
+            data.remove(ITEM_INPUT_PATTERN_COLORS_TAG);
+            data.remove(FLUID_INPUT_PATTERN_COLORS_TAG);
+            data.remove(KEY_INPUT_PATTERN_COLORS_TAG);
+            data.remove(PATTERN_INPUT_COLOR_ASSIGNMENTS_TAG);
+            return;
+        }
+        data.putIntArray(ITEM_INPUT_PATTERN_COLORS_TAG, this.itemInputPatternColors);
+        data.putIntArray(FLUID_INPUT_PATTERN_COLORS_TAG, this.fluidInputPatternColors);
+        data.putIntArray(KEY_INPUT_PATTERN_COLORS_TAG, this.keyInputPatternColors);
+        ListTag assignments = new ListTag();
+        for (Map.Entry<AEItemKey, Integer> assignment : this.patternInputColorAssignments.entrySet()) {
+            CompoundTag serializedAssignment = new CompoundTag();
+            serializedAssignment.put(PATTERN_DEFINITION_TAG, assignment.getKey().toTag(registries));
+            serializedAssignment.putInt(PATTERN_COLOR_TAG, assignment.getValue());
+            assignments.add(serializedAssignment);
+        }
+        data.put(PATTERN_INPUT_COLOR_ASSIGNMENTS_TAG, assignments);
+    }
+
+    private void clearInputPatternColors() {
+        Arrays.fill(this.itemInputPatternColors, 0);
+        Arrays.fill(this.fluidInputPatternColors, 0);
+        Arrays.fill(this.keyInputPatternColors, 0);
+        this.patternInputColorAssignments.clear();
+    }
+
+    private void clearEmptyInputPatternColors() {
+        for (int slot = 0; slot < this.itemInputPatternColors.length; slot++) {
+            if (this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + slot).isEmpty()) {
+                this.itemInputPatternColors[slot] = 0;
+            }
+        }
+        for (int slot = 0; slot < this.fluidInputPatternColors.length; slot++) {
+            if (this.fluidInputTanks.get(slot).isEmpty()) {
+                this.fluidInputPatternColors[slot] = 0;
+            }
+        }
+        for (int slot = 0; slot < this.keyInputPatternColors.length; slot++) {
+            if (this.keyInputStacks.get(slot) == null) {
+                this.keyInputPatternColors[slot] = 0;
+            }
+        }
+    }
+
+    private static void readProcessingChannel(CompoundTag data, ProcessingChannelState channel) {
+        channel.progress = Math.max(0, data.getInt(PROGRESS_TAG));
+        channel.maxProgress = data.contains(MAX_PROGRESS_TAG) ? Math.max(1, data.getInt(MAX_PROGRESS_TAG)) : MAX_PROGRESS;
+        channel.activeRecipeId = data.contains(ACTIVE_RECIPE_TAG) ? ResourceLocation.tryParse(data.getString(ACTIVE_RECIPE_TAG)) : null;
+        channel.hasActiveInputPatternColor = data.contains(ACTIVE_INPUT_PATTERN_COLOR_TAG, Tag.TAG_INT);
+        channel.activeInputPatternColor = channel.hasActiveInputPatternColor ?
+                data.getInt(ACTIVE_INPUT_PATTERN_COLOR_TAG) : 0;
+        channel.recipeMatchCache = null;
+        channel.inputReservation = null;
+    }
+
+    private static void writeProcessingChannel(CompoundTag data, ProcessingChannelState channel) {
+        data.putInt(PROGRESS_TAG, channel.progress);
+        data.putInt(MAX_PROGRESS_TAG, channel.maxProgress);
+        if (channel.activeRecipeId != null) {
+            data.putString(ACTIVE_RECIPE_TAG, channel.activeRecipeId.toString());
+        }
+        if (channel.hasActiveInputPatternColor) {
+            data.putInt(ACTIVE_INPUT_PATTERN_COLOR_TAG, channel.activeInputPatternColor);
+        }
+    }
+
+    private static void readKeyStacks(CompoundTag data, HolderLookup.Provider registries, List<GenericStack> stacks,
+                                      boolean input) {
+        for (int slot = 0; slot < stacks.size(); slot++) {
+            String tag = input ? getKeyInputTag(slot) : getKeyOutputTag(slot);
+            stacks.set(slot, data.contains(tag) ? GenericStack.readTag(registries, data.getCompound(tag)) : null);
+        }
+    }
+
+    private static void writeKeyStacks(CompoundTag data, HolderLookup.Provider registries, List<GenericStack> stacks,
+                                       boolean input) {
+        for (int slot = 0; slot < stacks.size(); slot++) {
+            GenericStack stack = stacks.get(slot);
+            if (stack == null || stack.amount() <= 0L) {
+                continue;
+            }
+            String tag = input ? getKeyInputTag(slot) : getKeyOutputTag(slot);
+            data.put(tag, GenericStack.writeTag(registries, stack));
         }
     }
 
@@ -531,12 +924,11 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         super.clearContent();
         this.upgrades.clear();
         this.storage.clear();
-        this.fluidInputTankA.setFluid(FluidStack.EMPTY);
-        this.fluidInputTankB.setFluid(FluidStack.EMPTY);
-        this.fluidOutputTankA.setFluid(FluidStack.EMPTY);
-        this.fluidOutputTankB.setFluid(FluidStack.EMPTY);
-        this.keyInputStack = null;
-        this.keyOutputStack = null;
+        this.fluidInputTanks.forEach(tank -> tank.setFluid(FluidStack.EMPTY));
+        this.fluidOutputTanks.forEach(tank -> tank.setFluid(FluidStack.EMPTY));
+        clearKeyStacks(this.keyInputStacks);
+        clearKeyStacks(this.keyOutputStacks);
+        clearInputPatternColors();
         resetProcessingState();
         syncKeyMenuFromStack();
     }
@@ -605,43 +997,69 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private void initializeItemSlotCapacities() {
-        for (int slot = 0; slot < STORAGE_SLOTS; slot++) {
+        for (int slot = 0; slot < this.storage.size(); slot++) {
             this.storage.setMaxStackSize(slot, ITEM_SLOT_CAPACITY);
         }
     }
 
-    private RecipeAdvance processRecipe(int tickBudget) {
+    private boolean advanceProcessingChannel(int channel, int tickBudget) {
+        int remainingTicks = tickBudget;
+        boolean completedRecipe = false;
+        while (remainingTicks > 0) {
+            RecipeAdvance advance = processRecipe(channel, remainingTicks);
+            if (advance.elapsedTicks() <= 0) {
+                throw new IllegalStateException("Processing channel did not consume its tick budget");
+            }
+            remainingTicks -= advance.elapsedTicks();
+            completedRecipe |= advance.completedRecipe();
+        }
+        return completedRecipe;
+    }
+
+    private RecipeAdvance processRecipe(int channel, int tickBudget) {
         if (!isOnline()) {
-            resetProcessingState();
+            resetProcessingState(channel);
             return RecipeAdvance.blocked(tickBudget);
         }
 
-        RecipeHolder<DataRipperReassemblerRecipe> recipeHolder = getActiveOrMatchingRecipe();
-        if (recipeHolder == null) {
-            resetProcessingState();
+        ColorMatchedRecipe matchedRecipe = getActiveOrMatchingRecipe(channel);
+        if (matchedRecipe == null) {
+            resetProcessingState(channel);
             return RecipeAdvance.blocked(tickBudget);
         }
 
+        RecipeHolder<DataRipperReassemblerRecipe> recipeHolder = matchedRecipe.recipeHolder();
         DataRipperReassemblerRecipe recipe = recipeHolder.value();
         if (!canAcceptItemOutputs(recipe, recipe.getItemOutputs())) {
-            resetProcessingState();
+            resetProcessingState(channel);
             return RecipeAdvance.blocked(tickBudget);
         }
 
-        if (!recipeHolder.id().equals(this.activeRecipeId)) {
-            this.activeRecipeId = recipeHolder.id();
-            this.progress = 0;
-            this.maxProgress = getEffectiveProcessTicks(recipe);
+        ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        boolean inputPatternColorChanged = usesPatternInputColors() &&
+                (!processingChannel.hasActiveInputPatternColor ||
+                        processingChannel.activeInputPatternColor != matchedRecipe.inputPatternColor());
+        if (!recipeHolder.id().equals(processingChannel.activeRecipeId) || inputPatternColorChanged) {
+            processingChannel.activeRecipeId = recipeHolder.id();
+            processingChannel.activeInputPatternColor = usesPatternInputColors() ? matchedRecipe.inputPatternColor() : 0;
+            processingChannel.hasActiveInputPatternColor = usesPatternInputColors();
+            processingChannel.progress = 0;
+            processingChannel.maxProgress = getEffectiveProcessTicks(recipe);
+            processingChannel.inputReservation = null;
             setChanged();
         }
+        if (!ensureRecipeInputReservation(channel, recipe)) {
+            resetProcessingState(channel);
+            return RecipeAdvance.blocked(tickBudget);
+        }
 
-        this.maxProgress = getEffectiveProcessTicks(recipe);
-        this.progress = Math.max(0, Math.min(this.progress, this.maxProgress - 1));
+        processingChannel.maxProgress = getEffectiveProcessTicks(recipe);
+        processingChannel.progress = Math.max(0, Math.min(processingChannel.progress, processingChannel.maxProgress - 1));
         BatchTickProgression.Segment segment = BatchTickProgression.advanceToBoundary(
-                this.progress,
-                this.maxProgress,
+                processingChannel.progress,
+                processingChannel.maxProgress,
                 tickBudget);
-        this.progress = segment.progress();
+        processingChannel.progress = segment.progress();
         setChanged();
 
         if (!segment.reachedBoundary()) {
@@ -650,7 +1068,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         List<ItemStack> itemOutputs = recipe.getCraftedItemOutputs();
         if (!canAcceptItemOutputs(recipe, itemOutputs)) {
-            resetProcessingState();
+            resetProcessingState(channel);
             return RecipeAdvance.blocked(segment.elapsedTicks());
         }
         for (int batch = 0; batch < getParallel(); batch++) {
@@ -658,28 +1076,37 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             if (!canAcceptItemOutputs(recipe, batchOutputs)) {
                 break;
             }
+            if (batch > 0 && !ensureRecipeInputReservation(channel, recipe)) {
+                break;
+            }
 
             RecipeProcessingState processingState = captureRecipeProcessingState();
-            if (!consumeRecipeInputs(recipe) || !insertRecipeOutputs(recipe, batchOutputs)) {
+            if (!consumeReservedRecipeInputs(channel) || !insertRecipeOutputs(recipe, batchOutputs)) {
                 restoreRecipeProcessingState(processingState);
                 break;
             }
+            clearEmptyInputPatternColors();
         }
 
-        resetProcessingState();
+        resetProcessingState(channel);
         saveChanges();
         markForClientUpdate();
         return RecipeAdvance.completed(segment.elapsedTicks());
     }
 
     private void resetProcessingState() {
-        if (this.progress == 0 && this.maxProgress == MAX_PROGRESS && this.activeRecipeId == null) {
+        for (int channel = 0; channel < this.processingChannels.length; channel++) {
+            resetProcessingState(channel);
+        }
+    }
+
+    private void resetProcessingState(int channel) {
+        ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        if (processingChannel.isIdle()) {
             return;
         }
 
-        this.progress = 0;
-        this.maxProgress = MAX_PROGRESS;
-        this.activeRecipeId = null;
+        processingChannel.reset();
         setChanged();
     }
 
@@ -689,14 +1116,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return Math.max(1, reducedTicks);
     }
 
-    private RecipeHolder<DataRipperReassemblerRecipe> getActiveOrMatchingRecipe() {
+    private @Nullable ColorMatchedRecipe getActiveOrMatchingRecipe(int channel) {
         Level currentLevel = this.level;
         if (currentLevel == null) {
             return null;
         }
 
-        RecipeMatchKey cacheKey = createRecipeMatchKey();
-        RecipeMatchCache cached = this.recipeMatchCache;
+        ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        RecipeMatchKey cacheKey = createRecipeMatchKey(channel);
+        RecipeMatchCache cached = processingChannel.recipeMatchCache;
         if (cached != null && cached.key().equals(cacheKey)) {
             ResourceLocation recipeId = cached.recipeId();
             if (recipeId == null) {
@@ -705,69 +1133,124 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
             RecipeHolder<DataRipperReassemblerRecipe> cachedRecipe = getRecipeById(currentLevel, recipeId);
             if (cachedRecipe != null) {
-                return cachedRecipe;
+                return new ColorMatchedRecipe(cachedRecipe, cached.inputPatternColor());
             }
         }
 
-        DataRipperReassemblerRecipeInput input = createRecipeInput();
-        RecipeHolder<DataRipperReassemblerRecipe> match = null;
-        if (this.activeRecipeId != null) {
-            RecipeHolder<DataRipperReassemblerRecipe> active = getRecipeById(currentLevel, this.activeRecipeId);
-            if (active != null && active.value().matches(input, currentLevel)) {
-                match = active;
-            }
-        }
-
-        if (match == null) {
-            for (RecipeHolder<DataRipperReassemblerRecipe> holder : currentLevel.getRecipeManager()
-                    .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
-                if (holder.value().matches(input, currentLevel)) {
-                    match = holder;
-                    break;
+        ColorMatchedRecipe match = null;
+        if (processingChannel.activeRecipeId != null) {
+            RecipeHolder<DataRipperReassemblerRecipe> active = getRecipeById(currentLevel, processingChannel.activeRecipeId);
+            if (active != null) {
+                List<Integer> colors = processingChannel.hasActiveInputPatternColor ?
+                        List.of(processingChannel.activeInputPatternColor) : getAvailableInputPatternColors(channel);
+                for (int color : colors) {
+                    if (active.value().matches(createRecipeInput(channel, color), currentLevel)) {
+                        match = new ColorMatchedRecipe(active, color);
+                        break;
+                    }
                 }
             }
         }
 
-        this.recipeMatchCache = new RecipeMatchCache(cacheKey, match == null ? null : match.id());
+        if (match == null) {
+            match = findMatchingRecipe(currentLevel, channel, getOtherActiveRecipeIds(channel));
+        }
+        if (match == null) {
+            match = findMatchingRecipe(currentLevel, channel, Set.of());
+        }
+
+        processingChannel.recipeMatchCache = new RecipeMatchCache(
+                cacheKey,
+                match == null ? null : match.recipeHolder().id(),
+                match == null ? 0 : match.inputPatternColor());
         return match;
     }
 
-    private RecipeMatchKey createRecipeMatchKey() {
-        List<RecipeStackIdentity> items = new ArrayList<>(ITEM_INPUT_SLOT_COUNT);
-        for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
-            ItemStack stack = this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + i);
-            items.add(createItemStackIdentity(stack));
+    private @Nullable ColorMatchedRecipe findMatchingRecipe(Level level, int channel,
+                                                            Set<ResourceLocation> excludedRecipeIds) {
+        List<Integer> colors = getAvailableInputPatternColors(channel);
+        if (colors.isEmpty()) {
+            return null;
         }
-        List<RecipeStackIdentity> fluids = List.of(
-                createFluidStackIdentity(this.fluidInputTankA.getFluid()),
-                createFluidStackIdentity(this.fluidInputTankB.getFluid()));
+        for (RecipeHolder<DataRipperReassemblerRecipe> holder : level.getRecipeManager()
+                .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
+            if (excludedRecipeIds.contains(holder.id())) {
+                continue;
+            }
+            for (int color : colors) {
+                if (holder.value().matches(createRecipeInput(channel, color), level)) {
+                    return new ColorMatchedRecipe(holder, color);
+                }
+            }
+        }
+        return null;
+    }
+
+    private Set<ResourceLocation> getOtherActiveRecipeIds(int excludedChannel) {
+        Set<ResourceLocation> recipeIds = new HashSet<>();
+        for (int channel = 0; channel < this.processingChannels.length; channel++) {
+            if (channel == excludedChannel) {
+                continue;
+            }
+
+            ResourceLocation activeRecipeId = this.processingChannels[channel].activeRecipeId;
+            if (activeRecipeId != null) {
+                recipeIds.add(activeRecipeId);
+            }
+        }
+        return recipeIds;
+    }
+
+    private RecipeMatchKey createRecipeMatchKey(int channel) {
+        ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        InputReservationUsage reservedInputs = getReservedInputUsage(channel);
+        List<RecipeStackIdentity> items = new ArrayList<>(getItemInputSlotCountForChannel(channel));
+        for (int i = 0; i < getItemInputSlotCountForChannel(channel); i++) {
+            int slot = getItemInputStartSlotForChannel(channel) + i;
+            items.add(createItemStackIdentity(getAvailableItemInput(slot, reservedInputs), getItemInputPatternColor(i)));
+        }
+        List<RecipeStackIdentity> fluids = new ArrayList<>(getFluidInputSlotCountForChannel(channel));
+        for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
+            int inputSlot = getFluidInputStartSlotForChannel(channel) + slot;
+            fluids.add(createFluidStackIdentity(getAvailableFluidInput(inputSlot, reservedInputs),
+                    getFluidInputPatternColor(slot)));
+        }
+        List<RecipeStackIdentity> keys = new ArrayList<>(getKeyInputSlotCountForChannel(channel));
+        for (int slot = 0; slot < getKeyInputSlotCountForChannel(channel); slot++) {
+            int inputSlot = getKeyInputStartSlotForChannel(channel) + slot;
+            keys.add(createKeyStackIdentity(getAvailableKeyInput(inputSlot, reservedInputs),
+                    getKeyInputPatternColor(slot)));
+        }
         return new RecipeMatchKey(
                 RecipeReloadEpoch.current(),
-                this.activeRecipeId,
+                processingChannel.activeRecipeId,
+                processingChannel.hasActiveInputPatternColor,
+                processingChannel.activeInputPatternColor,
                 List.copyOf(items),
-                fluids,
-                createKeyStackIdentity(this.keyInputStack));
+                List.copyOf(fluids),
+                List.copyOf(keys),
+                Set.copyOf(getOtherActiveRecipeIds(channel)));
     }
 
-    private static RecipeStackIdentity createItemStackIdentity(ItemStack stack) {
+    private static RecipeStackIdentity createItemStackIdentity(ItemStack stack, int patternColor) {
         if (stack.isEmpty()) {
             return RecipeStackIdentity.EMPTY;
         }
-        return new RecipeStackIdentity(AEItemKey.of(stack), stack.getCount());
+        return new RecipeStackIdentity(AEItemKey.of(stack), stack.getCount(), patternColor);
     }
 
-    private static RecipeStackIdentity createFluidStackIdentity(FluidStack stack) {
+    private static RecipeStackIdentity createFluidStackIdentity(FluidStack stack, int patternColor) {
         if (stack.isEmpty()) {
             return RecipeStackIdentity.EMPTY;
         }
-        return new RecipeStackIdentity(AEFluidKey.of(stack), stack.getAmount());
+        return new RecipeStackIdentity(AEFluidKey.of(stack), stack.getAmount(), patternColor);
     }
 
-    private static RecipeStackIdentity createKeyStackIdentity(@Nullable GenericStack stack) {
+    private static RecipeStackIdentity createKeyStackIdentity(@Nullable GenericStack stack, int patternColor) {
         if (stack == null || stack.amount() <= 0L) {
             return RecipeStackIdentity.EMPTY;
         }
-        return new RecipeStackIdentity(stack.what(), stack.amount());
+        return new RecipeStackIdentity(stack.what(), stack.amount(), patternColor);
     }
 
     private static @Nullable RecipeHolder<DataRipperReassemblerRecipe> getRecipeById(
@@ -782,27 +1265,68 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return typedHolder;
     }
 
-    private DataRipperReassemblerRecipeInput createRecipeInput() {
-        List<ItemStack> inputs = new ArrayList<>(ITEM_INPUT_SLOT_COUNT);
-        for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
-            inputs.add(this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + i).copy());
+    private DataRipperReassemblerRecipeInput createRecipeInput(int channel, int patternColor) {
+        InputReservationUsage reservedInputs = getReservedInputUsage(channel);
+        List<ItemStack> inputs = new ArrayList<>(getItemInputSlotCountForChannel(channel));
+        for (int i = 0; i < getItemInputSlotCountForChannel(channel); i++) {
+            inputs.add(matchesInputPatternColor(getItemInputPatternColor(i), patternColor) ?
+                    getAvailableItemInput(getItemInputStartSlotForChannel(channel) + i, reservedInputs) : ItemStack.EMPTY);
         }
-        List<GenericStack> fluids = new ArrayList<>(DataRipperReassemblerRecipe.FLUID_INPUT_SLOTS);
-        GenericStack fluidA = createFluidGenericStack(this.fluidInputTankA.getFluid());
-        GenericStack fluidB = createFluidGenericStack(this.fluidInputTankB.getFluid());
-        if (fluidA != null) {
-            fluids.add(fluidA);
+        List<GenericStack> fluids = new ArrayList<>(getFluidInputSlotCountForChannel(channel));
+        for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
+            GenericStack fluid = matchesInputPatternColor(getFluidInputPatternColor(slot), patternColor) ?
+                    createFluidGenericStack(getAvailableFluidInput(
+                            getFluidInputStartSlotForChannel(channel) + slot, reservedInputs)) :
+                    null;
+            if (fluid != null) {
+                fluids.add(fluid);
+            }
         }
-        if (fluidB != null) {
-            fluids.add(fluidB);
+        List<GenericStack> keys = new ArrayList<>(getKeyInputSlotCountForChannel(channel));
+        for (int slot = 0; slot < getKeyInputSlotCountForChannel(channel); slot++) {
+            keys.add(matchesInputPatternColor(getKeyInputPatternColor(slot), patternColor) ?
+                    getAvailableKeyInput(getKeyInputStartSlotForChannel(channel) + slot, reservedInputs) : null);
         }
-        return new DataRipperReassemblerRecipeInput(inputs, fluids, copyKeyStack(this.keyInputStack));
+        return new DataRipperReassemblerRecipeInput(inputs, fluids, keys);
+    }
+
+    private List<Integer> getAvailableInputPatternColors(int channel) {
+        if (!usesPatternInputColors()) {
+            return List.of(0);
+        }
+
+        InputReservationUsage reservedInputs = getReservedInputUsage(channel);
+        Set<Integer> colors = new LinkedHashSet<>();
+        for (int slot = 0; slot < getItemInputSlotCountForChannel(channel); slot++) {
+            int storageSlot = getItemInputStartSlotForChannel(channel) + slot;
+            if (!getAvailableItemInput(storageSlot, reservedInputs).isEmpty()) {
+                colors.add(getItemInputPatternColor(slot));
+            }
+        }
+        for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
+            int inputSlot = getFluidInputStartSlotForChannel(channel) + slot;
+            if (!getAvailableFluidInput(inputSlot, reservedInputs).isEmpty()) {
+                colors.add(getFluidInputPatternColor(slot));
+            }
+        }
+        for (int slot = 0; slot < getKeyInputSlotCountForChannel(channel); slot++) {
+            int inputSlot = getKeyInputStartSlotForChannel(channel) + slot;
+            GenericStack key = getAvailableKeyInput(inputSlot, reservedInputs);
+            if (key != null && key.amount() > 0L) {
+                colors.add(getKeyInputPatternColor(slot));
+            }
+        }
+        return List.copyOf(colors);
+    }
+
+    private boolean matchesInputPatternColor(int actualColor, int requiredColor) {
+        return !usesPatternInputColors() || actualColor == requiredColor;
     }
 
     private boolean canAcceptItemOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> itemOutputs) {
-        ItemStack[] simulated = new ItemStack[ITEM_OUTPUT_SLOT_COUNT];
-        for (int i = 0; i < ITEM_OUTPUT_SLOT_COUNT; i++) {
-            simulated[i] = this.storage.getStackInSlot(ITEM_OUTPUT_START_SLOT + i).copy();
+        ItemStack[] simulated = new ItemStack[getItemOutputSlotCount()];
+        for (int i = 0; i < getItemOutputSlotCount(); i++) {
+            simulated[i] = this.storage.getStackInSlot(getItemOutputStartSlot() + i).copy();
         }
 
         for (ItemStack output : itemOutputs) {
@@ -823,70 +1347,263 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return canAcceptFluidOutputs(recipe) && canAcceptKeyOutput(recipe);
     }
 
-    private boolean consumeRecipeInputs(DataRipperReassemblerRecipe recipe) {
+    private boolean ensureRecipeInputReservation(int channel, DataRipperReassemblerRecipe recipe) {
+        ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        if (processingChannel.inputReservation != null) {
+            return isRecipeInputReservationAvailable(processingChannel.inputReservation);
+        }
+
+        RecipeInputReservation reservation = createRecipeInputReservation(
+                channel,
+                recipe,
+                processingChannel.activeInputPatternColor);
+        if (reservation == null) {
+            return false;
+        }
+
+        processingChannel.inputReservation = reservation;
+        return true;
+    }
+
+    private @Nullable RecipeInputReservation createRecipeInputReservation(int channel,
+                                                                          DataRipperReassemblerRecipe recipe,
+                                                                          int patternColor) {
         Map<AEFluidKey, Long> requiredFluidAmounts = recipe.getMergedFluidInputAmounts();
         if (requiredFluidAmounts == null) {
-            return false;
+            return null;
         }
         for (long amount : requiredFluidAmounts.values()) {
             if (amount > Integer.MAX_VALUE) {
-                return false;
+                return null;
             }
         }
 
+        InputReservationUsage reservedInputs = getReservedInputUsage(channel);
+        List<ReservedItemInput> itemInputs = new ArrayList<>();
         for (DataRipperReassemblerIngredient countedIngredient : recipe.getItemInputs()) {
             int remaining = countedIngredient.count();
-            for (int i = 0; i < ITEM_INPUT_SLOT_COUNT && remaining > 0; i++) {
-                int slot = ITEM_INPUT_START_SLOT + i;
+            for (int i = 0; i < getItemInputSlotCountForChannel(channel) && remaining > 0; i++) {
+                int slot = getItemInputStartSlotForChannel(channel) + i;
                 ItemStack stack = this.storage.getStackInSlot(slot);
-                if (stack.isEmpty() || !countedIngredient.ingredient().test(stack)) {
+                if (!matchesInputPatternColor(getItemInputPatternColor(i), patternColor) || stack.isEmpty() ||
+                        !countedIngredient.ingredient().test(stack)) {
                     continue;
                 }
 
-                int consumed = Math.min(remaining, stack.getCount());
-                ItemStack updated = stack.copy();
-                updated.shrink(consumed);
-                this.storage.setItemDirect(slot, updated);
-                remaining -= consumed;
+                int available = Math.max(0, stack.getCount() - reservedInputs.itemAmounts[slot]);
+                int reservedAmount = Math.min(remaining, available);
+                if (reservedAmount <= 0) {
+                    continue;
+                }
+
+                addReservedItemInput(itemInputs, slot, stack, reservedAmount, patternColor);
+                reservedInputs.itemAmounts[slot] += reservedAmount;
+                remaining -= reservedAmount;
             }
 
             if (remaining > 0) {
-                return false;
+                return null;
             }
         }
 
+        List<ReservedFluidInput> fluidInputs = new ArrayList<>();
+        for (Map.Entry<AEFluidKey, Long> requirement : requiredFluidAmounts.entrySet()) {
+            AEFluidKey requiredFluid = requirement.getKey();
+            int remaining = requirement.getValue().intValue();
+            for (int offset = 0; offset < getFluidInputSlotCountForChannel(channel) && remaining > 0; offset++) {
+                int slot = getFluidInputStartSlotForChannel(channel) + offset;
+                FluidTank tank = this.fluidInputTanks.get(slot);
+                if (!matchesInputPatternColor(getFluidInputPatternColor(offset), patternColor) ||
+                        !matchesFluidKey(tank.getFluid(), requiredFluid)) {
+                    continue;
+                }
+
+                int available = Math.max(0, tank.getFluidAmount() - reservedInputs.fluidAmounts[slot]);
+                int reservedAmount = Math.min(remaining, available);
+                if (reservedAmount <= 0) {
+                    continue;
+                }
+
+                fluidInputs.add(new ReservedFluidInput(slot, requiredFluid, reservedAmount, patternColor));
+                reservedInputs.fluidAmounts[slot] += reservedAmount;
+                remaining -= reservedAmount;
+            }
+
+            if (remaining > 0) {
+                return null;
+            }
+        }
+
+        List<ReservedKeyInput> keyInputs = new ArrayList<>();
         GenericStack requiredKey = recipe.getKeyInput();
         if (requiredKey != null) {
-            if (this.keyInputStack == null || !requiredKey.what().equals(this.keyInputStack.what()) || this.keyInputStack.amount() < requiredKey.amount()) {
-                return false;
+            AEKey requiredKeyType = requiredKey.what();
+            if (requiredKeyType == null || requiredKey.amount() <= 0L) {
+                return null;
             }
+            long remaining = requiredKey.amount();
+            for (int offset = 0; offset < getKeyInputSlotCountForChannel(channel) && remaining > 0L; offset++) {
+                int slot = getKeyInputStartSlotForChannel(channel) + offset;
+                GenericStack stack = this.keyInputStacks.get(slot);
+                if (!matchesInputPatternColor(getKeyInputPatternColor(offset), patternColor) || stack == null ||
+                        !requiredKeyType.equals(stack.what())) {
+                    continue;
+                }
 
-            long remaining = this.keyInputStack.amount() - requiredKey.amount();
-            this.keyInputStack = remaining > 0 ? new GenericStack(this.keyInputStack.what(), remaining) : null;
-            syncKeyMenuFromStack();
-        }
+                long available = Math.max(0L, stack.amount() - reservedInputs.keyAmounts[slot]);
+                long reservedAmount = Math.min(remaining, available);
+                if (reservedAmount <= 0L) {
+                    continue;
+                }
 
-        for (Map.Entry<AEFluidKey, Long> requirement : requiredFluidAmounts.entrySet()) {
-            AEFluidKey requiredKeyFluid = requirement.getKey();
-            int remaining = requirement.getValue().intValue();
-
-            if (matchesFluidKey(this.fluidInputTankA.getFluid(), requiredKeyFluid)) {
-                int drained = this.fluidInputTankA.drain(Math.min(remaining, this.fluidInputTankA.getFluidAmount()),
-                        IFluidHandler.FluidAction.EXECUTE).getAmount();
-                remaining -= drained;
-            }
-            if (remaining > 0 && matchesFluidKey(this.fluidInputTankB.getFluid(), requiredKeyFluid)) {
-                int drained = this.fluidInputTankB.drain(Math.min(remaining, this.fluidInputTankB.getFluidAmount()),
-                        IFluidHandler.FluidAction.EXECUTE).getAmount();
-                remaining -= drained;
+                keyInputs.add(new ReservedKeyInput(slot, requiredKeyType, reservedAmount, patternColor));
+                reservedInputs.keyAmounts[slot] += reservedAmount;
+                remaining -= reservedAmount;
             }
 
             if (remaining > 0) {
-                return false;
+                return null;
             }
         }
 
+        return new RecipeInputReservation(itemInputs, fluidInputs, keyInputs);
+    }
+
+    private static void addReservedItemInput(List<ReservedItemInput> reservedInputs, int slot, ItemStack stack,
+                                             int amount, int patternColor) {
+        for (int index = 0; index < reservedInputs.size(); index++) {
+            ReservedItemInput existing = reservedInputs.get(index);
+            if (existing.slot != slot) {
+                continue;
+            }
+
+            reservedInputs.set(index, new ReservedItemInput(
+                    slot,
+                    stack.copyWithCount(existing.stack.getCount() + amount),
+                    patternColor));
+            return;
+        }
+        reservedInputs.add(new ReservedItemInput(slot, stack.copyWithCount(amount), patternColor));
+    }
+
+    private boolean isRecipeInputReservationAvailable(RecipeInputReservation reservation) {
+        for (ReservedItemInput reservedInput : reservation.itemInputs) {
+            ItemStack stack = this.storage.getStackInSlot(reservedInput.slot);
+            int inputSlot = reservedInput.slot - ITEM_INPUT_START_SLOT;
+            if (!matchesInputPatternColor(getItemInputPatternColor(inputSlot), reservedInput.patternColor) ||
+                    stack.isEmpty() || !ItemStack.isSameItemSameComponents(stack, reservedInput.stack) ||
+                    stack.getCount() < reservedInput.stack.getCount()) {
+                return false;
+            }
+        }
+        for (ReservedFluidInput reservedInput : reservation.fluidInputs) {
+            FluidTank tank = this.fluidInputTanks.get(reservedInput.slot);
+            if (!matchesInputPatternColor(getFluidInputPatternColor(reservedInput.slot), reservedInput.patternColor) ||
+                    !matchesFluidKey(tank.getFluid(), reservedInput.key) || tank.getFluidAmount() < reservedInput.amount) {
+                return false;
+            }
+        }
+        for (ReservedKeyInput reservedInput : reservation.keyInputs) {
+            GenericStack stack = this.keyInputStacks.get(reservedInput.slot);
+            if (!matchesInputPatternColor(getKeyInputPatternColor(reservedInput.slot), reservedInput.patternColor) ||
+                    stack == null || !reservedInput.key.equals(stack.what()) || stack.amount() < reservedInput.amount) {
+                return false;
+            }
+        }
         return true;
+    }
+
+    private boolean consumeReservedRecipeInputs(int channel) {
+        ProcessingChannelState processingChannel = getProcessingChannel(channel);
+        RecipeInputReservation reservation = processingChannel.inputReservation;
+        if (reservation == null || !isRecipeInputReservationAvailable(reservation)) {
+            return false;
+        }
+
+        boolean previousPreservation = this.preservingInputPatternColors;
+        this.preservingInputPatternColors = true;
+        try {
+            for (ReservedItemInput reservedInput : reservation.itemInputs) {
+                ItemStack stack = this.storage.getStackInSlot(reservedInput.slot);
+                ItemStack updated = stack.copy();
+                updated.shrink(reservedInput.stack.getCount());
+                this.storage.setItemDirect(reservedInput.slot, updated);
+            }
+            for (ReservedFluidInput reservedInput : reservation.fluidInputs) {
+                FluidTank tank = this.fluidInputTanks.get(reservedInput.slot);
+                tank.drain(reservedInput.amount, IFluidHandler.FluidAction.EXECUTE);
+            }
+
+            if (!reservation.keyInputs.isEmpty()) {
+                for (ReservedKeyInput reservedInput : reservation.keyInputs) {
+                    GenericStack stack = this.keyInputStacks.get(reservedInput.slot);
+                    long remaining = stack.amount() - reservedInput.amount;
+                    this.keyInputStacks.set(reservedInput.slot,
+                            remaining <= 0L ? null : new GenericStack(reservedInput.key, remaining));
+                }
+                syncKeyMenuFromStack();
+            }
+        } finally {
+            this.preservingInputPatternColors = previousPreservation;
+        }
+
+        processingChannel.inputReservation = null;
+        return true;
+    }
+
+    private InputReservationUsage getReservedInputUsage(int excludedChannel) {
+        InputReservationUsage usage = new InputReservationUsage(
+                new int[this.storage.size()],
+                new int[this.fluidInputTanks.size()],
+                new long[this.keyInputStacks.size()]);
+        for (int channel = 0; channel < this.processingChannels.length; channel++) {
+            if (channel == excludedChannel) {
+                continue;
+            }
+
+            RecipeInputReservation reservation = this.processingChannels[channel].inputReservation;
+            if (reservation == null) {
+                continue;
+            }
+            for (ReservedItemInput reservedInput : reservation.itemInputs) {
+                usage.itemAmounts[reservedInput.slot] += reservedInput.stack.getCount();
+            }
+            for (ReservedFluidInput reservedInput : reservation.fluidInputs) {
+                usage.fluidAmounts[reservedInput.slot] += reservedInput.amount;
+            }
+            for (ReservedKeyInput reservedInput : reservation.keyInputs) {
+                usage.keyAmounts[reservedInput.slot] += reservedInput.amount;
+            }
+        }
+        return usage;
+    }
+
+    private ItemStack getAvailableItemInput(int slot, InputReservationUsage reservedInputs) {
+        ItemStack stack = this.storage.getStackInSlot(slot);
+        int available = Math.max(0, stack.getCount() - reservedInputs.itemAmounts[slot]);
+        return available <= 0 ? ItemStack.EMPTY : stack.copyWithCount(available);
+    }
+
+    private FluidStack getAvailableFluidInput(int slot, InputReservationUsage reservedInputs) {
+        FluidStack stack = this.fluidInputTanks.get(slot).getFluid();
+        int available = Math.max(0, stack.getAmount() - reservedInputs.fluidAmounts[slot]);
+        if (available <= 0) {
+            return FluidStack.EMPTY;
+        }
+
+        FluidStack availableStack = stack.copy();
+        availableStack.setAmount(available);
+        return availableStack;
+    }
+
+    private @Nullable GenericStack getAvailableKeyInput(int slot, InputReservationUsage reservedInputs) {
+        GenericStack stack = this.keyInputStacks.get(slot);
+        if (stack == null || stack.what() == null) {
+            return null;
+        }
+
+        long available = Math.max(0L, stack.amount() - reservedInputs.keyAmounts[slot]);
+        return available <= 0L ? null : new GenericStack(stack.what(), available);
     }
 
     private boolean insertRecipeOutputs(DataRipperReassemblerRecipe recipe, List<ItemStack> itemOutputs) {
@@ -896,7 +1613,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
 
             ItemStack remaining = output.copy();
-            for (int i = 0; i < ITEM_OUTPUT_SLOT_COUNT && !remaining.isEmpty(); i++) {
+            for (int i = 0; i < getItemOutputSlotCount() && !remaining.isEmpty(); i++) {
                 remaining = insertIntoOutputSlot(null, i, remaining, true);
             }
             if (!remaining.isEmpty()) {
@@ -921,9 +1638,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean canAcceptFluidOutputs(DataRipperReassemblerRecipe recipe) {
-        FluidStack simulatedA = this.fluidOutputTankA.getFluid().copy();
-        FluidStack simulatedB = this.fluidOutputTankB.getFluid().copy();
-        int outputCapacity = getFluidOutputCapacity();
+        List<FluidStack> simulated = copyFluidStacks(this.fluidOutputTanks);
 
         for (GenericStack output : recipe.getFluidOutputs()) {
             if (!(output.what() instanceof AEFluidKey fluidKey) || output.amount() <= 0 || output.amount() > Integer.MAX_VALUE) {
@@ -931,35 +1646,26 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
 
             int amount = (int) output.amount();
-            if (matchesFluidKey(simulatedA, fluidKey)) {
-                if ((long) simulatedA.getAmount() + amount > outputCapacity) {
-                    return false;
+            boolean inserted = false;
+            for (int slot = 0; slot < simulated.size(); slot++) {
+                FluidStack current = simulated.get(slot);
+                if (!matchesFluidKey(current, fluidKey) && !current.isEmpty()) {
+                    continue;
                 }
-                simulatedA.setAmount(simulatedA.getAmount() + amount);
-                continue;
-            }
-            if (matchesFluidKey(simulatedB, fluidKey)) {
-                if ((long) simulatedB.getAmount() + amount > outputCapacity) {
-                    return false;
+                if ((long) current.getAmount() + amount > this.fluidOutputTanks.get(slot).getCapacity()) {
+                    continue;
                 }
-                simulatedB.setAmount(simulatedB.getAmount() + amount);
-                continue;
-            }
-            if (simulatedA.isEmpty()) {
-                if ((long) simulatedA.getAmount() + amount > outputCapacity) {
-                    return false;
+                if (current.isEmpty()) {
+                    simulated.set(slot, fluidKey.toStack(amount));
+                } else {
+                    current.setAmount(current.getAmount() + amount);
                 }
-                simulatedA = fluidKey.toStack(amount);
-                continue;
+                inserted = true;
+                break;
             }
-            if (simulatedB.isEmpty()) {
-                if ((long) simulatedB.getAmount() + amount > outputCapacity) {
-                    return false;
-                }
-                simulatedB = fluidKey.toStack(amount);
-                continue;
+            if (!inserted) {
+                return false;
             }
-            return false;
         }
 
         return true;
@@ -971,29 +1677,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return true;
         }
 
-        if (this.keyOutputStack == null || this.keyOutputStack.what() == null || this.keyOutputStack.amount() <= 0) {
-            return keyOutput.amount() <= getKeyOutputCapacity();
-        }
-
-        if (!this.keyOutputStack.what().equals(keyOutput.what())) {
-            return false;
-        }
-
-        return keyOutput.amount() <= getKeyOutputCapacity() - this.keyOutputStack.amount();
+        return canStoreKeyAmount(this.keyOutputStacks, keyOutput, getKeyOutputCapacity());
     }
 
     private boolean insertKeyOutput(GenericStack stack) {
-        if (stack.what() == null || stack.amount() <= 0 || stack.amount() > getKeyOutputCapacity()) {
+        if (stack.what() == null || stack.amount() <= 0 || !canStoreKeyAmount(this.keyOutputStacks, stack,
+                getKeyOutputCapacity())) {
             return false;
         }
-        if (this.keyOutputStack == null || this.keyOutputStack.what() == null || this.keyOutputStack.amount() <= 0) {
-            this.keyOutputStack = new GenericStack(stack.what(), stack.amount());
-        } else {
-            if (!this.keyOutputStack.what().equals(stack.what()) || stack.amount() > getKeyOutputCapacity() - this.keyOutputStack.amount()) {
-                return false;
-            }
-            this.keyOutputStack = new GenericStack(stack.what(), this.keyOutputStack.amount() + stack.amount());
-        }
+        storeKeyAmount(this.keyOutputStacks, stack.what(), stack.amount(), getKeyOutputCapacity());
         syncKeyMenuFromStack();
         return true;
     }
@@ -1003,42 +1695,47 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return false;
         }
         int amount = (int) amountLong;
-        if (matchesFluidKey(this.fluidOutputTankA.getFluid(), fluidKey) || this.fluidOutputTankA.isEmpty()) {
-            return this.fluidOutputTankA.fill(fluidKey.toStack(amount), IFluidHandler.FluidAction.EXECUTE) == amount;
-        }
-        if (matchesFluidKey(this.fluidOutputTankB.getFluid(), fluidKey) || this.fluidOutputTankB.isEmpty()) {
-            return this.fluidOutputTankB.fill(fluidKey.toStack(amount), IFluidHandler.FluidAction.EXECUTE) == amount;
+        for (FluidTank tank : this.fluidOutputTanks) {
+            if (!matchesFluidKey(tank.getFluid(), fluidKey) && !tank.isEmpty()) {
+                continue;
+            }
+            if (tank.fill(fluidKey.toStack(amount), IFluidHandler.FluidAction.EXECUTE) == amount) {
+                return true;
+            }
         }
         return false;
     }
 
     private RecipeProcessingState captureRecipeProcessingState() {
-        ItemStack[] itemSlots = new ItemStack[STORAGE_SLOTS];
+        ItemStack[] itemSlots = new ItemStack[this.storage.size()];
         for (int slot = 0; slot < itemSlots.length; slot++) {
             itemSlots[slot] = this.storage.getStackInSlot(slot).copy();
         }
-        return new RecipeProcessingState(itemSlots,
-                this.fluidInputTankA.getFluid().copy(), this.fluidInputTankB.getFluid().copy(),
-                this.fluidOutputTankA.getFluid().copy(), this.fluidOutputTankB.getFluid().copy(),
-                copyKeyStack(this.keyInputStack), copyKeyStack(this.keyOutputStack));
+        return new RecipeProcessingState(itemSlots, copyFluidStacks(this.fluidInputTanks),
+                copyFluidStacks(this.fluidOutputTanks), copyKeyStacks(this.keyInputStacks),
+                copyKeyStacks(this.keyOutputStacks));
     }
 
     private void restoreRecipeProcessingState(RecipeProcessingState state) {
-        for (int slot = 0; slot < state.itemSlots.length; slot++) {
-            this.storage.setItemDirect(slot, state.itemSlots[slot].copy());
+        boolean previousPreservation = this.preservingInputPatternColors;
+        this.preservingInputPatternColors = true;
+        try {
+            for (int slot = 0; slot < state.itemSlots.length; slot++) {
+                this.storage.setItemDirect(slot, state.itemSlots[slot].copy());
+            }
+            restoreFluidStacks(this.fluidInputTanks, state.fluidInputs);
+            restoreFluidStacks(this.fluidOutputTanks, state.fluidOutputs);
+            restoreKeyStacks(this.keyInputStacks, state.keyInputs);
+            restoreKeyStacks(this.keyOutputStacks, state.keyOutputs);
+        } finally {
+            this.preservingInputPatternColors = previousPreservation;
         }
-        this.fluidInputTankA.setFluid(state.fluidInputA.copy());
-        this.fluidInputTankB.setFluid(state.fluidInputB.copy());
-        this.fluidOutputTankA.setFluid(state.fluidOutputA.copy());
-        this.fluidOutputTankB.setFluid(state.fluidOutputB.copy());
-        this.keyInputStack = copyKeyStack(state.keyInput);
-        this.keyOutputStack = copyKeyStack(state.keyOutput);
         syncMenuFluidsFromTanks();
         syncKeyMenuFromStack();
     }
 
     private ItemStack insertIntoOutputSlot(ItemStack[] simulated, int outputIndex, ItemStack stack, boolean modulate) {
-        int slot = ITEM_OUTPUT_START_SLOT + outputIndex;
+        int slot = getItemOutputStartSlot() + outputIndex;
         ItemStack current = simulated != null ? simulated[outputIndex] : this.storage.getStackInSlot(slot);
         int slotLimit = this.storage.getSlotLimit(slot);
 
@@ -1089,13 +1786,17 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         if (hasItemOutput()) {
             changed = exportItemOutputs(getAdjacentItemHandlers(this.itemOutputSides));
         }
-        if (!this.fluidOutputTankA.getFluid().isEmpty() || !this.fluidOutputTankB.getFluid().isEmpty()) {
+        if (hasFluidOutput()) {
             List<IFluidHandler> fluidHandlers = getAdjacentFluidHandlers(this.fluidOutputSides);
-            changed |= exportFluidOutput(this.fluidOutputTankA, fluidHandlers);
-            changed |= exportFluidOutput(this.fluidOutputTankB, fluidHandlers);
+            for (FluidTank tank : this.fluidOutputTanks) {
+                changed |= exportFluidOutput(tank, fluidHandlers);
+            }
         }
         if (hasKeyOutput()) {
-            changed |= exportKeyOutput(getAdjacentKeyInventories(this.keyOutputSides));
+            List<GenericInternalInventory> keyInventories = getAdjacentKeyInventories(this.keyOutputSides);
+            for (int slot = 0; slot < this.keyOutputStacks.size(); slot++) {
+                changed |= exportKeyOutput(slot, keyInventories);
+            }
         }
 
         if (changed) {
@@ -1106,7 +1807,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean hasItemOutput() {
-        for (int slot = ITEM_OUTPUT_START_SLOT; slot < ITEM_OUTPUT_START_SLOT + ITEM_OUTPUT_SLOT_COUNT; slot++) {
+        for (int slot = getItemOutputStartSlot(); slot < getItemOutputStartSlot() + getItemOutputSlotCount(); slot++) {
             if (!this.storage.getStackInSlot(slot).isEmpty()) {
                 return true;
             }
@@ -1115,18 +1816,21 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean hasKeyOutput() {
-        return this.keyOutputStack != null && this.keyOutputStack.what() != null && this.keyOutputStack.amount() > 0L;
+        return hasStoredKeys(this.keyOutputStacks);
     }
 
     private boolean hasAnyOutput() {
-        return hasItemOutput() || !this.fluidOutputTankA.getFluid().isEmpty() ||
-                !this.fluidOutputTankB.getFluid().isEmpty() || hasKeyOutput();
+        return hasItemOutput() || hasFluidOutput() || hasKeyOutput();
+    }
+
+    private boolean hasFluidOutput() {
+        return this.fluidOutputTanks.stream().anyMatch(tank -> !tank.getFluid().isEmpty());
     }
 
     private boolean exportItemOutputs(List<IItemHandler> adjacentHandlers) {
         boolean changed = false;
-        for (int i = 0; i < ITEM_OUTPUT_SLOT_COUNT; i++) {
-            int slot = ITEM_OUTPUT_START_SLOT + i;
+        for (int i = 0; i < getItemOutputSlotCount(); i++) {
+            int slot = getItemOutputStartSlot() + i;
             ItemStack stack = this.storage.getStackInSlot(slot);
             if (stack.isEmpty()) {
                 continue;
@@ -1170,9 +1874,14 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return true;
     }
 
-    private boolean exportKeyOutput(List<GenericInternalInventory> adjacentInventories) {
-        AEKey what = this.keyOutputStack.what();
-        long originalAmount = this.keyOutputStack.amount();
+    private boolean exportKeyOutput(int slot, List<GenericInternalInventory> adjacentInventories) {
+        GenericStack output = this.keyOutputStacks.get(slot);
+        if (output == null || output.what() == null || output.amount() <= 0L) {
+            return false;
+        }
+
+        AEKey what = output.what();
+        long originalAmount = output.amount();
         long remaining = originalAmount;
         for (GenericInternalInventory inventory : adjacentInventories) {
             if (remaining <= 0L) {
@@ -1184,11 +1893,11 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
             inventory.beginBatch();
             try {
-                for (int slot = 0; slot < inventory.size() && remaining > 0L; slot++) {
-                    if (!inventory.isAllowedIn(slot, what)) {
+                for (int inventorySlot = 0; inventorySlot < inventory.size() && remaining > 0L; inventorySlot++) {
+                    if (!inventory.isAllowedIn(inventorySlot, what)) {
                         continue;
                     }
-                    long inserted = inventory.insert(slot, what, remaining, Actionable.MODULATE);
+                    long inserted = inventory.insert(inventorySlot, what, remaining, Actionable.MODULATE);
                     if (inserted > 0L) {
                         remaining -= Math.min(inserted, remaining);
                     }
@@ -1202,7 +1911,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return false;
         }
 
-        this.keyOutputStack = remaining <= 0L ? null : new GenericStack(what, remaining);
+        this.keyOutputStacks.set(slot, remaining <= 0L ? null : new GenericStack(what, remaining));
         syncKeyMenuFromStack();
         return true;
     }
@@ -1317,10 +2026,38 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return tag;
     }
 
-    private ItemStack[] copyInputSlots() {
-        ItemStack[] slots = new ItemStack[ITEM_INPUT_SLOT_COUNT];
-        for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
-            slots[i] = this.storage.getStackInSlot(ITEM_INPUT_START_SLOT + i).copy();
+    private PatternPushState findPatternPushState(@Nullable KeyCounter[] inputHolder, int patternColor) {
+        for (int channel = 0; channel < this.processingChannels.length; channel++) {
+            PatternPushState state = createPatternPushState(channel, patternColor);
+            if (canAcceptPatternInputs(state, inputHolder)) {
+                return state;
+            }
+        }
+        return null;
+    }
+
+    private PatternPushState createPatternPushState(int channel, int patternColor) {
+        int itemInputStartSlot = getItemInputStartSlotForChannel(channel);
+        int itemInputSlotCount = getItemInputSlotCountForChannel(channel);
+        int fluidInputStartSlot = getFluidInputStartSlotForChannel(channel);
+        int fluidInputSlotCount = getFluidInputSlotCountForChannel(channel);
+        int keyInputStartSlot = getKeyInputStartSlotForChannel(channel);
+        int keyInputSlotCount = getKeyInputSlotCountForChannel(channel);
+        return new PatternPushState(
+                channel,
+                patternColor,
+                copyInputSlots(channel),
+                Arrays.copyOfRange(this.itemInputPatternColors, itemInputStartSlot, itemInputStartSlot + itemInputSlotCount),
+                copyFluidStacks(this.fluidInputTanks, fluidInputStartSlot, fluidInputSlotCount),
+                Arrays.copyOfRange(this.fluidInputPatternColors, fluidInputStartSlot, fluidInputStartSlot + fluidInputSlotCount),
+                copyKeyStacks(this.keyInputStacks, keyInputStartSlot, keyInputSlotCount),
+                Arrays.copyOfRange(this.keyInputPatternColors, keyInputStartSlot, keyInputStartSlot + keyInputSlotCount));
+    }
+
+    private ItemStack[] copyInputSlots(int channel) {
+        ItemStack[] slots = new ItemStack[getItemInputSlotCountForChannel(channel)];
+        for (int i = 0; i < slots.length; i++) {
+            slots[i] = this.storage.getStackInSlot(getItemInputStartSlotForChannel(channel) + i).copy();
         }
         return slots;
     }
@@ -1395,11 +2132,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         long remaining = amount;
         for (int i = 0; i < state.itemInputs.length && remaining > 0; i++) {
             ItemStack current = state.itemInputs[i];
-            if (current.isEmpty() || !ItemStack.isSameItemSameComponents(current, prototype)) {
+            if (current.isEmpty() || !ItemStack.isSameItemSameComponents(current, prototype) ||
+                    state.itemInputColors[i] != state.patternColor) {
                 continue;
             }
 
-            int maxCount = this.storage.getSlotLimit(ITEM_INPUT_START_SLOT + i);
+            int maxCount = this.storage.getSlotLimit(getItemInputStartSlotForChannel(state.channel) + i);
             int free = maxCount - current.getCount();
             if (free <= 0) {
                 continue;
@@ -1416,13 +2154,14 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 continue;
             }
 
-            int maxCount = this.storage.getSlotLimit(ITEM_INPUT_START_SLOT + i);
+            int maxCount = this.storage.getSlotLimit(getItemInputStartSlotForChannel(state.channel) + i);
             if (maxCount <= 0) {
                 continue;
             }
 
             int inserted = (int) Math.min(remaining, maxCount);
             state.itemInputs[i] = prototype.copyWithCount(inserted);
+            state.itemInputColors[i] = state.patternColor;
             remaining -= inserted;
         }
 
@@ -1435,87 +2174,150 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
 
         int remaining = (int) amount;
-        if (matchesFluidKey(state.fluidInputA, fluidKey)) {
-            return fillSimulatedTank(state, true, fluidKey, remaining, getFluidInputCapacity());
+        for (int slot = 0; slot < state.fluidInputs.size() && remaining > 0; slot++) {
+            FluidStack current = state.fluidInputs.get(slot);
+            if (!matchesFluidKey(current, fluidKey) || state.fluidInputColors[slot] != state.patternColor) {
+                continue;
+            }
+            remaining -= fillSimulatedTank(state, slot, fluidKey, remaining);
         }
-        if (matchesFluidKey(state.fluidInputB, fluidKey)) {
-            return fillSimulatedTank(state, false, fluidKey, remaining, getFluidInputCapacity());
+        for (int slot = 0; slot < state.fluidInputs.size() && remaining > 0; slot++) {
+            if (!state.fluidInputs.get(slot).isEmpty()) {
+                continue;
+            }
+            remaining -= setSimulatedTank(state, slot, fluidKey, remaining);
         }
-
-        if (state.fluidInputA.isEmpty()) {
-            return setSimulatedTank(state, true, fluidKey, remaining);
-        }
-        if (state.fluidInputB.isEmpty()) {
-            return setSimulatedTank(state, false, fluidKey, remaining);
-        }
-        return false;
+        return remaining == 0;
     }
 
-    private boolean fillSimulatedTank(PatternPushState state, boolean firstTank, AEFluidKey fluidKey, int amount, int capacity) {
-        FluidStack current = firstTank ? state.fluidInputA : state.fluidInputB;
-        if (!matchesFluidKey(current, fluidKey)) {
-            return false;
+    private int fillSimulatedTank(PatternPushState state, int slot, AEFluidKey fluidKey, int amount) {
+        FluidStack current = state.fluidInputs.get(slot);
+        int inputSlot = getFluidInputStartSlotForChannel(state.channel) + slot;
+        int inserted = Math.min(amount, this.fluidInputTanks.get(inputSlot).getCapacity() - current.getAmount());
+        if (inserted <= 0) {
+            return 0;
         }
-        long updatedAmount = (long) current.getAmount() + amount;
-        if (updatedAmount > capacity) {
-            return false;
-        }
-
         FluidStack updated = current.copy();
-        updated.setAmount((int) updatedAmount);
-        if (firstTank) {
-            state.fluidInputA = updated;
-        } else {
-            state.fluidInputB = updated;
-        }
-        return true;
+        updated.setAmount(updated.getAmount() + inserted);
+        state.fluidInputs.set(slot, updated);
+        return inserted;
     }
 
-    private boolean setSimulatedTank(PatternPushState state, boolean firstTank, AEFluidKey fluidKey, int amount) {
-        if (amount > getFluidInputCapacity()) {
-            return false;
+    private int setSimulatedTank(PatternPushState state, int slot, AEFluidKey fluidKey, int amount) {
+        int inputSlot = getFluidInputStartSlotForChannel(state.channel) + slot;
+        int inserted = Math.min(amount, this.fluidInputTanks.get(inputSlot).getCapacity());
+        if (inserted > 0) {
+            state.fluidInputs.set(slot, fluidKey.toStack(inserted));
+            state.fluidInputColors[slot] = state.patternColor;
         }
-
-        FluidStack newFluid = fluidKey.toStack(amount);
-        if (firstTank) {
-            state.fluidInputA = newFluid;
-        } else {
-            state.fluidInputB = newFluid;
-        }
-        return true;
+        return inserted;
     }
 
     private boolean canAcceptGenericKeyInput(PatternPushState state, AEKey key, long amount) {
-        if (amount <= 0 || amount > getKeyInputCapacity()) {
+        if (amount <= 0) {
             return amount <= 0;
         }
+        return canStorePatternKeyAmount(state, key, amount) && storePatternKeyAmount(state, key, amount);
+    }
 
-        if (state.keyInput == null || state.keyInput.what() == null || state.keyInput.amount() <= 0) {
-            state.keyInput = new GenericStack(key, amount);
-            return true;
+    private boolean canStorePatternKeyAmount(PatternPushState state, AEKey key, long amount) {
+        long remaining = amount;
+        long capacity = getKeyInputCapacity();
+        for (int slot = 0; slot < state.keyInputs.size() && remaining > 0L; slot++) {
+            GenericStack stack = state.keyInputs.get(slot);
+            if (stack == null || stack.what() == null || !key.equals(stack.what()) ||
+                    state.keyInputColors[slot] != state.patternColor) {
+                continue;
+            }
+            remaining -= Math.min(remaining, Math.max(0L, capacity - stack.amount()));
+        }
+        for (int slot = 0; slot < state.keyInputs.size() && remaining > 0L; slot++) {
+            GenericStack stack = state.keyInputs.get(slot);
+            if (stack != null && stack.what() != null && stack.amount() > 0L) {
+                continue;
+            }
+            remaining -= Math.min(remaining, capacity);
+        }
+        return remaining == 0L;
+    }
+
+    private boolean storePatternKeyAmount(PatternPushState state, AEKey key, long amount) {
+        long remaining = amount;
+        long capacity = getKeyInputCapacity();
+        for (int slot = 0; slot < state.keyInputs.size() && remaining > 0L; slot++) {
+            GenericStack stack = state.keyInputs.get(slot);
+            if (stack == null || stack.what() == null || !key.equals(stack.what()) ||
+                    state.keyInputColors[slot] != state.patternColor) {
+                continue;
+            }
+            long inserted = Math.min(remaining, Math.max(0L, capacity - stack.amount()));
+            if (inserted > 0L) {
+                state.keyInputs.set(slot, new GenericStack(key, stack.amount() + inserted));
+                remaining -= inserted;
+            }
+        }
+        for (int slot = 0; slot < state.keyInputs.size() && remaining > 0L; slot++) {
+            GenericStack stack = state.keyInputs.get(slot);
+            if (stack != null && stack.what() != null && stack.amount() > 0L) {
+                continue;
+            }
+            long inserted = Math.min(remaining, capacity);
+            if (inserted > 0L) {
+                state.keyInputs.set(slot, new GenericStack(key, inserted));
+                state.keyInputColors[slot] = state.patternColor;
+                remaining -= inserted;
+            }
+        }
+        return remaining == 0L;
+    }
+
+    private int getPatternColor(IPatternDetails patternDetails) {
+        AEItemKey patternDefinition = patternDetails.getDefinition();
+        Integer assignedColor = this.patternInputColorAssignments.get(patternDefinition);
+        if (assignedColor != null) {
+            return assignedColor;
         }
 
-        if (!state.keyInput.what().equals(key)) {
-            return false;
+        int colorSeed = patternDefinition.hashCode();
+        int color = createPatternColor(colorSeed);
+        while (this.patternInputColorAssignments.containsValue(color)) {
+            colorSeed += PATTERN_COLOR_PROBE_STEP;
+            color = createPatternColor(colorSeed);
         }
+        return color;
+    }
 
-        long updatedAmount = state.keyInput.amount() + amount;
-        if (updatedAmount > getKeyInputCapacity()) {
-            return false;
-        }
-
-        state.keyInput = new GenericStack(key, updatedAmount);
-        return true;
+    private static int createPatternColor(int seed) {
+        return MINIMUM_PATTERN_COLOR | (seed & PATTERN_COLOR_MASK);
     }
 
     private void applyPatternPushState(PatternPushState state) {
-        for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
-            this.storage.setItemDirect(ITEM_INPUT_START_SLOT + i, state.itemInputs[i]);
-        }
+        boolean previousPreservation = this.preservingInputPatternColors;
+        this.preservingInputPatternColors = true;
+        try {
+            for (int i = 0; i < state.itemInputs.length; i++) {
+                int slot = getItemInputStartSlotForChannel(state.channel) + i;
+                ItemStack updated = state.itemInputs[i];
+                this.itemInputPatternColors[slot] = updated.isEmpty() ? 0 : state.itemInputColors[i];
+                this.storage.setItemDirect(slot, updated);
+            }
 
-        this.fluidInputTankA.setFluid(state.fluidInputA);
-        this.fluidInputTankB.setFluid(state.fluidInputB);
-        this.keyInputStack = copyKeyStack(state.keyInput);
+            for (int i = 0; i < state.fluidInputs.size(); i++) {
+                int slot = getFluidInputStartSlotForChannel(state.channel) + i;
+                FluidStack updated = state.fluidInputs.get(i);
+                this.fluidInputPatternColors[slot] = updated.isEmpty() ? 0 : state.fluidInputColors[i];
+            }
+            for (int i = 0; i < state.keyInputs.size(); i++) {
+                int slot = getKeyInputStartSlotForChannel(state.channel) + i;
+                GenericStack updated = state.keyInputs.get(i);
+                this.keyInputPatternColors[slot] = updated == null ? 0 : state.keyInputColors[i];
+            }
+
+            restoreFluidStacks(this.fluidInputTanks, getFluidInputStartSlotForChannel(state.channel), state.fluidInputs);
+            restoreKeyStacks(this.keyInputStacks, getKeyInputStartSlotForChannel(state.channel), state.keyInputs);
+        } finally {
+            this.preservingInputPatternColors = previousPreservation;
+        }
         syncKeyMenuFromStack();
     }
 
@@ -1544,8 +2346,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private InternalInventory createExternalInput() {
-        InternalInventory[] inputs = new InternalInventory[ITEM_INPUT_SLOT_COUNT];
-        for (int i = 0; i < ITEM_INPUT_SLOT_COUNT; i++) {
+        InternalInventory[] inputs = new InternalInventory[getItemInputSlotCount()];
+        for (int i = 0; i < getItemInputSlotCount(); i++) {
             inputs[i] = new FilteredInternalInventory(
                     this.storage.getSlotInv(ITEM_INPUT_START_SLOT + i),
                     new SlotFilter(stack -> true, false));
@@ -1554,16 +2356,37 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private InternalInventory createExternalOutput() {
-        InternalInventory[] outputs = new InternalInventory[ITEM_OUTPUT_SLOT_COUNT];
-        for (int i = 0; i < ITEM_OUTPUT_SLOT_COUNT; i++) {
+        InternalInventory[] outputs = new InternalInventory[getItemOutputSlotCount()];
+        for (int i = 0; i < getItemOutputSlotCount(); i++) {
             outputs[i] = new FilteredInternalInventory(
-                    this.storage.getSlotInv(ITEM_OUTPUT_START_SLOT + i),
+                    this.storage.getSlotInv(getItemOutputStartSlot() + i),
                     new SlotFilter(stack -> false, true));
         }
         return new CombinedInternalInventory(outputs);
     }
 
-    private GenericStackInv createFluidMenuInventory(Runnable syncAction, int capacity, Supplier<FluidStack> pairedFluidSupplier) {
+    private List<FluidTank> createFluidTanks(int count, int capacity) {
+        List<FluidTank> tanks = new ArrayList<>(count);
+        for (int slot = 0; slot < count; slot++) {
+            tanks.add(new SyncFluidTank(capacity));
+        }
+        return tanks;
+    }
+
+    private List<GenericStackInv> createFluidMenuInventories(List<FluidTank> tanks, int capacity) {
+        List<GenericStackInv> menuInventories = new ArrayList<>(tanks.size());
+        for (FluidTank tank : tanks) {
+            GenericStackInv[] holder = new GenericStackInv[1];
+            GenericStackInv menuInventory = createFluidMenuInventory(
+                    () -> syncTankFromMenuFluid(tank, tanks, holder[0]), capacity, tanks, tank);
+            holder[0] = menuInventory;
+            menuInventories.add(menuInventory);
+        }
+        return menuInventories;
+    }
+
+    private GenericStackInv createFluidMenuInventory(Runnable syncAction, int capacity, List<FluidTank> tanks,
+                                                     FluidTank tank) {
         var inv = new GenericStackInv(Set.of(AEKeyType.fluids()), syncAction, GenericStackInv.Mode.STORAGE, 1) {
 
             {
@@ -1571,7 +2394,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                     if (!(what instanceof AEFluidKey fluidKey)) {
                         return true;
                     }
-                    return !conflictsWithExistingFluid(pairedFluidSupplier.get(), fluidKey);
+                    return !conflictsWithExistingFluid(tanks, tank, fluidKey);
                 });
             }
         };
@@ -1579,25 +2402,17 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return inv;
     }
 
-    private GenericStackInv createKeyMenuInventory() {
-        var inv = new GenericStackInv(AEKeyTypes.getAll(), this::syncStackFromKeyMenu, GenericStackInv.Mode.STORAGE, 1) {
-
-            {
-                this.setFilter((slot, what) -> {
-                    if (!isAllowedMenuKey(what)) {
-                        return false;
-                    }
-                    var current = this.getStack(slot);
-                    return current == null || current.amount() <= 0 || current.what().equals(what);
-                });
-            }
-        };
-        applyKeyCapacities(inv, KEY_INPUT_CAPACITY);
-        return inv;
+    private List<GenericStackInv> createKeyMenuInventories(int count, boolean input) {
+        List<GenericStackInv> menuInventories = new ArrayList<>(count);
+        for (int slot = 0; slot < count; slot++) {
+            menuInventories.add(createKeyMenuInventory(slot, input));
+        }
+        return menuInventories;
     }
 
-    private GenericStackInv createKeyOutputMenuInventory() {
-        var inv = new GenericStackInv(AEKeyTypes.getAll(), this::syncStackFromKeyOutputMenu, GenericStackInv.Mode.STORAGE, 1) {
+    private GenericStackInv createKeyMenuInventory(int keySlot, boolean input) {
+        var inv = new GenericStackInv(AEKeyTypes.getAll(), () -> syncStackFromKeyMenu(keySlot, input),
+                GenericStackInv.Mode.STORAGE, 1) {
 
             {
                 this.setFilter((slot, what) -> {
@@ -1609,7 +2424,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 });
             }
         };
-        applyKeyCapacities(inv, KEY_OUTPUT_CAPACITY);
+        applyKeyCapacities(inv, input ? getKeyInputCapacity() : getKeyOutputCapacity());
         return inv;
     }
 
@@ -1647,10 +2462,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         this.syncingFluidMenu = true;
         try {
-            syncMenuFluidFromTank(this.fluidInputTankA, this.fluidMenuInventoryA);
-            syncMenuFluidFromTank(this.fluidInputTankB, this.fluidMenuInventoryB);
-            syncMenuFluidFromTank(this.fluidOutputTankA, this.fluidOutputMenuInventoryA);
-            syncMenuFluidFromTank(this.fluidOutputTankB, this.fluidOutputMenuInventoryB);
+            syncMenuFluidsFromTanks(this.fluidInputTanks, this.fluidInputMenuInventories);
+            syncMenuFluidsFromTanks(this.fluidOutputTanks, this.fluidOutputMenuInventories);
         } finally {
             this.syncingFluidMenu = false;
         }
@@ -1660,23 +2473,13 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         menuInventory.setStack(0, createFluidGenericStack(tank.getFluid()));
     }
 
-    private void syncTankAFromMenuFluid() {
-        syncTankFromMenuFluid(this.fluidInputTankA, this.fluidInputTankB, this.fluidMenuInventoryA);
+    private void syncMenuFluidsFromTanks(List<FluidTank> tanks, List<GenericStackInv> menuInventories) {
+        for (int slot = 0; slot < tanks.size(); slot++) {
+            syncMenuFluidFromTank(tanks.get(slot), menuInventories.get(slot));
+        }
     }
 
-    private void syncTankBFromMenuFluid() {
-        syncTankFromMenuFluid(this.fluidInputTankB, this.fluidInputTankA, this.fluidMenuInventoryB);
-    }
-
-    private void syncOutputTankAFromMenuFluid() {
-        syncTankFromMenuFluid(this.fluidOutputTankA, this.fluidOutputTankB, this.fluidOutputMenuInventoryA);
-    }
-
-    private void syncOutputTankBFromMenuFluid() {
-        syncTankFromMenuFluid(this.fluidOutputTankB, this.fluidOutputTankA, this.fluidOutputMenuInventoryB);
-    }
-
-    private void syncTankFromMenuFluid(FluidTank tank, FluidTank pairedTank, GenericStackInv menuInventory) {
+    private void syncTankFromMenuFluid(FluidTank tank, List<FluidTank> pairedTanks, GenericStackInv menuInventory) {
         if (this.syncingFluidMenu) {
             return;
         }
@@ -1689,7 +2492,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             } else {
                 int amount = (int) Math.min(tank.getCapacity(), stack.amount());
                 FluidStack newFluid = fluidKey.toStack(amount);
-                if (conflictsWithPairedTank(pairedTank, newFluid)) {
+                if (conflictsWithPairedTanks(pairedTanks, tank, newFluid)) {
                     syncMenuFluidFromTank(tank, menuInventory);
                     return;
                 }
@@ -1702,16 +2505,25 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    private boolean conflictsWithPairedTank(FluidTank pairedTank, FluidStack candidate) {
+    private boolean conflictsWithPairedTanks(List<FluidTank> tanks, FluidTank excluded, FluidStack candidate) {
         if (candidate.isEmpty()) {
             return false;
         }
-        FluidStack paired = pairedTank.getFluid();
-        return !paired.isEmpty() && FluidStack.isSameFluidSameComponents(paired, candidate);
+        for (FluidTank tank : tanks) {
+            if (tank != excluded && FluidStack.isSameFluidSameComponents(tank.getFluid(), candidate)) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    private boolean conflictsWithExistingFluid(FluidStack existing, AEFluidKey candidate) {
-        return candidate.equals(AEFluidKey.of(existing));
+    private boolean conflictsWithExistingFluid(List<FluidTank> tanks, FluidTank excluded, AEFluidKey candidate) {
+        for (FluidTank tank : tanks) {
+            if (tank != excluded && candidate.equals(AEFluidKey.of(tank.getFluid()))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void syncKeyMenuFromStack() {
@@ -1721,55 +2533,43 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         this.syncingKeyMenu = true;
         try {
-            this.keyMenuInventory.setStack(0, this.keyInputStack);
-            this.keyOutputMenuInventory.setStack(0, this.keyOutputStack);
+            syncKeyMenuFromStacks(this.keyInputMenuInventories, this.keyInputStacks);
+            syncKeyMenuFromStacks(this.keyOutputMenuInventories, this.keyOutputStacks);
         } finally {
             this.syncingKeyMenu = false;
         }
     }
 
-    private void syncStackFromKeyMenu() {
+    private void syncKeyMenuFromStacks(List<GenericStackInv> menuInventories, List<GenericStack> stacks) {
+        for (int slot = 0; slot < stacks.size(); slot++) {
+            menuInventories.get(slot).setStack(0, stacks.get(slot));
+        }
+    }
+
+    private void syncStackFromKeyMenu(int slot, boolean input) {
         if (this.syncingKeyMenu) {
             return;
         }
 
         this.syncingKeyMenu = true;
         try {
-            var previous = this.keyInputStack;
-            var stack = this.keyMenuInventory.getStack(0);
+            List<GenericStack> stacks = input ? this.keyInputStacks : this.keyOutputStacks;
+            GenericStackInv menuInventory = input ? this.keyInputMenuInventories.get(slot) :
+                    this.keyOutputMenuInventories.get(slot);
+            long capacity = input ? getKeyInputCapacity() : getKeyOutputCapacity();
+            var previous = stacks.get(slot);
+            var stack = menuInventory.getStack(0);
             if (!isCompatibleKeyReplacement(previous, stack)) {
-                this.keyMenuInventory.setStack(0, previous);
+                menuInventory.setStack(0, previous);
                 return;
             }
             if (stack == null || stack.what() == null || stack.amount() <= 0) {
-                this.keyInputStack = null;
+                stacks.set(slot, null);
             } else {
-                this.keyInputStack = clampKeyStack(stack, getKeyInputCapacity());
+                stacks.set(slot, clampKeyStack(stack, capacity));
             }
-            saveChanges();
-            markForClientUpdate();
-        } finally {
-            this.syncingKeyMenu = false;
-        }
-    }
-
-    private void syncStackFromKeyOutputMenu() {
-        if (this.syncingKeyMenu) {
-            return;
-        }
-
-        this.syncingKeyMenu = true;
-        try {
-            var previous = this.keyOutputStack;
-            var stack = this.keyOutputMenuInventory.getStack(0);
-            if (!isCompatibleKeyReplacement(previous, stack)) {
-                this.keyOutputMenuInventory.setStack(0, previous);
-                return;
-            }
-            if (stack == null || stack.what() == null || stack.amount() <= 0) {
-                this.keyOutputStack = null;
-            } else {
-                this.keyOutputStack = clampKeyStack(stack, getKeyOutputCapacity());
+            if (input) {
+                this.keyInputPatternColors[slot] = 0;
             }
             saveChanges();
             markForClientUpdate();
@@ -1793,6 +2593,132 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return what == null ? null : new GenericStack(what, Math.min(capacity, stack.amount()));
     }
 
+    private static List<GenericStack> createKeyStacks(int count) {
+        List<GenericStack> stacks = new ArrayList<>(count);
+        for (int slot = 0; slot < count; slot++) {
+            stacks.add(null);
+        }
+        return stacks;
+    }
+
+    private static List<FluidStack> copyFluidStacks(List<FluidTank> tanks) {
+        List<FluidStack> copies = new ArrayList<>(tanks.size());
+        for (FluidTank tank : tanks) {
+            copies.add(tank.getFluid().copy());
+        }
+        return copies;
+    }
+
+    private static List<FluidStack> copyFluidStacks(List<FluidTank> tanks, int startSlot, int slotCount) {
+        List<FluidStack> copies = new ArrayList<>(slotCount);
+        for (int slot = 0; slot < slotCount; slot++) {
+            copies.add(tanks.get(startSlot + slot).getFluid().copy());
+        }
+        return copies;
+    }
+
+    private static List<GenericStack> copyKeyStacks(List<GenericStack> stacks) {
+        List<GenericStack> copies = new ArrayList<>(stacks.size());
+        for (GenericStack stack : stacks) {
+            copies.add(copyKeyStack(stack));
+        }
+        return copies;
+    }
+
+    private static List<GenericStack> copyKeyStacks(List<GenericStack> stacks, int startSlot, int slotCount) {
+        List<GenericStack> copies = new ArrayList<>(slotCount);
+        for (int slot = 0; slot < slotCount; slot++) {
+            copies.add(copyKeyStack(stacks.get(startSlot + slot)));
+        }
+        return copies;
+    }
+
+    private static void restoreFluidStacks(List<FluidTank> tanks, List<FluidStack> stacks) {
+        for (int slot = 0; slot < tanks.size(); slot++) {
+            tanks.get(slot).setFluid(stacks.get(slot).copy());
+        }
+    }
+
+    private static void restoreFluidStacks(List<FluidTank> tanks, int startSlot, List<FluidStack> stacks) {
+        for (int slot = 0; slot < stacks.size(); slot++) {
+            tanks.get(startSlot + slot).setFluid(stacks.get(slot).copy());
+        }
+    }
+
+    private static void restoreKeyStacks(List<GenericStack> target, List<GenericStack> source) {
+        for (int slot = 0; slot < target.size(); slot++) {
+            target.set(slot, copyKeyStack(source.get(slot)));
+        }
+    }
+
+    private static void restoreKeyStacks(List<GenericStack> target, int startSlot, List<GenericStack> source) {
+        for (int slot = 0; slot < source.size(); slot++) {
+            target.set(startSlot + slot, copyKeyStack(source.get(slot)));
+        }
+    }
+
+    private static void clearKeyStacks(List<GenericStack> stacks) {
+        for (int slot = 0; slot < stacks.size(); slot++) {
+            stacks.set(slot, null);
+        }
+    }
+
+    private static boolean hasStoredKeys(List<GenericStack> stacks) {
+        return stacks.stream().anyMatch(stack -> stack != null && stack.what() != null && stack.amount() > 0L);
+    }
+
+    private static boolean canStoreKeyAmount(List<GenericStack> stacks, GenericStack incoming, long capacity) {
+        AEKey key = incoming.what();
+        if (key == null || incoming.amount() <= 0L) {
+            return false;
+        }
+        long remaining = incoming.amount();
+        for (GenericStack stack : stacks) {
+            if (stack == null || !key.equals(stack.what())) {
+                continue;
+            }
+            remaining -= Math.min(remaining, Math.max(0L, capacity - stack.amount()));
+            if (remaining <= 0L) {
+                return true;
+            }
+        }
+        for (GenericStack stack : stacks) {
+            if (stack != null && stack.what() != null && stack.amount() > 0L) {
+                continue;
+            }
+            remaining -= Math.min(remaining, capacity);
+            if (remaining <= 0L) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean storeKeyAmount(List<GenericStack> stacks, AEKey key, long amount, long capacity) {
+        long remaining = amount;
+        for (int slot = 0; slot < stacks.size() && remaining > 0L; slot++) {
+            GenericStack stack = stacks.get(slot);
+            if (stack == null || !key.equals(stack.what())) {
+                continue;
+            }
+            long inserted = Math.min(remaining, Math.max(0L, capacity - stack.amount()));
+            if (inserted > 0L) {
+                stacks.set(slot, new GenericStack(key, stack.amount() + inserted));
+                remaining -= inserted;
+            }
+        }
+        for (int slot = 0; slot < stacks.size() && remaining > 0L; slot++) {
+            GenericStack stack = stacks.get(slot);
+            if (stack != null && stack.what() != null && stack.amount() > 0L) {
+                continue;
+            }
+            long inserted = Math.min(remaining, capacity);
+            stacks.set(slot, new GenericStack(key, inserted));
+            remaining -= inserted;
+        }
+        return remaining == 0L;
+    }
+
     private static @Nullable GenericStack copyKeyStack(@Nullable GenericStack stack) {
         if (stack == null || stack.what() == null || stack.amount() <= 0) {
             return null;
@@ -1807,16 +2733,16 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public int size() {
-            return KEY_SLOT_COUNT;
+            return getKeyInputSlotCount() + getKeyOutputSlotCount();
         }
 
         @Override
         public @Nullable GenericStack getStack(int slot) {
-            return switch (slot) {
-                case KEY_INPUT_SLOT -> keyInputStack;
-                case KEY_OUTPUT_SLOT -> keyOutputStack;
-                default -> null;
-            };
+            if (slot >= 0 && slot < getKeyInputSlotCount()) {
+                return keyInputStacks.get(slot);
+            }
+            int outputSlot = slot - getKeyOutputStartSlot();
+            return outputSlot >= 0 && outputSlot < getKeyOutputSlotCount() ? keyOutputStacks.get(outputSlot) : null;
         }
 
         @Override
@@ -1853,24 +2779,26 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public void setStack(int slot, @Nullable GenericStack newStack) {
-            if (slot != KEY_INPUT_SLOT) {
+            if (slot < 0 || slot >= getKeyInputSlotCount()) {
                 return;
             }
 
             GenericStack normalized = null;
             if (newStack != null && newStack.what() != null && newStack.amount() > 0L) {
-                if (!isAllowedMenuKey(newStack.what()) || !isCompatibleKeyReplacement(keyInputStack, newStack)) {
+                if (!isAllowedMenuKey(newStack.what()) || !isCompatibleKeyReplacement(keyInputStacks.get(slot), newStack)) {
                     return;
                 }
                 normalized = clampKeyStack(newStack, getKeyInputCapacity());
             }
 
-            boolean changed = keyInputStack == null ? normalized != null : !keyInputStack.equals(normalized);
+            GenericStack previous = keyInputStacks.get(slot);
+            boolean changed = previous == null ? normalized != null : !previous.equals(normalized);
             if (!changed) {
                 return;
             }
 
-            keyInputStack = normalized;
+            keyInputStacks.set(slot, normalized);
+            keyInputPatternColors[slot] = 0;
             syncKeyMenuFromStack();
             onChange();
         }
@@ -1882,10 +2810,14 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public boolean isAllowedIn(int slot, AEKey what) {
-            if (slot != KEY_INPUT_SLOT || !isAllowedMenuKey(what)) {
+            if (slot < 0 || slot >= getKeyInputSlotCount() || !isAllowedMenuKey(what)) {
                 return false;
             }
-            return keyInputStack == null || keyInputStack.what() == null || keyInputStack.what().equals(what);
+            if (usesPatternInputColors() && keyInputPatternColors[slot] != 0) {
+                return false;
+            }
+            GenericStack current = keyInputStacks.get(slot);
+            return current == null || current.what() == null || current.what().equals(what);
         }
 
         @Override
@@ -1894,14 +2826,16 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 return 0L;
             }
 
-            long stored = keyInputStack == null ? 0L : keyInputStack.amount();
+            GenericStack current = keyInputStacks.get(slot);
+            long stored = current == null ? 0L : current.amount();
             long inserted = Math.min(amount, Math.max(0L, getKeyInputCapacity() - stored));
             if (inserted <= 0L) {
                 return 0L;
             }
 
             if (mode == Actionable.MODULATE) {
-                keyInputStack = new GenericStack(what, stored + inserted);
+                keyInputStacks.set(slot, new GenericStack(what, stored + inserted));
+                keyInputPatternColors[slot] = 0;
                 syncKeyMenuFromStack();
                 onChange();
             }
@@ -1910,14 +2844,19 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public long extract(int slot, AEKey what, long amount, Actionable mode) {
-            if (slot != KEY_OUTPUT_SLOT || what == null || amount <= 0L || keyOutputStack == null || !what.equals(keyOutputStack.what())) {
+            int outputSlot = slot - getKeyOutputStartSlot();
+            if (outputSlot < 0 || outputSlot >= getKeyOutputSlotCount() || what == null || amount <= 0L) {
+                return 0L;
+            }
+            GenericStack output = keyOutputStacks.get(outputSlot);
+            if (output == null || !what.equals(output.what())) {
                 return 0L;
             }
 
-            long extracted = Math.min(amount, keyOutputStack.amount());
+            long extracted = Math.min(amount, output.amount());
             if (mode == Actionable.MODULATE) {
-                long remaining = keyOutputStack.amount() - extracted;
-                keyOutputStack = remaining <= 0L ? null : new GenericStack(what, remaining);
+                long remaining = output.amount() - extracted;
+                keyOutputStacks.set(outputSlot, remaining <= 0L ? null : new GenericStack(what, remaining));
                 syncKeyMenuFromStack();
                 onChange();
             }
@@ -1974,11 +2913,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 return 0L;
             }
 
-            PatternPushState state = new PatternPushState(copyInputSlots(),
-                    fluidInputTankA.getFluid().copy(),
-                    fluidInputTankB.getFluid().copy(),
-                    copyKeyStack(keyInputStack));
-            if (!canAcceptPatternInput(state, what, amount)) {
+            PatternPushState state = null;
+            for (int channel = 0; channel < processingChannels.length; channel++) {
+                PatternPushState candidate = createPatternPushState(channel, 0);
+                if (canAcceptPatternInput(candidate, what, amount)) {
+                    state = candidate;
+                    break;
+                }
+            }
+            if (state == null) {
                 return 0L;
             }
 
@@ -1992,16 +2935,28 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public Component getDescription() {
-            return DEBlocks.DATA_RIPPER_REASSEMBLER.get().getName();
+            return getMachineBlock().getName();
         }
     }
 
+    protected Block getMachineBlock() {
+        return DEBlocks.DATA_RIPPER_REASSEMBLER.get();
+    }
+
     public GenericStack getKeyInputStack() {
-        return this.keyInputStack;
+        return getKeyInputStack(0);
     }
 
     public GenericStack getKeyOutputStack() {
-        return this.keyOutputStack;
+        return getKeyOutputStack(0);
+    }
+
+    public GenericStack getKeyInputStack(int slot) {
+        return this.keyInputStacks.get(slot);
+    }
+
+    public GenericStack getKeyOutputStack(int slot) {
+        return this.keyOutputStacks.get(slot);
     }
 
     private final class SyncFluidTank extends FluidTank {
@@ -2016,23 +2971,23 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 return false;
             }
 
-            if (this == fluidInputTankA) {
-                return !conflictsWithPairedTank(fluidInputTankB, stack);
+            if (fluidInputTanks.contains(this)) {
+                return !conflictsWithPairedTanks(fluidInputTanks, this, stack);
             }
-            if (this == fluidInputTankB) {
-                return !conflictsWithPairedTank(fluidInputTankA, stack);
-            }
-            if (this == fluidOutputTankA) {
-                return !conflictsWithPairedTank(fluidOutputTankB, stack);
-            }
-            if (this == fluidOutputTankB) {
-                return !conflictsWithPairedTank(fluidOutputTankA, stack);
+            if (fluidOutputTanks.contains(this)) {
+                return !conflictsWithPairedTanks(fluidOutputTanks, this, stack);
             }
             return true;
         }
 
         @Override
         protected void onContentsChanged() {
+            if (!preservingInputPatternColors) {
+                int inputSlot = fluidInputTanks.indexOf(this);
+                if (inputSlot >= 0) {
+                    fluidInputPatternColors[inputSlot] = 0;
+                }
+            }
             syncMenuFluidsFromTanks();
             saveChanges();
             markForClientUpdate();
@@ -2043,7 +2998,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public int getTanks() {
-            return 4;
+            return fluidInputTanks.size() + fluidOutputTanks.size();
         }
 
         @Override
@@ -2058,19 +3013,24 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public boolean isFluidValid(int tank, FluidStack stack) {
-            return tank < 2 && this.getTank(tank).isFluidValid(stack);
+            return tank >= 0 && tank < fluidInputTanks.size() && this.getTank(tank).isFluidValid(stack);
         }
 
         @Override
         public int fill(FluidStack resource, FluidAction action) {
-            int filled = fluidInputTankA.fill(resource, action);
-            if (filled >= resource.getAmount()) {
-                return filled;
+            int filled = 0;
+            for (int slot = 0; slot < fluidInputTanks.size(); slot++) {
+                if (filled >= resource.getAmount()) {
+                    break;
+                }
+                if (usesPatternInputColors() && fluidInputPatternColors[slot] != 0) {
+                    continue;
+                }
+                FluidStack remaining = resource.copy();
+                remaining.shrink(filled);
+                filled += fluidInputTanks.get(slot).fill(remaining, action);
             }
-
-            FluidStack remaining = resource.copy();
-            remaining.shrink(filled);
-            return filled + fluidInputTankB.fill(remaining, action);
+            return filled;
         }
 
         @Override
@@ -2079,37 +3039,51 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 return FluidStack.EMPTY;
             }
 
-            FluidStack drained = fluidOutputTankA.drain(resource, action);
-            if (!drained.isEmpty()) {
-                return drained;
+            for (FluidTank tank : fluidOutputTanks) {
+                FluidStack drained = tank.drain(resource, action);
+                if (!drained.isEmpty()) {
+                    return drained;
+                }
             }
-            return fluidOutputTankB.drain(resource, action);
+            return FluidStack.EMPTY;
         }
 
         @Override
         public FluidStack drain(int maxDrain, FluidAction action) {
-            FluidStack drained = fluidOutputTankA.drain(maxDrain, action);
-            if (!drained.isEmpty()) {
-                return drained;
+            for (FluidTank tank : fluidOutputTanks) {
+                FluidStack drained = tank.drain(maxDrain, action);
+                if (!drained.isEmpty()) {
+                    return drained;
+                }
             }
-            return fluidOutputTankB.drain(maxDrain, action);
+            return FluidStack.EMPTY;
         }
 
         private FluidTank getTank(int tank) {
-            return switch (tank) {
-                case 0 -> fluidInputTankA;
-                case 1 -> fluidInputTankB;
-                case 2 -> fluidOutputTankA;
-                case 3 -> fluidOutputTankB;
-                default -> throw new IndexOutOfBoundsException("Invalid tank index: " + tank);
-            };
+            if (tank >= 0 && tank < fluidInputTanks.size()) {
+                return fluidInputTanks.get(tank);
+            }
+            int outputTank = tank - fluidInputTanks.size();
+            if (outputTank >= 0 && outputTank < fluidOutputTanks.size()) {
+                return fluidOutputTanks.get(outputTank);
+            }
+            throw new IndexOutOfBoundsException("Invalid tank index: " + tank);
         }
     }
 
     private final class ReassemblerItemInventory extends AppEngInternalInventory {
 
         private ReassemblerItemInventory() {
-            super(DataRipperReassemblerBlockEntity.this, STORAGE_SLOTS);
+            super(DataRipperReassemblerBlockEntity.this, DataRipperReassemblerBlockEntity.this.getStorageSlotCount());
+        }
+
+        @Override
+        public void setItemDirect(int slot, ItemStack stack) {
+            super.setItemDirect(slot, stack);
+            if (!preservingInputPatternColors && slot >= ITEM_INPUT_START_SLOT &&
+                    slot < ITEM_INPUT_START_SLOT + getItemInputSlotCount()) {
+                itemInputPatternColors[slot - ITEM_INPUT_START_SLOT] = 0;
+            }
         }
 
         @Override
@@ -2166,6 +3140,11 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             if (!inSlot.isEmpty() && !ItemStack.isSameItemSameComponents(inSlot, stack)) {
                 return stack;
             }
+            if (!inSlot.isEmpty() && usesPatternInputColors() && slot >= ITEM_INPUT_START_SLOT &&
+                    slot < ITEM_INPUT_START_SLOT + getItemInputSlotCount() &&
+                    itemInputPatternColors[slot - ITEM_INPUT_START_SLOT] != 0) {
+                return stack;
+            }
 
             int currentAmount = inSlot.isEmpty() ? 0 : inSlot.getCount();
             int inserted = Math.min(stack.getCount(), Math.max(0, getSlotLimit(slot) - currentAmount));
@@ -2202,7 +3181,18 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             if (!simulate) {
                 ItemStack remainder = stack.copy();
                 remainder.shrink(extracted);
-                setItemDirect(slot, remainder);
+                boolean preservesPatternColor = slot >= ITEM_INPUT_START_SLOT &&
+                        slot < ITEM_INPUT_START_SLOT + getItemInputSlotCount();
+                boolean previousPreservation = preservingInputPatternColors;
+                preservingInputPatternColors = preservesPatternColor || previousPreservation;
+                try {
+                    setItemDirect(slot, remainder);
+                } finally {
+                    preservingInputPatternColors = previousPreservation;
+                }
+                if (remainder.isEmpty() && preservesPatternColor) {
+                    itemInputPatternColors[slot - ITEM_INPUT_START_SLOT] = 0;
+                }
             }
             return result;
         }
@@ -2226,51 +3216,119 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final class RecipeProcessingState {
 
         private final ItemStack[] itemSlots;
-        private final FluidStack fluidInputA;
-        private final FluidStack fluidInputB;
-        private final FluidStack fluidOutputA;
-        private final FluidStack fluidOutputB;
-        private final GenericStack keyInput;
-        private final GenericStack keyOutput;
+        private final List<FluidStack> fluidInputs;
+        private final List<FluidStack> fluidOutputs;
+        private final List<GenericStack> keyInputs;
+        private final List<GenericStack> keyOutputs;
 
-        private RecipeProcessingState(ItemStack[] itemSlots, FluidStack fluidInputA, FluidStack fluidInputB,
-                                      FluidStack fluidOutputA, FluidStack fluidOutputB,
-                                      @Nullable GenericStack keyInput, @Nullable GenericStack keyOutput) {
+        private RecipeProcessingState(ItemStack[] itemSlots, List<FluidStack> fluidInputs,
+                                      List<FluidStack> fluidOutputs, List<GenericStack> keyInputs,
+                                      List<GenericStack> keyOutputs) {
             this.itemSlots = itemSlots;
-            this.fluidInputA = fluidInputA;
-            this.fluidInputB = fluidInputB;
-            this.fluidOutputA = fluidOutputA;
-            this.fluidOutputB = fluidOutputB;
-            this.keyInput = keyInput;
-            this.keyOutput = keyOutput;
+            this.fluidInputs = fluidInputs;
+            this.fluidOutputs = fluidOutputs;
+            this.keyInputs = keyInputs;
+            this.keyOutputs = keyOutputs;
         }
     }
 
-    private record RecipeStackIdentity(@Nullable AEKey what, long amount) {
+    private record RecipeStackIdentity(@Nullable AEKey what, long amount, int patternColor) {
 
-        private static final RecipeStackIdentity EMPTY = new RecipeStackIdentity(null, 0L);
+        private static final RecipeStackIdentity EMPTY = new RecipeStackIdentity(null, 0L, 0);
     }
 
     private record RecipeMatchKey(long reloadEpoch, @Nullable ResourceLocation activeRecipeId,
+                                  boolean hasActiveInputPatternColor, int activeInputPatternColor,
                                   List<RecipeStackIdentity> itemInputs,
                                   List<RecipeStackIdentity> fluidInputs,
-                                  RecipeStackIdentity keyInput) {}
+                                  List<RecipeStackIdentity> keyInputs,
+                                  Set<ResourceLocation> otherActiveRecipeIds) {}
 
-    private record RecipeMatchCache(RecipeMatchKey key, @Nullable ResourceLocation recipeId) {}
+    private record RecipeMatchCache(RecipeMatchKey key, @Nullable ResourceLocation recipeId, int inputPatternColor) {}
+
+    private record ColorMatchedRecipe(RecipeHolder<DataRipperReassemblerRecipe> recipeHolder, int inputPatternColor) {}
+
+    private record ReservedItemInput(int slot, ItemStack stack, int patternColor) {}
+
+    private record ReservedFluidInput(int slot, AEFluidKey key, int amount, int patternColor) {}
+
+    private record ReservedKeyInput(int slot, AEKey key, long amount, int patternColor) {}
+
+    private static final class RecipeInputReservation {
+
+        private final List<ReservedItemInput> itemInputs;
+        private final List<ReservedFluidInput> fluidInputs;
+        private final List<ReservedKeyInput> keyInputs;
+
+        private RecipeInputReservation(List<ReservedItemInput> itemInputs, List<ReservedFluidInput> fluidInputs,
+                                       List<ReservedKeyInput> keyInputs) {
+            this.itemInputs = List.copyOf(itemInputs);
+            this.fluidInputs = List.copyOf(fluidInputs);
+            this.keyInputs = List.copyOf(keyInputs);
+        }
+    }
+
+    private static final class InputReservationUsage {
+
+        private final int[] itemAmounts;
+        private final int[] fluidAmounts;
+        private final long[] keyAmounts;
+
+        private InputReservationUsage(int[] itemAmounts, int[] fluidAmounts, long[] keyAmounts) {
+            this.itemAmounts = itemAmounts;
+            this.fluidAmounts = fluidAmounts;
+            this.keyAmounts = keyAmounts;
+        }
+    }
+
+    private static final class ProcessingChannelState {
+
+        private int progress;
+        private int maxProgress = MAX_PROGRESS;
+        private ResourceLocation activeRecipeId;
+        private boolean hasActiveInputPatternColor;
+        private int activeInputPatternColor;
+        private RecipeMatchCache recipeMatchCache;
+        private RecipeInputReservation inputReservation;
+
+        private boolean isIdle() {
+            return this.progress == 0 && this.maxProgress == MAX_PROGRESS && this.activeRecipeId == null &&
+                    !this.hasActiveInputPatternColor;
+        }
+
+        private void reset() {
+            this.progress = 0;
+            this.maxProgress = MAX_PROGRESS;
+            this.activeRecipeId = null;
+            this.hasActiveInputPatternColor = false;
+            this.activeInputPatternColor = 0;
+            this.recipeMatchCache = null;
+            this.inputReservation = null;
+        }
+    }
 
     private static final class PatternPushState {
 
+        private final int channel;
+        private final int patternColor;
         private final ItemStack[] itemInputs;
-        private FluidStack fluidInputA;
-        private FluidStack fluidInputB;
-        private GenericStack keyInput;
+        private final int[] itemInputColors;
+        private final List<FluidStack> fluidInputs;
+        private final int[] fluidInputColors;
+        private final List<GenericStack> keyInputs;
+        private final int[] keyInputColors;
 
-        private PatternPushState(ItemStack[] itemInputs, FluidStack fluidInputA, FluidStack fluidInputB,
-                                 @Nullable GenericStack keyInput) {
+        private PatternPushState(int channel, int patternColor, ItemStack[] itemInputs, int[] itemInputColors,
+                                 List<FluidStack> fluidInputs, int[] fluidInputColors, List<GenericStack> keyInputs,
+                                 int[] keyInputColors) {
+            this.channel = channel;
+            this.patternColor = patternColor;
             this.itemInputs = itemInputs;
-            this.fluidInputA = fluidInputA;
-            this.fluidInputB = fluidInputB;
-            this.keyInput = keyInput;
+            this.itemInputColors = itemInputColors;
+            this.fluidInputs = fluidInputs;
+            this.fluidInputColors = fluidInputColors;
+            this.keyInputs = keyInputs;
+            this.keyInputColors = keyInputColors;
         }
     }
 }

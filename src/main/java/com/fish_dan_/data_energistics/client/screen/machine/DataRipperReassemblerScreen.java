@@ -18,6 +18,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.neoforged.neoforge.fluids.FluidStack;
 
+import appeng.api.client.AEKeyRendering;
 import appeng.api.config.Settings;
 import appeng.api.config.YesNo;
 import appeng.api.stacks.AEFluidKey;
@@ -36,15 +37,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperReassemblerMenu>
-                                         implements GenericStackLookupScreen {
+public class DataRipperReassemblerScreen<M extends DataRipperReassemblerMenu> extends UpgradeableScreen<M>
+                                        implements GenericStackLookupScreen {
 
     private final ProgressBar progressBar;
     private final ServerSettingToggleButton<YesNo> autoExportButton;
     private final OutputSideActionButton outputSideButton;
 
-    public DataRipperReassemblerScreen(DataRipperReassemblerMenu menu, Inventory playerInventory, Component title,
-                                       ScreenStyle style) {
+    public DataRipperReassemblerScreen(M menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
         this.autoExportButton = new ServerSettingToggleButton<>(Settings.AUTO_EXPORT, YesNo.NO);
         this.addToLeftToolbar(this.autoExportButton);
@@ -58,7 +58,7 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
         if (this.menu.getHost() == null) {
             return;
         }
-        this.switchToScreen(new DataRipperReassemblerOutputSideScreen(
+        this.switchToScreen(new DataRipperReassemblerOutputSideScreen<>(
                 this,
                 this.menu,
                 this.menu.getHost(),
@@ -79,20 +79,22 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
 
     @Override
     protected void renderTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
-        if (this.menu.getCarried().isEmpty() && isEmptyGenericSlot(this.hoveredSlot)) {
+        if (this.menu.getCarried().isEmpty() && isActiveGenericSlot(this.hoveredSlot)) {
             SlotSemantic semantic = this.menu.getSlotSemantic(this.hoveredSlot);
-            List<Component> tooltip = new ArrayList<>();
-            tooltip.add(getEmptySlotTooltip(semantic));
-            tooltip.add(getAmountTooltip(semantic, 0));
-            this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
-            return;
-        }
+            GenericStack stack = getDisplayedGenericStack(this.hoveredSlot);
+            if (stack == null) {
+                List<Component> tooltip = new ArrayList<>();
+                tooltip.add(getEmptySlotTooltip(semantic));
+                tooltip.add(getAmountTooltip(semantic, 0));
+                this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
+                return;
+            }
 
-        if (this.menu.getCarried().isEmpty() && isGenericStorageSlot(this.hoveredSlot)) {
-            List<Component> tooltip = new ArrayList<>(this.getTooltipFromContainerItem(this.hoveredSlot.getItem()));
-            GenericStack stack = GenericStack.fromItemStack(this.hoveredSlot.getItem());
-            long amount = stack != null ? stack.amount() : 0L;
-            tooltip.add(getAmountTooltip(this.menu.getSlotSemantic(this.hoveredSlot), amount));
+            List<Component> tooltip = new ArrayList<>(AEKeyRendering.getTooltip(stack.what()));
+            if (tooltip.isEmpty()) {
+                tooltip.add(stack.what().getDisplayName());
+            }
+            tooltip.add(getAmountTooltip(semantic, stack.amount()));
             this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
             return;
         }
@@ -108,12 +110,17 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
                     .blit(guiGraphics);
         }
 
+        int patternInputColor = this.menu.getPatternInputColor(slot);
         GenericStack genericStack = getDisplayedGenericStack(slot);
         if (genericStack != null) {
             renderGenericSlot(guiGraphics, slot, genericStack);
+            renderPatternInputMarker(guiGraphics, slot, patternInputColor);
             return;
         }
 
+        if (patternInputColor != 0 && !slot.getItem().isEmpty()) {
+            renderPatternInputBackground(guiGraphics, slot, patternInputColor);
+        }
         super.renderSlot(guiGraphics, slot);
     }
 
@@ -128,23 +135,15 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
                 new Rect2i(this.leftPos + this.hoveredSlot.x, this.topPos + this.hoveredSlot.y, 16, 16));
     }
 
-    private boolean isEmptyGenericSlot(@Nullable Slot slot) {
-        if (slot == null || !slot.isActive() || !slot.getItem().isEmpty()) {
+    private boolean isActiveGenericSlot(@Nullable Slot slot) {
+        if (slot == null || !slot.isActive()) {
             return false;
         }
 
         return isGenericSemantic(this.menu.getSlotSemantic(slot));
     }
 
-    private boolean isGenericStorageSlot(@Nullable Slot slot) {
-        if (slot == null || !slot.isActive() || slot.getItem().isEmpty()) {
-            return false;
-        }
-
-        return isGenericSemantic(this.menu.getSlotSemantic(slot));
-    }
-
-    private static boolean isGenericSemantic(SlotSemantic semantic) {
+    protected boolean isGenericSemantic(SlotSemantic semantic) {
         return semantic == SlotSemantics.STORAGE ||
                 semantic == DataRipperReassemblerMenu.FLUID_INPUT_B ||
                 semantic == DataRipperReassemblerMenu.FLUID_OUTPUT_A ||
@@ -153,14 +152,14 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
                 semantic == DataRipperReassemblerMenu.KEY_OUTPUT;
     }
 
-    private Component getEmptySlotTooltip(SlotSemantic semantic) {
+    protected Component getEmptySlotTooltip(SlotSemantic semantic) {
         if (semantic == DataRipperReassemblerMenu.KEY_INPUT || semantic == DataRipperReassemblerMenu.KEY_OUTPUT) {
             return Component.translatable("screen.data_energistics.data_reassembler.key.empty");
         }
         return Component.translatable("screen.data_energistics.data_reassembler.fluid.empty");
     }
 
-    private Component getAmountTooltip(SlotSemantic semantic, long amount) {
+    protected Component getAmountTooltip(SlotSemantic semantic, long amount) {
         if (semantic == SlotSemantics.STORAGE || semantic == DataRipperReassemblerMenu.FLUID_INPUT_B) {
             return Component.literal(amount + " mB / " + this.menu.getFluidInputCapacity() + " mB")
                     .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT);
@@ -187,7 +186,17 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
                 GenericStackDisplayHelper.formatCompactAmount(genericStack));
     }
 
-    private @Nullable GenericStack getDisplayedGenericStack(@Nullable Slot slot) {
+    private static void renderPatternInputBackground(GuiGraphics guiGraphics, Slot slot, int color) {
+        guiGraphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0x50000000 | color);
+    }
+
+    private static void renderPatternInputMarker(GuiGraphics guiGraphics, Slot slot, int color) {
+        if (color != 0) {
+            guiGraphics.fill(slot.x + 12, slot.y, slot.x + 16, slot.y + 4, 0xFF000000 | color);
+        }
+    }
+
+    protected @Nullable GenericStack getDisplayedGenericStack(@Nullable Slot slot) {
         if (slot == null || !slot.isActive()) {
             return null;
         }
@@ -211,7 +220,7 @@ public class DataRipperReassemblerScreen extends UpgradeableScreen<DataRipperRea
         return null;
     }
 
-    private static @Nullable GenericStack fluidStack(String fluidId, int amount) {
+    protected static @Nullable GenericStack fluidStack(String fluidId, int amount) {
         if (fluidId == null || fluidId.isBlank() || amount <= 0) {
             return null;
         }

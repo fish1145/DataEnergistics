@@ -135,11 +135,6 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
     private static void setCircuitBoardRecipe(IRecipeLayoutBuilder builder,
                                               DataChargePressRecipeView.CircuitBoardView view) {
         InscriberRecipe recipe = view.holder().value();
-        if (DataChargePressRecipeSupport.hasCircuitBoardTemplate(recipe)) {
-            builder.addSlot(RecipeIngredientRole.CATALYST, FIRST_INPUT_X, FIRST_INPUT_Y)
-                    .addIngredients(DataChargePressRecipeSupport.getTemplate(recipe)).addRichTooltipCallback((slotView, tooltip) -> tooltip.add(
-                            Component.translatable("recipe.data_energistics.data_charge_press.template")));
-        }
         builder.addInputSlot(SECOND_INPUT_X, SECOND_INPUT_Y).addItemStacks(withCount(recipe.getMiddleInput(),
                 DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT));
         addFluidInput(builder, DataChargePressRecipeSupport.getFluidInput());

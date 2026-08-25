@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TuningForkBaseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TuningForkBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.decor.DollBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.machine.DataAsynchronousProcessingFactoryBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataChargerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataIntegratedChargerBlockEntity;
@@ -36,13 +37,20 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
+import appeng.blockentity.networking.EnergyCellBlockEntity;
+
+import java.util.concurrent.atomic.AtomicReference;
+
 public final class DEBlockEntities {
 
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, Data_Energistics.MODID);
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataSolarPanelBlockEntity>> DATA_SOLAR_PANEL_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "me_solar_panel",
-            () -> BlockEntityType.Builder.of(DataSolarPanelBlockEntity::new, DEBlocks.DATA_SOLAR_PANEL.get()).build(null));
+            () -> BlockEntityType.Builder.of(
+                    DataSolarPanelBlockEntity::new,
+                    DEBlocks.DATA_SOLAR_PANEL.get(),
+                    DEBlocks.ME_DATA_SOLAR_PANEL.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DigitalStorageDepotBlockEntity>> DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "digital_storage_depot",
@@ -67,6 +75,12 @@ public final class DEBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataRipperReassemblerBlockEntity>> DATA_RIPPER_REASSEMBLER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "data_reassembler",
             () -> BlockEntityType.Builder.of(DataRipperReassemblerBlockEntity::new, DEBlocks.DATA_RIPPER_REASSEMBLER.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataAsynchronousProcessingFactoryBlockEntity>> DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "data_asynchronous_processing_factory",
+            () -> BlockEntityType.Builder.of(
+                    DataAsynchronousProcessingFactoryBlockEntity::new,
+                    DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get()).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TrinityDataCoreBlockEntity>> TRINITY_DATA_CORE_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "trinity_data_core",
@@ -128,6 +142,22 @@ public final class DEBlockEntities {
             () -> BlockEntityType.Builder.of(
                     DataIntegratedChargerBlockEntity::new,
                     DEBlocks.DATA_INTEGRATED_CHARGER.get()).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<EnergyCellBlockEntity>> DATA_ENERGY_CELL_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
+            "data_energy_cell",
+            () -> {
+                AtomicReference<BlockEntityType<EnergyCellBlockEntity>> typeHolder = new AtomicReference<>();
+                BlockEntityType<EnergyCellBlockEntity> type = BlockEntityType.Builder.of(
+                        (pos, state) -> new EnergyCellBlockEntity(typeHolder.get(), pos, state),
+                        DEBlocks.DATA_ENERGY_CELL.get()).build(null);
+                typeHolder.setPlain(type);
+                DEBlocks.DATA_ENERGY_CELL.get().setBlockEntity(
+                        EnergyCellBlockEntity.class,
+                        type,
+                        null,
+                        null);
+                return type;
+            });
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AdaptivePatternProviderBlockEntity>> ADAPTIVE_PATTERN_PROVIDER_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "adaptive_pattern_provider",

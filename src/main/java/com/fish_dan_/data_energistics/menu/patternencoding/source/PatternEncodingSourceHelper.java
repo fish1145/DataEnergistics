@@ -511,7 +511,7 @@ public final class PatternEncodingSourceHelper {
         for (RecipeHolder<DataRipperReassemblerRecipe> holder : level.getRecipeManager()
                 .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get())) {
             DataRipperReassemblerRecipe recipe = holder.value();
-            if (!recipe.matches(new DataRipperReassemblerRecipeInput(items, List.of(), null), level)) {
+            if (!recipe.matches(new DataRipperReassemblerRecipeInput(items, List.of(), List.of()), level)) {
                 continue;
             }
             if (!matchesEncodedOutputs(recipe, outputs, keyOutput, fluidOutputs)) {

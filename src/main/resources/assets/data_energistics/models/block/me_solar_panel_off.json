@@ -5,8 +5,8 @@
 	"render_type": "cutout",
 	"texture_size": [32, 32],
 	"textures": {
-		"1": "data_energistics:block/me_solar_panel/off",
-		"particle": "ae2:block/generics/back"
+		"1": "data_energistics:block/solar_panel/me_solar_panel_off",
+		"particle": "#1"
 	},
 	"elements": [
 		{

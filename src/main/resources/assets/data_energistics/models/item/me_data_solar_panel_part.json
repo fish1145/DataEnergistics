@@ -1,0 +1,9 @@
+{
+	"parent": "data_energistics:item/me_solar_panel_part",
+	"textures": {
+		"0": "data_energistics:part/data_solar_panel_back",
+		"1": "data_energistics:part/data_solar_panel_front_on",
+		"2": "data_energistics:part/solar_panel_sides",
+		"particle": "data_energistics:part/data_solar_panel_back"
+	}
+}

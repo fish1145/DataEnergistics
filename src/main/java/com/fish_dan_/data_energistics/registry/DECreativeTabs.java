@@ -61,8 +61,10 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_STORAGE_COMPONENT_256M);
 
                         output.accept(DEItems.DATA_SOLAR_PANEL);
+                        output.accept(DEItems.ME_DATA_SOLAR_PANEL);
                         output.accept(DEItems.DATA_EXTRACTOR);
                         output.accept(DEItems.DATA_RIPPER_REASSEMBLER);
+                        output.accept(DEItems.DATA_ASYNCHRONOUS_PROCESSING_FACTORY);
                         output.accept(DEItems.DATA_FRAMEWORK);
                         output.accept(DEItems.DATA_DISTRIBUTION_TOWER);
                         output.accept(DEItems.DATA_MIMETIC_FIELD);
@@ -80,6 +82,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_CHARGER);
                         output.accept(DEItems.EXTENDED_DATA_CHARGER);
                         output.accept(DEItems.DATA_INTEGRATED_CHARGER);
+                        output.accept(DEItems.DATA_ENERGY_CELL);
                         output.accept(DEItems.DATA_SANCTUM_INTERFACE_PART);
                         output.accept(DEItems.DATA_SANCTUM_INTERFACE_UPGRADE);
                         output.accept(DEItems.ADAPTIVE_PATTERN_PROVIDER);
@@ -115,6 +118,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_CRYSTAL_CLUSTER);
                         output.accept(DEItems.ADAPTIVE_PATTERN_PROVIDER_PART);
                         output.accept(DEItems.ME_SOLAR_PANEL_PART);
+                        output.accept(DEItems.ME_DATA_SOLAR_PANEL_PART);
                         output.accept(DEItems.UNIVERSAL_TERMINAL);
                         output.accept(DEItems.DATA_CRYSTAL);
                         output.accept(DEItems.DATA_CRYSTAL_SWORD);
@@ -144,6 +148,7 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_INSCRIBER_TEMPLATE);
                         output.accept(DEItems.DATA_CIRCUIT_BOARD);
                         output.accept(DEItems.DATA_PROCESSOR);
+                        output.accept(DEItems.FLUIX_AGGREGATE_CRYSTAL_PROCESSOR);
                         output.accept(DEItems.COMPLEXIFIED_BIOCHIPS);
                         output.accept(DEItems.DIGISIDIAN_MEMORIZE_INGOT);
                         output.accept(RadixContainmentSphereItem.createChargedStack());
