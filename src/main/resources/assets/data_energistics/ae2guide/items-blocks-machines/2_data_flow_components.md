@@ -149,4 +149,4 @@ Maximum energy = base capacity × (1 + 8 × number of energy cards)
   <Row>
     <ItemImage id="data_cell_infinity" />
   </Row>
-A component formed by an unknown force that can infinitely retrieve Data Flow, Data, and Echo; no one knows where it comes from or where it will go
+A component formed by an unknown force that can infinitely retrieve Data Flow, Binary, and Echo; no one knows where it comes from or where it will go
