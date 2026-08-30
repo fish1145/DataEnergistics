@@ -175,7 +175,7 @@ public final class TrinityJointCycleSearch {
             this.demand = demand;
             this.available = available;
             this.producibleInputs = producibleInputs;
-            this.budget = new SearchBudget(maxSearchStates);
+            this.budget = new SearchBudget(maxSearchStates, control);
             this.mode = mode;
             this.control = control;
             this.feasibilitySession = feasibilityModel.openSession(request(TrinityFiringBox.full(this.variants)));
@@ -560,10 +560,12 @@ public final class TrinityJointCycleSearch {
     private static final class SearchBudget {
 
         private final int limit;
+        private final TrinityPlanningControl control;
         private int used;
 
-        private SearchBudget(int limit) {
+        private SearchBudget(int limit, TrinityPlanningControl control) {
             this.limit = limit;
+            this.control = control;
         }
 
         private boolean consume(int states) {
@@ -571,10 +573,12 @@ public final class TrinityJointCycleSearch {
                 throw new IllegalArgumentException("Trinity search states cannot be negative");
             }
             if (states > this.limit - this.used) {
+                this.control.recordJointStates(this.limit - this.used);
                 this.used = this.limit;
                 return false;
             }
-            this.used += states;
+            this.used = Math.addExact(this.used, states);
+            this.control.recordJointStates(states);
             return true;
         }
 

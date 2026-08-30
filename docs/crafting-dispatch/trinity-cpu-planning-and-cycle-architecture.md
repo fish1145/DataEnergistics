@@ -399,9 +399,11 @@ RUNTIME_DEADLOCK
 ```
 
 当前 verbose 规划日志包含 request、target、数量模式、graph revision、cache path、quality、SCC/variant 数、
-`planningNanos`、`firstFeasibleNanos`、`mipNanos` 和聚合 `scheduleStates`；执行日志继续记录 job、fallback 与所有权状态。
-当前统计尚未把 solver pass/model、joint state 与全图 route state 拆成独立字段；`firstFeasibleNanos` 也以最终完整计划可发布时刻
-为准，不能冒充更早但尚未通过最终 byte/`long` 边界的数值 witness 时间。
+`planningNanos`、`firstFeasibleNanos`、`mipNanos`、聚合 `scheduleStates`、`solverPasses`、`solverModels`、
+`jointStates` 和 `routeStates`；执行日志继续记录 job、fallback 与所有权状态。model 统计基础/编码模型装配，pass 统计实际
+ojAlgo minimise/maximise/probe；exact 与 proven-equivalent cache hit 的本请求 MIP 和搜索计数归零。`firstFeasibleNanos` 仍以
+最终完整计划可发布时刻为准，不能冒充更早但尚未通过最终 byte/`long` 边界的数值 witness 时间。请求累计指标达到类型上限时
+饱和，遥测溢出不得反向终止规划。
 等待状态只在状态迁移或限频周期记录，避免日志刷屏。
 
 ## 11. 实施顺序

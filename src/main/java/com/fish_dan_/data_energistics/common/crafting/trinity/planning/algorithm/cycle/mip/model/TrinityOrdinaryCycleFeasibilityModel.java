@@ -207,7 +207,9 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         configureDeadline(data.model(), control);
         long started = System.nanoTime();
         Optimisation.Result result = data.model().minimise();
-        metrics.addPass(Math.max(0L, System.nanoTime() - started));
+        long elapsedNanos = Math.max(0L, System.nanoTime() - started);
+        metrics.addPass(elapsedNanos);
+        control.recordSolverPass(elapsedNanos);
         if (control.cancellationRequested()) {
             return failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,

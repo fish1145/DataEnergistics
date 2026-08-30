@@ -111,7 +111,7 @@ public final class TrinityAcyclicRouteOptimizer {
         }
         Map<AEKey, BigInteger> inventory = copyAvailable(available);
         BigInteger requiredTargetNet = requiredTargetNet(target, requestedAmount, quantityMode, inventory);
-        SearchBudget budget = new SearchBudget(maxSearchStates);
+        SearchBudget budget = new SearchBudget(maxSearchStates, control);
         Optional<UniformBindingFamily> uniformBindings = UniformBindingFamily.tryCreate(reachable, target);
         if (uniformBindings.isPresent()) {
             return optimizeUniformBindings(
@@ -133,6 +133,7 @@ public final class TrinityAcyclicRouteOptimizer {
                 quantityMode,
                 inventory,
                 FeasibilityPass.INSTANCE);
+        control.recordSolverModel();
         AcyclicModelTemplate modelTemplate = createModelTemplate(templateRequest);
 
         if (mode == TrinityPlanningMode.FIRST_FEASIBLE) {
@@ -335,7 +336,7 @@ public final class TrinityAcyclicRouteOptimizer {
             return insufficient(target, requestedAmount);
         }
         BigInteger requiredTargetNet = requiredTargetNet(target, requestedAmount, quantityMode, inventory);
-        SearchBudget budget = new SearchBudget(maxSearchStates);
+        SearchBudget budget = new SearchBudget(maxSearchStates, control);
 
         TrinityAlgorithmResult<DiagnosticSolvedModel> missingResult = solveDiagnostic(
                 new DiagnosticModelRequest(
@@ -494,9 +495,11 @@ public final class TrinityAcyclicRouteOptimizer {
 
         ModelData data = modelTemplate.forPass(request.pass());
         configureDeadline(data.model(), control);
+        long startedNanos = System.nanoTime();
         Optimisation.Result result = request.pass() instanceof IdentityPass ?
                 data.model().maximise() :
                 data.model().minimise();
+        control.recordSolverPass(Math.max(0L, System.nanoTime() - startedNanos));
 
         if (control.cancellationRequested()) {
             return failure(
@@ -594,9 +597,12 @@ public final class TrinityAcyclicRouteOptimizer {
                     Map.of("states", Integer.toString(budget.used())));
         }
 
+        control.recordSolverModel();
         DiagnosticModelData data = createDiagnosticModel(request);
         configureDeadline(data.model(), control);
+        long startedNanos = System.nanoTime();
         Optimisation.Result result = data.model().minimise();
+        control.recordSolverPass(Math.max(0L, System.nanoTime() - startedNanos));
         if (control.cancellationRequested()) {
             return failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -1433,17 +1439,20 @@ public final class TrinityAcyclicRouteOptimizer {
     private static final class SearchBudget {
 
         private final int limit;
+        private final TrinityPlanningControl control;
         private int used;
 
-        private SearchBudget(int limit) {
+        private SearchBudget(int limit, TrinityPlanningControl control) {
             this.limit = limit;
+            this.control = control;
         }
 
         private boolean consume() {
             if (this.used >= this.limit) {
                 return false;
             }
-            this.used++;
+            this.used = Math.incrementExact(this.used);
+            this.control.recordRouteStates(1);
             return true;
         }
 

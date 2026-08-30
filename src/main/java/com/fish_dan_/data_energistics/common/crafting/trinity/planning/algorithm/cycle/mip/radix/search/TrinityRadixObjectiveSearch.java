@@ -146,7 +146,9 @@ public final class TrinityRadixObjectiveSearch {
         applyDeadline(solverModel, control);
         long started = System.nanoTime();
         Optimisation.Result result = solverModel.minimise();
-        metrics.addPass(Math.max(0L, System.nanoTime() - started));
+        long elapsedNanos = Math.max(0L, System.nanoTime() - started);
+        metrics.addPass(elapsedNanos);
+        control.recordSolverPass(elapsedNanos);
         if (control.cancellationRequested()) {
             return TrinityRadixDiagnostics.failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -282,7 +284,9 @@ public final class TrinityRadixObjectiveSearch {
         applyDeadline(probeModel, control);
         long started = System.nanoTime();
         Optimisation.Result result = probeModel.minimise();
-        metrics.addPass(Math.max(0L, System.nanoTime() - started));
+        long elapsedNanos = Math.max(0L, System.nanoTime() - started);
+        metrics.addPass(elapsedNanos);
+        control.recordSolverPass(elapsedNanos);
         if (control.cancellationRequested()) {
             return TrinityRadixDiagnostics.failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,

@@ -29,6 +29,7 @@ public final class TrinityPlanningSession {
     private final LongSupplier nanoClock;
     private final long optimisationBudgetNanos;
     private final long startedNanos;
+    private final TrinityPlanningMetrics metrics;
 
     private TrinityPlanningSession(
                                    BooleanSupplier cancellation,
@@ -38,13 +39,14 @@ public final class TrinityPlanningSession {
         this.nanoClock = nanoClock;
         this.optimisationBudgetNanos = optimisationBudgetNanos;
         this.startedNanos = nanoClock.getAsLong();
+        this.metrics = TrinityPlanningMetrics.create();
     }
 
     /**
      * @return cancellation-only control used for compilation and first-feasible fallback
      */
     public TrinityPlanningControl feasibilityControl() {
-        return TrinityPlanningControl.unbounded(this.cancellation);
+        return TrinityPlanningControl.unbounded(this.cancellation, this.metrics);
     }
 
     /**
@@ -54,7 +56,36 @@ public final class TrinityPlanningSession {
     public Optional<TrinityPlanningControl> optimizationControl() {
         long remaining = remainingOptimizationNanos();
         return remaining == 0L ? Optional.empty() :
-                Optional.of(TrinityPlanningControl.create(this.cancellation, this.nanoClock, remaining));
+                Optional.of(TrinityPlanningControl.create(
+                        this.cancellation,
+                        this.nanoClock,
+                        remaining,
+                        this.metrics));
+    }
+
+    /** @return time spent in actual ojAlgo passes across the complete request */
+    public long mipNanos() {
+        return this.metrics.mipNanos();
+    }
+
+    /** @return actual ojAlgo minimise, maximise and probe passes across the complete request */
+    public int solverPasses() {
+        return this.metrics.solverPasses();
+    }
+
+    /** @return base or encoded solver models assembled across the complete request */
+    public int solverModels() {
+        return this.metrics.solverModels();
+    }
+
+    /** @return joint branch-and-bound states charged across the complete request */
+    public int jointStates() {
+        return this.metrics.jointStates();
+    }
+
+    /** @return DAG or mixed-graph route states charged across the complete request */
+    public int routeStates() {
+        return this.metrics.routeStates();
     }
 
     /**

@@ -154,7 +154,7 @@ public final class TrinityGraphDemandAggregator {
             this.mode = mode;
             this.control = control;
             this.topologicalPositions = topologicalPositions(topology);
-            this.routeSearchBudget = new RouteSearchBudget(limits.maxScheduleStates());
+            this.routeSearchBudget = new RouteSearchBudget(limits.maxScheduleStates(), control);
             this.demand.put(target, requestedAmount);
         }
 
@@ -969,13 +969,15 @@ public final class TrinityGraphDemandAggregator {
     private static final class RouteSearchBudget {
 
         private final int limit;
+        private final TrinityPlanningControl control;
         private int used;
 
-        private RouteSearchBudget(int limit) {
+        private RouteSearchBudget(int limit, TrinityPlanningControl control) {
             if (limit <= 0) {
-                throw new IllegalArgumentException("A Trinity route-search limit must be positive");
+                throw new IllegalArgumentException("A Trinity route-search budget requires a positive limit");
             }
             this.limit = limit;
+            this.control = control;
         }
 
         @SuppressWarnings("BooleanMethodIsAlwaysInverted")
@@ -984,6 +986,7 @@ public final class TrinityGraphDemandAggregator {
                 return false;
             }
             this.used = Math.incrementExact(this.used);
+            this.control.recordRouteStates(1);
             return true;
         }
 

@@ -288,7 +288,9 @@ runtime 契约直接验证，不为具体配方或 addon 重复建立特例测�
 取消感知、无墙钟 deadline 的 control；求解在剩余预算内证明外部输入、seed、firing 和 identity 词典序最优。预算耗尽且已有
 完整验证的 incumbent 时返回 `VERIFIED_FEASIBLE`；没有 incumbent 时切换到只响应取消的 `FIRST_FEASIBLE`，并继续受 SCC、
 variant、全图 route state 和逐 SCC 局部 state 上限约束。Future 取消始终丢弃 incumbent。规划仍先按目标提取完整反向可达超图，
-快照按 revision/target 缓存，拓扑建立 `AEKey -> producer variants` 索引，需求聚合不为每个循环输入扫描完整 variant 表。
+快照按 revision/target 缓存，拓扑建立 `AEKey -> producer variants` 索引，需求聚合不为每个循环输入扫描完整 variant 表。请求级
+遥测区分基础/编码 model 装配、实际 solver pass/MIP 时间、joint state 与全图 route state；exact/proven-equivalent cache hit 的
+本次求解计数归零，便于真实环境区分结构编译、搜索与热缓存路径。
 
 ### C-023：样板编码终端周期性遍历全部 provider
 

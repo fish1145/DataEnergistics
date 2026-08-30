@@ -311,6 +311,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                                                                           TrinityPlanningLimits limits,
                                                                           TrinityPlanningMode mode,
                                                                           TrinityPlanningControl control) {
+        int recordedRouteStates = control.recordedRouteStates();
         TrinityAlgorithmResult<TrinityAcyclicPlan> propagated = this.acyclicDemandPropagator.propagate(
                 topology,
                 variants,
@@ -321,9 +322,14 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                 limits.maxScheduleStates(),
                 mode,
                 control);
-        return propagated.successful() ?
-                TrinityAlgorithmResult.success(this.planAssembler.assembleAcyclic(propagated.value())) :
-                TrinityAlgorithmResult.failure(propagated.diagnostic());
+        if (!propagated.successful()) {
+            return TrinityAlgorithmResult.failure(propagated.diagnostic());
+        }
+        int optimizerStates = Math.subtractExact(control.recordedRouteStates(), recordedRouteStates);
+        if (optimizerStates == 0) {
+            control.recordRouteStates(propagated.value().statesVisited());
+        }
+        return TrinityAlgorithmResult.success(this.planAssembler.assembleAcyclic(propagated.value()));
     }
 
     private static boolean hasReachableCycle(TrinityCraftingTopology topology, int targetComponent) {

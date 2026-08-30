@@ -112,7 +112,7 @@ public final class TrinityInitialPlanCalculation {
         if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
             TrinityPlanningStatistics statistics = plan.statistics();
             Data_Energistics.LOGGER.info(
-                    "Trinity planning selected request={} target={} mode={} revision={} cachePath={} quality={} scc={} variants={} planningNanos={} firstFeasibleNanos={} mipNanos={} scheduleStates={}",
+                    "Trinity planning selected request={} target={} mode={} revision={} cachePath={} quality={} scc={} variants={} planningNanos={} firstFeasibleNanos={} mipNanos={} scheduleStates={} solverPasses={} solverModels={} jointStates={} routeStates={}",
                     request.requestId(),
                     request.target(),
                     request.quantityMode(),
@@ -124,7 +124,11 @@ public final class TrinityInitialPlanCalculation {
                     statistics.planningNanos(),
                     statistics.firstFeasibleNanos(),
                     statistics.mipNanos(),
-                    statistics.scheduleStates());
+                    statistics.scheduleStates(),
+                    statistics.solverPasses(),
+                    statistics.solverModels(),
+                    statistics.jointStates(),
+                    statistics.routeStates());
         }
         return TrinityPlanningAttempt.success(plan);
     }

@@ -66,6 +66,7 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
             }
             TrinityCycleFeasibilitySession session = this.ordinarySession;
             if (session == null) {
+                control.recordSolverModel();
                 session = ordinary.openSession(request);
                 this.ordinarySession = session;
             }

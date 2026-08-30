@@ -96,6 +96,7 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                 .orElse(LONG_MAX);
         try {
             TrinityRadixModelPass pass = TrinityRadixModelPass.External.INSTANCE;
+            control.recordSolverModel();
             TrinityRadixBuiltModel built = this.modelAssembler.assemble(request, pass, logicalUpper);
             TrinityAlgorithmResult<Map<Variable, BigInteger>> witness = this.objectiveSearch.findFeasible(
                     built,
@@ -387,6 +388,7 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                                                                      TrinityPlanningControl control,
                                                                      TrinityRadixSolverMetrics metrics) {
         try {
+            control.recordSolverModel();
             TrinityRadixBuiltModel built = this.modelAssembler.assemble(request, pass, logicalUpper);
             TrinityAlgorithmResult<Map<Variable, BigInteger>> optimized = this.objectiveSearch.optimize(
                     built,
@@ -433,6 +435,7 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                                                                           TrinityRadixSolverMetrics metrics,
                                                                           TrinityPlanningDiagnostic infeasible) {
         BigInteger proofUpper = representableModel.model().proofUpperBound();
+        control.recordSolverModel();
         TrinityRadixBuiltModel proofModel = this.modelAssembler.assemble(request, pass, proofUpper);
         TrinityAlgorithmResult<Map<Variable, BigInteger>> proof = this.objectiveSearch.findFeasible(
                 proofModel,

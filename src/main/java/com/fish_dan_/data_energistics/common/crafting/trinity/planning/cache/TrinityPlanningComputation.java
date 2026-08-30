@@ -166,7 +166,8 @@ public final class TrinityPlanningComputation {
             TrinityAlgorithmResult<TrinityCraftingPlan> result = withRequestTiming(
                     TrinityAlgorithmResult.success(equivalent.orElseThrow()),
                     true,
-                    planningNanos);
+                    planningNanos,
+                    session);
             return new TrinityPlanningComputationResult(
                     result,
                     PlanningCachePath.PROVEN_EQUIVALENT_HIT,
@@ -198,9 +199,9 @@ public final class TrinityPlanningComputation {
         }
         PlanningCachePath path = !compiled.cacheHit() ? PlanningCachePath.MISS :
                 solved.cacheHit() ? PlanningCachePath.EXACT_HIT : PlanningCachePath.STRUCTURE_HIT;
-        long planningNanos = requestPlanningNanos(solved.value(), solved.cacheHit(), startedNanos);
+        long planningNanos = requestPlanningNanos(solved.value(), solved.cacheHit(), startedNanos, session);
         return new TrinityPlanningComputationResult(
-                withRequestTiming(solved.value(), solved.cacheHit(), planningNanos),
+                withRequestTiming(solved.value(), solved.cacheHit(), planningNanos, session),
                 path,
                 planningNanos);
     }
@@ -255,29 +256,39 @@ public final class TrinityPlanningComputation {
     private TrinityAlgorithmResult<TrinityCraftingPlan> withRequestTiming(
                                                                           TrinityAlgorithmResult<TrinityCraftingPlan> result,
                                                                           boolean solvedFromCache,
-                                                                          long planningNanos) {
+                                                                          long planningNanos,
+                                                                          TrinityPlanningSession session) {
         if (!result.successful()) {
             return result;
         }
         TrinityCraftingPlan cachedPlan = result.value();
         TrinityPlanningStatistics cachedStatistics = cachedPlan.statistics();
-        long mipNanos = solvedFromCache ? 0L : cachedStatistics.mipNanos();
-        TrinityPlanningStatistics requestStatistics = cachedStatistics.withRequestTiming(
+        long mipNanos = solvedFromCache ? 0L : session.mipNanos();
+        int solverPasses = solvedFromCache ? 0 : session.solverPasses();
+        int solverModels = solvedFromCache ? 0 : session.solverModels();
+        int jointStates = solvedFromCache ? 0 : session.jointStates();
+        int routeStates = solvedFromCache ? 0 : session.routeStates();
+        TrinityPlanningStatistics requestStatistics = cachedStatistics.withRequestMetrics(
                 planningNanos,
                 planningNanos,
-                mipNanos);
+                mipNanos,
+                solverPasses,
+                solverModels,
+                jointStates,
+                routeStates);
         return TrinityAlgorithmResult.success(cachedPlan.withPlanningStatistics(requestStatistics));
     }
 
     private long requestPlanningNanos(
                                       TrinityAlgorithmResult<TrinityCraftingPlan> result,
                                       boolean solvedFromCache,
-                                      long startedNanos) {
+                                      long startedNanos,
+                                      TrinityPlanningSession session) {
         long elapsedNanos = elapsedSince(startedNanos);
         if (!result.successful() || solvedFromCache) {
             return elapsedNanos;
         }
-        return Math.max(elapsedNanos, result.value().statistics().mipNanos());
+        return Math.max(elapsedNanos, session.mipNanos());
     }
 
     private long elapsedSince(long startedNanos) {
