@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.pattern.binding.Tr
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityBoundPatternInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphPattern;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
@@ -35,23 +36,36 @@ public final class TrinityPatternVariantExpander {
 
     /**
      * @param snapshot    immutable graph revision
-     * @param maxVariants hard cap for one Cartesian product and for additional binding branches across the graph;
-     *                    every pattern's canonical first binding belongs to the base graph and does not consume this
-     *                    budget
+     * @param maxVariants hard cap for one Cartesian product and for all deduplicated variants materialized across the
+     *                    request graph
      * @return complete identity-ordered variants or {@code VARIANT_LIMIT}
      */
     public TrinityAlgorithmResult<List<TrinityPatternVariant>> expand(
                                                                       TrinityCraftingGraphSnapshot snapshot,
                                                                       int maxVariants) {
-        if (snapshot == null || maxVariants <= 0) {
+        return expand(snapshot, maxVariants, TrinityPlanningControl.unbounded());
+    }
+
+    /**
+     * Expands bindings while observing the request-wide cancellation and deadline boundary.
+     */
+    public TrinityAlgorithmResult<List<TrinityPatternVariant>> expand(
+                                                                      TrinityCraftingGraphSnapshot snapshot,
+                                                                      int maxVariants,
+                                                                      TrinityPlanningControl control) {
+        if (snapshot == null || maxVariants <= 0 || control == null) {
             throw new IllegalArgumentException(
                     "A Trinity variant expansion requires a snapshot and a positive variant limit");
         }
 
         BigInteger limit = BigInteger.valueOf(maxVariants);
-        BigInteger additionalBranches = BigInteger.ZERO;
+        BigInteger materializedVariants = BigInteger.ZERO;
         ArrayList<PatternBindings> enumeratedPatterns = new ArrayList<>(snapshot.patterns().size());
         for (TrinityCraftingGraphPattern pattern : snapshot.patterns()) {
+            StopState state = stopState(control);
+            if (state != StopState.RUNNING) {
+                return stopped(state);
+            }
             TrinityPatternBindingEnumerator.Result enumeration = this.bindingEnumerator.enumerate(
                     pattern.inputs(),
                     maxVariants);
@@ -66,26 +80,30 @@ public final class TrinityPatternVariantExpander {
                 case TrinityPatternBindingEnumerator.Enumerated(var enumerated) -> bindings = enumerated;
             }
             BigInteger patternVariants = BigInteger.valueOf(bindings.size());
-            additionalBranches = additionalBranches.add(patternVariants.subtract(BigInteger.ONE));
-            if (additionalBranches.compareTo(limit) > 0) {
-                return variantLimit(pattern, maxVariants, additionalBranches);
+            materializedVariants = materializedVariants.add(patternVariants);
+            if (materializedVariants.compareTo(limit) > 0) {
+                return variantLimit(pattern, maxVariants, materializedVariants);
             }
             enumeratedPatterns.add(new PatternBindings(pattern, bindings));
         }
 
         int materializedCapacity;
         try {
-            materializedCapacity = Math.addExact(snapshot.patterns().size(), additionalBranches.intValueExact());
+            materializedCapacity = materializedVariants.intValueExact();
         } catch (ArithmeticException overflow) {
             return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.ARITHMETIC_OVERFLOW,
                     Component.translatable("gui.data_energistics.trinity_planning.diagnostic.arithmetic_overflow"),
                     Map.of(
                             "patterns", Integer.toString(snapshot.patterns().size()),
-                            "additionalBranches", additionalBranches.toString())));
+                            "materializedVariants", materializedVariants.toString())));
         }
         ArrayList<TrinityPatternVariant> variants = new ArrayList<>(materializedCapacity);
         for (PatternBindings pattern : enumeratedPatterns) {
+            StopState state = stopState(control);
+            if (state != StopState.RUNNING) {
+                return stopped(state);
+            }
             expandPattern(pattern.pattern(), pattern.bindings(), variants);
         }
         return TrinityAlgorithmResult.success(List.copyOf(variants));
@@ -113,6 +131,27 @@ public final class TrinityPatternVariantExpander {
                 Map.of(
                         "pattern", pattern.identity().publicationEncoding(),
                         "axis", axis)));
+    }
+
+    private static StopState stopState(TrinityPlanningControl control) {
+        if (control.cancellationRequested()) {
+            return StopState.CANCELLED;
+        }
+        return control.deadlineExceeded() ? StopState.DEADLINE_EXCEEDED : StopState.RUNNING;
+    }
+
+    private static <T> TrinityAlgorithmResult<T> stopped(StopState state) {
+        return switch (state) {
+            case CANCELLED -> TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.cancelled"),
+                    Map.of("phase", "variant_expansion")));
+            case DEADLINE_EXCEEDED -> TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.timeout"),
+                    Map.of("phase", "variant_expansion")));
+            case RUNNING -> throw new IllegalArgumentException("A running Trinity variant expansion is not stopped");
+        };
     }
 
     private static void expandPattern(TrinityCraftingGraphPattern pattern,
@@ -147,4 +186,10 @@ public final class TrinityPatternVariantExpander {
     private record PatternBindings(
                                    TrinityCraftingGraphPattern pattern,
                                    List<TrinityPatternBindingEnumerator.Binding> bindings) {}
+
+    private enum StopState {
+        RUNNING,
+        CANCELLED,
+        DEADLINE_EXCEEDED
+    }
 }
