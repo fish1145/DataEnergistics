@@ -27,10 +27,10 @@ public record TrinityPlanningInput(
                                    long gridScope,
                                    TrinityCraftingGraphSnapshot graph,
                                    AEKey target,
-                                    BigInteger requestedAmount,
-                                    CraftingQuantityMode quantityMode,
-                                    Map<AEKey, BigInteger> available,
-                                    TrinityPlanningLimits limits) {
+                                   BigInteger requestedAmount,
+                                   CraftingQuantityMode quantityMode,
+                                   Map<AEKey, BigInteger> available,
+                                   TrinityPlanningLimits limits) {
 
     /**
      * Copies inventory values and rejects mutable or incomplete request state before background submission.

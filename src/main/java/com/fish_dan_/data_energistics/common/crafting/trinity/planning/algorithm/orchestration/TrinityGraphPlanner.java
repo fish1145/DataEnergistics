@@ -57,23 +57,23 @@ public interface TrinityGraphPlanner {
     TrinityAlgorithmResult<TrinityCraftingPlan> plan(
                                                      TrinityCraftingGraphSnapshot snapshot,
                                                      AEKey target,
-                                                      BigInteger requestedAmount,
-                                                      CraftingQuantityMode quantityMode,
-                                                      Map<AEKey, BigInteger> available,
-                                                      TrinityPlanningLimits limits,
-                                                      TrinityPlanningControl control);
+                                                     BigInteger requestedAmount,
+                                                     CraftingQuantityMode quantityMode,
+                                                     Map<AEKey, BigInteger> available,
+                                                     TrinityPlanningLimits limits,
+                                                     TrinityPlanningControl control);
 
     /**
      * Compatibility entry point that captures a mutable configuration before planning.
      */
     default TrinityAlgorithmResult<TrinityCraftingPlan> plan(
-                                                              TrinityCraftingGraphSnapshot snapshot,
-                                                              AEKey target,
-                                                              BigInteger requestedAmount,
-                                                              CraftingQuantityMode quantityMode,
-                                                              Map<AEKey, BigInteger> available,
-                                                              TrinityCraftingSchema settings,
-                                                              TrinityPlanningControl control) {
+                                                             TrinityCraftingGraphSnapshot snapshot,
+                                                             AEKey target,
+                                                             BigInteger requestedAmount,
+                                                             CraftingQuantityMode quantityMode,
+                                                             Map<AEKey, BigInteger> available,
+                                                             TrinityCraftingSchema settings,
+                                                             TrinityPlanningControl control) {
         return plan(
                 snapshot,
                 target,

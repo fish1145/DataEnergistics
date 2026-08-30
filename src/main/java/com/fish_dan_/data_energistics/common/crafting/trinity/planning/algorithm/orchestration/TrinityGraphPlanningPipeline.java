@@ -50,23 +50,23 @@ public interface TrinityGraphPlanningPipeline extends TrinityGraphPlanner {
     TrinityAlgorithmResult<TrinityCraftingPlan> solve(
                                                       TrinityCompiledGraph compiled,
                                                       long catalogRevision,
-                                                       BigInteger requestedAmount,
-                                                       CraftingQuantityMode quantityMode,
-                                                       Map<AEKey, BigInteger> available,
-                                                       TrinityPlanningLimits limits,
-                                                       TrinityPlanningControl control);
+                                                      BigInteger requestedAmount,
+                                                      CraftingQuantityMode quantityMode,
+                                                      Map<AEKey, BigInteger> available,
+                                                      TrinityPlanningLimits limits,
+                                                      TrinityPlanningControl control);
 
     /**
      * Compatibility entry point that captures a mutable configuration before solving.
      */
     default TrinityAlgorithmResult<TrinityCraftingPlan> solve(
-                                                               TrinityCompiledGraph compiled,
-                                                               long catalogRevision,
-                                                               BigInteger requestedAmount,
-                                                               CraftingQuantityMode quantityMode,
-                                                               Map<AEKey, BigInteger> available,
-                                                               TrinityCraftingSchema settings,
-                                                               TrinityPlanningControl control) {
+                                                              TrinityCompiledGraph compiled,
+                                                              long catalogRevision,
+                                                              BigInteger requestedAmount,
+                                                              CraftingQuantityMode quantityMode,
+                                                              Map<AEKey, BigInteger> available,
+                                                              TrinityCraftingSchema settings,
+                                                              TrinityPlanningControl control) {
         return solve(
                 compiled,
                 catalogRevision,

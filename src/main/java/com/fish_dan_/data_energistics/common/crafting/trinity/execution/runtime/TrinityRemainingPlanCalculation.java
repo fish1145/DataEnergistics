@@ -218,10 +218,10 @@ public final class TrinityRemainingPlanCalculation {
                                                     long gridScope,
                                                     TrinityCraftingGraphSnapshot graph,
                                                     AEKey target,
-                                                     BigInteger requestedAmount,
-                                                     CraftingQuantityMode quantityMode,
-                                                     Map<AEKey, BigInteger> available,
-                                                     TrinityPlanningLimits limits) {
+                                                    BigInteger requestedAmount,
+                                                    CraftingQuantityMode quantityMode,
+                                                    Map<AEKey, BigInteger> available,
+                                                    TrinityPlanningLimits limits) {
         try {
             TrinityPlanningComputationResult computation = gateway.calculateRemainingTrinity(new TrinityPlanningInput(
                     gridScope,

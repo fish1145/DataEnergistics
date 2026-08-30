@@ -11,7 +11,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanningStatistics;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import net.minecraft.network.chat.Component;

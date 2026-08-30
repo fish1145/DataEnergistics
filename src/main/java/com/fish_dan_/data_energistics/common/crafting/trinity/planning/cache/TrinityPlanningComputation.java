@@ -218,11 +218,11 @@ public final class TrinityPlanningComputation {
     private record ReachableGraphKey(AEKey target) {}
 
     private record CompiledGraphKey(
-                                     AEKey target,
-                                     List<TrinityPatternIdentity> patternIdentities,
-                                     int maxBindingVariants,
-                                     int maxSccKeys,
-                                     int planningBudgetMs) {
+                                    AEKey target,
+                                    List<TrinityPatternIdentity> patternIdentities,
+                                    int maxBindingVariants,
+                                    int maxSccKeys,
+                                    int planningBudgetMs) {
 
         private CompiledGraphKey {
             patternIdentities = List.copyOf(patternIdentities);
