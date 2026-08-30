@@ -71,8 +71,9 @@ public record TrinityFiringBox(
     }
 
     /**
-     * Partitions this box into disjoint first-difference boxes whose union is this box minus {@code candidate}.
-     * No transition decrements a firing count one unit at a time.
+     * Partitions one stable, most-constrained axis into lower, equal and upper slices. The equal slice is retained only
+     * while another axis can still differ, so the disjoint children cover this box minus {@code candidate} with at most
+     * three boxes instead of eagerly creating two boxes per axis.
      */
     public List<TrinityFiringBox> excluding(Map<TrinityPatternVariant, BigInteger> candidate) {
         if (candidate == null) {
@@ -87,27 +88,56 @@ public record TrinityFiringBox(
             vector.add(value);
         }
 
-        ArrayList<TrinityFiringBox> children = new ArrayList<>();
-        ArrayList<TrinityFiringBounds> prefix = new ArrayList<>(bounds);
-        for (int index = 0; index < variants.size(); index++) {
-            TrinityFiringBounds parent = bounds.get(index);
-            BigInteger value = vector.get(index);
-            if (value.compareTo(parent.lowerInclusive()) > 0) {
-                ArrayList<TrinityFiringBounds> left = new ArrayList<>(prefix);
-                left.set(index, new TrinityFiringBounds(
-                        parent.lowerInclusive(),
-                        value.subtract(BigInteger.ONE)));
-                children.add(new TrinityFiringBox(variants, left));
-            }
-            if (value.compareTo(parent.upperInclusive()) < 0) {
-                ArrayList<TrinityFiringBounds> right = new ArrayList<>(prefix);
-                right.set(index, new TrinityFiringBounds(
-                        value.add(BigInteger.ONE),
-                        parent.upperInclusive()));
-                children.add(new TrinityFiringBox(variants, right));
-            }
-            prefix.set(index, TrinityFiringBounds.fixed(value));
+        int splitAxis = mostConstrainedAxis();
+        if (splitAxis < 0) {
+            return List.of();
+        }
+        TrinityFiringBounds parent = bounds.get(splitAxis);
+        BigInteger value = vector.get(splitAxis);
+        ArrayList<TrinityFiringBox> children = new ArrayList<>(3);
+        if (value.compareTo(parent.lowerInclusive()) > 0) {
+            children.add(withBounds(
+                    splitAxis,
+                    new TrinityFiringBounds(parent.lowerInclusive(), value.subtract(BigInteger.ONE))));
+        }
+        if (hasAnotherOpenAxis(splitAxis)) {
+            children.add(withBounds(splitAxis, TrinityFiringBounds.fixed(value)));
+        }
+        if (value.compareTo(parent.upperInclusive()) < 0) {
+            children.add(withBounds(
+                    splitAxis,
+                    new TrinityFiringBounds(value.add(BigInteger.ONE), parent.upperInclusive())));
         }
         return List.copyOf(children);
+    }
+
+    private int mostConstrainedAxis() {
+        int selected = -1;
+        BigInteger selectedWidth = null;
+        for (int index = 0; index < bounds.size(); index++) {
+            TrinityFiringBounds candidate = bounds.get(index);
+            BigInteger width = candidate.upperInclusive().subtract(candidate.lowerInclusive());
+            if (width.signum() > 0 && (selectedWidth == null || width.compareTo(selectedWidth) < 0)) {
+                selected = index;
+                selectedWidth = width;
+            }
+        }
+        return selected;
+    }
+
+    private boolean hasAnotherOpenAxis(int excluded) {
+        for (int index = 0; index < bounds.size(); index++) {
+            if (index != excluded &&
+                    bounds.get(index).lowerInclusive().compareTo(bounds.get(index).upperInclusive()) < 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private TrinityFiringBox withBounds(int axis, TrinityFiringBounds value) {
+        ArrayList<TrinityFiringBounds> child = new ArrayList<>(bounds);
+        child.set(axis, value);
+        return new TrinityFiringBox(variants, child);
     }
 }
