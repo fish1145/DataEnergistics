@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.selection;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import appeng.api.stacks.AEKey;
 
@@ -24,6 +25,7 @@ import java.util.Map;
  * @param exportableNet  settled positive outputs proved safe to expose outside the complete cycle block
  * @param scheduleStates bounded search states visited
  * @param mipNanos       deterministic opportunity time plus ojAlgo solver time
+ * @param quality        exact proof strength retained by this cycle
  */
 public record TrinityCycleSelection(
                                     int componentIndex,
@@ -36,7 +38,8 @@ public record TrinityCycleSelection(
                                     Map<AEKey, BigInteger> netChange,
                                     Map<AEKey, BigInteger> exportableNet,
                                     int scheduleStates,
-                                    long mipNanos) {
+                                    long mipNanos,
+                                    TrinityPlanQuality quality) {
 
     /**
      * Copies every retained collection so graph orchestration never observes solver-owned mutable state.
@@ -45,7 +48,7 @@ public record TrinityCycleSelection(
         if (componentIndex < 0 || prefixOrder == null || localOrder == null || localOrder.isEmpty() ||
                 suffixOrder == null || repetitions == null ||
                 repetitions.signum() <= 0 || minimumSeed == null || initialInputs == null || netChange == null ||
-                exportableNet == null || scheduleStates < 0 || mipNanos < 0L) {
+                exportableNet == null || scheduleStates < 0 || mipNanos < 0L || quality == null) {
             throw new IllegalArgumentException("A Trinity cycle selection requires complete exact accounting");
         }
         prefixOrder = List.copyOf(prefixOrder);
@@ -68,6 +71,36 @@ public record TrinityCycleSelection(
                 throw new IllegalArgumentException("A Trinity cycle export must equal its settled positive net output");
             }
         }
+    }
+
+    /**
+     * Compatibility constructor for cycle paths that already carry a complete optimality proof.
+     */
+    public TrinityCycleSelection(
+                                 int componentIndex,
+                                 List<TrinityVariantFiring> prefixOrder,
+                                 List<TrinityVariantFiring> localOrder,
+                                 BigInteger repetitions,
+                                 List<TrinityVariantFiring> suffixOrder,
+                                 Map<AEKey, BigInteger> minimumSeed,
+                                 Map<AEKey, BigInteger> initialInputs,
+                                 Map<AEKey, BigInteger> netChange,
+                                 Map<AEKey, BigInteger> exportableNet,
+                                 int scheduleStates,
+                                 long mipNanos) {
+        this(
+                componentIndex,
+                prefixOrder,
+                localOrder,
+                repetitions,
+                suffixOrder,
+                minimumSeed,
+                initialInputs,
+                netChange,
+                exportableNet,
+                scheduleStates,
+                mipNanos,
+                TrinityPlanQuality.PROVED_OPTIMAL);
     }
 
     private static void mergeNet(

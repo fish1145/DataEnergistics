@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import appeng.api.stacks.AEKey;
 
@@ -18,6 +19,7 @@ import java.util.Map;
  * @param solverPasses   number of completed solver passes sharing one deadline
  * @param solverNanos    measured solver time
  * @param radix          whether the base-2^15 exact representation was required
+ * @param quality        proof strength of the retained objective vector
  */
 public record TrinityCycleFeasibilitySolution(
                                               Map<TrinityPatternVariant, BigInteger> firings,
@@ -25,19 +27,40 @@ public record TrinityCycleFeasibilitySolution(
                                               Map<AEKey, BigInteger> externalInputs,
                                               int solverPasses,
                                               long solverNanos,
-                                              boolean radix) {
+                                              boolean radix,
+                                              TrinityPlanQuality quality) {
 
     /**
      * Copies decoded values before exact conservation and scheduling consume them.
      */
     public TrinityCycleFeasibilitySolution {
         if (firings == null || firings.isEmpty() || modelSeed == null || externalInputs == null ||
-                solverPasses <= 0 || solverNanos < 0L) {
+                solverPasses <= 0 || solverNanos < 0L || quality == null) {
             throw new IllegalArgumentException("A Trinity feasibility solution requires complete exact accounting");
         }
         firings = copyPositiveFirings(firings);
         modelSeed = copyPositiveAmounts(modelSeed, "seed");
         externalInputs = copyPositiveAmounts(externalInputs, "external input");
+    }
+
+    /**
+     * Compatibility constructor for complete lexicographic proofs.
+     */
+    public TrinityCycleFeasibilitySolution(
+                                           Map<TrinityPatternVariant, BigInteger> firings,
+                                           Map<AEKey, BigInteger> modelSeed,
+                                           Map<AEKey, BigInteger> externalInputs,
+                                           int solverPasses,
+                                           long solverNanos,
+                                           boolean radix) {
+        this(
+                firings,
+                modelSeed,
+                externalInputs,
+                solverPasses,
+                solverNanos,
+                radix,
+                TrinityPlanQuality.PROVED_OPTIMAL);
     }
 
     /**

@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.bounds.TrinityCycleObjectiveBounds;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilityModel;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilityRequest;
@@ -24,6 +25,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityExactConservationVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import appeng.api.stacks.AEKey;
 import org.ojalgo.optimisation.Variable;
@@ -67,9 +69,13 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
     @Override
     public TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solve(
                                                                          TrinityCycleFeasibilityRequest request,
+                                                                         TrinityPlanningMode mode,
                                                                          TrinityPlanningControl control) {
-        if (request == null || control == null) {
+        if (request == null || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity radix solve requires a request and control");
+        }
+        if (mode == TrinityPlanningMode.FIRST_FEASIBLE) {
+            return solveFirstFeasible(request, control);
         }
         TrinityAlgorithmResult<Optional<TrinityCycleFeasibilitySolution>> bounded = solveWithCertifiedSmallDomain(request, control);
         if (!bounded.successful()) {
@@ -79,6 +85,54 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
             return TrinityAlgorithmResult.success(bounded.value().orElseThrow());
         }
         return solveFullDomain(request, control);
+    }
+
+    private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solveFirstFeasible(
+                                                                                       TrinityCycleFeasibilityRequest request,
+                                                                                       TrinityPlanningControl control) {
+        TrinityRadixSolverMetrics metrics = new TrinityRadixSolverMetrics();
+        BigInteger logicalUpper = request.ordinaryLogicalUpperBound()
+                .map(upper -> upper.min(LONG_MAX))
+                .orElse(LONG_MAX);
+        try {
+            TrinityRadixModelPass pass = TrinityRadixModelPass.External.INSTANCE;
+            TrinityRadixBuiltModel built = this.modelAssembler.assemble(request, pass, logicalUpper);
+            TrinityAlgorithmResult<Map<Variable, BigInteger>> witness = this.objectiveSearch.findFeasible(
+                    built,
+                    control,
+                    metrics);
+            if (!witness.successful()) {
+                return TrinityAlgorithmResult.failure(witness.diagnostic());
+            }
+            TrinityRadixSolvedModel solved = built.decode(witness.value());
+            TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExact(request, pass, solved, true);
+            if (!exact.successful()) {
+                return TrinityAlgorithmResult.failure(exact.diagnostic());
+            }
+            if (solved.firings().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) ||
+                    solved.modelSeed().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) ||
+                    solved.externalInputs().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong)) {
+                return TrinityRadixDiagnostics.inexact("radix_representable_bound", "axis_exceeds_long");
+            }
+            return TrinityAlgorithmResult.success(new TrinityCycleFeasibilitySolution(
+                    solved.firings(),
+                    solved.modelSeed(),
+                    solved.externalInputs(),
+                    metrics.passes(),
+                    metrics.nanos(),
+                    true,
+                    TrinityPlanQuality.VERIFIED_FEASIBLE));
+        } catch (TrinityRadixModelLimitException exception) {
+            return TrinityRadixDiagnostics.failure(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    "gui.data_energistics.trinity_planning.mip.radix_model_limit",
+                    exception.metadata());
+        } catch (TrinityRadixInfeasibleException exception) {
+            return TrinityRadixDiagnostics.failure(
+                    TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION,
+                    "gui.data_energistics.trinity_planning.diagnostic.no_integer_solution",
+                    Map.of("constraint", exception.getMessage()));
+        }
     }
 
     private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solveFullDomain(

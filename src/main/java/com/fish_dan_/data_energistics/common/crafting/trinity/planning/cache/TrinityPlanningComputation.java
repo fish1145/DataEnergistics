@@ -1,8 +1,11 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningSession;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityCompiledGraph;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanningPipeline;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphPattern;
@@ -18,6 +21,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +34,8 @@ import java.util.stream.Collectors;
  * Exact key implementation for reachable graph, compiled structure, and solved dynamic plan caching.
  */
 public final class TrinityPlanningComputation {
+
+    private static final int SOLVE_STRATEGY_VERSION = 1;
 
     /**
      * Creates a planning computation from an owned cache and the exact graph pipeline.
@@ -88,10 +94,11 @@ public final class TrinityPlanningComputation {
         long startedNanos = this.nanoClock.getAsLong();
         this.cache.invalidateRevision(input.gridScope(), input.graph().revision());
         TrinityPlanningLimits limits = input.limits();
-        TrinityPlanningControl control = TrinityPlanningControl.create(
+        TrinityPlanningSession session = TrinityPlanningSession.create(
                 () -> false,
                 this.nanoClock,
                 TimeUnit.MILLISECONDS.toNanos(limits.planningBudgetMs()));
+        TrinityPlanningControl feasibilityControl = session.feasibilityControl();
         TrinityComputationValue<TrinityCraftingGraphSnapshot> reachable = this.cache.computeInline(
                 input.gridScope(),
                 TrinityComputationNamespace.REACHABLE_GRAPH,
@@ -102,8 +109,7 @@ public final class TrinityPlanningComputation {
                 input.target(),
                 reachable.value().patterns().stream().map(TrinityCraftingGraphPattern::identity).toList(),
                 limits.maxBindingVariants(),
-                limits.maxSccKeys(),
-                limits.planningBudgetMs());
+                limits.maxSccKeys());
         TrinityComputationValue<TrinityAlgorithmResult<TrinityCompiledGraph>> compiled = this.cache.computeInline(
                 input.gridScope(),
                 TrinityComputationNamespace.COMPILED_GRAPH,
@@ -114,7 +120,7 @@ public final class TrinityPlanningComputation {
                         input.target(),
                         limits.maxBindingVariants(),
                         limits.maxSccKeys(),
-                        control)));
+                        feasibilityControl)));
         if (!compiled.value().successful()) {
             long planningNanos = elapsedSince(startedNanos);
             return new TrinityPlanningComputationResult(
@@ -130,7 +136,9 @@ public final class TrinityPlanningComputation {
                 input.requestedAmount(),
                 input.quantityMode(),
                 projectedInventory,
-                limits.maxScheduleStates());
+                limits.maxScheduleStates(),
+                limits.planningBudgetMs(),
+                SOLVE_STRATEGY_VERSION);
         Map<AEKey, BigInteger> projectedMap = projectedInventory.stream()
                 .collect(Collectors.toUnmodifiableMap(InventoryAmount::key, InventoryAmount::amount));
         TrinityComputationValue<TrinityAlgorithmResult<TrinityCraftingPlan>> solved = this.cache.computeInline(
@@ -138,14 +146,12 @@ public final class TrinityPlanningComputation {
                 TrinityComputationNamespace.SOLVED_PLAN,
                 input.graph().revision(),
                 solvedKey,
-                () -> cached(this.pipeline.solve(
+                () -> cached(solveWithFallback(
                         structure,
-                        input.graph().revision(),
-                        input.requestedAmount(),
-                        input.quantityMode(),
+                        input,
                         projectedMap,
                         limits,
-                        control)));
+                        session)));
         PlanningCachePath path = !compiled.cacheHit() ? PlanningCachePath.MISS :
                 solved.cacheHit() ? PlanningCachePath.EXACT_HIT : PlanningCachePath.STRUCTURE_HIT;
         long planningNanos = requestPlanningNanos(solved.value(), solved.cacheHit(), startedNanos);
@@ -153,6 +159,39 @@ public final class TrinityPlanningComputation {
                 withRequestTiming(solved.value(), solved.cacheHit(), planningNanos),
                 path,
                 planningNanos);
+    }
+
+    private TrinityAlgorithmResult<TrinityCraftingPlan> solveWithFallback(
+                                                                          TrinityCompiledGraph structure,
+                                                                          TrinityPlanningInput input,
+                                                                          Map<AEKey, BigInteger> projectedInventory,
+                                                                          TrinityPlanningLimits limits,
+                                                                          TrinityPlanningSession session) {
+        Optional<TrinityPlanningControl> optimizationControl = session.optimizationControl();
+        if (optimizationControl.isPresent()) {
+            TrinityAlgorithmResult<TrinityCraftingPlan> optimized = this.pipeline.solve(
+                    structure,
+                    input.graph().revision(),
+                    input.requestedAmount(),
+                    input.quantityMode(),
+                    projectedInventory,
+                    limits,
+                    TrinityPlanningMode.OPTIMAL,
+                    optimizationControl.orElseThrow());
+            if (optimized.successful() ||
+                    optimized.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_TIMEOUT) {
+                return optimized;
+            }
+        }
+        return this.pipeline.solve(
+                structure,
+                input.graph().revision(),
+                input.requestedAmount(),
+                input.quantityMode(),
+                projectedInventory,
+                limits,
+                TrinityPlanningMode.FIRST_FEASIBLE,
+                session.feasibilityControl());
     }
 
     private TrinityAlgorithmResult<TrinityCraftingPlan> withRequestTiming(
@@ -165,12 +204,10 @@ public final class TrinityPlanningComputation {
         TrinityCraftingPlan cachedPlan = result.value();
         TrinityPlanningStatistics cachedStatistics = cachedPlan.statistics();
         long mipNanos = solvedFromCache ? 0L : cachedStatistics.mipNanos();
-        TrinityPlanningStatistics requestStatistics = new TrinityPlanningStatistics(
-                cachedStatistics.sccCount(),
-                cachedStatistics.variantCount(),
+        TrinityPlanningStatistics requestStatistics = cachedStatistics.withRequestTiming(
                 planningNanos,
-                mipNanos,
-                cachedStatistics.scheduleStates());
+                planningNanos,
+                mipNanos);
         return TrinityAlgorithmResult.success(cachedPlan.withPlanningStatistics(requestStatistics));
     }
 
@@ -221,8 +258,7 @@ public final class TrinityPlanningComputation {
                                     AEKey target,
                                     List<TrinityPatternIdentity> patternIdentities,
                                     int maxBindingVariants,
-                                    int maxSccKeys,
-                                    int planningBudgetMs) {
+                                    int maxSccKeys) {
 
         private CompiledGraphKey {
             patternIdentities = List.copyOf(patternIdentities);
@@ -234,7 +270,9 @@ public final class TrinityPlanningComputation {
                                  BigInteger requestedAmount,
                                  CraftingQuantityMode quantityMode,
                                  List<InventoryAmount> relevantInventory,
-                                 int maxScheduleStates) {
+                                 int maxScheduleStates,
+                                 int planningBudgetMs,
+                                 int strategyVersion) {
 
         private SolvedPlanKey {
             relevantInventory = List.copyOf(relevantInventory);

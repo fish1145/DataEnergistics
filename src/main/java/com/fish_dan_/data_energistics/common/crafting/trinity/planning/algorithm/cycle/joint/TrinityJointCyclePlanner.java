@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.search.TrinityJointCycleSearch;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
@@ -127,6 +128,7 @@ public final class TrinityJointCyclePlanner {
                                                               Map<AEKey, BigInteger> available,
                                                               Set<AEKey> producibleInputs,
                                                               int maxSearchStates,
+                                                              TrinityPlanningMode mode,
                                                               TrinityPlanningControl control) {
         return this.search.search(
                 component,
@@ -134,6 +136,27 @@ public final class TrinityJointCyclePlanner {
                 available,
                 producibleInputs,
                 maxSearchStates,
+                mode,
+                control);
+    }
+
+    /**
+     * Compatibility entry point that retains complete optimisation.
+     */
+    public TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
+                                                              TrinityStronglyConnectedComponent component,
+                                                              TrinityCycleDemand demand,
+                                                              Map<AEKey, BigInteger> available,
+                                                              Set<AEKey> producibleInputs,
+                                                              int maxSearchStates,
+                                                              TrinityPlanningControl control) {
+        return plan(
+                component,
+                demand,
+                available,
+                producibleInputs,
+                maxSearchStates,
+                TrinityPlanningMode.OPTIMAL,
                 control);
     }
 

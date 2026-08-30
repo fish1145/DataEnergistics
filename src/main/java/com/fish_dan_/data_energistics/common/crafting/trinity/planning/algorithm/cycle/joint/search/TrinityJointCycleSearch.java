@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.TrinityJointCyclePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.search.cut.TrinityExternalPrefixCut;
@@ -16,10 +17,12 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityLexicographicObjective;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
 import java.util.Collections;
@@ -103,9 +106,10 @@ public final class TrinityJointCycleSearch {
                                                                 Map<AEKey, BigInteger> available,
                                                                 Set<AEKey> producibleInputs,
                                                                 int maxSearchStates,
+                                                                TrinityPlanningMode mode,
                                                                 TrinityPlanningControl control) {
         if (component == null || !component.cyclic() || component.cycleVariants().isEmpty() || demand == null ||
-                available == null || producibleInputs == null || maxSearchStates <= 0 || control == null) {
+                available == null || producibleInputs == null || maxSearchStates <= 0 || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity joint search request is incomplete");
         }
         return new SearchSession(
@@ -115,7 +119,28 @@ public final class TrinityJointCycleSearch {
                 copyAvailable(available),
                 copyKeys(producibleInputs),
                 maxSearchStates,
+                mode,
                 control).search();
+    }
+
+    /**
+     * Compatibility entry point that retains complete optimisation.
+     */
+    public TrinityAlgorithmResult<TrinityJointCyclePlan> search(
+                                                                TrinityStronglyConnectedComponent component,
+                                                                TrinityCycleDemand demand,
+                                                                Map<AEKey, BigInteger> available,
+                                                                Set<AEKey> producibleInputs,
+                                                                int maxSearchStates,
+                                                                TrinityPlanningControl control) {
+        return search(
+                component,
+                demand,
+                available,
+                producibleInputs,
+                maxSearchStates,
+                TrinityPlanningMode.OPTIMAL,
+                control);
     }
 
     private final class SearchSession {
@@ -126,10 +151,11 @@ public final class TrinityJointCycleSearch {
         private final Map<AEKey, BigInteger> available;
         private final Set<AEKey> producibleInputs;
         private final SearchBudget budget;
+        private final TrinityPlanningMode mode;
         private final TrinityPlanningControl control;
         private final SolverMetrics metrics = new SolverMetrics();
-        private TrinityJointCyclePlan incumbent;
-        private TrinityLexicographicObjective incumbentObjective;
+        private @Nullable TrinityJointCyclePlan incumbent;
+        private @Nullable TrinityLexicographicObjective incumbentObjective;
         private long sequence;
 
         private SearchSession(
@@ -139,6 +165,7 @@ public final class TrinityJointCycleSearch {
                               Map<AEKey, BigInteger> available,
                               Set<AEKey> producibleInputs,
                               int maxSearchStates,
+                              TrinityPlanningMode mode,
                               TrinityPlanningControl control) {
             this.variants = variants;
             this.internalKeys = internalKeys;
@@ -146,6 +173,7 @@ public final class TrinityJointCycleSearch {
             this.available = available;
             this.producibleInputs = producibleInputs;
             this.budget = new SearchBudget(maxSearchStates);
+            this.mode = mode;
             this.control = control;
         }
 
@@ -156,6 +184,7 @@ public final class TrinityJointCycleSearch {
             }
             TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> rootSolved = feasibilityModel.solve(
                     request(rootBox),
+                    this.mode,
                     this.control);
             if (!rootSolved.successful()) {
                 return failed(rootSolved.diagnostic());
@@ -177,13 +206,16 @@ public final class TrinityJointCycleSearch {
                 }
                 TrinityAlgorithmResult<Boolean> leadingCut = applyExternalCut(current, pending);
                 if (!leadingCut.successful()) {
+                    if (recoverableStop(leadingCut.diagnostic()) && this.incumbent != null) {
+                        return completedIncumbent();
+                    }
                     return failed(leadingCut.diagnostic());
                 }
                 if (leadingCut.value()) {
                     continue;
                 }
                 if (this.budget.remaining() <= 0) {
-                    return searchLimit();
+                    return completedOrSearchLimit();
                 }
 
                 TrinityAlgorithmResult<TrinityJointCandidateEvaluation> evaluated = candidateEvaluator.evaluate(
@@ -200,15 +232,22 @@ public final class TrinityJointCycleSearch {
                 if (evaluated.successful()) {
                     TrinityJointCandidateEvaluation candidate = evaluated.value();
                     if (!this.budget.consume(candidate.statesVisited())) {
-                        return searchLimit();
+                        return completedOrSearchLimit();
                     }
                     if (this.incumbentObjective == null ||
                             candidate.objective().compareTo(this.incumbentObjective) < 0) {
                         this.incumbent = candidate.plan();
                         this.incumbentObjective = candidate.objective();
                     }
+                    if (this.mode == TrinityPlanningMode.FIRST_FEASIBLE ||
+                            current.solution().quality() == TrinityPlanQuality.VERIFIED_FEASIBLE) {
+                        return completedIncumbent();
+                    }
                     TrinityAlgorithmResult<Boolean> candidateCut = applyExternalCut(current, pending);
                     if (!candidateCut.successful()) {
+                        if (recoverableStop(candidateCut.diagnostic()) && this.incumbent != null) {
+                            return completedIncumbent();
+                        }
                         return failed(candidateCut.diagnostic());
                     }
                     if (candidateCut.value()) {
@@ -219,11 +258,11 @@ public final class TrinityJointCycleSearch {
                     }
                 } else if (evaluated.diagnostic().code() == TrinityPlanningDiagnosticCode.NO_EXECUTABLE_ORDER) {
                     if (!this.budget.consume(TrinityJointCycleSearch.diagnosticStates(evaluated.diagnostic()))) {
-                        return searchLimit();
+                        return completedOrSearchLimit();
                     }
                 } else if (evaluated.diagnostic().code() == TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT) {
                     this.budget.consume(TrinityJointCycleSearch.diagnosticStates(evaluated.diagnostic()));
-                    return searchLimit();
+                    return completedOrSearchLimit();
                 } else {
                     return failed(evaluated.diagnostic());
                 }
@@ -233,6 +272,11 @@ public final class TrinityJointCycleSearch {
                             child,
                             current.fixedExternalLevel());
                     if (!childSolved.successful()) {
+                        TrinityPlanningDiagnosticCode code = childSolved.diagnostic().code();
+                        if ((code == TrinityPlanningDiagnosticCode.MIP_TIMEOUT ||
+                                code == TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT) && this.incumbent != null) {
+                            return completedIncumbent();
+                        }
                         return failed(childSolved.diagnostic());
                     }
                     childSolved.value()
@@ -249,7 +293,8 @@ public final class TrinityJointCycleSearch {
             return TrinityAlgorithmResult.success(withFinalMetrics(
                     this.incumbent,
                     this.budget.used,
-                    this.metrics));
+                    this.metrics,
+                    TrinityPlanQuality.PROVED_OPTIMAL));
         }
 
         private TrinityAlgorithmResult<Boolean> applyExternalCut(
@@ -300,6 +345,12 @@ public final class TrinityJointCycleSearch {
                                                                         Optional<BigInteger> fixedExternalLevel) {
             TrinityAlgorithmResult<TrinityJointCyclePlan> interrupted = interruption();
             if (interrupted != null) {
+                if (interrupted.successful()) {
+                    return failure(
+                            TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
+                            MIP_TIMEOUT_KEY,
+                            Map.of("states", Integer.toString(this.budget.used)));
+                }
                 return TrinityAlgorithmResult.failure(interrupted.diagnostic());
             }
             if (!this.budget.consume(1)) {
@@ -307,6 +358,7 @@ public final class TrinityJointCycleSearch {
             }
             TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solved = feasibilityModel.solve(
                     request(box, fixedExternalLevel),
+                    this.mode,
                     this.control);
             if (!solved.successful()) {
                 if (solved.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
@@ -349,7 +401,7 @@ public final class TrinityJointCycleSearch {
                     this.sequence++);
         }
 
-        private TrinityAlgorithmResult<TrinityJointCyclePlan> interruption() {
+        private @Nullable TrinityAlgorithmResult<TrinityJointCyclePlan> interruption() {
             if (this.control.cancellationRequested()) {
                 return failed(
                         TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -357,6 +409,9 @@ public final class TrinityJointCycleSearch {
                         Map.of("states", Integer.toString(this.budget.used)));
             }
             if (this.control.deadlineExceeded()) {
+                if (this.incumbent != null) {
+                    return completedIncumbent();
+                }
                 return failed(
                         TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
                         MIP_TIMEOUT_KEY,
@@ -372,6 +427,24 @@ public final class TrinityJointCycleSearch {
                     Map.of(
                             "limit", Integer.toString(this.budget.limit),
                             "states", Integer.toString(this.budget.used)));
+        }
+
+        private TrinityAlgorithmResult<TrinityJointCyclePlan> completedOrSearchLimit() {
+            return this.incumbent == null ? searchLimit() : completedIncumbent();
+        }
+
+        private TrinityAlgorithmResult<TrinityJointCyclePlan> completedIncumbent() {
+            return TrinityAlgorithmResult.success(withFinalMetrics(
+                    this.incumbent,
+                    this.budget.used,
+                    this.metrics,
+                    TrinityPlanQuality.VERIFIED_FEASIBLE));
+        }
+
+        private boolean recoverableStop(TrinityPlanningDiagnostic diagnostic) {
+            TrinityPlanningDiagnosticCode code = diagnostic.code();
+            return code == TrinityPlanningDiagnosticCode.MIP_TIMEOUT ||
+                    code == TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT;
         }
 
         private <T> TrinityAlgorithmResult<T> failed(
@@ -415,7 +488,8 @@ public final class TrinityJointCycleSearch {
     private static TrinityJointCyclePlan withFinalMetrics(
                                                           TrinityJointCyclePlan plan,
                                                           int searchStates,
-                                                          SolverMetrics metrics) {
+                                                          SolverMetrics metrics,
+                                                          TrinityPlanQuality quality) {
         return new TrinityJointCyclePlan(
                 plan.firings(),
                 plan.externalInputs(),
@@ -425,7 +499,8 @@ public final class TrinityJointCycleSearch {
                 plan.schedule(),
                 searchStates,
                 metrics.passes,
-                metrics.nanos);
+                metrics.nanos,
+                quality);
     }
 
     private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {

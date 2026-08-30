@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 
 import appeng.api.stacks.AEKey;
@@ -23,6 +24,7 @@ import java.util.Map;
  * @param stackRequests  exact byte-estimation stack volume
  * @param scheduleStates total bounded search states
  * @param mipNanos       cycle MIP duration
+ * @param quality        exact proof strength retained by the complete assembly
  */
 public record TrinityGraphPlanAssembly(
                                        Map<AEKey, BigInteger> initialInputs,
@@ -34,4 +36,34 @@ public record TrinityGraphPlanAssembly(
                                        Map<AEKey, BigInteger> netChange,
                                        Map<AEKey, BigInteger> stackRequests,
                                        int scheduleStates,
-                                       long mipNanos) {}
+                                       long mipNanos,
+                                       TrinityPlanQuality quality) {
+
+    /**
+     * Compatibility constructor for exact assembly paths.
+     */
+    public TrinityGraphPlanAssembly(
+                                    Map<AEKey, BigInteger> initialInputs,
+                                    Map<TrinityPatternIdentity, BigInteger> patternFirings,
+                                    List<TrinityPlanStage> stages,
+                                    List<Integer> stageOrder,
+                                    List<TrinityCycleRepeatBlock> repeatBlocks,
+                                    Map<AEKey, BigInteger> minimumSeed,
+                                    Map<AEKey, BigInteger> netChange,
+                                    Map<AEKey, BigInteger> stackRequests,
+                                    int scheduleStates,
+                                    long mipNanos) {
+        this(
+                initialInputs,
+                patternFirings,
+                stages,
+                stageOrder,
+                repeatBlocks,
+                minimumSeed,
+                netChange,
+                stackRequests,
+                scheduleStates,
+                mipNanos,
+                TrinityPlanQuality.PROVED_OPTIMAL);
+    }
+}

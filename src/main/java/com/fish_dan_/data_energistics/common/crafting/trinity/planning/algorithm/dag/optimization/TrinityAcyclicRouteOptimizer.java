@@ -5,12 +5,14 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.TrinityAcyclicPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityExactConservationVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import net.minecraft.network.chat.Component;
 
@@ -81,6 +83,7 @@ public final class TrinityAcyclicRouteOptimizer {
      * @param quantityMode    target inventory semantics
      * @param available       immutable inventory snapshot
      * @param maxSearchStates maximum sequential optimization passes
+     * @param mode            complete optimisation or first-feasible fallback
      * @param control         cooperative cancellation and deadline
      * @return exact executable aggregate plan or a stable fallback diagnostic
      */
@@ -92,10 +95,11 @@ public final class TrinityAcyclicRouteOptimizer {
                                                                CraftingQuantityMode quantityMode,
                                                                Map<AEKey, BigInteger> available,
                                                                int maxSearchStates,
+                                                               TrinityPlanningMode mode,
                                                                TrinityPlanningControl control) {
         if (topology == null || variants == null || target == null || requestedAmount == null ||
                 requestedAmount.signum() <= 0 || quantityMode == null || available == null ||
-                maxSearchStates <= 0 || control == null) {
+                maxSearchStates <= 0 || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity acyclic route optimization requires complete inputs");
         }
         List<TrinityPatternVariant> reachable = this.routePruner.retainExecutableTargetRoutes(
@@ -122,7 +126,29 @@ public final class TrinityAcyclicRouteOptimizer {
                     control);
         }
 
-        TrinityAlgorithmResult<SolvedModel> externalResult = solve(
+        if (mode == TrinityPlanningMode.FIRST_FEASIBLE) {
+            TrinityAlgorithmResult<SolvedPass> feasible = solve(
+                    new ModelRequest(
+                            reachable,
+                            target,
+                            requestedAmount,
+                            requiredTargetNet,
+                            quantityMode,
+                            inventory,
+                            FeasibilityPass.INSTANCE),
+                    budget,
+                    control);
+            if (!feasible.successful()) {
+                return TrinityAlgorithmResult.failure(feasible.diagnostic());
+            }
+            return buildQualifiedPlan(
+                    topology,
+                    feasible.value().model(),
+                    budget.used(),
+                    TrinityPlanQuality.VERIFIED_FEASIBLE);
+        }
+
+        TrinityAlgorithmResult<SolvedPass> externalResult = solve(
                 new ModelRequest(
                         reachable,
                         target,
@@ -136,9 +162,21 @@ public final class TrinityAcyclicRouteOptimizer {
         if (!externalResult.successful()) {
             return TrinityAlgorithmResult.failure(externalResult.diagnostic());
         }
-        BigInteger optimalExternal = sum(externalResult.value().reserves());
+        TrinityAlgorithmResult<TrinityAcyclicPlan> externalPlan = buildQualifiedPlan(
+                topology,
+                externalResult.value().model(),
+                budget.used(),
+                TrinityPlanQuality.VERIFIED_FEASIBLE);
+        if (!externalPlan.successful()) {
+            return externalPlan;
+        }
+        TrinityAcyclicPlan incumbent = externalPlan.value();
+        if (!externalResult.value().objectiveProved()) {
+            return TrinityAlgorithmResult.success(incumbent);
+        }
+        BigInteger optimalExternal = sum(externalResult.value().model().reserves());
 
-        TrinityAlgorithmResult<SolvedModel> firingResult = solve(
+        TrinityAlgorithmResult<SolvedPass> firingResult = solve(
                 new ModelRequest(
                         reachable,
                         target,
@@ -150,10 +188,21 @@ public final class TrinityAcyclicRouteOptimizer {
                 budget,
                 control);
         if (!firingResult.successful()) {
-            return TrinityAlgorithmResult.failure(firingResult.diagnostic());
+            return recoverIncumbent(incumbent, firingResult.diagnostic());
         }
-        BigInteger optimalFirings = sum(firingResult.value().firings());
-        SolvedModel selected = firingResult.value();
+        TrinityAlgorithmResult<TrinityAcyclicPlan> firingPlan = buildQualifiedPlan(
+                topology,
+                firingResult.value().model(),
+                budget.used(),
+                TrinityPlanQuality.VERIFIED_FEASIBLE);
+        if (firingPlan.successful()) {
+            incumbent = firingPlan.value();
+        }
+        if (!firingResult.value().objectiveProved()) {
+            return firingPlan.successful() ? firingPlan : TrinityAlgorithmResult.failure(firingPlan.diagnostic());
+        }
+        BigInteger optimalFirings = sum(firingResult.value().model().firings());
+        SolvedModel selected = firingResult.value().model();
         LinkedHashMap<TrinityPatternVariant, BigInteger> fixedPrefix = new LinkedHashMap<>();
         Map<AEKey, BigInteger> sourceCapacity = sourceCapacity(reachable, inventory);
         LinkedHashMap<AEKey, BigInteger> fixedSourceConsumption = new LinkedHashMap<>();
@@ -170,7 +219,7 @@ public final class TrinityAcyclicRouteOptimizer {
                     sourceCapacity,
                     fixedSourceConsumption);
             if (!preferredCount.equals(provenUpper)) {
-                TrinityAlgorithmResult<SolvedModel> identityResult = solve(
+                TrinityAlgorithmResult<SolvedPass> identityResult = solve(
                         new ModelRequest(
                                 reachable,
                                 target,
@@ -186,16 +235,55 @@ public final class TrinityAcyclicRouteOptimizer {
                         budget,
                         control);
                 if (!identityResult.successful()) {
-                    return TrinityAlgorithmResult.failure(identityResult.diagnostic());
+                    return recoverIncumbent(incumbent, identityResult.diagnostic());
                 }
-                selected = identityResult.value();
+                selected = identityResult.value().model();
+                TrinityAlgorithmResult<TrinityAcyclicPlan> identityPlan = buildQualifiedPlan(
+                        topology,
+                        selected,
+                        budget.used(),
+                        TrinityPlanQuality.VERIFIED_FEASIBLE);
+                if (identityPlan.successful()) {
+                    incumbent = identityPlan.value();
+                }
+                if (!identityResult.value().objectiveProved()) {
+                    return identityPlan.successful() ? identityPlan : TrinityAlgorithmResult.failure(identityPlan.diagnostic());
+                }
                 preferredCount = selected.firings().getOrDefault(preferred, BigInteger.ZERO);
             }
             fixedPrefix.put(preferred, preferredCount);
             remainingFirings = remainingFirings.subtract(preferredCount);
             mergeSourceConsumption(fixedSourceConsumption, preferred, preferredCount, sourceCapacity.keySet());
         }
-        return buildPlan(topology, selected, budget.used());
+        return buildQualifiedPlan(
+                topology,
+                selected,
+                budget.used(),
+                TrinityPlanQuality.PROVED_OPTIMAL);
+    }
+
+    /**
+     * Compatibility entry point that retains complete optimisation.
+     */
+    public TrinityAlgorithmResult<TrinityAcyclicPlan> optimize(
+                                                               TrinityCraftingTopology topology,
+                                                               List<TrinityPatternVariant> variants,
+                                                               AEKey target,
+                                                               BigInteger requestedAmount,
+                                                               CraftingQuantityMode quantityMode,
+                                                               Map<AEKey, BigInteger> available,
+                                                               int maxSearchStates,
+                                                               TrinityPlanningControl control) {
+        return optimize(
+                topology,
+                variants,
+                target,
+                requestedAmount,
+                quantityMode,
+                available,
+                maxSearchStates,
+                TrinityPlanningMode.OPTIMAL,
+                control);
     }
 
     /**
@@ -367,10 +455,10 @@ public final class TrinityAcyclicRouteOptimizer {
                 budget.used());
     }
 
-    private TrinityAlgorithmResult<SolvedModel> solve(
-                                                      ModelRequest request,
-                                                      SearchBudget budget,
-                                                      TrinityPlanningControl control) {
+    private TrinityAlgorithmResult<SolvedPass> solve(
+                                                     ModelRequest request,
+                                                     SearchBudget budget,
+                                                     TrinityPlanningControl control) {
         if (control.cancellationRequested()) {
             return failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -402,8 +490,9 @@ public final class TrinityAcyclicRouteOptimizer {
                     CANCELLED_KEY,
                     Map.of("states", Integer.toString(budget.used())));
         }
-        if (!result.getState().isOptimal()) {
-            if (control.deadlineExceeded() || result.getState().isFeasible()) {
+        boolean objectiveProved = result.getState().isOptimal();
+        if (!objectiveProved && !result.getState().isFeasible()) {
+            if (control.deadlineExceeded()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
                         TIMEOUT_KEY,
@@ -439,10 +528,33 @@ public final class TrinityAcyclicRouteOptimizer {
         if (!exact.successful()) {
             return TrinityAlgorithmResult.failure(exact.diagnostic());
         }
-        return TrinityAlgorithmResult.success(new SolvedModel(
-                solved.firings(),
-                solved.reserves(),
-                exact.value()));
+        return TrinityAlgorithmResult.success(new SolvedPass(
+                new SolvedModel(
+                        solved.firings(),
+                        solved.reserves(),
+                        exact.value()),
+                objectiveProved));
+    }
+
+    private TrinityAlgorithmResult<TrinityAcyclicPlan> buildQualifiedPlan(
+                                                                          TrinityCraftingTopology topology,
+                                                                          SolvedModel solved,
+                                                                          int states,
+                                                                          TrinityPlanQuality quality) {
+        TrinityAlgorithmResult<TrinityAcyclicPlan> built = buildPlan(topology, solved, states);
+        return built.successful() ?
+                TrinityAlgorithmResult.success(built.value().withQuality(quality)) :
+                built;
+    }
+
+    private static TrinityAlgorithmResult<TrinityAcyclicPlan> recoverIncumbent(
+                                                                               TrinityAcyclicPlan incumbent,
+                                                                               TrinityPlanningDiagnostic diagnostic) {
+        TrinityPlanningDiagnosticCode code = diagnostic.code();
+        return code == TrinityPlanningDiagnosticCode.MIP_TIMEOUT ||
+                code == TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT ?
+                        TrinityAlgorithmResult.success(incumbent) :
+                        TrinityAlgorithmResult.failure(diagnostic);
     }
 
     private TrinityAlgorithmResult<DiagnosticSolvedModel> solveDiagnostic(
@@ -693,7 +805,9 @@ public final class TrinityAcyclicRouteOptimizer {
 
         Expression externalTotal = expression(model, "external_total", reserveVariables.values());
         Expression firingTotal = expression(model, "firing_total", firingVariables.values());
-        if (request.pass() instanceof ExternalPass) {
+        if (request.pass() instanceof FeasibilityPass) {
+            // A zero objective asks ojAlgo for any integer witness. Exact verification below remains mandatory.
+        } else if (request.pass() instanceof ExternalPass) {
             externalTotal.weight(BigDecimal.ONE);
         } else if (request.pass() instanceof FiringPass pass) {
             externalTotal.level(pass.fixedExternal());
@@ -1105,7 +1219,11 @@ public final class TrinityAcyclicRouteOptimizer {
         }
     }
 
-    private sealed interface ModelPass permits ExternalPass, FiringPass, IdentityPass {}
+    private sealed interface ModelPass permits FeasibilityPass, ExternalPass, FiringPass, IdentityPass {}
+
+    private enum FeasibilityPass implements ModelPass {
+        INSTANCE
+    }
 
     private enum ExternalPass implements ModelPass {
         INSTANCE
@@ -1165,6 +1283,8 @@ public final class TrinityAcyclicRouteOptimizer {
                                Map<TrinityPatternVariant, BigInteger> firings,
                                Map<AEKey, BigInteger> reserves,
                                Map<AEKey, BigInteger> netChange) {}
+
+    private record SolvedPass(SolvedModel model, boolean objectiveProved) {}
 
     private record DiagnosticModelRequest(
                                           List<TrinityPatternVariant> variants,

@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCyclePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicComponentPlan;
@@ -15,9 +16,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.macro.TrinityCycleMacro;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.selector.TrinityPlanningAttemptSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import appeng.api.stacks.AEKey;
 
@@ -46,26 +47,22 @@ public final class TrinityCyclePlanSelector {
                 TrinityDeterministicCycleSequence.create(),
                 TrinityDeterministicCyclePlanner.create(),
                 TrinityDeterministicComponentPlanner.create(),
-                TrinityJointCyclePlanner.create(),
-                TrinityPlanningAttemptSelector.create());
+                TrinityJointCyclePlanner.create());
     }
 
     private final TrinityDeterministicCycleSequence deterministicCycleSequence;
     private final TrinityDeterministicCyclePlanner deterministicCyclePlanner;
     private final TrinityDeterministicComponentPlanner deterministicComponentPlanner;
     private final TrinityJointCyclePlanner jointCyclePlanner;
-    private final TrinityPlanningAttemptSelector planningAttemptSelector;
 
     TrinityCyclePlanSelector(TrinityDeterministicCycleSequence deterministicCycleSequence,
                              TrinityDeterministicCyclePlanner deterministicCyclePlanner,
                              TrinityDeterministicComponentPlanner deterministicComponentPlanner,
-                             TrinityJointCyclePlanner jointCyclePlanner,
-                             TrinityPlanningAttemptSelector planningAttemptSelector) {
+                             TrinityJointCyclePlanner jointCyclePlanner) {
         this.deterministicCycleSequence = deterministicCycleSequence;
         this.deterministicCyclePlanner = deterministicCyclePlanner;
         this.deterministicComponentPlanner = deterministicComponentPlanner;
         this.jointCyclePlanner = jointCyclePlanner;
-        this.planningAttemptSelector = planningAttemptSelector;
     }
 
     /**
@@ -85,9 +82,10 @@ public final class TrinityCyclePlanSelector {
                                                                 Map<AEKey, BigInteger> available,
                                                                 Set<AEKey> producibleInputs,
                                                                 int maxStates,
+                                                                TrinityPlanningMode mode,
                                                                 TrinityPlanningControl control) {
         if (component == null || !component.cyclic() || demand == null || available == null ||
-                producibleInputs == null || maxStates <= 0 || control == null) {
+                producibleInputs == null || maxStates <= 0 || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity cycle selection request is incomplete");
         }
         Map<AEKey, BigInteger> inventory = copyAvailable(available);
@@ -131,10 +129,50 @@ public final class TrinityCyclePlanSelector {
                         maxStates,
                         control);
         long componentNanos = Math.max(0L, System.nanoTime() - componentStartedNanos);
-        return this.planningAttemptSelector.select(
-                deterministic,
-                plan -> fromDeterministic(component, demand, plan, componentNanos),
-                () -> planJointCycle(component, demand, inventory, producible, maxStates, control, componentNanos));
+        return switch (deterministic.kind()) {
+            case PROVED_OPTIMAL -> TrinityAlgorithmResult.success(fromDeterministic(
+                    component,
+                    demand,
+                    deterministic.value(),
+                    componentNanos,
+                    TrinityPlanQuality.PROVED_OPTIMAL));
+            case FEASIBLE -> TrinityAlgorithmResult.success(fromDeterministic(
+                    component,
+                    demand,
+                    deterministic.value(),
+                    componentNanos,
+                    TrinityPlanQuality.VERIFIED_FEASIBLE));
+            case NOT_APPLICABLE -> planJointCycle(
+                    component,
+                    demand,
+                    inventory,
+                    producible,
+                    maxStates,
+                    mode,
+                    control,
+                    componentNanos);
+            case TERMINAL -> TrinityAlgorithmResult.failure(deterministic.diagnostic());
+        };
+    }
+
+    /**
+     * Compatibility entry point that retains complete optimisation.
+     */
+    public TrinityAlgorithmResult<TrinityCycleSelection> select(
+                                                                TrinityStronglyConnectedComponent component,
+                                                                TrinityCycleDemand demand,
+                                                                Map<AEKey, BigInteger> available,
+                                                                Set<AEKey> producibleInputs,
+                                                                int maxStates,
+                                                                TrinityPlanningControl control) {
+        return select(
+                component,
+                demand,
+                available,
+                producibleInputs,
+                maxStates,
+                TrinityPlanningMode.OPTIMAL,
+                control);
     }
 
     private TrinityAlgorithmResult<TrinityCycleSelection> planJointCycle(
@@ -143,6 +181,7 @@ public final class TrinityCyclePlanSelector {
                                                                          Map<AEKey, BigInteger> available,
                                                                          Set<AEKey> producibleInputs,
                                                                          int maxStates,
+                                                                         TrinityPlanningMode mode,
                                                                          TrinityPlanningControl control,
                                                                          long componentNanos) {
         TrinityAlgorithmResult<TrinityJointCyclePlan> joint = this.jointCyclePlanner.plan(
@@ -151,6 +190,7 @@ public final class TrinityCyclePlanSelector {
                 available,
                 producibleInputs,
                 maxStates,
+                mode,
                 control);
         if (!joint.successful()) {
             return TrinityAlgorithmResult.failure(joint.diagnostic());
@@ -167,7 +207,8 @@ public final class TrinityCyclePlanSelector {
                 plan.netChange(),
                 settledExports(component, demand, plan.netChange()),
                 plan.searchStates(),
-                Math.addExact(componentNanos, plan.solverNanos())));
+                Math.addExact(componentNanos, plan.solverNanos()),
+                plan.quality()));
     }
 
     private static TrinityCycleSelection fromScalar(
@@ -184,14 +225,16 @@ public final class TrinityCyclePlanSelector {
                 plan.netChange(),
                 positiveAmounts(plan.netChange()),
                 plan.schedule().statesVisited(),
-                0L);
+                0L,
+                TrinityPlanQuality.PROVED_OPTIMAL);
     }
 
     private static TrinityCycleSelection fromDeterministic(
                                                            TrinityStronglyConnectedComponent component,
                                                            TrinityCycleDemand demand,
                                                            TrinityDeterministicComponentPlan plan,
-                                                           long componentNanos) {
+                                                           long componentNanos,
+                                                           TrinityPlanQuality quality) {
         Optional<TrinityCycleMacro> macro = plan.macro();
         return new TrinityCycleSelection(
                 component.index(),
@@ -204,7 +247,8 @@ public final class TrinityCyclePlanSelector {
                 plan.netChange(),
                 settledExports(component, demand, plan.netChange()),
                 plan.schedule().statesVisited(),
-                componentNanos);
+                componentNanos,
+                quality);
     }
 
     private static Optional<ScalarDemand> scalarDemand(

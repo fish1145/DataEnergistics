@@ -387,8 +387,8 @@ public final class DataEnergisticsConfiguration {
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
-                "Total compile-and-solve budget for one Trinity planning worker in milliseconds.",
-                "单个 Trinity 规划工作线程的编译与求解总预算，单位毫秒。"
+                "Maximum time spent proving a Trinity plan optimal before retaining a verified feasible plan, in milliseconds.",
+                "Trinity 计划证明全局最优的最长时间，超时后保留已验证可行计划，单位毫秒。"
         })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
         public int planningBudgetMs = 30_000;

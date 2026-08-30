@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.TrinityRadixCycleFeasibilityModel;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityExactConservationVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
@@ -32,11 +33,14 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
     @Override
     public TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solve(
                                                                          TrinityCycleFeasibilityRequest request,
+                                                                         TrinityPlanningMode mode,
                                                                          TrinityPlanningControl control) {
-        if (request == null || control == null) {
+        if (request == null || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity feasibility solve requires a request and control");
         }
-        return requiresRadix(request) ? this.radix.solve(request, control) : this.ordinary.solve(request, control);
+        return requiresRadix(request) ?
+                this.radix.solve(request, mode, control) :
+                this.ordinary.solve(request, mode, control);
     }
 
     private static boolean requiresRadix(TrinityCycleFeasibilityRequest request) {

@@ -4,10 +4,12 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.bounds.TrinityCycleObjectiveBounds;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityExactConservationVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import net.minecraft.network.chat.Component;
 
@@ -47,9 +49,21 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
     @Override
     public TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solve(
                                                                          TrinityCycleFeasibilityRequest request,
+                                                                         TrinityPlanningMode mode,
                                                                          TrinityPlanningControl control) {
         SolverMetrics metrics = new SolverMetrics();
-        TrinityAlgorithmResult<SolvedModel> external = optimize(
+        if (mode == TrinityPlanningMode.FIRST_FEASIBLE) {
+            TrinityAlgorithmResult<SolvedPass> feasible = optimize(
+                    request,
+                    FeasibilityPass.INSTANCE,
+                    control,
+                    metrics);
+            return feasible.successful() ?
+                    solution(feasible.value().model(), metrics, TrinityPlanQuality.VERIFIED_FEASIBLE) :
+                    TrinityAlgorithmResult.failure(feasible.diagnostic());
+        }
+
+        TrinityAlgorithmResult<SolvedPass> external = optimize(
                 request,
                 ExternalPass.INSTANCE,
                 control,
@@ -57,24 +71,32 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         if (!external.successful()) {
             return TrinityAlgorithmResult.failure(external.diagnostic());
         }
-        BigInteger optimalExternal = total(external.value().externalInputs());
+        if (!external.value().objectiveProved()) {
+            return solution(external.value().model(), metrics, TrinityPlanQuality.VERIFIED_FEASIBLE);
+        }
+        SolvedModel incumbent = external.value().model();
+        BigInteger optimalExternal = total(incumbent.externalInputs());
         BigInteger seedLower = request.seedLowerBound();
         BigInteger firingLower = request.firingLowerBound();
         while (true) {
-            TrinityAlgorithmResult<SolvedModel> seed = optimize(
+            TrinityAlgorithmResult<SolvedPass> seed = optimize(
                     request,
                     new SeedPass(optimalExternal, seedLower),
                     control,
                     metrics);
             if (!seed.successful()) {
-                return TrinityAlgorithmResult.failure(seed.diagnostic());
+                return recoverIncumbent(incumbent, metrics, seed.diagnostic());
             }
-            BigInteger optimalSeed = total(seed.value().modelSeed());
+            incumbent = seed.value().model();
+            if (!seed.value().objectiveProved()) {
+                return solution(incumbent, metrics, TrinityPlanQuality.VERIFIED_FEASIBLE);
+            }
+            BigInteger optimalSeed = total(incumbent.modelSeed());
             BigInteger firingObjectiveLower = firingLower.max(
                     this.objectiveBounds.conservationFiringLowerBound(request, optimalExternal, optimalSeed));
-            BigInteger seedWitnessFirings = total(seed.value().firings());
-            TrinityAlgorithmResult<SolvedModel> firing = seedWitnessFirings.equals(firingObjectiveLower) ?
-                    TrinityAlgorithmResult.success(seed.value()) :
+            BigInteger seedWitnessFirings = total(incumbent.firings());
+            TrinityAlgorithmResult<SolvedPass> firing = seedWitnessFirings.equals(firingObjectiveLower) ?
+                    TrinityAlgorithmResult.success(new SolvedPass(incumbent, true)) :
                     optimize(
                             request,
                             new FiringPass(optimalExternal, optimalSeed, firingObjectiveLower),
@@ -82,15 +104,19 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                             metrics);
             if (!firing.successful()) {
                 if (firing.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
-                    return TrinityAlgorithmResult.failure(firing.diagnostic());
+                    return recoverIncumbent(incumbent, metrics, firing.diagnostic());
                 }
                 seedLower = optimalSeed.add(BigInteger.ONE);
                 firingLower = BigInteger.ZERO;
                 continue;
             }
-            BigInteger optimalFirings = total(firing.value().firings());
+            incumbent = firing.value().model();
+            if (!firing.value().objectiveProved()) {
+                return solution(incumbent, metrics, TrinityPlanQuality.VERIFIED_FEASIBLE);
+            }
+            BigInteger optimalFirings = total(incumbent.firings());
             LinkedHashMap<TrinityPatternVariant, BigInteger> fixedFirings = new LinkedHashMap<>();
-            SolvedModel canonical = firing.value();
+            SolvedModel canonical = incumbent;
             for (TrinityPatternVariant variant : request.variants()) {
                 TrinityFiringBounds bounds = request.firingBounds().get(variant);
                 if (bounds.lowerInclusive().equals(bounds.upperInclusive())) {
@@ -123,32 +149,29 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                     fixedFirings.put(variant, witnessCount);
                     continue;
                 }
-                TrinityAlgorithmResult<SolvedModel> identity = optimize(
+                TrinityAlgorithmResult<SolvedPass> identity = optimize(
                         request,
                         identityPass,
                         control,
                         metrics);
                 if (!identity.successful()) {
-                    return TrinityAlgorithmResult.failure(identity.diagnostic());
+                    return recoverIncumbent(canonical, metrics, identity.diagnostic());
                 }
-                canonical = identity.value();
+                canonical = identity.value().model();
+                if (!identity.value().objectiveProved()) {
+                    return solution(canonical, metrics, TrinityPlanQuality.VERIFIED_FEASIBLE);
+                }
                 fixedFirings.put(variant, canonical.firings().getOrDefault(variant, BigInteger.ZERO));
             }
-            return TrinityAlgorithmResult.success(new TrinityCycleFeasibilitySolution(
-                    canonical.firings(),
-                    canonical.modelSeed(),
-                    canonical.externalInputs(),
-                    metrics.passes,
-                    metrics.nanos,
-                    false));
+            return solution(canonical, metrics, TrinityPlanQuality.PROVED_OPTIMAL);
         }
     }
 
-    private TrinityAlgorithmResult<SolvedModel> optimize(
-                                                         TrinityCycleFeasibilityRequest request,
-                                                         ModelPass pass,
-                                                         TrinityPlanningControl control,
-                                                         SolverMetrics metrics) {
+    private TrinityAlgorithmResult<SolvedPass> optimize(
+                                                        TrinityCycleFeasibilityRequest request,
+                                                        ModelPass pass,
+                                                        TrinityPlanningControl control,
+                                                        SolverMetrics metrics) {
         if (control.cancellationRequested()) {
             return failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -169,8 +192,9 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                     "gui.data_energistics.trinity_planning.diagnostic.cancelled",
                     Map.of("passes", Integer.toString(metrics.passes)));
         }
-        if (!result.getState().isOptimal()) {
-            if (control.deadlineExceeded() || result.getState().isFeasible()) {
+        boolean objectiveProved = result.getState().isOptimal();
+        if (!objectiveProved && !result.getState().isFeasible()) {
+            if (control.deadlineExceeded()) {
                 return timeout(metrics, result.getState().name());
             }
             return failure(
@@ -193,8 +217,33 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         }
         SolvedModel solved = data.decode(verified.value());
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExact(request, pass, solved);
-        return exact.successful() ? TrinityAlgorithmResult.success(solved) :
+        return exact.successful() ? TrinityAlgorithmResult.success(new SolvedPass(solved, objectiveProved)) :
                 TrinityAlgorithmResult.failure(exact.diagnostic());
+    }
+
+    private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solution(
+                                                                                    SolvedModel solved,
+                                                                                    SolverMetrics metrics,
+                                                                                    TrinityPlanQuality quality) {
+        return TrinityAlgorithmResult.success(new TrinityCycleFeasibilitySolution(
+                solved.firings(),
+                solved.modelSeed(),
+                solved.externalInputs(),
+                metrics.passes,
+                metrics.nanos,
+                false,
+                quality));
+    }
+
+    private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> recoverIncumbent(
+                                                                                            SolvedModel incumbent,
+                                                                                            SolverMetrics metrics,
+                                                                                            TrinityPlanningDiagnostic diagnostic) {
+        TrinityPlanningDiagnosticCode code = diagnostic.code();
+        return code == TrinityPlanningDiagnosticCode.MIP_TIMEOUT ||
+                code == TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT ?
+                        solution(incumbent, metrics, TrinityPlanQuality.VERIFIED_FEASIBLE) :
+                        TrinityAlgorithmResult.failure(diagnostic);
     }
 
     private static void configureDeadline(ExpressionsBasedModel model, TrinityPlanningControl control) {
@@ -243,6 +292,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             return inexact("objective_lower", externalTotal + "/" + seedTotal);
         }
         return switch (pass) {
+            case FeasibilityPass.INSTANCE -> exact;
             case ExternalPass.INSTANCE -> exact;
             case SeedPass(var fixedExternal, var seedLowerBound) -> !externalTotal.equals(fixedExternal) || seedTotal.compareTo(seedLowerBound) < 0 ?
                     inexact("seed_level", externalTotal + "/" + seedTotal) : exact;
@@ -293,6 +343,9 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         request.fixedExternalTotal().ifPresent(externalTotal::level);
         Expression firingTotal = expression(model, "firing_total", firingVariables.values());
         switch (pass) {
+            case FeasibilityPass.INSTANCE -> {
+                // Zero objective: request any integer witness, then verify it exactly before returning.
+            }
             case ExternalPass.INSTANCE -> externalTotal.weight(BigDecimal.ONE);
             case SeedPass(var fixedExternal, var seedLowerBound) -> {
                 externalTotal.level(fixedExternal);
@@ -456,7 +509,11 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(code, Component.translatable(detail), metadata));
     }
 
-    private sealed interface ModelPass permits ExternalPass, SeedPass, FiringPass, IdentityPass {}
+    private sealed interface ModelPass permits FeasibilityPass, ExternalPass, SeedPass, FiringPass, IdentityPass {}
+
+    private enum FeasibilityPass implements ModelPass {
+        INSTANCE
+    }
 
     private enum ExternalPass implements ModelPass {
         INSTANCE
@@ -522,6 +579,8 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                                Map<TrinityPatternVariant, BigInteger> firings,
                                Map<AEKey, BigInteger> modelSeed,
                                Map<AEKey, BigInteger> externalInputs) {}
+
+    private record SolvedPass(SolvedModel model, boolean objectiveProved) {}
 
     private static final class SolverMetrics {
 

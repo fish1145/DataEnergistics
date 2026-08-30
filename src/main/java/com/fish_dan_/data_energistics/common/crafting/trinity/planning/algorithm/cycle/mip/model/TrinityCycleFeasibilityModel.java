@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 
 /**
  * Produces one exact lexicographically minimal conservation-feasible SCC firing candidate.
@@ -22,5 +23,15 @@ public interface TrinityCycleFeasibilityModel {
      */
     TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solve(
                                                                   TrinityCycleFeasibilityRequest request,
+                                                                  TrinityPlanningMode mode,
                                                                   TrinityPlanningControl control);
+
+    /**
+     * Compatibility entry point that retains complete optimisation.
+     */
+    default TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solve(
+                                                                          TrinityCycleFeasibilityRequest request,
+                                                                          TrinityPlanningControl control) {
+        return solve(request, TrinityPlanningMode.OPTIMAL, control);
+    }
 }

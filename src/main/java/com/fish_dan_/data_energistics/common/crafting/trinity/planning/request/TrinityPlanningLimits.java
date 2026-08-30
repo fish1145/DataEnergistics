@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfig
  * @param maxSccKeys         maximum keys accepted in one strongly connected component
  * @param maxBindingVariants maximum deduplicated variants materialized for one request
  * @param maxScheduleStates  local state limit for each independent route or component search
- * @param planningBudgetMs   total compile-and-solve worker budget in milliseconds
+ * @param planningBudgetMs   request optimality-proof budget in milliseconds
  */
 public record TrinityPlanningLimits(
                                     int maxSccKeys,

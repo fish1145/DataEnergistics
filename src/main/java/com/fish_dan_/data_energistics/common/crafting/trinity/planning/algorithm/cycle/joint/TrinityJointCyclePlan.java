@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityCompressedSchedule;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import appeng.api.stacks.AEKey;
 
@@ -22,6 +23,7 @@ import java.util.Map;
  * @param searchStates   total firing-box and compressed-schedule states used to prove the result
  * @param solverPasses   completed ojAlgo optimisation passes
  * @param solverNanos    measured time spent in ojAlgo
+ * @param quality        exact proof strength retained by this executable plan
  */
 public record TrinityJointCyclePlan(
                                     Map<TrinityPatternVariant, BigInteger> firings,
@@ -32,7 +34,8 @@ public record TrinityJointCyclePlan(
                                     TrinityCompressedSchedule schedule,
                                     int searchStates,
                                     int solverPasses,
-                                    long solverNanos) {
+                                    long solverNanos,
+                                    TrinityPlanQuality quality) {
 
     /**
      * Copies the result and repeats all final BigInteger conservation checks.
@@ -41,7 +44,7 @@ public record TrinityJointCyclePlan(
         if (firings == null || firings.isEmpty() || externalInputs == null || minimumSeed == null ||
                 initialInputs == null || netChange == null || schedule == null || searchStates <= 0 ||
                 solverPasses <= 0 ||
-                solverNanos < 0L) {
+                solverNanos < 0L || quality == null) {
             throw new IllegalArgumentException("A Trinity joint cycle plan requires complete exact accounting");
         }
         firings = copyPositiveFirings(firings);
@@ -74,6 +77,32 @@ public record TrinityJointCyclePlan(
         if (!finalBalances.equals(schedule.finalBalances())) {
             throw new IllegalArgumentException("A Trinity joint cycle schedule must conserve its final balances");
         }
+    }
+
+    /**
+     * Compatibility constructor for complete joint-search proofs.
+     */
+    public TrinityJointCyclePlan(
+                                 Map<TrinityPatternVariant, BigInteger> firings,
+                                 Map<AEKey, BigInteger> externalInputs,
+                                 Map<AEKey, BigInteger> minimumSeed,
+                                 Map<AEKey, BigInteger> initialInputs,
+                                 Map<AEKey, BigInteger> netChange,
+                                 TrinityCompressedSchedule schedule,
+                                 int searchStates,
+                                 int solverPasses,
+                                 long solverNanos) {
+        this(
+                firings,
+                externalInputs,
+                minimumSeed,
+                initialInputs,
+                netChange,
+                schedule,
+                searchStates,
+                solverPasses,
+                solverNanos,
+                TrinityPlanQuality.PROVED_OPTIMAL);
     }
 
     private static void requireIncluded(Map<AEKey, BigInteger> initialInputs,

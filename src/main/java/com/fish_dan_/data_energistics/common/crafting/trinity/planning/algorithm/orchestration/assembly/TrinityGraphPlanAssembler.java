@@ -98,7 +98,8 @@ public final class TrinityGraphPlanAssembler {
                 acyclicPlan.netChange(),
                 Collections.unmodifiableMap(stackRequests),
                 acyclicPlan.statesVisited(),
-                0L);
+                0L,
+                acyclicPlan.quality());
     }
 
     /**
@@ -218,7 +219,8 @@ public final class TrinityGraphPlanAssembler {
                 Collections.unmodifiableMap(netChange),
                 Collections.unmodifiableMap(stackRequests),
                 demandSolution.scheduleStates(),
-                demandSolution.mipNanos()));
+                demandSolution.mipNanos(),
+                demandSolution.quality()));
     }
 
     /**
@@ -247,8 +249,12 @@ public final class TrinityGraphPlanAssembler {
                 context.topology().components().size(),
                 context.variants().size(),
                 elapsedNanos,
+                elapsedNanos,
                 assembly.mipNanos(),
-                assembly.scheduleStates());
+                0,
+                0,
+                assembly.scheduleStates(),
+                assembly.quality());
         return TrinityCraftingPlan.builder()
                 .finalOutput(new GenericStack(context.target(), context.requestedLong()))
                 .bytes(bytes)

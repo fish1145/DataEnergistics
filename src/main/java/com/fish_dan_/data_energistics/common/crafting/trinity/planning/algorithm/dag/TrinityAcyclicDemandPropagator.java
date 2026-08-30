@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer.ShortageEvidence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRoutePruner;
@@ -59,6 +60,7 @@ public final class TrinityAcyclicDemandPropagator {
      * @param quantityMode    net-new or final-total semantics
      * @param available       immutable non-negative inventory snapshot
      * @param maxSearchStates maximum aggregate route-optimization states
+     * @param mode            complete optimisation or first-feasible fallback
      * @param control         cooperative cancellation and shared deadline
      * @return compact plan, or an explicit cycle/unsupported diagnostic
      */
@@ -70,10 +72,11 @@ public final class TrinityAcyclicDemandPropagator {
                                                                 CraftingQuantityMode quantityMode,
                                                                 Map<AEKey, BigInteger> available,
                                                                 int maxSearchStates,
+                                                                TrinityPlanningMode mode,
                                                                 TrinityPlanningControl control) {
         if (topology == null || variants == null || target == null || requestedAmount == null ||
                 requestedAmount.signum() <= 0 || quantityMode == null || available == null ||
-                maxSearchStates <= 0 || control == null) {
+                maxSearchStates <= 0 || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity acyclic propagation requires complete, positive inputs");
         }
         StopState initialState = stopState(control);
@@ -116,6 +119,7 @@ public final class TrinityAcyclicDemandPropagator {
                     quantityMode,
                     available,
                     maxSearchStates,
+                    mode,
                     control);
             if (optimized.successful()) {
                 return optimized;
@@ -247,6 +251,30 @@ public final class TrinityAcyclicDemandPropagator {
                 reservedInputs,
                 net,
                 states));
+    }
+
+    /**
+     * Compatibility entry point that retains full optimisation.
+     */
+    public TrinityAlgorithmResult<TrinityAcyclicPlan> propagate(
+                                                                TrinityCraftingTopology topology,
+                                                                List<TrinityPatternVariant> variants,
+                                                                AEKey target,
+                                                                BigInteger requestedAmount,
+                                                                CraftingQuantityMode quantityMode,
+                                                                Map<AEKey, BigInteger> available,
+                                                                int maxSearchStates,
+                                                                TrinityPlanningControl control) {
+        return propagate(
+                topology,
+                variants,
+                target,
+                requestedAmount,
+                quantityMode,
+                available,
+                maxSearchStates,
+                TrinityPlanningMode.OPTIMAL,
+                control);
     }
 
     private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {
