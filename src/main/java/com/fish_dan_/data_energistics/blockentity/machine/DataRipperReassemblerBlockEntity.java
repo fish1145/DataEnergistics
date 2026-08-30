@@ -108,8 +108,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final int KEY_INPUT_SLOT = 0;
     public static final int KEY_OUTPUT_SLOT = 1;
     public static final int KEY_SLOT_COUNT = 2;
-    public static final int FLUID_INPUT_CAPACITY = 51_200;
-    public static final int FLUID_OUTPUT_CAPACITY = 51_200;
+    public static final int FLUID_INPUT_CAPACITY = 512_000;
+    public static final int FLUID_OUTPUT_CAPACITY = 512_000;
     public static final long KEY_INPUT_CAPACITY = 51_200_000L;
     public static final long KEY_OUTPUT_CAPACITY = 51_200_000L;
     public static final int MAX_PROGRESS = 200;

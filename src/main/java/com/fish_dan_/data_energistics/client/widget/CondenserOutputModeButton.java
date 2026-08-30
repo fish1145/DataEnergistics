@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.widget;
 
 import com.fish_dan_.data_energistics.accessor.condenser.CondenserMenuAccessor;
 import com.fish_dan_.data_energistics.ae2.settings.CondenserOutputMode;
+import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipe;
 
 import net.minecraft.client.Minecraft;
@@ -16,6 +17,8 @@ import appeng.client.gui.widgets.IconButton;
 import java.util.List;
 
 public class CondenserOutputModeButton extends IconButton {
+
+    private static final String CUSTOM_OUTPUT_ICON = "CONDENSER_OUTPUT_RADIX_CONTAINMENT_SPHERE";
 
     private final CondenserMenuAccessor menu;
     private int modeIndex = CondenserOutputMode.TRASH;
@@ -55,7 +58,10 @@ public class CondenserOutputModeButton extends IconButton {
                 .zOffset(2)
                 .blit(guiGraphics);
 
-        guiGraphics.renderItem(customRecipe.value().getResult(), getX(), getY() + 1 + yOffset);
+        DataEnergisticsIcon.getBlitter(CUSTOM_OUTPUT_ICON)
+                .dest(getX(), getY() + 1 + yOffset)
+                .zOffset(3)
+                .blit(guiGraphics);
     }
 
     @Override
@@ -75,7 +81,6 @@ public class CondenserOutputModeButton extends IconButton {
             return List.of(
                     Component.translatable("button.data_energistics.condenser_output.header"),
                     recipe.getResult().getHoverName(),
-                    Component.translatable("button.data_energistics.condenser_output.storage", recipe.getRequiredPower()),
                     Component.translatable("button.data_energistics.condenser_output.power", recipe.getRequiredPower()));
         }
 

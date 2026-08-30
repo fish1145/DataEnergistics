@@ -26,7 +26,7 @@
 			},
 			{
 				"item": "data_energistics:digisidian_memorize_ingot",
-				"count": 12
+				"count": 6
 			},
 			{
 				"item": "data_energistics:data_sanctum_interface",
@@ -36,12 +36,12 @@
 		"fluids": [
 			{
 				"fluid": "data_energistics:ender",
-				"amount": 17000
+				"amount": 8500
 			}
 		],
 		"resource": {
 			"key_type": "data_energistics:manifest_binary",
-			"amount": 127
+			"amount": 57
 		}
 	},
 	"outputs": {

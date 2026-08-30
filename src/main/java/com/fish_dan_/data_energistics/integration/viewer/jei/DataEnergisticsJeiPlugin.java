@@ -126,11 +126,13 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                         this::requestMultiblockRefresh));
         registration.addRecipeCategories(
                 new TimeShiftRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
-                new CondenserOutputRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataChargerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataChargePressRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataRipperReassemblerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 multiblockCategory);
+        if (!Data_Energistics.isModLoaded(AE2_JEI_INTEGRATION_MOD_ID)) {
+            registration.addRecipeCategories(new CondenserOutputRecipeCategory(registration.getJeiHelpers().getGuiHelper()));
+        }
     }
 
     @Override
@@ -138,7 +140,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         if (!shouldRegisterJei()) {
             return;
         }
-        registration.addRecipeCatalyst(AEBlocks.CONDENSER, CondenserOutputRecipeCategory.RECIPE_TYPE);
+        if (!Data_Energistics.isModLoaded(AE2_JEI_INTEGRATION_MOD_ID)) {
+            registration.addRecipeCatalyst(AEBlocks.CONDENSER, CondenserOutputRecipeCategory.RECIPE_TYPE);
+        }
         registration.addRecipeCatalyst(DEItems.RADIX_CONTAINMENT_SPHERE.get(), TimeShiftRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get(),
@@ -210,11 +214,13 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
             worldInteractionRecipes.addAll(level.getRecipeManager().getAllRecipesFor(DERecipes.RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_TYPE.get()).stream()
                     .map(WorldInteractionJeiRecipe.RightClickView::new)
                     .toList());
-            registration.addRecipes(
-                    CondenserOutputRecipeCategory.RECIPE_TYPE,
-                    level.getRecipeManager().getAllRecipesFor(DERecipes.CONDENSER_OUTPUT_TYPE.get()).stream()
-                            .map(CondenserOutputRecipeView::from)
-                            .toList());
+            if (!Data_Energistics.isModLoaded(AE2_JEI_INTEGRATION_MOD_ID)) {
+                registration.addRecipes(
+                        CondenserOutputRecipeCategory.RECIPE_TYPE,
+                        level.getRecipeManager().getAllRecipesFor(DERecipes.CONDENSER_OUTPUT_TYPE.get()).stream()
+                                .map(CondenserOutputRecipeView::from)
+                                .toList());
+            }
             registration.addRecipes(
                     TimeShiftRecipeCategory.RECIPE_TYPE,
                     worldInteractionRecipes);

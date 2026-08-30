@@ -6,7 +6,10 @@ import com.fish_dan_.data_energistics.entity.resource.DispersingDataEntity;
 import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipe;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -15,6 +18,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
@@ -44,14 +48,15 @@ public class RadixContainmentSphereItem extends Item implements IAEItemPowerStor
 
     private static final double MAX_POWER = 50_000.0D;
     private static final double CHARGE_RATE = 50_000.0D;
-    private static final double INITIAL_POWER = 1_000.0D;
     public static final double ENERGY_PER_CAPTURE = 1_000.0D;
-    private static final int BYTES = 16;
+    private static final int BYTES = 64;
     private static final int BYTES_PER_TYPE = 1;
     private static final int TOTAL_TYPES = 1;
     private static final int MAX_UPGRADES = 3;
     private static final double RANGE_CAPTURE_RADIUS = 3.0D;
     private static final double RANGE_CAPTURE_RADIUS_SQR = RANGE_CAPTURE_RADIUS * RANGE_CAPTURE_RADIUS;
+    private static final long DATA_RELEASE_INTERVAL_TICKS = 100L;
+    private static final String TAG_NEXT_UNPOWERED_DATA_RELEASE = "next_unpowered_data_release";
 
     public RadixContainmentSphereItem(Properties properties) {
         super(properties);
@@ -80,14 +85,15 @@ public class RadixContainmentSphereItem extends Item implements IAEItemPowerStor
 
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
-        this.removeIfDepleted(stack);
+        if (level instanceof ServerLevel serverLevel) {
+            this.releaseStoredDataIfUnpowered(stack, serverLevel, entity);
+        }
     }
 
     @Override
     public boolean onEntityItemUpdate(ItemStack stack, ItemEntity entity) {
-        if (this.isDepleted(stack)) {
-            entity.discard();
-            return true;
+        if (entity.level() instanceof ServerLevel serverLevel) {
+            this.releaseStoredDataIfUnpowered(stack, serverLevel, entity);
         }
         return false;
     }
@@ -123,7 +129,6 @@ public class RadixContainmentSphereItem extends Item implements IAEItemPowerStor
         double fulfillable = Math.min(amount, currentStorage);
         if (mode == Actionable.MODULATE) {
             this.setAECurrentPower(stack, currentStorage - fulfillable);
-            this.removeIfDepleted(stack);
         }
         return fulfillable;
     }
@@ -204,12 +209,6 @@ public class RadixContainmentSphereItem extends Item implements IAEItemPowerStor
     @Override
     public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {}
 
-    public static ItemStack createChargedStack() {
-        ItemStack stack = DEItems.RADIX_CONTAINMENT_SPHERE.toStack();
-        stack.set(AEComponents.STORED_ENERGY, INITIAL_POWER);
-        return stack;
-    }
-
     public static ItemStack createConfiguredStack(double energy, long dataAmount) {
         ItemStack stack = DEItems.RADIX_CONTAINMENT_SPHERE.toStack();
         if (energy > 0.0D) {
@@ -252,13 +251,13 @@ public class RadixContainmentSphereItem extends Item implements IAEItemPowerStor
             return 0;
         }
 
-        if (storedData <= 16L) {
+        if (storedData <= 64L) {
             return 1;
         }
-        if (storedData <= 32L) {
+        if (storedData <= 128L) {
             return 2;
         }
-        if (storedData <= 64L) {
+        if (storedData <= 256L) {
             return 3;
         }
         return 4;
@@ -269,7 +268,6 @@ public class RadixContainmentSphereItem extends Item implements IAEItemPowerStor
                 dispersingDataEntity.getDataAmount(),
                 Math.floor(this.getAECurrentPower(stack) / ENERGY_PER_CAPTURE));
         if (affordableAmount <= 0) {
-            this.removeIfDepleted(stack);
             return false;
         }
 
@@ -399,13 +397,69 @@ public class RadixContainmentSphereItem extends Item implements IAEItemPowerStor
         return cellInventory == null ? 0 : cellInventory.getAvailableStacks().get(DataKey.of());
     }
 
-    private void removeIfDepleted(ItemStack stack) {
-        if (this.isDepleted(stack) && !stack.isEmpty()) {
-            stack.shrink(1);
+    private void releaseStoredDataIfUnpowered(ItemStack stack, ServerLevel level, Entity source) {
+        if (!this.isUnpowered(stack)) {
+            clearNextUnpoweredDataRelease(stack);
+            return;
+        }
+
+        var cellInventory = StorageCells.getCellInventory(stack, null);
+        if (cellInventory == null || cellInventory.getAvailableStacks().get(DataKey.of()) <= 0L) {
+            clearNextUnpoweredDataRelease(stack);
+            return;
+        }
+
+        long gameTime = level.getGameTime();
+        if (!isUnpoweredDataReleaseDue(stack, gameTime)) {
+            return;
+        }
+
+        long released = cellInventory.extract(DataKey.of(), 1L, Actionable.MODULATE, IActionSource.empty());
+        if (released != 1L) {
+            return;
+        }
+
+        if (DispersingDataEntity.spawnAt(level, source.blockPosition(), level.random)) {
+            setNextUnpoweredDataRelease(stack, gameTime + DATA_RELEASE_INTERVAL_TICKS);
+        } else {
+            cellInventory.insert(DataKey.of(), released, Actionable.MODULATE, IActionSource.empty());
         }
     }
 
-    private boolean isDepleted(ItemStack stack) {
+    private static boolean isUnpoweredDataReleaseDue(ItemStack stack, long gameTime) {
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        if (!tag.contains(TAG_NEXT_UNPOWERED_DATA_RELEASE)) {
+            tag.putLong(TAG_NEXT_UNPOWERED_DATA_RELEASE, gameTime + DATA_RELEASE_INTERVAL_TICKS);
+            writeCustomData(stack, tag);
+            return false;
+        }
+        return tag.getLong(TAG_NEXT_UNPOWERED_DATA_RELEASE) <= gameTime;
+    }
+
+    private static void setNextUnpoweredDataRelease(ItemStack stack, long gameTime) {
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        tag.putLong(TAG_NEXT_UNPOWERED_DATA_RELEASE, gameTime);
+        writeCustomData(stack, tag);
+    }
+
+    private static void clearNextUnpoweredDataRelease(ItemStack stack) {
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        if (!tag.contains(TAG_NEXT_UNPOWERED_DATA_RELEASE)) {
+            return;
+        }
+        tag.remove(TAG_NEXT_UNPOWERED_DATA_RELEASE);
+        writeCustomData(stack, tag);
+    }
+
+    private static void writeCustomData(ItemStack stack, CompoundTag tag) {
+        if (tag.isEmpty()) {
+            stack.remove(DataComponents.CUSTOM_DATA);
+        } else {
+            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        }
+    }
+
+    private boolean isUnpowered(ItemStack stack) {
         return this.getAECurrentPower(stack) < 1.0E-4D;
     }
 }
