@@ -68,12 +68,13 @@ public final class TrinityGraphPlanAssembler {
             throw new IllegalArgumentException("A Trinity acyclic plan assembly requires a solved plan");
         }
         ArrayList<TrinityPlanStage> stages = new ArrayList<>(acyclicPlan.executionOrder().size());
+        ArrayList<StageFootprint> footprints = new ArrayList<>(acyclicPlan.executionOrder().size());
         ArrayList<Integer> stageOrder = new ArrayList<>(acyclicPlan.executionOrder().size());
         LinkedHashMap<TrinityPatternIdentity, BigInteger> patternFirings = new LinkedHashMap<>();
         LinkedHashMap<AEKey, BigInteger> stackRequests = new LinkedHashMap<>();
         for (TrinityVariantFiring firing : acyclicPlan.executionOrder()) {
             int stageIndex = stages.size();
-            Set<Integer> dependencies = stageIndex == 0 ? Set.of() : Set.of(stageIndex - 1);
+            Set<Integer> dependencies = dependenciesFor(firing.variant(), false, footprints);
             stages.add(stage(
                     stageIndex,
                     false,
@@ -81,6 +82,7 @@ public final class TrinityGraphPlanAssembler {
                     firing.variant(),
                     firing.count(),
                     false));
+            footprints.add(StageFootprint.from(stageIndex, false, firing.variant()));
             stageOrder.add(stageIndex);
             mergePatternFiring(patternFirings, firing.variant(), firing.count());
             mergeScaled(stackRequests, firing.variant().inputs(), firing.count());
