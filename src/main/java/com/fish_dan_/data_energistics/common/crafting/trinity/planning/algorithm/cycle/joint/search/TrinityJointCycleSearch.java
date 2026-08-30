@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.search;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic.InputRequirement;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
@@ -80,6 +81,7 @@ public final class TrinityJointCycleSearch {
     private static final String MIP_TIMEOUT_KEY = "gui.data_energistics.trinity_planning.mip.timeout";
     private static final String NO_ORDER_KEY = "gui.data_energistics.trinity_planning.mip.no_executable_order";
     private static final String SEARCH_LIMIT_KEY = "gui.data_energistics.trinity_planning.mip.schedule_search_limit";
+    private static final String INSUFFICIENT_INPUT_KEY = "gui.data_energistics.trinity_planning.diagnostic.insufficient_input";
 
     private final TrinityCycleFeasibilityModel feasibilityModel;
     private final TrinityJointCandidateEvaluator candidateEvaluator;
@@ -191,6 +193,10 @@ public final class TrinityJointCycleSearch {
                     this.mode,
                     this.control);
             if (!rootSolved.successful()) {
+                if (rootSolved.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION &&
+                        this.incumbent == null) {
+                    return diagnoseRootShortage(rootBox, rootSolved.diagnostic());
+                }
                 return failed(rootSolved.diagnostic());
             }
             this.metrics.add(rootSolved.value());
@@ -471,6 +477,155 @@ public final class TrinityJointCycleSearch {
                 return TrinityAlgorithmResult.failure(diagnostic);
             }
             return TrinityAlgorithmResult.failure(diagnostic.withDetail(incumbentProgress()));
+        }
+
+        private TrinityAlgorithmResult<TrinityJointCyclePlan> diagnoseRootShortage(
+                                                                                   TrinityFiringBox rootBox,
+                                                                                   TrinityPlanningDiagnostic rootFailure) {
+            if (this.control.cancellationRequested()) {
+                return failed(
+                        TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                        CANCELLED_KEY,
+                        Map.of("states", Integer.toString(this.budget.used)));
+            }
+            if (this.control.deadlineExceeded()) {
+                return failed(withShortageStop(rootFailure, "timeout", 0, null));
+            }
+            int remainingStates = this.budget.remaining();
+            if (remainingStates <= 0) {
+                return failed(withShortageStop(rootFailure, "state_limit", 0, null));
+            }
+            TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> diagnosed = feasibilityModel.solve(
+                    request(rootBox).forShortageDiagnosis(remainingStates),
+                    TrinityPlanningMode.OPTIMAL,
+                    this.control);
+            int diagnosisStates = diagnosed.successful() ?
+                    diagnosed.value().diagnosticStates() : diagnosisStates(diagnosed.diagnostic());
+            if (diagnosisStates > 0 && !this.budget.consume(diagnosisStates)) {
+                throw new IllegalStateException("A bounded Trinity shortage diagnosis exceeded its reserved states");
+            }
+            if (this.control.cancellationRequested() ||
+                    (!diagnosed.successful() && diagnosed.diagnostic().code() ==
+                            TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED)) {
+                return failed(
+                        TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                        CANCELLED_KEY,
+                        Map.of("states", Integer.toString(this.budget.used)));
+            }
+            if (!diagnosed.successful()) {
+                return failed(withShortageStop(
+                        rootFailure,
+                        shortageStop(diagnosed.diagnostic()),
+                        diagnosisStates,
+                        diagnosed.diagnostic()));
+            }
+            TrinityCycleFeasibilitySolution solution = diagnosed.value();
+            if (solution.quality() != TrinityPlanQuality.PROVED_OPTIMAL) {
+                return failed(withShortageStop(rootFailure, "unproved", diagnosisStates, null));
+            }
+            if (this.control.cancellationRequested()) {
+                return failed(
+                        TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                        CANCELLED_KEY,
+                        Map.of("states", Integer.toString(this.budget.used)));
+            }
+            if (solution.missingInputs().isEmpty()) {
+                return failed(withShortageStop(rootFailure, "missing_zero", diagnosisStates, null));
+            }
+            if (this.control.cancellationRequested()) {
+                return failed(
+                        TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                        CANCELLED_KEY,
+                        Map.of("states", Integer.toString(this.budget.used)));
+            }
+            return TrinityAlgorithmResult.failure(shortageDiagnostic(solution));
+        }
+
+        private TrinityPlanningDiagnostic shortageDiagnostic(TrinityCycleFeasibilitySolution solution) {
+            Map<AEKey, BigInteger> requiredInputs = solution.requiredInputs();
+            LinkedHashMap<AEKey, InputRequirement> requirements = new LinkedHashMap<>();
+            solution.missingInputs().forEach((key, missing) -> {
+                BigInteger required = requiredInputs.getOrDefault(key, BigInteger.ZERO);
+                BigInteger available = this.available.getOrDefault(key, BigInteger.ZERO);
+                requirements.put(key, new InputRequirement(required, available, missing));
+            });
+            Map.Entry<AEKey, InputRequirement> first = requirements.entrySet().iterator().next();
+            LinkedHashMap<String, String> metadata = new LinkedHashMap<>();
+            metadata.put("available", first.getValue().available().toString());
+            metadata.put("key", first.getKey().toString());
+            metadata.put("missing", first.getValue().missing().toString());
+            metadata.put("required", first.getValue().required().toString());
+            metadata.put("shortageDiagnosisModel", solution.radix() ? "radix" : "ordinary");
+            metadata.put("shortageDiagnosisStates", Integer.toString(solution.diagnosticStates()));
+            metadata.put("shortageMipNanos", Long.toString(solution.solverNanos()));
+            metadata.put("shortageSolverPasses", Integer.toString(solution.solverPasses()));
+            metadata.put("shortageKinds", Integer.toString(requirements.size()));
+            if (requirements.size() == 1) {
+                return new TrinityPlanningDiagnostic(
+                        TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                        Component.translatable(INSUFFICIENT_INPUT_KEY),
+                        metadata,
+                        new TrinityPlanningDiagnostic.InputShortage(
+                                first.getKey(),
+                                first.getValue().required(),
+                                first.getValue().available(),
+                                first.getValue().missing()));
+            }
+            LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
+            solution.firings().forEach((variant, count) -> variant.outputs().forEach(
+                    (key, amount) -> emitted.merge(key, amount.multiply(count), BigInteger::add)));
+            return new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                    Component.translatable(INSUFFICIENT_INPUT_KEY),
+                    metadata,
+                    new TrinityPlanningDiagnostic.PartialPlan(
+                            solution.actualInputs(),
+                            emitted,
+                            solution.missingInputs(),
+                            requirements));
+        }
+
+        private TrinityPlanningDiagnostic withShortageStop(
+                                                           TrinityPlanningDiagnostic rootFailure,
+                                                           String stop,
+                                                           int diagnosisStates,
+                                                           @Nullable TrinityPlanningDiagnostic diagnosisFailure) {
+            LinkedHashMap<String, String> metadata = new LinkedHashMap<>(rootFailure.metadata());
+            metadata.put("shortageDiagnosisStates", Integer.toString(diagnosisStates));
+            metadata.put("shortageDiagnosisStop", stop);
+            if (diagnosisFailure != null) {
+                diagnosisFailure.metadata().forEach((key, value) -> metadata.put("shortage." + key, value));
+            }
+            return new TrinityPlanningDiagnostic(
+                    rootFailure.code(),
+                    rootFailure.message(),
+                    metadata,
+                    rootFailure.detail());
+        }
+
+        private static int diagnosisStates(TrinityPlanningDiagnostic diagnostic) {
+            String encoded = diagnostic.metadata().get("states");
+            if (encoded == null) {
+                return 0;
+            }
+            try {
+                int states = Integer.parseInt(encoded);
+                if (states < 0) {
+                    throw new IllegalStateException("Trinity shortage diagnostic states cannot be negative");
+                }
+                return states;
+            } catch (NumberFormatException exception) {
+                throw new IllegalStateException("Trinity shortage diagnostic states must be an integer", exception);
+            }
+        }
+
+        private static String shortageStop(TrinityPlanningDiagnostic diagnostic) {
+            return switch (diagnostic.code()) {
+                case ORDER_SEARCH_LIMIT -> "state_limit";
+                case MIP_TIMEOUT -> "timeout";
+                case MIP_NO_INTEGER_SOLUTION -> "relaxed_infeasible";
+                default -> diagnostic.code().name();
+            };
         }
 
         private TrinityPlanningDiagnostic.PartialPlan incumbentProgress() {

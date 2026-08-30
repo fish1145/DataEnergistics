@@ -26,6 +26,8 @@ import java.util.Set;
  * @param fixedExternalTotal exact external-input objective required by a branch, when present
  * @param seedLowerBound     lower bound used when advancing past an unschedulable seed level
  * @param firingLowerBound   lower bound used when advancing past an unschedulable firing level
+ * @param shortageDiagnostic whether finite reserve axes may use diagnostic-only virtual missing input
+ * @param shortageStateLimit maximum actual diagnostic solver calls, or zero for executable requests
  */
 public record TrinityCycleFeasibilityRequest(
                                              List<TrinityPatternVariant> variants,
@@ -36,7 +38,36 @@ public record TrinityCycleFeasibilityRequest(
                                              Map<TrinityPatternVariant, TrinityFiringBounds> firingBounds,
                                              Optional<BigInteger> fixedExternalTotal,
                                              BigInteger seedLowerBound,
-                                             BigInteger firingLowerBound) {
+                                             BigInteger firingLowerBound,
+                                             boolean shortageDiagnostic,
+                                             int shortageStateLimit) {
+
+    /**
+     * Compatibility constructor for executable feasibility requests without virtual diagnostic input.
+     */
+    public TrinityCycleFeasibilityRequest(
+                                          List<TrinityPatternVariant> variants,
+                                          Set<AEKey> internalKeys,
+                                          TrinityCycleDemand demand,
+                                          Map<AEKey, BigInteger> available,
+                                          Set<AEKey> producibleInputs,
+                                          Map<TrinityPatternVariant, TrinityFiringBounds> firingBounds,
+                                          Optional<BigInteger> fixedExternalTotal,
+                                          BigInteger seedLowerBound,
+                                          BigInteger firingLowerBound) {
+        this(
+                variants,
+                internalKeys,
+                demand,
+                available,
+                producibleInputs,
+                firingBounds,
+                fixedExternalTotal,
+                seedLowerBound,
+                firingLowerBound,
+                false,
+                0);
+    }
 
     /**
      * Freezes every model input so background optimisation cannot observe mutation.
@@ -48,6 +79,10 @@ public record TrinityCycleFeasibilityRequest(
                 seedLowerBound == null || seedLowerBound.signum() < 0 ||
                 firingLowerBound == null || firingLowerBound.signum() < 0) {
             throw new IllegalArgumentException("A Trinity feasibility request requires complete non-negative bounds");
+        }
+        if (shortageDiagnostic != (shortageStateLimit > 0)) {
+            throw new IllegalArgumentException(
+                    "A Trinity shortage request requires a positive state limit only in diagnostic mode");
         }
         variants = variants.stream().sorted().toList();
         if (new LinkedHashSet<>(variants).size() != variants.size()) {
@@ -136,7 +171,31 @@ public record TrinityCycleFeasibilityRequest(
                 bounds,
                 fixedExternalTotal,
                 seedLowerBound,
-                firingLowerBound);
+                firingLowerBound,
+                shortageDiagnostic,
+                shortageStateLimit);
+    }
+
+    /**
+     * Creates a diagnostic-only request whose finite reserve can be split into actual and virtual missing input.
+     * The returned request must never be passed to executable candidate evaluation or scheduling.
+     */
+    public TrinityCycleFeasibilityRequest forShortageDiagnosis(int stateLimit) {
+        if (stateLimit <= 0) {
+            throw new IllegalArgumentException("A Trinity shortage diagnosis requires remaining search states");
+        }
+        return new TrinityCycleFeasibilityRequest(
+                variants,
+                internalKeys,
+                demand,
+                available,
+                producibleInputs,
+                firingBounds,
+                fixedExternalTotal,
+                seedLowerBound,
+                firingLowerBound,
+                true,
+                stateLimit);
     }
 
     private static Set<AEKey> copyKeys(Set<AEKey> source, String role) {

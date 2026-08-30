@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.bounds.TrinityCycleObjectiveBounds;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.TrinityRadixCycleFeasibilityModel;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityExactConservationVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
@@ -20,6 +21,7 @@ import java.util.Set;
 final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCycleFeasibilityModel {
 
     private static final BigInteger ORDINARY_EXACT_LIMIT = BigInteger.ONE.shiftLeft(52).subtract(BigInteger.ONE);
+    private static final TrinityCycleObjectiveBounds OBJECTIVE_BOUNDS = TrinityCycleObjectiveBounds.create();
 
     private final TrinityCycleFeasibilityModel ordinary;
     private final TrinityCycleFeasibilityModel radix;
@@ -80,6 +82,10 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                 exceedsWindow(request.seedLowerBound()) || exceedsWindow(request.firingLowerBound())) {
             return true;
         }
+        if (request.shortageDiagnostic() &&
+                exceedsWindow(OBJECTIVE_BOUNDS.shortageLogicalUpperBound(request))) {
+            return true;
+        }
         if (request.firingBounds().values().stream()
                 .map(TrinityFiringBounds::lowerInclusive)
                 .anyMatch(PrecisionSelectingTrinityCycleFeasibilityModel::exceedsWindow) ||
@@ -118,8 +124,28 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
         BigInteger externalObjectiveEnvelope = externalReserveKeys(request).stream()
                 .map(key -> reserveUpperBound(request, key))
                 .reduce(BigInteger.ZERO, BigInteger::add);
-        return exceedsWindow(firingObjectiveEnvelope) || exceedsWindow(seedObjectiveEnvelope) ||
-                exceedsWindow(externalObjectiveEnvelope);
+        if (exceedsWindow(firingObjectiveEnvelope) || exceedsWindow(seedObjectiveEnvelope) ||
+                exceedsWindow(externalObjectiveEnvelope)) {
+            return true;
+        }
+        if (!request.shortageDiagnostic()) {
+            return false;
+        }
+        LinkedHashSet<AEKey> reserveKeys = new LinkedHashSet<>(request.internalKeys());
+        reserveKeys.addAll(externalReserveKeys(request));
+        BigInteger missingEnvelope = BigInteger.ZERO;
+        for (AEKey key : reserveKeys) {
+            if (request.producibleInputs().contains(key)) {
+                continue;
+            }
+            BigInteger requiredUpper = reserveUpperBound(request, key);
+            BigInteger actualUpper = request.available().getOrDefault(key, BigInteger.ZERO).min(requiredUpper);
+            if (exceedsWindow(requiredUpper.add(actualUpper).add(requiredUpper))) {
+                return true;
+            }
+            missingEnvelope = missingEnvelope.add(requiredUpper);
+        }
+        return exceedsWindow(missingEnvelope);
     }
 
     private static Set<AEKey> externalReserveKeys(TrinityCycleFeasibilityRequest request) {
@@ -134,9 +160,10 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
     }
 
     private static BigInteger reserveUpperBound(TrinityCycleFeasibilityRequest request, AEKey key) {
-        BigInteger proven = request.ordinaryLogicalUpperBound().orElseThrow();
-        return request.producibleInputs().contains(key) ?
-                proven : request.available().getOrDefault(key, BigInteger.ZERO).min(proven);
+        return OBJECTIVE_BOUNDS.reserveUpperBound(
+                request,
+                key,
+                request.ordinaryLogicalUpperBound().orElseThrow());
     }
 
     private static boolean exceedsWindow(BigInteger value) {

@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleSolveBudget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.codec.TrinityRadixCodec;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.codec.TrinityRadixDigits;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.codec.TrinityRadixLinearEncoder;
@@ -65,6 +66,17 @@ public final class TrinityRadixObjectiveSearch {
                                                                       TrinityRadixBuiltModel built,
                                                                       TrinityPlanningControl control,
                                                                       TrinityRadixSolverMetrics metrics) {
+        return optimize(built, control, metrics, TrinityCycleSolveBudget.unbounded());
+    }
+
+    /**
+     * Selects the exact objective while charging every actual ojAlgo probe to a request-local budget.
+     */
+    public TrinityAlgorithmResult<Map<Variable, BigInteger>> optimize(
+                                                                      TrinityRadixBuiltModel built,
+                                                                      TrinityPlanningControl control,
+                                                                      TrinityRadixSolverMetrics metrics,
+                                                                      TrinityCycleSolveBudget stateBudget) {
         requireInputs(built, control, metrics);
         Map<Variable, BigInteger> lastValues = Map.of();
         Map<Integer, Integer> fixedDigits = new LinkedHashMap<>();
@@ -75,7 +87,8 @@ public final class TrinityRadixObjectiveSearch {
                 built,
                 certifiedValue,
                 control,
-                metrics);
+                metrics,
+                stateBudget);
         if (certified.successful()) {
             return certified;
         }
@@ -92,7 +105,8 @@ public final class TrinityRadixObjectiveSearch {
                     built,
                     adjacentValue,
                     control,
-                    metrics);
+                    metrics,
+                    stateBudget);
             if (adjacent.successful()) {
                 return adjacent;
             }
@@ -115,7 +129,8 @@ public final class TrinityRadixObjectiveSearch {
                     digit,
                     fixedDigits,
                     control,
-                    metrics);
+                    metrics,
+                    stateBudget);
             if (!selected.successful()) {
                 return selected;
             }
@@ -132,6 +147,17 @@ public final class TrinityRadixObjectiveSearch {
                                                                           TrinityRadixBuiltModel built,
                                                                           TrinityPlanningControl control,
                                                                           TrinityRadixSolverMetrics metrics) {
+        return findFeasible(built, control, metrics, TrinityCycleSolveBudget.unbounded());
+    }
+
+    /**
+     * Finds a proof witness while charging the actual solver call to a request-local budget.
+     */
+    public TrinityAlgorithmResult<Map<Variable, BigInteger>> findFeasible(
+                                                                          TrinityRadixBuiltModel built,
+                                                                          TrinityPlanningControl control,
+                                                                          TrinityRadixSolverMetrics metrics,
+                                                                          TrinityCycleSolveBudget stateBudget) {
         requireInputs(built, control, metrics);
         if (control.cancellationRequested()) {
             return TrinityRadixDiagnostics.failure(
@@ -141,6 +167,9 @@ public final class TrinityRadixObjectiveSearch {
         }
         if (control.deadlineExceeded()) {
             return TrinityRadixDiagnostics.timeout(metrics, "before_overflow_proof", built.objective().name(), -1);
+        }
+        if (!stateBudget.tryConsume()) {
+            return stateLimit(stateBudget);
         }
         ExpressionsBasedModel solverModel = built.model().model();
         applyDeadline(solverModel, control);
@@ -175,7 +204,8 @@ public final class TrinityRadixObjectiveSearch {
                                                                                   TrinityRadixBuiltModel built,
                                                                                   BigInteger certifiedValue,
                                                                                   TrinityPlanningControl control,
-                                                                                  TrinityRadixSolverMetrics metrics) {
+                                                                                  TrinityRadixSolverMetrics metrics,
+                                                                                  TrinityCycleSolveBudget stateBudget) {
         TrinityRadixLinearEncoder encoder = built.model();
         TrinityRadixVariable objective = built.objective();
         TrinityRadixDigits encoded = this.codec.encode(certifiedValue, objective.digits().size());
@@ -191,6 +221,7 @@ public final class TrinityRadixObjectiveSearch {
                 certifiedValue.toString(),
                 control,
                 metrics,
+                stateBudget,
                 false);
         if (!probe.successful()) {
             return probe;
@@ -205,7 +236,8 @@ public final class TrinityRadixObjectiveSearch {
                                                                             int digit,
                                                                             Map<Integer, Integer> fixedDigits,
                                                                             TrinityPlanningControl control,
-                                                                            TrinityRadixSolverMetrics metrics) {
+                                                                            TrinityRadixSolverMetrics metrics,
+                                                                            TrinityCycleSolveBudget stateBudget) {
         if (control.cancellationRequested()) {
             return TrinityRadixDiagnostics.failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -247,6 +279,7 @@ public final class TrinityRadixObjectiveSearch {
                 lowerBound + ".." + upperBound,
                 control,
                 metrics,
+                stateBudget,
                 !fixedDigit);
         if (!optimized.successful()) {
             return optimized;
@@ -271,6 +304,7 @@ public final class TrinityRadixObjectiveSearch {
                                                                               String bound,
                                                                               TrinityPlanningControl control,
                                                                               TrinityRadixSolverMetrics metrics,
+                                                                              TrinityCycleSolveBudget stateBudget,
                                                                               boolean requireOptimal) {
         if (control.cancellationRequested()) {
             return TrinityRadixDiagnostics.failure(
@@ -280,6 +314,9 @@ public final class TrinityRadixObjectiveSearch {
         }
         if (control.deadlineExceeded()) {
             return TrinityRadixDiagnostics.timeout(metrics, "before_probe_solve", built.objective().name(), digit);
+        }
+        if (!stateBudget.tryConsume()) {
+            return stateLimit(stateBudget);
         }
         applyDeadline(probeModel, control);
         long started = System.nanoTime();
@@ -321,6 +358,15 @@ public final class TrinityRadixObjectiveSearch {
                 encoder.variables(),
                 encoder.columnEquations(),
                 result);
+    }
+
+    private static <T> TrinityAlgorithmResult<T> stateLimit(TrinityCycleSolveBudget stateBudget) {
+        return TrinityRadixDiagnostics.failure(
+                TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                "gui.data_energistics.trinity_planning.mip.schedule_search_limit",
+                Map.of(
+                        "limit", Integer.toString(stateBudget.limit()),
+                        "states", Integer.toString(stateBudget.used())));
     }
 
     private static int selectedDigit(Map<Variable, BigInteger> values, Variable objectiveDigit) {

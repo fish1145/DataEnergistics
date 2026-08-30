@@ -91,7 +91,8 @@ public final class TrinityCycleFeasibilitySession {
                                     Set<AEKey> internalKeys,
                                     TrinityCycleDemand demand,
                                     Map<AEKey, BigInteger> available,
-                                    Set<AEKey> producibleInputs) {
+                                    Set<AEKey> producibleInputs,
+                                    boolean shortageDiagnostic) {
 
         private static RequestStructure from(TrinityCycleFeasibilityRequest request) {
             return new RequestStructure(
@@ -99,7 +100,8 @@ public final class TrinityCycleFeasibilitySession {
                     request.internalKeys(),
                     request.demand(),
                     request.available(),
-                    request.producibleInputs());
+                    request.producibleInputs(),
+                    request.shortageDiagnostic());
         }
     }
 }

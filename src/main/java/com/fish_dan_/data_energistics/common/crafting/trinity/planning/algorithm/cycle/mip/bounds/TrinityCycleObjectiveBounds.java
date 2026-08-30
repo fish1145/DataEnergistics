@@ -20,6 +20,8 @@ import java.util.Set;
  */
 public final class TrinityCycleObjectiveBounds {
 
+    private static final BigInteger LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE);
+
     /**
      * @return stateless exact-bound calculator
      */
@@ -153,6 +155,67 @@ public final class TrinityCycleObjectiveBounds {
                 .filter(key -> !request.internalKeys().contains(key))
                 .forEach(keys::add);
         return Collections.unmodifiableSet(keys);
+    }
+
+    /**
+     * Derives the per-key reserve domain used by executable and diagnostic models.
+     *
+     * <p>
+     * Executable finite input remains capped by captured inventory. Diagnostic finite input instead receives a
+     * complete {@code long} representable requirement envelope so the model can separate it into actual and missing
+     * amounts without allowing an unpublishable per-key requirement.
+     * </p>
+     */
+    public BigInteger reserveUpperBound(
+                                        TrinityCycleFeasibilityRequest request,
+                                        AEKey key,
+                                        BigInteger firingUpper) {
+        if (request == null || key == null || firingUpper == null || firingUpper.signum() < 0) {
+            throw new IllegalArgumentException("A Trinity reserve upper bound requires complete non-negative inputs");
+        }
+        if (!request.shortageDiagnostic()) {
+            return request.producibleInputs().contains(key) ?
+                    firingUpper : request.available().getOrDefault(key, BigInteger.ZERO).min(firingUpper);
+        }
+        BigInteger required = request.demand().finalBalanceLowerBounds().getOrDefault(key, BigInteger.ZERO);
+        for (TrinityPatternVariant variant : request.variants()) {
+            BigInteger coefficient = variant.netChange().getOrDefault(key, BigInteger.ZERO);
+            if (coefficient.signum() >= 0) {
+                continue;
+            }
+            BigInteger variantUpper = request.firingBounds()
+                    .get(variant)
+                    .upperInclusive()
+                    .min(firingUpper);
+            required = required.add(coefficient.negate().multiply(variantUpper));
+        }
+        BigInteger objectiveFloor;
+        if (request.internalKeys().contains(key)) {
+            objectiveFloor = minimumFirstInternalInput(request).max(request.seedLowerBound());
+        } else {
+            objectiveFloor = minimumFirstExternalInput(request);
+            if (request.fixedExternalTotal().isPresent()) {
+                objectiveFloor = objectiveFloor.max(request.fixedExternalTotal().orElseThrow());
+            }
+        }
+        return required.max(objectiveFloor).min(LONG_MAX);
+    }
+
+    /**
+     * Returns one safe logical domain covering every diagnostic firing and reserve axis.
+     */
+    public BigInteger shortageLogicalUpperBound(TrinityCycleFeasibilityRequest request) {
+        if (request == null || !request.shortageDiagnostic()) {
+            throw new IllegalArgumentException("A Trinity shortage domain requires a diagnostic request");
+        }
+        BigInteger firingUpper = request.ordinaryLogicalUpperBound().orElse(LONG_MAX).min(LONG_MAX);
+        BigInteger upper = firingUpper;
+        LinkedHashSet<AEKey> reserveKeys = new LinkedHashSet<>(request.internalKeys());
+        reserveKeys.addAll(externalReserveKeys(request));
+        for (AEKey key : reserveKeys) {
+            upper = upper.max(reserveUpperBound(request, key, firingUpper));
+        }
+        return upper.min(LONG_MAX);
     }
 
     /**
