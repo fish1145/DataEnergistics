@@ -1,8 +1,6 @@
 package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
-
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -143,7 +141,8 @@ public final class DECreativeTabs {
                         output.accept(DEItems.FLUIX_AGGREGATE_CRYSTAL_PROCESSOR);
                         output.accept(DEItems.COMPLEXIFIED_BIOCHIPS);
                         output.accept(DEItems.DIGISIDIAN_MEMORIZE_INGOT);
-                        output.accept(RadixContainmentSphereItem.createChargedStack());
+                        output.accept(DEItems.SINGULARITY_BLOCK);
+                        output.accept(DEItems.RADIX_CONTAINMENT_SPHERE);
                         output.accept(DEItems.MATTER_CONVERGING_CROSSBOW);
                         output.accept(DEItems.DATA_RIPPER);
                         output.accept(DEItems.FISH_DAN);

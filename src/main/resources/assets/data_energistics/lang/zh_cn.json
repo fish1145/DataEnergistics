@@ -510,6 +510,7 @@
 	"item.data_energistics.redstone_tuning_card": "红石调整卡",
 	"item.data_energistics.resonance_crystal": "共振水晶",
 	"item.data_energistics.resonance_digitalization_core": "共振数位化核心",
+	"item.data_energistics.singularity_block": "奇点立方",
 	"item.data_energistics.solidified_obsidian": "固化黑曜石",
 	"item.data_energistics.tedxenon": "TedXenon 玩偶",
 	"item.data_energistics.time_core": "时间核心",
@@ -572,8 +573,8 @@
 	"jade.data_energistics.vertical_multiblock.role.part": "结构角色：普通方块",
 	"jade.data_energistics.vertical_multiblock.unformed": "竖向结构：未成型",
 	"jade.data_energistics.yes": "是",
-	"jei.data_energistics.radix_containment_sphere.line1": "可在 AE2 物质聚合器中作为第四档独立产物生成。",
-	"jei.data_energistics.radix_containment_sphere.line2": "切换到进制收容球体档位后，每个球体固定消耗 131072 AE；高阶数据流存储组件可缓存更多 AE。",
+	"jei.data_energistics.radix_containment_sphere.line1": "可通过工作台合成获取。",
+	"jei.data_energistics.radix_containment_sphere.line2": "合成获得的球体不含能量；无能量时无法使用，并会每 100 tick 释放 1 个已存二进制。",
 	"jei.data_energistics.radix_containment_sphere.line3": "右键即散显性二进制时，每次消耗 1KAE，并向球体内填充 1 个二进制。",
 	"key.categories.data_energistics": "Data Energistics",
 	"key.data_energistics.data": "二进制",
@@ -894,6 +895,7 @@
 	"workstation.data_energistics.data_reassembler": "数据重组器",
 	"recipe.data_energistics.condenser_output": "物质聚合器输出",
 	"recipe.data_energistics.condenser_output.any_matter": "任意可被聚合器销毁的物品或流体；此图标不参与配方搜索",
+	"recipe.data_energistics.condenser_output.item_aggregation": "每 %s 个物品聚合为一个%s",
 	"tag.item.data_energistics.condenser.storage_components": "物质聚合器存储组件",
 	"tag.item.data_energistics.integrated_charger.crystal_growth_modules": "晶体生长模块"
 }
