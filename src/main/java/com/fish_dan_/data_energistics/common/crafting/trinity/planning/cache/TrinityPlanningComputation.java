@@ -120,7 +120,7 @@ public final class TrinityPlanningComputation {
                 TrinityComputationNamespace.COMPILED_GRAPH,
                 TrinityComputationCache.SEMANTIC_REVISION,
                 compiledKey,
-                () -> cached(this.pipeline.compile(
+                () -> cacheSuccessful(this.pipeline.compile(
                         reachable.value(),
                         input.target(),
                         limits.maxBindingVariants(),
@@ -178,7 +178,7 @@ public final class TrinityPlanningComputation {
                 TrinityComputationNamespace.SOLVED_PLAN,
                 input.graph().revision(),
                 solvedKey,
-                () -> cached(solveWithFallback(
+                () -> cacheSuccessful(solveWithFallback(
                         structure,
                         input,
                         projectedMap,
@@ -301,9 +301,9 @@ public final class TrinityPlanningComputation {
         }
     }
 
-    private static <V> TrinityCachedComputation<TrinityAlgorithmResult<V>> cached(
-                                                                                  TrinityAlgorithmResult<V> result) {
-        return result.successful() || !result.diagnostic().code().transientPlanningFailure() ?
+    private static <V> TrinityCachedComputation<TrinityAlgorithmResult<V>> cacheSuccessful(
+                                                                                           TrinityAlgorithmResult<V> result) {
+        return result.successful() ?
                 TrinityCachedComputation.cacheable(result) :
                 TrinityCachedComputation.transientValue(result);
     }

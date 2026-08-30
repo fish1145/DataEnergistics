@@ -24,9 +24,10 @@ public enum TrinityPlanningDiagnosticCode {
     INTERNAL_ERROR;
 
     /**
-     * Identifies failures that may succeed when the same immutable request is retried later.
+     * Identifies operationally transient failures that may succeed when the same immutable request is retried later.
+     * All failed planning results stay out of completed computation caches regardless of this classification.
      *
-     * @return whether the result must stay out of completed caches and may be retried without a graph change
+     * @return whether retrying without a graph change may succeed
      */
     public boolean transientPlanningFailure() {
         return switch (this) {

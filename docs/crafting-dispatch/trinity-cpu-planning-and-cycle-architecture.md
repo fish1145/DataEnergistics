@@ -438,6 +438,8 @@ ojAlgo minimise/maximise/probe；exact 与 proven-equivalent cache hit 的本请
 - `PROVED_OPTIMAL`/`VERIFIED_FEASIBLE` 质量传播、超时 incumbent 接纳和无 incumbent 的 first-feasible 回退；
 - 跨 pattern 严格 transition-effect representative、DAG/ordinary 请求私有模型模板、joint child 的 ordinary 模板复用、
   单轴循环搜索分区和不可行 box 记忆；
+- reachable/compiled/solved computation cache 只保留成功结果；所有失败只共享给当时已经等待同一计算的调用方，完成后立即移除，
+  不允许后续请求以 `EXACT_HIT` 复用过时诊断；
 - exact solved cache 与仅对最优计划生效的库存证明等价索引：库存逐项减少且旧计划仍可行时可复用；纯 DAG 的库存增加
   只有在该 key 是已证明不参与约束的 `NET_NEW` target，或参考值和新值都高于非绑定 consumption cap 时可复用；cycle 或
   无法证明的增加继续普通 solve；
