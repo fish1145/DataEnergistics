@@ -66,7 +66,9 @@ AE2 19.2.17 的 `CraftingTreeNode.notRecursive` 会沿祖先链拒绝输出或�
 - `A -> B -> 2A` 在祖先检查处被截断；
 - 网络中已有 A 不能作为受控 seed 参与“净新增”计算。
 
-修复：不修改 AE2 递归树；Trinity 使用样板超图、Tarjan SCC、闭式循环和受限 MIP 独立规划，失败时仍保留 AE2 结果。
+修复：不修改 AE2 递归树；Trinity 使用样板超图、Tarjan SCC、闭式循环和受限 MIP 独立规划。有合格 Trinity CPU 时实际只
+启动并等待 Trinity Future，失败发布 Trinity 诊断；只有没有合格 Trinity CPU 时才直接走 AE2，不宣称两者并行竞速或保留
+一个未启动的 AE2 结果。
 
 当前状态：多路线 SCC 会把 MIP 守恒 seed 作为下界，再由压缩排程计算真实前缀 seed；真实 seed 高于松弛下界但仍在库存范围内时，不再误报无整数解。
 库存容量约束采用逐项激活：只有无约束最优解实际超过某项库存时才向 ojAlgo 加入该项上界，避免无限存储单元发布的巨量可用值让本可行的整数模型数值失稳。
@@ -221,8 +223,8 @@ generation。CPU 发布、显式/自动/fallback 提交、runtime 在线判定�
 lease、信息交换仓选举和 `accessGrid()` 继续使用 owning grid。active member 还必须存在于 primary grid 的 incoming
 publication；inactive、未注册或 route token 变化时不返回可执行路由。
 
-当前状态：已完成，P0。现有 VirtualGrid GameTest 直接覆盖未注册 active、inactive subordinate、同 primary 重连失效、
-主网格 CPU 发布和跨网格提交；全量 GameTest 验证 470 项通过。
+历史状态记录：P0 当时的 VirtualGrid GameTest 覆盖未注册 active、inactive subordinate、同 primary 重连失效、主网格 CPU
+发布和跨网格提交，并曾记录 470 项通过；本分支没有重新运行该 GameTest 集，不能把历史数字当作当前验证结果。
 
 ### C-018：局部循环机会缺少可证明的接纳边界
 
@@ -238,6 +240,8 @@ publication；inactive、未注册或 route token 变化时不返回可执行路
 补充修复：封闭输出边界下，唯一生产者残余解会证明逐分量最小 firing；外部输入、守恒初始库存和压缩顺序同时通过精确复验后，
 该候选已经是完整目标元组的全局最优解，应立即结束 reservoir 枚举。此前继续枚举会被另一个不适用 reservoir 覆盖为
 `NOT_APPLICABLE`，使大数量环外终点误入 radix MIP。守恒初始库存与调度前缀亏空现已分离，避免把较小前缀 seed 用作执行 reserve。
+仓库中的 shifted optimizer 当前没有生产调用方，因此不能把它描述成正在工作的 incumbent 优化层；重新接入前必须显式接收
+完整验证的 baseline，并在 reduction 超时或数值结果未通过精确复验时返回 baseline，而不是发布 firing upper bound。
 
 ### C-019：provider 轮询、容量模拟与真实输入事务缺少统一边界
 
@@ -274,16 +278,17 @@ machine identity，其余 addon 路线保持未知。reservation 只保存不可
 重验与提交；拒绝、stale、取消、暂停、重载、异常和 scheduler 关闭均走同一幂等释放路径。容量耗尽与共享机器竞争由合并式
 runtime 契约直接验证，不为具体配方或 addon 重复建立特例测试。
 
-### C-022：生产规划误用全图 250 ms 墙钟截止
+### C-022：把规划截止误作可行性硬超时
 
 `mipTimeoutMs` 原本描述为单次 ojAlgo 求解预算，实际却由初始规划与剩余量重规划创建唯一 `TrinityPlanningControl`，令样板
 展开、Tarjan、DAG 传播、所有 SCC 求解、排程和组装共同争用 250 ms。大型但合法的依赖图会在数学求解完成前被主动取消，
 随后错误显示为“超出配置预算并使用 AE2 计算”。每次请求还会展开整个网格目录，并在循环输入判断中反复扫描全部 variant。
 
-修复：生产控制只响应 Future 的协作取消，不再设置 wall-clock 截止，也删除无效的 `mipTimeoutMs` 配置。规划开始时按目标提取
-保留全部生产路线和输入替代的反向可达超图，再执行 variant 展开与 Tarjan；快照按 revision/target 缓存该派生图。拓扑同时建立
-`AEKey -> producer variants` 索引，需求聚合不再为每个循环输入扫描完整 variant 表。复杂度仍受 SCC、variant、模型规模、排程状态
-和有界执行队列控制，合法结果不会因机器冷热或整合包目录大小跨过墙钟阈值而改变。
+修复：`planningBudgetMs` 默认 30 秒并从请求开始计时，但只作为最优性证明预算。reachable、variant 和 topology 编译使用
+取消感知、无墙钟 deadline 的 control；求解在剩余预算内证明外部输入、seed、firing 和 identity 词典序最优。预算耗尽且已有
+完整验证的 incumbent 时返回 `VERIFIED_FEASIBLE`；没有 incumbent 时切换到只响应取消的 `FIRST_FEASIBLE`，并继续受 SCC、
+variant、全图 route state 和逐 SCC 局部 state 上限约束。Future 取消始终丢弃 incumbent。规划仍先按目标提取完整反向可达超图，
+快照按 revision/target 缓存，拓扑建立 `AEKey -> producer variants` 索引，需求聚合不为每个循环输入扫描完整 variant 表。
 
 ### C-023：样板编码终端周期性遍历全部 provider
 
@@ -317,14 +322,17 @@ DAG 的 SCC 生效。重复次数由聚合边界需求一次求得；有 residua
 primitive 单元”这一证明核，其余单元直接保留为 `BigInteger` repeat count。下游只能看到计划显式证明的 settled export，内部
 stage 余额和 seed 保持私有。请求内部 key 时，未请求内部 key 的正净增继续阻止导出；经过最终余额约束验证的负净变化只代表
 消耗预留库存，不再被误判为未结算。只请求环外输出时允许保留非负内部工作余额，但不允许导出。unit order 合并相邻同样板 firing；
-输入替代在展开前按聚合消耗与余留物效果合并等价绑定，
-预算按 distinct transition effect 和证明核余额断点计数。
+输入替代在展开前按聚合消耗与余留物效果合并等价 binding；`maxBindingVariants` 按这些单 pattern 压缩后实际物化的请求级
+variant 总量计数。跨 pattern 严格 transition-effect family 在上限检查之后进一步减少 MIP firing axes，不把压缩结果返还为新的
+展开预算。
 
-直接证据是一套有限原料的完整 256M 风格链路：两个有限 seed 原料、有限流体与外壳、三段增殖循环和四层上游组件全部参与
-守恒；规划结果为 85 个完整宏单元、3 个 repeat unit stage，而不是展开 5,000 余次内部 firing。已有玩家请求域、joint SCC、
-binding expander 与运行时 selector 契约继续覆盖通用数量和绑定边界，不新增具体模组配方分支。
+历史直接证据曾使用一套有限原料的完整 256M 风格链路：两个有限 seed 原料、有限流体与外壳、三段增殖循环和四层上游组件
+全部参与守恒；当时规划结果为 85 个完整宏单元、3 个 repeat unit stage，而不是展开 5,000 余次内部 firing。当前工作树已经
+不再保留这些 planner fixture 与对应契约测试，因此该记录只说明设计来源，不能替代本分支的实际游戏验收。
 
 ## 4. 修复映射
+
+下表“主要证据”记录历史审计依据；除非在第 6 节明确列为本次实际执行，否则不代表当前工作树仍能运行这些测试或 GameTest。
 
 | 缺陷 | 修复组件 | 当前状态 | 主要证据 |
 | --- | --- | --- | --- |
@@ -338,7 +346,7 @@ binding expander 与运行时 selector 契约继续覆盖通用数量和绑定�
 | C-008 | dispatch scope 边界检查 | 已完成 | 零额外 MODULATE 调用 |
 | C-009 | 确定性测试窗口 | 已完成 | 256-worker 测试不依赖墙钟 |
 | C-010 | 统一 plan admission | 已完成 | 显式、自动、fallback 直接逻辑测试与 CPU 最终边界 GameTest |
-| C-011 | 数量语义与初始规划入口 | 已完成 | 请求上下文、双轨入口、容量拒绝和确认页 CPU-family 过滤 |
+| C-011 | 数量语义与初始规划入口 | 已完成 | 请求上下文、Trinity/AE2 资格分流入口、容量拒绝和确认页 CPU-family 过滤 |
 | C-012 | retry 时钟重基、durable revision、作业暂停 | 已完成 | 高 tick→低 tick 恢复、在途续接、真实菜单 toggle |
 | C-013 | 上游循环 final-balance 与 boundary-output 传播 | 已完成 | 完整/部分库存、串并联 SCC、多轴联合求解、环外输出与混合路线回溯 |
 | C-014 | 确认页计划就绪门 | 已完成 | 真实 `CraftConfirmMenu` 首次/二次广播、提前提交和重算提交 GameTest |
@@ -349,7 +357,7 @@ binding expander 与运行时 selector 契约继续覆盖通用数量和绑定�
 | C-019 | publication index、容量 resolver、公平 slice 与唯一 commit | 已完成 | 路由模式参数化契约、独立 fake-clock 采集预算、拒绝/异常续选、256-worker 与 470 项 GameTest |
 | C-020 | worker event queue、bounded proposal 与 generation lease | 已完成 | 合并式 runtime 契约、现有 runtime/state 契约与服务器线程 commit 边界 |
 | C-021 | fixed provider shard、route capacity 与 machine reservation | 已完成 | 同一 runtime 契约覆盖 provider route 不超卖、跨 provider 物理目标独占与释放后重试 |
-| C-022 | 目标可达图缓存与确定性复杂度边界 | 已完成 | 大型图不使用墙钟截止，取消/图/variant/状态边界保持生效 |
+| C-022 | 目标可达图缓存与最优性预算 | 已完成 | 编译无墙钟 deadline；超预算发布 verified incumbent 或切换 first-feasible，取消/图/variant/状态边界保持生效 |
 | C-023 | publication revision 驱动的终端 provider 同步 | 已完成 | publication、本地展示输入与保守一致性刷新 GameTest |
 | C-024 | Pattern Core V3→V4 容量对齐迁移与 V2 拒绝 | 进行中 | 同档位容量迁移、旧 V2 拒绝、真实玩家拆除/掉落/重放 GameTest |
 | C-025 | primitive cycle macro、settled export、等价 binding 压缩 | 已完成 | 完整有限库存 256M 链路、玩家请求域循环、joint SCC 与共享 binding 契约 |
@@ -359,7 +367,7 @@ binding expander 与运行时 selector 契约继续覆盖通用数量和绑定�
 | 风险 | 控制 |
 | --- | --- |
 | MIP 数值解不精确 | 精确窗口内使用 ordinary model，超出窗口使用整数 digit/carry radix model；两者都经 `BigInteger` 二次验证，失败即拒绝 |
-| 任意 Petri net 搜索失控 | 先裁剪目标反向可达超图，再以 SCC、variant、模型规模、状态数和显式取消控制复杂度；合法结果不因墙钟截止被降级 |
+| 任意 Petri net 搜索失控 | 先裁剪目标反向可达超图，再以 SCC、variant、模型规模、状态数和显式取消控制复杂度；最优性预算耗尽后只停止继续证明，不放宽确定性上限 |
 | 异步线程访问世界 | 只传不可变值对象，服务器线程二次校验 |
 | 动态借料复制或误退款 | RESERVED/COMMITTED/RELEASED 所有权状态 |
 | 配方热更新执行旧语义 | pattern signature 校验，只重规划剩余量 |
@@ -373,7 +381,11 @@ binding expander 与运行时 selector 契约继续覆盖通用数量和绑定�
 | UI 数量与紧凑执行游标偏离 | 计划使用 gross 声明输出；运行时从持久游标精确推导，不维护第二份可漂移计数器 |
 | 容量快照提前修改库存或按旧 route 提交 | 从 CPU 库存副本捕获 prototype；提交前联合重验 provider、capability、pattern 与 target revision |
 
-## 6. 验证矩阵
+## 6. 历史目标验证矩阵
+
+以下条目是架构验收目标和历史证据目录，不代表当前工作树仍保留对应自动化。当前分支没有完整 planner 逻辑测试、真实 Trinity
+GameTest 或性能 benchmark；本次只运行现有 `test`、`build`、Spotless 和改动文件 IDEA inspections，整套配方行为与耗时由用户
+在真实游戏环境验证。
 
 ### 6.1 规划
 
@@ -412,14 +424,14 @@ binding expander 与运行时 selector 契约继续覆盖通用数量和绑定�
 - 扩展计划被原生 CPU 拒绝；
 - Thunderbolt 风格 LoopCraftingPlan 在显式、自动和 fallback 路径均不被 Trinity 接管；
 - 玩家 `NET_NEW`/`FINAL_TOTAL` 上下文与机器 COMMON 默认模式；
-- 初始 Trinity 计划超过所有合格 CPU 容量时保留 AE2 结果；
+- 初始 Trinity 计划超过所有合格 CPU 容量时返回 Trinity 容量诊断，不发布未启动的 AE2 结果；
 - 确认页计划完成与 CPU-family 过滤同步后才允许提交，重算期间旧摘要不可复用；
 - 确认页显示外部可用量和各阶段待合成量，CPU 状态页随 DAG/循环游标及 completion buffer 更新；
-- `test`、`runGameTestServer`、`build` 和 IDEA inspections。
+- 当前分支实际执行 `test`、`build`、Spotless 和改动文件 IDEA inspections；`runGameTestServer` 与性能门槛不在本次证据中。
 
-## 7. 完成判定
+## 7. 历史完成判定与当前边界
 
-只有以下证据同时成立才可关闭本审计：
+历史审计只有以下证据同时成立才可关闭；这些条件不能被解释为当前分支已经重新执行：
 
 1. C-001 至 C-025 均有直接行为测试或集成证据；
 2. 自增殖和多步增殖在真实 Trinity CPU GameTest 中完成且数量守恒；
@@ -427,3 +439,6 @@ binding expander 与运行时 selector 契约继续覆盖通用数量和绑定�
 4. schema 1/2 重载、取消和动态借料不丢失或复制；
 5. 原生 CPU 无法接收扩展计划；
 6. 全量构建、GameTest 和 IDE 检查通过。
+
+当前分支只确认现有测试与构建通过，不声称恢复了上述 planner/GameTest/性能覆盖；最终 `<10s` 与整套 Trinity 配方守恒由用户
+真实环境验收。
