@@ -154,6 +154,7 @@ public final class TrinityJointCycleSearch {
         private final TrinityPlanningMode mode;
         private final TrinityPlanningControl control;
         private final SolverMetrics metrics = new SolverMetrics();
+        private final Set<FeasibilityKey> infeasibleBoxes = new LinkedHashSet<>();
         private @Nullable TrinityJointCyclePlan incumbent;
         private @Nullable TrinityLexicographicObjective incumbentObjective;
         private long sequence;
@@ -343,6 +344,10 @@ public final class TrinityJointCycleSearch {
         private TrinityAlgorithmResult<Optional<SearchNode>> solveChild(
                                                                         TrinityFiringBox box,
                                                                         Optional<BigInteger> fixedExternalLevel) {
+            FeasibilityKey key = new FeasibilityKey(box, fixedExternalLevel);
+            if (this.infeasibleBoxes.contains(key)) {
+                return TrinityAlgorithmResult.success(Optional.empty());
+            }
             TrinityAlgorithmResult<TrinityJointCyclePlan> interrupted = interruption();
             if (interrupted != null) {
                 if (interrupted.successful()) {
@@ -362,6 +367,7 @@ public final class TrinityJointCycleSearch {
                     this.control);
             if (!solved.successful()) {
                 if (solved.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
+                    this.infeasibleBoxes.add(key);
                     return TrinityAlgorithmResult.success(Optional.empty());
                 }
                 return failed(solved.diagnostic());
@@ -543,6 +549,10 @@ public final class TrinityJointCycleSearch {
                               TrinityJointSearchLowerBound lowerBound,
                               Optional<BigInteger> fixedExternalLevel,
                               long sequence) {}
+
+    private record FeasibilityKey(
+                                  TrinityFiringBox box,
+                                  Optional<BigInteger> fixedExternalLevel) {}
 
     private static final class SearchBudget {
 
