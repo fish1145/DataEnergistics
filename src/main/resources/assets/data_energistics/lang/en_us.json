@@ -511,6 +511,7 @@
 	"item.data_energistics.redstone_tuning_card": "Redstone Tuning Card",
 	"item.data_energistics.resonance_crystal": "Resonance Crystal",
 	"item.data_energistics.resonance_digitalization_core": "Resonance Digitalization Core",
+	"item.data_energistics.singularity_block": "Singularity Block",
 	"item.data_energistics.solidified_obsidian": "Solidified Obsidian",
 	"item.data_energistics.tedxenon": "TedXenon Doll",
 	"item.data_energistics.time_core": "Time Core",
@@ -573,8 +574,8 @@
 	"jade.data_energistics.vertical_multiblock.role.part": "Structure Role: Element",
 	"jade.data_energistics.vertical_multiblock.unformed": "Vertical Structure: Unformed",
 	"jade.data_energistics.yes": "Yes",
-	"jei.data_energistics.radix_containment_sphere.line1": "Produced as a separate fourth output mode in the AE2 Matter Condenser.",
-	"jei.data_energistics.radix_containment_sphere.line2": "In Radix Containment Sphere mode, each sphere costs a fixed 131072 AE; higher Data Storage Components buffer more AE.",
+	"jei.data_energistics.radix_containment_sphere.line1": "Crafted in a Crafting Table.",
+	"jei.data_energistics.radix_containment_sphere.line2": "A crafted sphere has no energy. While unpowered, it cannot be used and releases one stored Binary every 100 ticks.",
 	"jei.data_energistics.radix_containment_sphere.line3": "Right-clicking Dispersing Manifest Binary consumes 1K AE and stores 1 Binary inside the sphere.",
 	"key.categories.data_energistics": "Data Energistics",
 	"key.data_energistics.data": "Binary",
@@ -895,6 +896,7 @@
 	"workstation.data_energistics.data_reassembler": "Data Reassembler",
 	"recipe.data_energistics.condenser_output": "Matter Condenser Output",
 	"recipe.data_energistics.condenser_output.any_matter": "Any item or fluid the condenser can void; this icon is not a searchable recipe input",
+	"recipe.data_energistics.condenser_output.item_aggregation": "Every %s items are condensed into one %s",
 	"tag.item.data_energistics.condenser.storage_components": "Matter Condenser Storage Components",
 	"tag.item.data_energistics.integrated_charger.crystal_growth_modules": "Crystal Growth Modules"
 }

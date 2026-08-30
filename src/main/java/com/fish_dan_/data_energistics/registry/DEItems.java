@@ -278,6 +278,7 @@ public final class DEItems {
             () -> new Item(new Item.Properties().stacksTo(16)));
     public static final DeferredItem<Item> COMPLEXIFIED_BIOCHIPS = ITEMS.registerSimpleItem("complexified_biochips");
     public static final DeferredItem<Item> DIGISIDIAN_MEMORIZE_INGOT = ITEMS.registerSimpleItem("digisidian_memorize_ingot");
+    public static final DeferredItem<Item> SINGULARITY_BLOCK = ITEMS.registerSimpleItem("singularity_block");
     public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_1K = ITEMS.register(
             "data_storage_component_1k",
             () -> new DataStorageComponentItem(new Item.Properties(), 1));
