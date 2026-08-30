@@ -1,0 +1,27 @@
+{
+  "ctm": {
+    "ctm_version": 1,
+    "type": "ctm",
+    "layer": "SOLID",
+    "textures": [
+      "data_energistics:block/trinity_core/pattern_processing/me_digital_pattern_processing_core_ctm",
+      "data_energistics:block/trinity_core/empty_trinity_unit_ctm"
+    ],
+    "extra": {
+      "connect_to": [
+        {
+          "block": "data_energistics:empty_trinity_unit"
+        },
+        {
+          "block": "data_energistics:me_digital_pattern_processing_core"
+        },
+        {
+          "block": "data_energistics:extended_me_digital_pattern_processing_core"
+        },
+        {
+          "block": "data_energistics:overlimit_me_digital_pattern_processing_core"
+        }
+      ]
+    }
+  }
+}
