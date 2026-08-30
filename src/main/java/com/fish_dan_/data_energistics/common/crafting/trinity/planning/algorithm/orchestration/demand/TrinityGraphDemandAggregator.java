@@ -13,7 +13,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
-import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 
 import net.minecraft.network.chat.Component;
 
@@ -68,10 +68,10 @@ public final class TrinityGraphDemandAggregator {
                                                                         BigInteger requestedAmount,
                                                                         CraftingQuantityMode quantityMode,
                                                                         Map<AEKey, BigInteger> available,
-                                                                        TrinityCraftingSchema settings,
+                                                                        TrinityPlanningLimits limits,
                                                                         TrinityPlanningControl control) {
         if (topology == null || target == null || requestedAmount == null ||
-                requestedAmount.signum() <= 0 || quantityMode == null || available == null || settings == null ||
+                requestedAmount.signum() <= 0 || quantityMode == null || available == null || limits == null ||
                 control == null) {
             throw new IllegalArgumentException("A Trinity graph demand request is incomplete");
         }
@@ -81,7 +81,7 @@ public final class TrinityGraphDemandAggregator {
                 requestedAmount,
                 quantityMode,
                 available,
-                settings,
+                limits,
                 control).solve();
     }
 
@@ -94,7 +94,7 @@ public final class TrinityGraphDemandAggregator {
         private final AEKey target;
         private final CraftingQuantityMode quantityMode;
         private final LinkedHashMap<AEKey, BigInteger> inventory;
-        private final TrinityCraftingSchema settings;
+        private final TrinityPlanningLimits limits;
         private final TrinityPlanningControl control;
         private final Map<Integer, Integer> topologicalPositions;
         private final RouteSearchBudget routeSearchBudget;
@@ -113,16 +113,16 @@ public final class TrinityGraphDemandAggregator {
                                     BigInteger requestedAmount,
                                     CraftingQuantityMode quantityMode,
                                     Map<AEKey, BigInteger> available,
-                                    TrinityCraftingSchema settings,
+                                    TrinityPlanningLimits limits,
                                     TrinityPlanningControl control) {
             this.topology = topology;
             this.target = target;
             this.quantityMode = quantityMode;
             this.inventory = new LinkedHashMap<>(available);
-            this.settings = settings;
+            this.limits = limits;
             this.control = control;
             this.topologicalPositions = topologicalPositions(topology);
-            this.routeSearchBudget = new RouteSearchBudget(settings.maxScheduleStates);
+            this.routeSearchBudget = new RouteSearchBudget(limits.maxScheduleStates());
             this.demand.put(target, requestedAmount);
         }
 
@@ -131,7 +131,7 @@ public final class TrinityGraphDemandAggregator {
             this.target = source.target;
             this.quantityMode = source.quantityMode;
             this.inventory = new LinkedHashMap<>(source.inventory);
-            this.settings = source.settings;
+            this.limits = source.limits;
             this.control = source.control;
             this.topologicalPositions = source.topologicalPositions;
             this.routeSearchBudget = source.routeSearchBudget;
@@ -344,7 +344,7 @@ public final class TrinityGraphDemandAggregator {
                     cycleDemand,
                     this.inventory,
                     producibleInputs,
-                    this.settings.maxScheduleStates,
+                    this.limits.maxScheduleStates(),
                     this.control);
             if (!solved.successful()) {
                 return failedNested(solved.diagnostic());

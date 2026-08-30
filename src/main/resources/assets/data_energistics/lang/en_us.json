@@ -236,6 +236,7 @@
 	"config.data_energistics.option.trinity.crafting.maxBindingVariants": "Maximum Binding Variants",
 	"config.data_energistics.option.trinity.crafting.maxSccKeys": "Maximum SCC Keys",
 	"config.data_energistics.option.trinity.crafting.maxScheduleStates": "Maximum Schedule States",
+	"config.data_energistics.option.trinity.crafting.planningBudgetMs": "Planning Budget (ms)",
 	"config.data_energistics.option.trinity.crafting.plannerQueueCapacity": "Planner Queue Capacity",
 	"config.data_energistics.option.trinity.crafting.plannerThreads": "Initial Plan Threads",
 	"config.data_energistics.option.trinity.dispatch.cooldownTicks": "Cooldown Duration (Ticks)",

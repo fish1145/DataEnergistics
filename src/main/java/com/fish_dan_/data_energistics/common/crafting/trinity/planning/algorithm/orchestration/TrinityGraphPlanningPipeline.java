@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import appeng.api.stacks.AEKey;
@@ -42,16 +43,37 @@ public interface TrinityGraphPlanningPipeline extends TrinityGraphPlanner {
      * @param requestedAmount requested delivery amount
      * @param quantityMode    quantity semantics
      * @param available       projected relevant positive inventory
-     * @param settings        dynamic solve bounds
+     * @param limits          dynamic solve bounds
      * @param control         lifecycle cancellation boundary
      * @return current-revision immutable plan or deterministic dynamic rejection
      */
     TrinityAlgorithmResult<TrinityCraftingPlan> solve(
                                                       TrinityCompiledGraph compiled,
                                                       long catalogRevision,
-                                                      BigInteger requestedAmount,
-                                                      CraftingQuantityMode quantityMode,
-                                                      Map<AEKey, BigInteger> available,
-                                                      TrinityCraftingSchema settings,
-                                                      TrinityPlanningControl control);
+                                                       BigInteger requestedAmount,
+                                                       CraftingQuantityMode quantityMode,
+                                                       Map<AEKey, BigInteger> available,
+                                                       TrinityPlanningLimits limits,
+                                                       TrinityPlanningControl control);
+
+    /**
+     * Compatibility entry point that captures a mutable configuration before solving.
+     */
+    default TrinityAlgorithmResult<TrinityCraftingPlan> solve(
+                                                               TrinityCompiledGraph compiled,
+                                                               long catalogRevision,
+                                                               BigInteger requestedAmount,
+                                                               CraftingQuantityMode quantityMode,
+                                                               Map<AEKey, BigInteger> available,
+                                                               TrinityCraftingSchema settings,
+                                                               TrinityPlanningControl control) {
+        return solve(
+                compiled,
+                catalogRevision,
+                requestedAmount,
+                quantityMode,
+                available,
+                TrinityPlanningLimits.capture(settings),
+                control);
+    }
 }

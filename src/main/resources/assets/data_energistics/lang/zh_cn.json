@@ -236,6 +236,7 @@
 	"config.data_energistics.option.trinity.crafting.maxBindingVariants": "最大输入绑定变体数",
 	"config.data_energistics.option.trinity.crafting.maxSccKeys": "最大强连通分量键数",
 	"config.data_energistics.option.trinity.crafting.maxScheduleStates": "最大排程状态数",
+	"config.data_energistics.option.trinity.crafting.planningBudgetMs": "规划预算（毫秒）",
 	"config.data_energistics.option.trinity.crafting.plannerQueueCapacity": "规划队列容量",
 	"config.data_energistics.option.trinity.crafting.plannerThreads": "初始计划线程数",
 	"config.data_energistics.option.trinity.dispatch.cooldownTicks": "冷却时长（Tick）",

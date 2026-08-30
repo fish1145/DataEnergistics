@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.T
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGateway;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
@@ -85,7 +86,7 @@ public final class TrinityRemainingPlanCalculation {
      * @param target            remaining requested key
      * @param requestedAmount   remaining delivery amount
      * @param quantityMode      retained quantity semantics
-     * @param settings          immutable planner budgets
+     * @param settings          server-thread configuration captured for new work
      * @param currentTick       current server tick used by bounded same-revision retries
      * @return current advancement result
      */
@@ -119,6 +120,7 @@ public final class TrinityRemainingPlanCalculation {
         }
 
         Map<AEKey, BigInteger> available = availableSupplier.get();
+        TrinityPlanningLimits limits = TrinityPlanningLimits.capture(settings);
         this.attemptedRevision = graph.revision();
         TrinityPlanningGateway gateway = this.gatewaySupplier.get();
         this.pending = gateway.beginTrinity(gridScope, graph.revision(), () -> calculate(
@@ -129,7 +131,7 @@ public final class TrinityRemainingPlanCalculation {
                 requestedAmount,
                 quantityMode,
                 available,
-                settings));
+                limits));
         return new Waiting();
     }
 
@@ -216,10 +218,10 @@ public final class TrinityRemainingPlanCalculation {
                                                     long gridScope,
                                                     TrinityCraftingGraphSnapshot graph,
                                                     AEKey target,
-                                                    BigInteger requestedAmount,
-                                                    CraftingQuantityMode quantityMode,
-                                                    Map<AEKey, BigInteger> available,
-                                                    TrinityCraftingSchema settings) {
+                                                     BigInteger requestedAmount,
+                                                     CraftingQuantityMode quantityMode,
+                                                     Map<AEKey, BigInteger> available,
+                                                     TrinityPlanningLimits limits) {
         try {
             TrinityPlanningComputationResult computation = gateway.calculateRemainingTrinity(new TrinityPlanningInput(
                     gridScope,
@@ -228,7 +230,7 @@ public final class TrinityRemainingPlanCalculation {
                     requestedAmount,
                     quantityMode,
                     available,
-                    settings));
+                    limits));
             if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
                 Data_Energistics.LOGGER.info(
                         "Trinity remaining planning completed target={} mode={} revision={} cachePath={} outcome={}",

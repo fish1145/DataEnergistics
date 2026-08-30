@@ -42,6 +42,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.cap
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingGraphRebuilder;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingProviderRevision;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityCraftingRequestContext;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
@@ -247,6 +248,7 @@ public abstract class CraftingServiceMixin
             return original.call(level, simRequester, what, amount, strategy);
         }
 
+        TrinityPlanningLimits planningLimits = TrinityPlanningLimits.capture(settings);
         long requestId = DATA_ENERGISTICS_INITIAL_PLANNING_SEQUENCE.incrementAndGet();
         Map<AEKey, BigInteger> available = graph
                 .map(this::dataEnergistics$capturePlanningInventory)
@@ -270,7 +272,7 @@ public abstract class CraftingServiceMixin
                         quantityMode,
                         available,
                         maxTrinityBytes,
-                        settings),
+                        planningLimits),
                 () -> original.call(level, simRequester, what, amount, strategy));
     }
 
@@ -351,7 +353,7 @@ public abstract class CraftingServiceMixin
                                                                                CraftingQuantityMode quantityMode,
                                                                                Map<AEKey, BigInteger> available,
                                                                                long maxTrinityBytes,
-                                                                               TrinityCraftingSchema settings) throws Exception {
+                                                                               TrinityPlanningLimits limits) throws Exception {
         if (graph.isEmpty()) {
             TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.STALE_GRAPH,
@@ -377,7 +379,7 @@ public abstract class CraftingServiceMixin
                 .requestedAmount(BigInteger.valueOf(amount))
                 .quantityMode(quantityMode)
                 .available(available)
-                .settings(settings)
+                .limits(limits)
                 .maxTrinityBytes(maxTrinityBytes)
                 .build();
         return DATA_ENERGISTICS_INITIAL_PLAN_CALCULATION.calculate(request);

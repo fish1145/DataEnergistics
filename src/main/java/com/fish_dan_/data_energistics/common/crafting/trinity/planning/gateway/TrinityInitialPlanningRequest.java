@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import appeng.api.stacks.AEKey;
@@ -28,12 +29,12 @@ public final class TrinityInitialPlanningRequest {
     private final BigInteger requestedAmount;
     private final CraftingQuantityMode quantityMode;
     private final Map<AEKey, BigInteger> available;
-    private final TrinityCraftingSchema settings;
+    private final TrinityPlanningLimits limits;
     private final long maxTrinityBytes;
 
     private TrinityInitialPlanningRequest(Builder builder) {
         if (builder.graph == null || builder.target == null || builder.requestedAmount == null ||
-                builder.quantityMode == null || builder.available == null || builder.settings == null) {
+                builder.quantityMode == null || builder.available == null || builder.limits == null) {
             throw new IllegalStateException("A Trinity initial planning request is incomplete");
         }
         if (builder.gridScope <= 0L || builder.requestId <= 0L || builder.requestedAmount.signum() <= 0 ||
@@ -57,7 +58,7 @@ public final class TrinityInitialPlanningRequest {
         this.requestedAmount = builder.requestedAmount;
         this.quantityMode = builder.quantityMode;
         this.available = Collections.unmodifiableMap(copiedAvailable);
-        this.settings = builder.settings;
+        this.limits = builder.limits;
         this.maxTrinityBytes = builder.maxTrinityBytes;
     }
 
@@ -96,8 +97,17 @@ public final class TrinityInitialPlanningRequest {
         return this.available;
     }
 
+    public TrinityPlanningLimits limits() {
+        return this.limits;
+    }
+
+    /**
+     * @return detached compatibility configuration that cannot mutate this request
+     * @deprecated use {@link #limits()}
+     */
+    @Deprecated(forRemoval = false)
     public TrinityCraftingSchema settings() {
-        return this.settings;
+        return this.limits.detachedSchema();
     }
 
     public long maxTrinityBytes() {
@@ -116,7 +126,7 @@ public final class TrinityInitialPlanningRequest {
         private BigInteger requestedAmount;
         private CraftingQuantityMode quantityMode;
         private Map<AEKey, BigInteger> available;
-        private TrinityCraftingSchema settings;
+        private TrinityPlanningLimits limits;
         private long maxTrinityBytes;
 
         private Builder() {}
@@ -157,7 +167,12 @@ public final class TrinityInitialPlanningRequest {
         }
 
         public Builder settings(TrinityCraftingSchema settings) {
-            this.settings = settings;
+            this.limits = TrinityPlanningLimits.capture(settings);
+            return this;
+        }
+
+        public Builder limits(TrinityPlanningLimits limits) {
+            this.limits = limits;
             return this;
         }
 

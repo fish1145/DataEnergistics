@@ -380,6 +380,14 @@ public final class DataEnergisticsConfiguration {
         public int maxScheduleStates = 500000;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Total compile-and-solve budget for one Trinity planning worker in milliseconds.",
+                "单个 Trinity 规划工作线程的编译与求解总预算，单位毫秒。"
+        })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int planningBudgetMs = 30_000;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Per-tick graph rebuild budget in milliseconds.", "每 tick 合成图重建预算，单位毫秒。" })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
         public int graphRebuildBudgetMs = 4;
