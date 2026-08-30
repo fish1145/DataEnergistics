@@ -172,7 +172,8 @@ final class BoundedDispatchProposalScheduler implements DispatchProposalSchedule
                             request.lease(),
                             reserved.target(),
                             reserved.logicalCrafts(),
-                            reserved.nextCursor())));
+                            reserved.nextCursor(),
+                            request.exclusions())));
                 }
             }
         } catch (CancellationException exception) {

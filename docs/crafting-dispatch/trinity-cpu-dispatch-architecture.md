@@ -217,7 +217,7 @@ Virtual Actor 不等于每个 worker 拥有一个长期占用的操作系统平�
 
 网络重建、供应器移除、机器卸载、维度卸载、访问租约变化、样板目录重发或任务变化后，旧 proposal 必须被服务器线程判定为 `STALE`，不得按旧容量提交。
 
-proposal 只能携带不可变身份、数量和版本，不能携带已经准备好的 `CountedCraftingAdmission`、已提取输入、能源预扣或第三方可变引用。admission 只能由服务器线程在真实物理提交前准备，并在同一 tick、同一同步调用链中完成一次性 commit。proposal 可以跨 tick 等待，但提交前必须重验 grid/runtime/worker/job/work/route/provider/pattern/target 的完整身份与代次；任一不匹配即释放并重新规划。
+proposal 只能携带不可变身份、数量和版本，不能携带已经准备好的 `CountedCraftingAdmission`、已提取输入、能源预扣或第三方可变引用。admission 只能由服务器线程在真实物理提交前准备，并在同一 tick、同一同步调用链中完成一次性 commit。proposal 可以跨 tick 等待，但提交前必须重验 grid/runtime/worker/job/work/route/provider/pattern/target 的完整身份与代次。首选 provider/target 在取得输入所有权前变为 busy、stale、blocked 或无容量时，服务器线程才释放其瞬态 reservation，并根据已捕获的当前候选重新提交异步 proposal；替代 target必须再次经过 shard、provider quantum和 `MachineTargetId` reservation，不能由同步 capacity planner绕过。provider-wide和exact-target失败以不可变、请求级 exclusion history随replacement传递，候选最多各尝试一次；候选耗尽后进入正常provider退避。任务、Grid 或 generation 整体失效时停止 fallback并取消该 work。
 
 同一 worker 可以为多个依赖无关的 work identity 保留独立 proposal slot。当前 work 的 outstanding、release 和 stale 判定必须按
 identity 精确执行；worker 级 aggregate outstanding 只用于调度快照和等待事件，不能回填到另一个已经 committed 的 slice。
@@ -783,6 +783,8 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - 已增加跨 provider 的 `MachineTargetId` 独占 reservation，并将释放生命周期绑定到 proposal ticket；
 - 已将 committed/rejected/stale proposal 的释放绑定到 exact work identity；worker aggregate outstanding 不参与单个 slice 状态；
 - 已让 worker pass 优先消费所有可结算 leases，并将 admission backoff 限定为新 proposal；任意 Pending slot 不再遮蔽其它 Ready work；
+- 已让服务器线程在首选异步 target 的 pre-ownership 重验证失败后，累计过滤失败 route/provider并通过 scheduler重新预留其它当前候选，不再把单一过时候选提升为整个 work 的 provider wait，也不会在多个失效target之间跨事件反复选择；
+- 同一 AE2 Pattern Provider 的专用 `ICraftingMachine` 保留 provider-scoped 单次路线，但不会再删除同一次容量捕获中的其它外部处理侧；
 - worker/队列/Grid admission 压力只触发有界退避，不在被拒绝的同一轮绕过异步上限执行同步资源提交；
 - worker round-robin、稳定 pattern work 顺序和 capacity target cursor 共同保留分层公平性，shard 只负责原子竞争边界；
 - 保持所有真实世界提交在服务器线程。

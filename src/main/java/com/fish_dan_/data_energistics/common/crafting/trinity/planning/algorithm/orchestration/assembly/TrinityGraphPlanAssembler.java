@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -68,30 +67,31 @@ public final class TrinityGraphPlanAssembler {
             throw new IllegalArgumentException("A Trinity acyclic plan assembly requires a solved plan");
         }
         ArrayList<TrinityPlanStage> stages = new ArrayList<>(acyclicPlan.executionOrder().size());
-        ArrayList<StageFootprint> footprints = new ArrayList<>(acyclicPlan.executionOrder().size());
         ArrayList<Integer> stageOrder = new ArrayList<>(acyclicPlan.executionOrder().size());
         LinkedHashMap<TrinityPatternIdentity, BigInteger> patternFirings = new LinkedHashMap<>();
         LinkedHashMap<AEKey, BigInteger> stackRequests = new LinkedHashMap<>();
         for (TrinityVariantFiring firing : acyclicPlan.executionOrder()) {
             int stageIndex = stages.size();
-            Set<Integer> dependencies = dependenciesFor(firing.variant(), false, footprints);
             stages.add(stage(
                     stageIndex,
                     false,
-                    dependencies,
                     firing.variant(),
                     firing.count(),
                     false));
-            footprints.add(StageFootprint.from(stageIndex, false, firing.variant()));
             stageOrder.add(stageIndex);
             mergePatternFiring(patternFirings, firing.variant(), firing.count());
             mergeScaled(stackRequests, firing.variant().inputs(), firing.count());
             mergeScaled(stackRequests, firing.variant().outputs(), firing.count());
         }
+        List<TrinityPlanStage> plannedStages = TrinityStageDependencyPlanner.plan(
+                acyclicPlan.externalInputs(),
+                stages,
+                stageOrder,
+                List.of());
         return new TrinityGraphPlanAssembly(
                 acyclicPlan.externalInputs(),
                 Collections.unmodifiableMap(patternFirings),
-                List.copyOf(stages),
+                plannedStages,
                 List.copyOf(stageOrder),
                 List.of(),
                 Map.of(),
@@ -130,7 +130,6 @@ public final class TrinityGraphPlanAssembler {
                 .thenComparing(OrderedUnit::stableKey));
 
         ArrayList<TrinityPlanStage> stages = new ArrayList<>();
-        ArrayList<StageFootprint> footprints = new ArrayList<>();
         ArrayList<Integer> stageOrder = new ArrayList<>();
         ArrayList<TrinityCycleRepeatBlock> repeatBlocks = new ArrayList<>();
         LinkedHashMap<TrinityPatternIdentity, BigInteger> patternFirings = new LinkedHashMap<>();
@@ -142,15 +141,12 @@ public final class TrinityGraphPlanAssembler {
         for (OrderedUnit unit : units) {
             if (unit instanceof AcyclicUnit acyclic) {
                 int stageIndex = stages.size();
-                Set<Integer> dependencies = dependenciesFor(acyclic.variant(), false, footprints);
                 stages.add(stage(
                         stageIndex,
                         false,
-                        dependencies,
                         acyclic.variant(),
                         acyclic.count(),
                         false));
-                footprints.add(StageFootprint.from(stageIndex, false, acyclic.variant()));
                 stageOrder.add(stageIndex);
                 mergePatternFiring(patternFirings, acyclic.variant(), acyclic.count());
                 mergeScaled(netChange, acyclic.variant().netChange(), acyclic.count());
@@ -163,22 +159,18 @@ public final class TrinityGraphPlanAssembler {
             appendOneTimeStages(
                     cycle.prefixOrder(),
                     stages,
-                    footprints,
                     stageOrder,
                     patternFirings,
                     stackRequests);
             ArrayList<Integer> blockStages = new ArrayList<>();
             for (TrinityVariantFiring batch : cycle.localOrder()) {
                 int stageIndex = stages.size();
-                Set<Integer> dependencies = dependenciesFor(batch.variant(), true, footprints);
                 stages.add(stage(
                         stageIndex,
                         true,
-                        dependencies,
                         batch.variant(),
                         batch.count(),
                         true));
-                footprints.add(StageFootprint.from(stageIndex, true, batch.variant()));
                 stageOrder.add(stageIndex);
                 blockStages.add(stageIndex);
                 BigInteger totalCount = batch.count().multiply(cycle.repetitions());
@@ -195,7 +187,6 @@ public final class TrinityGraphPlanAssembler {
             appendOneTimeStages(
                     cycle.suffixOrder(),
                     stages,
-                    footprints,
                     stageOrder,
                     patternFirings,
                     stackRequests);
@@ -209,10 +200,15 @@ public final class TrinityGraphPlanAssembler {
                     INSUFFICIENT_INPUT_KEY,
                     Map.of("target", target.toString()));
         }
+        List<TrinityPlanStage> plannedStages = TrinityStageDependencyPlanner.plan(
+                demandSolution.initialInputs(),
+                stages,
+                stageOrder,
+                repeatBlocks);
         return TrinityAlgorithmResult.success(new TrinityGraphPlanAssembly(
                 demandSolution.initialInputs(),
                 Collections.unmodifiableMap(patternFirings),
-                List.copyOf(stages),
+                plannedStages,
                 List.copyOf(stageOrder),
                 List.copyOf(repeatBlocks),
                 Collections.unmodifiableMap(minimumSeed),
@@ -275,47 +271,22 @@ public final class TrinityGraphPlanAssembler {
     private static void appendOneTimeStages(
                                             List<TrinityVariantFiring> order,
                                             List<TrinityPlanStage> stages,
-                                            List<StageFootprint> footprints,
                                             List<Integer> stageOrder,
                                             Map<TrinityPatternIdentity, BigInteger> patternFirings,
                                             Map<AEKey, BigInteger> stackRequests) {
         for (TrinityVariantFiring batch : order) {
             int stageIndex = stages.size();
-            Set<Integer> dependencies = dependenciesFor(batch.variant(), false, footprints);
             stages.add(stage(
                     stageIndex,
                     false,
-                    dependencies,
                     batch.variant(),
                     batch.count(),
                     false));
-            footprints.add(StageFootprint.from(stageIndex, false, batch.variant()));
             stageOrder.add(stageIndex);
             mergePatternFiring(patternFirings, batch.variant(), batch.count());
             mergeScaled(stackRequests, batch.variant().inputs(), batch.count());
             mergeScaled(stackRequests, batch.variant().outputs(), batch.count());
         }
-    }
-
-    /**
-     * Computes conservative stage dependencies from resource footprints.
-     *
-     * <p>
-     * Stages that do not share inputs, outputs, pattern identity or a cycle cursor can be leased together. A cycle
-     * stage remains ordered against every earlier stage so its seed and cursor semantics cannot be changed by the
-     * parallel DAG path.
-     * </p>
-     */
-    private static Set<Integer> dependenciesFor(TrinityPatternVariant variant,
-                                                boolean cycleStage,
-                                                List<StageFootprint> previous) {
-        LinkedHashSet<Integer> dependencies = new LinkedHashSet<>();
-        for (StageFootprint candidate : previous) {
-            if (cycleStage || candidate.cycleStage() || candidate.conflictsWith(variant)) {
-                dependencies.add(candidate.index());
-            }
-        }
-        return Collections.unmodifiableSet(dependencies);
     }
 
     private static Map<AEKey, BigInteger> repeatedNetChange(
@@ -354,7 +325,6 @@ public final class TrinityGraphPlanAssembler {
     private static TrinityPlanStage stage(
                                           int index,
                                           boolean cycle,
-                                          Set<Integer> dependencies,
                                           TrinityPatternVariant variant,
                                           BigInteger count,
                                           boolean compressedCycleBatch) {
@@ -364,7 +334,7 @@ public final class TrinityGraphPlanAssembler {
         return new TrinityPlanStage(
                 index,
                 cycle,
-                dependencies,
+                Set.of(),
                 List.of(new TrinityPlanPatternFiring(
                         variant.patternIdentity(),
                         variant.primaryOutput(),
@@ -512,40 +482,6 @@ public final class TrinityGraphPlanAssembler {
         @Override
         public String stableKey() {
             return "1:" + String.format("%010d", this.sequence);
-        }
-    }
-
-    private record StageFootprint(
-                                  int index,
-                                  boolean cycleStage,
-                                  Set<AEKey> inputs,
-                                  Set<AEKey> outputs,
-                                  TrinityPatternIdentity patternIdentity) {
-
-        private static StageFootprint from(int index, boolean cycleStage, TrinityPatternVariant variant) {
-            return new StageFootprint(
-                    index,
-                    cycleStage,
-                    Set.copyOf(variant.inputs().keySet()),
-                    Set.copyOf(variant.outputs().keySet()),
-                    variant.patternIdentity());
-        }
-
-        private boolean conflictsWith(TrinityPatternVariant variant) {
-            return this.patternIdentity.equals(variant.patternIdentity()) ||
-                    intersects(this.inputs, variant.inputs().keySet()) ||
-                    intersects(this.outputs, variant.inputs().keySet()) ||
-                    intersects(this.inputs, variant.outputs().keySet()) ||
-                    intersects(this.outputs, variant.outputs().keySet());
-        }
-
-        private static boolean intersects(Set<AEKey> left, Set<AEKey> right) {
-            for (AEKey key : left) {
-                if (right.contains(key)) {
-                    return true;
-                }
-            }
-            return false;
         }
     }
 }

@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.common.crafting.dynamic.DynamicCraftingOut
 import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lifecycle.TrinityDispatchProposalLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchCursor;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchExclusion;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchLease;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposal;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
@@ -96,6 +97,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1183,28 +1185,24 @@ final class TrinityDataCoreCpuLogic {
             }
 
             currentTick = TickHandler.instance().getCurrentTick();
-            if (selectedProposal == null) {
-                capacityCapture = this.capacityResolver.capture(
-                        publications,
-                        details,
-                        prototype.inputHolder(),
-                        maximumCount,
-                        patternIdentity,
-                        currentTick);
+            capacityCapture = this.capacityResolver.capture(
+                    publications,
+                    details,
+                    prototype.inputHolder(),
+                    maximumCount,
+                    patternIdentity,
+                    currentTick);
+            snapshots = capacityCapture.snapshots();
+            if (snapshots.isEmpty()) {
+                capacityCapture = nativeSingleCraftFallbackCapture(capacityCapture);
                 snapshots = capacityCapture.snapshots();
-                if (snapshots.isEmpty()) {
-                    capacityCapture = nativeSingleCraftFallbackCapture(capacityCapture);
-                    snapshots = capacityCapture.snapshots();
-                    nativeSingleCraftFallback = !snapshots.isEmpty();
-                    if (nativeSingleCraftFallback) {
-                        synchronousFallback = true;
-                    }
+                nativeSingleCraftFallback = !snapshots.isEmpty();
+                if (nativeSingleCraftFallback) {
+                    synchronousFallback = true;
                 }
-            } else {
-                snapshots = List.of(selectedProposal.target());
             }
         }
-        if (snapshots.isEmpty()) {
+        if (snapshots.isEmpty() && selectedProposal == null) {
             return settleProposal(workIdentity, asynchronousSelection, ProviderDispatchOutcome.NONE);
         }
         if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Empty &&
@@ -1240,18 +1238,16 @@ final class TrinityDataCoreCpuLogic {
         if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Pending) {
             return ProviderDispatchOutcome.AWAITING_PROPOSAL;
         }
-        if (asynchronousSelection) {
-            maximumCount = Math.min(maximumCount, selectedProposal.logicalCrafts());
-        }
-
         int physicalAttempts = 0;
         int inspectedSnapshots = 0;
         CraftingDispatchCursor searchCursor = this.capacitySliceCursor;
         Set<ProviderCapacitySnapshot> inspectedTargets = Collections.newSetFromMap(new IdentityHashMap<>());
-        while (inspectedSnapshots < snapshots.size() &&
+        int candidateLimit = asynchronousSelection ? 1 : snapshots.size();
+        while (inspectedSnapshots < candidateLimit &&
                 physicalAttempts < physicalCallLimit &&
                 !dispatchWindow.isExhausted()) {
-            DispatchCapacitySlicePlan candidatePlan = asynchronousSelection ?
+            boolean usingSelectedProposal = asynchronousSelection;
+            DispatchCapacitySlicePlan candidatePlan = usingSelectedProposal ?
                     new DispatchCapacitySlicePlan(List.of(new DispatchCapacitySlicePlan.Slice(
                             selectedProposal.target(),
                             Math.min(selectedProposal.logicalCrafts(), maximumCount),
@@ -1266,14 +1262,15 @@ final class TrinityDataCoreCpuLogic {
             }
             DispatchCapacitySlicePlan.Slice slice = candidatePlan.slices().getFirst();
             ProviderCapacitySnapshot snapshot = slice.target();
+            inspectedSnapshots++;
+            searchCursor = slice.nextCursor();
             if (!inspectedTargets.add(snapshot)) {
                 break;
             }
-            inspectedSnapshots++;
-            searchCursor = slice.nextCursor();
+            boolean candidateNativeFallback = !usingSelectedProposal && nativeSingleCraftFallback;
             long prototypeOffer = offeredCount(snapshot, slice, maximumCount);
             ICraftingProvider provider = resolveCurrentProvider(
-                    nativeSingleCraftFallback,
+                    candidateNativeFallback,
                     publications,
                     details,
                     prototype.inputHolder(),
@@ -1283,12 +1280,33 @@ final class TrinityDataCoreCpuLogic {
                     currentTick);
             if (provider == null) {
                 if (asynchronousSelection) {
-                    this.proposalCoordinator.discardStale(workIdentity);
+                    return resubmitAfterSelectedTargetFailure(
+                            dispatchLease,
+                            capacityCapture,
+                            maximumCount,
+                            selectedProposal,
+                            workIdentity,
+                            currentTick,
+                            dispatchBudget,
+                            true,
+                            CraftingDispatchExclusion.target(selectedProposal.target()));
                 }
                 continue;
             }
             boolean countedDispatch = CountedCraftingProviderAdapters.supportsCountedDispatch(provider);
             if (!canAttemptProvider(dispatchWindow, provider, details, snapshot.route(), countedDispatch)) {
+                if (asynchronousSelection) {
+                    return resubmitAfterSelectedTargetFailure(
+                            dispatchLease,
+                            capacityCapture,
+                            maximumCount,
+                            selectedProposal,
+                            workIdentity,
+                            currentTick,
+                            dispatchBudget,
+                            false,
+                            CraftingDispatchExclusion.target(selectedProposal.target()));
+                }
                 continue;
             }
 
@@ -1298,6 +1316,18 @@ final class TrinityDataCoreCpuLogic {
                     details,
                     countedDispatch)) {
                 if (providerBusy(provider, details, dispatchWindow)) {
+                    if (asynchronousSelection) {
+                        return resubmitAfterSelectedTargetFailure(
+                                dispatchLease,
+                                capacityCapture,
+                                maximumCount,
+                                selectedProposal,
+                                workIdentity,
+                                currentTick,
+                                dispatchBudget,
+                                false,
+                                CraftingDispatchExclusion.provider(selectedProposal.target()));
+                    }
                     continue;
                 }
                 if (dispatchWindow.isExhausted()) {
@@ -1326,7 +1356,7 @@ final class TrinityDataCoreCpuLogic {
 
                     long offeredCount = offeredCount(snapshot, slice, currentMaximum);
                     ICraftingProvider currentProvider = resolveCurrentProvider(
-                            nativeSingleCraftFallback,
+                            candidateNativeFallback,
                             publications,
                             details,
                             inputs.inputHolder(),
@@ -1336,7 +1366,16 @@ final class TrinityDataCoreCpuLogic {
                             currentTick);
                     if (currentProvider != provider) {
                         if (asynchronousSelection) {
-                            this.proposalCoordinator.discardStale(workIdentity);
+                            return resubmitAfterSelectedTargetFailure(
+                                    dispatchLease,
+                                    capacityCapture,
+                                    maximumCount,
+                                    selectedProposal,
+                                    workIdentity,
+                                    currentTick,
+                                    dispatchBudget,
+                                    true,
+                                    CraftingDispatchExclusion.target(selectedProposal.target()));
                         }
                         continue;
                     }
@@ -1351,7 +1390,7 @@ final class TrinityDataCoreCpuLogic {
                         }
                         return settleProposal(
                                 workIdentity,
-                                asynchronousSelection,
+                                false,
                                 new ProviderDispatchOutcome(physicalAttempts, false));
                     }
 
@@ -1364,7 +1403,7 @@ final class TrinityDataCoreCpuLogic {
                                 offeredCount,
                                 snapshot,
                                 dispatchWindow,
-                                nativeSingleCraftFallback,
+                                candidateNativeFallback,
                                 countedDispatch);
                     } catch (RuntimeException exception) {
                         Data_Energistics.LOGGER.error(
@@ -1378,12 +1417,36 @@ final class TrinityDataCoreCpuLogic {
                                 details,
                                 snapshot.route(),
                                 CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
+                        if (asynchronousSelection) {
+                            return resubmitAfterSelectedTargetFailure(
+                                    dispatchLease,
+                                    capacityCapture,
+                                    maximumCount,
+                                    selectedProposal,
+                                    workIdentity,
+                                    currentTick,
+                                    dispatchBudget,
+                                    false,
+                                    CraftingDispatchExclusion.provider(selectedProposal.target()));
+                        }
                         continue;
                     }
                     for (CraftingDispatchRejection rejection : preparation.rejections()) {
                         dispatchWindow.recordResult(provider, details, rejection.target(), rejection.status());
                     }
                     if (!preparation.accepted()) {
+                        if (asynchronousSelection) {
+                            return resubmitAfterSelectedTargetFailure(
+                                    dispatchLease,
+                                    capacityCapture,
+                                    maximumCount,
+                                    selectedProposal,
+                                    workIdentity,
+                                    currentTick,
+                                    dispatchBudget,
+                                    false,
+                                    preparationExclusion(preparation, selectedProposal.target()));
+                        }
                         continue;
                     }
                     if (dispatchWindow.isExhausted()) {
@@ -1398,6 +1461,18 @@ final class TrinityDataCoreCpuLogic {
                     if ((snapshot.routingMode() != ProviderRoutingMode.AGGREGATE &&
                             !target.equals(snapshot.route())) ||
                             !canAttemptProvider(dispatchWindow, provider, details, target, countedDispatch)) {
+                        if (asynchronousSelection) {
+                            return resubmitAfterSelectedTargetFailure(
+                                    dispatchLease,
+                                    capacityCapture,
+                                    maximumCount,
+                                    selectedProposal,
+                                    workIdentity,
+                                    currentTick,
+                                    dispatchBudget,
+                                    false,
+                                    CraftingDispatchExclusion.target(selectedProposal.target()));
+                        }
                         continue;
                     }
                     long count;
@@ -1418,6 +1493,18 @@ final class TrinityDataCoreCpuLogic {
                                 details,
                                 target,
                                 CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
+                        if (asynchronousSelection) {
+                            return resubmitAfterSelectedTargetFailure(
+                                    dispatchLease,
+                                    capacityCapture,
+                                    maximumCount,
+                                    selectedProposal,
+                                    workIdentity,
+                                    currentTick,
+                                    dispatchBudget,
+                                    false,
+                                    CraftingDispatchExclusion.provider(selectedProposal.target()));
+                        }
                         continue;
                     }
                     if (dispatchWindow.isExhausted()) {
@@ -1466,7 +1553,7 @@ final class TrinityDataCoreCpuLogic {
                         }
                         return settleProposal(
                                 workIdentity,
-                                asynchronousSelection,
+                                false,
                                 new ProviderDispatchOutcome(physicalAttempts, false));
                     }
                     PatternInputTransaction acceptedInputs = inputTransaction;
@@ -1496,7 +1583,7 @@ final class TrinityDataCoreCpuLogic {
                             accounting));
                     if (result.physicalAttempted()) {
                         physicalAttempts = Math.incrementExact(physicalAttempts);
-                        this.capacitySliceCursor = asynchronousSelection ?
+                        this.capacitySliceCursor = usingSelectedProposal ?
                                 selectedProposal.nextCursor() :
                                 slice.nextCursor();
                     }
@@ -1512,7 +1599,7 @@ final class TrinityDataCoreCpuLogic {
                                 new ProviderDispatchOutcome(physicalAttempts, false));
                     }
                     if (result.dispatched()) {
-                        if (asynchronousSelection || physicalAttempts >= physicalCallLimit) {
+                        if (usingSelectedProposal || physicalAttempts >= physicalCallLimit) {
                             return settleProposal(
                                     workIdentity,
                                     asynchronousSelection,
@@ -1536,6 +1623,85 @@ final class TrinityDataCoreCpuLogic {
                 workIdentity,
                 asynchronousSelection,
                 new ProviderDispatchOutcome(physicalAttempts, false));
+    }
+
+    /**
+     * Replaces a selected proposal that failed before provider ownership with a freshly reserved asynchronous choice.
+     *
+     * <p>
+     * The selected ticket retains its provider-route and machine reservation until this boundary. The replacement is
+     * submitted through the ordinary scheduler so every fallback target is checked against the same shard,
+     * provider-quantum and machine-exclusive reservation state as the original proposal. No synchronous fallback may
+     * bypass those reservations while other work tickets remain outstanding.
+     * </p>
+     */
+    private ProviderDispatchOutcome resubmitAfterSelectedTargetFailure(
+                                                                       CraftingDispatchLease dispatchLease,
+                                                                       ProviderCapacityCapture capacityCapture,
+                                                                       long maximumCount,
+                                                                       CraftingDispatchProposal failedProposal,
+                                                                       Object workIdentity,
+                                                                       long currentTick,
+                                                                       CraftingDispatchBudget dispatchBudget,
+                                                                       boolean stale,
+                                                                       CraftingDispatchExclusion failureExclusion) {
+        if (stale) {
+            this.proposalCoordinator.discardStale(workIdentity);
+        } else {
+            this.proposalCoordinator.release(workIdentity);
+        }
+
+        LinkedHashSet<CraftingDispatchExclusion> exclusions = new LinkedHashSet<>(failedProposal.exclusions());
+        exclusions.add(failureExclusion);
+        List<ProviderCapacitySnapshot> alternatives = capacityCapture.snapshots().stream()
+                .filter(snapshot -> exclusions.stream().noneMatch(exclusion -> exclusion.excludes(snapshot)))
+                .toList();
+        if (alternatives.isEmpty()) {
+            return ProviderDispatchOutcome.NONE;
+        }
+        ProviderCapacityCapture alternativeCapture = new ProviderCapacityCapture(
+                capacityCapture.key(),
+                alternatives);
+        TrinityWorkerProposalCoordinator.Decision replacement;
+        try {
+            replacement = this.proposalCoordinator.submit(
+                    new CraftingDispatchProposalRequest(
+                            dispatchLease,
+                            alternativeCapture,
+                            BigInteger.valueOf(maximumCount),
+                            this.capacitySliceCursor,
+                            exclusions),
+                    workIdentity,
+                    this.cpu::proposalCompleted,
+                    dispatchBudget.proposalPolicy());
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Trinity CPU {} could not replace a pre-ownership dispatch proposal",
+                    this.cpu.number(),
+                    exception);
+            return ProviderDispatchOutcome.NONE;
+        }
+        if (replacement instanceof TrinityWorkerProposalCoordinator.Pending) {
+            return ProviderDispatchOutcome.AWAITING_PROPOSAL;
+        }
+        if (replacement instanceof TrinityWorkerProposalCoordinator.Deferred) {
+            this.proposalRetryAt = Math.addExact(currentTick, dispatchBudget.retryBackoffTicks());
+            return ProviderDispatchOutcome.DEFERRED;
+        }
+        if (replacement instanceof TrinityWorkerProposalCoordinator.Fallback) {
+            return ProviderDispatchOutcome.NONE;
+        }
+        throw new IllegalStateException("A replacement Trinity dispatch proposal returned an impossible decision");
+    }
+
+    private static CraftingDispatchExclusion preparationExclusion(
+                                                                  CountedCraftingPreparation preparation,
+                                                                  ProviderCapacitySnapshot failedTarget) {
+        boolean providerScoped = preparation.rejections().stream()
+                .anyMatch(rejection -> rejection.target() == null);
+        return providerScoped ?
+                CraftingDispatchExclusion.provider(failedTarget) :
+                CraftingDispatchExclusion.target(failedTarget);
     }
 
     /**

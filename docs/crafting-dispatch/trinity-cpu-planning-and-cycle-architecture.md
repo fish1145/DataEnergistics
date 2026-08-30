@@ -470,7 +470,10 @@ ojAlgo minimise/maximise/probe；exact 与 proven-equivalent cache hit 的本请
 快照和单次请求 limits，后台线程不读取世界状态或可变 Configuration。Trinity 生产规划默认使用 30 秒最优性证明预算，
 并结合 Future 协作取消及确定性的图、variant、全图 route state 与逐 SCC 局部 state 边界控制复杂度。每次规划先提取目标
 的完整反向可达超图，再展开输入绑定和 SCC，因此无关样板不会放大本次求解。纯 DAG
-计划按 pattern identity 与输入/输出资源 footprint 建立依赖，完全独立的 stage 可以并发 lease。
+计划使用数量化 material-token provenance 建立依赖：初始余额足以覆盖多个消费者时，它们可以并发 lease；只有确实复用
+先前 stage 返回的稀缺 seed/catalyst，或消费先前 stage 的净产出时才保留前驱。repeat cursor独立保证一个 cycle block
+内部顺序，cycle身份本身不再形成跨图全局屏障。恢复旧执行快照时，完整输出元数据按 shared-input 与 positive-net
+producer安全稀疏化旧依赖；缺少输出元数据的旧快照继续保留原保守依赖。
 
 ### 11.3 已落地的执行与所有权轨道
 

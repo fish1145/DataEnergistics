@@ -254,9 +254,6 @@ public final class TrinityPlanExecution {
                 }
             }
         }
-        if (restored.recomputeRestoredDependencies()) {
-            restored.markDurableMutation();
-        }
         restored.seedReserve.putAll(snapshot.seedReserve());
         boolean missingOutputProjection = restored.stages.values().stream()
                 .flatMap(stage -> stage.firings.stream())
@@ -289,6 +286,10 @@ public final class TrinityPlanExecution {
         }
         restored.validatePersistedStatusShape(persistedStatus);
 
+        if (restored.recomputeRestoredDependencies()) {
+            restored.markDurableMutation();
+            restored.validateInstalledPlan();
+        }
         restored.rebuildTransientState(currentTick);
         return restored;
     }
@@ -1431,48 +1432,56 @@ public final class TrinityPlanExecution {
     }
 
     /**
-     * Recomputes the artificial predecessor chain used by older plans while retaining explicit non-chain edges.
+     * Recomputes derived material-flow dependencies recorded by older plans.
      *
      * <p>
-     * Persisted proposals and leases are transient, so restoring a job is the safe point to expose independent
-     * stages. Cycle stages remain ordered; stages with overlapping input/output footprints remain ordered as well.
+     * Persisted proposals and leases are transient, so restoring a job is the safe point to remove obsolete global
+     * cycle, shared-output, reverse-flow and same-pattern barriers. A shared input remains ordered because an older
+     * snapshot lacks quantity provenance: a later permanent consumer must not steal a scarce seed before an earlier
+     * cycle returns it. Positive net production consumed by a later stage also remains ordered. Repeat cursors
+     * serialize one cycle internally. Legacy snapshots without complete output metadata retain their original
+     * conservative dependencies because their data flow cannot be reconstructed safely.
      * </p>
      *
      * @return whether at least one persisted dependency set changed
      */
     private boolean recomputeRestoredDependencies() {
-        ArrayList<ExecutionFootprint> previous = new ArrayList<>();
+        LinkedHashMap<Integer, ExecutionFootprint> footprints = new LinkedHashMap<>();
+        for (Integer stageIndex : this.stageOrder) {
+            StageState stage = requireStage(stageIndex);
+            RepeatState repeat = this.repeatByStage.get(stageIndex);
+            footprints.put(
+                    stageIndex,
+                    repeat == null ?
+                            ExecutionFootprint.fromStage(stage) :
+                            ExecutionFootprint.fromRepeat(repeat, this.stages));
+        }
+        if (footprints.values().stream().anyMatch(footprint -> !footprint.outputComplete())) {
+            return false;
+        }
+
         boolean changed = false;
         for (Integer stageIndex : this.stageOrder) {
             StageState stage = requireStage(stageIndex);
             LinkedHashSet<Integer> original = new LinkedHashSet<>(stage.dependencies);
             LinkedHashSet<Integer> recomputed = new LinkedHashSet<>();
-            ExecutionFootprint current = ExecutionFootprint.from(stage);
-            for (ExecutionFootprint candidate : previous) {
-                if (stage.cycle || candidate.cycleStage() || candidate.conflictsWith(current)) {
-                    recomputed.add(candidate.index());
+            ExecutionFootprint current = footprints.get(stageIndex);
+            for (Integer dependency : original) {
+                ExecutionFootprint candidate = footprints.get(dependency);
+                if (candidate == null) {
+                    throw new IllegalArgumentException("A restored Trinity dependency is absent from its stage order");
                 }
-            }
-            boolean artificialPredecessor = original.size() == 1 &&
-                    original.contains(candidatePredecessor(stageIndex));
-            boolean completeFootprints = current.outputComplete() &&
-                    previous.stream().allMatch(ExecutionFootprint::outputComplete);
-            if (!artificialPredecessor || !completeFootprints) {
-                recomputed.addAll(original);
+                if (candidate.requiresOrderingBefore(current)) {
+                    recomputed.add(dependency);
+                }
             }
             if (!original.equals(recomputed)) {
                 stage.dependencies.clear();
                 stage.dependencies.addAll(recomputed);
                 changed = true;
             }
-            previous.add(current);
         }
         return changed;
-    }
-
-    private int candidatePredecessor(int stageIndex) {
-        int position = this.stageOrder.indexOf(stageIndex);
-        return position <= 0 ? -1 : this.stageOrder.get(position - 1);
     }
 
     private Work createWork(StageState stage) {
@@ -1790,42 +1799,66 @@ public final class TrinityPlanExecution {
     private record RetryEntry(long retryAt, int stageIndex, long version, WaitKind waitKind) {}
 
     private record ExecutionFootprint(
-                                      int index,
-                                      boolean cycleStage,
                                       Set<AEKey> inputs,
-                                      Set<AEKey> outputs,
-                                      Set<TrinityPatternIdentity> patternIdentities,
+                                      Set<AEKey> positiveNetOutputs,
                                       boolean outputComplete) {
 
-        private static ExecutionFootprint from(StageState stage) {
-            LinkedHashSet<AEKey> inputs = new LinkedHashSet<>(stage.inputKeys);
-            inputs.addAll(stage.requiredAtStart.keySet());
-            LinkedHashSet<AEKey> outputs = new LinkedHashSet<>();
-            LinkedHashSet<TrinityPatternIdentity> identities = new LinkedHashSet<>();
+        private static ExecutionFootprint fromStage(StageState stage) {
+            LinkedHashSet<AEKey> inputs = new LinkedHashSet<>(stage.requiredAtStart.keySet());
+            inputs.addAll(stage.inputKeys);
+            LinkedHashSet<AEKey> positiveNetOutputs = new LinkedHashSet<>();
+            stage.netChange.forEach((key, amount) -> {
+                if (amount > 0L) {
+                    positiveNetOutputs.add(key);
+                }
+            });
             boolean outputComplete = true;
             for (FiringState firing : stage.firings) {
-                outputs.addAll(firing.outputs.keySet());
-                identities.add(firing.patternIdentity);
                 outputComplete &= !firing.outputs.isEmpty();
             }
             return new ExecutionFootprint(
-                    stage.index,
-                    stage.cycle,
                     Set.copyOf(inputs),
-                    Set.copyOf(outputs),
-                    Set.copyOf(identities),
+                    Set.copyOf(positiveNetOutputs),
                     outputComplete);
         }
 
-        private boolean conflictsWith(ExecutionFootprint stage) {
+        private static ExecutionFootprint fromRepeat(
+                                                     RepeatState repeat,
+                                                     Map<Integer, StageState> stages) {
+            LinkedHashSet<AEKey> inputs = new LinkedHashSet<>(repeat.minimumSeed.keySet());
+            LinkedHashMap<AEKey, Long> blockNetChange = new LinkedHashMap<>();
+            boolean outputComplete = true;
+            for (Integer memberIndex : repeat.stageOrder) {
+                StageState member = stages.get(memberIndex);
+                if (member == null) {
+                    throw new IllegalArgumentException("A restored Trinity repeat references an absent stage");
+                }
+                inputs.addAll(member.inputKeys);
+                member.netChange.forEach((key, amount) -> blockNetChange.merge(key, amount, Math::addExact));
+                for (FiringState firing : member.firings) {
+                    outputComplete &= !firing.outputs.isEmpty();
+                }
+            }
+            LinkedHashSet<AEKey> positiveNetOutputs = new LinkedHashSet<>();
+            blockNetChange.forEach((key, amount) -> {
+                if (amount < 0L) {
+                    inputs.add(key);
+                } else if (amount > 0L) {
+                    positiveNetOutputs.add(key);
+                }
+            });
+            return new ExecutionFootprint(
+                    Set.copyOf(inputs),
+                    Set.copyOf(positiveNetOutputs),
+                    outputComplete);
+        }
+
+        private boolean requiresOrderingBefore(ExecutionFootprint stage) {
             if (!this.outputComplete || !stage.outputComplete) {
                 return true;
             }
-            return !Collections.disjoint(this.patternIdentities, stage.patternIdentities) ||
-                    intersects(this.inputs, stage.inputs) ||
-                    intersects(this.outputs, stage.inputs) ||
-                    intersects(this.inputs, stage.outputs) ||
-                    intersects(this.outputs, stage.outputs);
+            return intersects(this.inputs, stage.inputs) ||
+                    intersects(this.positiveNetOutputs, stage.inputs);
         }
 
         private static boolean intersects(Set<AEKey> left, Set<AEKey> right) {
