@@ -4,14 +4,14 @@
 
 当前 Trinity CPU 的 Phase 0 至 Phase 2 已解决候选选择、公平轮询、派发拒绝、输入所有权和物理预算问题。当前分支也
 已完成 Trinity 独立 DAG/SCC 计算内核、schema 2、seed 输出门、动态借料和事件执行器。扩展计划已经可以由真实
-Trinity CPU 按阶段安全消费；玩家数量页、确认页和 `beginCraftingCalculation` 双轨入口也已接入。Phase 3 同步
+Trinity CPU 按阶段安全消费；玩家数量页、确认页和 `beginCraftingCalculation` Trinity-only 入口也已接入。Phase 3 同步
 派发已改为 publication identity、不可变容量快照、公平 target slice 和唯一 commit 边界；Phase 4 的
 worker proposal、generation lease、固定 provider shard 和事件驱动调度也已接入，无法证明等价的 addon 路线保留
 原生单次语义。Phase 5 当前已接入独立 COMMON 配置、完整的 per-grid `OBSERVING`/`ADAPTIVE`/`SAFE` Governor，
 以及跨 Grid 共享的服务器 tick
 动态发配边界；完整 tick、capacity、proposal、commit、接受率、stale、logical-per-physical-call 与 worker share
-均为运行时派生指标。预算耗尽已与 stale/provider 拒绝分离；大型图的 binding variant 上限也已改为只计算额外
-笛卡尔分支，默认及旧默认配置迁移为 `32768`，普通唯一绑定样板不再在全图第 513 个位置误回退 AE2。自适应切换、
+均为运行时派生指标。预算耗尽已与 stale/provider 拒绝分离；大型图的 binding variant 上限统计请求实际物化的去重
+variant 总数，默认值为 `32768`。自适应切换、
 连续超时/Actor 异常触发的 SAFE 同步回退、proposal admission policy 和有界 retry backoff 均已启用；这些调节只作用于
 物理额度，不拆分 counted logical batch。
 
@@ -23,8 +23,9 @@ worker proposal、generation lease、固定 provider shard 和事件驱动调度
 ```text
 Craft Amount / 外部请求
   -> CraftingService.beginCraftingCalculation
-  -> AE2 CraftingCalculation
-  -> ICraftingPlan(patternTimes + usedItems + emittedItems)
+  -> TrinityPlanningGateway
+  -> reachable/compiled/solved cache
+  -> TrinityCraftingPlan(stage + repeat block + verified quality)
   -> CraftingService.submitJob
   -> TrinityDataCoreExecutingCraftingJob
   -> TrinityDataCoreCpuLogic.executeCrafting
@@ -32,9 +33,9 @@ Craft Amount / 外部请求
   -> TrinityDataCoreCpuLogic.insert
 ```
 
-当前分支已建立网格图、扩展计划契约、`TrinityPlanningGateway` 双路 Future、完整 DAG/SCC 规划器和 schema 2
-执行器。玩家请求会携带数量模式；存在合格 Trinity CPU 时，入口并行启动 Trinity 与 AE2 计算，Trinity 结果只有在
-预算、容量和计划所有权均通过时才优先采用，否则保留 AE2 结果和 Trinity 诊断。机器及外部请求使用 COMMON 默认模式。
+当前分支已建立网格图、扩展计划契约、`TrinityPlanningGateway`、完整 DAG/SCC 规划器和 schema 2 执行器。玩家请求会携带
+数量模式；存在合格 Trinity CPU 时，入口只提交并等待 Trinity 计算，结果需通过预算、容量和计划所有权校验。没有合格
+Trinity CPU 时才直接进入 AE2。机器及外部请求使用 COMMON 默认模式。
 
 ## 3. 缺陷证据
 

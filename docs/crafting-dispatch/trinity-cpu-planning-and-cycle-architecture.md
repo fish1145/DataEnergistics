@@ -35,7 +35,6 @@
 ```mermaid
 flowchart LR
     A["服务器线程：请求与库存快照"] --> B["TrinityPlanningGateway"]
-    B --> C["AE2 原计算 Future"]
     B --> D["不可变样板图"]
     D --> E["DAG 批量传播"]
     D --> F["Tarjan SCC"]
@@ -49,10 +48,9 @@ flowchart LR
     L --> M["精确交付与剩余物回收"]
 ```
 
-当存在在线、空闲的 Trinity CPU 时，Trinity 与 AE2 计算并行启动。Trinity 生成有效计划且存在容量匹配的 Trinity CPU
-时优先；调用方取消、确定性复杂度边界耗尽或数学不支持时采用 AE2 结果。若 Trinity 已对单 transition 自环精确证明循环输入不足，则立即发布常量
-空间的 Trinity diagnosis simulation 并取消 AE2，避免大数量请求继续进入 AE2 的逐量级计算；多步顺序相关缺料及
-不支持、超限、超时等非权威失败仍采用 AE2，AE2 返回 simulation 时保留其原始 missing 内容并附加 Trinity 诊断。
+存在合格 Trinity CPU 时，当前网关只提交并等待 Trinity 计算；传入的 AE2 supplier 不会在该分支启动。没有合格 Trinity
+CPU 时，入口在捕获图和库存前直接走 AE2。Trinity 对单 transition 自环精确证明缺料时仍可发布常量空间 diagnosis
+simulation；其它失败返回 Trinity 诊断，不应把循环或动态输出请求描述为可由 AE2 通用接管。
 
 ## 4. 网格级不可变样板图
 
@@ -86,7 +84,7 @@ provider、BlockEntity 或世界引用。展开前按输入槽做动态规划：
 
 ## 5. 计划接口
 
-内部接口 `TrinityCraftingPlan extends TrinityCpuExecutablePlan` 由 `TrinityCraftingPlanImpl` 实现。除 AE2 原字段外，
+内部类型 `TrinityCraftingPlan` 实现 `TrinityCpuExecutablePlan`。除 AE2 原字段外，
 计划至少包含：
 
 - graph revision 与请求数量模式；
@@ -366,7 +364,9 @@ COMMON 默认值：
 CPU 派发候选计算共享同一个服务器生命周期、线程安全的 computation cache，相同语义键可以跨轨道命中，执行隔离不会
 复制或分割缓存。CPU 派发为每个已接纳的 CPU worker ticket 启动独立虚拟线程，同时保留单 CPU、单 Grid 和全局
 outstanding 上限；世界状态和资源提交仍只在服务器线程执行。每个 worker 从真正开始计算时捕获不可变限制并共享默认 30 秒
-compile-and-solve 预算，所有 MIP pass 使用剩余时间，超时以 transient `MIP_TIMEOUT` 返回；Future 取消仍可提前终止协作路径。
+最优性证明预算。结构编译使用取消感知 control；求解在剩余预算内证明词典序最优。预算耗尽且已有完整验证的 incumbent 时返回
+`VERIFIED_FEASIBLE`；没有 incumbent 时改用无墙钟截止、仍受图/variant/route/SCC state 上限约束的
+`FIRST_FEASIBLE` 路径。Future 取消始终终止请求并丢弃 incumbent。
 图、variant、排程状态和有界接纳继续使用确定性边界，禁止每个样板或每个 firing 创建线程。
 
 ## 10. 诊断
@@ -396,7 +396,7 @@ RUNTIME_DEADLOCK
 2. DAG、Tarjan、闭式循环、MIP 和精确排程验证。**已实现**
 3. ready queue、seed 门、动态借料和 schema 2。**已实现**
 4. Craft Amount 数量模式、确认页诊断和 Trinity-only 过滤。**已实现**
-5. 全量逻辑测试、GameTest、性能计数和重载验收。**已实现**
+5. 现有构建检查与用户真实环境验收。**进行中**
 
 ### 11.1 已落地的基础边界
 
@@ -405,8 +405,8 @@ RUNTIME_DEADLOCK
 - `NetworkCraftingProviders` 每次变更递增的真实 revision，避免同 tick 多次 mount/unmount 漏失效；
 - 服务器线程分预算捕获、revision 中途变化重启、失败丢弃半成品和完整快照原子发布；
 - component-aware 的稳定 pattern identity，以及不持有 Grid、Level、provider 或 decoded pattern 的只读图；
-- `TrinityCraftingPlan`/`TrinityCraftingPlanImpl`、stage、repeat block、seed、净变化、统计和保守 AE2 byte 估算；
-- 单服务器共享的有界规划线程池、队列拒绝诊断、Trinity/AE2 双 Future 取消与限时优先选择；
+- `TrinityCraftingPlan`、stage、repeat block、seed、净变化、统计和保守 AE2 byte 估算；
+- 单服务器共享的有界规划线程池、队列拒绝诊断和 Trinity Future 协作取消；
 - 独立 COMMON 配置和 ojAlgo 57.1.0 jar-in-jar/许可证声明。
 
 ### 11.2 已落地的计算内核
@@ -419,14 +419,17 @@ RUNTIME_DEADLOCK
 - 多边界输出的 primitive cycle macro、完整单元净增结算和只随图结构增长的 unit stage；
 - 等价输入绑定的 transition-effect 动态规划压缩，以及规划/运行时共享的 canonical representative；
 - ordinary/radix ojAlgo 顺序词典序 MIP、`BigInteger` 精确整数复验和有界压缩排程证明；
+- `PROVED_OPTIMAL`/`VERIFIED_FEASIBLE` 质量传播、超时 incumbent 接纳和无 incumbent 的 first-feasible 回退；
+- 跨 pattern 严格 transition-effect representative、DAG/ordinary 请求私有模型模板、单轴循环搜索分区和不可行 box 记忆；
+- exact solved cache 与仅对最优计划生效的单调库存证明等价索引；
 - 完整 stage/repeat 守恒校验、`NET_NEW`/`FINAL_TOTAL` 数量约束和 AE2 `long` 边界诊断；
 - 按 `plan`、`gateway`、`topology`、`dag`、`cycle`、`schedule` 职责组织的规划代码边界；图需求、计划组装、
   deterministic applicability/firing/proof 与 radix codec/model/search 继续使用职责子包，避免重新堆入单一 planner。
 
 `CraftingService.beginCraftingCalculation` 已接入共享规划网关；只有服务器线程捕获合格 CPU 容量、不可变图与库存
-快照和单次请求 limits，后台线程不读取世界状态或可变 Configuration。Trinity 生产规划默认使用 30 秒 worker 计算预算，
-并结合 Future 协作取消及确定性的图、variant、局部状态数量边界控制复杂度；经过容量与所有权校验的 Trinity 结果优先，
-否则保留诊断。每次规划先提取目标的完整反向可达超图，再展开输入绑定和 SCC，因此无关样板不会放大本次求解。纯 DAG
+快照和单次请求 limits，后台线程不读取世界状态或可变 Configuration。Trinity 生产规划默认使用 30 秒最优性证明预算，
+并结合 Future 协作取消及确定性的图、variant、全图 route state 与逐 SCC 局部 state 边界控制复杂度。每次规划先提取目标
+的完整反向可达超图，再展开输入绑定和 SCC，因此无关样板不会放大本次求解。纯 DAG
 计划按 pattern identity 与输入/输出资源 footprint 建立依赖，完全独立的 stage 可以并发 lease。
 
 ### 11.3 已落地的执行与所有权轨道
@@ -448,20 +451,20 @@ RUNTIME_DEADLOCK
 
 - Craft Amount 页面同步 `NET_NEW`/`FINAL_TOTAL`，返回数量页时保留本次选择；
 - 玩家选择通过 AE2 `IActionSource` context 进入本次计算，机器和外部请求使用 COMMON 默认值；
-- 有合格 Trinity CPU 时并行启动 Trinity 与 AE2 Future，无合格 CPU 时不捕获图或库存并直接走 AE2；
-- 计划超过请求开始时捕获的最大 Trinity 容量时拒绝 Trinity 结果，并保留 AE2 结果与诊断；
+- 有合格 Trinity CPU 时只启动 Trinity Future；无合格 CPU 时不捕获图或库存并直接走 AE2；
+- 计划超过请求开始时捕获的最大 Trinity 容量时拒绝 Trinity 结果并返回对应诊断；
 - 确认页显示 Trinity-only、循环动态材料警告、诊断以及与 AE2 原生计划一致的可用/待合成数量；
 - CPU 状态页从 stage/repeat 游标推导待合成量，并把已封存 completion buffer 计入已存储量；
 - 确认页过滤、自动选核与 `submitJob` 都复用同一 CPU-family admission 边界。
 - 新计算和重算立即清除旧计划摘要；确认页只在新结果已经过下一轮 CPU 资格过滤后开放按钮与 Enter 提交。
 
-### 11.5 已完成的集成验收
+### 11.5 当前验证边界
 
-第五步已补齐并验证以下关键证据：
+历史实现曾覆盖以下场景，但当前工作树未保留对应的核心 planner 测试与性能基准，不能把历史记录视为本分支的自动化证据：
 
 - 真实 Trinity CPU 可执行单样板 `A -> 2A`，一个 seed 对 `NET_NEW 31` 形成紧凑 repeat block，最终守恒为 32；
 - DAG 多路线使用完整目标可达区域求解，库存不可用的稳定首选路线不会遮蔽可执行替代路线；
 - 运行时 variant ordinal 与图快照采用同一去重 publication signature，不会因重复输入候选绑定到错误材料；
 - 大数量 DAG 的状态计数只随图和 variant 数变化，不随请求量逐个展开；
-- 既有 `test`、GameTest、`build` 和改动文件 IDEA inspections 基线均通过；每个后续功能提交继续记录本次实际结果，不固化易失真的测试数量；
+- 本分支只运行现有 `test`、`build`、Spotless 和改动文件 IDEA inspections；整套 Trinity 配方的正确性与实际耗时由用户环境验收；
 - 发布 JAR 内含 ojAlgo 57.1.0 的 jar-in-jar 元数据，开发运行通过 additional runtime classpath 加载同一版本。
