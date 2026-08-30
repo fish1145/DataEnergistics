@@ -125,6 +125,15 @@ public final class TrinityAcyclicRouteOptimizer {
                     budget,
                     control);
         }
+        ModelRequest templateRequest = new ModelRequest(
+                reachable,
+                target,
+                requestedAmount,
+                requiredTargetNet,
+                quantityMode,
+                inventory,
+                FeasibilityPass.INSTANCE);
+        AcyclicModelTemplate modelTemplate = createModelTemplate(templateRequest);
 
         if (mode == TrinityPlanningMode.FIRST_FEASIBLE) {
             TrinityAlgorithmResult<SolvedPass> feasible = solve(
@@ -137,6 +146,7 @@ public final class TrinityAcyclicRouteOptimizer {
                             inventory,
                             FeasibilityPass.INSTANCE),
                     budget,
+                    modelTemplate,
                     control);
             if (!feasible.successful()) {
                 return TrinityAlgorithmResult.failure(feasible.diagnostic());
@@ -158,6 +168,7 @@ public final class TrinityAcyclicRouteOptimizer {
                         inventory,
                         ExternalPass.INSTANCE),
                 budget,
+                modelTemplate,
                 control);
         if (!externalResult.successful()) {
             return TrinityAlgorithmResult.failure(externalResult.diagnostic());
@@ -186,6 +197,7 @@ public final class TrinityAcyclicRouteOptimizer {
                         inventory,
                         new FiringPass(optimalExternal)),
                 budget,
+                modelTemplate,
                 control);
         if (!firingResult.successful()) {
             return recoverIncumbent(incumbent, firingResult.diagnostic());
@@ -233,6 +245,7 @@ public final class TrinityAcyclicRouteOptimizer {
                                         Collections.unmodifiableMap(new LinkedHashMap<>(fixedPrefix)),
                                         preferred)),
                         budget,
+                        modelTemplate,
                         control);
                 if (!identityResult.successful()) {
                     return recoverIncumbent(incumbent, identityResult.diagnostic());
@@ -458,6 +471,7 @@ public final class TrinityAcyclicRouteOptimizer {
     private TrinityAlgorithmResult<SolvedPass> solve(
                                                      ModelRequest request,
                                                      SearchBudget budget,
+                                                     AcyclicModelTemplate modelTemplate,
                                                      TrinityPlanningControl control) {
         if (control.cancellationRequested()) {
             return failure(
@@ -478,7 +492,7 @@ public final class TrinityAcyclicRouteOptimizer {
                     Map.of("states", Integer.toString(budget.used())));
         }
 
-        ModelData data = createModel(request);
+        ModelData data = modelTemplate.forPass(request.pass());
         configureDeadline(data.model(), control);
         Optimisation.Result result = request.pass() instanceof IdentityPass ?
                 data.model().maximise() :
@@ -747,16 +761,14 @@ public final class TrinityAcyclicRouteOptimizer {
         model.options.time_suffice = remainingMillis;
     }
 
-    private static ModelData createModel(ModelRequest request) {
+    private static AcyclicModelTemplate createModelTemplate(ModelRequest request) {
         ExpressionsBasedModel model = new ExpressionsBasedModel();
-        ArrayList<Variable> variables = new ArrayList<>();
         LinkedHashMap<TrinityPatternVariant, Variable> firingVariables = new LinkedHashMap<>();
         for (int index = 0; index < request.variants().size(); index++) {
             Variable variable = model.addVariable("firing_" + index)
                     .integer()
                     .lower(BigInteger.ZERO);
             firingVariables.put(request.variants().get(index), variable);
-            variables.add(variable);
         }
 
         LinkedHashMap<AEKey, Variable> reserveVariables = new LinkedHashMap<>();
@@ -777,7 +789,6 @@ public final class TrinityAcyclicRouteOptimizer {
                 variable.upper(upper);
             }
             reserveVariables.put(key, variable);
-            variables.add(variable);
         }
 
         int conservationIndex = 0;
@@ -805,22 +816,15 @@ public final class TrinityAcyclicRouteOptimizer {
 
         Expression externalTotal = expression(model, "external_total", reserveVariables.values());
         Expression firingTotal = expression(model, "firing_total", firingVariables.values());
-        if (request.pass() instanceof FeasibilityPass) {
-            // A zero objective asks ojAlgo for any integer witness. Exact verification below remains mandatory.
-        } else if (request.pass() instanceof ExternalPass) {
-            externalTotal.weight(BigDecimal.ONE);
-        } else if (request.pass() instanceof FiringPass pass) {
-            externalTotal.level(pass.fixedExternal());
-            firingTotal.weight(BigDecimal.ONE);
-        } else if (request.pass() instanceof IdentityPass pass) {
-            externalTotal.level(pass.fixedExternal());
-            firingTotal.level(pass.fixedFirings());
-            pass.fixedPrefix().forEach((variant, value) -> firingVariables.get(variant).level(value));
-            firingVariables.get(pass.preferred()).weight(BigDecimal.ONE);
-        } else {
-            throw new IllegalStateException("Unknown Trinity acyclic optimization pass");
-        }
-        return new ModelData(model, List.copyOf(variables), firingVariables, reserveVariables);
+        LinkedHashMap<TrinityPatternVariant, Integer> firingIndexes = new LinkedHashMap<>();
+        firingVariables.forEach((variant, variable) -> firingIndexes.put(variant, model.indexOf(variable)));
+        LinkedHashMap<AEKey, Integer> reserveIndexes = new LinkedHashMap<>();
+        reserveVariables.forEach((key, variable) -> reserveIndexes.put(key, model.indexOf(variable)));
+        return new AcyclicModelTemplate(
+                model,
+                model.countVariables(),
+                Collections.unmodifiableMap(firingIndexes),
+                Collections.unmodifiableMap(reserveIndexes));
     }
 
     private static DiagnosticModelData createDiagnosticModel(DiagnosticModelRequest request) {
@@ -1246,6 +1250,58 @@ public final class TrinityAcyclicRouteOptimizer {
                                 CraftingQuantityMode quantityMode,
                                 Map<AEKey, BigInteger> available,
                                 ModelPass pass) {}
+
+    /**
+     * Request-private immutable coefficient template copied for each lexicographic pass. The mutable ojAlgo copies are
+     * never shared across requests or threads.
+     */
+    private record AcyclicModelTemplate(
+                                        ExpressionsBasedModel baseModel,
+                                        int variableCount,
+                                        Map<TrinityPatternVariant, Integer> firingIndexes,
+                                        Map<AEKey, Integer> reserveIndexes) {
+
+        private AcyclicModelTemplate {
+            firingIndexes = Collections.unmodifiableMap(new LinkedHashMap<>(firingIndexes));
+            reserveIndexes = Collections.unmodifiableMap(new LinkedHashMap<>(reserveIndexes));
+        }
+
+        private ModelData forPass(ModelPass pass) {
+            ExpressionsBasedModel model = this.baseModel.copy();
+            ArrayList<Variable> variables = new ArrayList<>(this.variableCount);
+            for (int index = 0; index < this.variableCount; index++) {
+                variables.add(model.getVariable(index));
+            }
+            LinkedHashMap<TrinityPatternVariant, Variable> firingVariables = new LinkedHashMap<>();
+            this.firingIndexes.forEach((variant, index) -> firingVariables.put(variant, model.getVariable(index)));
+            LinkedHashMap<AEKey, Variable> reserveVariables = new LinkedHashMap<>();
+            this.reserveIndexes.forEach((key, index) -> reserveVariables.put(key, model.getVariable(index)));
+
+            Expression externalTotal = model.getExpression("external_total");
+            Expression firingTotal = model.getExpression("firing_total");
+            if (pass instanceof FeasibilityPass) {
+                // Zero objective: obtain any integer witness and verify it exactly after the solve.
+            } else if (pass instanceof ExternalPass) {
+                externalTotal.weight(BigDecimal.ONE);
+            } else if (pass instanceof FiringPass firingPass) {
+                externalTotal.level(firingPass.fixedExternal());
+                firingTotal.weight(BigDecimal.ONE);
+            } else if (pass instanceof IdentityPass identityPass) {
+                externalTotal.level(identityPass.fixedExternal());
+                firingTotal.level(identityPass.fixedFirings());
+                identityPass.fixedPrefix()
+                        .forEach((variant, value) -> firingVariables.get(variant).level(value));
+                firingVariables.get(identityPass.preferred()).weight(BigDecimal.ONE);
+            } else {
+                throw new IllegalStateException("Unknown Trinity acyclic optimisation pass");
+            }
+            return new ModelData(
+                    model,
+                    List.copyOf(variables),
+                    Collections.unmodifiableMap(firingVariables),
+                    Collections.unmodifiableMap(reserveVariables));
+        }
+    }
 
     private record ModelData(
                              ExpressionsBasedModel model,
