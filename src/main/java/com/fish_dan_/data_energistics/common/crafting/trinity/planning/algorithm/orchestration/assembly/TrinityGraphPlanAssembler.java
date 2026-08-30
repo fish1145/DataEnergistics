@@ -251,8 +251,6 @@ public final class TrinityGraphPlanAssembler {
                 elapsedNanos,
                 elapsedNanos,
                 assembly.mipNanos(),
-                0,
-                0,
                 assembly.scheduleStates(),
                 assembly.quality());
         return TrinityCraftingPlan.builder()

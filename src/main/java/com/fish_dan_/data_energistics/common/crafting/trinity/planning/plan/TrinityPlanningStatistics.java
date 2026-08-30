@@ -8,8 +8,6 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan;
  * @param planningNanos      complete duration of the current Trinity planning request
  * @param firstFeasibleNanos duration before the first executable plan was available
  * @param mipNanos           time spent inside MIP solves by the current request; zero for an exact cache hit
- * @param solverPasses       completed ojAlgo passes retained by the selected plan
- * @param solverModels       ojAlgo models built or copied for the selected request
  * @param scheduleStates     compressed scheduler states explored
  * @param quality            exact proof strength of the executable plan
  */
@@ -19,8 +17,6 @@ public record TrinityPlanningStatistics(
                                         long planningNanos,
                                         long firstFeasibleNanos,
                                         long mipNanos,
-                                        int solverPasses,
-                                        int solverModels,
                                         int scheduleStates,
                                         TrinityPlanQuality quality) {
 
@@ -30,7 +26,7 @@ public record TrinityPlanningStatistics(
     public TrinityPlanningStatistics {
         if (sccCount < 0 || variantCount < 0 || planningNanos < 0L || firstFeasibleNanos < 0L ||
                 firstFeasibleNanos > planningNanos || mipNanos < 0L || mipNanos > planningNanos ||
-                solverPasses < 0 || solverModels < 0 || scheduleStates < 0 || quality == null) {
+                scheduleStates < 0 || quality == null) {
             throw new IllegalArgumentException("Trinity planning statistics must be non-negative and consistent");
         }
     }
@@ -50,8 +46,6 @@ public record TrinityPlanningStatistics(
                 planningNanos,
                 planningNanos,
                 mipNanos,
-                0,
-                0,
                 scheduleStates,
                 TrinityPlanQuality.PROVED_OPTIMAL);
     }
@@ -76,8 +70,6 @@ public record TrinityPlanningStatistics(
                 requestPlanningNanos,
                 requestFirstFeasibleNanos,
                 requestMipNanos,
-                this.solverPasses,
-                this.solverModels,
                 this.scheduleStates,
                 this.quality);
     }
