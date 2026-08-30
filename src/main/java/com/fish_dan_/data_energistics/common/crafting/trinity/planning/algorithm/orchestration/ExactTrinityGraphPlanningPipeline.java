@@ -16,6 +16,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityGraphTopologyAnalyzer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityPatternVariantExpander;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityTransitionEffectCompactor;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphPattern;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
@@ -45,17 +46,20 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
     private static final String TIMEOUT_KEY = "gui.data_energistics.trinity_planning.diagnostic.timeout";
 
     private final TrinityPatternVariantExpander variantExpander;
+    private final TrinityTransitionEffectCompactor effectCompactor;
     private final TrinityGraphTopologyAnalyzer topologyAnalyzer;
     private final TrinityAcyclicDemandPropagator acyclicDemandPropagator;
     private final TrinityGraphDemandAggregator demandAggregator;
     private final TrinityGraphPlanAssembler planAssembler;
 
     ExactTrinityGraphPlanningPipeline(TrinityPatternVariantExpander variantExpander,
+                                      TrinityTransitionEffectCompactor effectCompactor,
                                       TrinityGraphTopologyAnalyzer topologyAnalyzer,
                                       TrinityAcyclicDemandPropagator acyclicDemandPropagator,
                                       TrinityGraphDemandAggregator demandAggregator,
                                       TrinityGraphPlanAssembler planAssembler) {
         this.variantExpander = variantExpander;
+        this.effectCompactor = effectCompactor;
         this.topologyAnalyzer = topologyAnalyzer;
         this.acyclicDemandPropagator = acyclicDemandPropagator;
         this.demandAggregator = demandAggregator;
@@ -156,9 +160,10 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
         if (!expanded.successful()) {
             return TrinityAlgorithmResult.failure(expanded.diagnostic());
         }
+        List<TrinityPatternVariant> compacted = this.effectCompactor.compact(expanded.value());
         TrinityAlgorithmResult<TrinityCraftingTopology> analyzed = this.topologyAnalyzer.analyze(
                 reachableSnapshot,
-                expanded.value(),
+                compacted,
                 maxSccKeys,
                 control);
         if (!analyzed.successful()) {
@@ -179,7 +184,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
         return TrinityAlgorithmResult.success(new TrinityCompiledGraph(
                 target,
                 reachableSnapshot.patterns().stream().map(TrinityCraftingGraphPattern::identity).toList(),
-                expanded.value(),
+                compacted,
                 analyzed.value(),
                 targetComponent,
                 reachableCycle,

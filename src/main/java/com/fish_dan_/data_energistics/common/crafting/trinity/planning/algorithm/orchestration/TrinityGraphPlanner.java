@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.demand.TrinityGraphDemandAggregator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityGraphTopologyAnalyzer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityPatternVariantExpander;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityTransitionEffectCompactor;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanByteEstimator;
@@ -38,6 +39,7 @@ public interface TrinityGraphPlanner {
     static TrinityGraphPlanningPipeline pipeline() {
         return new ExactTrinityGraphPlanningPipeline(
                 TrinityPatternVariantExpander.create(),
+                TrinityTransitionEffectCompactor.create(),
                 TrinityGraphTopologyAnalyzer.create(),
                 TrinityAcyclicDemandPropagator.create(),
                 TrinityGraphDemandAggregator.create(TrinityCyclePlanSelector.create()),
