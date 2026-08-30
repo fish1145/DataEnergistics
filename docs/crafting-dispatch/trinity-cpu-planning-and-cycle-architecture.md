@@ -71,9 +71,9 @@ flowchart LR
 
 每组合法输入选择形成一个 pattern binding variant。variant 只包含不可变 `AEKey`、数量和稳定签名，不保存
 provider、BlockEntity 或世界引用。展开前按输入槽做动态规划：聚合消耗与输入余留物效果完全相同的绑定只保留首个
-合法 Cartesian representative，规划和运行时动态选料共用同一枚举边界。变体预算统计 distinct transition effect，
-而不是原始笛卡尔组合数；唯一绑定样板属于基础图规模，不消耗额外分支预算。已有计划保存的非规范 raw ordinal 仍按
-原笛卡尔语义直接解码，避免恢复时静默改绑。
+合法 Cartesian representative，规划和运行时动态选料共用同一枚举边界。`maxBindingVariants` 统计整个请求图中去重后
+实际物化的 distinct transition effect 总数，而不是原始笛卡尔组合数；每个唯一绑定样板同样占用一个 variant 名额。已有
+计划保存的非规范 raw ordinal 仍按原笛卡尔语义直接解码，避免恢复时静默改绑。
 
 ### 4.2 Revision 与重建
 
@@ -182,8 +182,8 @@ cyclic owner；其环外输出需求回传给 owner，禁止再作为普通 DAG 
 进入导出集合。非全局目标的循环需求按“所需最终余额减现有库存”的净缺口传播，现有 seed 只参与
 可执行性验证，不会被重复计作新增需求，也不会提前供给其它分支。
 
-`TrinityCyclePlanSelector` 统一持有标量闭式、确定性 component 与通用 MIP 的选择策略；`TrinityGraphPlannerImpl` 只消费其
-不可变 selection 结果，不再直接组合各循环求解器。
+`TrinityCyclePlanSelector` 统一持有标量闭式、确定性 component 与通用 MIP 的选择策略；
+`ExactTrinityGraphPlanningPipeline` 只消费其不可变 selection 结果，不再直接组合各循环求解器。
 
 对求得整数比例并已验证顺序的阶段序列，定义：
 
@@ -232,7 +232,8 @@ minimumSeed[key] = max(0, 每个执行前缀的最大亏空)
 ### 6.5 压缩排程验证
 
 状态搜索不逐个执行 firing，而按“当前最大安全批次”或下一个余额断点推进。状态包含剩余 firing vector、相关余额和
-阶段游标，并受 `maxScheduleStates` 限制。
+阶段游标，并受 `maxScheduleStates` 限制。该限制分别作用于一次 DAG route search、graph route branch search 或一个 cyclic
+SCC 的排程；多个独立 SCC 的最终统计值可以相加后超过单个局部上限。
 
 已证明的 primitive macro 只排程一个完整单元，再以 `BigInteger repetitions` 保存重复次数；不会把 256M 或十亿级请求
 铺平成同数量级的 schedule batch。单元内部仍保留精确可执行的余额断点，因此压缩不改变 provider 顺序或 seed 守恒。
@@ -352,6 +353,7 @@ COMMON 默认值：
 | `maxSccKeys` | 64 |
 | `maxBindingVariants` | 32768 |
 | `maxScheduleStates` | 500000 |
+| `planningBudgetMs` | 30000 |
 | `graphRebuildBudgetMs` | 4 |
 | `plannerThreads` | `max(1, min(8, availableProcessors / 2))` |
 | `cpuPlannerThreads` | `max(1, min(8, availableProcessors / 2))` |
@@ -363,8 +365,9 @@ COMMON 默认值：
 只限制初始计划，`cpuPlannerThreads` 只限制 CPU 剩余量重规划，两项配置互不拆分也互不借用。两条轨道与
 CPU 派发候选计算共享同一个服务器生命周期、线程安全的 computation cache，相同语义键可以跨轨道命中，执行隔离不会
 复制或分割缓存。CPU 派发为每个已接纳的 CPU worker ticket 启动独立虚拟线程，同时保留单 CPU、单 Grid 和全局
-outstanding 上限；世界状态和资源提交仍只在服务器线程执行。MIP 不设置 wall-clock 结果截止时间并响应 Future 的协作取消；
-图、variant、排程状态和有界接纳使用确定性边界，禁止每个样板或每个 firing 创建线程。
+outstanding 上限；世界状态和资源提交仍只在服务器线程执行。每个 worker 从真正开始计算时捕获不可变限制并共享默认 30 秒
+compile-and-solve 预算，所有 MIP pass 使用剩余时间，超时以 transient `MIP_TIMEOUT` 返回；Future 取消仍可提前终止协作路径。
+图、variant、排程状态和有界接纳继续使用确定性边界，禁止每个样板或每个 firing 创建线程。
 
 ## 10. 诊断
 
@@ -410,8 +413,8 @@ RUNTIME_DEADLOCK
 
 第二步已经建立以下可独立验证的计算能力：
 
-- binding variant 的稳定展开、Tarjan SCC 和凝聚 DAG；
-- 不随请求量逐次展开的 `BigInteger` 无环需求传播；
+- binding variant 的稳定总量边界、显式栈 Tarjan SCC 和凝聚 DAG；
+- 不随请求量逐次展开的 `BigInteger` 无环需求传播，以及基于可回滚 journal 的显式 DFS 图需求搜索；
 - `A -> 2A` 与 `A -> B -> 2A` 的闭式 repeat block 和最大前缀 seed；
 - 多边界输出的 primitive cycle macro、完整单元净增结算和只随图结构增长的 unit stage；
 - 等价输入绑定的 transition-effect 动态规划压缩，以及规划/运行时共享的 canonical representative；
@@ -421,9 +424,10 @@ RUNTIME_DEADLOCK
   deterministic applicability/firing/proof 与 radix codec/model/search 继续使用职责子包，避免重新堆入单一 planner。
 
 `CraftingService.beginCraftingCalculation` 已接入共享规划网关；只有服务器线程捕获合格 CPU 容量、不可变图与库存
-快照，后台线程不读取世界状态。Trinity 生产规划不设置墙钟截止时间，通过 Future 协作取消及确定性的图、variant、
-状态数量边界控制复杂度；经过容量与所有权校验的 Trinity 结果优先，否则保留 AE2 结果并附加诊断。每次规划先提取
-目标的完整反向可达超图，再展开输入绑定和 SCC，因此无关样板不会放大本次求解。
+快照和单次请求 limits，后台线程不读取世界状态或可变 Configuration。Trinity 生产规划默认使用 30 秒 worker 计算预算，
+并结合 Future 协作取消及确定性的图、variant、局部状态数量边界控制复杂度；经过容量与所有权校验的 Trinity 结果优先，
+否则保留诊断。每次规划先提取目标的完整反向可达超图，再展开输入绑定和 SCC，因此无关样板不会放大本次求解。纯 DAG
+计划按 pattern identity 与输入/输出资源 footprint 建立依赖，完全独立的 stage 可以并发 lease。
 
 ### 11.3 已落地的执行与所有权轨道
 
