@@ -52,10 +52,12 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                                                                          TrinityPlanningMode mode,
                                                                          TrinityPlanningControl control) {
         SolverMetrics metrics = new SolverMetrics();
+        OrdinaryModelTemplate modelTemplate = createModelTemplate(request);
         if (mode == TrinityPlanningMode.FIRST_FEASIBLE) {
             TrinityAlgorithmResult<SolvedPass> feasible = optimize(
                     request,
                     FeasibilityPass.INSTANCE,
+                    modelTemplate,
                     control,
                     metrics);
             return feasible.successful() ?
@@ -66,6 +68,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         TrinityAlgorithmResult<SolvedPass> external = optimize(
                 request,
                 ExternalPass.INSTANCE,
+                modelTemplate,
                 control,
                 metrics);
         if (!external.successful()) {
@@ -82,6 +85,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             TrinityAlgorithmResult<SolvedPass> seed = optimize(
                     request,
                     new SeedPass(optimalExternal, seedLower),
+                    modelTemplate,
                     control,
                     metrics);
             if (!seed.successful()) {
@@ -100,6 +104,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                     optimize(
                             request,
                             new FiringPass(optimalExternal, optimalSeed, firingObjectiveLower),
+                            modelTemplate,
                             control,
                             metrics);
             if (!firing.successful()) {
@@ -152,6 +157,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                 TrinityAlgorithmResult<SolvedPass> identity = optimize(
                         request,
                         identityPass,
+                        modelTemplate,
                         control,
                         metrics);
                 if (!identity.successful()) {
@@ -170,6 +176,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
     private TrinityAlgorithmResult<SolvedPass> optimize(
                                                         TrinityCycleFeasibilityRequest request,
                                                         ModelPass pass,
+                                                        OrdinaryModelTemplate modelTemplate,
                                                         TrinityPlanningControl control,
                                                         SolverMetrics metrics) {
         if (control.cancellationRequested()) {
@@ -181,7 +188,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         if (control.deadlineExceeded()) {
             return timeout(metrics, "before_model");
         }
-        ModelData data = createModel(request, pass);
+        ModelData data = modelTemplate.forPass(pass);
         configureDeadline(data.model(), control);
         long started = System.nanoTime();
         Optimisation.Result result = data.model().minimise();
@@ -308,7 +315,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         };
     }
 
-    private ModelData createModel(TrinityCycleFeasibilityRequest request, ModelPass pass) {
+    private OrdinaryModelTemplate createModelTemplate(TrinityCycleFeasibilityRequest request) {
         ExpressionsBasedModel model = new ExpressionsBasedModel();
         BigInteger logicalUpper = request.ordinaryLogicalUpperBound().orElseThrow(() -> new IllegalArgumentException("A signed Trinity system cannot use the ordinary exact model"));
         ArrayList<Variable> allVariables = new ArrayList<>();
@@ -342,54 +349,20 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         externalTotal.lower(this.objectiveBounds.minimumFirstExternalInput(request));
         request.fixedExternalTotal().ifPresent(externalTotal::level);
         Expression firingTotal = expression(model, "firing_total", firingVariables.values());
-        switch (pass) {
-            case FeasibilityPass.INSTANCE -> {
-                // Zero objective: request any integer witness, then verify it exactly before returning.
-            }
-            case ExternalPass.INSTANCE -> externalTotal.weight(BigDecimal.ONE);
-            case SeedPass(var fixedExternal, var seedLowerBound) -> {
-                externalTotal.level(fixedExternal);
-                seedTotal.lower(this.objectiveBounds.minimumFirstInternalInput(request).max(seedLowerBound));
-                seedTotal.weight(BigDecimal.ONE);
-            }
-            case FiringPass(var fixedExternal, var fixedSeed, var firingLowerBound) -> {
-                externalTotal.level(fixedExternal);
-                seedTotal.level(fixedSeed);
-                firingTotal.lower(firingLowerBound.max(
-                        this.objectiveBounds.conservationFiringLowerBound(
-                                request,
-                                fixedExternal,
-                                fixedSeed)));
-                firingTotal.weight(BigDecimal.ONE);
-            }
-            case IdentityPass(var fixedExternal, var fixedSeed, var fixedFirings, var fixedCounts, var variant) -> {
-                externalTotal.level(fixedExternal);
-                seedTotal.level(fixedSeed);
-                firingTotal.level(fixedFirings);
-                fixedCounts.forEach((fixedVariant, count) -> model
-                        .addExpression("fixed_firing_" + request.variants().indexOf(fixedVariant))
-                        .set(firingVariables.get(fixedVariant), BigInteger.ONE)
-                        .level(count));
-                BigInteger identityUpper = this.objectiveBounds.identityObjectiveUpperBound(
-                        request,
-                        fixedExternal,
-                        fixedSeed,
-                        fixedFirings,
-                        fixedCounts,
-                        variant)
-                        .min(request.firingBounds().get(variant).upperInclusive());
-                model.addExpression("identity_objective")
-                        .set(firingVariables.get(variant), BigInteger.ONE)
-                        .upper(identityUpper)
-                        .weight(BigDecimal.ONE.negate());
-            }
-        }
-        return new ModelData(
+        LinkedHashMap<TrinityPatternVariant, Integer> firingIndexes = new LinkedHashMap<>();
+        firingVariables.forEach((variant, variable) -> firingIndexes.put(variant, model.indexOf(variable)));
+        LinkedHashMap<AEKey, Integer> seedIndexes = new LinkedHashMap<>();
+        seedVariables.forEach((key, variable) -> seedIndexes.put(key, model.indexOf(variable)));
+        LinkedHashMap<AEKey, Integer> externalIndexes = new LinkedHashMap<>();
+        externalVariables.forEach((key, variable) -> externalIndexes.put(key, model.indexOf(variable)));
+        return new OrdinaryModelTemplate(
                 model,
-                List.copyOf(allVariables),
-                firingVariables,
-                seedVariables,
-                externalVariables);
+                request,
+                allVariables.size(),
+                Collections.unmodifiableMap(firingIndexes),
+                Collections.unmodifiableMap(seedIndexes),
+                Collections.unmodifiableMap(externalIndexes),
+                this.objectiveBounds);
     }
 
     private static LinkedHashMap<AEKey, Variable> reserveVariables(
@@ -537,6 +510,92 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
 
         private IdentityPass {
             fixedCounts = Collections.unmodifiableMap(new LinkedHashMap<>(fixedCounts));
+        }
+    }
+
+    /**
+     * Request-private conservation template copied for each objective pass. Mutable ojAlgo copies never leave the
+     * current solve invocation.
+     */
+    private record OrdinaryModelTemplate(
+                                         ExpressionsBasedModel baseModel,
+                                         TrinityCycleFeasibilityRequest request,
+                                         int variableCount,
+                                         Map<TrinityPatternVariant, Integer> firingIndexes,
+                                         Map<AEKey, Integer> seedIndexes,
+                                         Map<AEKey, Integer> externalIndexes,
+                                         TrinityCycleObjectiveBounds objectiveBounds) {
+
+        private OrdinaryModelTemplate {
+            firingIndexes = Collections.unmodifiableMap(new LinkedHashMap<>(firingIndexes));
+            seedIndexes = Collections.unmodifiableMap(new LinkedHashMap<>(seedIndexes));
+            externalIndexes = Collections.unmodifiableMap(new LinkedHashMap<>(externalIndexes));
+        }
+
+        private ModelData forPass(ModelPass pass) {
+            ExpressionsBasedModel model = this.baseModel.copy();
+            ArrayList<Variable> variables = new ArrayList<>(this.variableCount);
+            for (int index = 0; index < this.variableCount; index++) {
+                variables.add(model.getVariable(index));
+            }
+            LinkedHashMap<TrinityPatternVariant, Variable> firingVariables = new LinkedHashMap<>();
+            this.firingIndexes.forEach((variant, index) -> firingVariables.put(variant, model.getVariable(index)));
+            LinkedHashMap<AEKey, Variable> seedVariables = new LinkedHashMap<>();
+            this.seedIndexes.forEach((key, index) -> seedVariables.put(key, model.getVariable(index)));
+            LinkedHashMap<AEKey, Variable> externalVariables = new LinkedHashMap<>();
+            this.externalIndexes.forEach((key, index) -> externalVariables.put(key, model.getVariable(index)));
+
+            Expression seedTotal = model.getExpression("seed_total");
+            Expression externalTotal = model.getExpression("external_total");
+            Expression firingTotal = model.getExpression("firing_total");
+            switch (pass) {
+                case FeasibilityPass.INSTANCE -> {
+                    // Zero objective: obtain any integer witness and verify it exactly after the solve.
+                }
+                case ExternalPass.INSTANCE -> externalTotal.weight(BigDecimal.ONE);
+                case SeedPass(var fixedExternal, var seedLowerBound) -> {
+                    externalTotal.level(fixedExternal);
+                    seedTotal.lower(this.objectiveBounds.minimumFirstInternalInput(this.request).max(seedLowerBound));
+                    seedTotal.weight(BigDecimal.ONE);
+                }
+                case FiringPass(var fixedExternal, var fixedSeed, var firingLowerBound) -> {
+                    externalTotal.level(fixedExternal);
+                    seedTotal.level(fixedSeed);
+                    firingTotal.lower(firingLowerBound.max(
+                            this.objectiveBounds.conservationFiringLowerBound(
+                                    this.request,
+                                    fixedExternal,
+                                    fixedSeed)));
+                    firingTotal.weight(BigDecimal.ONE);
+                }
+                case IdentityPass(var fixedExternal, var fixedSeed, var fixedFirings, var fixedCounts, var variant) -> {
+                    externalTotal.level(fixedExternal);
+                    seedTotal.level(fixedSeed);
+                    firingTotal.level(fixedFirings);
+                    fixedCounts.forEach((fixedVariant, count) -> model
+                            .addExpression("fixed_firing_" + this.request.variants().indexOf(fixedVariant))
+                            .set(firingVariables.get(fixedVariant), BigInteger.ONE)
+                            .level(count));
+                    BigInteger identityUpper = this.objectiveBounds.identityObjectiveUpperBound(
+                            this.request,
+                            fixedExternal,
+                            fixedSeed,
+                            fixedFirings,
+                            fixedCounts,
+                            variant)
+                            .min(this.request.firingBounds().get(variant).upperInclusive());
+                    model.addExpression("identity_objective")
+                            .set(firingVariables.get(variant), BigInteger.ONE)
+                            .upper(identityUpper)
+                            .weight(BigDecimal.ONE.negate());
+                }
+            }
+            return new ModelData(
+                    model,
+                    List.copyOf(variables),
+                    Collections.unmodifiableMap(firingVariables),
+                    Collections.unmodifiableMap(seedVariables),
+                    Collections.unmodifiableMap(externalVariables));
         }
     }
 
