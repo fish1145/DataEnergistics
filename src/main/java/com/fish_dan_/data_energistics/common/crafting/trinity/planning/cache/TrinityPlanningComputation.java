@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
  */
 public final class TrinityPlanningComputation {
 
-    private static final int SOLVE_STRATEGY_VERSION = 1;
+    private static final int SOLVE_STRATEGY_VERSION = 2;
     private static final int OPTIMAL_PLAN_REFERENCES_PER_GRID = 256;
 
     /**
@@ -189,6 +189,11 @@ public final class TrinityPlanningComputation {
                     input.gridScope(),
                     familyKey,
                     projectedInventory,
+                    InventoryEquivalenceCertificate.forPlan(
+                            structure,
+                            input.target(),
+                            input.quantityMode(),
+                            solved.value().value()),
                     solved.value().value());
         }
         PlanningCachePath path = !compiled.cacheHit() ? PlanningCachePath.MISS :
@@ -355,7 +360,7 @@ public final class TrinityPlanningComputation {
     private static final class OptimalPlanIndex {
 
         private final int perGridLimit;
-        private final Map<Long, LinkedHashMap<OptimalPlanReferenceKey, TrinityCraftingPlan>> partitions = new LinkedHashMap<>();
+        private final Map<Long, LinkedHashMap<OptimalPlanReferenceKey, OptimalPlanReference>> partitions = new LinkedHashMap<>();
 
         private OptimalPlanIndex(int perGridLimit) {
             this.perGridLimit = perGridLimit;
@@ -369,19 +374,20 @@ public final class TrinityPlanningComputation {
                                                                 AEKey target,
                                                                 BigInteger requestedAmount,
                                                                 CraftingQuantityMode quantityMode) {
-            LinkedHashMap<OptimalPlanReferenceKey, TrinityCraftingPlan> partition = this.partitions.get(gridScope);
+            LinkedHashMap<OptimalPlanReferenceKey, OptimalPlanReference> partition = this.partitions.get(gridScope);
             if (partition == null) {
                 return Optional.empty();
             }
             OptimalPlanReferenceKey matched = null;
-            for (Map.Entry<OptimalPlanReferenceKey, TrinityCraftingPlan> entry : partition.entrySet()) {
+            for (Map.Entry<OptimalPlanReferenceKey, OptimalPlanReference> entry : partition.entrySet()) {
                 OptimalPlanReferenceKey reference = entry.getKey();
                 if (reference.family().equals(family) &&
                         !reference.referenceInventory().equals(inventory) &&
                         isEquivalentDomain(
                                 reference.referenceInventory(),
                                 available,
-                                entry.getValue(),
+                                entry.getValue().plan(),
+                                entry.getValue().certificate(),
                                 target,
                                 requestedAmount,
                                 quantityMode)) {
@@ -389,18 +395,19 @@ public final class TrinityPlanningComputation {
                     break;
                 }
             }
-            return matched == null ? Optional.empty() : Optional.of(partition.get(matched));
+            return matched == null ? Optional.empty() : Optional.of(partition.get(matched).plan());
         }
 
         private synchronized void publish(
                                           long gridScope,
                                           OptimalPlanFamilyKey family,
                                           List<InventoryAmount> inventory,
+                                          InventoryEquivalenceCertificate certificate,
                                           TrinityCraftingPlan plan) {
-            LinkedHashMap<OptimalPlanReferenceKey, TrinityCraftingPlan> partition = this.partitions.computeIfAbsent(
+            LinkedHashMap<OptimalPlanReferenceKey, OptimalPlanReference> partition = this.partitions.computeIfAbsent(
                     gridScope,
                     ignored -> new LinkedHashMap<>(16, 0.75F, true));
-            partition.put(new OptimalPlanReferenceKey(family, inventory), plan);
+            partition.put(new OptimalPlanReferenceKey(family, inventory), new OptimalPlanReference(plan, certificate));
             while (partition.size() > this.perGridLimit) {
                 OptimalPlanReferenceKey eldest = partition.keySet().iterator().next();
                 partition.remove(eldest);
@@ -408,7 +415,7 @@ public final class TrinityPlanningComputation {
         }
 
         private synchronized void invalidateRevision(long gridScope, long revision) {
-            LinkedHashMap<OptimalPlanReferenceKey, TrinityCraftingPlan> partition = this.partitions.get(gridScope);
+            LinkedHashMap<OptimalPlanReferenceKey, OptimalPlanReference> partition = this.partitions.get(gridScope);
             if (partition == null) {
                 return;
             }
@@ -430,13 +437,16 @@ public final class TrinityPlanningComputation {
                                                   List<InventoryAmount> referenceInventory,
                                                   Map<AEKey, BigInteger> available,
                                                   TrinityCraftingPlan plan,
+                                                  InventoryEquivalenceCertificate certificate,
                                                   AEKey target,
                                                   BigInteger requestedAmount,
                                                   CraftingQuantityMode quantityMode) {
             LinkedHashMap<AEKey, BigInteger> reference = new LinkedHashMap<>();
             referenceInventory.forEach(amount -> reference.put(amount.key(), amount.amount()));
             for (Map.Entry<AEKey, BigInteger> current : available.entrySet()) {
-                if (current.getValue().compareTo(reference.getOrDefault(current.getKey(), BigInteger.ZERO)) > 0) {
+                BigInteger referenceAmount = reference.getOrDefault(current.getKey(), BigInteger.ZERO);
+                if (current.getValue().compareTo(referenceAmount) > 0 &&
+                        !certificate.permitsIncrease(current.getKey(), referenceAmount, current.getValue())) {
                     return false;
                 }
             }
@@ -449,6 +459,57 @@ public final class TrinityPlanningComputation {
             return quantityMode == CraftingQuantityMode.NET_NEW ?
                     targetDelta.compareTo(requestedAmount) >= 0 :
                     available.getOrDefault(target, BigInteger.ZERO).add(targetDelta).compareTo(requestedAmount) >= 0;
+        }
+    }
+
+    private record OptimalPlanReference(
+                                        TrinityCraftingPlan plan,
+                                        InventoryEquivalenceCertificate certificate) {}
+
+    /**
+     * Inventory-increase proof enabled only for an acyclic {@link TrinityPlanQuality#PROVED_OPTIMAL} plan. A candidate
+     * that could improve the first lexicographic objective consumes no more of any one inventory key than the
+     * incumbent's total initial input. Once both inventories exceed that total, increasing that key cannot enlarge the
+     * improving feasible set. NET_NEW target inventory does not participate in the acyclic target constraint at all.
+     */
+    private record InventoryEquivalenceCertificate(
+                                                   boolean acyclic,
+                                                   AEKey target,
+                                                   CraftingQuantityMode quantityMode,
+                                                   BigInteger nonBindingConsumptionCap) {
+
+        private static InventoryEquivalenceCertificate forPlan(
+                                                               TrinityCompiledGraph structure,
+                                                               AEKey target,
+                                                               CraftingQuantityMode quantityMode,
+                                                               TrinityCraftingPlan plan) {
+            if (plan.statistics().quality() != TrinityPlanQuality.PROVED_OPTIMAL) {
+                throw new IllegalArgumentException("A Trinity inventory certificate requires a proved-optimal plan");
+            }
+            BigInteger cap = plan.initialExpectedInputs().values().stream()
+                    .reduce(BigInteger.ZERO, BigInteger::add);
+            return new InventoryEquivalenceCertificate(
+                    !structure.reachableCycle(),
+                    target,
+                    quantityMode,
+                    cap);
+        }
+
+        private InventoryEquivalenceCertificate {
+            if (nonBindingConsumptionCap.signum() < 0) {
+                throw new IllegalArgumentException("A Trinity inventory certificate requires a non-negative cap");
+            }
+        }
+
+        private boolean permitsIncrease(AEKey key, BigInteger referenceAmount, BigInteger currentAmount) {
+            if (!this.acyclic) {
+                return false;
+            }
+            if (this.quantityMode == CraftingQuantityMode.NET_NEW && this.target.equals(key)) {
+                return true;
+            }
+            return referenceAmount.compareTo(this.nonBindingConsumptionCap) > 0 &&
+                    currentAmount.compareTo(this.nonBindingConsumptionCap) > 0;
         }
     }
 
