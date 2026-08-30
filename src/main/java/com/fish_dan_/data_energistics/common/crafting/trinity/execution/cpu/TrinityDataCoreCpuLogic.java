@@ -377,16 +377,20 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
         if (this.proposalRetryAt > currentTick) {
-            return;
+            if (!this.proposalCoordinator.hasActionableProposal()) {
+                return;
+            }
+        } else {
+            this.proposalRetryAt = -1L;
         }
-        this.proposalRetryAt = -1L;
     }
 
     private boolean readyForDispatch(long currentTick) {
         if (!this.cpu.isOnline() || !this.cpu.isActive() || this.job == null || this.job.suspended) {
             return false;
         }
-        if (this.job.link.isCanceled() || this.proposalRetryAt > currentTick) {
+        if (this.job.link.isCanceled() ||
+                (this.proposalRetryAt > currentTick && !this.proposalCoordinator.hasActionableProposal())) {
             return false;
         }
         return true;
@@ -400,7 +404,7 @@ final class TrinityDataCoreCpuLogic {
         boolean hasReadyWork = !dispatchWindow.isExhausted() &&
                 after.schedulingHint().kind() == TrinityWorkerSchedulingHint.Kind.READY;
         return new CraftingDispatchStepResult(
-                physicalAttempts == 1,
+                physicalAttempts > 0,
                 !before.equals(after),
                 hasReadyWork,
                 dispatchWindow.isExhausted());
@@ -532,6 +536,7 @@ final class TrinityDataCoreCpuLogic {
         int physicalAttempts = 0;
         boolean dispatched = false;
         int passes = 0;
+        Set<Integer> inspectedStages = new HashSet<>();
         while (passes < maxPatterns && !dispatchWindow.isExhausted() && this.job == currentJob) {
             CraftingExecutionOutcome outcome = executeTrinityCraftingOne(
                     currentJob,
@@ -540,7 +545,7 @@ final class TrinityDataCoreCpuLogic {
                     level,
                     dispatchWindow,
                     dispatchBudget,
-                    passes > 0);
+                    inspectedStages);
             physicalAttempts = Math.addExact(physicalAttempts, outcome.physicalAttempts());
             dispatched |= outcome.dispatched();
             passes++;
@@ -566,7 +571,7 @@ final class TrinityDataCoreCpuLogic {
                                                                Level level,
                                                                CraftingDispatchWindow dispatchWindow,
                                                                CraftingDispatchBudget dispatchBudget,
-                                                               boolean skipLeased) {
+                                                               Set<Integer> inspectedStages) {
         if (advanceTrinityCompletion(currentJob)) {
             return CraftingExecutionOutcome.NONE;
         }
@@ -578,7 +583,12 @@ final class TrinityDataCoreCpuLogic {
             advanceTrinityReplanning(currentJob, craftingService, currentTick);
             return CraftingExecutionOutcome.NONE;
         }
-        var workOffer = skipLeased ? execution.pollNext(currentTick) : execution.poll(currentTick);
+        boolean allowNewProposal = this.proposalRetryAt <= currentTick;
+        var workOffer = execution.pollDispatchable(
+                currentTick,
+                inspectedStages,
+                work -> this.proposalCoordinator.dispatchable(work, allowNewProposal),
+                allowNewProposal);
         if (workOffer.isEmpty()) {
             if (execution.status() == TrinityPlanExecution.Status.FAILED) {
                 Data_Energistics.LOGGER.error(
@@ -601,6 +611,9 @@ final class TrinityDataCoreCpuLogic {
         }
 
         TrinityPlanExecution.Work work = workOffer.orElseThrow();
+        if (!inspectedStages.add(work.stageIndex())) {
+            throw new IllegalStateException("A Trinity worker pass selected the same stage twice");
+        }
         TrinityPatternResolver.Resolution resolution;
         try {
             resolution = this.patternResolver.resolve(
@@ -3000,12 +3013,6 @@ final class TrinityDataCoreCpuLogic {
      * @return immediate, event-gated, timed-retry or idle disposition
      */
     TrinityWorkerSchedulingHint schedulingHint(long currentTick) {
-        if (this.proposalCoordinator.pending()) {
-            return TrinityWorkerSchedulingHint.waitingEvent();
-        }
-        if (this.proposalRetryAt > currentTick) {
-            return TrinityWorkerSchedulingHint.retryAt(this.proposalRetryAt);
-        }
         TrinityDataCoreExecutingCraftingJob currentJob = this.job;
         if (currentJob == null) {
             return this.inventory.list.isEmpty() &&
@@ -3018,6 +3025,12 @@ final class TrinityDataCoreCpuLogic {
             return TrinityWorkerSchedulingHint.waitingEvent();
         }
         if (!currentJob.isTrinityPlan()) {
+            if (this.proposalRetryAt > currentTick) {
+                return TrinityWorkerSchedulingHint.retryAt(this.proposalRetryAt);
+            }
+            if (this.proposalCoordinator.pending()) {
+                return TrinityWorkerSchedulingHint.waitingEvent();
+            }
             if (!currentJob.tasks.isEmpty()) {
                 return TrinityWorkerSchedulingHint.ready();
             }
@@ -3027,6 +3040,23 @@ final class TrinityDataCoreCpuLogic {
         }
 
         TrinityPlanExecution execution = currentJob.trinityExecution();
+        boolean allowNewProposal = this.proposalRetryAt <= currentTick;
+        if (execution.hasDispatchableWork(
+                work -> this.proposalCoordinator.dispatchable(work, allowNewProposal),
+                allowNewProposal)) {
+            return TrinityWorkerSchedulingHint.ready();
+        }
+        if (!allowNewProposal && execution.hasDispatchableWork(
+                work -> this.proposalCoordinator.dispatchable(work, true),
+                true)) {
+            return TrinityWorkerSchedulingHint.retryAt(this.proposalRetryAt);
+        }
+        if (this.proposalCoordinator.pending()) {
+            return TrinityWorkerSchedulingHint.waitingEvent();
+        }
+        if (!allowNewProposal) {
+            return TrinityWorkerSchedulingHint.retryAt(this.proposalRetryAt);
+        }
         return switch (execution.status()) {
             case READY, COMPLETED, FAILED -> TrinityWorkerSchedulingHint.ready();
             case WAITING_INPUT -> TrinityWorkerSchedulingHint.waitingEvent();

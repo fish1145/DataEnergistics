@@ -223,6 +223,11 @@ proposal 只能携带不可变身份、数量和版本，不能携带已经准�
 identity 精确执行；worker 级 aggregate outstanding 只用于调度快照和等待事件，不能回填到另一个已经 committed 的 slice。
 当前提交成功只关闭自己的 ticket 与 reservation，其它 work 继续保留到各自的服务器线程结算边界。
 
+一个有界 worker pass 优先按稳定顺序消费所有非 Pending 的既有 leases，再为未租用 ready stage 创建新 proposal；Pending lease
+不得阻塞后面的 Ready/terminal lease。多个 completion 事件即使合并为一次 worker 唤醒，也必须在 provider quantum 和 Grid
+窗口内连续结算多个 work。worker 级 proposal backoff 只限制创建新 slot，不能阻止已 Ready/terminal ticket 的服务器线程结算。
+一次 step 完成一个或多个物理调用都必须报告 physical progress，供 runtime、Grid 和 server 三层公平游标重新入队。
+
 ## 8. CPU 预选策略
 
 ### 8.1 候选范围
@@ -777,6 +782,7 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 - 已按 provider 稳定身份固定映射到 16 个 shard，同 provider route 的并发 proposal 共享容量预留；
 - 已增加跨 provider 的 `MachineTargetId` 独占 reservation，并将释放生命周期绑定到 proposal ticket；
 - 已将 committed/rejected/stale proposal 的释放绑定到 exact work identity；worker aggregate outstanding 不参与单个 slice 状态；
+- 已让 worker pass 优先消费所有可结算 leases，并将 admission backoff 限定为新 proposal；任意 Pending slot 不再遮蔽其它 Ready work；
 - worker/队列/Grid admission 压力只触发有界退避，不在被拒绝的同一轮绕过异步上限执行同步资源提交；
 - worker round-robin、稳定 pattern work 顺序和 capacity target cursor 共同保留分层公平性，shard 只负责原子竞争边界；
 - 保持所有真实世界提交在服务器线程。

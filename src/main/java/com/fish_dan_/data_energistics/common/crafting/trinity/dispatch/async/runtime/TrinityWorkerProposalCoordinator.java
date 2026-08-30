@@ -215,6 +215,32 @@ public final class TrinityWorkerProposalCoordinator {
     }
 
     /**
+     * @return whether any exact slot has completed and requires server-thread settlement rather than event waiting
+     */
+    public boolean hasActionableProposal() {
+        return this.slots.values().stream()
+                .anyMatch(slot -> !(slot.ticket().state() instanceof DispatchProposalTicket.Pending));
+    }
+
+    /**
+     * Returns whether one exact work can be processed now under the current new-proposal admission policy.
+     * Existing terminal or ready slots remain actionable during admission backoff; a slotless work is actionable only
+     * when the caller permits a new proposal, and a pending slot always waits for its completion event.
+     *
+     * @param workIdentity     server-thread work identity
+     * @param allowNewProposal whether a slotless work may submit a new proposal
+     * @return whether this exact work can make immediate server-thread progress
+     */
+    public boolean dispatchable(Object workIdentity, boolean allowNewProposal) {
+        if (workIdentity == null) {
+            throw new IllegalArgumentException("Dispatch work identity must not be null");
+        }
+        ProposalSlot slot = this.slots.get(workIdentity);
+        return slot == null ?
+                allowNewProposal : !(slot.ticket().state() instanceof DispatchProposalTicket.Pending);
+    }
+
+    /**
      * @return whether this worker still owns any unconsumed proposal ticket state
      */
     public boolean outstanding() {

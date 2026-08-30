@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
 
 /**
@@ -367,26 +368,24 @@ public final class TrinityPlanExecution {
     }
 
     /**
-     * Returns the oldest leased work, or dequeues one eligible stage without scanning unrelated stages.
+     * Selects one uninspected work for a multi-proposal worker pass. Existing leases that can make immediate progress
+     * are preferred, then a new eligible stage is leased when admission permits it. Pending or backoff-blocked leases
+     * remain retained for their own completion/retry event. Each stage may be selected at most once per pass.
      *
-     * @param currentTick current server tick used to activate due retries
-     * @return current dispatch offer, if any
+     * @param currentTick      current server tick used to activate due retries
+     * @param inspectedStages  stage indexes already visited by the current bounded worker pass
+     * @param workDispatchable exact-work predicate identifying leases able to make immediate progress
+     * @param allowNewLease    whether this pass may lease and submit another stage rather than only settle slots
+     * @return next actionable, new, or pending work in deterministic order
      */
-    public Optional<Work> poll(long currentTick) {
-        return pollInternal(currentTick, false);
-    }
-
-    /**
-     * Dequeues another eligible stage while retaining existing leases for independent proposals.
-     *
-     * @param currentTick current server tick used to activate due retries
-     * @return an additional dispatch offer, if any
-     */
-    public Optional<Work> pollNext(long currentTick) {
-        return pollInternal(currentTick, true);
-    }
-
-    private Optional<Work> pollInternal(long currentTick, boolean skipLeased) {
+    public Optional<Work> pollDispatchable(
+                                           long currentTick,
+                                           Set<Integer> inspectedStages,
+                                           Predicate<Work> workDispatchable,
+                                           boolean allowNewLease) {
+        if (inspectedStages == null || inspectedStages.contains(null) || workDispatchable == null) {
+            throw new IllegalArgumentException("A Trinity dispatchable poll requires complete pass state");
+        }
         requireTick(currentTick);
         if (this.failed || this.planning || productionComplete()) {
             return Optional.empty();
@@ -396,15 +395,64 @@ public final class TrinityPlanExecution {
             this.budgetRetryAt = -1L;
             markDurableMutation();
         }
-        if (!skipLeased && !this.leasedWorks.isEmpty()) {
-            return Optional.of(this.leasedWorks.values().iterator().next());
-        }
         if (this.budgetRetryAt >= 0L) {
             return Optional.empty();
         }
-        while (!this.readyQueue.isEmpty()) {
+
+        for (Work leased : this.leasedWorks.values()) {
+            if (inspectedStages.contains(leased.stageIndex())) {
+                continue;
+            }
+            if (workDispatchable.test(leased)) {
+                return Optional.of(leased);
+            }
+        }
+
+        return allowNewLease ? dequeueEligibleWork(inspectedStages) : Optional.empty();
+    }
+
+    /**
+     * Returns whether the current execution can settle an existing lease or create a permitted new lease without
+     * waiting for another proposal-completion event.
+     *
+     * @param workDispatchable exact-work predicate identifying leases able to make immediate progress
+     * @param allowNewLease    whether current admission/backoff policy permits leasing a new ready stage
+     * @return whether a worker dispatch step can make immediate proposal progress
+     */
+    public boolean hasDispatchableWork(Predicate<Work> workDispatchable, boolean allowNewLease) {
+        if (workDispatchable == null) {
+            throw new IllegalArgumentException("A Trinity dispatchable-work query requires a proposal predicate");
+        }
+        if (this.failed || this.planning || productionComplete() || this.budgetRetryAt >= 0L) {
+            return false;
+        }
+        for (Work leased : this.leasedWorks.values()) {
+            if (workDispatchable.test(leased)) {
+                return true;
+            }
+        }
+        if (!allowNewLease) {
+            return false;
+        }
+        for (Integer stageIndex : this.readyQueue) {
+            StageState stage = requireStage(stageIndex);
+            if (!this.leasedWorks.containsKey(stage.index) && eligible(stage)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Optional<Work> dequeueEligibleWork(Set<Integer> excludedStages) {
+        int candidates = this.readyQueue.size();
+        while (candidates-- > 0 && !this.readyQueue.isEmpty()) {
             int stageIndex = this.readyQueue.removeFirst();
             this.queuedStages.remove(stageIndex);
+            if (excludedStages.contains(stageIndex)) {
+                this.readyQueue.addLast(stageIndex);
+                this.queuedStages.add(stageIndex);
+                continue;
+            }
             StageState stage = requireStage(stageIndex);
             if (!eligible(stage)) {
                 continue;
