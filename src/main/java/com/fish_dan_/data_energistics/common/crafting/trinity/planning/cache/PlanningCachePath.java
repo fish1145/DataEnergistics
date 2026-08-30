@@ -8,6 +8,9 @@ public enum PlanningCachePath {
     /** Quantity, mode, relevant inventory, structure, and revision matched a completed solved result. */
     EXACT_HIT,
 
+    /** A previously proved-optimal plan remains optimal throughout the new, smaller feasible inventory domain. */
+    PROVEN_EQUIVALENT_HIT,
+
     /** Target structure matched, while quantity, inventory, or revision required dynamic demand solving. */
     STRUCTURE_HIT,
 
