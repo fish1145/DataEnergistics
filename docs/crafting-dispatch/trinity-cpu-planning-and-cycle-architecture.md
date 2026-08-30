@@ -49,7 +49,7 @@ flowchart LR
 ```
 
 存在合格 Trinity CPU 时，当前网关只提交并等待 Trinity 计算；传入的 AE2 supplier 不会在该分支启动。没有合格 Trinity
-CPU 时，入口在捕获图和库存前直接走 AE2。Trinity 对单 transition 自环精确证明缺料时仍可发布常量空间 diagnosis
+CPU 时，入口在捕获图和库存前直接走 AE2。Trinity 对 DAG 或 cyclic SCC 精确证明缺料时可发布常量空间 diagnosis
 simulation；其它失败返回 Trinity 诊断，不应把循环或动态输出请求描述为可由 AE2 通用接管。
 
 ## 4. 网格级不可变样板图
@@ -83,6 +83,17 @@ binding 压缩后、跨 pattern transition-effect family 压缩前实际物化�
 - 完整快照构建后一次性原子替换，规划线程不会看到半成品。
 - Grid 关闭或重建时取消关联计算并释放快照。
 
+### 4.3 库存快照与创造来源
+
+库存快照只查询本次图中的 exact `AEKey`。物品注册名相同但 data components 不同仍是不同 key；规划器不会把花自动视为染料、
+把甘蔗视为糖，也不会在库存捕获阶段增加 fuzzy/tag fallback。
+
+普通小数量直接读取 AE2 cached inventory。缓存值达到 `Integer.MAX_VALUE` 哨兵区间时，服务器线程使用同一请求的
+`IActionSource` 调用 `extract(key, Long.MAX_VALUE, SIMULATE)`，以真实可模拟提取量作为规划上界。这样原生创造存储元件在
+AE2 正 `long` 执行域内表现为 `Long.MAX_VALUE`，普通大容量有限存储仍保留真实有限值。该上界只进入不可变请求库存和 solved
+cache key；最终计划仍只保存实际需要提取的有限数量，不把“无限”写入执行 NBT。高数量探测失败会产生
+`phase=inventory_capture` 的终端诊断，不能退回可能过时的缓存值。
+
 ## 5. 计划接口
 
 内部类型 `TrinityCraftingPlan` 实现 `TrinityCpuExecutablePlan`。除 AE2 原字段外，
@@ -94,9 +105,9 @@ binding 压缩后、跨 pattern transition-effect family 压缩前实际物化�
 - minimum seed、目标净增量和最终交付量；
 - 保守 `bytes()`、诊断与算法统计。
 
-`TrinityDiagnosedCraftingPlan` 只用于 UI，不允许提交：普通 fallback 原样委托 AE2 simulation；单 transition
-自环可精确证明输入不足时，则以常量空间投影 `available` 与 `missing` 计数，不再等待 AE2 大数量展开。多步循环的
-候选顺序不能单独构成不可行证明，仍保留 AE2 fallback。
+`TrinityDiagnosedCraftingPlan` 只用于 UI，不允许提交：普通 fallback 原样委托 AE2 simulation；DAG 或 joint-cycle root
+可精确证明输入不足时，则以常量空间投影 `available` 与 `missing` 计数，不再等待 AE2 大数量展开。只有完成 ordinary/radix
+整数解码、`BigInteger` 守恒和逐 key 缺料复验的结果才能成为权威缺料；虚拟输入和诊断 firing 不进入 executable plan。
 
 所有 Trinity 提交入口共享 `TrinityPlanAdmission` 接纳边界。AE2 原生 `CraftingPlan` 和显式实现
 `TrinityCpuExecutablePlan` 的扩展计划可执行；其它 `ICraftingPlan` 可能携带专用 CPU 的 host、seed、借用或排程语义，
@@ -207,7 +218,7 @@ minimumSeed[key] = max(0, 每个执行前缀的最大亏空)
 
 ### 6.4 多路线 MIP
 
-每个 binding variant 对应非负整数 firing 变量。MIP 对完整剩余请求求解，并在同一总超时预算内执行词典序目标：
+每个 binding variant 对应非负整数 firing 变量。MIP 对完整剩余请求求解，并在同一最优性证明预算内执行词典序目标：
 
 1. 最小化按 AE2 存储单位求和的外部输入；
 2. 固定第一阶段最优值后最小化 seed；
@@ -223,8 +234,11 @@ minimumSeed[key] = max(0, 每个执行前缀的最大亏空)
 未来若重新接入，其 reduction 只能接收已经完整验证的 baseline，并使用精确的 `0..baselineFirings` 结构边界。LP 松弛值、
 ULP guard 或经验常数不得作为整数硬上界，超时也不得把未验证 firing upper bound 当作 executable incumbent。
 
-库存上界使用精确的 lazy constraint generation：先求省略非约束性容量上界的最优解；若某个 seed 或外部输入超过实际库存，
-只加入被违反项的精确上界并重新求解。这样既保留有限库存语义，也不会把无限存储单元发布的巨量容量直接交给数值求解器。
+正常 executable model 为每个有限 seed/外部输入施加捕获库存上界；创造来源在进入模型前已经由服务器线程的真实提取探测规范化。
+joint root 在这些上界下返回 `MIP_NO_INTEGER_SOLUTION` 且尚无 incumbent 时，才建立 diagnosis request：每个有限 reserve 拆为
+`actual + missing`，先证明最小 missing，再固定 external、seed、firing、稳定 firing identity 和逐 key reserve identity。
+ordinary 与 radix 都执行相同目标并用 `BigInteger` 重放；只有正 missing 的完整证明才转换成 `INSUFFICIENT_INPUT`。missing 为零、
+诊断超时、状态/模型上限或 relaxed model 仍不可行时保留原 `MIP_NO_INTEGER_SOLUTION`，不会把诊断候选升级成计划。
 
 普通范围只有在全部变量、系数、守恒行和目标值都能在二进制浮点精确整数窗口内表达时，才进入 ordinary ojAlgo model。
 超过该窗口时，firing、余额和目标值使用以 `2^15` 为基数的非负整数 digit 与有符号整数 carry 编码；每个 digit/carry 都是
@@ -242,7 +256,8 @@ ordinary/radix，radix-only 请求不会预建 ordinary 模型。radix 的 digit
 状态搜索不逐个执行 firing，而按“当前最大安全批次”或下一个余额断点推进。状态包含剩余 firing vector、相关余额和
 阶段游标，并受 `maxScheduleStates` 限制。一次请求拥有一份共享的全图 graph-route search budget；纯 DAG route optimization
 使用这份全图预算。除此之外，每个 cyclic SCC 各自拥有一份同值的局部 search/schedule budget，因此多个 SCC 的最终统计值可以
-相加后超过单个局部上限，但全图路线分支不会按 SCC 重置预算。
+相加后超过单个局部上限，但全图路线分支不会按 SCC 重置预算。cycle shortage diagnosis 只能使用 root 后剩余的局部 states；
+ordinary 每次实际 `minimise()`、radix 每次 certified/adjacent/digit probe 都先消费一个 state，达到上限即停止诊断并保留原失败。
 
 已证明的 primitive macro 只排程一个完整单元，再以 `BigInteger repetitions` 保存重复次数；不会把 256M 或十亿级请求
 铺平成同数量级的 schedule batch。单元内部仍保留精确可执行的余额断点，因此压缩不改变 provider 顺序或 seed 守恒。
@@ -388,6 +403,7 @@ outstanding 上限；世界状态和资源提交仍只在服务器线程执行�
 NO_PRODUCTIVE_CYCLE
 SCC_KEY_LIMIT
 VARIANT_LIMIT
+INSUFFICIENT_INPUT
 MIP_TIMEOUT
 MIP_NO_INTEGER_SOLUTION
 ORDER_SEARCH_LIMIT
@@ -403,7 +419,9 @@ RUNTIME_DEADLOCK
 `jointStates` 和 `routeStates`；执行日志继续记录 job、fallback 与所有权状态。model 统计基础/编码模型装配，pass 统计实际
 ojAlgo minimise/maximise/probe；exact 与 proven-equivalent cache hit 的本请求 MIP 和搜索计数归零。`firstFeasibleNanos` 仍以
 最终完整计划可发布时刻为准，不能冒充更早但尚未通过最终 byte/`long` 边界的数值 witness 时间。请求累计指标达到类型上限时
-饱和，遥测溢出不得反向终止规划。
+饱和，遥测溢出不得反向终止规划。库存捕获另记录 `inventorySentinelProbes` 与 `effectiveLongMaxKeys`；缺料诊断 metadata
+记录 `shortageKinds`、首个稳定 key 的 `required/available/missing`、ordinary/radix model、真实 solver pass/MIP nanos 和
+`shortageDiagnosisStates`。`MIP_NO_INTEGER_SOLUTION` 只表示库存诊断没有证明出正缺料的结构性或整数不可行。
 等待状态只在状态迁移或限频周期记录，避免日志刷屏。
 
 ## 11. 实施顺序
@@ -435,6 +453,7 @@ ojAlgo minimise/maximise/probe；exact 与 proven-equivalent cache hit 的本请
 - 多边界输出的 primitive cycle macro、完整单元净增结算和只随图结构增长的 unit stage；
 - 等价输入绑定的 transition-effect 动态规划压缩，以及规划/运行时共享的 canonical representative；
 - ordinary/radix ojAlgo 顺序词典序 MIP、`BigInteger` 精确整数复验和有界压缩排程证明；
+- 高库存哨兵的 live extraction 规范化，以及 root cyclic MIP 的有界 ordinary/radix 精确缺料证明；
 - `PROVED_OPTIMAL`/`VERIFIED_FEASIBLE` 质量传播、超时 incumbent 接纳和无 incumbent 的 first-feasible 回退；
 - 跨 pattern 严格 transition-effect representative、DAG/ordinary 请求私有模型模板、joint child 的 ordinary 模板复用、
   单轴循环搜索分区和不可行 box 记忆；

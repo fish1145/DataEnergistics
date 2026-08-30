@@ -332,6 +332,23 @@ variant 总量计数。跨 pattern 严格 transition-effect family 在上限检�
 全部参与守恒；当时规划结果为 85 个完整宏单元、3 个 repeat unit stage，而不是展开 5,000 余次内部 firing。当前工作树已经
 不再保留这些 planner fixture 与对应契约测试，因此该记录只说明设计来源，不能替代本分支的实际游戏验收。
 
+### C-026：失败结果、创造库存哨兵与循环缺料被混成过时通用无解
+
+真实存档复现中，相同订单连续返回 `cachePath=EXACT_HIT` 与 `MIP_NO_INTEGER_SOLUTION`。第一份不可行结果被 solved cache
+保留后，后续请求不会观察新的库存或样板状态。与此同时，AE2 原生创造元件通过 stack listing 发布
+`Integer.MAX_VALUE`，但其 `extract(..., SIMULATE)` 能满足完整正 `long` 请求；旧库存捕获把展示哨兵当作有限数量。循环 root
+又在有限 external/seed 上界导致不可行时直接返回通用 MIP 无整数解，隐藏了 exact `AEKey` 缺料。
+
+修复分为三层：reachable、compiled 与 solved computation cache 只保留成功结果，失败只共享给已经等待同一 in-flight
+计算的调用方；服务器线程对达到哨兵区间的相关 key 使用同一 `IActionSource` 模拟提取 `Long.MAX_VALUE`，把真实可提取量写入
+请求库存；joint root 的普通模型确认无整数解且没有 incumbent 时，使用剩余 SCC state 运行 diagnosis model。diagnosis 将有限
+reserve 拆为 actual/missing，依次证明 missing、external、seed、firing、稳定 firing identity 与逐 key reserve identity，ordinary
+和 radix 均做精确整数/守恒重放。只有正 missing 的完整证明转换为 `INSUFFICIENT_INPUT`；取消、超时、状态/模型上限、missing=0
+或 relaxed model 仍不可行均保留原结构化 MIP 诊断。诊断 firing 与虚拟输入不会进入 executable incumbent、schedule 或 NBT。
+
+该修复不改变 exact `AEKey` 规则，也不会从花、甘蔗或原矿推测未发布的转换配方。当前分支没有为此新增测试源码、配方 fixture
+或 benchmark；现有 Gradle 检查只能证明既有自动化未回归，完整订单样板与创造盘行为仍由真实游戏环境验收。
+
 ## 4. 修复映射
 
 下表“主要证据”记录历史审计依据；除非在第 6 节明确列为本次实际执行，否则不代表当前工作树仍能运行这些测试或 GameTest。
@@ -363,6 +380,7 @@ variant 总量计数。跨 pattern 严格 transition-effect family 在上限检�
 | C-023 | publication revision 驱动的终端 provider 同步 | 已完成 | publication、本地展示输入与保守一致性刷新 GameTest |
 | C-024 | Pattern Core V3→V4 容量对齐迁移与 V2 拒绝 | 进行中 | 同档位容量迁移、旧 V2 拒绝、真实玩家拆除/掉落/重放 GameTest |
 | C-025 | primitive cycle macro、settled export、等价 binding 压缩 | 已完成 | 完整有限库存 256M 链路、玩家请求域循环、joint SCC 与共享 binding 契约 |
+| C-026 | 成功限定缓存、创造库存探测、cycle shortage diagnosis | 已完成 | 现有 test/build；失败重复请求、exact-key 缺料与完整订单由真实环境验收 |
 
 ## 5. 风险与控制
 
@@ -377,7 +395,9 @@ variant 总量计数。跨 pattern 严格 transition-effect family 在上限检�
 | 专用第三方计划进入 Trinity | 未知扩展计划交回原路由，显式 Trinity 目标 fail fast |
 | 缺料等待造成忙轮询 | key 唤醒加最高 200 tick 退避 |
 | 大数量溢出 | 内部 `BigInteger`，AE2 边界精确转换 |
-| 单样板自环缺料后继续等待 AE2 大数量展开 | 发布 Trinity 权威诊断 simulation 并协作取消 AE2；多步顺序相关结果继续 fallback |
+| 创造库存展示哨兵被当作有限数量 | 高数量相关 key 在服务器线程执行 `Long.MAX_VALUE` 模拟提取；计划仍只保存实际有限输入 |
+| 循环库存不足被误报为结构性无解 | root-only actual/missing diagnosis、ordinary/radix 精确复验、逐 probe SCC state 预算；无法证明时保留原 MIP 诊断 |
+| 已证明缺料后继续等待 AE2 大数量展开 | DAG 或 joint root 只有在 exact shortage 证明完成后发布 Trinity 权威诊断 simulation；其它失败保留原结构化诊断 |
 | 多输出循环退化为逐 firing 排程或提前暴露 seed | 只接纳带完整 unit seed/net 证明的 primitive macro；下游仅消费 settled positive net |
 | 原始输入替代笛卡尔积放大图规模 | 按聚合消耗和余留物效果合并等价绑定，规划与运行时共享首个合法 representative |
 | UI 数量与紧凑执行游标偏离 | 计划使用 gross 声明输出；运行时从持久游标精确推导，不维护第二份可漂移计数器 |
