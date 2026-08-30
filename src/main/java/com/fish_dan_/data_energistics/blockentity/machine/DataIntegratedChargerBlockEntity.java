@@ -96,7 +96,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final int MACHINE_MODULE_SLOT = ITEM_OUTPUT_START_SLOT + ITEM_OUTPUT_SLOT_COUNT;
     public static final int STORAGE_SLOTS = MACHINE_MODULE_SLOT + 1;
     public static final int ITEM_SLOT_CAPACITY = 512;
-    public static final int FLUID_CAPACITY = DataChargePressRecipe.MAX_FLUID_AMOUNT;
+    public static final int FLUID_CAPACITY = 512_000;
     public static final int MAX_SPEED_CARDS = 4;
     public static final int MAX_ENERGY_CARDS = 2;
     public static final int UPGRADE_SLOTS = 6;
