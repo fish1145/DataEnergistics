@@ -165,6 +165,9 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                     control,
                     metrics);
             if (!seed.successful()) {
+                if (recoverableStop(seed.diagnostic())) {
+                    return feasibleSolution(external.value(), metrics);
+                }
                 return TrinityAlgorithmResult.failure(seed.diagnostic());
             }
             BigInteger optimalSeed = total(seed.value().modelSeed());
@@ -176,6 +179,9 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                     control,
                     metrics);
             if (!completed.successful()) {
+                if (recoverableStop(completed.diagnostic())) {
+                    return feasibleSolution(seed.value(), metrics);
+                }
                 return TrinityAlgorithmResult.failure(completed.diagnostic());
             }
             if (completed.value().isPresent()) {
@@ -225,6 +231,11 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                 control,
                 metrics);
         if (!seed.successful()) {
+            if (recoverableStop(seed.diagnostic())) {
+                return TrinityAlgorithmResult.success(Optional.of(feasibleSolutionValue(
+                        external.value(),
+                        metrics)));
+            }
             return seed.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION ?
                     TrinityAlgorithmResult.success(Optional.empty()) :
                     TrinityAlgorithmResult.failure(seed.diagnostic());
@@ -271,6 +282,9 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                         control,
                         metrics);
         if (!firing.successful()) {
+            if (recoverableStop(firing.diagnostic())) {
+                return TrinityAlgorithmResult.success(Optional.of(feasibleSolutionValue(seed, metrics)));
+            }
             return firing.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION ?
                     TrinityAlgorithmResult.success(Optional.empty()) :
                     TrinityAlgorithmResult.failure(firing.diagnostic());
@@ -319,6 +333,9 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                     control,
                     metrics);
             if (!identity.successful()) {
+                if (recoverableStop(identity.diagnostic())) {
+                    return TrinityAlgorithmResult.success(Optional.of(feasibleSolutionValue(canonical, metrics)));
+                }
                 return TrinityAlgorithmResult.failure(identity.diagnostic());
             }
             canonical = identity.value();
@@ -515,6 +532,31 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
 
     private static BigInteger total(Map<?, BigInteger> amounts) {
         return amounts.values().stream().reduce(BigInteger.ZERO, BigInteger::add);
+    }
+
+    private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> feasibleSolution(
+                                                                                            TrinityRadixSolvedModel solved,
+                                                                                            TrinityRadixSolverMetrics metrics) {
+        return TrinityAlgorithmResult.success(feasibleSolutionValue(solved, metrics));
+    }
+
+    private static TrinityCycleFeasibilitySolution feasibleSolutionValue(
+                                                                         TrinityRadixSolvedModel solved,
+                                                                         TrinityRadixSolverMetrics metrics) {
+        return new TrinityCycleFeasibilitySolution(
+                solved.firings(),
+                solved.modelSeed(),
+                solved.externalInputs(),
+                metrics.passes(),
+                metrics.nanos(),
+                true,
+                TrinityPlanQuality.VERIFIED_FEASIBLE);
+    }
+
+    private static boolean recoverableStop(TrinityPlanningDiagnostic diagnostic) {
+        TrinityPlanningDiagnosticCode code = diagnostic.code();
+        return code == TrinityPlanningDiagnosticCode.MIP_TIMEOUT ||
+                code == TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT;
     }
 
     /**
