@@ -7,6 +7,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicCompetitionPlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicCompetitionPlanner.Attempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer.ShortageEvidence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRoutePruner;
@@ -26,6 +28,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Propagates aggregate demand through acyclic keys without expanding one state per requested item.
@@ -45,11 +48,13 @@ public final class TrinityAcyclicDemandPropagator {
 
     private final TrinityAcyclicRouteOptimizer routeOptimizer;
     private final TrinityAcyclicRoutePruner routePruner;
+    private final TrinityAcyclicCompetitionPlanner competitionPlanner;
 
     TrinityAcyclicDemandPropagator(TrinityAcyclicRouteOptimizer routeOptimizer,
                                    TrinityAcyclicRoutePruner routePruner) {
         this.routeOptimizer = routeOptimizer;
         this.routePruner = routePruner;
+        this.competitionPlanner = TrinityAcyclicCompetitionPlanner.create(routeOptimizer);
     }
 
     /**
@@ -111,9 +116,10 @@ public final class TrinityAcyclicDemandPropagator {
         List<TrinityPatternVariant> planningVariants = executableRoutes.isEmpty() ? variants : executableRoutes;
         Map<AEKey, List<TrinityPatternVariant>> producers = indexProducers(planningVariants);
         if (requiresGlobalRouteOptimization(topology, reachableComponents, producers)) {
-            TrinityAlgorithmResult<TrinityAcyclicPlan> optimized = this.routeOptimizer.optimize(
+            Optional<Attempt> competition = this.competitionPlanner.plan(
                     topology,
                     planningVariants,
+                    producers,
                     target,
                     requestedAmount,
                     quantityMode,
@@ -121,39 +127,29 @@ public final class TrinityAcyclicDemandPropagator {
                     maxSearchStates,
                     mode,
                     control);
-            if (optimized.successful()) {
-                return optimized;
-            }
-            if (optimized.diagnostic().code() == TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT) {
-                TrinityAlgorithmResult<ShortageEvidence> diagnosed = this.routeOptimizer.diagnoseShortage(
+            if (competition.isPresent()) {
+                Attempt attempt = competition.orElseThrow();
+                return completeOptimizedResult(
+                        attempt.result(),
                         variants,
                         target,
                         requestedAmount,
                         quantityMode,
                         available,
-                        maxSearchStates,
+                        attempt.diagnosticBudget(),
                         control);
-                if (diagnosed.successful()) {
-                    return insufficient(diagnosed.value());
-                }
-                if (diagnosed.diagnostic().partialPlan().isPresent()) {
-                    return TrinityAlgorithmResult.failure(diagnosed.diagnostic());
-                }
-                return TrinityAlgorithmResult.failure(diagnosed.diagnostic().withDetail(
-                        new TrinityPlanningDiagnostic.PartialPlan(
-                                Map.of(),
-                                Map.of(),
-                                Map.of(target, requestedAmount))));
             }
-            if (optimized.diagnostic().inputShortage().isPresent() ||
-                    optimized.diagnostic().partialPlan().isPresent()) {
-                return optimized;
-            }
-            return TrinityAlgorithmResult.failure(optimized.diagnostic().withDetail(
-                    new TrinityPlanningDiagnostic.PartialPlan(
-                            Map.of(),
-                            Map.of(),
-                            Map.of(target, requestedAmount))));
+            return optimizeWholeGraph(
+                    topology,
+                    planningVariants,
+                    variants,
+                    target,
+                    requestedAmount,
+                    quantityMode,
+                    available,
+                    maxSearchStates,
+                    mode,
+                    control);
         }
 
         Map<AEKey, BigInteger> inventory = copyAvailable(available);
@@ -251,6 +247,82 @@ public final class TrinityAcyclicDemandPropagator {
                 reservedInputs,
                 net,
                 states));
+    }
+
+    private TrinityAlgorithmResult<TrinityAcyclicPlan> optimizeWholeGraph(
+                                                                          TrinityCraftingTopology topology,
+                                                                          List<TrinityPatternVariant> planningVariants,
+                                                                          List<TrinityPatternVariant> diagnosticVariants,
+                                                                          AEKey target,
+                                                                          BigInteger requestedAmount,
+                                                                          CraftingQuantityMode quantityMode,
+                                                                          Map<AEKey, BigInteger> available,
+                                                                          int maxSearchStates,
+                                                                          TrinityPlanningMode mode,
+                                                                          TrinityPlanningControl control) {
+        TrinityAlgorithmResult<TrinityAcyclicPlan> optimized = this.routeOptimizer.optimize(
+                topology,
+                planningVariants,
+                target,
+                requestedAmount,
+                quantityMode,
+                available,
+                maxSearchStates,
+                mode,
+                control);
+        return completeOptimizedResult(
+                optimized,
+                diagnosticVariants,
+                target,
+                requestedAmount,
+                quantityMode,
+                available,
+                maxSearchStates,
+                control);
+    }
+
+    private TrinityAlgorithmResult<TrinityAcyclicPlan> completeOptimizedResult(
+                                                                               TrinityAlgorithmResult<TrinityAcyclicPlan> optimized,
+                                                                               List<TrinityPatternVariant> diagnosticVariants,
+                                                                               AEKey target,
+                                                                               BigInteger requestedAmount,
+                                                                               CraftingQuantityMode quantityMode,
+                                                                               Map<AEKey, BigInteger> available,
+                                                                               int maxSearchStates,
+                                                                               TrinityPlanningControl control) {
+        if (optimized.successful()) {
+            return optimized;
+        }
+        if (optimized.diagnostic().code() == TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT) {
+            TrinityAlgorithmResult<ShortageEvidence> diagnosed = this.routeOptimizer.diagnoseShortage(
+                    diagnosticVariants,
+                    target,
+                    requestedAmount,
+                    quantityMode,
+                    available,
+                    maxSearchStates,
+                    control);
+            if (diagnosed.successful()) {
+                return insufficient(diagnosed.value());
+            }
+            if (diagnosed.diagnostic().partialPlan().isPresent()) {
+                return TrinityAlgorithmResult.failure(diagnosed.diagnostic());
+            }
+            return TrinityAlgorithmResult.failure(diagnosed.diagnostic().withDetail(
+                    new TrinityPlanningDiagnostic.PartialPlan(
+                            Map.of(),
+                            Map.of(),
+                            Map.of(target, requestedAmount))));
+        }
+        if (optimized.diagnostic().inputShortage().isPresent() ||
+                optimized.diagnostic().partialPlan().isPresent()) {
+            return optimized;
+        }
+        return TrinityAlgorithmResult.failure(optimized.diagnostic().withDetail(
+                new TrinityPlanningDiagnostic.PartialPlan(
+                        Map.of(),
+                        Map.of(),
+                        Map.of(target, requestedAmount))));
     }
 
     /**
