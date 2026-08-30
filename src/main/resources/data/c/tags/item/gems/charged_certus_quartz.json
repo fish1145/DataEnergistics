@@ -1,6 +1,4 @@
 {
 	"replace": false,
-	"values": [
-		"ae2:charged_certus_quartz_crystal"
-	]
+	"values": ["ae2:charged_certus_quartz_crystal"]
 }

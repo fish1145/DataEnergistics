@@ -1,48 +1,48 @@
 {
-  "ctm": {
-    "ctm_version": 1,
-    "type": "ctm",
-    "layer": "SOLID",
-    "textures": [
-      "data_energistics:block/trinity_core/storage/me_digital_storage_core_ctm",
-      "data_energistics:block/trinity_core/empty_trinity_unit_ctm"
-    ],
-    "extra": {
-      "connect_to": [
-        {
-          "block": "data_energistics:empty_trinity_unit"
-        },
-        {
-          "block": "data_energistics:me_digital_storage_core_1k"
-        },
-        {
-          "block": "data_energistics:me_digital_storage_core_1m"
-        },
-        {
-          "block": "data_energistics:me_digital_storage_core_4k"
-        },
-        {
-          "block": "data_energistics:me_digital_storage_core_4m"
-        },
-        {
-          "block": "data_energistics:me_digital_storage_core_16k"
-        },
-        {
-          "block": "data_energistics:me_digital_storage_core_16m"
-        },
-        {
-          "block": "data_energistics:me_digital_storage_core_64k"
-        },
-        {
-          "block": "data_energistics:me_digital_storage_core_64m"
-        },
-        {
-          "block": "data_energistics:me_digital_storage_core_256k"
-        },
-        {
-          "block": "data_energistics:me_digital_storage_core_256m"
-        }
-      ]
-    }
-  }
+	"ctm": {
+		"ctm_version": 1,
+		"type": "ctm",
+		"layer": "SOLID",
+		"textures": [
+			"data_energistics:block/trinity_core/storage/me_digital_storage_core_ctm",
+			"data_energistics:block/trinity_core/empty_trinity_unit_ctm"
+		],
+		"extra": {
+			"connect_to": [
+				{
+					"block": "data_energistics:empty_trinity_unit"
+				},
+				{
+					"block": "data_energistics:me_digital_storage_core_1k"
+				},
+				{
+					"block": "data_energistics:me_digital_storage_core_1m"
+				},
+				{
+					"block": "data_energistics:me_digital_storage_core_4k"
+				},
+				{
+					"block": "data_energistics:me_digital_storage_core_4m"
+				},
+				{
+					"block": "data_energistics:me_digital_storage_core_16k"
+				},
+				{
+					"block": "data_energistics:me_digital_storage_core_16m"
+				},
+				{
+					"block": "data_energistics:me_digital_storage_core_64k"
+				},
+				{
+					"block": "data_energistics:me_digital_storage_core_64m"
+				},
+				{
+					"block": "data_energistics:me_digital_storage_core_256k"
+				},
+				{
+					"block": "data_energistics:me_digital_storage_core_256m"
+				}
+			]
+		}
+	}
 }

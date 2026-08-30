@@ -39,7 +39,6 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.enchantment.Enchantments;
 
 import appeng.api.integrations.emi.EmiStackConverters;
-import appeng.core.definitions.AEBlocks;
 import appeng.integration.modules.emi.EmiEncodePatternHandler;
 import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
 import appeng.menu.me.items.PatternEncodingTermMenu;
