@@ -41,6 +41,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.NetworkCraftingGraphCaptureSource;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingGraphRebuilder;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingProviderRevision;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventorySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityCraftingRequestContext;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
@@ -91,13 +92,12 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 import java.math.BigInteger;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -218,7 +218,9 @@ public abstract class CraftingServiceMixin
         }
 
         TrinityCraftingSchema settings = DataEnergisticsConfiguration.INSTANCE.trinity.crafting;
-        IActionSource actionSource = simRequester.getActionSource();
+        IActionSource actionSource = Objects.requireNonNull(
+                simRequester.getActionSource(),
+                "A crafting simulation requester requires an action source");
         CraftingQuantityMode quantityMode = TrinityCraftingRequestContext.resolve(
                 actionSource,
                 settings.defaultQuantityMode);
@@ -250,14 +252,44 @@ public abstract class CraftingServiceMixin
 
         TrinityPlanningLimits planningLimits = TrinityPlanningLimits.capture(settings);
         long requestId = DATA_ENERGISTICS_INITIAL_PLANNING_SEQUENCE.incrementAndGet();
-        Map<AEKey, BigInteger> available = graph
-                .map(this::dataEnergistics$capturePlanningInventory)
-                .orElse(Map.of());
+        TrinityPlanningInventorySnapshot inventorySnapshot;
+        try {
+            inventorySnapshot = graph
+                    .map(snapshot -> dataEnergistics$capturePlanningInventory(snapshot, actionSource))
+                    .orElseGet(TrinityPlanningInventorySnapshot::empty);
+        } catch (TrinityPlanningInventorySnapshot.CaptureException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Failed to capture Trinity planning inventory for request {} and key {}",
+                    requestId,
+                    exception.key(),
+                    exception);
+            TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.internal_error"),
+                    Map.of(
+                            "key", exception.key().toString(),
+                            "phase", "inventory_capture",
+                            "reason", exception.getCause().getClass().getSimpleName()));
+            return CompletableFuture.completedFuture(TrinityDiagnosedCraftingPlan.forDiagnostic(
+                    new GenericStack(what, amount),
+                    diagnostic));
+        }
+        Map<AEKey, BigInteger> available = inventorySnapshot.amounts();
 
         long gridScope = publications.publicationScope();
         long graphRevision = graph
                 .map(TrinityCraftingGraphSnapshot::revision)
                 .orElse(publications.publicationRevision());
+        if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
+            Data_Energistics.LOGGER.info(
+                    "Trinity planning inventory captured request={} target={} revision={} keys={} inventorySentinelProbes={} effectiveLongMaxKeys={}",
+                    requestId,
+                    what,
+                    graphRevision,
+                    available.size(),
+                    inventorySnapshot.sentinelProbes(),
+                    inventorySnapshot.effectiveLongMaxKeys());
+        }
         return TrinityPlanningGatewayLifecycle.gateway().begin(
                 true,
                 gridScope,
@@ -386,17 +418,15 @@ public abstract class CraftingServiceMixin
     }
 
     @Unique
-    private Map<AEKey, BigInteger> dataEnergistics$capturePlanningInventory(
-                                                                            TrinityCraftingGraphSnapshot graph) {
-        LinkedHashMap<AEKey, BigInteger> available = new LinkedHashMap<>();
-        var cachedInventory = this.grid.getStorageService().getCachedInventory();
-        for (AEKey key : graph.keys()) {
-            long amount = cachedInventory.get(key);
-            if (amount > 0L) {
-                available.put(key, BigInteger.valueOf(amount));
-            }
-        }
-        return Collections.unmodifiableMap(available);
+    private TrinityPlanningInventorySnapshot dataEnergistics$capturePlanningInventory(
+                                                                                      TrinityCraftingGraphSnapshot graph,
+                                                                                      IActionSource actionSource) {
+        var storageService = this.grid.getStorageService();
+        return TrinityPlanningInventorySnapshot.capture(
+                graph.keys(),
+                storageService.getCachedInventory(),
+                storageService.getInventory(),
+                actionSource);
     }
 
     /**
