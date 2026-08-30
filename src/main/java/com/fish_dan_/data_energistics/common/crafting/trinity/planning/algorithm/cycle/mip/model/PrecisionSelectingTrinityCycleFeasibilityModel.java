@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
 
 import appeng.api.stacks.AEKey;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
 import java.util.LinkedHashSet;
@@ -38,9 +39,38 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
         if (request == null || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity feasibility solve requires a request and control");
         }
-        return requiresRadix(request) ?
-                this.radix.solve(request, mode, control) :
-                this.ordinary.solve(request, mode, control);
+        return openSession(request).solve(request, mode, control);
+    }
+
+    @Override
+    public TrinityCycleFeasibilitySession openSession(TrinityCycleFeasibilityRequest request) {
+        return TrinityCycleFeasibilitySession.create(
+                request,
+                new PrecisionSessionSolver());
+    }
+
+    /**
+     * Selects precision for every related request and initializes the ordinary template only on its first use.
+     */
+    private final class PrecisionSessionSolver implements TrinityCycleFeasibilitySession.Solver {
+
+        private @Nullable TrinityCycleFeasibilitySession ordinarySession;
+
+        @Override
+        public TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solve(
+                                                                             TrinityCycleFeasibilityRequest request,
+                                                                             TrinityPlanningMode mode,
+                                                                             TrinityPlanningControl control) {
+            if (requiresRadix(request)) {
+                return radix.solve(request, mode, control);
+            }
+            TrinityCycleFeasibilitySession session = this.ordinarySession;
+            if (session == null) {
+                session = ordinary.openSession(request);
+                this.ordinarySession = session;
+            }
+            return session.solve(request, mode, control);
+        }
     }
 
     private static boolean requiresRadix(TrinityCycleFeasibilityRequest request) {

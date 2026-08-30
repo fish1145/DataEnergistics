@@ -13,6 +13,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.search.evaluation.TrinityJointCandidateEvaluator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilityModel;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilityRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilitySession;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilitySolution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityLexicographicObjective;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
@@ -153,6 +154,7 @@ public final class TrinityJointCycleSearch {
         private final SearchBudget budget;
         private final TrinityPlanningMode mode;
         private final TrinityPlanningControl control;
+        private final TrinityCycleFeasibilitySession feasibilitySession;
         private final SolverMetrics metrics = new SolverMetrics();
         private final Set<FeasibilityKey> infeasibleBoxes = new LinkedHashSet<>();
         private @Nullable TrinityJointCyclePlan incumbent;
@@ -176,6 +178,7 @@ public final class TrinityJointCycleSearch {
             this.budget = new SearchBudget(maxSearchStates);
             this.mode = mode;
             this.control = control;
+            this.feasibilitySession = feasibilityModel.openSession(request(TrinityFiringBox.full(this.variants)));
         }
 
         private TrinityAlgorithmResult<TrinityJointCyclePlan> search() {
@@ -183,7 +186,7 @@ public final class TrinityJointCycleSearch {
             if (!this.budget.consume(1)) {
                 return searchLimit();
             }
-            TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> rootSolved = feasibilityModel.solve(
+            TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> rootSolved = this.feasibilitySession.solve(
                     request(rootBox),
                     this.mode,
                     this.control);
@@ -361,7 +364,7 @@ public final class TrinityJointCycleSearch {
             if (!this.budget.consume(1)) {
                 return searchLimit();
             }
-            TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solved = feasibilityModel.solve(
+            TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solved = this.feasibilitySession.solve(
                     request(box, fixedExternalLevel),
                     this.mode,
                     this.control);
