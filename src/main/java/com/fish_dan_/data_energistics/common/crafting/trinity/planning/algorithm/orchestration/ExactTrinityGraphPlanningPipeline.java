@@ -149,14 +149,16 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
         }
         TrinityAlgorithmResult<List<TrinityPatternVariant>> expanded = this.variantExpander.expand(
                 reachableSnapshot,
-                maxBindingVariants);
+                maxBindingVariants,
+                control);
         if (!expanded.successful()) {
             return TrinityAlgorithmResult.failure(expanded.diagnostic());
         }
         TrinityAlgorithmResult<TrinityCraftingTopology> analyzed = this.topologyAnalyzer.analyze(
                 reachableSnapshot,
                 expanded.value(),
-                maxSccKeys);
+                maxSccKeys,
+                control);
         if (!analyzed.successful()) {
             return TrinityAlgorithmResult.failure(analyzed.diagnostic());
         }
