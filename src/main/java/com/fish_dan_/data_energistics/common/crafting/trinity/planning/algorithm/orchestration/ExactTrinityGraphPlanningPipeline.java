@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.proof.TrinityCycleUnitProofIndex;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.TrinityAcyclicDemandPropagator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.TrinityAcyclicPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.proof.TrinityAcyclicRouteFamily;
@@ -235,7 +236,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                 reachableCycle,
                 relevantInventoryKeys,
                 Map.of(),
-                Map.of(),
+                TrinityCycleUnitProofIndex.empty(),
                 Int2ObjectMaps.emptyMap()));
     }
 
@@ -345,7 +346,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                 limits,
                 mode,
                 control,
-                compiled.cycleUnitProofs(),
+                compiled.cycleUnitProofs().byReservoir(),
                 compiled.cycleMipTemplates());
         return solved.successful() ?
                 this.planAssembler.assembleDemand(compiled.target(), compiled.topology(), solved.value()) :

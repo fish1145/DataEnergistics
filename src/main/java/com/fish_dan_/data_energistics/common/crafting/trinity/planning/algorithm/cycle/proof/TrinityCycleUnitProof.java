@@ -48,7 +48,8 @@ public record TrinityCycleUnitProof(
             return Optional.empty();
         }
         List<TrinityVariantFiring> order = resolved.orElseThrow();
-        Map<TrinityPatternVariant, BigInteger> firings = TrinityDeterministicFiringMath.aggregate(order);
+        Map<TrinityPatternVariant, BigInteger> firings = Object2ObjectMaps.unmodifiable(
+                new Object2ObjectLinkedOpenHashMap<>(TrinityDeterministicFiringMath.aggregate(order)));
         Map<AEKey, BigInteger> net = TrinityDeterministicFiringMath.netChange(firings);
         Set<AEKey> internalKeys = new ObjectOpenHashSet<>(component.keys());
         Map<AEKey, BigInteger> minimumInputs = TrinityCycleSeedRequirement.minimumInputs(order);

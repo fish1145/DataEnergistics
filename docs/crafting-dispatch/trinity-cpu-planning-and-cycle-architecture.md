@@ -473,6 +473,8 @@ MIP coefficient template 和 in-flight sharing；不再存在 completed exact pl
   完全相同的并发请求由 revision-bound `REQUEST_IN_FLIGHT` 共享，成功、失败、取消或超时完成后均立即移除；
 - 缓存只保留无数量的成功证明：单 pattern binding expansion、target semantic structure、DAG producer family、经过当前请求精确
   复验后发布的 route identity hint、deterministic cycle unit order/seed/net，以及 ordinary/radix 共用的稀疏守恒系数模板。
+  cycle unit 在写入 semantic cache 前按 order/firing/net/seed/external input 严格去重；reservoir 只保留指向 canonical unit 的 alias，
+  不会为相同单位重复保存 proof 对象或重复计入命中统计。
   route hint 在新数量和库存下重新精确复验后作为 `VERIFIED_FEASIBLE` 候选；mutable ojAlgo model 始终请求私有；
 - cyclic SCC 的下游 withdrawal 与 terminal balance 分离。已证明 unit seed 先从库存中划出，只有
   `max(0, available - retainedSeed)` 可直接交给下游；需要启动环时，环结束前余额必须覆盖 withdrawal 与下一次启动 seed 之和，

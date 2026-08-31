@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.proof.TrinityCycleUnitProof;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.proof.TrinityCycleUnitProofIndex;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.proof.TrinityAcyclicRouteFamily;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
@@ -25,7 +25,7 @@ import java.util.Map;
  * @param reachableCycle        whether an upstream component reachable from the target is cyclic
  * @param relevantInventoryKeys exact deterministic inventory projection read by demand solving
  * @param routeFamilies         quantity-independent DAG producer families
- * @param cycleUnitProofs       deterministic unit routes keyed by productive internal output
+ * @param cycleUnitProofs       deduplicated deterministic units and productive-output aliases
  * @param cycleMipTemplates     sparse coefficient templates keyed by cyclic component index
  */
 public record TrinityCompiledGraph(
@@ -38,7 +38,7 @@ public record TrinityCompiledGraph(
                                    boolean reachableCycle,
                                    List<AEKey> relevantInventoryKeys,
                                    Map<AEKey, TrinityAcyclicRouteFamily> routeFamilies,
-                                   Map<AEKey, TrinityCycleUnitProof> cycleUnitProofs,
+                                   TrinityCycleUnitProofIndex cycleUnitProofs,
                                    Int2ObjectMap<TrinityMipCoefficientTemplate> cycleMipTemplates) {
 
     /**
@@ -46,7 +46,7 @@ public record TrinityCompiledGraph(
      */
     public TrinityCompiledGraph withStructuralProofs(
                                                      Map<AEKey, TrinityAcyclicRouteFamily> newRouteFamilies,
-                                                     Map<AEKey, TrinityCycleUnitProof> newCycleUnitProofs,
+                                                     TrinityCycleUnitProofIndex newCycleUnitProofs,
                                                      Int2ObjectMap<TrinityMipCoefficientTemplate> newCycleMipTemplates) {
         return new TrinityCompiledGraph(
                 target,

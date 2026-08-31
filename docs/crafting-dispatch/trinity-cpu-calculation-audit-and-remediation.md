@@ -419,7 +419,7 @@ membership，不随页码切换；没有新增鼠标按钮或服务器选择包�
 | C-025 | 结构化 cycle repeat、settled export、等价 binding 压缩 | 已完成 | 完整有限库存 256M 链路、玩家请求域循环、joint SCC 与共享 binding 契约 |
 | C-026 | transient request、无数量证明缓存、创造库存探测、cycle shortage diagnosis | 已完成 | 现有 test/build；失败重复请求、exact-key 缺料与完整订单由真实环境验收 |
 | C-027 | 全图诊断重走、已证明环证据、确认页材料分类与按键 tooltip 翻页 | 已完成 | 现有 test/build、IDEA inspections；完整材料列表和交互由真实环境验收 |
-| C-028 | terminal seed、安全盈余、跨数量/目标路径证明复用 | 已完成 | 现有 test/build、IDEA inspections；连续订单 seed 与缓存命中由真实环境验收 |
+| C-028 | terminal seed、安全盈余、跨数量/目标路径证明复用 | 已完成 | cycle unit 写入前严格去重并保留 reservoir alias；连续订单 seed 与缓存命中由真实环境验收 |
 
 ## 5. 风险与控制
 

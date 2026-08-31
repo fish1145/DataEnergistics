@@ -8,7 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningSession;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.proof.TrinityCycleUnitProof;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.proof.TrinityCycleUnitProofIndex;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.proof.TrinityAcyclicRouteFamily;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.proof.TrinityAcyclicRouteHint;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityCompiledGraph;
@@ -53,7 +53,7 @@ public final class TrinityPlanningComputation {
     private static final int STRUCTURE_VERSION = 3;
     private static final int PATTERN_EXPANSION_VERSION = 1;
     private static final int DAG_ROUTE_PROOF_VERSION = 1;
-    private static final int CYCLE_UNIT_PROOF_VERSION = 1;
+    private static final int CYCLE_UNIT_PROOF_VERSION = 2;
     private static final int MIP_TEMPLATE_VERSION = 1;
 
     /**
@@ -270,7 +270,7 @@ public final class TrinityPlanningComputation {
             routeFamilies.put(indexed.getKey(), family.value());
         }
 
-        Object2ObjectLinkedOpenHashMap<AEKey, TrinityCycleUnitProof> cycleUnitProofs = new Object2ObjectLinkedOpenHashMap<>();
+        ObjectArrayList<TrinityCycleUnitProofIndex> cycleUnitProofs = new ObjectArrayList<>();
         Int2ObjectOpenHashMap<TrinityMipCoefficientTemplate> mipTemplates = new Int2ObjectOpenHashMap<>();
         for (TrinityStronglyConnectedComponent component : compiled.topology().components()) {
             if (!component.cyclic()) {
@@ -287,20 +287,23 @@ public final class TrinityPlanningComputation {
                             component.keys())));
             cacheTrace.recordMipTemplate(template.cacheHit());
             mipTemplates.put(component.index(), template.value());
-            for (AEKey reservoir : component.keys()) {
-                TrinityComputationValue<Optional<TrinityCycleUnitProof>> proof = this.cache.computeInline(
-                        gridScope,
-                        TrinityComputationNamespace.CYCLE_UNIT_PROOF,
-                        TrinityComputationCache.SEMANTIC_REVISION,
-                        new CycleUnitProofKey(componentKey, reservoir, CYCLE_UNIT_PROOF_VERSION),
-                        () -> cacheOptional(TrinityCycleUnitProof.derive(component, reservoir)));
-                cacheTrace.recordCycleUnitProof(proof.cacheHit() && proof.value().isPresent());
-                proof.value().ifPresent(value -> cycleUnitProofs.put(reservoir, value));
-            }
+            TrinityComputationValue<TrinityCycleUnitProofIndex> proof = this.cache.computeInline(
+                    gridScope,
+                    TrinityComputationNamespace.CYCLE_UNIT_PROOF,
+                    TrinityComputationCache.SEMANTIC_REVISION,
+                    new CycleUnitProofKey(componentKey, CYCLE_UNIT_PROOF_VERSION),
+                    () -> {
+                        TrinityCycleUnitProofIndex derived = TrinityCycleUnitProofIndex.derive(component);
+                        return derived.isEmpty() ?
+                                TrinityCachedComputation.transientValue(derived) :
+                                TrinityCachedComputation.cacheable(derived);
+                    });
+            cacheTrace.recordCycleUnitProofs(proof.cacheHit() ? proof.value().uniqueCount() : 0);
+            cycleUnitProofs.add(proof.value());
         }
         return compiled.withStructuralProofs(
                 Object2ObjectMaps.unmodifiable(routeFamilies),
-                Object2ObjectMaps.unmodifiable(cycleUnitProofs),
+                TrinityCycleUnitProofIndex.merge(cycleUnitProofs),
                 mipTemplates);
     }
 
@@ -510,12 +513,6 @@ public final class TrinityPlanningComputation {
                 TrinityCachedComputation.transientValue(result);
     }
 
-    private static <V> TrinityCachedComputation<Optional<V>> cacheOptional(Optional<V> value) {
-        return value.isPresent() ?
-                TrinityCachedComputation.cacheable(value) :
-                TrinityCachedComputation.transientValue(value);
-    }
-
     private record ReachableGraphKey(AEKey target) {}
 
     private record CompiledGraphKey(
@@ -541,7 +538,6 @@ public final class TrinityPlanningComputation {
 
     private record CycleUnitProofKey(
                                      ComponentSemanticKey component,
-                                     AEKey reservoir,
                                      int proofVersion) {}
 
     private record MipTemplateKey(ComponentSemanticKey component, int templateVersion) {}
@@ -584,10 +580,8 @@ public final class TrinityPlanningComputation {
             }
         }
 
-        private void recordCycleUnitProof(boolean hit) {
-            if (hit) {
-                this.cycleUnitProofHits++;
-            }
+        private void recordCycleUnitProofs(int hits) {
+            this.cycleUnitProofHits = Math.addExact(this.cycleUnitProofHits, hits);
         }
 
         private void recordMipTemplate(boolean hit) {
@@ -598,7 +592,9 @@ public final class TrinityPlanningComputation {
 
         private void recordEmbeddedProofs(TrinityCompiledGraph compiled) {
             this.dagRouteProofHits = Math.addExact(this.dagRouteProofHits, compiled.routeFamilies().size());
-            this.cycleUnitProofHits = Math.addExact(this.cycleUnitProofHits, compiled.cycleUnitProofs().size());
+            this.cycleUnitProofHits = Math.addExact(
+                    this.cycleUnitProofHits,
+                    compiled.cycleUnitProofs().uniqueCount());
             this.mipTemplateHits = Math.addExact(this.mipTemplateHits, compiled.cycleMipTemplates().size());
         }
 
