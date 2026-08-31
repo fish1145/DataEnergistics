@@ -12,7 +12,6 @@ import appeng.api.stacks.AEKey;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
@@ -39,16 +38,13 @@ public final class TrinityCraftConfirmCycleTooltip {
         OptionalInt inventoryUsage = summary.inventoryUsage(key);
         var exactShortage = summary.exactShortage(key);
         var unresolvedDemand = summary.unresolvedDemand(key);
-        Optional<TrinityCraftingCycleHeader> selectedCycle = selectedCycleOrdinal > 0 &&
-                selectedCycleOrdinal <= summary.cycles().size() ?
-                        Optional.of(summary.cycles().get(selectedCycleOrdinal - 1)) :
-                        Optional.empty();
-        Optional<TrinityCraftingCycleMaterialContribution> selectedContribution = summary.contributionsFor(key)
+        List<TrinityCraftingCycleMaterialContribution> contributions = summary.contributionsFor(key);
+        var selectedContribution = contributions
                 .stream()
                 .filter(contribution -> contribution.displayOrdinal() == selectedCycleOrdinal)
                 .findFirst();
         if (inventoryUsage.isEmpty() && exactShortage.isEmpty() && unresolvedDemand.isEmpty() &&
-                selectedCycle.isEmpty()) {
+                selectedContribution.isEmpty()) {
             return original;
         }
 
@@ -67,22 +63,22 @@ public final class TrinityCraftConfirmCycleTooltip {
         unresolvedDemand.ifPresent(unresolved -> lines.add(Component.translatable(
                 KEY_PREFIX + "unresolved_demand",
                 unresolved.amount().toString()).withStyle(ChatFormatting.YELLOW)));
-        selectedCycle.ifPresent(cycle -> {
+        selectedContribution.ifPresent(contribution -> {
+            TrinityCraftingCycleHeader cycle = summary.cycles().get(contribution.displayOrdinal() - 1);
+            int relatedPage = contributions.indexOf(contribution) + 1;
             lines.add(Component.translatable(
-                    KEY_PREFIX + "current",
-                    cycle.displayOrdinal(),
-                    summary.cycles().size()).withStyle(
+                    KEY_PREFIX + "current_related",
+                    relatedPage,
+                    contributions.size(),
+                    cycle.displayOrdinal()).withStyle(
                             style -> style.withColor(
                                     TrinityCraftConfirmCyclePalette.rgb(cycle.displayOrdinal()))));
-            if (summary.cycles().size() > 1) {
+            if (contributions.size() > 1) {
                 lines.add(Component.translatable(
                         KEY_PREFIX + "switch_hint",
                         DEKeyMappings.PREVIOUS_TRINITY_CYCLE.getTranslatedKeyMessage(),
                         DEKeyMappings.NEXT_TRINITY_CYCLE.getTranslatedKeyMessage()).withStyle(ChatFormatting.DARK_GRAY));
             }
-        });
-        selectedContribution.ifPresent(contribution -> {
-            TrinityCraftingCycleHeader cycle = summary.cycles().get(contribution.displayOrdinal() - 1);
             if (contribution.input() && contribution.output()) {
                 lines.add(Component.translatable(KEY_PREFIX + "role_input_output").withStyle(ChatFormatting.GRAY));
             } else if (contribution.input()) {

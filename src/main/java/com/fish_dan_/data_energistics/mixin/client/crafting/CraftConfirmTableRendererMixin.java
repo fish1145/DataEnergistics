@@ -44,7 +44,7 @@ public abstract class CraftConfirmTableRendererMixin extends AbstractTableRender
                 original,
                 entry.getWhat(),
                 summary,
-                presentation.data_energistics$selectedCycleOrdinal());
+                presentation.data_energistics$selectedCycleOrdinal(entry.getWhat()));
     }
 
     @ModifyReturnValue(

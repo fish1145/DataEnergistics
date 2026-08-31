@@ -356,7 +356,7 @@
 	"gui.data_energistics.trinity_planning.ae2_fallback_title": "AE2 fallback · %s · %sB · Calc %s",
 	"gui.data_energistics.trinity_planning.cpu_too_small": "Trinity plan needs %s bytes; largest eligible CPU has %s",
 	"gui.data_energistics.trinity_planning.cycle.inventory_usage": "Inventory usage: %s",
-	"gui.data_energistics.trinity_planning.cycle.current": "Selected ring %s/%s",
+	"gui.data_energistics.trinity_planning.cycle.current_related": "Related ring %s/%s (ring %s)",
 	"gui.data_energistics.trinity_planning.cycle.minimum_seed": "Startup seed: %s",
 	"gui.data_energistics.trinity_planning.cycle.net_consumed": "Net consumed: %s",
 	"gui.data_energistics.trinity_planning.cycle.net_produced": "Net produced: %s",

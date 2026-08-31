@@ -14,12 +14,15 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
+import appeng.api.stacks.AEKey;
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.me.crafting.CraftConfirmScreen;
+import appeng.client.gui.me.crafting.CraftConfirmTableRenderer;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.Scrollbar;
 import appeng.menu.me.crafting.CraftConfirmMenu;
 import appeng.menu.me.crafting.CraftingPlanSummary;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -28,6 +31,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.Objects;
 
 /**
  * Places synchronized Trinity metadata in the native dialog and draws cycle membership beneath its material cells.
@@ -44,11 +49,18 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
     @Final
     private Scrollbar scrollbar;
 
+    @Shadow
+    @Final
+    private CraftConfirmTableRenderer table;
+
     @Unique
     private long dataEnergistics$cycleSelectionRevision = -1L;
 
     @Unique
-    private int dataEnergistics$selectedCycleOrdinal;
+    private @Nullable AEKey dataEnergistics$hoveredCycleKey;
+
+    @Unique
+    private int dataEnergistics$selectedRelatedCycleIndex;
 
     protected CraftConfirmScreenMixin(
                                       CraftConfirmMenu menu,
@@ -66,7 +78,7 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                                                          int mouseY,
                                                          CallbackInfo ci) {
         TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
-        dataEnergistics$refreshCycleSelection(state);
+        dataEnergistics$refreshCyclePage(state);
         CraftingPlanSummary plan = this.menu.getPlan();
         TrinityCraftingCycleSummary summary = state.data_energistics$cycleSummary();
         if (!state.data_energistics$isPlanReady() || plan == null || summary == null) {
@@ -76,14 +88,28 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                 guiGraphics,
                 plan,
                 this.scrollbar.getCurrentScroll(),
-                summary,
-                this.dataEnergistics$selectedCycleOrdinal);
+                summary);
+    }
+
+    @Inject(method = "drawFG", at = @At("TAIL"))
+    private void dataEnergistics$updateHoveredCycleKey(GuiGraphics guiGraphics,
+                                                       int offsetX,
+                                                       int offsetY,
+                                                       int mouseX,
+                                                       int mouseY,
+                                                       CallbackInfo ci) {
+        TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
+        dataEnergistics$refreshCyclePage(state);
+        var hovered = this.table.getHoveredStack();
+        dataEnergistics$setHoveredCycleKey(
+                state,
+                hovered == null ? null : hovered.stack().what());
     }
 
     @Inject(method = "updateBeforeRender", at = @At("TAIL"))
     private void dataEnergistics$placePlanningMetadata(CallbackInfo ci) {
         TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
-        dataEnergistics$refreshCycleSelection(state);
+        dataEnergistics$refreshCyclePage(state);
         this.start.active = this.start.active && state.data_energistics$isPlanReady();
         var plan = this.menu.getPlan();
         if (plan == null) {
@@ -132,57 +158,74 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                                                      int modifiers,
                                                      CallbackInfoReturnable<Boolean> cir) {
         TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
-        dataEnergistics$refreshCycleSelection(state);
+        dataEnergistics$refreshCyclePage(state);
         TrinityCraftingCycleSummary summary = state.data_energistics$cycleSummary();
-        if (summary == null || summary.cycles().size() <= 1) {
+        AEKey hoveredKey = this.dataEnergistics$hoveredCycleKey;
+        if (summary == null || hoveredKey == null) {
             return;
         }
-        int cycleCount = summary.cycles().size();
+        int cycleCount = summary.contributionsFor(hoveredKey).size();
+        if (cycleCount <= 1) {
+            return;
+        }
         if (DEKeyMappings.PREVIOUS_TRINITY_CYCLE.matches(keyCode, scanCode)) {
-            this.dataEnergistics$selectedCycleOrdinal = this.dataEnergistics$selectedCycleOrdinal <= 1 ?
-                    cycleCount :
-                    this.dataEnergistics$selectedCycleOrdinal - 1;
+            this.dataEnergistics$selectedRelatedCycleIndex = this.dataEnergistics$selectedRelatedCycleIndex <= 0 ?
+                    cycleCount - 1 :
+                    this.dataEnergistics$selectedRelatedCycleIndex - 1;
             cir.setReturnValue(true);
         } else if (DEKeyMappings.NEXT_TRINITY_CYCLE.matches(keyCode, scanCode)) {
-            this.dataEnergistics$selectedCycleOrdinal = this.dataEnergistics$selectedCycleOrdinal >= cycleCount ?
-                    1 :
-                    this.dataEnergistics$selectedCycleOrdinal + 1;
+            this.dataEnergistics$selectedRelatedCycleIndex = (this.dataEnergistics$selectedRelatedCycleIndex + 1) % cycleCount;
             cir.setReturnValue(true);
         }
     }
 
     @Override
-    public int data_energistics$selectedCycleOrdinal() {
+    public int data_energistics$selectedCycleOrdinal(AEKey key) {
         TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
-        dataEnergistics$refreshCycleSelection(state);
-        return this.dataEnergistics$selectedCycleOrdinal;
+        dataEnergistics$refreshCyclePage(state);
+        dataEnergistics$setHoveredCycleKey(state, key);
+        TrinityCraftingCycleSummary summary = state.data_energistics$cycleSummary();
+        if (summary == null) {
+            return 0;
+        }
+        var contributions = summary.contributionsFor(key);
+        if (contributions.isEmpty()) {
+            return 0;
+        }
+        if (this.dataEnergistics$selectedRelatedCycleIndex >= contributions.size()) {
+            this.dataEnergistics$selectedRelatedCycleIndex = 0;
+        }
+        return contributions.get(this.dataEnergistics$selectedRelatedCycleIndex).displayOrdinal();
     }
 
     @Unique
-    private void dataEnergistics$refreshCycleSelection(TrinityCraftConfirmMenuState state) {
+    private void dataEnergistics$refreshCyclePage(TrinityCraftConfirmMenuState state) {
         TrinityCraftingCycleSummary summary = state.data_energistics$cycleSummary();
         long revision = state.data_energistics$planRevision();
-        int cycleCount = summary == null ? 0 : summary.cycles().size();
-        if (revision == this.dataEnergistics$cycleSelectionRevision &&
-                this.dataEnergistics$selectedCycleOrdinal > 0 &&
-                this.dataEnergistics$selectedCycleOrdinal <= cycleCount) {
-            return;
-        }
-        this.dataEnergistics$cycleSelectionRevision = revision;
-        this.dataEnergistics$selectedCycleOrdinal = 0;
-        if (summary == null || summary.cycles().isEmpty()) {
-            return;
-        }
-        for (var cycle : summary.cycles()) {
-            boolean containsShortage = summary.exactShortages().stream().anyMatch(shortage -> summary
-                    .contributionsFor(shortage.key())
-                    .stream()
-                    .anyMatch(contribution -> contribution.displayOrdinal() == cycle.displayOrdinal()));
-            if (containsShortage) {
-                this.dataEnergistics$selectedCycleOrdinal = cycle.displayOrdinal();
-                return;
+        if (revision != this.dataEnergistics$cycleSelectionRevision || summary == null) {
+            this.dataEnergistics$cycleSelectionRevision = revision;
+            this.dataEnergistics$hoveredCycleKey = null;
+            this.dataEnergistics$selectedRelatedCycleIndex = 0;
+        } else if (this.dataEnergistics$hoveredCycleKey != null) {
+            int relatedCycleCount = summary.contributionsFor(this.dataEnergistics$hoveredCycleKey).size();
+            if (relatedCycleCount == 0) {
+                this.dataEnergistics$hoveredCycleKey = null;
+                this.dataEnergistics$selectedRelatedCycleIndex = 0;
+            } else if (this.dataEnergistics$selectedRelatedCycleIndex >= relatedCycleCount) {
+                this.dataEnergistics$selectedRelatedCycleIndex = 0;
             }
         }
-        this.dataEnergistics$selectedCycleOrdinal = 1;
+    }
+
+    @Unique
+    private void dataEnergistics$setHoveredCycleKey(
+                                                    TrinityCraftConfirmMenuState state,
+                                                    @Nullable AEKey key) {
+        TrinityCraftingCycleSummary summary = state.data_energistics$cycleSummary();
+        AEKey nextKey = summary == null || key == null || summary.contributionsFor(key).isEmpty() ? null : key;
+        if (!Objects.equals(this.dataEnergistics$hoveredCycleKey, nextKey)) {
+            this.dataEnergistics$hoveredCycleKey = nextKey;
+            this.dataEnergistics$selectedRelatedCycleIndex = 0;
+        }
     }
 }

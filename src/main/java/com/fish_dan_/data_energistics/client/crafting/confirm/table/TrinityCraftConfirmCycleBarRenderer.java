@@ -11,7 +11,7 @@ import appeng.menu.me.crafting.CraftingPlanSummaryEntry;
 import java.util.List;
 
 /**
- * Draws the selected cycle's two-pixel membership bar beneath visible cells of AE2's 3x5 confirmation table.
+ * Draws two-pixel cycle-membership bars beneath visible cells of AE2's 3x5 confirmation table.
  */
 public final class TrinityCraftConfirmCycleBarRenderer {
 
@@ -27,16 +27,12 @@ public final class TrinityCraftConfirmCycleBarRenderer {
     private TrinityCraftConfirmCycleBarRenderer() {}
 
     /**
-     * Draws only members of the current screen-local cycle selection while following AE2's current row offset.
+     * Draws every cycle membership while following AE2's current row offset.
      */
     public static void render(GuiGraphics graphics,
                               CraftingPlanSummary plan,
                               int scrollOffset,
-                              TrinityCraftingCycleSummary summary,
-                              int selectedCycleOrdinal) {
-        if (selectedCycleOrdinal <= 0 || selectedCycleOrdinal > summary.cycles().size()) {
-            return;
-        }
+                              TrinityCraftingCycleSummary summary) {
         List<CraftingPlanSummaryEntry> entries = plan.getEntries();
         for (int row = 0; row < ROW_COUNT; row++) {
             for (int column = 0; column < COLUMN_COUNT; column++) {
@@ -46,10 +42,7 @@ public final class TrinityCraftConfirmCycleBarRenderer {
                 }
 
                 List<TrinityCraftingCycleMaterialContribution> contributions = summary
-                        .contributionsFor(entries.get(entryIndex).getWhat())
-                        .stream()
-                        .filter(contribution -> contribution.displayOrdinal() == selectedCycleOrdinal)
-                        .toList();
+                        .contributionsFor(entries.get(entryIndex).getWhat());
                 int cellX = TABLE_X + column * (CELL_WIDTH + CELL_BORDER);
                 int barY = TABLE_Y + row * (CELL_HEIGHT + CELL_BORDER) + CELL_HEIGHT - BAR_HEIGHT;
                 for (TrinityCraftConfirmCycleBarLayout.Segment segment : TrinityCraftConfirmCycleBarLayout.segments(contributions, CELL_WIDTH)) {
