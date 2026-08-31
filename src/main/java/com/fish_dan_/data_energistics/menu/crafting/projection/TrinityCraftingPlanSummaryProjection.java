@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.menu.crafting.projection;
 
 import com.fish_dan_.data_energistics.common.crafting.LongAmountMath;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityDiagnosedCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 
@@ -49,17 +50,28 @@ public final class TrinityCraftingPlanSummaryProjection {
             throw new IllegalArgumentException("An AE2 fallback diagnostic must use its native delegate summary");
         }
         LinkedHashMap<AEKey, Amounts> amounts = new LinkedHashMap<>();
-        for (var used : plan.usedItems()) {
-            amounts.computeIfAbsent(used.getKey(), ignored -> new Amounts())
-                    .addStored(used.getLongValue());
-        }
-        for (var emitted : plan.emittedItems()) {
-            amounts.computeIfAbsent(emitted.getKey(), ignored -> new Amounts())
-                    .addCrafting(emitted.getLongValue());
-        }
-        for (var missing : plan.missingItems()) {
-            amounts.computeIfAbsent(missing.getKey(), ignored -> new Amounts())
-                    .addMissing(missing.getLongValue());
+        TrinityPlanningDiagnostic diagnostic = plan.diagnostic();
+        if (diagnostic.inputShortage().isPresent()) {
+            TrinityPlanningDiagnostic.InputShortage shortage = diagnostic.inputShortage().orElseThrow();
+            Amounts shortageAmounts = amounts.computeIfAbsent(shortage.key(), ignored -> new Amounts());
+            shortageAmounts.addStored(shortage.available());
+            shortageAmounts.addMissing(shortage.missing());
+        } else if (diagnostic.partialPlan().isPresent()) {
+            TrinityPlanningDiagnostic.PartialPlan partial = diagnostic.partialPlan().orElseThrow();
+            partial.usedItems().forEach((key, amount) -> amounts
+                    .computeIfAbsent(key, ignored -> new Amounts())
+                    .addStored(amount));
+            partial.emittedItems().forEach((key, amount) -> amounts
+                    .computeIfAbsent(key, ignored -> new Amounts())
+                    .addCrafting(amount));
+            partial.inputRequirements().forEach((key, requirement) -> amounts
+                    .computeIfAbsent(key, ignored -> new Amounts())
+                    .addMissing(requirement.missing()));
+            partial.missingItems().keySet().stream()
+                    .filter(key -> !partial.inputRequirements().containsKey(key))
+                    .forEach(key -> amounts.computeIfAbsent(key, ignored -> new Amounts()));
+        } else {
+            amounts.computeIfAbsent(plan.finalOutput().what(), ignored -> new Amounts());
         }
         return summarize(plan.bytes(), true, amounts);
     }
@@ -82,6 +94,10 @@ public final class TrinityCraftingPlanSummaryProjection {
         private long missing;
         private long stored;
         private long crafting;
+
+        private void addMissing(BigInteger amount) {
+            addMissing(LongAmountMath.saturatingLongValueNonNegative(amount));
+        }
 
         private void addMissing(long amount) {
             this.missing = LongAmountMath.saturatingAddNonNegative(this.missing, amount);

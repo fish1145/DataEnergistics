@@ -32,7 +32,11 @@ public final class TrinityCraftConfirmCycleBarRenderer {
     public static void render(GuiGraphics graphics,
                               CraftingPlanSummary plan,
                               int scrollOffset,
-                              TrinityCraftingCycleSummary summary) {
+                              TrinityCraftingCycleSummary summary,
+                              int selectedCycleOrdinal) {
+        if (selectedCycleOrdinal <= 0 || selectedCycleOrdinal > summary.cycles().size()) {
+            return;
+        }
         List<CraftingPlanSummaryEntry> entries = plan.getEntries();
         for (int row = 0; row < ROW_COUNT; row++) {
             for (int column = 0; column < COLUMN_COUNT; column++) {
@@ -41,7 +45,11 @@ public final class TrinityCraftConfirmCycleBarRenderer {
                     break;
                 }
 
-                List<TrinityCraftingCycleMaterialContribution> contributions = summary.contributionsFor(entries.get(entryIndex).getWhat());
+                List<TrinityCraftingCycleMaterialContribution> contributions = summary
+                        .contributionsFor(entries.get(entryIndex).getWhat())
+                        .stream()
+                        .filter(contribution -> contribution.displayOrdinal() == selectedCycleOrdinal)
+                        .toList();
                 int cellX = TABLE_X + column * (CELL_WIDTH + CELL_BORDER);
                 int barY = TABLE_Y + row * (CELL_HEIGHT + CELL_BORDER) + CELL_HEIGHT - BAR_HEIGHT;
                 for (TrinityCraftConfirmCycleBarLayout.Segment segment : TrinityCraftConfirmCycleBarLayout.segments(contributions, CELL_WIDTH)) {

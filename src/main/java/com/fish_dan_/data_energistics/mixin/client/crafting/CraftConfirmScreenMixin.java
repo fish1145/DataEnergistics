@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.mixin.client.crafting;
 
+import com.fish_dan_.data_energistics.client.crafting.confirm.presentation.TrinityCraftConfirmPresentationState;
 import com.fish_dan_.data_energistics.client.crafting.confirm.table.TrinityCraftConfirmCycleBarRenderer;
+import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.client.util.TrinityDurationFormatter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
@@ -21,15 +23,18 @@ import appeng.menu.me.crafting.CraftingPlanSummary;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Places synchronized Trinity metadata in the native dialog and draws cycle membership beneath its material cells.
  */
 @Mixin(CraftConfirmScreen.class)
-public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmMenu> {
+public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmMenu>
+                                              implements TrinityCraftConfirmPresentationState {
 
     @Shadow
     @Final
@@ -38,6 +43,12 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
     @Shadow
     @Final
     private Scrollbar scrollbar;
+
+    @Unique
+    private long dataEnergistics$cycleSelectionRevision = -1L;
+
+    @Unique
+    private int dataEnergistics$selectedCycleOrdinal;
 
     protected CraftConfirmScreenMixin(
                                       CraftConfirmMenu menu,
@@ -55,6 +66,7 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                                                          int mouseY,
                                                          CallbackInfo ci) {
         TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
+        dataEnergistics$refreshCycleSelection(state);
         CraftingPlanSummary plan = this.menu.getPlan();
         TrinityCraftingCycleSummary summary = state.data_energistics$cycleSummary();
         if (!state.data_energistics$isPlanReady() || plan == null || summary == null) {
@@ -64,12 +76,14 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                 guiGraphics,
                 plan,
                 this.scrollbar.getCurrentScroll(),
-                summary);
+                summary,
+                this.dataEnergistics$selectedCycleOrdinal);
     }
 
     @Inject(method = "updateBeforeRender", at = @At("TAIL"))
     private void dataEnergistics$placePlanningMetadata(CallbackInfo ci) {
         TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
+        dataEnergistics$refreshCycleSelection(state);
         this.start.active = this.start.active && state.data_energistics$isPlanReady();
         var plan = this.menu.getPlan();
         if (plan == null) {
@@ -110,5 +124,65 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                             planningTime));
             this.setTextContent("cpu_status", state.data_energistics$diagnostic());
         }
+    }
+
+    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+    private void dataEnergistics$switchSelectedCycle(int keyCode,
+                                                     int scanCode,
+                                                     int modifiers,
+                                                     CallbackInfoReturnable<Boolean> cir) {
+        TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
+        dataEnergistics$refreshCycleSelection(state);
+        TrinityCraftingCycleSummary summary = state.data_energistics$cycleSummary();
+        if (summary == null || summary.cycles().size() <= 1) {
+            return;
+        }
+        int cycleCount = summary.cycles().size();
+        if (DEKeyMappings.PREVIOUS_TRINITY_CYCLE.matches(keyCode, scanCode)) {
+            this.dataEnergistics$selectedCycleOrdinal = this.dataEnergistics$selectedCycleOrdinal <= 1 ?
+                    cycleCount :
+                    this.dataEnergistics$selectedCycleOrdinal - 1;
+            cir.setReturnValue(true);
+        } else if (DEKeyMappings.NEXT_TRINITY_CYCLE.matches(keyCode, scanCode)) {
+            this.dataEnergistics$selectedCycleOrdinal = this.dataEnergistics$selectedCycleOrdinal >= cycleCount ?
+                    1 :
+                    this.dataEnergistics$selectedCycleOrdinal + 1;
+            cir.setReturnValue(true);
+        }
+    }
+
+    @Override
+    public int data_energistics$selectedCycleOrdinal() {
+        TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
+        dataEnergistics$refreshCycleSelection(state);
+        return this.dataEnergistics$selectedCycleOrdinal;
+    }
+
+    @Unique
+    private void dataEnergistics$refreshCycleSelection(TrinityCraftConfirmMenuState state) {
+        TrinityCraftingCycleSummary summary = state.data_energistics$cycleSummary();
+        long revision = state.data_energistics$planRevision();
+        int cycleCount = summary == null ? 0 : summary.cycles().size();
+        if (revision == this.dataEnergistics$cycleSelectionRevision &&
+                this.dataEnergistics$selectedCycleOrdinal > 0 &&
+                this.dataEnergistics$selectedCycleOrdinal <= cycleCount) {
+            return;
+        }
+        this.dataEnergistics$cycleSelectionRevision = revision;
+        this.dataEnergistics$selectedCycleOrdinal = 0;
+        if (summary == null || summary.cycles().isEmpty()) {
+            return;
+        }
+        for (var cycle : summary.cycles()) {
+            boolean containsShortage = summary.exactShortages().stream().anyMatch(shortage -> summary
+                    .contributionsFor(shortage.key())
+                    .stream()
+                    .anyMatch(contribution -> contribution.displayOrdinal() == cycle.displayOrdinal()));
+            if (containsShortage) {
+                this.dataEnergistics$selectedCycleOrdinal = cycle.displayOrdinal();
+                return;
+            }
+        }
+        this.dataEnergistics$selectedCycleOrdinal = 1;
     }
 }

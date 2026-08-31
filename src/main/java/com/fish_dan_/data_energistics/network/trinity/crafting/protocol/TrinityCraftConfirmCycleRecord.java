@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.network.trinity.crafting.protocol;
 
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.diagnostic.TrinityCraftingExactShortage;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.diagnostic.TrinityCraftingUnresolvedDemand;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleHeader;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleMaterialContribution;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
@@ -10,13 +12,22 @@ import appeng.api.stacks.AEKey;
  * Closed classification of the three record families carried by the cycle-summary protocol.
  */
 public sealed interface TrinityCraftConfirmCycleRecord permits TrinityCraftConfirmCycleRecord.Header,
-                                                       TrinityCraftConfirmCycleRecord.Material, TrinityCraftConfirmCycleRecord.InventoryUsage {
+                                                       TrinityCraftConfirmCycleRecord.Material,
+                                                       TrinityCraftConfirmCycleRecord.InventoryUsage,
+                                                       TrinityCraftConfirmCycleRecord.ExactShortage,
+                                                       TrinityCraftConfirmCycleRecord.UnresolvedDemand {
 
     /** Carries one validated repeat-block header. */
     record Header(TrinityCraftingCycleHeader value) implements TrinityCraftConfirmCycleRecord {}
 
     /** Carries one validated material-to-cycle contribution. */
     record Material(TrinityCraftingCycleMaterialContribution value) implements TrinityCraftConfirmCycleRecord {}
+
+    /** Carries one exact finite-input shortage. */
+    record ExactShortage(TrinityCraftingExactShortage value) implements TrinityCraftConfirmCycleRecord {}
+
+    /** Carries one unresolved intermediate demand. */
+    record UnresolvedDemand(TrinityCraftingUnresolvedDemand value) implements TrinityCraftConfirmCycleRecord {}
 
     /** Carries one capped ME inventory-usage percentage without assigning it to an individual cycle. */
     record InventoryUsage(AEKey key, int basisPoints) implements TrinityCraftConfirmCycleRecord {

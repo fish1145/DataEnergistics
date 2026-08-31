@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.crafting.confirm.presentation;
 
+import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleHeader;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleMaterialContribution;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
@@ -11,6 +12,7 @@ import appeng.api.stacks.AEKey;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
@@ -32,10 +34,21 @@ public final class TrinityCraftConfirmCycleTooltip {
      */
     public static List<Component> append(List<Component> original,
                                          AEKey key,
-                                         TrinityCraftingCycleSummary summary) {
+                                         TrinityCraftingCycleSummary summary,
+                                         int selectedCycleOrdinal) {
         OptionalInt inventoryUsage = summary.inventoryUsage(key);
-        List<TrinityCraftingCycleMaterialContribution> contributions = summary.contributionsFor(key);
-        if (inventoryUsage.isEmpty() && contributions.isEmpty()) {
+        var exactShortage = summary.exactShortage(key);
+        var unresolvedDemand = summary.unresolvedDemand(key);
+        Optional<TrinityCraftingCycleHeader> selectedCycle = selectedCycleOrdinal > 0 &&
+                selectedCycleOrdinal <= summary.cycles().size() ?
+                        Optional.of(summary.cycles().get(selectedCycleOrdinal - 1)) :
+                        Optional.empty();
+        Optional<TrinityCraftingCycleMaterialContribution> selectedContribution = summary.contributionsFor(key)
+                .stream()
+                .filter(contribution -> contribution.displayOrdinal() == selectedCycleOrdinal)
+                .findFirst();
+        if (inventoryUsage.isEmpty() && exactShortage.isEmpty() && unresolvedDemand.isEmpty() &&
+                selectedCycle.isEmpty()) {
             return original;
         }
 
@@ -43,12 +56,40 @@ public final class TrinityCraftConfirmCycleTooltip {
         if (inventoryUsage.isPresent()) {
             lines.add(detail("inventory_usage", formatPercentage(inventoryUsage.getAsInt())));
         }
-        for (TrinityCraftingCycleMaterialContribution contribution : contributions) {
+        exactShortage.ifPresent(shortage -> {
+            lines.add(Component.translatable(KEY_PREFIX + "shortage_required", shortage.required().toString())
+                    .withStyle(ChatFormatting.RED));
+            lines.add(Component.translatable(KEY_PREFIX + "shortage_available", shortage.available().toString())
+                    .withStyle(ChatFormatting.RED));
+            lines.add(Component.translatable(KEY_PREFIX + "shortage_missing", shortage.missing().toString())
+                    .withStyle(ChatFormatting.RED));
+        });
+        unresolvedDemand.ifPresent(unresolved -> lines.add(Component.translatable(
+                KEY_PREFIX + "unresolved_demand",
+                unresolved.amount().toString()).withStyle(ChatFormatting.YELLOW)));
+        selectedCycle.ifPresent(cycle -> {
+            lines.add(Component.translatable(
+                    KEY_PREFIX + "current",
+                    cycle.displayOrdinal(),
+                    summary.cycles().size()).withStyle(
+                            style -> style.withColor(
+                                    TrinityCraftConfirmCyclePalette.rgb(cycle.displayOrdinal()))));
+            if (summary.cycles().size() > 1) {
+                lines.add(Component.translatable(
+                        KEY_PREFIX + "switch_hint",
+                        DEKeyMappings.PREVIOUS_TRINITY_CYCLE.getTranslatedKeyMessage(),
+                        DEKeyMappings.NEXT_TRINITY_CYCLE.getTranslatedKeyMessage()).withStyle(ChatFormatting.DARK_GRAY));
+            }
+        });
+        selectedContribution.ifPresent(contribution -> {
             TrinityCraftingCycleHeader cycle = summary.cycles().get(contribution.displayOrdinal() - 1);
-            lines.add(Component.translatable(KEY_PREFIX + "title", contribution.displayOrdinal())
-                    .withStyle(style -> style.withColor(
-                            TrinityCraftConfirmCyclePalette.rgb(contribution.displayOrdinal()))));
-
+            if (contribution.input() && contribution.output()) {
+                lines.add(Component.translatable(KEY_PREFIX + "role_input_output").withStyle(ChatFormatting.GRAY));
+            } else if (contribution.input()) {
+                lines.add(Component.translatable(KEY_PREFIX + "role_input").withStyle(ChatFormatting.GRAY));
+            } else if (contribution.output()) {
+                lines.add(Component.translatable(KEY_PREFIX + "role_output").withStyle(ChatFormatting.GRAY));
+            }
             if (contribution.minimumSeed().signum() > 0) {
                 lines.add(detail("minimum_seed", contribution.minimumSeed()));
             }
@@ -65,7 +106,7 @@ public final class TrinityCraftConfirmCycleTooltip {
             lines.add(detail("pattern_executions", cycle.patternExecutions()));
             lines.add(detail("stage_count", cycle.stageCount()));
             lines.add(detail("pattern_type_count", cycle.patternTypeCount()));
-        }
+        });
         return List.copyOf(lines);
     }
 

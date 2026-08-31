@@ -12,5 +12,7 @@ final class ClientKeyMappingRegistrar {
         event.register(DEKeyMappings.OPEN_PATTERN_PROVIDER);
         event.register(DEKeyMappings.RENAME_PATTERN_PROVIDER);
         event.register(DEKeyMappings.TOGGLE_DIGITAL_STORAGE_DEPOT_BUCKET_MODE);
+        event.register(DEKeyMappings.PREVIOUS_TRINITY_CYCLE);
+        event.register(DEKeyMappings.NEXT_TRINITY_CYCLE);
     }
 }

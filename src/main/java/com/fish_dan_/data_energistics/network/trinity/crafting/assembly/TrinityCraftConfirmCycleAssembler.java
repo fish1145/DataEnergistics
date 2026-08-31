@@ -1,13 +1,17 @@
 package com.fish_dan_.data_energistics.network.trinity.crafting.assembly;
 
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.diagnostic.TrinityCraftingExactShortage;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.diagnostic.TrinityCraftingUnresolvedDemand;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleHeader;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleMaterialContribution;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCyclePayload;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord;
+import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.ExactShortage;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.Header;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.InventoryUsage;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.Material;
+import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.UnresolvedDemand;
 
 import appeng.api.stacks.AEKey;
 
@@ -47,10 +51,14 @@ public final class TrinityCraftConfirmCycleAssembler {
         ArrayList<TrinityCraftingCycleHeader> cycles = new ArrayList<>();
         ArrayList<TrinityCraftingCycleMaterialContribution> contributions = new ArrayList<>();
         LinkedHashMap<AEKey, Integer> inventoryUsage = new LinkedHashMap<>();
+        ArrayList<TrinityCraftingExactShortage> exactShortages = new ArrayList<>();
+        ArrayList<TrinityCraftingUnresolvedDemand> unresolvedDemands = new ArrayList<>();
         for (TrinityCraftConfirmCycleRecord record : records) {
             switch (record) {
                 case Header entry -> cycles.add(entry.value());
                 case Material entry -> contributions.add(entry.value());
+                case ExactShortage entry -> exactShortages.add(entry.value());
+                case UnresolvedDemand entry -> unresolvedDemands.add(entry.value());
                 case InventoryUsage entry -> {
                     if (inventoryUsage.containsKey(entry.key())) {
                         throw new IllegalArgumentException(
@@ -60,7 +68,12 @@ public final class TrinityCraftConfirmCycleAssembler {
                 }
             }
         }
-        return TrinityCraftingCycleSummary.create(inventoryUsage, cycles, contributions);
+        return TrinityCraftingCycleSummary.create(
+                inventoryUsage,
+                cycles,
+                contributions,
+                exactShortages,
+                unresolvedDemands);
     }
 
     /** One complete summary revision ready for delivery to its matching menu. */
