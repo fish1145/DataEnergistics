@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -66,7 +67,8 @@ public final class TrinityCraftingCycleSummaryProjection {
                 contributions,
                 List.of(),
                 List.of(),
-                exactPlanAmounts(plan.initialExpectedInputs(), Map.of(), plan.plannedOutputs()));
+                exactPlanAmounts(plan.initialExpectedInputs(), Map.of(), plan.plannedOutputs()),
+                Optional.of(plan.exactBytes()));
     }
 
     /**
@@ -132,7 +134,8 @@ public final class TrinityCraftingCycleSummaryProjection {
                 contributions,
                 exactShortages,
                 unresolvedDemands,
-                exactPlanAmounts(used, missing, emitted));
+                exactPlanAmounts(used, missing, emitted),
+                Optional.empty());
     }
 
     private static List<TrinityCraftingExactPlanAmounts> exactPlanAmounts(

@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.diagnostic.
 
 import appeng.api.stacks.AEKey;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -42,13 +43,15 @@ public final class TrinityCraftingCycleSummary {
     private final Map<AEKey, TrinityCraftingUnresolvedDemand> unresolvedDemandsByKey;
     private final List<TrinityCraftingExactPlanAmounts> exactPlanAmounts;
     private final Map<AEKey, TrinityCraftingExactPlanAmounts> exactPlanAmountsByKey;
+    private final Optional<BigInteger> exactBytes;
 
     private TrinityCraftingCycleSummary(Map<AEKey, Integer> inventoryUsageBasisPoints,
                                         List<TrinityCraftingCycleHeader> cycles,
                                         List<TrinityCraftingCycleMaterialContribution> contributions,
                                         List<TrinityCraftingExactShortage> exactShortages,
                                         List<TrinityCraftingUnresolvedDemand> unresolvedDemands,
-                                        List<TrinityCraftingExactPlanAmounts> exactPlanAmounts) {
+                                        List<TrinityCraftingExactPlanAmounts> exactPlanAmounts,
+                                        Optional<BigInteger> exactBytes) {
         this.inventoryUsageBasisPoints = copyInventoryUsage(inventoryUsageBasisPoints);
         this.cycles = copyAndValidateCycles(cycles);
         this.contributions = copyAndValidateContributions(contributions, this.cycles);
@@ -59,6 +62,7 @@ public final class TrinityCraftingCycleSummary {
         this.unresolvedDemandsByKey = indexUnresolvedDemands(this.unresolvedDemands);
         this.exactPlanAmounts = copyExactPlanAmounts(exactPlanAmounts);
         this.exactPlanAmountsByKey = indexExactPlanAmounts(this.exactPlanAmounts);
+        this.exactBytes = exactBytes;
     }
 
     /**
@@ -72,7 +76,14 @@ public final class TrinityCraftingCycleSummary {
     public static TrinityCraftingCycleSummary create(Map<AEKey, Integer> inventoryUsageBasisPoints,
                                                      List<TrinityCraftingCycleHeader> cycles,
                                                      List<TrinityCraftingCycleMaterialContribution> contributions) {
-        return create(inventoryUsageBasisPoints, cycles, contributions, List.of(), List.of(), List.of());
+        return create(
+                inventoryUsageBasisPoints,
+                cycles,
+                contributions,
+                List.of(),
+                List.of(),
+                List.of(),
+                Optional.empty());
     }
 
     /**
@@ -84,14 +95,16 @@ public final class TrinityCraftingCycleSummary {
                                                      List<TrinityCraftingCycleMaterialContribution> contributions,
                                                      List<TrinityCraftingExactShortage> exactShortages,
                                                      List<TrinityCraftingUnresolvedDemand> unresolvedDemands,
-                                                     List<TrinityCraftingExactPlanAmounts> exactPlanAmounts) {
+                                                     List<TrinityCraftingExactPlanAmounts> exactPlanAmounts,
+                                                     Optional<BigInteger> exactBytes) {
         return new TrinityCraftingCycleSummary(
                 inventoryUsageBasisPoints,
                 cycles,
                 contributions,
                 exactShortages,
                 unresolvedDemands,
-                exactPlanAmounts);
+                exactPlanAmounts,
+                exactBytes);
     }
 
     /**
@@ -128,6 +141,11 @@ public final class TrinityCraftingCycleSummary {
     /** @return exact confirmation-table rows in stable transport order */
     public List<TrinityCraftingExactPlanAmounts> exactPlanAmounts() {
         return this.exactPlanAmounts;
+    }
+
+    /** @return exact compact-plan byte charge, absent for non-executable diagnostics */
+    public Optional<BigInteger> exactBytes() {
+        return this.exactBytes;
     }
 
     /** Looks up an exact finite-input shortage for one material. */

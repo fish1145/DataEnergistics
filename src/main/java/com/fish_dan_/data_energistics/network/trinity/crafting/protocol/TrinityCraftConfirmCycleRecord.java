@@ -9,6 +9,8 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.Trini
 
 import appeng.api.stacks.AEKey;
 
+import java.math.BigInteger;
+
 /**
  * Closed classification of the five record families carried by the cycle-summary protocol.
  */
@@ -17,7 +19,8 @@ public sealed interface TrinityCraftConfirmCycleRecord permits TrinityCraftConfi
                                                        TrinityCraftConfirmCycleRecord.InventoryUsage,
                                                        TrinityCraftConfirmCycleRecord.ExactShortage,
                                                        TrinityCraftConfirmCycleRecord.UnresolvedDemand,
-                                                       TrinityCraftConfirmCycleRecord.ExactPlanAmounts {
+                                                       TrinityCraftConfirmCycleRecord.ExactPlanAmounts,
+                                                       TrinityCraftConfirmCycleRecord.ExactPlanBytes {
 
     /** Carries one validated repeat-block header. */
     record Header(TrinityCraftingCycleHeader value) implements TrinityCraftConfirmCycleRecord {}
@@ -33,6 +36,16 @@ public sealed interface TrinityCraftConfirmCycleRecord permits TrinityCraftConfi
 
     /** Carries exact stored, missing and crafting counters for one confirmation-table row. */
     record ExactPlanAmounts(TrinityCraftingExactPlanAmounts value) implements TrinityCraftConfirmCycleRecord {}
+
+    /** Carries the exact compact-plan byte charge used by the confirmation title. */
+    record ExactPlanBytes(BigInteger value) implements TrinityCraftConfirmCycleRecord {
+
+        public ExactPlanBytes {
+            if (value.signum() < 0) {
+                throw new IllegalArgumentException("Trinity exact plan bytes cannot be negative");
+            }
+        }
+    }
 
     /** Carries one capped ME inventory-usage percentage without assigning it to an individual cycle. */
     record InventoryUsage(AEKey key, int basisPoints) implements TrinityCraftConfirmCycleRecord {

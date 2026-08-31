@@ -120,7 +120,12 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                 CraftingQuantityMode.NET_NEW ?
                         "gui.data_energistics.trinity_quantity.net_new" :
                         "gui.data_energistics.trinity_quantity.final_total");
-        String bytes = TrinityAmountFormatter.format(plan.getUsedBytes());
+        TrinityCraftingCycleSummary summary = state.data_energistics$cycleSummary();
+        String bytes = summary == null ?
+                TrinityAmountFormatter.format(plan.getUsedBytes()) :
+                summary.exactBytes()
+                        .map(TrinityAmountFormatter::format)
+                        .orElseGet(() -> TrinityAmountFormatter.format(plan.getUsedBytes()));
         String planningTime = TrinityDurationFormatter.formatNanos(state.data_energistics$planningNanos());
         if (state.data_energistics$isAe2FallbackEstimate()) {
             this.setTextContent(

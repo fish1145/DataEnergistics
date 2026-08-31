@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.Trini
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCyclePayload;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.ExactPlanAmounts;
+import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.ExactPlanBytes;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.ExactShortage;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.Header;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.InventoryUsage;
@@ -17,6 +18,7 @@ import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityC
 
 import appeng.api.stacks.AEKey;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -56,6 +58,7 @@ public final class TrinityCraftConfirmCycleAssembler {
         ArrayList<TrinityCraftingExactShortage> exactShortages = new ArrayList<>();
         ArrayList<TrinityCraftingUnresolvedDemand> unresolvedDemands = new ArrayList<>();
         ArrayList<TrinityCraftingExactPlanAmounts> exactPlanAmounts = new ArrayList<>();
+        Optional<BigInteger> exactBytes = Optional.empty();
         for (TrinityCraftConfirmCycleRecord record : records) {
             switch (record) {
                 case Header entry -> cycles.add(entry.value());
@@ -63,6 +66,13 @@ public final class TrinityCraftConfirmCycleAssembler {
                 case ExactShortage entry -> exactShortages.add(entry.value());
                 case UnresolvedDemand entry -> unresolvedDemands.add(entry.value());
                 case ExactPlanAmounts entry -> exactPlanAmounts.add(entry.value());
+                case ExactPlanBytes entry -> {
+                    if (exactBytes.isPresent()) {
+                        throw new IllegalArgumentException(
+                                "Trinity crafting confirmation summary repeats exact plan bytes");
+                    }
+                    exactBytes = Optional.of(entry.value());
+                }
                 case InventoryUsage entry -> {
                     if (inventoryUsage.containsKey(entry.key())) {
                         throw new IllegalArgumentException(
@@ -78,7 +88,8 @@ public final class TrinityCraftConfirmCycleAssembler {
                 contributions,
                 exactShortages,
                 unresolvedDemands,
-                exactPlanAmounts);
+                exactPlanAmounts,
+                exactBytes);
     }
 
     /** One complete summary revision ready for delivery to its matching menu. */
