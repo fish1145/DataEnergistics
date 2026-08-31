@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCyclePlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.seed.TrinityCycleSeedRequirement;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityCompressedSchedule;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityDeterministicRepeatScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
@@ -18,6 +19,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
 
 import java.math.BigInteger;
 import java.util.Collections;
@@ -94,17 +97,15 @@ public final class TrinityDeterministicCyclePlanner {
                                                          Set<AEKey> producibleInputs,
                                                          int maxScheduleStates,
                                                          TrinityPlanningControl control) {
-        if (componentIndex < -1 || diagnosticDemand == null) {
+        if (componentIndex < -1) {
             throw new IllegalArgumentException("A Trinity deterministic cycle component index cannot be below -1");
         }
-        if (oneCycleOrder == null || oneCycleOrder.isEmpty() || target == null || quantityMode == null ||
-                available == null || producibleInputs == null || control == null || requestedAmount == null ||
-                requestedAmount.signum() <= 0 || maxScheduleStates <= 0) {
+        if (oneCycleOrder.isEmpty() || requestedAmount.signum() <= 0 || maxScheduleStates <= 0) {
             throw new IllegalArgumentException("A Trinity deterministic cycle request is incomplete");
         }
         Map<AEKey, BigInteger> inventory = copyAvailable(available);
-        CycleBalance oneCycle = cycleBalance(oneCycleOrder);
-        BigInteger targetEffect = oneCycle.netChange().getOrDefault(target, BigInteger.ZERO);
+        Map<AEKey, BigInteger> oneCycleNet = cycleNetChange(oneCycleOrder);
+        BigInteger targetEffect = oneCycleNet.getOrDefault(target, BigInteger.ZERO);
         if (targetEffect.signum() <= 0) {
             return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.NO_PRODUCTIVE_CYCLE,
@@ -119,8 +120,10 @@ public final class TrinityDeterministicCyclePlanner {
         if (quantityMode == CraftingQuantityMode.FINAL_TOTAL) {
             repetitions = repetitions.max(BigInteger.ONE);
         }
-        Map<AEKey, BigInteger> minimumSeed = repeatedMinimumSeed(oneCycle, repetitions);
-        Map<AEKey, BigInteger> netChange = multiply(oneCycle.netChange(), repetitions);
+        Map<AEKey, BigInteger> minimumSeed = TrinityCycleSeedRequirement.repeatedMinimumInputs(
+                oneCycleOrder,
+                repetitions);
+        Map<AEKey, BigInteger> netChange = multiply(oneCycleNet, repetitions);
         LinkedHashMap<AEKey, BigInteger> initialInputs = new LinkedHashMap<>(minimumSeed);
         if (quantityMode == CraftingQuantityMode.FINAL_TOTAL) {
             BigInteger targetContribution = requestedAmount
@@ -212,47 +215,14 @@ public final class TrinityDeterministicCyclePlanner {
                 schedule.value()));
     }
 
-    private static CycleBalance cycleBalance(List<TrinityVariantFiring> order) {
-        LinkedHashMap<AEKey, BigInteger> balance = new LinkedHashMap<>();
-        LinkedHashMap<AEKey, BigInteger> seed = new LinkedHashMap<>();
+    private static Map<AEKey, BigInteger> cycleNetChange(List<TrinityVariantFiring> order) {
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> net = new Object2ObjectLinkedOpenHashMap<>();
         for (TrinityVariantFiring firing : order) {
-            if (firing == null) {
-                throw new IllegalArgumentException("A Trinity deterministic cycle cannot contain a null firing");
-            }
-            TrinityPatternVariant variant = firing.variant();
-            BigInteger count = firing.count();
-            for (Map.Entry<AEKey, BigInteger> input : variant.inputs().entrySet()) {
-                BigInteger delta = variant.netChange().getOrDefault(input.getKey(), BigInteger.ZERO);
-                BigInteger requiredBeforeBlock = input.getValue();
-                if (delta.signum() < 0) {
-                    requiredBeforeBlock = requiredBeforeBlock.add(
-                            delta.negate().multiply(count.subtract(BigInteger.ONE)));
-                }
-                BigInteger deficit = requiredBeforeBlock.subtract(
-                        balance.getOrDefault(input.getKey(), BigInteger.ZERO));
-                if (deficit.signum() > 0) {
-                    seed.merge(input.getKey(), deficit, BigInteger::max);
-                }
-            }
-            variant.netChange().forEach((key, amount) -> balance.merge(key, amount.multiply(count), BigInteger::add));
+            firing.variant().netChange().forEach(
+                    (key, amount) -> net.merge(key, amount.multiply(firing.count()), BigInteger::add));
         }
-        balance.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
-        return new CycleBalance(
-                Collections.unmodifiableMap(seed),
-                Collections.unmodifiableMap(balance));
-    }
-
-    private static Map<AEKey, BigInteger> repeatedMinimumSeed(CycleBalance oneCycle,
-                                                              BigInteger repetitions) {
-        LinkedHashMap<AEKey, BigInteger> seed = new LinkedHashMap<>(oneCycle.minimumSeed());
-        oneCycle.netChange().forEach((key, effect) -> {
-            if (effect.signum() < 0) {
-                BigInteger repeatedDeficit = effect.negate().multiply(repetitions.subtract(BigInteger.ONE));
-                seed.merge(key, repeatedDeficit, BigInteger::add);
-            }
-        });
-        seed.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
-        return Collections.unmodifiableMap(seed);
+        net.values().removeIf(amount -> amount.signum() == 0);
+        return Object2ObjectMaps.unmodifiable(net);
     }
 
     private static Map<AEKey, BigInteger> multiply(Map<AEKey, BigInteger> amounts,
@@ -270,8 +240,8 @@ public final class TrinityDeterministicCyclePlanner {
     private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {
         LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
         source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() < 0) {
-                throw new IllegalArgumentException("Trinity cycle inventory cannot be negative or null");
+            if (amount.signum() < 0) {
+                throw new IllegalArgumentException("Trinity cycle inventory cannot be negative");
             }
             if (amount.signum() > 0) {
                 copied.put(key, amount);
@@ -376,8 +346,4 @@ public final class TrinityDeterministicCyclePlanner {
             this.translationKey = translationKey;
         }
     }
-
-    private record CycleBalance(
-                                Map<AEKey, BigInteger> minimumSeed,
-                                Map<AEKey, BigInteger> netChange) {}
 }

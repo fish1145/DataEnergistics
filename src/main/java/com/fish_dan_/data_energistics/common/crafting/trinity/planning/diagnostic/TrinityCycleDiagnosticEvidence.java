@@ -121,7 +121,7 @@ public final class TrinityCycleDiagnosticEvidence {
                 plan.netChange(),
                 plan.schedule().statesVisited(),
                 0L,
-                TrinityPlanQuality.PROVED_OPTIMAL);
+                TrinityPlanQuality.VERIFIED_FEASIBLE);
     }
 
     /**

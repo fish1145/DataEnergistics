@@ -6,7 +6,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.math.BigInteger;
 import java.util.List;
@@ -21,7 +20,8 @@ import java.util.Set;
 public record TrinityCycleSeedRequirement(Map<AEKey, BigInteger> amounts) {
 
     /**
-     * Replays one route unit, including one-time prefix and suffix batches, without observing request inventory.
+     * Replays only the normalized route unit. Quantity-bound prefix and suffix batches are settled by the current
+     * plan and cannot become a permanent restart reserve for the next request.
      *
      * @param selection    completely scheduled cycle selection
      * @param internalKeys keys owned by the selected SCC
@@ -30,14 +30,10 @@ public record TrinityCycleSeedRequirement(Map<AEKey, BigInteger> amounts) {
     public static TrinityCycleSeedRequirement fromSelection(
                                                             TrinityCycleSelection selection,
                                                             Set<AEKey> internalKeys) {
-        if (selection == null || internalKeys == null || internalKeys.isEmpty()) {
+        if (internalKeys.isEmpty()) {
             throw new IllegalArgumentException("A Trinity cycle seed proof requires a selection and internal keys");
         }
-        ObjectArrayList<TrinityVariantFiring> oneUnit = new ObjectArrayList<>();
-        oneUnit.addAll(selection.prefixOrder());
-        oneUnit.addAll(selection.localOrder());
-        oneUnit.addAll(selection.suffixOrder());
-        return fromOrder(oneUnit, internalKeys);
+        return fromOrder(selection.localOrder(), internalKeys);
     }
 
     /**
@@ -79,6 +75,28 @@ public record TrinityCycleSeedRequirement(Map<AEKey, BigInteger> amounts) {
             firing.variant().netChange().forEach(
                     (key, amount) -> balance.merge(key, amount.multiply(count), BigInteger::add));
         }
+        return Object2ObjectMaps.unmodifiable(required);
+    }
+
+    /**
+     * Computes the exact initial balance for a fixed unit repeated without expanding its BigInteger count.
+     */
+    public static Map<AEKey, BigInteger> repeatedMinimumInputs(
+                                                               List<TrinityVariantFiring> order,
+                                                               BigInteger repetitions) {
+        if (repetitions.signum() <= 0) {
+            throw new IllegalArgumentException("A Trinity repeated seed proof requires a positive count");
+        }
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> required = new Object2ObjectLinkedOpenHashMap<>(minimumInputs(order));
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> unitNet = new Object2ObjectLinkedOpenHashMap<>();
+        order.forEach(firing -> firing.variant().netChange().forEach(
+                (key, amount) -> unitNet.merge(key, amount.multiply(firing.count()), BigInteger::add)));
+        BigInteger additionalUnits = repetitions.subtract(BigInteger.ONE);
+        unitNet.forEach((key, amount) -> {
+            if (amount.signum() < 0) {
+                required.merge(key, amount.negate().multiply(additionalUnits), BigInteger::add);
+            }
+        });
         return Object2ObjectMaps.unmodifiable(required);
     }
 }
