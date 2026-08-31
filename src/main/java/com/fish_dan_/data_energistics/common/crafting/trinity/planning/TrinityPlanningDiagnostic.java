@@ -1,12 +1,17 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticEvidence;
+
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -107,7 +112,18 @@ public record TrinityPlanningDiagnostic(
      * @return the material projection accumulated before planning stopped
      */
     public Optional<PartialPlan> partialPlan() {
-        return this.detail instanceof PartialPlan partial ? Optional.of(partial) : Optional.empty();
+        return switch (this.detail) {
+            case PartialPlan partial -> Optional.of(partial);
+            case CompositeEvidence evidence -> Optional.of(evidence.materials());
+            default -> Optional.empty();
+        };
+    }
+
+    /**
+     * @return fully scheduled non-executable cycles retained by this diagnostic in stable component order
+     */
+    public List<TrinityCycleDiagnosticEvidence> cycleEvidence() {
+        return this.detail instanceof CompositeEvidence evidence ? evidence.cycles() : List.of();
     }
 
     /**
@@ -120,7 +136,7 @@ public record TrinityPlanningDiagnostic(
     /**
      * Closed diagnostic-detail family keeps typed planner evidence separate from string log metadata.
      */
-    public sealed interface Detail permits InputShortage, PartialPlan, NoDetail {}
+    public sealed interface Detail permits InputShortage, PartialPlan, CompositeEvidence, NoDetail {}
 
     private enum NoDetail implements Detail {
         INSTANCE
@@ -199,6 +215,38 @@ public record TrinityPlanningDiagnostic(
                 copied.put(key, amount);
             });
             return Collections.unmodifiableMap(copied);
+        }
+    }
+
+    /**
+     * Immutable combination of the complete material projection and every cycle whose firing vector and compressed
+     * execution order were independently verified.
+     *
+     * @param materials accumulated material view
+     * @param cycles    fully proved diagnostic cycles
+     */
+    public record CompositeEvidence(
+                                    PartialPlan materials,
+                                    List<TrinityCycleDiagnosticEvidence> cycles)
+            implements Detail {
+
+        public CompositeEvidence {
+            if (materials == null || cycles == null) {
+                throw new IllegalArgumentException("Composite Trinity diagnostic evidence cannot be incomplete");
+            }
+            ArrayList<TrinityCycleDiagnosticEvidence> ordered = new ArrayList<>(cycles);
+            if (ordered.stream().anyMatch(cycle -> cycle == null)) {
+                throw new IllegalArgumentException("Composite Trinity diagnostic evidence cannot contain null cycles");
+            }
+            ordered.sort((left, right) -> Integer.compare(left.componentIndex(), right.componentIndex()));
+            HashSet<Integer> components = new HashSet<>();
+            for (TrinityCycleDiagnosticEvidence cycle : ordered) {
+                if (!components.add(cycle.componentIndex())) {
+                    throw new IllegalArgumentException(
+                            "Composite Trinity diagnostic evidence requires unique non-null cycles");
+                }
+            }
+            cycles = List.copyOf(ordered);
         }
     }
 

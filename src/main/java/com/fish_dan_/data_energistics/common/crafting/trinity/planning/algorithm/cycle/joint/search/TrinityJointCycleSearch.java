@@ -18,6 +18,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilitySolution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityLexicographicObjective;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticEvidence;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticOutcome;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
@@ -116,6 +118,7 @@ public final class TrinityJointCycleSearch {
             throw new IllegalArgumentException("A Trinity joint search request is incomplete");
         }
         return new SearchSession(
+                component.index(),
                 component.cycleVariants().stream().sorted().toList(),
                 Collections.unmodifiableSet(new LinkedHashSet<>(component.keys())),
                 demand,
@@ -148,6 +151,7 @@ public final class TrinityJointCycleSearch {
 
     private final class SearchSession {
 
+        private final int componentIndex;
         private final List<TrinityPatternVariant> variants;
         private final Set<AEKey> internalKeys;
         private final TrinityCycleDemand demand;
@@ -164,6 +168,7 @@ public final class TrinityJointCycleSearch {
         private long sequence;
 
         private SearchSession(
+                              int componentIndex,
                               List<TrinityPatternVariant> variants,
                               Set<AEKey> internalKeys,
                               TrinityCycleDemand demand,
@@ -172,6 +177,10 @@ public final class TrinityJointCycleSearch {
                               int maxSearchStates,
                               TrinityPlanningMode mode,
                               TrinityPlanningControl control) {
+            if (componentIndex < 0) {
+                throw new IllegalArgumentException("A Trinity joint search component index cannot be negative");
+            }
+            this.componentIndex = componentIndex;
             this.variants = variants;
             this.internalKeys = internalKeys;
             this.demand = demand;
@@ -538,17 +547,106 @@ public final class TrinityJointCycleSearch {
                         CANCELLED_KEY,
                         Map.of("states", Integer.toString(this.budget.used)));
             }
-            return TrinityAlgorithmResult.failure(shortageDiagnostic(solution));
+            TrinityCycleDiagnosticOutcome outcome = null;
+            String proofStop = null;
+            TrinityPlanningDiagnostic proofFailure = null;
+            if (this.control.deadlineExceeded()) {
+                proofStop = "timeout";
+            } else if (this.budget.remaining() <= 0) {
+                proofStop = "state_limit";
+            } else {
+                LinkedHashMap<AEKey, BigInteger> diagnosticAvailable = new LinkedHashMap<>(this.available);
+                solution.missingInputs().forEach(
+                        (key, amount) -> diagnosticAvailable.merge(key, amount, BigInteger::add));
+                TrinityAlgorithmResult<TrinityJointCandidateEvaluation> evaluated = candidateEvaluator.evaluate(
+                        this.variants,
+                        this.internalKeys,
+                        this.demand,
+                        Collections.unmodifiableMap(diagnosticAvailable),
+                        this.producibleInputs,
+                        solution,
+                        this.budget.remaining(),
+                        solution.solverPasses(),
+                        solution.solverNanos(),
+                        this.control);
+                if (evaluated.successful()) {
+                    TrinityJointCandidateEvaluation evaluation = evaluated.value();
+                    if (!this.budget.consume(evaluation.statesVisited())) {
+                        throw new IllegalStateException(
+                                "A bounded Trinity diagnostic schedule exceeded its reserved states");
+                    }
+                    if (this.control.cancellationRequested()) {
+                        return failed(
+                                TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                                CANCELLED_KEY,
+                                Map.of("states", Integer.toString(this.budget.used)));
+                    }
+                    TrinityJointCyclePlan plan = evaluation.plan();
+                    TrinityCycleDiagnosticEvidence evidence = TrinityCycleDiagnosticEvidence.fromJointPlan(
+                            this.componentIndex,
+                            this.demand,
+                            plan);
+                    TrinityCycleDiagnosticOutcome scheduledOutcome = TrinityCycleDiagnosticOutcome.create(
+                            evidence,
+                            this.available,
+                            this.producibleInputs);
+                    if (scheduledOutcome.inputRequirements().isEmpty()) {
+                        proofStop = "scheduled_missing_zero";
+                    } else {
+                        outcome = scheduledOutcome;
+                    }
+                } else {
+                    proofFailure = evaluated.diagnostic();
+                    int scheduleStates = diagnosisStates(proofFailure);
+                    if (scheduleStates > 0 && !this.budget.consume(scheduleStates)) {
+                        throw new IllegalStateException(
+                                "A bounded Trinity diagnostic schedule exceeded its reserved states");
+                    }
+                    if (this.control.cancellationRequested() ||
+                            proofFailure.code() == TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED) {
+                        return failed(
+                                TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                                CANCELLED_KEY,
+                                Map.of("states", Integer.toString(this.budget.used)));
+                    }
+                    proofStop = shortageStop(proofFailure);
+                }
+            }
+            return TrinityAlgorithmResult.failure(shortageDiagnostic(
+                    solution,
+                    outcome,
+                    proofStop,
+                    proofFailure));
         }
 
-        private TrinityPlanningDiagnostic shortageDiagnostic(TrinityCycleFeasibilitySolution solution) {
+        private TrinityPlanningDiagnostic shortageDiagnostic(
+                                                             TrinityCycleFeasibilitySolution solution,
+                                                             @Nullable TrinityCycleDiagnosticOutcome outcome,
+                                                             @Nullable String proofStop,
+                                                             @Nullable TrinityPlanningDiagnostic proofFailure) {
             Map<AEKey, BigInteger> requiredInputs = solution.requiredInputs();
-            LinkedHashMap<AEKey, InputRequirement> requirements = new LinkedHashMap<>();
+            LinkedHashMap<AEKey, InputRequirement> baseRequirements = new LinkedHashMap<>();
             solution.missingInputs().forEach((key, missing) -> {
                 BigInteger required = requiredInputs.getOrDefault(key, BigInteger.ZERO);
                 BigInteger available = this.available.getOrDefault(key, BigInteger.ZERO);
-                requirements.put(key, new InputRequirement(required, available, missing));
+                baseRequirements.put(key, new InputRequirement(required, available, missing));
             });
+            LinkedHashMap<AEKey, InputRequirement> requirements;
+            TrinityPlanningDiagnostic.PartialPlan materials;
+            if (outcome == null) {
+                LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
+                solution.firings().forEach((variant, count) -> variant.outputs().forEach(
+                        (key, amount) -> emitted.merge(key, amount.multiply(count), BigInteger::add)));
+                materials = new TrinityPlanningDiagnostic.PartialPlan(
+                        solution.actualInputs(),
+                        emitted,
+                        solution.missingInputs(),
+                        baseRequirements);
+                requirements = baseRequirements;
+            } else {
+                materials = outcome.materials();
+                requirements = new LinkedHashMap<>(materials.inputRequirements());
+            }
             Map.Entry<AEKey, InputRequirement> first = requirements.entrySet().iterator().next();
             LinkedHashMap<String, String> metadata = new LinkedHashMap<>();
             metadata.put("available", first.getValue().available().toString());
@@ -560,18 +658,28 @@ public final class TrinityJointCycleSearch {
             metadata.put("shortageMipNanos", Long.toString(solution.solverNanos()));
             metadata.put("shortageSolverPasses", Integer.toString(solution.solverPasses()));
             metadata.put("shortageKinds", Integer.toString(requirements.size()));
-            LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
-            solution.firings().forEach((variant, count) -> variant.outputs().forEach(
-                    (key, amount) -> emitted.merge(key, amount.multiply(count), BigInteger::add)));
+            metadata.put("diagnosticProvedCycles", outcome == null ? "0" : "1");
+            if (outcome != null) {
+                metadata.put(
+                        "diagnosticCycleProofStates",
+                        Integer.toString(outcome.evidence().scheduleStates()));
+            }
+            if (proofStop != null) {
+                metadata.put("diagnosticCycleProofStop", proofStop);
+            }
+            if (proofFailure != null) {
+                proofFailure.metadata().forEach((key, value) -> metadata.put("cycleProof." + key, value));
+            }
+            TrinityPlanningDiagnostic.Detail detail = outcome == null ?
+                    materials :
+                    new TrinityPlanningDiagnostic.CompositeEvidence(
+                            materials,
+                            List.of(outcome.evidence()));
             return new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
                     Component.translatable(INSUFFICIENT_INPUT_KEY),
                     metadata,
-                    new TrinityPlanningDiagnostic.PartialPlan(
-                            solution.actualInputs(),
-                            emitted,
-                            solution.missingInputs(),
-                            requirements));
+                    detail);
         }
 
         private TrinityPlanningDiagnostic withShortageStop(

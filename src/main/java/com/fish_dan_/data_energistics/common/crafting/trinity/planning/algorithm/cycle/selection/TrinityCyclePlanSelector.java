@@ -101,6 +101,8 @@ public final class TrinityCyclePlanSelector {
                     component,
                     deterministicOrder.orElseThrow())) {
                 TrinityAlgorithmResult<TrinityCyclePlan> deterministic = this.deterministicCyclePlanner.plan(
+                        component.index(),
+                        demand,
                         deterministicOrder.orElseThrow(),
                         request.target(),
                         request.amount(),
@@ -114,6 +116,10 @@ public final class TrinityCyclePlanSelector {
                 }
                 if (deterministic.diagnostic().code() == TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED ||
                         deterministic.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_TIMEOUT) {
+                    return TrinityAlgorithmResult.failure(deterministic.diagnostic());
+                }
+                if (deterministic.diagnostic().code() == TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT &&
+                        !deterministic.diagnostic().cycleEvidence().isEmpty()) {
                     return TrinityAlgorithmResult.failure(deterministic.diagnostic());
                 }
             }

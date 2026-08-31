@@ -6,10 +6,13 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCyclePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityCompressedSchedule;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityDeterministicRepeatScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticEvidence;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticOutcome;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import net.minecraft.network.chat.Component;
@@ -21,6 +24,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -63,6 +67,36 @@ public final class TrinityDeterministicCyclePlanner {
                                                          Set<AEKey> producibleInputs,
                                                          int maxScheduleStates,
                                                          TrinityPlanningControl control) {
+        return plan(
+                -1,
+                TrinityCycleDemand.forTarget(target, requestedAmount, quantityMode, available),
+                oneCycleOrder,
+                target,
+                requestedAmount,
+                quantityMode,
+                available,
+                producibleInputs,
+                maxScheduleStates,
+                control);
+    }
+
+    /**
+     * Retains the component identity so a conclusive shortage can carry a non-executable schedule proof.
+     */
+    public TrinityAlgorithmResult<TrinityCyclePlan> plan(
+                                                         int componentIndex,
+                                                         TrinityCycleDemand diagnosticDemand,
+                                                         List<TrinityVariantFiring> oneCycleOrder,
+                                                         AEKey target,
+                                                         BigInteger requestedAmount,
+                                                         CraftingQuantityMode quantityMode,
+                                                         Map<AEKey, BigInteger> available,
+                                                         Set<AEKey> producibleInputs,
+                                                         int maxScheduleStates,
+                                                         TrinityPlanningControl control) {
+        if (componentIndex < -1 || diagnosticDemand == null) {
+            throw new IllegalArgumentException("A Trinity deterministic cycle component index cannot be below -1");
+        }
         if (oneCycleOrder == null || oneCycleOrder.isEmpty() || target == null || quantityMode == null ||
                 available == null || producibleInputs == null || control == null || requestedAmount == null ||
                 requestedAmount.signum() <= 0 || maxScheduleStates <= 0) {
@@ -118,7 +152,42 @@ public final class TrinityDeterministicCyclePlanner {
                 shortages.put(input.getKey(), new InputRequirement(required, allocated, missing));
             }
         }
+        TrinityAlgorithmResult<TrinityCompressedSchedule> schedule = this.scheduler.schedule(
+                oneCycleOrder,
+                repetitions,
+                initialInputs,
+                maxScheduleStates,
+                control);
+        if (control.cancellationRequested()) {
+            return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.cancelled"),
+                    Map.of()));
+        }
         if (!shortages.isEmpty()) {
+            if (!schedule.successful() &&
+                    schedule.diagnostic().code() == TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED) {
+                return TrinityAlgorithmResult.failure(schedule.diagnostic());
+            }
+            Optional<TrinityCycleDiagnosticOutcome> diagnosticOutcome = Optional.empty();
+            if (schedule.successful() && componentIndex >= 0) {
+                TrinityCyclePlan provedPlan = new TrinityCyclePlan(
+                        oneCycleOrder,
+                        repetitions,
+                        aggregateFirings,
+                        minimumSeed,
+                        initialInputs,
+                        netChange,
+                        schedule.value());
+                TrinityCycleDiagnosticEvidence evidence = TrinityCycleDiagnosticEvidence.fromDeterministicPlan(
+                        componentIndex,
+                        diagnosticDemand,
+                        provedPlan);
+                diagnosticOutcome = Optional.of(TrinityCycleDiagnosticOutcome.create(
+                        evidence,
+                        inventory,
+                        producibleInputs));
+            }
             return insufficientInputs(
                     target,
                     minimumSeed,
@@ -126,14 +195,10 @@ public final class TrinityDeterministicCyclePlanner {
                     aggregateFirings,
                     usedInputs,
                     missingInputs,
-                    shortages);
+                    shortages,
+                    diagnosticOutcome,
+                    schedule.successful() ? Optional.empty() : Optional.of(schedule.diagnostic()));
         }
-        TrinityAlgorithmResult<TrinityCompressedSchedule> schedule = this.scheduler.schedule(
-                oneCycleOrder,
-                repetitions,
-                initialInputs,
-                maxScheduleStates,
-                control);
         if (!schedule.successful()) {
             return TrinityAlgorithmResult.failure(schedule.diagnostic());
         }
@@ -230,9 +295,16 @@ public final class TrinityDeterministicCyclePlanner {
                                                                     Map<TrinityPatternVariant, BigInteger> aggregateFirings,
                                                                     Map<AEKey, BigInteger> usedInputs,
                                                                     Map<AEKey, BigInteger> missingInputs,
-                                                                    Map<AEKey, InputRequirement> shortages) {
+                                                                    Map<AEKey, InputRequirement> shortages,
+                                                                    Optional<TrinityCycleDiagnosticOutcome> diagnosticOutcome,
+                                                                    Optional<TrinityPlanningDiagnostic> proofFailure) {
         LinkedHashMap<String, String> metadata = new LinkedHashMap<>();
         metadata.put("shortageKinds", Integer.toString(shortages.size()));
+        metadata.put("diagnosticProvedCycles", diagnosticOutcome.isPresent() ? "1" : "0");
+        proofFailure.ifPresent(diagnostic -> {
+            metadata.put("diagnosticCycleProofStop", diagnostic.code().name());
+            diagnostic.metadata().forEach((key, value) -> metadata.put("cycleProof." + key, value));
+        });
         Component message = Component.translatable(
                 "gui.data_energistics.trinity_planning.diagnostic.insufficient_input");
         if (shortages.size() == 1) {
@@ -265,15 +337,22 @@ public final class TrinityDeterministicCyclePlanner {
         LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
         aggregateFirings.forEach((variant, count) -> variant.outputs().forEach(
                 (key, amount) -> emitted.merge(key, amount.multiply(count), BigInteger::add)));
-        TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
-                TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                message,
-                metadata,
-                new TrinityPlanningDiagnostic.PartialPlan(
+        TrinityPlanningDiagnostic.PartialPlan materials = diagnosticOutcome
+                .map(TrinityCycleDiagnosticOutcome::materials)
+                .orElseGet(() -> new TrinityPlanningDiagnostic.PartialPlan(
                         usedInputs,
                         emitted,
                         missingInputs,
                         shortages));
+        TrinityPlanningDiagnostic.Detail detail = diagnosticOutcome.<TrinityPlanningDiagnostic.Detail>map(outcome -> new TrinityPlanningDiagnostic.CompositeEvidence(
+                materials,
+                List.of(outcome.evidence())))
+                .orElse(materials);
+        TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
+                TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
+                message,
+                metadata,
+                detail);
         return TrinityAlgorithmResult.failure(diagnostic);
     }
 

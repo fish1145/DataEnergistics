@@ -178,7 +178,9 @@ public record TrinityCycleFeasibilityRequest(
 
     /**
      * Creates a diagnostic-only request whose finite reserve can be split into actual and virtual missing input.
-     * The returned request must never be passed to executable candidate evaluation or scheduling.
+     * The returned request must never enter executable candidate search or scheduling. Its exactly verified solution
+     * may
+     * be scheduled only against a local synthetic inventory to produce non-executable diagnostic evidence.
      */
     public TrinityCycleFeasibilityRequest forShortageDiagnosis(int stateLimit) {
         if (stateLimit <= 0) {
