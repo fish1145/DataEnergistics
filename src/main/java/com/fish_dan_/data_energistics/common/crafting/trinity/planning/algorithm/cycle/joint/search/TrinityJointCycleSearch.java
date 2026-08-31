@@ -560,17 +560,6 @@ public final class TrinityJointCycleSearch {
             metadata.put("shortageMipNanos", Long.toString(solution.solverNanos()));
             metadata.put("shortageSolverPasses", Integer.toString(solution.solverPasses()));
             metadata.put("shortageKinds", Integer.toString(requirements.size()));
-            if (requirements.size() == 1) {
-                return new TrinityPlanningDiagnostic(
-                        TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
-                        Component.translatable(INSUFFICIENT_INPUT_KEY),
-                        metadata,
-                        new TrinityPlanningDiagnostic.InputShortage(
-                                first.getKey(),
-                                first.getValue().required(),
-                                first.getValue().available(),
-                                first.getValue().missing()));
-            }
             LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
             solution.firings().forEach((variant, count) -> variant.outputs().forEach(
                     (key, amount) -> emitted.merge(key, amount.multiply(count), BigInteger::add)));

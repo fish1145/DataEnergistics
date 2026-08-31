@@ -13,6 +13,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityDiagnosticMaterialAccumulator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 
@@ -646,11 +647,10 @@ public final class TrinityGraphDemandAggregator {
         }
 
         private <T> TrinityAlgorithmResult<T> failedNested(TrinityPlanningDiagnostic diagnostic) {
-            if (diagnostic.inputShortage().isPresent()) {
-                return TrinityAlgorithmResult.failure(diagnostic);
-            }
             TrinityPlanningDiagnostic.PartialPlan accumulated = partialPlan();
             TrinityPlanningDiagnostic.PartialPlan progress = diagnostic.partialPlan()
+                    .or(() -> diagnostic.inputShortage().map(
+                            TrinityDiagnosticMaterialAccumulator::fromShortage))
                     .map(partial -> mergeProgress(accumulated, partial))
                     .orElse(accumulated);
             return TrinityAlgorithmResult.failure(diagnostic.withDetail(progress));
@@ -659,35 +659,10 @@ public final class TrinityGraphDemandAggregator {
         private static TrinityPlanningDiagnostic.PartialPlan mergeProgress(
                                                                            TrinityPlanningDiagnostic.PartialPlan accumulated,
                                                                            TrinityPlanningDiagnostic.PartialPlan nested) {
-            LinkedHashMap<AEKey, BigInteger> used = sum(
-                    accumulated.usedItems(),
-                    nested.usedItems());
-            LinkedHashMap<AEKey, BigInteger> emitted = sum(
-                    accumulated.emittedItems(),
-                    nested.emittedItems());
-            LinkedHashMap<AEKey, BigInteger> missing = new LinkedHashMap<>(accumulated.missingItems());
-            nested.emittedItems().forEach((key, amount) -> {
-                BigInteger unresolved = missing.get(key);
-                if (unresolved == null) {
-                    return;
-                }
-                BigInteger remainder = unresolved.subtract(amount);
-                if (remainder.signum() > 0) {
-                    missing.put(key, remainder);
-                } else {
-                    missing.remove(key);
-                }
-            });
-            nested.missingItems().forEach((key, amount) -> missing.merge(key, amount, BigInteger::add));
-            return new TrinityPlanningDiagnostic.PartialPlan(used, emitted, missing);
-        }
-
-        private static LinkedHashMap<AEKey, BigInteger> sum(
-                                                            Map<AEKey, BigInteger> left,
-                                                            Map<AEKey, BigInteger> right) {
-            LinkedHashMap<AEKey, BigInteger> result = new LinkedHashMap<>(left);
-            right.forEach((key, amount) -> result.merge(key, amount, BigInteger::add));
-            return result;
+            TrinityDiagnosticMaterialAccumulator accumulator = TrinityDiagnosticMaterialAccumulator.create(
+                    accumulated);
+            accumulator.add(nested);
+            return accumulator.snapshot();
         }
 
         private TrinityPlanningDiagnostic.PartialPlan partialPlan() {
