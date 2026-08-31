@@ -43,6 +43,7 @@
 		"core.grid.storage.BasicCellHandlerMixin",
 		"core.grid.storage.ConfigInventoryWrappedKeyMixin",
 		"core.grid.storage.CreativeCellInventoryMixin",
+		"core.grid.storage.DelegatingMEInventoryUnlimitedStorageMixin",
 		"core.grid.storage.EncodedPatternItemMixin",
 		"core.grid.storage.ExportBusPartWrappedKeyMixin",
 		"core.grid.storage.IOBusPartWrappedKeyMigrationMixin",
