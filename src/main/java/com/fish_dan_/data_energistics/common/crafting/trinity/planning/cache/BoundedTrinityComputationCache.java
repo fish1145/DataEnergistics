@@ -30,7 +30,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
     private final Executor executor;
     private final int gridEntryLimit;
     private final Map<Long, GridPartition> partitions = new HashMap<>();
-    private final ThreadLocal<CacheEntry<?>> callerOwnedEntry = new ThreadLocal<>();
+    private final ThreadLocal<CacheEntry<?>> inlineOwnerEntry = new ThreadLocal<>();
     private boolean closed;
 
     BoundedTrinityComputationCache(Executor executor, int gridEntryLimit) {
@@ -127,7 +127,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
             if (!lifecycleActive.getAsBoolean()) {
                 return Optional.empty();
             }
-            parentEntry = this.callerOwnedEntry.get();
+            parentEntry = this.inlineOwnerEntry.get();
             if (parentEntry != null) {
                 parentEntry.requireInlineAdmission();
             }
@@ -583,11 +583,8 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
         }
 
         private Void execute() {
-            CacheEntry<?> previousCallerOwnedEntry = null;
-            if (this.callerOwned) {
-                previousCallerOwnedEntry = BoundedTrinityComputationCache.this.callerOwnedEntry.get();
-                BoundedTrinityComputationCache.this.callerOwnedEntry.set(this);
-            }
+            CacheEntry<?> previousInlineOwner = BoundedTrinityComputationCache.this.inlineOwnerEntry.get();
+            BoundedTrinityComputationCache.this.inlineOwnerEntry.set(this);
             try {
                 TrinityCachedComputation<V> computed = this.calculation.call();
                 if (computed == null) {
@@ -608,12 +605,10 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
                 fail(exception);
                 return null;
             } finally {
-                if (this.callerOwned) {
-                    if (previousCallerOwnedEntry == null) {
-                        BoundedTrinityComputationCache.this.callerOwnedEntry.remove();
-                    } else {
-                        BoundedTrinityComputationCache.this.callerOwnedEntry.set(previousCallerOwnedEntry);
-                    }
+                if (previousInlineOwner == null) {
+                    BoundedTrinityComputationCache.this.inlineOwnerEntry.remove();
+                } else {
+                    BoundedTrinityComputationCache.this.inlineOwnerEntry.set(previousInlineOwner);
                 }
             }
         }
