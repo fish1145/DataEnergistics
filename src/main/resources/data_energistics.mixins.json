@@ -71,6 +71,7 @@
 		"core.world.SonicBoomMixin",
 		"core.world.VibrationSystemListenerMixin",
 		"extendedae.ExtendedAePatternProviderPartMixin",
+		"extendedae.ExtendedAeInfinityCellInventoryMixin",
 		"extendedae.ExtendedInscriberThreadMixin",
 		"extendedaeplus.EaepPatternEncodingTermMenuMixin",
 		"extendedaeplus.EaepPatternUploadRecordMixin",
