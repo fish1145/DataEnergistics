@@ -422,7 +422,8 @@ RUNTIME_DEADLOCK
 当前 verbose 规划日志包含 request、target、数量模式、graph revision、cache path、quality、SCC/variant 数、
 `planningNanos`、`firstFeasibleNanos`、`mipNanos`、聚合 `scheduleStates`、`solverPasses`、`solverModels`、
 `jointStates` 和 `routeStates`；执行日志继续记录 job、fallback 与所有权状态。model 统计基础/编码模型装配，pass 统计实际
-ojAlgo minimise/maximise/probe；exact 与 proven-equivalent cache hit 的本请求 MIP 和搜索计数归零。`firstFeasibleNanos` 仍以
+ojAlgo minimise/maximise/probe。缓存遥测分别记录 pattern expansion、target structure、DAG route proof/hint、cycle unit proof、
+MIP coefficient template 和 in-flight sharing；不再存在 completed exact plan 或 proven-equivalent plan hit。`firstFeasibleNanos` 仍以
 最终完整计划可发布时刻为准，不能冒充更早但尚未通过最终 byte/`long` 边界的数值 witness 时间。请求累计指标达到类型上限时
 饱和，遥测溢出不得反向终止规划。库存捕获另记录 `inventorySentinelProbes` 与 `effectiveLongMaxKeys`；缺料诊断 metadata
 记录 `shortageKinds`、首个稳定 key 的 `required/available/missing`、ordinary/radix model、真实 solver pass/MIP nanos 和
@@ -464,11 +465,14 @@ ojAlgo minimise/maximise/probe；exact 与 proven-equivalent cache hit 的本请
 - `PROVED_OPTIMAL`/`VERIFIED_FEASIBLE` 质量传播、超时 incumbent 接纳和无 incumbent 的 first-feasible 回退；
 - 跨 pattern 严格 transition-effect representative、DAG/ordinary 请求私有模型模板、joint child 的 ordinary 模板复用、
   单轴循环搜索分区和不可行 box 记忆；
-- reachable/compiled/solved computation cache 只保留成功结果；所有失败只共享给当时已经等待同一计算的调用方，完成后立即移除，
-  不允许后续请求以 `EXACT_HIT` 复用过时诊断；
-- exact solved cache 与仅对最优计划生效的库存证明等价索引：库存逐项减少且旧计划仍可行时可复用；纯 DAG 的库存增加
-  只有在该 key 是已证明不参与约束的 `NET_NEW` target，或参考值和新值都高于非绑定 consumption cap 时可复用；cycle 或
-  无法证明的增加继续普通 solve；
+- completed executable plan 不进入缓存；数量、模式、库存、repetitions、具体 firing 和 initial inputs 仅存在于当前请求。
+  完全相同的并发请求由 revision-bound `REQUEST_IN_FLIGHT` 共享，成功、失败、取消或超时完成后均立即移除；
+- 缓存只保留无数量的成功证明：单 pattern binding expansion、target semantic structure、DAG producer family、经过当前请求精确
+  复验后发布的 route identity hint、deterministic cycle unit order/seed/net，以及 ordinary/radix 共用的稀疏守恒系数模板。
+  route hint 在新数量和库存下只作为 `VERIFIED_FEASIBLE` incumbent，最优模式继续证明；mutable ojAlgo model 始终请求私有；
+- cyclic SCC 的下游 withdrawal 与 terminal balance 分离。已证明 unit seed 先从库存中划出，只有
+  `max(0, available - retainedSeed)` 可直接交给下游；需要启动环时，环结束前余额必须覆盖 withdrawal 与下一次启动 seed 之和，
+  全部后续 stage 完成后再复验 terminal seed；
 - 完整 stage/repeat 守恒校验、`NET_NEW`/`FINAL_TOTAL` 数量约束和 AE2 `long` 边界诊断；
 - 按 `plan`、`gateway`、`topology`、`dag`、`cycle`、`schedule` 职责组织的规划代码边界；图需求、计划组装、
   deterministic applicability/firing/proof 与 radix codec/model/search 继续使用职责子包，避免重新堆入单一 planner。
@@ -505,8 +509,9 @@ producer安全稀疏化旧依赖；缺少输出元数据的旧快照继续保留
 - 计划超过请求开始时捕获的最大 Trinity 容量时拒绝 Trinity 结果并返回对应诊断；
 - 确认页显示 Trinity-only、循环动态材料警告、红色 exact shortage、黄色 unresolved demand 以及与 AE2 原生计划一致的
   可用/待合成数量；
-- 成功计划与诊断计划只展示经完整排程证明的环；默认 `[`/`]` KeyMapping 在当前确认页切换上一环/下一环，可由玩家在控制设置
-  重新绑定。它们不是界面按钮，也不向服务器发送选择状态；彩条和材料 tooltip 只使用当前所选环；
+- 成功计划与诊断计划只展示经完整排程证明的环；默认 `[`/`]` KeyMapping 只在当前悬停材料参与的已证明环之间翻 tooltip 页，
+  可由玩家在控制设置重新绑定。它们不是界面按钮，也不向服务器发送选择状态；材料表中的彩条始终显示全部环 membership，
+  不随 tooltip 页码改变；
 - CPU 状态页从 stage/repeat 游标推导待合成量，并把已封存 completion buffer 计入已存储量；
 - 确认页过滤、自动选核与 `submitJob` 都复用同一 CPU-family admission 边界。
 - 新计算和重算立即清除旧计划摘要；确认页只在新结果已经过下一轮 CPU 资格过滤后开放按钮与 Enter 提交。

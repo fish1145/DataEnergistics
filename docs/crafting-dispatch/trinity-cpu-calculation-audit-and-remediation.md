@@ -24,7 +24,7 @@ variant 总数，默认值为 `32768`。自适应切换、
 Craft Amount / 外部请求
   -> CraftingService.beginCraftingCalculation
   -> TrinityPlanningGateway
-  -> reachable/compiled/solved cache
+  -> reachable + semantic structure/proof cache + transient in-flight request
   -> TrinityCraftingPlan(stage + repeat block + verified quality)
   -> CraftingService.submitJob
   -> TrinityDataCoreExecutingCraftingJob
@@ -289,8 +289,8 @@ runtime 契约直接验证，不为具体配方或 addon 重复建立特例测�
 完整验证的 incumbent 时返回 `VERIFIED_FEASIBLE`；没有 incumbent 时切换到只响应取消的 `FIRST_FEASIBLE`，并继续受 SCC、
 variant、全图 route state 和逐 SCC 局部 state 上限约束。Future 取消始终丢弃 incumbent。规划仍先按目标提取完整反向可达超图，
 快照按 revision/target 缓存，拓扑建立 `AEKey -> producer variants` 索引，需求聚合不为每个循环输入扫描完整 variant 表。请求级
-遥测区分基础/编码 model 装配、实际 solver pass/MIP 时间、joint state 与全图 route state；exact/proven-equivalent cache hit 的
-本次求解计数归零，便于真实环境区分结构编译、搜索与热缓存路径。
+遥测区分基础/编码 model 装配、实际 solver pass/MIP 时间、joint state、全图 route state、pattern expansion、target structure、
+DAG route proof/hint、cycle unit proof、MIP coefficient template 与 in-flight sharing，便于真实环境区分结构编译、证明复用与本次数值求解。
 
 ### C-023：样板编码终端周期性遍历全部 provider
 
@@ -339,8 +339,9 @@ variant 总量计数。跨 pattern 严格 transition-effect family 在上限检�
 `Integer.MAX_VALUE`，但其 `extract(..., SIMULATE)` 能满足完整正 `long` 请求；旧库存捕获把展示哨兵当作有限数量。循环 root
 又在有限 external/seed 上界导致不可行时直接返回通用 MIP 无整数解，隐藏了 exact `AEKey` 缺料。
 
-修复分为三层：reachable、compiled 与 solved computation cache 只保留成功结果，失败只共享给已经等待同一 in-flight
-计算的调用方；服务器线程对达到哨兵区间的相关 key 使用同一 `IActionSource` 模拟提取 `Long.MAX_VALUE`，把真实可提取量写入
+修复分为三层：失败只共享给已经等待同一 in-flight 计算的调用方；completed executable plan 同样不再保留，顺序请求只能复用
+无数量的 pattern、target structure、DAG route、cycle unit 与 MIP coefficient 证明；服务器线程对达到哨兵区间的相关 key 使用同一
+`IActionSource` 模拟提取 `Long.MAX_VALUE`，把真实可提取量写入
 请求库存；joint root 的普通模型确认无整数解且没有 incumbent 时，使用剩余 SCC state 运行 diagnosis model。diagnosis 将有限
 reserve 拆为 actual/missing，依次证明 missing、external、seed、firing、稳定 firing identity 与逐 key reserve identity，ordinary
 和 radix 均做精确整数/守恒重放。只有正 missing 的完整证明转换为 `INSUFFICIENT_INPUT`；取消、超时、状态/模型上限、missing=0
@@ -363,8 +364,27 @@ selection 的入口，所有诊断结果仍为 transient failure。
 
 确认页协议在原有 container/revision 原子分包中增加 exact-shortage 与 unresolved-demand 两类 record，并将协议版本提升到 6。AE2
 missing 继续使用红色；unresolved 使用零 counter 原生行、黄色覆盖层和独立 tooltip，不伪装为“缺少”或“待合成”。成功与诊断环均由
-客户端 screen-local KeyMapping 选择，默认 `[` 为上一环、`]` 为下一环；没有新增鼠标按钮或服务器选择包。当前分支仍未新增测试源码、
+客户端 screen-local KeyMapping 翻页，默认 `[` 为上一页、`]` 为下一页；页码只覆盖当前悬停材料参与的环，表格彩条始终显示全部
+membership，不随页码切换；没有新增鼠标按钮或服务器选择包。当前分支仍未新增测试源码、
 配方 fixture 或 benchmark，真实订单中的材料完整性和 tooltip 可读性由游戏环境验收。
+
+### C-028：本单消费了自增环 seed，且完整计划缓存绑定最终数量
+
+真实订单中，`data_corrosion_liquid` 的单位样板以 `250` 启动并净增 `500`。旧需求只约束本单下游消费 `720`，因此一次执行得到
+`750` 后允许下游取走 `720`，网络只剩 `30`；下一单随即报告启动需要 `250`、可用 `30`、缺少 `220`。同时 completed solved key
+包含最终 target、amount、mode 和完整相关库存，相同目标的不同数量以及其他目标共享的内部路径都会重新编译/求解，旧数值计划又有
+跨库存过时风险。
+
+修复后，cycle demand 明确区分 downstream withdrawal、terminal balance 与 independent net change。deterministic unit proof 缓存
+真实 pattern/binding order、单位 firing、unit net、内部 prefix seed 和外部输入，但不缓存 repetitions；每次请求按当前库存重新排序
+单位顺序，并只把 `available - retainedSeed` 的正安全盈余交给下游。上述订单要求环结束前至少持有 `720 + 250 = 970`，因此执行
+两次并在下游消费后留下 `530`。joint ordinary/radix 同样使用 terminal seed 下界和完整排程复验；全图 stage replay 最后再次确认
+每个 retained key 的余额。
+
+缓存同时改为数量无关分层：`PATTERN_EXPANSION`、`TARGET_STRUCTURE`、`DAG_ROUTE_PROOF`、`DAG_ROUTE_HINT`、
+`CYCLE_UNIT_PROOF` 与 `MIP_COEFFICIENT_TEMPLATE` 只保存 immutable semantic proof；ordinary/radix 只读取稀疏系数，私有 ojAlgo model
+不进入缓存。多生产者 hint 不携带 firing 数，必须在新 amount/mode/inventory 下重新求第一份整数可行解并通过精确守恒，随后继续证明
+最优；只有同一时刻完全相同的请求通过 `REQUEST_IN_FLIGHT` 共享，完成后不保留计划或失败结果。
 
 ## 4. 修复映射
 
@@ -397,8 +417,9 @@ missing 继续使用红色；unresolved 使用零 counter 原生行、黄色覆�
 | C-023 | publication revision 驱动的终端 provider 同步 | 已完成 | publication、本地展示输入与保守一致性刷新 GameTest |
 | C-024 | Pattern Core V3→V4 容量对齐迁移与 V2 拒绝 | 进行中 | 同档位容量迁移、旧 V2 拒绝、真实玩家拆除/掉落/重放 GameTest |
 | C-025 | primitive cycle macro、settled export、等价 binding 压缩 | 已完成 | 完整有限库存 256M 链路、玩家请求域循环、joint SCC 与共享 binding 契约 |
-| C-026 | 成功限定缓存、创造库存探测、cycle shortage diagnosis | 已完成 | 现有 test/build；失败重复请求、exact-key 缺料与完整订单由真实环境验收 |
-| C-027 | 全图诊断重走、已证明环证据、确认页材料分类与按键切环 | 已完成 | 现有 test/build、IDEA inspections；完整材料列表和交互由真实环境验收 |
+| C-026 | transient request、无数量证明缓存、创造库存探测、cycle shortage diagnosis | 已完成 | 现有 test/build；失败重复请求、exact-key 缺料与完整订单由真实环境验收 |
+| C-027 | 全图诊断重走、已证明环证据、确认页材料分类与按键 tooltip 翻页 | 已完成 | 现有 test/build、IDEA inspections；完整材料列表和交互由真实环境验收 |
+| C-028 | terminal seed、安全盈余、跨数量/目标路径证明复用 | 已完成 | 现有 test/build、IDEA inspections；连续订单 seed 与缓存命中由真实环境验收 |
 
 ## 5. 风险与控制
 
@@ -480,5 +501,5 @@ GameTest 或性能 benchmark；本次只运行现有 `test`、`build`、Spotless
 5. 原生 CPU 无法接收扩展计划；
 6. 全量构建、GameTest 和 IDE 检查通过。
 
-当前分支只确认现有测试与构建通过，不声称恢复了上述 planner/GameTest/性能覆盖；最终 `<10s` 与整套 Trinity 配方守恒由用户
-真实环境验收。
+当前分支只确认现有测试与构建通过，不声称恢复了上述 planner/GameTest/性能覆盖；C-028 的连续订单 seed、跨数量/目标缓存命中、
+最终 `<10s` 与整套 Trinity 配方守恒由用户真实环境验收。
