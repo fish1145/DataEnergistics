@@ -250,7 +250,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
             GridPartition partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
             advanceRevision(
                     partition,
-                    TrinityComputationNamespace.SOLVED_PLAN,
+                    TrinityComputationNamespace.REQUEST_IN_FLIGHT,
                     currentRevision,
                     cancelled);
         }

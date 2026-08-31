@@ -14,7 +14,10 @@ public enum TrinityComputationNamespace {
     /** Binding and topology structure keyed entirely by pattern semantics. */
     COMPILED_GRAPH(null),
 
-    /** Quantity and inventory-sensitive solved planning result. */
+    /** Exact quantity and inventory request shared only while its calculation remains in flight. */
+    REQUEST_IN_FLIGHT(RevisionDomain.PLANNING),
+
+    /** Legacy revision-bound namespace retained for lower-level cache lifecycle compatibility checks. */
     SOLVED_PLAN(RevisionDomain.PLANNING),
 
     /** Provider capacity snapshot captured for one publication and capacity epoch. */

@@ -183,11 +183,7 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
 
     @Override
     public void clearGrid(long gridScope) {
-        try {
-            this.planningCache.clearGrid(gridScope);
-        } finally {
-            this.planningComputation.clearGrid(gridScope);
-        }
+        this.planningCache.clearGrid(gridScope);
     }
 
     @Override
@@ -195,7 +191,6 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
         try {
             this.planningCache.close();
         } finally {
-            this.planningComputation.clear();
             if (this.ownsExecutors) {
                 this.initialPlannerExecutor.shutdownNow();
                 if (this.remainingPlannerExecutor != this.initialPlannerExecutor) {

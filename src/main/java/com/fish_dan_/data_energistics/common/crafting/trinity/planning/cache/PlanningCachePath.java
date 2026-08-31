@@ -5,13 +5,10 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache;
  */
 public enum PlanningCachePath {
 
-    /** Quantity, mode, relevant inventory, structure, and revision matched a completed solved result. */
-    EXACT_HIT,
+    /** An identical quantity, inventory, limits, and revision request joined a calculation already in progress. */
+    IN_FLIGHT_SHARED,
 
-    /** A previously proved-optimal plan remains optimal throughout the new, smaller feasible inventory domain. */
-    PROVEN_EQUIVALENT_HIT,
-
-    /** Target structure matched, while quantity, inventory, or revision required dynamic demand solving. */
+    /** Target structure matched, while quantity and inventory were instantiated for this request. */
     STRUCTURE_HIT,
 
     /** Target-reachable semantics required binding expansion and topology analysis. */

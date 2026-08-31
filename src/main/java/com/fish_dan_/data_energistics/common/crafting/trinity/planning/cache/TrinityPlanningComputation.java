@@ -12,15 +12,17 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanningStatistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,17 +30,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
-import java.util.stream.Collectors;
 
 /**
- * Executes the three-level target planning path on a shared server-lifetime cache.
+ * Executes target planning through retained structure and transient request-coalescing layers.
  * <p>
- * Exact key implementation for reachable graph, compiled structure, and solved dynamic plan caching.
+ * Quantity and inventory remain request-local and no completed executable plan is retained.
  */
 public final class TrinityPlanningComputation {
 
     private static final int SOLVE_STRATEGY_VERSION = 2;
-    private static final int OPTIMAL_PLAN_REFERENCES_PER_GRID = 256;
 
     /**
      * Creates a planning computation from an owned cache and the exact graph pipeline.
@@ -56,7 +56,6 @@ public final class TrinityPlanningComputation {
     private final TrinityComputationCache cache;
     private final TrinityGraphPlanningPipeline pipeline;
     private final LongSupplier nanoClock;
-    private final OptimalPlanIndex optimalPlanIndex = new OptimalPlanIndex(OPTIMAL_PLAN_REFERENCES_PER_GRID);
 
     TrinityPlanningComputation(
                                TrinityComputationCache cache,
@@ -97,7 +96,6 @@ public final class TrinityPlanningComputation {
         validateInput(input);
         long startedNanos = this.nanoClock.getAsLong();
         this.cache.invalidateRevision(input.gridScope(), input.graph().revision());
-        this.optimalPlanIndex.invalidateRevision(input.gridScope(), input.graph().revision());
         TrinityPlanningLimits limits = input.limits();
         TrinityPlanningSession session = TrinityPlanningSession.create(
                 () -> false,
@@ -136,7 +134,7 @@ public final class TrinityPlanningComputation {
 
         TrinityCompiledGraph structure = compiled.value().value();
         List<InventoryAmount> projectedInventory = projectInventory(structure, input.available());
-        SolvedPlanKey solvedKey = new SolvedPlanKey(
+        InFlightRequestKey inFlightKey = new InFlightRequestKey(
                 compiledKey,
                 input.requestedAmount(),
                 input.quantityMode(),
@@ -144,80 +142,27 @@ public final class TrinityPlanningComputation {
                 limits.maxScheduleStates(),
                 limits.planningBudgetMs(),
                 SOLVE_STRATEGY_VERSION);
-        Map<AEKey, BigInteger> projectedMap = projectedInventory.stream()
-                .collect(Collectors.toUnmodifiableMap(InventoryAmount::key, InventoryAmount::amount));
-        OptimalPlanFamilyKey familyKey = new OptimalPlanFamilyKey(
-                input.graph().revision(),
-                compiledKey,
-                input.requestedAmount(),
-                input.quantityMode(),
-                limits.maxScheduleStates(),
-                SOLVE_STRATEGY_VERSION);
-        Optional<TrinityCraftingPlan> equivalent = this.optimalPlanIndex.find(
-                input.gridScope(),
-                familyKey,
-                projectedInventory,
-                projectedMap,
-                input.target(),
-                input.requestedAmount(),
-                input.quantityMode());
-        if (equivalent.isPresent()) {
-            long planningNanos = elapsedSince(startedNanos);
-            TrinityAlgorithmResult<TrinityCraftingPlan> result = withRequestTiming(
-                    TrinityAlgorithmResult.success(equivalent.orElseThrow()),
-                    true,
-                    planningNanos,
-                    session);
-            return new TrinityPlanningComputationResult(
-                    result,
-                    PlanningCachePath.PROVEN_EQUIVALENT_HIT,
-                    planningNanos);
-        }
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> projectedMutable = new Object2ObjectLinkedOpenHashMap<>();
+        projectedInventory.forEach(amount -> projectedMutable.put(amount.key(), amount.amount()));
+        Map<AEKey, BigInteger> projectedMap = Object2ObjectMaps.unmodifiable(projectedMutable);
         TrinityComputationValue<TrinityAlgorithmResult<TrinityCraftingPlan>> solved = this.cache.computeInline(
                 input.gridScope(),
-                TrinityComputationNamespace.SOLVED_PLAN,
+                TrinityComputationNamespace.REQUEST_IN_FLIGHT,
                 input.graph().revision(),
-                solvedKey,
-                () -> cacheSuccessful(solveWithFallback(
+                inFlightKey,
+                () -> TrinityCachedComputation.transientValue(solveWithFallback(
                         structure,
                         input,
                         projectedMap,
                         limits,
                         session)));
-        if (solved.value().successful() &&
-                solved.value().value().statistics().quality() == TrinityPlanQuality.PROVED_OPTIMAL) {
-            this.optimalPlanIndex.publish(
-                    input.gridScope(),
-                    familyKey,
-                    projectedInventory,
-                    InventoryEquivalenceCertificate.forPlan(
-                            structure,
-                            input.target(),
-                            input.quantityMode(),
-                            solved.value().value()),
-                    solved.value().value());
-        }
         PlanningCachePath path = !compiled.cacheHit() ? PlanningCachePath.MISS :
-                solved.cacheHit() ? PlanningCachePath.EXACT_HIT : PlanningCachePath.STRUCTURE_HIT;
+                solved.cacheHit() ? PlanningCachePath.IN_FLIGHT_SHARED : PlanningCachePath.STRUCTURE_HIT;
         long planningNanos = requestPlanningNanos(solved.value(), solved.cacheHit(), startedNanos, session);
         return new TrinityPlanningComputationResult(
                 withRequestTiming(solved.value(), solved.cacheHit(), planningNanos, session),
                 path,
                 planningNanos);
-    }
-
-    /**
-     * Clears request-derived optimal-plan certificates for a closed Grid scope.
-     */
-    public void clearGrid(long gridScope) {
-        this.optimalPlanIndex.clearGrid(gridScope);
-    }
-
-    /**
-     * Clears every request-derived certificate during server shutdown.
-     */
-    public void clear() {
-        this.optimalPlanIndex.clear();
     }
 
     private TrinityAlgorithmResult<TrinityCraftingPlan> solveWithFallback(
@@ -255,20 +200,20 @@ public final class TrinityPlanningComputation {
 
     private TrinityAlgorithmResult<TrinityCraftingPlan> withRequestTiming(
                                                                           TrinityAlgorithmResult<TrinityCraftingPlan> result,
-                                                                          boolean solvedFromCache,
+                                                                          boolean sharedInFlight,
                                                                           long planningNanos,
                                                                           TrinityPlanningSession session) {
         if (!result.successful()) {
             return result;
         }
-        TrinityCraftingPlan cachedPlan = result.value();
-        TrinityPlanningStatistics cachedStatistics = cachedPlan.statistics();
-        long mipNanos = solvedFromCache ? 0L : session.mipNanos();
-        int solverPasses = solvedFromCache ? 0 : session.solverPasses();
-        int solverModels = solvedFromCache ? 0 : session.solverModels();
-        int jointStates = solvedFromCache ? 0 : session.jointStates();
-        int routeStates = solvedFromCache ? 0 : session.routeStates();
-        TrinityPlanningStatistics requestStatistics = cachedStatistics.withRequestMetrics(
+        TrinityCraftingPlan selectedPlan = result.value();
+        TrinityPlanningStatistics statistics = selectedPlan.statistics();
+        long mipNanos = sharedInFlight ? 0L : session.mipNanos();
+        int solverPasses = sharedInFlight ? 0 : session.solverPasses();
+        int solverModels = sharedInFlight ? 0 : session.solverModels();
+        int jointStates = sharedInFlight ? 0 : session.jointStates();
+        int routeStates = sharedInFlight ? 0 : session.routeStates();
+        TrinityPlanningStatistics requestStatistics = statistics.withRequestMetrics(
                 planningNanos,
                 planningNanos,
                 mipNanos,
@@ -276,16 +221,16 @@ public final class TrinityPlanningComputation {
                 solverModels,
                 jointStates,
                 routeStates);
-        return TrinityAlgorithmResult.success(cachedPlan.withPlanningStatistics(requestStatistics));
+        return TrinityAlgorithmResult.success(selectedPlan.withPlanningStatistics(requestStatistics));
     }
 
     private long requestPlanningNanos(
                                       TrinityAlgorithmResult<TrinityCraftingPlan> result,
-                                      boolean solvedFromCache,
+                                      boolean sharedInFlight,
                                       long startedNanos,
                                       TrinityPlanningSession session) {
         long elapsedNanos = elapsedSince(startedNanos);
-        if (!result.successful() || solvedFromCache) {
+        if (!result.successful() || sharedInFlight) {
             return elapsedNanos;
         }
         return Math.max(elapsedNanos, session.mipNanos());
@@ -311,14 +256,14 @@ public final class TrinityPlanningComputation {
     private static List<InventoryAmount> projectInventory(
                                                           TrinityCompiledGraph compiled,
                                                           Map<AEKey, BigInteger> available) {
-        ArrayList<InventoryAmount> projected = new ArrayList<>();
+        ObjectArrayList<InventoryAmount> projected = new ObjectArrayList<>();
         for (AEKey key : compiled.relevantInventoryKeys()) {
             BigInteger amount = available.get(key);
             if (amount != null && amount.signum() > 0) {
                 projected.add(new InventoryAmount(key, amount));
             }
         }
-        return List.copyOf(projected);
+        return ObjectLists.unmodifiable(projected);
     }
 
     private record ReachableGraphKey(AEKey target) {}
@@ -330,199 +275,18 @@ public final class TrinityPlanningComputation {
                                     int maxSccKeys) {
 
         private CompiledGraphKey {
-            patternIdentities = List.copyOf(patternIdentities);
+            patternIdentities = Collections.unmodifiableList(patternIdentities);
         }
     }
 
-    private record SolvedPlanKey(
-                                 CompiledGraphKey compiledGraph,
-                                 BigInteger requestedAmount,
-                                 CraftingQuantityMode quantityMode,
-                                 List<InventoryAmount> relevantInventory,
-                                 int maxScheduleStates,
-                                 int planningBudgetMs,
-                                 int strategyVersion) {
-
-        private SolvedPlanKey {
-            relevantInventory = List.copyOf(relevantInventory);
-        }
-    }
-
-    private record OptimalPlanFamilyKey(
-                                        long graphRevision,
-                                        CompiledGraphKey compiledGraph,
-                                        BigInteger requestedAmount,
-                                        CraftingQuantityMode quantityMode,
-                                        int maxScheduleStates,
-                                        int strategyVersion) {}
-
-    private record OptimalPlanReferenceKey(
-                                           OptimalPlanFamilyKey family,
-                                           List<InventoryAmount> referenceInventory) {
-
-        private OptimalPlanReferenceKey {
-            referenceInventory = List.copyOf(referenceInventory);
-        }
-    }
-
-    /**
-     * Bounded per-Grid LRU of proved-optimal plans and the inventory domains in which they were established.
-     */
-    private static final class OptimalPlanIndex {
-
-        private final int perGridLimit;
-        private final Map<Long, LinkedHashMap<OptimalPlanReferenceKey, OptimalPlanReference>> partitions = new LinkedHashMap<>();
-
-        private OptimalPlanIndex(int perGridLimit) {
-            this.perGridLimit = perGridLimit;
-        }
-
-        private synchronized Optional<TrinityCraftingPlan> find(
-                                                                long gridScope,
-                                                                OptimalPlanFamilyKey family,
-                                                                List<InventoryAmount> inventory,
-                                                                Map<AEKey, BigInteger> available,
-                                                                AEKey target,
-                                                                BigInteger requestedAmount,
-                                                                CraftingQuantityMode quantityMode) {
-            LinkedHashMap<OptimalPlanReferenceKey, OptimalPlanReference> partition = this.partitions.get(gridScope);
-            if (partition == null) {
-                return Optional.empty();
-            }
-            OptimalPlanReferenceKey matched = null;
-            for (Map.Entry<OptimalPlanReferenceKey, OptimalPlanReference> entry : partition.entrySet()) {
-                OptimalPlanReferenceKey reference = entry.getKey();
-                if (reference.family().equals(family) &&
-                        !reference.referenceInventory().equals(inventory) &&
-                        isEquivalentDomain(
-                                reference.referenceInventory(),
-                                available,
-                                entry.getValue().plan(),
-                                entry.getValue().certificate(),
-                                target,
-                                requestedAmount,
-                                quantityMode)) {
-                    matched = reference;
-                    break;
-                }
-            }
-            return matched == null ? Optional.empty() : Optional.of(partition.get(matched).plan());
-        }
-
-        private synchronized void publish(
-                                          long gridScope,
-                                          OptimalPlanFamilyKey family,
-                                          List<InventoryAmount> inventory,
-                                          InventoryEquivalenceCertificate certificate,
-                                          TrinityCraftingPlan plan) {
-            LinkedHashMap<OptimalPlanReferenceKey, OptimalPlanReference> partition = this.partitions.computeIfAbsent(
-                    gridScope,
-                    ignored -> new LinkedHashMap<>(16, 0.75F, true));
-            partition.put(new OptimalPlanReferenceKey(family, inventory), new OptimalPlanReference(plan, certificate));
-            while (partition.size() > this.perGridLimit) {
-                OptimalPlanReferenceKey eldest = partition.keySet().iterator().next();
-                partition.remove(eldest);
-            }
-        }
-
-        private synchronized void invalidateRevision(long gridScope, long revision) {
-            LinkedHashMap<OptimalPlanReferenceKey, OptimalPlanReference> partition = this.partitions.get(gridScope);
-            if (partition == null) {
-                return;
-            }
-            partition.entrySet().removeIf(entry -> entry.getKey().family().graphRevision() != revision);
-            if (partition.isEmpty()) {
-                this.partitions.remove(gridScope);
-            }
-        }
-
-        private synchronized void clearGrid(long gridScope) {
-            this.partitions.remove(gridScope);
-        }
-
-        private synchronized void clear() {
-            this.partitions.clear();
-        }
-
-        private static boolean isEquivalentDomain(
-                                                  List<InventoryAmount> referenceInventory,
-                                                  Map<AEKey, BigInteger> available,
-                                                  TrinityCraftingPlan plan,
-                                                  InventoryEquivalenceCertificate certificate,
-                                                  AEKey target,
-                                                  BigInteger requestedAmount,
-                                                  CraftingQuantityMode quantityMode) {
-            LinkedHashMap<AEKey, BigInteger> reference = new LinkedHashMap<>();
-            referenceInventory.forEach(amount -> reference.put(amount.key(), amount.amount()));
-            for (Map.Entry<AEKey, BigInteger> current : available.entrySet()) {
-                BigInteger referenceAmount = reference.getOrDefault(current.getKey(), BigInteger.ZERO);
-                if (current.getValue().compareTo(referenceAmount) > 0 &&
-                        !certificate.permitsIncrease(current.getKey(), referenceAmount, current.getValue())) {
-                    return false;
-                }
-            }
-            if (plan.initialExpectedInputs().entrySet().stream().anyMatch(entry -> available
-                    .getOrDefault(entry.getKey(), BigInteger.ZERO)
-                    .compareTo(entry.getValue()) < 0)) {
-                return false;
-            }
-            BigInteger targetDelta = plan.targetNetChange().getOrDefault(target, BigInteger.ZERO);
-            return quantityMode == CraftingQuantityMode.NET_NEW ?
-                    targetDelta.compareTo(requestedAmount) >= 0 :
-                    available.getOrDefault(target, BigInteger.ZERO).add(targetDelta).compareTo(requestedAmount) >= 0;
-        }
-    }
-
-    private record OptimalPlanReference(
-                                        TrinityCraftingPlan plan,
-                                        InventoryEquivalenceCertificate certificate) {}
-
-    /**
-     * Inventory-increase proof enabled only for an acyclic {@link TrinityPlanQuality#PROVED_OPTIMAL} plan. A candidate
-     * that could improve the first lexicographic objective consumes no more of any one inventory key than the
-     * incumbent's total initial input. Once both inventories exceed that total, increasing that key cannot enlarge the
-     * improving feasible set. NET_NEW target inventory does not participate in the acyclic target constraint at all.
-     */
-    private record InventoryEquivalenceCertificate(
-                                                   boolean acyclic,
-                                                   AEKey target,
-                                                   CraftingQuantityMode quantityMode,
-                                                   BigInteger nonBindingConsumptionCap) {
-
-        private static InventoryEquivalenceCertificate forPlan(
-                                                               TrinityCompiledGraph structure,
-                                                               AEKey target,
-                                                               CraftingQuantityMode quantityMode,
-                                                               TrinityCraftingPlan plan) {
-            if (plan.statistics().quality() != TrinityPlanQuality.PROVED_OPTIMAL) {
-                throw new IllegalArgumentException("A Trinity inventory certificate requires a proved-optimal plan");
-            }
-            BigInteger cap = plan.initialExpectedInputs().values().stream()
-                    .reduce(BigInteger.ZERO, BigInteger::add);
-            return new InventoryEquivalenceCertificate(
-                    !structure.reachableCycle(),
-                    target,
-                    quantityMode,
-                    cap);
-        }
-
-        private InventoryEquivalenceCertificate {
-            if (nonBindingConsumptionCap.signum() < 0) {
-                throw new IllegalArgumentException("A Trinity inventory certificate requires a non-negative cap");
-            }
-        }
-
-        private boolean permitsIncrease(AEKey key, BigInteger referenceAmount, BigInteger currentAmount) {
-            if (!this.acyclic) {
-                return false;
-            }
-            if (this.quantityMode == CraftingQuantityMode.NET_NEW && this.target.equals(key)) {
-                return true;
-            }
-            return referenceAmount.compareTo(this.nonBindingConsumptionCap) > 0 &&
-                    currentAmount.compareTo(this.nonBindingConsumptionCap) > 0;
-        }
-    }
+    private record InFlightRequestKey(
+                                      CompiledGraphKey compiledGraph,
+                                      BigInteger requestedAmount,
+                                      CraftingQuantityMode quantityMode,
+                                      List<InventoryAmount> relevantInventory,
+                                      int maxScheduleStates,
+                                      int planningBudgetMs,
+                                      int strategyVersion) {}
 
     private record InventoryAmount(AEKey key, BigInteger amount) {}
 }
