@@ -268,10 +268,14 @@ final class TrinityDataCoreExecutingCraftingJob {
      * Returns the indexed amount still scheduled by undispatched tasks.
      */
     long getPendingOutputs(AEKey key) {
+        return TrinityAe2AmountProjection.toAe2Amount(exactPendingOutput(key));
+    }
+
+    /** Returns the exact undispatched output amount for internal conservation checks. */
+    BigInteger exactPendingOutput(AEKey key) {
         return this.planExecution == null ?
-                this.scheduledTasks.pendingOutputs(key) :
-                TrinityAe2AmountProjection.toAe2Amount(
-                        this.planExecution.pendingOutputs().getOrDefault(key, BigInteger.ZERO));
+                BigInteger.valueOf(this.scheduledTasks.pendingOutputs(key)) :
+                this.planExecution.pendingOutputs().getOrDefault(key, BigInteger.ZERO);
     }
 
     /**

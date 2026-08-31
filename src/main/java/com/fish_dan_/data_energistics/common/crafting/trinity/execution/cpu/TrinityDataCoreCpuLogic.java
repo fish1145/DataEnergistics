@@ -2287,7 +2287,7 @@ final class TrinityDataCoreCpuLogic {
         }
         if (validateScheduledOutputs) {
             for (GenericStack output : scheduledOutputs) {
-                if (currentJob.getPendingOutputs(output.what()) < output.amount()) {
+                if (currentJob.exactPendingOutput(output.what()).compareTo(BigInteger.valueOf(output.amount())) < 0) {
                     Data_Energistics.LOGGER.error(
                             "Trinity Data Core CPU cannot remove {} scheduled units of {}",
                             output.amount(),
