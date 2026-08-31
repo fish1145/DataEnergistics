@@ -284,10 +284,10 @@ runtime 契约直接验证，不为具体配方或 addon 重复建立特例测�
 展开、Tarjan、DAG 传播、所有 SCC 求解、排程和组装共同争用 250 ms。大型但合法的依赖图会在数学求解完成前被主动取消，
 随后错误显示为“超出配置预算并使用 AE2 计算”。每次请求还会展开整个网格目录，并在循环输入判断中反复扫描全部 variant。
 
-修复：`planningBudgetMs` 默认 30 秒并从请求开始计时，但只作为最优性证明预算。reachable、variant 和 topology 编译使用
-取消感知、无墙钟 deadline 的 control；求解在剩余预算内证明外部输入、seed、firing 和 identity 词典序最优。预算耗尽且已有
-完整验证的 incumbent 时返回 `VERIFIED_FEASIBLE`；没有 incumbent 时切换到只响应取消的 `FIRST_FEASIBLE`，并继续受 SCC、
-variant、全图 route state 和逐 SCC 局部 state 上限约束。Future 取消始终丢弃 incumbent。规划仍先按目标提取完整反向可达超图，
+修复：`planningBudgetMs` 默认 30 秒并从请求开始计时，作为首次可行规划预算。reachable、variant 和 topology 编译使用取消感知、
+无墙钟 deadline 的 control；生产求解只运行 `FIRST_FEASIBLE`，第一份通过全部精确复验的方案立即返回 `VERIFIED_FEASIBLE`，
+不再执行外部输入、seed、firing 或 identity 的最优性 pass。预算耗尽且仍没有方案时切换到只响应取消的 feasibility control，
+并继续受 SCC、variant、全图 route state、逐 SCC 局部 state 和单次 solver abort 上限约束。Future 取消始终丢弃候选。规划仍先按目标提取完整反向可达超图，
 快照按 revision/target 缓存，拓扑建立 `AEKey -> producer variants` 索引，需求聚合不为每个循环输入扫描完整 variant 表。请求级
 遥测区分基础/编码 model 装配、实际 solver pass/MIP 时间、joint state、全图 route state、pattern expansion、target structure、
 DAG route proof/hint、cycle unit proof、MIP coefficient template 与 in-flight sharing，便于真实环境区分结构编译、证明复用与本次数值求解。
@@ -413,10 +413,10 @@ membership，不随页码切换；没有新增鼠标按钮或服务器选择包�
 | C-019 | publication index、容量 resolver、公平 slice 与唯一 commit | 已完成 | 路由模式参数化契约、独立 fake-clock 采集预算、拒绝/异常续选、256-worker 与 470 项 GameTest |
 | C-020 | worker event queue、bounded proposal 与 generation lease | 已完成 | 合并式 runtime 契约、现有 runtime/state 契约与服务器线程 commit 边界 |
 | C-021 | fixed provider shard、route capacity 与 machine reservation | 已完成 | 同一 runtime 契约覆盖 provider route 不超卖、跨 provider 物理目标独占与释放后重试 |
-| C-022 | 目标可达图缓存与最优性预算 | 已完成 | 编译无墙钟 deadline；超预算发布 verified incumbent 或切换 first-feasible，取消/图/variant/状态边界保持生效 |
+| C-022 | 目标可达图缓存与首次可行规划预算 | 已完成 | 编译无墙钟 deadline；生产只求 first-feasible，超预算切换 cancellation-only feasibility，取消/图/variant/状态边界保持生效 |
 | C-023 | publication revision 驱动的终端 provider 同步 | 已完成 | publication、本地展示输入与保守一致性刷新 GameTest |
 | C-024 | Pattern Core V3→V4 容量对齐迁移与 V2 拒绝 | 进行中 | 同档位容量迁移、旧 V2 拒绝、真实玩家拆除/掉落/重放 GameTest |
-| C-025 | primitive cycle macro、settled export、等价 binding 压缩 | 已完成 | 完整有限库存 256M 链路、玩家请求域循环、joint SCC 与共享 binding 契约 |
+| C-025 | 结构化 cycle repeat、settled export、等价 binding 压缩 | 已完成 | 完整有限库存 256M 链路、玩家请求域循环、joint SCC 与共享 binding 契约 |
 | C-026 | transient request、无数量证明缓存、创造库存探测、cycle shortage diagnosis | 已完成 | 现有 test/build；失败重复请求、exact-key 缺料与完整订单由真实环境验收 |
 | C-027 | 全图诊断重走、已证明环证据、确认页材料分类与按键 tooltip 翻页 | 已完成 | 现有 test/build、IDEA inspections；完整材料列表和交互由真实环境验收 |
 | C-028 | terminal seed、安全盈余、跨数量/目标路径证明复用 | 已完成 | 现有 test/build、IDEA inspections；连续订单 seed 与缓存命中由真实环境验收 |
@@ -426,7 +426,7 @@ membership，不随页码切换；没有新增鼠标按钮或服务器选择包�
 | 风险 | 控制 |
 | --- | --- |
 | MIP 数值解不精确 | 精确窗口内使用 ordinary model，超出窗口使用整数 digit/carry radix model；两者都经 `BigInteger` 二次验证，失败即拒绝 |
-| 任意 Petri net 搜索失控 | 先裁剪目标反向可达超图，再以 SCC、variant、模型规模、状态数和显式取消控制复杂度；最优性预算耗尽后只停止继续证明，不放宽确定性上限 |
+| 任意 Petri net 搜索失控 | 先裁剪目标反向可达超图，再以 SCC、variant、模型规模、状态数、单次 solver abort 和显式取消控制复杂度；首次预算耗尽后只切换 cancellation-only feasibility，不放宽确定性上限 |
 | 异步线程访问世界 | 只传不可变值对象，服务器线程二次校验 |
 | 动态借料复制或误退款 | RESERVED/COMMITTED/RELEASED 所有权状态 |
 | 配方热更新执行旧语义 | pattern signature 校验，只重规划剩余量 |
