@@ -146,6 +146,9 @@ public final class TrinityCyclePlanSelector {
                                                                               TrinityMipCoefficientTemplate coefficientTemplate) {
         TrinityCycleDemand refinedDemand = demand;
         LinkedHashMap<AEKey, BigInteger> retainedSeed = new LinkedHashMap<>();
+        if (unitProof != null) {
+            retainedSeed.putAll(unitProof.internalSeed());
+        }
         int remainingStates = maxStates;
         int accumulatedStates = 0;
         long accumulatedNanos = 0L;

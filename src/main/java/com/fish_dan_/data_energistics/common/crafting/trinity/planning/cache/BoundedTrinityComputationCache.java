@@ -358,14 +358,9 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
                                                long revision,
                                                K key,
                                                Callable<TrinityCachedComputation<V>> calculation) {
-        if (gridScope < 0L || namespace == null || key == null || calculation == null) {
-            throw new IllegalArgumentException("A Trinity computation cache request is incomplete");
-        }
-        if (namespace.revisionBound() && revision < 0L) {
-            throw new IllegalArgumentException("A revision-bound Trinity computation requires a publication revision");
-        }
-        if (!namespace.revisionBound() && revision != SEMANTIC_REVISION) {
-            throw new IllegalArgumentException("A semantic Trinity computation must use the semantic revision marker");
+        validateKey(gridScope, namespace, revision, key);
+        if (calculation == null) {
+            throw new IllegalArgumentException("A Trinity computation cache calculation is required");
         }
     }
 
