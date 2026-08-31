@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.capacity.TrinityCpuStorageCapacity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.runtime.TrinityWorkerSchedulingHint;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchBudget;
@@ -9,6 +10,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.Cr
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuContribution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuPartitionProfile;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuProfile;
+import com.fish_dan_.data_energistics.common.crafting.trinity.serialization.TrinityBigIntegerEncoding;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -55,10 +57,12 @@ public final class TrinityDataCoreCraftingRuntime {
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
     private static final int LEGACY_SCHEMA_VERSION = 1;
-    private static final int SCHEMA_VERSION = 2;
+    private static final int SCHEMA_VERSION = 3;
     private static final String CONTRIBUTIONS_TAG = "contributions";
     private static final String CONTRIBUTION_NAME_TAG = "name";
     private static final String STORAGE_BYTES_TAG = "storage_bytes";
+    private static final String STORAGE_CAPACITY_TAG = "storage_capacity";
+    private static final String STORAGE_UNLIMITED_TAG = "storage_unlimited";
     private static final String CO_PROCESSORS_TAG = "co_processors";
     private static final String PARTITION_COUNT_TAG = "partition_count";
     private static final String SELECTION_MODE_TAG = "selection_mode";
@@ -604,7 +608,7 @@ public final class TrinityDataCoreCraftingRuntime {
             CompoundTag partitionTag = new CompoundTag();
             partitionTag.putInt(PARTITION_INDEX_TAG, cpu.number());
             partitionTag.putInt(PARTITION_COUNT_TAG, cpu.workerCapacity());
-            partitionTag.putLong(STORAGE_BYTES_TAG, cpu.getAvailableStorage());
+            writeStorageCapacity(partitionTag, cpu.storageCapacity());
             partitionTag.putInt(CO_PROCESSORS_TAG, cpu.getCoProcessors());
             partitionTag.putString(SELECTION_MODE_TAG, cpu.getSelectionMode().name());
             partitionTag.put(
@@ -625,9 +629,9 @@ public final class TrinityDataCoreCraftingRuntime {
             return;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != LEGACY_SCHEMA_VERSION && schemaVersion != SCHEMA_VERSION) {
+        if (schemaVersion < LEGACY_SCHEMA_VERSION || schemaVersion > SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
-                    "Ignoring Trinity Data Core CPU runtime schema version {}; expected {} or {}",
+                    "Ignoring Trinity Data Core CPU runtime schema version {}; supported range is {} through {}",
                     schemaVersion,
                     LEGACY_SCHEMA_VERSION,
                     SCHEMA_VERSION);
@@ -643,7 +647,9 @@ public final class TrinityDataCoreCraftingRuntime {
             return;
         }
 
-        Map<String, TrinityDataCoreCpuContribution> restoredContributions = readContributions(contributionsTag);
+        Map<String, TrinityDataCoreCpuContribution> restoredContributions = readContributions(
+                contributionsTag,
+                schemaVersion);
         TrinityDataCoreCpuProfile restoredProfile;
         try {
             restoredProfile = TrinityDataCoreCpuProfile.fromContributions(restoredContributions);
@@ -1073,13 +1079,15 @@ public final class TrinityDataCoreCraftingRuntime {
         advanceAvailableWorkerNumber();
     }
 
-    private Map<String, TrinityDataCoreCpuContribution> readContributions(ListTag contributionsTag) {
+    private Map<String, TrinityDataCoreCpuContribution> readContributions(
+                                                                          ListTag contributionsTag,
+                                                                          int schemaVersion) {
         Map<String, TrinityDataCoreCpuContribution> restored = new TreeMap<>();
         for (int index = 0; index < contributionsTag.size(); index++) {
             CompoundTag contributionTag = contributionsTag.getCompound(index);
             try {
                 String structureName = requireStructureName(contributionTag.getString(CONTRIBUTION_NAME_TAG));
-                restored.put(structureName, readContribution(contributionTag));
+                restored.put(structureName, readContribution(contributionTag, schemaVersion));
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
                         "Rejecting invalid Trinity CPU contribution at persisted index {}",
@@ -1144,7 +1152,6 @@ public final class TrinityDataCoreCraftingRuntime {
     private static TrinityDataCoreCpuPartitionProfile readWorkerProfile(CompoundTag data, int schemaVersion) {
         if (!data.contains(PARTITION_INDEX_TAG, Tag.TAG_INT) ||
                 !data.contains(PARTITION_COUNT_TAG, Tag.TAG_INT) ||
-                !data.contains(STORAGE_BYTES_TAG, Tag.TAG_LONG) ||
                 !data.contains(CO_PROCESSORS_TAG, Tag.TAG_INT) ||
                 !data.contains(SELECTION_MODE_TAG, Tag.TAG_STRING)) {
             throw new IllegalArgumentException("Persisted Trinity CPU worker profile is incomplete");
@@ -1168,7 +1175,7 @@ public final class TrinityDataCoreCraftingRuntime {
         return new TrinityDataCoreCpuPartitionProfile(
                 workerNumber,
                 workerCapacity,
-                data.getLong(STORAGE_BYTES_TAG),
+                readStorageCapacity(data, schemaVersion),
                 data.getInt(CO_PROCESSORS_TAG),
                 CpuSelectionMode.valueOf(data.getString(SELECTION_MODE_TAG)));
     }
@@ -1207,25 +1214,60 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     private static void writeContribution(CompoundTag data, TrinityDataCoreCpuContribution contribution) {
-        data.putLong(STORAGE_BYTES_TAG, contribution.storageBytes());
+        writeStorageCapacity(data, contribution.storageCapacity());
         data.putInt(CO_PROCESSORS_TAG, contribution.coProcessors());
         data.putInt(PARTITION_COUNT_TAG, contribution.partitionCount());
         data.putString(SELECTION_MODE_TAG, contribution.selectionMode().name());
     }
 
-    private static TrinityDataCoreCpuContribution readContribution(CompoundTag data) {
-        if (!data.contains(STORAGE_BYTES_TAG, Tag.TAG_LONG) ||
-                !data.contains(CO_PROCESSORS_TAG, Tag.TAG_INT) ||
+    private static TrinityDataCoreCpuContribution readContribution(CompoundTag data, int schemaVersion) {
+        if (!data.contains(CO_PROCESSORS_TAG, Tag.TAG_INT) ||
                 !data.contains(PARTITION_COUNT_TAG, Tag.TAG_INT) ||
                 !data.contains(SELECTION_MODE_TAG, Tag.TAG_STRING)) {
             throw new IllegalArgumentException("Persisted Trinity CPU contribution is incomplete");
         }
         CpuSelectionMode selectionMode = CpuSelectionMode.valueOf(data.getString(SELECTION_MODE_TAG));
         return new TrinityDataCoreCpuContribution(
-                data.getLong(STORAGE_BYTES_TAG),
+                readStorageCapacity(data, schemaVersion),
                 data.getInt(CO_PROCESSORS_TAG),
                 data.getInt(PARTITION_COUNT_TAG),
                 selectionMode);
+    }
+
+    private static void writeStorageCapacity(CompoundTag data, TrinityCpuStorageCapacity capacity) {
+        boolean unlimited = capacity instanceof TrinityCpuStorageCapacity.Unlimited;
+        data.putBoolean(STORAGE_UNLIMITED_TAG, unlimited);
+        if (!unlimited) {
+            data.putByteArray(
+                    STORAGE_CAPACITY_TAG,
+                    TrinityBigIntegerEncoding.encode(
+                            ((TrinityCpuStorageCapacity.Finite) capacity).bytes(),
+                            "CPU storage capacity"));
+        }
+    }
+
+    private static TrinityCpuStorageCapacity readStorageCapacity(CompoundTag data, int schemaVersion) {
+        if (schemaVersion < 3) {
+            if (!data.contains(STORAGE_BYTES_TAG, Tag.TAG_LONG)) {
+                throw new IllegalArgumentException("Persisted legacy Trinity CPU storage capacity is missing");
+            }
+            return TrinityCpuStorageCapacity.fromLegacyLong(data.getLong(STORAGE_BYTES_TAG));
+        }
+        if (!data.contains(STORAGE_UNLIMITED_TAG, Tag.TAG_BYTE)) {
+            throw new IllegalArgumentException("Persisted Trinity CPU storage kind is missing");
+        }
+        if (data.getBoolean(STORAGE_UNLIMITED_TAG)) {
+            if (data.contains(STORAGE_CAPACITY_TAG)) {
+                throw new IllegalArgumentException("Unlimited Trinity CPU storage cannot contain a finite capacity");
+            }
+            return TrinityCpuStorageCapacity.Unlimited.INSTANCE;
+        }
+        if (!data.contains(STORAGE_CAPACITY_TAG, Tag.TAG_BYTE_ARRAY)) {
+            throw new IllegalArgumentException("Persisted finite Trinity CPU storage capacity is missing");
+        }
+        return new TrinityCpuStorageCapacity.Finite(TrinityBigIntegerEncoding.decode(
+                data.getByteArray(STORAGE_CAPACITY_TAG),
+                "CPU storage capacity"));
     }
 
     private static String requireStructureName(String structureName) {

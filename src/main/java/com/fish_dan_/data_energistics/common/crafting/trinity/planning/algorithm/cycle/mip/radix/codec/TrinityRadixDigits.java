@@ -4,28 +4,20 @@ import java.math.BigInteger;
 import java.util.List;
 
 /**
- * Fixed-width unsigned base-2^15 digits stored least-significant first.
+ * Fixed-width unsigned base-2^8 digits stored least-significant first.
  *
- * @param values digit values in {@code [0, 32767]}
+ * @param values digit values in {@code [0, 255]}
  */
 public record TrinityRadixDigits(List<Integer> values) {
 
     /** Exact base selected so every digit and digit-product coefficient remains safely integral in ojAlgo. */
-    public static final int BASE = 1 << 15;
+    public static final int BASE = 1 << 8;
 
     /**
-     * Validates and freezes one non-empty fixed-width encoding.
+     * Freezes the trusted codec output once.
      */
     public TrinityRadixDigits {
-        if (values == null || values.isEmpty()) {
-            throw new IllegalArgumentException("A Trinity radix value requires at least one digit");
-        }
         values = List.copyOf(values);
-        for (Integer value : values) {
-            if (value == null || value < 0 || value >= BASE) {
-                throw new IllegalArgumentException("A Trinity radix digit must be within the base");
-            }
-        }
     }
 
     /**

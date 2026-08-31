@@ -173,11 +173,11 @@ public final class TrinityRadixObjectiveSearch {
         }
         ExpressionsBasedModel solverModel = built.model().model();
         applyDeadline(solverModel, control);
-        long started = System.nanoTime();
-        Optimisation.Result result = solverModel.minimise();
-        long elapsedNanos = Math.max(0L, System.nanoTime() - started);
-        metrics.addPass(elapsedNanos);
-        control.recordSolverPass(elapsedNanos);
+        TrinityAlgorithmResult<Optimisation.Result> solved = minimise(solverModel, control, metrics);
+        if (!solved.successful()) {
+            return TrinityAlgorithmResult.failure(solved.diagnostic());
+        }
+        Optimisation.Result result = solved.value();
         if (control.cancellationRequested()) {
             return TrinityRadixDiagnostics.failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -319,11 +319,11 @@ public final class TrinityRadixObjectiveSearch {
             return stateLimit(stateBudget);
         }
         applyDeadline(probeModel, control);
-        long started = System.nanoTime();
-        Optimisation.Result result = probeModel.minimise();
-        long elapsedNanos = Math.max(0L, System.nanoTime() - started);
-        metrics.addPass(elapsedNanos);
-        control.recordSolverPass(elapsedNanos);
+        TrinityAlgorithmResult<Optimisation.Result> solved = minimise(probeModel, control, metrics);
+        if (!solved.successful()) {
+            return TrinityAlgorithmResult.failure(solved.diagnostic());
+        }
+        Optimisation.Result result = solved.value();
         if (control.cancellationRequested()) {
             return TrinityRadixDiagnostics.failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -367,6 +367,41 @@ public final class TrinityRadixObjectiveSearch {
                 Map.of(
                         "limit", Integer.toString(stateBudget.limit()),
                         "states", Integer.toString(stateBudget.used())));
+    }
+
+    private static TrinityAlgorithmResult<Optimisation.Result> minimise(
+                                                                        ExpressionsBasedModel model,
+                                                                        TrinityPlanningControl control,
+                                                                        TrinityRadixSolverMetrics metrics) {
+        long started = System.nanoTime();
+        try {
+            return TrinityAlgorithmResult.success(model.minimise());
+        } catch (RuntimeException exception) {
+            if (!causedByStackOverflow(exception)) {
+                throw exception;
+            }
+            return TrinityRadixDiagnostics.failure(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    "gui.data_energistics.trinity_planning.mip.schedule_search_limit",
+                    Map.of(
+                            "reason", "solver_stack_depth",
+                            "radixBase", Integer.toString(TrinityRadixDigits.BASE)));
+        } finally {
+            long elapsedNanos = Math.max(0L, System.nanoTime() - started);
+            metrics.addPass(elapsedNanos);
+            control.recordSolverPass(elapsedNanos);
+        }
+    }
+
+    private static boolean causedByStackOverflow(Throwable failure) {
+        Throwable current = failure;
+        while (current != null) {
+            if (current instanceof StackOverflowError) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private static int selectedDigit(Map<Variable, BigInteger> values, Variable objectiveDigit) {

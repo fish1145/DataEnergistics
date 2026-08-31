@@ -2,7 +2,6 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.bounds.TrinityCycleObjectiveBounds;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilityRequest;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityFiringBounds;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.codec.TrinityRadixCodec;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.codec.TrinityRadixLinearEncoder;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.codec.TrinityRadixVariable;
@@ -63,14 +62,12 @@ public final class TrinityRadixModelAssembler {
         }
         TrinityRadixLinearEncoder model = new TrinityRadixLinearEncoder(this.codec);
         LinkedHashMap<TrinityPatternVariant, TrinityRadixVariable> firingVariables = new LinkedHashMap<>();
-        boolean overflowProofDomain = logicalUpper.compareTo(TrinityFiringBounds.MAXIMUM_FIRINGS) > 0 &&
-                request.fullLongFiringDomain();
         for (int index = 0; index < request.variants().size(); index++) {
             TrinityPatternVariant variant = request.variants().get(index);
-            TrinityFiringBounds bounds = request.firingBounds().get(variant);
+            var bounds = request.firingBounds().get(variant);
             TrinityRadixVariable variable = model.addBounded(
                     "firing_" + index,
-                    overflowProofDomain ? logicalUpper : logicalUpper.min(bounds.upperInclusive()),
+                    bounds.upperOr(logicalUpper),
                     false);
             if (bounds.lowerInclusive().signum() > 0) {
                 model.addLowerBound("firing_lower_" + index, variable, bounds.lowerInclusive());

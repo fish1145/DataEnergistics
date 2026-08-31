@@ -57,7 +57,7 @@ public final class TrinityInitialPlanCalculation {
                         request.target(),
                         request.requestedAmount(),
                         request.quantityMode(),
-                        request.available(),
+                        request.inventory(),
                         request.limits(),
                         TrinityPlanningControl.create(
                                 () -> false,
@@ -96,16 +96,16 @@ public final class TrinityInitialPlanCalculation {
         }
 
         TrinityCraftingPlan plan = result.value();
-        if (plan.bytes() > request.maxTrinityBytes()) {
+        if (!request.maxTrinityCapacity().accepts(plan.exactBytes())) {
             TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.NO_ELIGIBLE_TRINITY_CPU,
                     Component.translatable(
                             "gui.data_energistics.trinity_planning.cpu_too_small",
-                            plan.bytes(),
-                            request.maxTrinityBytes()),
+                            plan.exactBytes(),
+                            request.maxTrinityCapacity().diagnosticValue()),
                     Map.of(
-                            "planBytes", Long.toString(plan.bytes()),
-                            "maxTrinityBytes", Long.toString(request.maxTrinityBytes())));
+                            "planBytes", plan.exactBytes().toString(),
+                            "maxTrinityBytes", request.maxTrinityCapacity().diagnosticValue()));
             logFailure(request, diagnostic, computation.cachePath(), computation.cacheStatistics());
             return TrinityPlanningAttempt.failure(diagnostic);
         }
@@ -201,7 +201,7 @@ public final class TrinityInitialPlanCalculation {
                 request.target(),
                 request.requestedAmount(),
                 request.quantityMode(),
-                request.available(),
+                request.inventory(),
                 request.limits());
     }
 

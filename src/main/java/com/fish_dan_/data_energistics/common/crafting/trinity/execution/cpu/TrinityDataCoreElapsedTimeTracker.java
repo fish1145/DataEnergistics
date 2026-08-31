@@ -1,15 +1,18 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.util.Mth;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.AEKeyTypes;
-import it.unimi.dsi.fastutil.objects.Reference2LongMap;
-import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.MathContext;
 import java.util.Map;
 
 /**
@@ -21,6 +24,8 @@ import java.util.Map;
  */
 final class TrinityDataCoreElapsedTimeTracker {
 
+    private static final int MAX_BIG_INTEGER_BYTES = 512;
+
     private static final String ELAPSED_TIME_TAG = "elapsed_time";
     private static final String STARTED_WORK_TAG = "started_work";
     private static final String COMPLETED_WORK_TAG = "completed_work";
@@ -28,9 +33,9 @@ final class TrinityDataCoreElapsedTimeTracker {
 
     private long lastTime = System.nanoTime();
     private long elapsedTime;
-    private final Reference2LongMap<AEKeyType> startedWorkByType = new Reference2LongOpenHashMap<>(
+    private final Reference2ObjectMap<AEKeyType, BigInteger> startedWorkByType = new Reference2ObjectOpenHashMap<>(
             AEKeyTypes.getAll().size());
-    private final Reference2LongMap<AEKeyType> completedWorkByType = new Reference2LongOpenHashMap<>(
+    private final Reference2ObjectMap<AEKeyType, BigInteger> completedWorkByType = new Reference2ObjectOpenHashMap<>(
             AEKeyTypes.getAll().size());
     private boolean planBaseline;
 
@@ -38,8 +43,8 @@ final class TrinityDataCoreElapsedTimeTracker {
 
     TrinityDataCoreElapsedTimeTracker(CompoundTag data) {
         this.elapsedTime = data.getLong(ELAPSED_TIME_TAG);
-        readLongByTypeMap(data.getCompound(STARTED_WORK_TAG), this.startedWorkByType);
-        readLongByTypeMap(data.getCompound(COMPLETED_WORK_TAG), this.completedWorkByType);
+        readWorkByTypeMap(data.getCompound(STARTED_WORK_TAG), this.startedWorkByType);
+        readWorkByTypeMap(data.getCompound(COMPLETED_WORK_TAG), this.completedWorkByType);
         this.planBaseline = data.getBoolean(PLAN_BASELINE_TAG);
     }
 
@@ -54,7 +59,7 @@ final class TrinityDataCoreElapsedTimeTracker {
             throw new IllegalArgumentException("Tracked Trinity work must be non-negative");
         }
         updateTime();
-        this.startedWorkByType.mergeLong(keyType, amount, this::saturatedSum);
+        this.startedWorkByType.merge(keyType, BigInteger.valueOf(amount), BigInteger::add);
     }
 
     /**
@@ -76,11 +81,11 @@ final class TrinityDataCoreElapsedTimeTracker {
      *
      * @param pendingOutputs exact undispatched outputs restored with the execution cursor
      */
-    void restorePlanBaseline(Map<AEKey, Long> pendingOutputs) {
+    void restorePlanBaseline(Map<AEKey, BigInteger> pendingOutputs) {
         if (this.planBaseline) {
             return;
         }
-        mergeLongWork(pendingOutputs, this.startedWorkByType);
+        mergeBigIntegerWork(pendingOutputs, this.startedWorkByType);
         this.planBaseline = true;
     }
 
@@ -110,12 +115,12 @@ final class TrinityDataCoreElapsedTimeTracker {
      * @param previousPending outputs removed with the old remaining plan
      * @param replacement     complete outputs of the replacement remaining plan
      */
-    void replacePendingPlan(Map<AEKey, Long> previousPending, Map<AEKey, BigInteger> replacement) {
+    void replacePendingPlan(Map<AEKey, BigInteger> previousPending, Map<AEKey, BigInteger> replacement) {
         if (!this.planBaseline) {
             throw new IllegalStateException("A Trinity replacement requires an established progress baseline");
         }
-        Reference2LongMap<AEKeyType> updated = new Reference2LongOpenHashMap<>(this.startedWorkByType);
-        subtractLongWork(previousPending, updated);
+        Reference2ObjectMap<AEKeyType, BigInteger> updated = new Reference2ObjectOpenHashMap<>(this.startedWorkByType);
+        subtractBigIntegerWork(previousPending, updated);
         mergeBigIntegerWork(replacement, updated);
         this.startedWorkByType.clear();
         this.startedWorkByType.putAll(updated);
@@ -133,7 +138,7 @@ final class TrinityDataCoreElapsedTimeTracker {
             throw new IllegalArgumentException("Completed Trinity work must be non-negative");
         }
         updateTime();
-        this.completedWorkByType.mergeLong(keyType, amount, this::saturatedSum);
+        this.completedWorkByType.merge(keyType, BigInteger.valueOf(amount), BigInteger::add);
     }
 
     /**
@@ -142,7 +147,7 @@ final class TrinityDataCoreElapsedTimeTracker {
     long elapsedTimeNanos() {
         boolean allDone = true;
         for (AEKeyType keyType : AEKeyTypes.getAll()) {
-            if (this.completedWorkByType.getLong(keyType) < this.startedWorkByType.getLong(keyType)) {
+            if (amount(this.completedWorkByType, keyType).compareTo(amount(this.startedWorkByType, keyType)) < 0) {
                 allDone = false;
                 break;
             }
@@ -174,60 +179,54 @@ final class TrinityDataCoreElapsedTimeTracker {
     CompoundTag writeToTag() {
         CompoundTag data = new CompoundTag();
         data.putLong(ELAPSED_TIME_TAG, this.elapsedTime);
-        data.put(STARTED_WORK_TAG, writeLongByTypeMap(this.startedWorkByType));
-        data.put(COMPLETED_WORK_TAG, writeLongByTypeMap(this.completedWorkByType));
+        data.put(STARTED_WORK_TAG, writeWorkByTypeMap(this.startedWorkByType));
+        data.put(COMPLETED_WORK_TAG, writeWorkByTypeMap(this.completedWorkByType));
         data.putBoolean(PLAN_BASELINE_TAG, this.planBaseline);
         return data;
     }
 
     private float progress() {
-        double startedUnits = 0.0D;
-        double completedUnits = 0.0D;
+        BigDecimal startedUnits = BigDecimal.ZERO;
+        BigDecimal completedUnits = BigDecimal.ZERO;
         for (AEKeyType keyType : AEKeyTypes.getAll()) {
-            startedUnits += this.startedWorkByType.getLong(keyType) / (double) keyType.getAmountPerUnit();
-            completedUnits += this.completedWorkByType.getLong(keyType) / (double) keyType.getAmountPerUnit();
+            BigDecimal divisor = BigDecimal.valueOf(keyType.getAmountPerUnit());
+            startedUnits = startedUnits.add(new BigDecimal(amount(this.startedWorkByType, keyType))
+                    .divide(divisor, MathContext.DECIMAL64));
+            completedUnits = completedUnits.add(new BigDecimal(amount(this.completedWorkByType, keyType))
+                    .divide(divisor, MathContext.DECIMAL64));
         }
-        if (startedUnits <= 0.0D) {
+        if (startedUnits.signum() <= 0) {
             return 0.0F;
         }
-        return Mth.clamp((float) (completedUnits / startedUnits), 0.0F, 1.0F);
+        return Mth.clamp(completedUnits.divide(startedUnits, MathContext.DECIMAL64).floatValue(), 0.0F, 1.0F);
     }
 
     private void mergeBigIntegerWork(Map<AEKey, BigInteger> work,
-                                     Reference2LongMap<AEKeyType> destination) {
+                                     Reference2ObjectMap<AEKeyType, BigInteger> destination) {
         work.forEach((key, amount) -> {
             if (amount.signum() <= 0) {
                 throw new IllegalArgumentException("Trinity plan work must contain positive keyed amounts");
             }
-            destination.mergeLong(key.getType(), amount.longValueExact(), this::saturatedSum);
+            destination.merge(key.getType(), amount, BigInteger::add);
         });
     }
 
-    private void mergeLongWork(Map<AEKey, Long> work,
-                               Reference2LongMap<AEKeyType> destination) {
+    private static void subtractBigIntegerWork(
+                                               Map<AEKey, BigInteger> work,
+                                               Reference2ObjectMap<AEKeyType, BigInteger> destination) {
+        Reference2ObjectMap<AEKeyType, BigInteger> removal = new Reference2ObjectOpenHashMap<>();
         work.forEach((key, amount) -> {
-            if (amount <= 0L) {
+            if (amount.signum() <= 0) {
                 throw new IllegalArgumentException("Trinity pending work must contain positive keyed amounts");
             }
-            destination.mergeLong(key.getType(), amount, this::saturatedSum);
+            removal.merge(key.getType(), amount, BigInteger::add);
         });
-    }
-
-    private static void subtractLongWork(Map<AEKey, Long> work,
-                                         Reference2LongMap<AEKeyType> destination) {
-        Reference2LongMap<AEKeyType> removal = new Reference2LongOpenHashMap<>();
-        work.forEach((key, amount) -> {
-            if (amount <= 0L) {
-                throw new IllegalArgumentException("Trinity pending work must contain positive keyed amounts");
-            }
-            removal.mergeLong(key.getType(), amount, Math::addExact);
-        });
-        removal.reference2LongEntrySet().forEach(entry -> {
-            long current = destination.getLong(entry.getKey());
-            if (current < entry.getLongValue()) {
+        removal.reference2ObjectEntrySet().forEach(entry -> {
+            BigInteger current = amount(destination, entry.getKey());
+            if (current.compareTo(entry.getValue()) < 0) {
                 throw new IllegalStateException("A Trinity replacement cannot remove more work than its baseline");
             }
-            destination.put(entry.getKey(), current - entry.getLongValue());
+            destination.put(entry.getKey(), current.subtract(entry.getValue()));
         });
     }
 
@@ -237,22 +236,39 @@ final class TrinityDataCoreElapsedTimeTracker {
         this.lastTime = currentTime;
     }
 
-    private long saturatedSum(long left, long right) {
-        long result = left + right;
-        return result < 0 ? Long.MAX_VALUE : result;
+    private static BigInteger amount(
+                                     Reference2ObjectMap<AEKeyType, BigInteger> amounts,
+                                     AEKeyType key) {
+        return amounts.getOrDefault(key, BigInteger.ZERO);
     }
 
-    private static void readLongByTypeMap(CompoundTag tag, Reference2LongMap<AEKeyType> output) {
+    private static void readWorkByTypeMap(
+                                          CompoundTag tag,
+                                          Reference2ObjectMap<AEKeyType, BigInteger> output) {
         for (AEKeyType keyType : AEKeyTypes.getAll()) {
-            output.put(keyType, tag.getLong(keyType.getId().toString()));
+            String field = keyType.getId().toString();
+            BigInteger amount = tag.contains(field, Tag.TAG_BYTE_ARRAY) ?
+                    readBigInteger(tag.getByteArray(field)) : BigInteger.valueOf(tag.getLong(field));
+            output.put(keyType, amount);
         }
     }
 
-    private static CompoundTag writeLongByTypeMap(Reference2LongMap<AEKeyType> input) {
+    private static CompoundTag writeWorkByTypeMap(Reference2ObjectMap<AEKeyType, BigInteger> input) {
         CompoundTag result = new CompoundTag();
-        for (Reference2LongMap.Entry<AEKeyType> entry : input.reference2LongEntrySet()) {
-            result.putLong(entry.getKey().getId().toString(), entry.getLongValue());
+        for (Reference2ObjectMap.Entry<AEKeyType, BigInteger> entry : input.reference2ObjectEntrySet()) {
+            byte[] encoded = entry.getValue().toByteArray();
+            if (encoded.length > MAX_BIG_INTEGER_BYTES) {
+                throw new IllegalArgumentException("Trinity progress work exceeds the persistence byte limit");
+            }
+            result.putByteArray(entry.getKey().getId().toString(), encoded);
         }
         return result;
+    }
+
+    private static BigInteger readBigInteger(byte[] encoded) {
+        if (encoded.length == 0 || encoded.length > MAX_BIG_INTEGER_BYTES) {
+            throw new IllegalArgumentException("Trinity progress work has invalid persistence bytes");
+        }
+        return new BigInteger(encoded);
     }
 }

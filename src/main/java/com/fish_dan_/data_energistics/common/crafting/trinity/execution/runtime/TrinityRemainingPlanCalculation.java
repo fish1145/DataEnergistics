@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGateway;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanningStatistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
@@ -17,7 +18,6 @@ import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfig
 import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -93,7 +93,7 @@ public final class TrinityRemainingPlanCalculation {
      */
     public Result advance(Optional<TrinityCraftingGraphSnapshot> snapshot,
                           long gridScope,
-                          Supplier<Map<AEKey, BigInteger>> availableSupplier,
+                          Supplier<TrinityPlanningInventory> availableSupplier,
                           AEKey target,
                           BigInteger requestedAmount,
                           CraftingQuantityMode quantityMode,
@@ -120,7 +120,14 @@ public final class TrinityRemainingPlanCalculation {
             this.retryAtTick = -1L;
         }
 
-        Map<AEKey, BigInteger> available = availableSupplier.get();
+        TrinityPlanningInventory inventory;
+        try {
+            inventory = availableSupplier.get();
+        } catch (RuntimeException exception) {
+            this.attemptedRevision = graph.revision();
+            scheduleRetry(graph.revision(), currentTick, settings.dynamicRetryMaxTicks);
+            return new Fault(exception, graph.revision());
+        }
         TrinityPlanningLimits limits = TrinityPlanningLimits.capture(settings);
         this.attemptedRevision = graph.revision();
         TrinityPlanningGateway gateway = this.gatewaySupplier.get();
@@ -131,7 +138,7 @@ public final class TrinityRemainingPlanCalculation {
                 target,
                 requestedAmount,
                 quantityMode,
-                available,
+                inventory,
                 limits));
         return new Waiting();
     }
@@ -221,7 +228,7 @@ public final class TrinityRemainingPlanCalculation {
                                                     AEKey target,
                                                     BigInteger requestedAmount,
                                                     CraftingQuantityMode quantityMode,
-                                                    Map<AEKey, BigInteger> available,
+                                                    TrinityPlanningInventory inventory,
                                                     TrinityPlanningLimits limits) {
         try {
             TrinityPlanningComputationResult computation = gateway.calculateRemainingTrinity(new TrinityPlanningInput(
@@ -230,7 +237,7 @@ public final class TrinityRemainingPlanCalculation {
                     target,
                     requestedAmount,
                     quantityMode,
-                    available,
+                    inventory,
                     limits));
             if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
                 var cache = computation.cacheStatistics();

@@ -12,11 +12,13 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.math.BigInteger;
@@ -61,7 +63,7 @@ public final class TrinityAcyclicCompetitionPlanner {
                                   AEKey target,
                                   BigInteger requestedAmount,
                                   CraftingQuantityMode quantityMode,
-                                  Map<AEKey, BigInteger> available,
+                                  TrinityPlanningInventory available,
                                   int maxSearchStates,
                                   TrinityPlanningMode mode,
                                   TrinityPlanningControl control) {
@@ -87,7 +89,7 @@ public final class TrinityAcyclicCompetitionPlanner {
                                   AEKey target,
                                   BigInteger requestedAmount,
                                   CraftingQuantityMode quantityMode,
-                                  Map<AEKey, BigInteger> available,
+                                  TrinityPlanningInventory available,
                                   Set<TrinityPatternIdentity> routeHint,
                                   int maxSearchStates,
                                   TrinityPlanningMode mode,
@@ -198,7 +200,7 @@ public final class TrinityAcyclicCompetitionPlanner {
                                                                           AEKey target,
                                                                           BigInteger requestedAmount,
                                                                           CraftingQuantityMode quantityMode,
-                                                                          Map<AEKey, BigInteger> available,
+                                                                          TrinityPlanningInventory available,
                                                                           Set<TrinityPatternIdentity> routeHint,
                                                                           int maxSearchStates,
                                                                           TrinityPlanningMode mode,
@@ -222,8 +224,9 @@ public final class TrinityAcyclicCompetitionPlanner {
                                        AEKey target,
                                        BigInteger requestedAmount,
                                        CraftingQuantityMode quantityMode,
-                                       Map<AEKey, BigInteger> available) {
-        LinkedHashMap<AEKey, BigInteger> inventory = copyAvailable(available);
+                                       TrinityPlanningInventory available) {
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> finiteInventory = new Object2ObjectLinkedOpenHashMap<>(
+                available.finiteAmounts());
         LinkedHashMap<AEKey, BigInteger> need = new LinkedHashMap<>();
         merge(need, target, requestedAmount);
         LinkedHashMap<TrinityPatternVariant, BigInteger> deterministicFirings = new LinkedHashMap<>();
@@ -242,12 +245,17 @@ public final class TrinityAcyclicCompetitionPlanner {
                 if (required.signum() <= 0 && !forceFinalTotalProduction) {
                     continue;
                 }
-                BigInteger availableAmount = inventory.getOrDefault(key, BigInteger.ZERO);
+                boolean unlimited = available.unlimited(key);
+                BigInteger positiveRequired = required.max(BigInteger.ZERO);
+                BigInteger availableAmount = unlimited ?
+                        positiveRequired : finiteInventory.getOrDefault(key, BigInteger.ZERO);
                 BigInteger reserved = key.equals(target) && quantityMode == CraftingQuantityMode.NET_NEW ?
-                        BigInteger.ZERO : required.max(BigInteger.ZERO).min(availableAmount);
+                        BigInteger.ZERO : positiveRequired.min(availableAmount);
                 if (reserved.signum() > 0) {
                     reservedInputs.merge(key, reserved, BigInteger::add);
-                    inventory.put(key, availableAmount.subtract(reserved));
+                    if (!unlimited) {
+                        finiteInventory.put(key, availableAmount.subtract(reserved));
+                    }
                     merge(need, key, reserved.negate());
                     deterministicTouchedKeys.add(key);
                 }
@@ -279,7 +287,7 @@ public final class TrinityAcyclicCompetitionPlanner {
                 List.copyOf(frontiers.values()),
                 deterministicFirings,
                 reservedInputs,
-                inventory,
+                new TrinityPlanningInventory(finiteInventory, available.unlimitedKeys()),
                 Set.copyOf(deterministicTouchedKeys),
                 Set.copyOf(deterministicPatterns));
     }
@@ -357,7 +365,7 @@ public final class TrinityAcyclicCompetitionPlanner {
                                                      AEKey target,
                                                      BigInteger requestedAmount,
                                                      CraftingQuantityMode quantityMode,
-                                                     Map<AEKey, BigInteger> available,
+                                                     TrinityPlanningInventory available,
                                                      Map<TrinityPatternVariant, BigInteger> firings,
                                                      Map<AEKey, BigInteger> externalInputs,
                                                      int states,
@@ -369,7 +377,7 @@ public final class TrinityAcyclicCompetitionPlanner {
         }
         for (Map.Entry<AEKey, BigInteger> input : externalInputs.entrySet()) {
             if (input.getValue().signum() <= 0 ||
-                    input.getValue().compareTo(available.getOrDefault(input.getKey(), BigInteger.ZERO)) > 0 ||
+                    !available.covers(input.getKey(), input.getValue()) ||
                     quantityMode == CraftingQuantityMode.NET_NEW && input.getKey().equals(target)) {
                 return null;
             }
@@ -417,17 +425,10 @@ public final class TrinityAcyclicCompetitionPlanner {
                 quality);
     }
 
-    private static Map<AEKey, BigInteger> projectInventory(
-                                                           Map<AEKey, BigInteger> inventory,
-                                                           Set<AEKey> touchedKeys) {
-        LinkedHashMap<AEKey, BigInteger> projected = new LinkedHashMap<>();
-        touchedKeys.forEach(key -> {
-            BigInteger amount = inventory.getOrDefault(key, BigInteger.ZERO);
-            if (amount.signum() > 0) {
-                projected.put(key, amount);
-            }
-        });
-        return projected;
+    private static TrinityPlanningInventory projectInventory(
+                                                             TrinityPlanningInventory inventory,
+                                                             Set<AEKey> touchedKeys) {
+        return inventory.project(touchedKeys);
     }
 
     private static boolean executionPrefixNonNegative(
@@ -481,16 +482,6 @@ public final class TrinityAcyclicCompetitionPlanner {
         return earliestOutput;
     }
 
-    private static LinkedHashMap<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
-        source.forEach((key, amount) -> {
-            if (amount.signum() > 0) {
-                copied.put(key, amount);
-            }
-        });
-        return copied;
-    }
-
     private static BigInteger ceilDivide(BigInteger numerator, BigInteger denominator) {
         BigInteger[] division = numerator.divideAndRemainder(denominator);
         return division[1].signum() == 0 ? division[0] : division[0].add(BigInteger.ONE);
@@ -542,7 +533,7 @@ public final class TrinityAcyclicCompetitionPlanner {
                                List<FrontierDemand> frontiers,
                                Map<TrinityPatternVariant, BigInteger> deterministicFirings,
                                Map<AEKey, BigInteger> reservedInputs,
-                               Map<AEKey, BigInteger> remainingInventory,
+                               TrinityPlanningInventory remainingInventory,
                                Set<AEKey> deterministicTouchedKeys,
                                Set<TrinityPatternIdentity> deterministicPatterns) {}
 }

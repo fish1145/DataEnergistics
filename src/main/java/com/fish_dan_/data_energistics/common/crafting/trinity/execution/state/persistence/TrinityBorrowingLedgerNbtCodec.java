@@ -9,6 +9,7 @@ import net.minecraft.nbt.Tag;
 
 import appeng.api.stacks.AEKey;
 
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,7 +21,9 @@ import java.util.Set;
 public final class TrinityBorrowingLedgerNbtCodec {
 
     private static final String SCHEMA_TAG = "schema_version";
-    private static final int SCHEMA = 1;
+    private static final int LEGACY_SCHEMA = 1;
+    private static final int SCHEMA = 2;
+    private static final int MAX_BIG_INTEGER_BYTES = 512;
     private static final String ENTRIES_TAG = "entries";
     private static final String KEY_TAG = "key";
     private static final String RESERVED_TAG = "reserved";
@@ -53,9 +56,9 @@ public final class TrinityBorrowingLedgerNbtCodec {
         entries.forEach((key, balances) -> {
             CompoundTag entry = new CompoundTag();
             entry.put(KEY_TAG, key.toTagGeneric(registries));
-            entry.putLong(RESERVED_TAG, balances.reserved());
-            entry.putLong(COMMITTED_TAG, balances.committed());
-            entry.putLong(RELEASED_TAG, balances.released());
+            putBigInteger(entry, RESERVED_TAG, balances.reserved());
+            putBigInteger(entry, COMMITTED_TAG, balances.committed());
+            putBigInteger(entry, RELEASED_TAG, balances.released());
             encodedEntries.add(entry);
         });
         root.put(ENTRIES_TAG, encodedEntries);
@@ -74,7 +77,8 @@ public final class TrinityBorrowingLedgerNbtCodec {
                                                                      HolderLookup.Provider registries) {
         requireFields(tag, ROOT_FIELDS, "borrowing ledger");
         requireType(tag, SCHEMA_TAG, Tag.TAG_INT, "borrowing ledger schema");
-        if (tag.getInt(SCHEMA_TAG) != SCHEMA) {
+        int schema = tag.getInt(SCHEMA_TAG);
+        if (schema != LEGACY_SCHEMA && schema != SCHEMA) {
             throw new IllegalArgumentException("Unsupported Trinity borrowing ledger schema");
         }
         requireType(tag, ENTRIES_TAG, Tag.TAG_LIST, "borrowing ledger entries");
@@ -89,22 +93,42 @@ public final class TrinityBorrowingLedgerNbtCodec {
             CompoundTag entry = (CompoundTag) encoded;
             requireFields(entry, ENTRY_FIELDS, "borrowing ledger entry");
             requireType(entry, KEY_TAG, Tag.TAG_COMPOUND, "borrowing ledger key");
-            requireType(entry, RESERVED_TAG, Tag.TAG_LONG, "reserved borrowing amount");
-            requireType(entry, COMMITTED_TAG, Tag.TAG_LONG, "committed borrowing amount");
-            requireType(entry, RELEASED_TAG, Tag.TAG_LONG, "released borrowing amount");
+            int amountType = schema == SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG;
+            requireType(entry, RESERVED_TAG, amountType, "reserved borrowing amount");
+            requireType(entry, COMMITTED_TAG, amountType, "committed borrowing amount");
+            requireType(entry, RELEASED_TAG, amountType, "released borrowing amount");
             AEKey key = AEKey.fromTagGeneric(registries, entry.getCompound(KEY_TAG));
             if (key == null) {
                 throw new IllegalArgumentException("A Trinity borrowing ledger contains an unknown AE key");
             }
             TrinityBorrowingLedger.Balances balances = new TrinityBorrowingLedger.Balances(
-                    entry.getLong(RESERVED_TAG),
-                    entry.getLong(COMMITTED_TAG),
-                    entry.getLong(RELEASED_TAG));
-            if (balances.total() <= 0L || restored.putIfAbsent(key, balances) != null) {
+                    readBigInteger(entry, RESERVED_TAG, schema),
+                    readBigInteger(entry, COMMITTED_TAG, schema),
+                    readBigInteger(entry, RELEASED_TAG, schema));
+            if (balances.total().signum() <= 0 || restored.putIfAbsent(key, balances) != null) {
                 throw new IllegalArgumentException("A Trinity borrowing ledger requires unique non-empty entries");
             }
         }
         return Collections.unmodifiableMap(restored);
+    }
+
+    private static void putBigInteger(CompoundTag tag, String field, BigInteger value) {
+        byte[] encoded = value.toByteArray();
+        if (encoded.length > MAX_BIG_INTEGER_BYTES) {
+            throw new IllegalArgumentException("Trinity borrowing balance exceeds the persistence byte limit");
+        }
+        tag.putByteArray(field, encoded);
+    }
+
+    private static BigInteger readBigInteger(CompoundTag tag, String field, int schema) {
+        if (schema == LEGACY_SCHEMA) {
+            return BigInteger.valueOf(tag.getLong(field));
+        }
+        byte[] encoded = tag.getByteArray(field);
+        if (encoded.length == 0 || encoded.length > MAX_BIG_INTEGER_BYTES) {
+            throw new IllegalArgumentException("Trinity borrowing balance has invalid persistence bytes");
+        }
+        return new BigInteger(encoded);
     }
 
     private static void requireFields(CompoundTag tag, Set<String> fields, String role) {

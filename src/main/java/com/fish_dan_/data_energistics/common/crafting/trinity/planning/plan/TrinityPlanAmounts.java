@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan;
 
 import appeng.api.stacks.AEKey;
-import appeng.api.stacks.KeyCounter;
 
 import java.math.BigInteger;
 import java.util.Collections;
@@ -41,17 +40,5 @@ final class TrinityPlanAmounts {
             copied.put(key, amount);
         });
         return Collections.unmodifiableMap(copied);
-    }
-
-    static KeyCounter toKeyCounter(Map<AEKey, BigInteger> source) {
-        KeyCounter counter = new KeyCounter();
-        source.forEach((key, amount) -> counter.add(key, amount.longValueExact()));
-        return counter;
-    }
-
-    static KeyCounter copy(KeyCounter source) {
-        KeyCounter copied = new KeyCounter();
-        copied.addAll(source);
-        return copied;
     }
 }

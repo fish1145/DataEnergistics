@@ -39,8 +39,6 @@ import java.util.concurrent.TimeUnit;
  */
 final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibilityModel {
 
-    private static final BigInteger LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE);
-
     private final TrinityIntegerResultVerifier integerVerifier;
     private final TrinityExactConservationVerifier conservationVerifier;
     private final TrinityCycleObjectiveBounds objectiveBounds;
@@ -153,7 +151,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             SolvedModel canonical = incumbent;
             for (TrinityPatternVariant variant : request.variants()) {
                 TrinityFiringBounds bounds = request.firingBounds().get(variant);
-                if (bounds.lowerInclusive().equals(bounds.upperInclusive())) {
+                if (bounds.fixed()) {
                     BigInteger fixedCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
                     if (!fixedCount.equals(bounds.lowerInclusive())) {
                         throw new IllegalStateException("An exact Trinity firing solution violated a fixed axis");
@@ -168,14 +166,13 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                         fixedFirings,
                         variant);
                 BigInteger witnessCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
-                BigInteger identityUpper = this.objectiveBounds.identityObjectiveUpperBound(
+                BigInteger identityUpper = bounds.upperOr(this.objectiveBounds.identityObjectiveUpperBound(
                         request,
                         optimalExternal,
                         optimalSeed,
                         optimalFirings,
                         fixedFirings,
-                        variant)
-                        .min(bounds.upperInclusive());
+                        variant));
                 if (witnessCount.compareTo(identityUpper) > 0) {
                     throw new IllegalStateException("A Trinity identity witness exceeded its proven upper bound");
                 }
@@ -301,7 +298,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             SolvedModel canonical = incumbent;
             for (TrinityPatternVariant variant : request.variants()) {
                 TrinityFiringBounds bounds = request.firingBounds().get(variant);
-                if (bounds.lowerInclusive().equals(bounds.upperInclusive())) {
+                if (bounds.fixed()) {
                     BigInteger fixedCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
                     if (!fixedCount.equals(bounds.lowerInclusive())) {
                         throw new IllegalStateException("An exact Trinity shortage solution violated a fixed axis");
@@ -310,14 +307,13 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                     continue;
                 }
                 BigInteger witnessCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
-                BigInteger identityUpper = this.objectiveBounds.identityObjectiveUpperBound(
+                BigInteger identityUpper = bounds.upperOr(this.objectiveBounds.identityObjectiveUpperBound(
                         request,
                         optimalExternal,
                         optimalSeed,
                         optimalFirings,
                         fixedFirings,
-                        variant)
-                        .min(bounds.upperInclusive());
+                        variant));
                 if (witnessCount.compareTo(identityUpper) > 0) {
                     throw new IllegalStateException("A Trinity shortage identity witness exceeded its proven upper bound");
                 }
@@ -663,9 +659,6 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         LinkedHashMap<AEKey, BigInteger> expectedMissing = new LinkedHashMap<>();
         for (AEKey key : finiteKeys) {
             BigInteger required = requiredInputs.getOrDefault(key, BigInteger.ZERO);
-            if (required.compareTo(LONG_MAX) > 0) {
-                return inexact("shortage_required_long", key.toString());
-            }
             BigInteger available = request.available().getOrDefault(key, BigInteger.ZERO);
             BigInteger actual = required.min(available);
             BigInteger missing = required.subtract(actual);
@@ -995,7 +988,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             firingVariables.forEach((variant, variable) -> {
                 TrinityFiringBounds bounds = request.firingBounds().get(variant);
                 variable.lower(bounds.lowerInclusive());
-                variable.upper(bounds.upperInclusive().min(logicalUpper));
+                variable.upper(bounds.upperOr(logicalUpper));
             });
             seedVariables.forEach((key, variable) -> {
                 variable.lower(BigInteger.ZERO);
@@ -1057,14 +1050,14 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                             .addExpression("fixed_firing_" + request.variants().indexOf(fixedVariant))
                             .set(firingVariables.get(fixedVariant), BigInteger.ONE)
                             .level(count));
-                    BigInteger identityUpper = this.objectiveBounds.identityObjectiveUpperBound(
-                            request,
-                            fixedExternal,
-                            fixedSeed,
-                            fixedFirings,
-                            fixedCounts,
-                            variant)
-                            .min(request.firingBounds().get(variant).upperInclusive());
+                    BigInteger identityUpper = request.firingBounds().get(variant).upperOr(
+                            this.objectiveBounds.identityObjectiveUpperBound(
+                                    request,
+                                    fixedExternal,
+                                    fixedSeed,
+                                    fixedFirings,
+                                    fixedCounts,
+                                    variant));
                     model.addExpression("identity_objective")
                             .set(firingVariables.get(variant), BigInteger.ONE)
                             .upper(identityUpper)
@@ -1103,14 +1096,14 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                             .addExpression("fixed_shortage_firing_" + request.variants().indexOf(fixedVariant))
                             .set(firingVariables.get(fixedVariant), BigInteger.ONE)
                             .level(count));
-                    BigInteger identityUpper = this.objectiveBounds.identityObjectiveUpperBound(
-                            request,
-                            fixedExternal,
-                            fixedSeed,
-                            fixedFirings,
-                            fixedCounts,
-                            variant)
-                            .min(request.firingBounds().get(variant).upperInclusive());
+                    BigInteger identityUpper = request.firingBounds().get(variant).upperOr(
+                            this.objectiveBounds.identityObjectiveUpperBound(
+                                    request,
+                                    fixedExternal,
+                                    fixedSeed,
+                                    fixedFirings,
+                                    fixedCounts,
+                                    variant));
                     model.addExpression("shortage_identity_objective")
                             .set(firingVariables.get(variant), BigInteger.ONE)
                             .upper(identityUpper)

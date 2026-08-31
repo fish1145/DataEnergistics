@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admissio
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEKey;
@@ -29,7 +30,7 @@ import java.util.TreeMap;
 public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
 
     private final GenericStack finalOutput;
-    private final long bytes;
+    private final BigInteger exactBytes;
     private final boolean multiplePaths;
     private final long catalogRevision;
     private final CraftingQuantityMode quantityMode;
@@ -43,19 +44,18 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
     private final Map<AEKey, BigInteger> targetNetChange;
     private final List<TrinityPlanningDiagnostic> diagnostics;
     private final TrinityPlanningStatistics statistics;
-    private final KeyCounter usedItems;
-    private final KeyCounter emittedItems;
+    private final Map<AEKey, BigInteger> exactEmittedItems;
 
     private TrinityCraftingPlan(Builder builder) {
         if (builder.finalOutput == null || builder.finalOutput.what() == null || builder.finalOutput.amount() <= 0L) {
             throw new IllegalStateException("A Trinity plan requires a positive final output");
         }
-        if (builder.bytes < 0L || builder.catalogRevision < 0L || builder.quantityMode == null) {
+        if (builder.exactBytes.signum() < 0 || builder.catalogRevision < 0L || builder.quantityMode == null) {
             throw new IllegalStateException("A Trinity plan requires bytes, revision and quantity mode");
         }
 
         this.finalOutput = builder.finalOutput;
-        this.bytes = builder.bytes;
+        this.exactBytes = builder.exactBytes;
         this.multiplePaths = builder.multiplePaths;
         this.catalogRevision = builder.catalogRevision;
         this.quantityMode = builder.quantityMode;
@@ -85,15 +85,14 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
             throw new IllegalArgumentException("A Trinity plan must schedule its final output");
         }
 
-        this.usedItems = TrinityPlanAmounts.toKeyCounter(this.initialExpectedInputs);
-        this.emittedItems = TrinityPlanAmounts.toKeyCounter(TrinityPlanAmounts.copyPositive(
+        this.exactEmittedItems = TrinityPlanAmounts.copyPositive(
                 builder.emittedItems,
-                "emitted item"));
+                "emitted item");
     }
 
     private TrinityCraftingPlan(TrinityCraftingPlan source, TrinityPlanningStatistics statistics) {
         this.finalOutput = source.finalOutput;
-        this.bytes = source.bytes;
+        this.exactBytes = source.exactBytes;
         this.multiplePaths = source.multiplePaths;
         this.catalogRevision = source.catalogRevision;
         this.quantityMode = source.quantityMode;
@@ -107,8 +106,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
         this.targetNetChange = source.targetNetChange;
         this.diagnostics = source.diagnostics;
         this.statistics = statistics;
-        this.usedItems = source.usedItems;
-        this.emittedItems = source.emittedItems;
+        this.exactEmittedItems = source.exactEmittedItems;
     }
 
     /**
@@ -249,7 +247,6 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
                         BigInteger::add));
             }
         }
-        outputs.replaceAll((key, amount) -> BigInteger.valueOf(amount.longValueExact()));
         return TrinityPlanAmounts.copyPositive(outputs, "planned output");
     }
 
@@ -384,7 +381,12 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
 
     @Override
     public long bytes() {
-        return this.bytes;
+        return TrinityAe2AmountProjection.toAe2Bytes(this.exactBytes);
+    }
+
+    /** Returns exact CPU storage accounting before the AE2 long-only projection. */
+    public BigInteger exactBytes() {
+        return this.exactBytes;
     }
 
     @Override
@@ -399,12 +401,12 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
 
     @Override
     public KeyCounter usedItems() {
-        return TrinityPlanAmounts.copy(this.usedItems);
+        return TrinityAe2AmountProjection.toKeyCounter(this.initialExpectedInputs);
     }
 
     @Override
     public KeyCounter emittedItems() {
-        return TrinityPlanAmounts.copy(this.emittedItems);
+        return TrinityAe2AmountProjection.toKeyCounter(this.exactEmittedItems);
     }
 
     @Override
@@ -520,7 +522,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
     public static final class Builder {
 
         private GenericStack finalOutput;
-        private long bytes = -1L;
+        private BigInteger exactBytes = BigInteger.valueOf(-1L);
         private boolean multiplePaths;
         private long catalogRevision = -1L;
         private CraftingQuantityMode quantityMode;
@@ -550,8 +552,8 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
          * @param value conservative AE2 CPU capacity charge
          * @return this builder
          */
-        public Builder bytes(long value) {
-            this.bytes = value;
+        public Builder bytes(BigInteger value) {
+            this.exactBytes = value;
             return this;
         }
 

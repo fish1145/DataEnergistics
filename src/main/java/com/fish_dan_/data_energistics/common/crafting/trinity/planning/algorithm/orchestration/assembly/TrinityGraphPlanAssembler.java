@@ -288,7 +288,7 @@ public final class TrinityGraphPlanAssembler {
     }
 
     /**
-     * Applies exact long-boundary checks, byte estimation, statistics, and the final immutable plan builder.
+     * Applies exact byte estimation, statistics, and the final immutable plan builder.
      */
     public TrinityCraftingPlan finalizePlan(
                                             TrinityGraphPlanContext context,
@@ -296,13 +296,7 @@ public final class TrinityGraphPlanAssembler {
         if (context == null || assembly == null) {
             throw new IllegalArgumentException("A Trinity final plan assembly request is incomplete");
         }
-        verifyLongBoundaries(
-                context.requestedAmount(),
-                assembly.initialInputs(),
-                assembly.patternFirings(),
-                assembly.netChange(),
-                assembly.stackRequests());
-        long bytes = this.byteEstimator.estimate(new TrinityPlanByteEstimateInput(
+        BigInteger bytes = this.byteEstimator.estimate(new TrinityPlanByteEstimateInput(
                 assembly.stackRequests(),
                 sum(assembly.patternFirings()),
                 BigInteger.valueOf(assembly.stages().size())));
@@ -326,7 +320,7 @@ public final class TrinityGraphPlanAssembler {
                 sum(assembly.retainedSeedFinal()),
                 assembly.seedRefinementPasses());
         return TrinityCraftingPlan.builder()
-                .finalOutput(new GenericStack(context.target(), context.requestedLong()))
+                .finalOutput(new GenericStack(context.target(), context.requestedAmount().longValueExact()))
                 .bytes(bytes)
                 .multiplePaths(hasMultiplePaths(context.variants()))
                 .catalogRevision(context.catalogRevision())
@@ -463,26 +457,6 @@ public final class TrinityGraphPlanAssembler {
             positions.put(topology.topologicalOrder().get(position), position);
         }
         return Collections.unmodifiableMap(positions);
-    }
-
-    private static void verifyLongBoundaries(
-                                             BigInteger requestedAmount,
-                                             Map<AEKey, BigInteger> initialInputs,
-                                             Map<TrinityPatternIdentity, BigInteger> patternFirings,
-                                             Map<AEKey, BigInteger> netChange,
-                                             Map<AEKey, BigInteger> stackRequests) {
-        verifyLongBoundary(requestedAmount);
-        initialInputs.values().forEach(TrinityGraphPlanAssembler::verifyLongBoundary);
-        patternFirings.values().forEach(TrinityGraphPlanAssembler::verifyLongBoundary);
-        netChange.values().forEach(TrinityGraphPlanAssembler::verifyLongBoundary);
-        stackRequests.values().forEach(TrinityGraphPlanAssembler::verifyLongBoundary);
-    }
-
-    private static void verifyLongBoundary(BigInteger value) {
-        long exact = value.longValueExact();
-        if (!BigInteger.valueOf(exact).equals(value)) {
-            throw new IllegalStateException("An exact Trinity long conversion changed its source value");
-        }
     }
 
     private static boolean hasMultiplePaths(List<TrinityPatternVariant> variants) {

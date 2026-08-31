@@ -21,8 +21,6 @@ public record CraftingDispatchProposalRequest(
                                               CraftingDispatchCursor cursor,
                                               Set<CraftingDispatchExclusion> exclusions) {
 
-    private static final BigInteger MAXIMUM_LOGICAL_CRAFTS = BigInteger.valueOf(Long.MAX_VALUE);
-
     /**
      * Creates an initial proposal request without replacement history.
      */
@@ -41,9 +39,8 @@ public record CraftingDispatchProposalRequest(
         if (capacity == null || capacity.snapshots().isEmpty()) {
             throw new IllegalArgumentException("Crafting dispatch proposal requires at least one candidate");
         }
-        if (remainingCrafts == null || remainingCrafts.signum() <= 0 ||
-                remainingCrafts.compareTo(MAXIMUM_LOGICAL_CRAFTS) > 0) {
-            throw new IllegalArgumentException("Crafting dispatch proposal work must be in the positive long domain");
+        if (remainingCrafts.signum() <= 0) {
+            throw new IllegalArgumentException("Crafting dispatch proposal work must be positive");
         }
         if (cursor == null) {
             throw new IllegalArgumentException("Crafting dispatch proposal cursor must not be null");

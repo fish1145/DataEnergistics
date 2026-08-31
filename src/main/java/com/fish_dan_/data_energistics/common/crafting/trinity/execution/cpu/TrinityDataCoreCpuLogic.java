@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletion;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletionMode;
@@ -42,14 +43,20 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityPatternSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityBorrowingTransaction;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityInitialInputExtractor;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityRemainingPlanCalculation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityBorrowingLedger;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.inventory.TrinityExactWorkingInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityCraftingGraphAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGatewayLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityAvailableAmount;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventorySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputProjection;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
@@ -96,7 +103,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -116,9 +122,10 @@ import java.util.function.Consumer;
 final class TrinityDataCoreCpuLogic {
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int SCHEMA_VERSION = 2;
-    private static final int LEGACY_SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 3;
+    private static final int MINIMUM_SCHEMA_VERSION = 1;
     private static final String INVENTORY_TAG = "inventory";
+    private static final String EXACT_INVENTORY_TAG = "exact_inventory";
     private static final String VIRTUAL_COMPLETIONS_TAG = "virtual_completions";
     private static final String NO_OUTPUT_VIRTUAL_COMPLETIONS_TAG = "no_output_virtual_completions";
     private static final String JOB_TAG = "job";
@@ -140,6 +147,7 @@ final class TrinityDataCoreCpuLogic {
     @Nullable
     private TrinityDataCoreExecutingCraftingJob job;
     private final ListCraftingInventory inventory = new ListCraftingInventory(this::postChange);
+    private final TrinityExactWorkingInventory exactWorkingInventory = new TrinityExactWorkingInventory();
     private final ListCraftingInventory pendingVirtualCompletions;
     private final ListCraftingInventory pendingNoOutputCompletions;
     private final WorkerOperationTracker operationTracker = WorkerOperationTracker.create();
@@ -187,14 +195,23 @@ final class TrinityDataCoreCpuLogic {
         if (this.job != null) {
             return CraftingSubmitResult.CPU_BUSY;
         }
-        if (this.cpu.getAvailableStorage() < plan.bytes()) {
+        if (plan instanceof TrinityCraftingPlan trinityPlan ?
+                !this.cpu.storageCapacity().accepts(trinityPlan.exactBytes()) :
+                this.cpu.getAvailableStorage() < plan.bytes()) {
             return CraftingSubmitResult.CPU_TOO_SMALL;
         }
-        if (!this.inventory.list.isEmpty()) {
+        if (!this.inventory.list.isEmpty() || !this.exactWorkingInventory.isEmpty()) {
             Data_Energistics.LOGGER.warn("Trinity Data Core CPU inventory is not empty when a job is submitted");
         }
 
-        GenericStack missingIngredient = CraftingCpuHelper.tryExtractInitialItems(plan, grid, this.inventory, source);
+        GenericStack missingIngredient = plan instanceof TrinityCraftingPlan trinityPlan ?
+                TrinityInitialInputExtractor.extract(
+                        trinityPlan,
+                        grid,
+                        this.inventory,
+                        this.exactWorkingInventory,
+                        source) :
+                CraftingCpuHelper.tryExtractInitialItems(plan, grid, this.inventory, source);
         if (missingIngredient != null) {
             return CraftingSubmitResult.missingIngredient(missingIngredient);
         }
@@ -348,7 +365,7 @@ final class TrinityDataCoreCpuLogic {
         if (this.job == null) {
             recoverVirtualCompletions();
             storeItems();
-            if (!this.inventory.list.isEmpty()) {
+            if (!this.inventory.list.isEmpty() || !this.exactWorkingInventory.isEmpty()) {
                 this.cantStoreItems = true;
             }
             return;
@@ -652,13 +669,16 @@ final class TrinityDataCoreCpuLogic {
             return CraftingExecutionOutcome.NONE;
         }
         MEStorage network = activeGrid.getStorageService().getInventory();
+        if (this.exactWorkingInventory.refillPhysicalWindows(this.inventory)) {
+            this.cpu.markDirty();
+        }
         long maximumLogicalFirings = work.maximumLogicalFirings();
         if (work.cycle()) {
             TrinityPlanExecution.CycleWaveLimit cycleWaveLimit;
             try {
                 cycleWaveLimit = execution.maximumCycleLogicalFirings(
                         work,
-                        key -> combinedCycleSeedAvailability(network, key));
+                        (key, usefulUpper) -> combinedCycleSeedAvailability(network, key, usefulUpper));
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
                         "Trinity CPU {} failed to calculate the seed-safe cycle wave for compact job {}",
@@ -717,13 +737,11 @@ final class TrinityDataCoreCpuLogic {
             }
         }
 
-        Optional<TrinityBorrowingTransaction> borrowing = work.cycle() ?
-                borrowDynamicInputs(
-                        selected.inputsPerCraft(),
-                        selected.maximumCrafts(),
-                        network,
-                        execution.borrowingLedger()) :
-                Optional.of(newBorrowingTransaction(network, execution.borrowingLedger()));
+        Optional<TrinityBorrowingTransaction> borrowing = borrowDynamicInputs(
+                selected.inputsPerCraft(),
+                selected.maximumCrafts(),
+                network,
+                execution.borrowingLedger());
         if (borrowing.isEmpty()) {
             execution.deferDynamicInput(
                     work,
@@ -833,8 +851,8 @@ final class TrinityDataCoreCpuLogic {
                 graphSnapshot,
                 craftingProviderPublications(craftingService).publicationScope(),
                 () -> graphSnapshot
-                        .map(snapshot -> captureReplanAvailability(snapshot, network))
-                        .orElseGet(Map::of),
+                        .map(snapshot -> captureReplanAvailability(snapshot, activeGrid))
+                        .orElseGet(TrinityPlanningInventory::empty),
                 execution.finalOutput().what(),
                 BigInteger.valueOf(execution.deliveryRemaining()),
                 execution.quantityMode(),
@@ -865,15 +883,14 @@ final class TrinityDataCoreCpuLogic {
             }
         }
 
-        long availableStorage = this.cpu.getAvailableStorage();
-        if (ready.plan().bytes() > availableStorage) {
+        if (!this.cpu.storageCapacity().accepts(ready.plan().exactBytes())) {
             Data_Energistics.LOGGER.warn(
                     "Trinity CPU {} retained job {} because replacement plan at catalog revision {} requires {} bytes but the worker currently has {}",
                     this.cpu.number(),
                     currentJob.link.getCraftingID(),
                     ready.revision(),
-                    ready.plan().bytes(),
-                    availableStorage);
+                    ready.plan().exactBytes(),
+                    this.cpu.storageCapacity().diagnosticValue());
             this.remainingPlanCalculation.retrySameRevision(
                     ready.revision(),
                     currentTick,
@@ -881,11 +898,7 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
 
-        Optional<TrinityBorrowingTransaction> reservation = reserveReplacementInputs(
-                ready.plan(),
-                network,
-                execution.borrowingLedger());
-        if (reservation.isEmpty()) {
+        if (!reserveReplacementInputs(ready.plan(), network)) {
             Data_Energistics.LOGGER.warn(
                     "Trinity CPU {} retained job {} while replacement inputs for catalog revision {} were unavailable",
                     this.cpu.number(),
@@ -897,8 +910,7 @@ final class TrinityDataCoreCpuLogic {
                     settings.dynamicRetryMaxTicks);
             return;
         }
-        reservation.orElseThrow().retain();
-        Map<AEKey, Long> previousPendingOutputs = execution.pendingOutputs();
+        Map<AEKey, BigInteger> previousPendingOutputs = execution.pendingOutputs();
         HashSet<AEKey> changedOutputKeys = new HashSet<>(previousPendingOutputs.keySet());
         execution.replaceRemainingPlan(ready.plan(), currentTick);
         if (currentJob.timeTracker.hasPlanBaseline()) {
@@ -912,34 +924,25 @@ final class TrinityDataCoreCpuLogic {
         changedOutputKeys.forEach(this::postChange);
     }
 
-    private Map<AEKey, BigInteger> captureReplanAvailability(TrinityCraftingGraphSnapshot snapshot,
-                                                             MEStorage network) {
-        LinkedHashMap<AEKey, BigInteger> available = new LinkedHashMap<>();
-        for (AEKey key : snapshot.keys()) {
-            long cpuAmount = this.inventory.list.get(key);
-            long networkAmount = simulateNetworkExtraction(network, key);
-            BigInteger amount = BigInteger.valueOf(cpuAmount).add(BigInteger.valueOf(networkAmount));
-            if (amount.signum() > 0) {
-                available.put(key, amount);
-            }
-        }
-        return Map.copyOf(available);
+    private TrinityPlanningInventory captureReplanAvailability(
+                                                               TrinityCraftingGraphSnapshot snapshot,
+                                                               IGrid grid) {
+        var storageService = grid.getStorageService();
+        return TrinityPlanningInventorySnapshot.capture(
+                snapshot.keys(),
+                storageService.getInventory(),
+                this.cpu.actionSource()).inventory()
+                .plus(this.inventory.list)
+                .plus(this.exactWorkingInventory.snapshot());
     }
 
-    private Optional<TrinityBorrowingTransaction> reserveReplacementInputs(TrinityCraftingPlan replacement,
-                                                                           MEStorage network,
-                                                                           TrinityBorrowingLedger ledger) {
-        ArrayList<GenericStack> inputs = new ArrayList<>(replacement.initialExpectedInputs().size());
-        try {
-            replacement.initialExpectedInputs().forEach((key, amount) -> inputs.add(new GenericStack(key, amount.longValueExact())));
-        } catch (ArithmeticException exception) {
-            Data_Energistics.LOGGER.error(
-                    "Trinity CPU {} cannot reserve overflowing replacement-plan inputs",
-                    this.cpu.number(),
-                    exception);
-            return Optional.empty();
-        }
-        return borrowDynamicInputs(inputs, 1L, network, ledger);
+    private boolean reserveReplacementInputs(TrinityCraftingPlan replacement, MEStorage network) {
+        return TrinityInitialInputExtractor.reserveReplacement(
+                replacement.initialExpectedInputs(),
+                network,
+                this.inventory,
+                this.exactWorkingInventory,
+                this.cpu.actionSource()) == null;
     }
 
     private long simulateNetworkExtraction(MEStorage network, AEKey key) {
@@ -958,13 +961,20 @@ final class TrinityDataCoreCpuLogic {
     /**
      * Returns the saturated combined CPU and network amount used to decide whether a whole cycle wave can start.
      */
-    private long combinedCycleSeedAvailability(MEStorage network, AEKey key) {
-        long cpuAmount = this.inventory.list.get(key);
-        long networkAmount = simulateNetworkExtraction(network, key);
-        if (cpuAmount < 0L || networkAmount < 0L) {
-            throw new IllegalStateException("Trinity cycle seed availability cannot be negative");
+    private BigInteger combinedCycleSeedAvailability(
+                                                     MEStorage network,
+                                                     AEKey key,
+                                                     BigInteger usefulUpper) {
+        BigInteger cpuAmount = this.exactWorkingInventory.totalAmount(key, this.inventory).min(usefulUpper);
+        if (cpuAmount.equals(usefulUpper)) {
+            return cpuAmount;
         }
-        return Long.MAX_VALUE - cpuAmount < networkAmount ? Long.MAX_VALUE : cpuAmount + networkAmount;
+        if (!(network instanceof FiniteNetworkStorageAccess storageAccess)) {
+            return cpuAmount.add(BigInteger.valueOf(simulateNetworkExtraction(network, key)))
+                    .min(usefulUpper);
+        }
+        TrinityAvailableAmount networkAmount = storageAccess.exactAvailability(key, this.cpu.actionSource());
+        return cpuAmount.add(networkAmount.availableUpTo(usefulUpper.subtract(cpuAmount)));
     }
 
     /**
@@ -2482,27 +2492,38 @@ final class TrinityDataCoreCpuLogic {
                 if (missing == 0L) {
                     continue;
                 }
-                long simulated = network.extract(
-                        input.what(),
-                        missing,
-                        Actionable.SIMULATE,
-                        this.cpu.actionSource());
-                if (simulated != missing) {
-                    transaction.releaseUncommitted();
-                    return Optional.empty();
-                }
                 transaction.validateRecord(input.what(), missing);
-                long extracted = network.extract(
-                        input.what(),
-                        missing,
-                        Actionable.MODULATE,
-                        this.cpu.actionSource());
-                if (extracted > 0L) {
+                long remaining = missing;
+                while (remaining > 0L) {
+                    long extracted = network.extract(
+                            input.what(),
+                            remaining,
+                            Actionable.MODULATE,
+                            this.cpu.actionSource());
+                    if (extracted == 0L) {
+                        break;
+                    }
+                    if (extracted < 0L || extracted > remaining) {
+                        if (extracted > 0L) {
+                            long restored = network.insert(
+                                    input.what(),
+                                    extracted,
+                                    Actionable.MODULATE,
+                                    this.cpu.actionSource());
+                            if (restored < extracted) {
+                                long retained = extracted - restored;
+                                this.inventory.insert(input.what(), retained, Actionable.MODULATE);
+                                transaction.record(input.what(), retained);
+                            }
+                        }
+                        throw new IllegalStateException("AE storage violated its extraction amount contract");
+                    }
                     this.inventory.insert(input.what(), extracted, Actionable.MODULATE);
                     transaction.record(input.what(), extracted);
                     postChange(input.what());
+                    remaining -= extracted;
                 }
-                if (extracted != missing) {
+                if (remaining > 0L) {
                     transaction.releaseUncommitted();
                     return Optional.empty();
                 }
@@ -3012,7 +3033,7 @@ final class TrinityDataCoreCpuLogic {
 
         if (exactAccepted > 0L) {
             if (exactReceiveLocally) {
-                this.inventory.insert(what, exactAccepted, Actionable.MODULATE);
+                this.exactWorkingInventory.deposit(what, exactAccepted, this.inventory);
                 if (currentJob.isTrinityPlan()) {
                     currentJob.trinityExecution().wake(what);
                 }
@@ -3306,6 +3327,9 @@ final class TrinityDataCoreCpuLogic {
         CompoundTag data = new CompoundTag();
         data.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
         data.put(INVENTORY_TAG, this.inventory.writeToNBT(registries));
+        if (!this.exactWorkingInventory.isEmpty()) {
+            data.put(EXACT_INVENTORY_TAG, this.exactWorkingInventory.save(registries));
+        }
         data.put(VIRTUAL_COMPLETIONS_TAG, this.pendingVirtualCompletions.writeToNBT(registries));
         data.put(NO_OUTPUT_VIRTUAL_COMPLETIONS_TAG, this.pendingNoOutputCompletions.writeToNBT(registries));
         if (this.job != null) {
@@ -3327,12 +3351,12 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != SCHEMA_VERSION && schemaVersion != LEGACY_SCHEMA_VERSION) {
+        if (schemaVersion < MINIMUM_SCHEMA_VERSION || schemaVersion > SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
-                    "Ignoring Trinity Data Core CPU logic schema version {}; expected {} or legacy {}",
+                    "Ignoring Trinity Data Core CPU logic schema version {}; supported range is {} through {}",
                     schemaVersion,
-                    SCHEMA_VERSION,
-                    LEGACY_SCHEMA_VERSION);
+                    MINIMUM_SCHEMA_VERSION,
+                    SCHEMA_VERSION);
             return;
         }
         Tag rawInventory = data.get(INVENTORY_TAG);
@@ -3343,7 +3367,23 @@ final class TrinityDataCoreCpuLogic {
         }
 
         this.inventory.readFromNBT(inventoryTag, registries);
-        if (schemaVersion == SCHEMA_VERSION) {
+        if (schemaVersion >= 3 && data.contains(EXACT_INVENTORY_TAG)) {
+            if (!data.contains(EXACT_INVENTORY_TAG, Tag.TAG_COMPOUND)) {
+                Data_Energistics.LOGGER.error("Ignoring Trinity Data Core CPU logic with invalid exact inventory");
+                discardPersistedState();
+                return;
+            }
+            try {
+                this.exactWorkingInventory.load(data.getCompound(EXACT_INVENTORY_TAG), registries);
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Ignoring Trinity Data Core CPU logic with damaged exact inventory",
+                        exception);
+                discardPersistedState();
+                return;
+            }
+        }
+        if (schemaVersion >= 2) {
             Tag rawVirtualCompletions = data.get(VIRTUAL_COMPLETIONS_TAG);
             if (!(rawVirtualCompletions instanceof ListTag virtualCompletionsTag) ||
                     (!virtualCompletionsTag.isEmpty() &&
@@ -3446,6 +3486,7 @@ final class TrinityDataCoreCpuLogic {
         this.proposalCoordinator.cancel();
         cancelPendingReplan();
         this.inventory.clear();
+        this.exactWorkingInventory.clear();
         this.pendingVirtualCompletions.clear();
         this.job = null;
         this.capacitySliceCursor = CraftingDispatchCursor.initial();
@@ -3460,6 +3501,7 @@ final class TrinityDataCoreCpuLogic {
     static boolean persistedHasRetainedState(CompoundTag data) {
         return data.contains(JOB_TAG) ||
                 !data.getList(INVENTORY_TAG, Tag.TAG_COMPOUND).isEmpty() ||
+                data.contains(EXACT_INVENTORY_TAG, Tag.TAG_COMPOUND) ||
                 !data.getList(VIRTUAL_COMPLETIONS_TAG, Tag.TAG_COMPOUND).isEmpty();
     }
 
@@ -3489,12 +3531,15 @@ final class TrinityDataCoreCpuLogic {
             }
         }
         this.inventory.list.removeZeros();
+        boolean recoveredExact = this.exactWorkingInventory.recover(recovery);
         this.cpu.markDirty();
-        return this.inventory.list.isEmpty();
+        return recoveredExact && this.inventory.list.isEmpty();
     }
 
     void getAllItems(KeyCounter out) {
         out.addAll(this.inventory.list);
+        this.exactWorkingInventory.snapshot().forEach(
+                (key, amount) -> TrinityAe2AmountProjection.addToKeyCounter(out, key, amount));
         if (this.job == null) {
             return;
         }
@@ -3506,11 +3551,12 @@ final class TrinityDataCoreCpuLogic {
     }
 
     long getStored(AEKey template) {
-        long stored = this.inventory.extract(template, Long.MAX_VALUE, Actionable.SIMULATE);
+        BigInteger stored = this.exactWorkingInventory.totalAmount(template, this.inventory);
         if (this.job == null || !this.job.isTrinityPlan()) {
-            return stored;
+            return TrinityAe2AmountProjection.toAe2Amount(stored);
         }
-        return Math.addExact(stored, this.job.trinityExecution().completionAmount(template));
+        return TrinityAe2AmountProjection.toAe2Amount(
+                stored.add(BigInteger.valueOf(this.job.trinityExecution().completionAmount(template))));
     }
 
     long getPendingOutputs(AEKey template) {
@@ -3537,7 +3583,7 @@ final class TrinityDataCoreCpuLogic {
                 Set.of();
         if (this.job.isTrinityPlan()) {
             this.job.trinityExecution().releaseCompletionForStandalone()
-                    .forEach((key, amount) -> this.inventory.insert(key, amount, Actionable.MODULATE));
+                    .forEach((key, amount) -> this.exactWorkingInventory.deposit(key, amount, this.inventory));
         }
         if (success) {
             this.job.link.markDone();
@@ -3569,7 +3615,7 @@ final class TrinityDataCoreCpuLogic {
 
     private void storeItems() {
         Preconditions.checkState(this.job == null, "CPU should not have a job while dumping inventory");
-        if (this.inventory.list.isEmpty()) {
+        if (this.inventory.list.isEmpty() && this.exactWorkingInventory.isEmpty()) {
             return;
         }
 
@@ -3580,6 +3626,7 @@ final class TrinityDataCoreCpuLogic {
 
         var storage = grid.getStorageService().getInventory();
         IActionSource source = this.cpu.actionSource();
+        this.exactWorkingInventory.returnAll(storage, source);
         for (var entry : this.inventory.list) {
             postChange(entry.getKey());
             long inserted = storage.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE, source);

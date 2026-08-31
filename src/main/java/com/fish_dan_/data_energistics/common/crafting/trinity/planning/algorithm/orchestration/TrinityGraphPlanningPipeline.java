@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphPattern;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
@@ -65,7 +66,7 @@ public interface TrinityGraphPlanningPipeline extends TrinityGraphPlanner {
      * @param catalogRevision current publication revision written into the result plan
      * @param requestedAmount requested delivery amount
      * @param quantityMode    quantity semantics
-     * @param available       projected relevant positive inventory
+     * @param inventory       projected relevant finite/unlimited inventory
      * @param limits          dynamic solve bounds
      * @param mode            complete optimisation or first-feasible fallback
      * @param control         lifecycle cancellation boundary
@@ -76,7 +77,7 @@ public interface TrinityGraphPlanningPipeline extends TrinityGraphPlanner {
                                                               long catalogRevision,
                                                               BigInteger requestedAmount,
                                                               CraftingQuantityMode quantityMode,
-                                                              Map<AEKey, BigInteger> available,
+                                                              TrinityPlanningInventory inventory,
                                                               TrinityPlanningLimits limits,
                                                               TrinityPlanningMode mode,
                                                               TrinityPlanningControl control) {
@@ -86,7 +87,7 @@ public interface TrinityGraphPlanningPipeline extends TrinityGraphPlanner {
                 catalogRevision,
                 requestedAmount,
                 quantityMode,
-                available,
+                inventory,
                 limits,
                 mode,
                 control);
@@ -99,7 +100,7 @@ public interface TrinityGraphPlanningPipeline extends TrinityGraphPlanner {
                                                       long catalogRevision,
                                                       BigInteger requestedAmount,
                                                       CraftingQuantityMode quantityMode,
-                                                      Map<AEKey, BigInteger> available,
+                                                      TrinityPlanningInventory inventory,
                                                       TrinityPlanningLimits limits,
                                                       TrinityPlanningMode mode,
                                                       TrinityPlanningControl control);
@@ -120,7 +121,7 @@ public interface TrinityGraphPlanningPipeline extends TrinityGraphPlanner {
                 catalogRevision,
                 requestedAmount,
                 quantityMode,
-                available,
+                TrinityPlanningInventory.finite(available),
                 limits,
                 TrinityPlanningMode.OPTIMAL,
                 control);
@@ -142,7 +143,7 @@ public interface TrinityGraphPlanningPipeline extends TrinityGraphPlanner {
                 catalogRevision,
                 requestedAmount,
                 quantityMode,
-                available,
+                TrinityPlanningInventory.finite(available),
                 TrinityPlanningLimits.capture(settings),
                 TrinityPlanningMode.OPTIMAL,
                 control);

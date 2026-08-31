@@ -19,6 +19,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 
 import net.minecraft.network.chat.Component;
 
@@ -70,7 +71,7 @@ public final class TrinityAcyclicDemandPropagator {
      * @param target          requested output key
      * @param requestedAmount positive requested amount
      * @param quantityMode    net-new or final-total semantics
-     * @param available       immutable non-negative inventory snapshot
+     * @param inventory       immutable finite/unlimited inventory snapshot
      * @param maxSearchStates maximum aggregate route-optimization states
      * @param mode            complete optimisation or first-feasible fallback
      * @param control         cooperative cancellation and shared deadline
@@ -82,12 +83,12 @@ public final class TrinityAcyclicDemandPropagator {
                                                                 AEKey target,
                                                                 BigInteger requestedAmount,
                                                                 CraftingQuantityMode quantityMode,
-                                                                Map<AEKey, BigInteger> available,
+                                                                TrinityPlanningInventory inventory,
                                                                 int maxSearchStates,
                                                                 TrinityPlanningMode mode,
                                                                 TrinityPlanningControl control) {
         if (topology == null || variants == null || target == null || requestedAmount == null ||
-                requestedAmount.signum() <= 0 || quantityMode == null || available == null ||
+                requestedAmount.signum() <= 0 || quantityMode == null || inventory == null ||
                 maxSearchStates <= 0 || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity acyclic propagation requires complete, positive inputs");
         }
@@ -99,7 +100,7 @@ public final class TrinityAcyclicDemandPropagator {
                 target,
                 requestedAmount,
                 quantityMode,
-                available,
+                inventory,
                 maxSearchStates,
                 mode,
                 control);
@@ -116,7 +117,7 @@ public final class TrinityAcyclicDemandPropagator {
                                                                 AEKey target,
                                                                 BigInteger requestedAmount,
                                                                 CraftingQuantityMode quantityMode,
-                                                                Map<AEKey, BigInteger> available,
+                                                                TrinityPlanningInventory inventory,
                                                                 int maxSearchStates,
                                                                 TrinityPlanningMode mode,
                                                                 TrinityPlanningControl control) {
@@ -148,7 +149,7 @@ public final class TrinityAcyclicDemandPropagator {
         List<TrinityPatternVariant> executableRoutes = this.routePruner.retainExecutableTargetRoutes(
                 variants,
                 target,
-                available);
+                inventory);
         List<TrinityPatternVariant> planningVariants = executableRoutes.isEmpty() ? variants : executableRoutes;
         Map<AEKey, List<TrinityPatternVariant>> producers = indexProducers(planningVariants, routeFamilies);
         Set<TrinityPatternIdentity> routeHint = routeHintIdentities(routeFamilies, routeHints);
@@ -160,7 +161,7 @@ public final class TrinityAcyclicDemandPropagator {
                     target,
                     requestedAmount,
                     quantityMode,
-                    available,
+                    inventory,
                     routeHint,
                     maxSearchStates,
                     mode,
@@ -173,7 +174,7 @@ public final class TrinityAcyclicDemandPropagator {
                         target,
                         requestedAmount,
                         quantityMode,
-                        available,
+                        inventory,
                         attempt.diagnosticBudget(),
                         control);
             }
@@ -184,14 +185,15 @@ public final class TrinityAcyclicDemandPropagator {
                     target,
                     requestedAmount,
                     quantityMode,
-                    available,
+                    inventory,
                     routeHint,
                     maxSearchStates,
                     mode,
                     control);
         }
 
-        Map<AEKey, BigInteger> inventory = copyAvailable(available);
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> finiteInventory = new Object2ObjectLinkedOpenHashMap<>(
+                inventory.finiteAmounts());
         LinkedHashMap<AEKey, BigInteger> need = new LinkedHashMap<>();
         merge(need, target, requestedAmount);
         LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
@@ -216,13 +218,18 @@ public final class TrinityAcyclicDemandPropagator {
                 if (required.signum() <= 0 && !forceFinalTotalProduction) {
                     continue;
                 }
-                BigInteger availableAmount = inventory.getOrDefault(key, BigInteger.ZERO);
+                boolean unlimited = inventory.unlimited(key);
+                BigInteger positiveRequired = required.max(BigInteger.ZERO);
+                BigInteger availableAmount = unlimited ?
+                        positiveRequired : finiteInventory.getOrDefault(key, BigInteger.ZERO);
                 BigInteger reserved = key.equals(target) && quantityMode == CraftingQuantityMode.NET_NEW ?
                         BigInteger.ZERO :
-                        required.max(BigInteger.ZERO).min(availableAmount);
+                        positiveRequired.min(availableAmount);
                 if (reserved.signum() > 0) {
                     merge(reservedInputs, key, reserved);
-                    inventory.put(key, availableAmount.subtract(reserved));
+                    if (!unlimited) {
+                        finiteInventory.put(key, availableAmount.subtract(reserved));
+                    }
                     merge(need, key, reserved.negate());
                 }
                 BigInteger missing = need.getOrDefault(key, BigInteger.ZERO).max(BigInteger.ZERO);
@@ -232,7 +239,6 @@ public final class TrinityAcyclicDemandPropagator {
                 }
                 states = Math.addExact(states, Math.max(1, candidates.size()));
                 if (candidates.isEmpty()) {
-                    BigInteger positiveRequired = required.max(BigInteger.ZERO);
                     if (missing.signum() > 0) {
                         mergeRequirement(shortages, key, positiveRequired, reserved, missing);
                         merge(need, key, missing.negate());
@@ -295,7 +301,7 @@ public final class TrinityAcyclicDemandPropagator {
                                                                           AEKey target,
                                                                           BigInteger requestedAmount,
                                                                           CraftingQuantityMode quantityMode,
-                                                                          Map<AEKey, BigInteger> available,
+                                                                          TrinityPlanningInventory inventory,
                                                                           Set<TrinityPatternIdentity> routeHint,
                                                                           int maxSearchStates,
                                                                           TrinityPlanningMode mode,
@@ -306,7 +312,7 @@ public final class TrinityAcyclicDemandPropagator {
                 target,
                 requestedAmount,
                 quantityMode,
-                available,
+                inventory,
                 routeHint,
                 maxSearchStates,
                 mode,
@@ -317,7 +323,7 @@ public final class TrinityAcyclicDemandPropagator {
                 target,
                 requestedAmount,
                 quantityMode,
-                available,
+                inventory,
                 maxSearchStates,
                 control);
     }
@@ -328,7 +334,7 @@ public final class TrinityAcyclicDemandPropagator {
                                                                                AEKey target,
                                                                                BigInteger requestedAmount,
                                                                                CraftingQuantityMode quantityMode,
-                                                                               Map<AEKey, BigInteger> available,
+                                                                               TrinityPlanningInventory inventory,
                                                                                int maxSearchStates,
                                                                                TrinityPlanningControl control) {
         if (optimized.successful()) {
@@ -340,7 +346,7 @@ public final class TrinityAcyclicDemandPropagator {
                     target,
                     requestedAmount,
                     quantityMode,
-                    available,
+                    inventory,
                     maxSearchStates,
                     control);
             if (diagnosed.successful()) {
@@ -384,23 +390,10 @@ public final class TrinityAcyclicDemandPropagator {
                 target,
                 requestedAmount,
                 quantityMode,
-                available,
+                TrinityPlanningInventory.finite(available),
                 maxSearchStates,
                 TrinityPlanningMode.OPTIMAL,
                 control);
-    }
-
-    private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
-        source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() < 0) {
-                throw new IllegalArgumentException("Trinity available inventory cannot be negative or null");
-            }
-            if (amount.signum() > 0) {
-                copied.put(key, amount);
-            }
-        });
-        return copied;
     }
 
     private static Map<AEKey, List<TrinityPatternVariant>> indexProducers(

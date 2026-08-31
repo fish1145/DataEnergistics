@@ -19,6 +19,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanningStatistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
@@ -48,7 +49,7 @@ import java.util.function.LongSupplier;
  */
 public final class TrinityPlanningComputation {
 
-    private static final int SOLVE_STRATEGY_VERSION = 2;
+    private static final int SOLVE_STRATEGY_VERSION = 3;
     private static final int STRUCTURE_VERSION = 3;
     private static final int PATTERN_EXPANSION_VERSION = 1;
     private static final int DAG_ROUTE_PROOF_VERSION = 1;
@@ -164,7 +165,8 @@ public final class TrinityPlanningComputation {
                     cacheTrace.snapshot(false));
         }
         TrinityCompiledGraphProofView requestStructure = attachRouteHints(input.gridScope(), structure, cacheTrace);
-        List<InventoryAmount> projectedInventory = projectInventory(requestStructure.structure(), input.available());
+        TrinityPlanningInventory projectedInventory = input.inventory()
+                .project(requestStructure.structure().relevantInventoryKeys());
         InFlightRequestKey inFlightKey = new InFlightRequestKey(
                 compiledKey,
                 input.requestedAmount(),
@@ -173,9 +175,6 @@ public final class TrinityPlanningComputation {
                 limits.maxScheduleStates(),
                 limits.planningBudgetMs(),
                 SOLVE_STRATEGY_VERSION);
-        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> projectedMutable = new Object2ObjectLinkedOpenHashMap<>();
-        projectedInventory.forEach(amount -> projectedMutable.put(amount.key(), amount.amount()));
-        Map<AEKey, BigInteger> projectedMap = Object2ObjectMaps.unmodifiable(projectedMutable);
         TrinityComputationValue<TrinityAlgorithmResult<TrinityCraftingPlan>> solved = this.cache.computeInline(
                 input.gridScope(),
                 TrinityComputationNamespace.REQUEST_IN_FLIGHT,
@@ -184,7 +183,7 @@ public final class TrinityPlanningComputation {
                 () -> TrinityCachedComputation.transientValue(solveWithFallback(
                         requestStructure,
                         input,
-                        projectedMap,
+                        projectedInventory,
                         limits,
                         session)));
         if (solved.value().successful()) {
@@ -409,7 +408,7 @@ public final class TrinityPlanningComputation {
     private TrinityAlgorithmResult<TrinityCraftingPlan> solveWithFallback(
                                                                           TrinityCompiledGraphProofView structure,
                                                                           TrinityPlanningInput input,
-                                                                          Map<AEKey, BigInteger> projectedInventory,
+                                                                          TrinityPlanningInventory projectedInventory,
                                                                           TrinityPlanningLimits limits,
                                                                           TrinityPlanningSession session) {
         Optional<TrinityPlanningControl> optimizationControl = session.optimizationControl();
@@ -502,19 +501,6 @@ public final class TrinityPlanningComputation {
                 TrinityCachedComputation.transientValue(value);
     }
 
-    private static List<InventoryAmount> projectInventory(
-                                                          TrinityCompiledGraph compiled,
-                                                          Map<AEKey, BigInteger> available) {
-        ObjectArrayList<InventoryAmount> projected = new ObjectArrayList<>();
-        for (AEKey key : compiled.relevantInventoryKeys()) {
-            BigInteger amount = available.get(key);
-            if (amount != null && amount.signum() > 0) {
-                projected.add(new InventoryAmount(key, amount));
-            }
-        }
-        return ObjectLists.unmodifiable(projected);
-    }
-
     private record ReachableGraphKey(AEKey target) {}
 
     private record CompiledGraphKey(
@@ -549,12 +535,10 @@ public final class TrinityPlanningComputation {
                                       CompiledGraphKey compiledGraph,
                                       BigInteger requestedAmount,
                                       CraftingQuantityMode quantityMode,
-                                      List<InventoryAmount> relevantInventory,
+                                      TrinityPlanningInventory relevantInventory,
                                       int maxScheduleStates,
                                       int planningBudgetMs,
                                       int strategyVersion) {}
-
-    private record InventoryAmount(AEKey key, BigInteger amount) {}
 
     private static final class CacheTrace {
 

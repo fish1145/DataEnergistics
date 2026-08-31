@@ -1,110 +1,76 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory;
 
-import appeng.api.config.Actionable;
+import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
-import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.math.BigInteger;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * Immutable server-thread capture of the exact inventory keys relevant to one Trinity planning request.
  *
  * <p>
- * AE2 creative cells advertise {@link Integer#MAX_VALUE} through stack listings while their extraction contract
- * can satisfy the complete {@code long} domain. Ordinary small amounts keep the cached-listing fast path; values in
- * the sentinel range are confirmed against the live storage using a non-mutating extraction simulation.
+ * Every relevant key is inspected across concrete mounts so a finite BigInteger total and a confirmed non-consuming
+ * source remain distinct planning states without inferring capabilities from cached numeric sentinels.
  * </p>
  *
- * @param amounts              positive effective amounts keyed by exact AE identity
- * @param sentinelProbes       number of high cached amounts confirmed against live storage
- * @param effectiveLongMaxKeys number of confirmed keys that can satisfy {@link Long#MAX_VALUE}
+ * @param inventory      exact finite/unlimited inventory
+ * @param sentinelProbes number of high cached keys inspected across concrete mounts
  */
 public record TrinityPlanningInventorySnapshot(
-                                               Map<AEKey, BigInteger> amounts,
-                                               int sentinelProbes,
-                                               int effectiveLongMaxKeys) {
+                                               TrinityPlanningInventory inventory,
+                                               int sentinelProbes) {
 
     /**
      * Captures one request without retaining the mutable network, action source, or cached counter.
      *
-     * @param keys            exact graph keys relevant to the request
-     * @param cachedInventory current AE2 stack-listing cache
-     * @param liveInventory   effective network storage used for sentinel confirmation
-     * @param actionSource    request source used by AE2 security checks
+     * @param keys          exact graph keys relevant to the request
+     * @param liveInventory effective network storage used for exact mount inspection
+     * @param actionSource  request source used by AE2 security checks
      * @return detached immutable planning inventory
      * @throws CaptureException when a high-amount live extraction probe cannot be completed safely
      */
     public static TrinityPlanningInventorySnapshot capture(
                                                            Collection<AEKey> keys,
-                                                           KeyCounter cachedInventory,
                                                            MEStorage liveInventory,
                                                            IActionSource actionSource) {
-        if (keys == null || cachedInventory == null || liveInventory == null || actionSource == null) {
-            throw new IllegalArgumentException("A Trinity planning inventory capture requires complete inputs");
-        }
-        LinkedHashMap<AEKey, BigInteger> amounts = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> finiteAmounts = new Object2ObjectLinkedOpenHashMap<>();
+        ObjectOpenHashSet<AEKey> unlimitedKeys = new ObjectOpenHashSet<>();
         int sentinelProbes = 0;
-        int effectiveLongMaxKeys = 0;
         for (AEKey key : keys) {
-            if (key == null) {
-                throw new IllegalArgumentException("A Trinity planning inventory key cannot be null");
-            }
-            long amount = cachedInventory.get(key);
-            if (amount >= Integer.MAX_VALUE) {
-                sentinelProbes = Math.incrementExact(sentinelProbes);
-                try {
-                    amount = liveInventory.extract(key, Long.MAX_VALUE, Actionable.SIMULATE, actionSource);
-                } catch (RuntimeException exception) {
-                    throw new CaptureException(key, exception);
+            sentinelProbes = Math.incrementExact(sentinelProbes);
+            try {
+                if (!(liveInventory instanceof FiniteNetworkStorageAccess storageAccess)) {
+                    throw new IllegalStateException("AE network storage does not expose exact mount availability");
                 }
-                if (amount < 0L) {
-                    throw new CaptureException(
-                            key,
-                            new IllegalStateException("AE storage returned a negative simulated extraction"));
+                TrinityAvailableAmount exact = storageAccess.exactAvailability(key, actionSource);
+                if (exact.unlimited()) {
+                    unlimitedKeys.add(key);
+                } else {
+                    BigInteger finite = ((TrinityAvailableAmount.Finite) exact).amount();
+                    if (finite.signum() > 0) {
+                        finiteAmounts.put(key, finite);
+                    }
                 }
-                if (amount == Long.MAX_VALUE) {
-                    effectiveLongMaxKeys = Math.incrementExact(effectiveLongMaxKeys);
-                }
-            }
-            if (amount > 0L) {
-                amounts.put(key, BigInteger.valueOf(amount));
+            } catch (RuntimeException exception) {
+                throw new CaptureException(key, exception);
             }
         }
-        return new TrinityPlanningInventorySnapshot(amounts, sentinelProbes, effectiveLongMaxKeys);
+        return new TrinityPlanningInventorySnapshot(
+                TrinityPlanningInventory.frozen(finiteAmounts, unlimitedKeys),
+                sentinelProbes);
     }
 
     /**
      * @return empty detached capture used while no immutable crafting graph is published
      */
     public static TrinityPlanningInventorySnapshot empty() {
-        return new TrinityPlanningInventorySnapshot(Map.of(), 0, 0);
-    }
-
-    /**
-     * Freezes captured amounts and validates telemetry counters.
-     */
-    public TrinityPlanningInventorySnapshot {
-        if (amounts == null || sentinelProbes < 0 || effectiveLongMaxKeys < 0) {
-            throw new IllegalArgumentException("A Trinity planning inventory snapshot is invalid");
-        }
-        if (effectiveLongMaxKeys > sentinelProbes) {
-            throw new IllegalArgumentException("A Trinity planning inventory snapshot is invalid");
-        }
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
-        amounts.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() <= 0) {
-                throw new IllegalArgumentException(
-                        "A Trinity planning inventory snapshot may contain only positive named amounts");
-            }
-            copied.put(key, amount);
-        });
-        amounts = Collections.unmodifiableMap(copied);
+        return new TrinityPlanningInventorySnapshot(TrinityPlanningInventory.empty(), 0);
     }
 
     /**

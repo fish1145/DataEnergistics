@@ -1347,7 +1347,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     @Override
     public long getCpuStorageBytes() {
-        return this.craftingRuntime.profile().storageBytes();
+        return this.craftingRuntime.profile().storageCapacity().toAe2Long();
     }
 
     @Override
@@ -1424,7 +1424,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 busyCpuCount,
                 profile.partitionCount(),
                 getBusyCpuPartitionCount(),
-                profile.storageBytes(),
+                profile.storageCapacity().toAe2Long(),
                 profile.coProcessors());
     }
 

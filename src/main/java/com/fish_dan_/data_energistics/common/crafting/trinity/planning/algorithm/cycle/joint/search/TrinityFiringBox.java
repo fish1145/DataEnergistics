@@ -22,22 +22,18 @@ public record TrinityFiringBox(
                                List<TrinityFiringBounds> bounds) {
 
     /**
-     * Validates and freezes one complete non-empty box.
+     * Validates alignment and stable identity order once for the owned lists.
      */
     public TrinityFiringBox {
-        if (variants == null || variants.isEmpty() || bounds == null || variants.size() != bounds.size() ||
-                variants.stream().anyMatch(variant -> variant == null) ||
-                bounds.stream().anyMatch(bound -> bound == null)) {
+        if (variants.isEmpty() || variants.size() != bounds.size()) {
             throw new IllegalArgumentException("A Trinity firing box requires aligned variants and bounds");
         }
-        variants = List.copyOf(variants);
         if (!variants.equals(variants.stream().sorted().toList())) {
             throw new IllegalArgumentException("A Trinity firing box requires stable sorted variants");
         }
         if (new LinkedHashSet<>(variants).size() != variants.size()) {
             throw new IllegalArgumentException("A Trinity firing box cannot repeat a variant");
         }
-        bounds = List.copyOf(bounds);
     }
 
     /**
@@ -103,7 +99,7 @@ public record TrinityFiringBox(
         if (hasAnotherOpenAxis(splitAxis)) {
             children.add(withBounds(splitAxis, TrinityFiringBounds.fixed(value)));
         }
-        if (value.compareTo(parent.upperInclusive()) < 0) {
+        if (parent.upperInclusive().map(upper -> value.compareTo(upper) < 0).orElse(true)) {
             children.add(withBounds(
                     splitAxis,
                     new TrinityFiringBounds(value.add(BigInteger.ONE), parent.upperInclusive())));
@@ -113,22 +109,31 @@ public record TrinityFiringBox(
 
     private int mostConstrainedAxis() {
         int selected = -1;
+        int unbounded = -1;
         BigInteger selectedWidth = null;
         for (int index = 0; index < bounds.size(); index++) {
             TrinityFiringBounds candidate = bounds.get(index);
-            BigInteger width = candidate.upperInclusive().subtract(candidate.lowerInclusive());
+            if (candidate.fixed()) {
+                continue;
+            }
+            if (candidate.upperInclusive().isEmpty()) {
+                if (unbounded < 0) {
+                    unbounded = index;
+                }
+                continue;
+            }
+            BigInteger width = candidate.upperInclusive().orElseThrow().subtract(candidate.lowerInclusive());
             if (width.signum() > 0 && (selectedWidth == null || width.compareTo(selectedWidth) < 0)) {
                 selected = index;
                 selectedWidth = width;
             }
         }
-        return selected;
+        return selected >= 0 ? selected : unbounded;
     }
 
     private boolean hasAnotherOpenAxis(int excluded) {
         for (int index = 0; index < bounds.size(); index++) {
-            if (index != excluded &&
-                    bounds.get(index).lowerInclusive().compareTo(bounds.get(index).upperInclusive()) < 0) {
+            if (index != excluded && !bounds.get(index).fixed()) {
                 return true;
             }
         }

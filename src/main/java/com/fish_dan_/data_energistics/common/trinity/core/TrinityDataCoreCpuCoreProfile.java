@@ -1,14 +1,16 @@
 package com.fish_dan_.data_energistics.common.trinity.core;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.capacity.TrinityCpuStorageCapacity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuContribution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuProfile;
 
+import java.math.BigInteger;
 import java.util.Collection;
 
 /**
  * CPU capability resolved from trinity merged storage core blocks in formed child structures.
  */
-public record TrinityDataCoreCpuCoreProfile(long storageBytes,
+public record TrinityDataCoreCpuCoreProfile(BigInteger storageBytes,
                                             int coProcessors,
                                             int filledCoreSlots,
                                             int fullCoreSlots,
@@ -25,7 +27,7 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
     public static final int MAX_THREADS = 256;
     public static final int CONTROLLER_LOCAL_Y = 1;
     public static final TrinityDataCoreCpuCoreProfile EMPTY = new TrinityDataCoreCpuCoreProfile(
-            0L,
+            BigInteger.ZERO,
             0,
             0,
             FULL_CORE_SLOT_COUNT,
@@ -34,7 +36,7 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
             MAX_THREADS);
 
     public TrinityDataCoreCpuCoreProfile {
-        if (storageBytes < 0) {
+        if (storageBytes.signum() < 0) {
             throw new IllegalArgumentException("CPU core profile storage bytes must not be negative");
         }
         if (coProcessors < 0) {
@@ -58,7 +60,7 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
         if (maxThreads <= 0) {
             throw new IllegalArgumentException("CPU core profile max threads must be positive");
         }
-        if (filledCoreSlots == 0 && (storageBytes > 0 || coProcessors > 0)) {
+        if (filledCoreSlots == 0 && (storageBytes.signum() > 0 || coProcessors > 0)) {
             throw new IllegalArgumentException("CPU core profile with capacity must expose at least one filled core");
         }
     }
@@ -87,11 +89,11 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
     /**
      * Reads a merged storage core's exact AE2 crafting storage capacity.
      */
-    public static long craftingStorageBytes(TrinityCoreComponent component) {
+    public static BigInteger craftingStorageBytes(TrinityCoreComponent component) {
         if (!component.contributesToKind(TrinityCoreKind.PARALLEL_CPU)) {
             throw new IllegalArgumentException("Only merged storage CPU cores contribute crafting storage bytes");
         }
-        return component.byteCapacity();
+        return BigInteger.valueOf(component.byteCapacity());
     }
 
     /**
@@ -103,11 +105,14 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
         }
         if (fullCpu()) {
             return TrinityDataCoreCpuContribution.of(
-                    Long.MAX_VALUE,
+                    TrinityCpuStorageCapacity.Unlimited.INSTANCE,
                     TrinityDataCoreCpuProfile.DEFAULT_CO_PROCESSORS,
                     threadCount());
         }
-        return TrinityDataCoreCpuContribution.of(this.storageBytes, this.coProcessors, threadCount());
+        return TrinityDataCoreCpuContribution.of(
+                new TrinityCpuStorageCapacity.Finite(this.storageBytes),
+                this.coProcessors,
+                threadCount());
     }
 
     /**
@@ -115,11 +120,10 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
      * maximum height.
      */
     public boolean fullCpu() {
-        long maximumStorageBytes = Math.multiplyExact(
-                this.fullCoreSlots,
-                TrinityCoreTier.SIZE_256M.byteCapacity());
+        BigInteger maximumStorageBytes = BigInteger.valueOf(TrinityCoreTier.SIZE_256M.byteCapacity())
+                .multiply(BigInteger.valueOf(this.fullCoreSlots));
         return this.filledCoreSlots == this.fullCoreSlots &&
-                this.storageBytes == maximumStorageBytes &&
+                this.storageBytes.equals(maximumStorageBytes) &&
                 this.actualRepeatCount == this.maxRepeatCount;
     }
 
@@ -140,7 +144,7 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
      */
     public static final class Builder {
 
-        private long storageBytes;
+        private BigInteger storageBytes = BigInteger.ZERO;
         private int filledCoreSlots;
         private int actualRepeatCount;
 
@@ -164,7 +168,7 @@ public record TrinityDataCoreCpuCoreProfile(long storageBytes,
             if (!component.contributesToKind(TrinityCoreKind.PARALLEL_CPU)) {
                 return;
             }
-            this.storageBytes = Math.addExact(this.storageBytes, craftingStorageBytes(component));
+            this.storageBytes = this.storageBytes.add(craftingStorageBytes(component));
             this.filledCoreSlots = Math.addExact(this.filledCoreSlots, 1);
         }
 

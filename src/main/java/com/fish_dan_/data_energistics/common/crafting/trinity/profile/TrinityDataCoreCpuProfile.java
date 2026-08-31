@@ -1,7 +1,10 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.profile;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.capacity.TrinityCpuStorageCapacity;
+
 import appeng.api.config.CpuSelectionMode;
 
+import java.math.BigInteger;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -13,19 +16,20 @@ import java.util.TreeMap;
  * receives the complete storage value; worker resources are not divided by the worker count. Active Trinity CPUs expose
  * unlimited AE2 co-processor capacity because physical dispatch is bounded by the configured Trinity dispatch limits.
  */
-public record TrinityDataCoreCpuProfile(long storageBytes,
+public record TrinityDataCoreCpuProfile(TrinityCpuStorageCapacity storageCapacity,
                                         int coProcessors,
                                         int partitionCount,
                                         CpuSelectionMode selectionMode) {
 
     public static final int MAX_PARTITION_COUNT = TrinityDataCoreCpuContribution.MAX_PARTITION_COUNT;
     public static final int DEFAULT_CO_PROCESSORS = Integer.MAX_VALUE;
-    public static final TrinityDataCoreCpuProfile EMPTY = new TrinityDataCoreCpuProfile(0L, 0, 0, CpuSelectionMode.ANY);
+    public static final TrinityDataCoreCpuProfile EMPTY = new TrinityDataCoreCpuProfile(
+            new TrinityCpuStorageCapacity.Finite(BigInteger.ZERO),
+            0,
+            0,
+            CpuSelectionMode.ANY);
 
     public TrinityDataCoreCpuProfile {
-        if (storageBytes < 0) {
-            throw new IllegalArgumentException("CPU profile storage bytes must not be negative");
-        }
         if (coProcessors < 0) {
             throw new IllegalArgumentException("CPU profile co-processors must not be negative");
         }
@@ -35,10 +39,10 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
         if (partitionCount > MAX_PARTITION_COUNT) {
             throw new IllegalArgumentException("CPU profile partition count must not exceed " + MAX_PARTITION_COUNT);
         }
-        if (partitionCount > 0 && storageBytes == 0) {
+        if (partitionCount > 0 && storageCapacity.isZero()) {
             throw new IllegalArgumentException("CPU profile with workers must provide positive storage bytes");
         }
-        if (partitionCount == 0 && storageBytes > 0) {
+        if (partitionCount == 0 && !storageCapacity.isZero()) {
             throw new IllegalArgumentException("CPU profile with storage bytes must expose at least one partition");
         }
     }
@@ -53,7 +57,7 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
                                                               Map<String, TrinityDataCoreCpuContribution> contributions) {
         Map<String, TrinityDataCoreCpuContribution> sorted = new TreeMap<>(contributions);
 
-        long storageBytes = 0L;
+        TrinityCpuStorageCapacity storageCapacity = new TrinityCpuStorageCapacity.Finite(BigInteger.ZERO);
         int partitionCount = 0;
         CpuSelectionMode selectionMode = CpuSelectionMode.ANY;
         for (Map.Entry<String, TrinityDataCoreCpuContribution> entry : sorted.entrySet()) {
@@ -62,13 +66,13 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
                 throw new IllegalArgumentException("CPU contribution structure name must not be blank");
             }
             TrinityDataCoreCpuContribution contribution = entry.getValue();
-            storageBytes = Math.addExact(storageBytes, contribution.storageBytes());
+            storageCapacity = storageCapacity.plus(contribution.storageCapacity());
             partitionCount = Math.addExact(partitionCount, contribution.partitionCount());
             selectionMode = mergeSelectionMode(selectionMode, contribution.selectionMode(), structureName);
         }
 
         int coProcessors = partitionCount > 0 ? DEFAULT_CO_PROCESSORS : 0;
-        return new TrinityDataCoreCpuProfile(storageBytes, coProcessors, partitionCount, selectionMode);
+        return new TrinityDataCoreCpuProfile(storageCapacity, coProcessors, partitionCount, selectionMode);
     }
 
     /**
@@ -86,7 +90,7 @@ public record TrinityDataCoreCpuProfile(long storageBytes,
         return new TrinityDataCoreCpuPartitionProfile(
                 number,
                 this.partitionCount,
-                this.storageBytes,
+                this.storageCapacity,
                 this.coProcessors,
                 this.selectionMode);
     }

@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
-import com.fish_dan_.data_energistics.common.crafting.LongAmountMath;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingPlan;
@@ -129,8 +129,8 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
             view = new InputShortageSimulation(
                     finalOutput,
                     shortage.key(),
-                    LongAmountMath.saturatingLongValueNonNegative(shortage.available()),
-                    LongAmountMath.saturatingLongValueNonNegative(shortage.missing()));
+                    TrinityAe2AmountProjection.toAe2Amount(shortage.available()),
+                    TrinityAe2AmountProjection.toAe2Amount(shortage.missing()));
         } else if (diagnostic.partialPlan().isPresent()) {
             TrinityPlanningDiagnostic.PartialPlan partial = diagnostic.partialPlan().orElseThrow();
             view = new PartialSimulation(
@@ -369,7 +369,7 @@ public final class TrinityDiagnosedCraftingPlan implements ICraftingPlan {
             KeyCounter counter = new KeyCounter();
             amounts.forEach((key, amount) -> counter.add(
                     key,
-                    LongAmountMath.saturatingLongValueNonNegative(amount)));
+                    TrinityAe2AmountProjection.toAe2Amount(amount)));
             return counter;
         }
     }

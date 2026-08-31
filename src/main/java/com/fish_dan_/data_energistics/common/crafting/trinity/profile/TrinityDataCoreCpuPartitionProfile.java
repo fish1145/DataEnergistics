@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.profile;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.capacity.TrinityCpuStorageCapacity;
+
 import appeng.api.config.CpuSelectionMode;
 
 /**
@@ -11,7 +13,7 @@ import appeng.api.config.CpuSelectionMode;
  */
 public record TrinityDataCoreCpuPartitionProfile(int index,
                                                  int totalPartitions,
-                                                 long storageBytes,
+                                                 TrinityCpuStorageCapacity storageCapacity,
                                                  int coProcessors,
                                                  CpuSelectionMode selectionMode) {
 
@@ -26,7 +28,7 @@ public record TrinityDataCoreCpuPartitionProfile(int index,
         if (index < 0 || index > totalPartitions) {
             throw new IllegalArgumentException("CPU number is out of range: " + index);
         }
-        if (storageBytes <= 0) {
+        if (storageCapacity.isZero()) {
             throw new IllegalArgumentException("CPU partition storage bytes must be positive");
         }
         if (coProcessors < 0) {

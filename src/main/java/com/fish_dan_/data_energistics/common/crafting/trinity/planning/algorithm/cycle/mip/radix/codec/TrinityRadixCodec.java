@@ -12,7 +12,7 @@ import java.util.List;
 public final class TrinityRadixCodec {
 
     /**
-     * @return stateless base-2^15 codec
+     * @return stateless base-2^8 codec
      */
     public static TrinityRadixCodec create() {
         return new TrinityRadixCodec();

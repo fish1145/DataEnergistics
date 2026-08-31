@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 
 import appeng.api.stacks.AEKey;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -54,7 +55,7 @@ public record TrinityExecutionSnapshot(
                                        List<Stage> stages,
                                        List<Integer> stageOrder,
                                        List<RepeatBlock> repeatBlocks,
-                                       Map<AEKey, Long> seedReserve,
+                                       Map<AEKey, BigInteger> seedReserve,
                                        boolean completionSealed,
                                        long completionBuffer,
                                        Map<AEKey, Long> actualFinalOutputs,
@@ -70,8 +71,8 @@ public record TrinityExecutionSnapshot(
         stages = List.copyOf(stages);
         stageOrder = List.copyOf(stageOrder);
         repeatBlocks = List.copyOf(repeatBlocks);
-        seedReserve = immutableMap(seedReserve);
-        actualFinalOutputs = immutableAmounts(actualFinalOutputs, false, "actual final output");
+        seedReserve = immutableBigAmounts(seedReserve, false, "seed reserve");
+        actualFinalOutputs = immutableLongAmounts(actualFinalOutputs, false, "actual final output");
         borrowingEntries = immutableMap(borrowingEntries);
         if (savedAtTick < -1L) {
             throw new IllegalArgumentException("A Trinity execution save tick cannot be less than the legacy sentinel");
@@ -111,18 +112,18 @@ public record TrinityExecutionSnapshot(
                          TrinityPatternIdentity patternIdentity,
                          AEKey primaryOutput,
                          int variantOrdinal,
-                         long plannedCount,
-                         Map<AEKey, Long> outputs,
-                         long remainingCount,
+                         BigInteger plannedCount,
+                         Map<AEKey, BigInteger> outputs,
+                         BigInteger remainingCount,
                          boolean initialized) {
 
         /**
          * Rejects cursors that could create work absent from the plan.
          */
         public Firing {
-            outputs = immutableAmounts(outputs, false, "firing output");
-            if (variantOrdinal < 0 || plannedCount <= 0L || remainingCount < 0L ||
-                    (!initialized && remainingCount != 0L)) {
+            outputs = immutableBigAmounts(outputs, false, "firing output");
+            if (variantOrdinal < 0 || plannedCount.signum() <= 0 || remainingCount.signum() < 0 ||
+                    (!initialized && remainingCount.signum() != 0)) {
                 throw new IllegalArgumentException("A Trinity firing state contains an invalid signature or cursor");
             }
         }
@@ -161,8 +162,8 @@ public record TrinityExecutionSnapshot(
                         int nextProviderDelay,
                         long retryVersion,
                         List<Firing> firings,
-                        Map<AEKey, Long> requiredAtStart,
-                        Map<AEKey, Long> netChange) {
+                        Map<AEKey, BigInteger> requiredAtStart,
+                        Map<AEKey, BigInteger> netChange) {
 
         /**
          * Copies ordered collections and rejects malformed local stage metadata.
@@ -172,8 +173,8 @@ public record TrinityExecutionSnapshot(
             inputKeys = immutableSet(inputKeys);
             waitingKeys = immutableSet(waitingKeys);
             firings = List.copyOf(firings);
-            requiredAtStart = immutableAmounts(requiredAtStart, false, "stage start requirement");
-            netChange = immutableAmounts(netChange, true, "stage net change");
+            requiredAtStart = immutableBigAmounts(requiredAtStart, false, "stage start requirement");
+            netChange = immutableBigAmounts(netChange, true, "stage net change");
             if (index < 0 || dependencies.contains(index) || firings.isEmpty()) {
                 throw new IllegalArgumentException("A Trinity stage state requires a valid index and firings");
             }
@@ -196,18 +197,18 @@ public record TrinityExecutionSnapshot(
     public record RepeatBlock(
                               int index,
                               List<Integer> stageOrder,
-                              long remainingRepetitions,
+                              BigInteger remainingRepetitions,
                               int cursor,
-                              long waveCount) {
+                              BigInteger waveCount) {
 
         /**
          * Rejects repeat cursors that cannot identify a unique active stage.
          */
         public RepeatBlock {
             stageOrder = immutableIndexes(stageOrder, "repeat stage");
-            if (index < 0 || stageOrder.isEmpty() || remainingRepetitions < 0L ||
-                    cursor < 0 || cursor >= stageOrder.size() || waveCount < 0L ||
-                    waveCount > remainingRepetitions) {
+            if (index < 0 || stageOrder.isEmpty() || remainingRepetitions.signum() < 0 ||
+                    cursor < 0 || cursor >= stageOrder.size() || waveCount.signum() < 0 ||
+                    waveCount.compareTo(remainingRepetitions) > 0) {
                 throw new IllegalArgumentException("A Trinity repeat state contains an invalid cursor or count");
             }
         }
@@ -217,9 +218,22 @@ public record TrinityExecutionSnapshot(
         return Collections.unmodifiableMap(new LinkedHashMap<>(source));
     }
 
-    private static Map<AEKey, Long> immutableAmounts(Map<AEKey, Long> source,
-                                                     boolean signed,
-                                                     String role) {
+    private static Map<AEKey, BigInteger> immutableBigAmounts(Map<AEKey, BigInteger> source,
+                                                              boolean signed,
+                                                              String role) {
+        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
+        source.forEach((key, amount) -> {
+            if (signed ? amount.signum() == 0 : amount.signum() <= 0) {
+                throw new IllegalArgumentException("A Trinity " + role + " contains an invalid amount");
+            }
+            copied.put(key, amount);
+        });
+        return Collections.unmodifiableMap(copied);
+    }
+
+    private static Map<AEKey, Long> immutableLongAmounts(Map<AEKey, Long> source,
+                                                         boolean signed,
+                                                         String role) {
         LinkedHashMap<AEKey, Long> copied = new LinkedHashMap<>();
         source.forEach((key, amount) -> {
             if (signed ? amount == 0L : amount <= 0L) {

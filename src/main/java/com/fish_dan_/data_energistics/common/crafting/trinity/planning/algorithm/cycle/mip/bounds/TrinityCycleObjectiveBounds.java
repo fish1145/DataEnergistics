@@ -20,8 +20,6 @@ import java.util.Set;
  */
 public final class TrinityCycleObjectiveBounds {
 
-    private static final BigInteger LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE);
-
     /**
      * @return stateless exact-bound calculator
      */
@@ -162,8 +160,7 @@ public final class TrinityCycleObjectiveBounds {
      *
      * <p>
      * Executable finite input remains capped by captured inventory. Diagnostic finite input instead receives a
-     * complete {@code long} representable requirement envelope so the model can separate it into actual and missing
-     * amounts without allowing an unpublishable per-key requirement.
+     * request-private firing envelope so the model can separate it into actual and missing amounts.
      * </p>
      */
     public BigInteger reserveUpperBound(
@@ -185,8 +182,7 @@ public final class TrinityCycleObjectiveBounds {
             }
             BigInteger variantUpper = request.firingBounds()
                     .get(variant)
-                    .upperInclusive()
-                    .min(firingUpper);
+                    .upperOr(firingUpper);
             required = required.add(coefficient.negate().multiply(variantUpper));
         }
         BigInteger objectiveFloor;
@@ -198,7 +194,7 @@ public final class TrinityCycleObjectiveBounds {
                 objectiveFloor = objectiveFloor.max(request.fixedExternalTotal().orElseThrow());
             }
         }
-        return required.max(objectiveFloor).min(LONG_MAX);
+        return required.max(objectiveFloor);
     }
 
     /**
@@ -208,14 +204,14 @@ public final class TrinityCycleObjectiveBounds {
         if (request == null || !request.shortageDiagnostic()) {
             throw new IllegalArgumentException("A Trinity shortage domain requires a diagnostic request");
         }
-        BigInteger firingUpper = request.ordinaryLogicalUpperBound().orElse(LONG_MAX).min(LONG_MAX);
+        BigInteger firingUpper = request.ordinaryLogicalUpperBound().orElseThrow();
         BigInteger upper = firingUpper;
         LinkedHashSet<AEKey> reserveKeys = new LinkedHashSet<>(request.internalKeys());
         reserveKeys.addAll(externalReserveKeys(request));
         for (AEKey key : reserveKeys) {
             upper = upper.max(reserveUpperBound(request, key, firingUpper));
         }
-        return upper.min(LONG_MAX);
+        return upper;
     }
 
     /**

@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionNbtCodec;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
 
@@ -28,6 +29,7 @@ import appeng.hooks.ticking.TickHandler;
 import appeng.me.service.CraftingService;
 import org.jspecify.annotations.Nullable;
 
+import java.math.BigInteger;
 import java.util.AbstractMap;
 import java.util.AbstractSet;
 import java.util.HashMap;
@@ -268,7 +270,8 @@ final class TrinityDataCoreExecutingCraftingJob {
     long getPendingOutputs(AEKey key) {
         return this.planExecution == null ?
                 this.scheduledTasks.pendingOutputs(key) :
-                this.planExecution.pendingOutputs().getOrDefault(key, 0L);
+                TrinityAe2AmountProjection.toAe2Amount(
+                        this.planExecution.pendingOutputs().getOrDefault(key, BigInteger.ZERO));
     }
 
     /**
@@ -279,7 +282,8 @@ final class TrinityDataCoreExecutingCraftingJob {
             this.scheduledTasks.addOutputsTo(output);
             return;
         }
-        this.planExecution.pendingOutputs().forEach(output::add);
+        this.planExecution.pendingOutputs().forEach(
+                (key, amount) -> TrinityAe2AmountProjection.addToKeyCounter(output, key, amount));
     }
 
     /**

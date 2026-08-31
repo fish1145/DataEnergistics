@@ -22,6 +22,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphPattern;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 
@@ -32,7 +33,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 
 import java.math.BigInteger;
 import java.util.ArrayDeque;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -74,11 +74,11 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                                                             AEKey target,
                                                             BigInteger requestedAmount,
                                                             CraftingQuantityMode quantityMode,
-                                                            Map<AEKey, BigInteger> available,
+                                                            TrinityPlanningInventory inventory,
                                                             TrinityPlanningLimits limits,
                                                             TrinityPlanningControl control) {
         if (snapshot == null || target == null || requestedAmount == null || requestedAmount.signum() <= 0 ||
-                quantityMode == null || available == null || limits == null || control == null) {
+                quantityMode == null || inventory == null || limits == null || control == null) {
             throw new IllegalArgumentException("A Trinity graph planning request is incomplete");
         }
         try {
@@ -103,7 +103,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                             snapshot.revision(),
                             requestedAmount,
                             quantityMode,
-                            Collections.unmodifiableMap(available),
+                            inventory,
                             limits,
                             TrinityPlanningMode.OPTIMAL,
                             control) :
@@ -246,12 +246,12 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                                                              long catalogRevision,
                                                              BigInteger requestedAmount,
                                                              CraftingQuantityMode quantityMode,
-                                                             Map<AEKey, BigInteger> available,
+                                                             TrinityPlanningInventory inventory,
                                                              TrinityPlanningLimits limits,
                                                              TrinityPlanningMode mode,
                                                              TrinityPlanningControl control) {
         if (compiled == null || catalogRevision < 0L || requestedAmount == null || requestedAmount.signum() <= 0 ||
-                quantityMode == null || available == null || limits == null || mode == null || control == null) {
+                quantityMode == null || inventory == null || limits == null || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity compiled graph solve request is incomplete");
         }
         try {
@@ -261,7 +261,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                     catalogRevision,
                     requestedAmount,
                     quantityMode,
-                    Collections.unmodifiableMap(available),
+                    inventory,
                     limits,
                     mode,
                     control);
@@ -279,7 +279,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                                                                    long catalogRevision,
                                                                    BigInteger requestedAmount,
                                                                    CraftingQuantityMode quantityMode,
-                                                                   Map<AEKey, BigInteger> available,
+                                                                   TrinityPlanningInventory inventory,
                                                                    TrinityPlanningLimits limits,
                                                                    TrinityPlanningMode mode,
                                                                    TrinityPlanningControl control) {
@@ -290,14 +290,13 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
         if (state == StopState.DEADLINE_EXCEEDED) {
             return deadlineExceeded();
         }
-        long requestedLong = requestedAmount.longValueExact();
         long startedNanos = System.nanoTime();
         TrinityAlgorithmResult<TrinityGraphPlanAssembly> assembled = compiled.reachableCycle() ?
                 solveWithCycles(
                         compiled,
                         requestedAmount,
                         quantityMode,
-                        available,
+                        inventory,
                         limits,
                         mode,
                         control) :
@@ -309,7 +308,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                         compiled.target(),
                         requestedAmount,
                         quantityMode,
-                        available,
+                        inventory,
                         limits,
                         mode,
                         control);
@@ -321,7 +320,6 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                         catalogRevision,
                         compiled.target(),
                         requestedAmount,
-                        requestedLong,
                         quantityMode,
                         compiled.variants(),
                         compiled.topology(),
@@ -334,7 +332,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                                                                              TrinityCompiledGraph compiled,
                                                                              BigInteger requestedAmount,
                                                                              CraftingQuantityMode quantityMode,
-                                                                             Map<AEKey, BigInteger> available,
+                                                                             TrinityPlanningInventory inventory,
                                                                              TrinityPlanningLimits limits,
                                                                              TrinityPlanningMode mode,
                                                                              TrinityPlanningControl control) {
@@ -343,7 +341,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                 compiled.target(),
                 requestedAmount,
                 quantityMode,
-                available,
+                inventory,
                 limits,
                 mode,
                 control,
@@ -362,7 +360,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                                                                           AEKey target,
                                                                           BigInteger requestedAmount,
                                                                           CraftingQuantityMode quantityMode,
-                                                                          Map<AEKey, BigInteger> available,
+                                                                          TrinityPlanningInventory inventory,
                                                                           TrinityPlanningLimits limits,
                                                                           TrinityPlanningMode mode,
                                                                           TrinityPlanningControl control) {
@@ -375,7 +373,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                 target,
                 requestedAmount,
                 quantityMode,
-                available,
+                inventory,
                 limits.maxScheduleStates(),
                 mode,
                 control);

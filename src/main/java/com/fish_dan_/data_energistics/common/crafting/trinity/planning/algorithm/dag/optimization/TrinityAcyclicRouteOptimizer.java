@@ -13,6 +13,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import net.minecraft.network.chat.Component;
@@ -94,7 +95,7 @@ public final class TrinityAcyclicRouteOptimizer {
                                                                AEKey target,
                                                                BigInteger requestedAmount,
                                                                CraftingQuantityMode quantityMode,
-                                                               Map<AEKey, BigInteger> available,
+                                                               TrinityPlanningInventory available,
                                                                int maxSearchStates,
                                                                TrinityPlanningMode mode,
                                                                TrinityPlanningControl control) {
@@ -123,7 +124,7 @@ public final class TrinityAcyclicRouteOptimizer {
                                                                AEKey target,
                                                                BigInteger requestedAmount,
                                                                CraftingQuantityMode quantityMode,
-                                                               Map<AEKey, BigInteger> available,
+                                                               TrinityPlanningInventory available,
                                                                Set<TrinityPatternIdentity> routeHint,
                                                                int maxSearchStates,
                                                                TrinityPlanningMode mode,
@@ -135,7 +136,7 @@ public final class TrinityAcyclicRouteOptimizer {
         if (reachable.isEmpty()) {
             return insufficient(target, requestedAmount);
         }
-        Map<AEKey, BigInteger> inventory = copyAvailable(available);
+        TrinityPlanningInventory inventory = available;
         BigInteger requiredTargetNet = requiredTargetNet(target, requestedAmount, quantityMode, inventory);
         SearchBudget budget = new SearchBudget(maxSearchStates, control);
         Optional<UniformBindingFamily> uniformBindings = UniformBindingFamily.tryCreate(reachable, target);
@@ -344,7 +345,7 @@ public final class TrinityAcyclicRouteOptimizer {
                                                                AEKey target,
                                                                BigInteger requestedAmount,
                                                                CraftingQuantityMode quantityMode,
-                                                               Map<AEKey, BigInteger> available,
+                                                               TrinityPlanningInventory available,
                                                                int maxSearchStates,
                                                                TrinityPlanningControl control) {
         return optimize(
@@ -378,7 +379,7 @@ public final class TrinityAcyclicRouteOptimizer {
                                                                      AEKey target,
                                                                      BigInteger requestedAmount,
                                                                      CraftingQuantityMode quantityMode,
-                                                                     Map<AEKey, BigInteger> available,
+                                                                     TrinityPlanningInventory available,
                                                                      int maxSearchStates,
                                                                      TrinityPlanningControl control) {
         if (variants == null || target == null || requestedAmount == null || requestedAmount.signum() <= 0 ||
@@ -389,8 +390,8 @@ public final class TrinityAcyclicRouteOptimizer {
         if (reachable.isEmpty()) {
             return insufficient(target, requestedAmount);
         }
-        Map<AEKey, BigInteger> inventory = copyAvailable(available);
-        Set<AEKey> sourceKeys = externalSourceKeys(reachable);
+        TrinityPlanningInventory inventory = available;
+        Set<AEKey> sourceKeys = externalSourceKeys(reachable, inventory);
         if (sourceKeys.isEmpty()) {
             return insufficient(target, requestedAmount);
         }
@@ -450,12 +451,12 @@ public final class TrinityAcyclicRouteOptimizer {
                                                                                BigInteger requestedAmount,
                                                                                BigInteger requiredTargetNet,
                                                                                CraftingQuantityMode quantityMode,
-                                                                               Map<AEKey, BigInteger> available,
+                                                                               TrinityPlanningInventory available,
                                                                                SearchBudget budget,
                                                                                TrinityPlanningControl control) {
         BigInteger requiredFirings = ceilDivide(requiredTargetNet, family.outputPerFiring());
         BigInteger remainingFirings = requiredFirings;
-        LinkedHashMap<AEKey, BigInteger> remainingInventory = new LinkedHashMap<>(available);
+        LinkedHashMap<AEKey, BigInteger> remainingInventory = new LinkedHashMap<>(available.finiteAmounts());
         LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
         LinkedHashMap<AEKey, BigInteger> reserves = new LinkedHashMap<>();
         BigInteger targetReserve = targetReserve(target, requestedAmount, quantityMode, available);
@@ -484,13 +485,18 @@ public final class TrinityAcyclicRouteOptimizer {
             }
 
             Map.Entry<AEKey, BigInteger> input = variant.inputs().entrySet().iterator().next();
-            BigInteger availableInput = remainingInventory.getOrDefault(input.getKey(), BigInteger.ZERO);
+            boolean unlimited = available.unlimited(input.getKey());
+            BigInteger availableInput = unlimited ?
+                    family.inputPerFiring().multiply(remainingFirings) :
+                    remainingInventory.getOrDefault(input.getKey(), BigInteger.ZERO);
             BigInteger selectedFirings = remainingFirings.min(availableInput.divide(family.inputPerFiring()));
             if (selectedFirings.signum() > 0) {
                 BigInteger consumed = family.inputPerFiring().multiply(selectedFirings);
                 firings.put(variant, selectedFirings);
                 reserves.merge(input.getKey(), consumed, BigInteger::add);
-                remainingInventory.put(input.getKey(), availableInput.subtract(consumed));
+                if (!unlimited) {
+                    remainingInventory.put(input.getKey(), availableInput.subtract(consumed));
+                }
                 remainingFirings = remainingFirings.subtract(selectedFirings);
             }
             if (remainingFirings.signum() == 0) {
@@ -721,7 +727,7 @@ public final class TrinityAcyclicRouteOptimizer {
             BigInteger upper = request.quantityMode() == CraftingQuantityMode.NET_NEW &&
                     reserve.getKey().equals(request.target()) ?
                             BigInteger.ZERO :
-                            request.available().getOrDefault(reserve.getKey(), BigInteger.ZERO);
+                            request.available().availableUpTo(reserve.getKey(), reserve.getValue());
             if (reserve.getValue().compareTo(upper) > 0) {
                 return inexact("actual_reserve_upper", reserve.getKey() + ":" + reserve.getValue() + ">" + upper);
             }
@@ -741,7 +747,9 @@ public final class TrinityAcyclicRouteOptimizer {
                         diagnosticReserves.getOrDefault(key, BigInteger.ZERO) :
                         request.quantityMode() == CraftingQuantityMode.NET_NEW && key.equals(request.target()) ?
                                 BigInteger.ZERO :
-                                request.available().getOrDefault(key, BigInteger.ZERO)));
+                                request.available().availableUpTo(
+                                        key,
+                                        solved.actualReserves().getOrDefault(key, BigInteger.ZERO))));
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = this.conservationVerifier.verify(
                 request.variants(),
                 solved.firings(),
@@ -777,7 +785,9 @@ public final class TrinityAcyclicRouteOptimizer {
                 key,
                 request.quantityMode() == CraftingQuantityMode.NET_NEW && key.equals(request.target()) ?
                         BigInteger.ZERO :
-                        request.available().getOrDefault(key, BigInteger.ZERO)));
+                        request.available().availableUpTo(
+                                key,
+                                solved.reserves().getOrDefault(key, BigInteger.ZERO))));
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = this.conservationVerifier.verify(
                 request.variants(),
                 solved.firings(),
@@ -839,7 +849,7 @@ public final class TrinityAcyclicRouteOptimizer {
         LinkedHashMap<AEKey, Variable> reserveVariables = new LinkedHashMap<>();
         int reserveIndex = 0;
         for (AEKey key : touchedKeys(request.variants(), request.target())) {
-            BigInteger upper = request.available().getOrDefault(key, BigInteger.ZERO);
+            BigInteger upper = request.available().finiteAmount(key);
             Variable variable = model.addVariable("reserve_" + reserveIndex++)
                     .integer()
                     .lower(BigInteger.ZERO);
@@ -850,7 +860,7 @@ public final class TrinityAcyclicRouteOptimizer {
                         request.quantityMode(),
                         request.available());
                 variable.level(targetReserve);
-            } else {
+            } else if (!request.available().unlimited(key)) {
                 variable.upper(upper);
             }
             reserveVariables.put(key, variable);
@@ -916,8 +926,8 @@ public final class TrinityAcyclicRouteOptimizer {
                         request.requestedAmount(),
                         request.quantityMode(),
                         request.available()));
-            } else {
-                variable.upper(request.available().getOrDefault(key, BigInteger.ZERO));
+            } else if (!request.available().unlimited(key)) {
+                variable.upper(request.available().finiteAmount(key));
             }
             reserveVariables.put(key, variable);
             variables.add(variable);
@@ -1061,25 +1071,27 @@ public final class TrinityAcyclicRouteOptimizer {
         return Collections.unmodifiableList(result);
     }
 
-    private static Set<AEKey> externalSourceKeys(List<TrinityPatternVariant> variants) {
+    private static Set<AEKey> externalSourceKeys(
+                                                 List<TrinityPatternVariant> variants,
+                                                 TrinityPlanningInventory inventory) {
         LinkedHashSet<AEKey> produced = new LinkedHashSet<>();
         variants.forEach(variant -> produced.addAll(variant.outputs().keySet()));
         LinkedHashSet<AEKey> sourceKeys = new LinkedHashSet<>();
         variants.forEach(variant -> variant.inputs().keySet().stream()
-                .filter(key -> !produced.contains(key))
+                .filter(key -> !produced.contains(key) && !inventory.unlimited(key))
                 .forEach(sourceKeys::add));
         return Collections.unmodifiableSet(sourceKeys);
     }
 
     private static Map<AEKey, BigInteger> sourceCapacity(
                                                          List<TrinityPatternVariant> variants,
-                                                         Map<AEKey, BigInteger> available) {
+                                                         TrinityPlanningInventory available) {
         LinkedHashSet<AEKey> produced = new LinkedHashSet<>();
         variants.forEach(variant -> produced.addAll(variant.outputs().keySet()));
         LinkedHashMap<AEKey, BigInteger> capacity = new LinkedHashMap<>();
         variants.forEach(variant -> variant.inputs().keySet().stream()
-                .filter(key -> !produced.contains(key))
-                .forEach(key -> capacity.putIfAbsent(key, available.getOrDefault(key, BigInteger.ZERO))));
+                .filter(key -> !produced.contains(key) && !available.unlimited(key))
+                .forEach(key -> capacity.putIfAbsent(key, available.finiteAmount(key))));
         return Collections.unmodifiableMap(capacity);
     }
 
@@ -1116,28 +1128,15 @@ public final class TrinityAcyclicRouteOptimizer {
         });
     }
 
-    private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
-        source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() < 0) {
-                throw new IllegalArgumentException("Trinity acyclic inventory cannot be negative or null");
-            }
-            if (amount.signum() > 0) {
-                copied.put(key, amount);
-            }
-        });
-        return Collections.unmodifiableMap(copied);
-    }
-
     private static BigInteger requiredTargetNet(AEKey target,
                                                 BigInteger requestedAmount,
                                                 CraftingQuantityMode quantityMode,
-                                                Map<AEKey, BigInteger> available) {
+                                                TrinityPlanningInventory available) {
         if (quantityMode == CraftingQuantityMode.NET_NEW) {
             return requestedAmount;
         }
         return requestedAmount
-                .subtract(available.getOrDefault(target, BigInteger.ZERO))
+                .subtract(available.availableUpTo(target, requestedAmount))
                 .max(BigInteger.ZERO)
                 .max(BigInteger.ONE);
     }
@@ -1145,10 +1144,10 @@ public final class TrinityAcyclicRouteOptimizer {
     private static BigInteger targetReserve(AEKey target,
                                             BigInteger requestedAmount,
                                             CraftingQuantityMode quantityMode,
-                                            Map<AEKey, BigInteger> available) {
+                                            TrinityPlanningInventory available) {
         return quantityMode == CraftingQuantityMode.NET_NEW ?
                 BigInteger.ZERO :
-                requestedAmount.min(available.getOrDefault(target, BigInteger.ZERO));
+                available.availableUpTo(target, requestedAmount);
     }
 
     private static TrinityAlgorithmResult<Map<AEKey, BigInteger>> verifyExecutionPrefix(
@@ -1315,7 +1314,7 @@ public final class TrinityAcyclicRouteOptimizer {
                                 BigInteger requestedAmount,
                                 BigInteger requiredTargetNet,
                                 CraftingQuantityMode quantityMode,
-                                Map<AEKey, BigInteger> available,
+                                TrinityPlanningInventory available,
                                 ModelPass pass) {}
 
     /**
@@ -1422,7 +1421,7 @@ public final class TrinityAcyclicRouteOptimizer {
                                           BigInteger requestedAmount,
                                           BigInteger requiredTargetNet,
                                           CraftingQuantityMode quantityMode,
-                                          Map<AEKey, BigInteger> available) {}
+                                          TrinityPlanningInventory available) {}
 
     private record DiagnosticModelData(
                                        ExpressionsBasedModel model,

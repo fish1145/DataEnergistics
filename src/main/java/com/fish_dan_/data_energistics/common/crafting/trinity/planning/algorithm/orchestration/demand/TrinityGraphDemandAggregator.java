@@ -19,6 +19,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnosti
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticOutcome;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityDiagnosticMaterialAccumulator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 
 import net.minecraft.network.chat.Component;
@@ -79,12 +80,12 @@ public final class TrinityGraphDemandAggregator {
                                                                         AEKey target,
                                                                         BigInteger requestedAmount,
                                                                         CraftingQuantityMode quantityMode,
-                                                                        Map<AEKey, BigInteger> available,
+                                                                        TrinityPlanningInventory inventory,
                                                                         TrinityPlanningLimits limits,
                                                                         TrinityPlanningMode mode,
                                                                         TrinityPlanningControl control) {
         if (topology == null || target == null || requestedAmount == null ||
-                requestedAmount.signum() <= 0 || quantityMode == null || available == null || limits == null ||
+                requestedAmount.signum() <= 0 || quantityMode == null || inventory == null || limits == null ||
                 mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity graph demand request is incomplete");
         }
@@ -93,7 +94,7 @@ public final class TrinityGraphDemandAggregator {
                 target,
                 requestedAmount,
                 quantityMode,
-                available,
+                inventory,
                 limits,
                 mode,
                 control,
@@ -107,7 +108,7 @@ public final class TrinityGraphDemandAggregator {
                                                                         AEKey target,
                                                                         BigInteger requestedAmount,
                                                                         CraftingQuantityMode quantityMode,
-                                                                        Map<AEKey, BigInteger> available,
+                                                                        TrinityPlanningInventory inventory,
                                                                         TrinityPlanningLimits limits,
                                                                         TrinityPlanningMode mode,
                                                                         TrinityPlanningControl control,
@@ -118,7 +119,7 @@ public final class TrinityGraphDemandAggregator {
                 target,
                 requestedAmount,
                 quantityMode,
-                available,
+                inventory,
                 limits,
                 mode,
                 control,
@@ -134,7 +135,7 @@ public final class TrinityGraphDemandAggregator {
                                                                         AEKey target,
                                                                         BigInteger requestedAmount,
                                                                         CraftingQuantityMode quantityMode,
-                                                                        Map<AEKey, BigInteger> available,
+                                                                        TrinityPlanningInventory inventory,
                                                                         TrinityPlanningLimits limits,
                                                                         TrinityPlanningControl control) {
         return aggregate(
@@ -142,7 +143,7 @@ public final class TrinityGraphDemandAggregator {
                 target,
                 requestedAmount,
                 quantityMode,
-                available,
+                inventory,
                 limits,
                 TrinityPlanningMode.OPTIMAL,
                 control);
@@ -158,6 +159,7 @@ public final class TrinityGraphDemandAggregator {
         private final BigInteger requestedAmount;
         private final CraftingQuantityMode quantityMode;
         private final LinkedHashMap<AEKey, BigInteger> inventory;
+        private final Set<AEKey> unlimitedInventory;
         private final TrinityPlanningLimits limits;
         private final TrinityPlanningMode mode;
         private final TrinityPlanningControl control;
@@ -189,7 +191,7 @@ public final class TrinityGraphDemandAggregator {
                                     AEKey target,
                                     BigInteger requestedAmount,
                                     CraftingQuantityMode quantityMode,
-                                    Map<AEKey, BigInteger> available,
+                                    TrinityPlanningInventory available,
                                     TrinityPlanningLimits limits,
                                     TrinityPlanningMode mode,
                                     TrinityPlanningControl control,
@@ -199,7 +201,8 @@ public final class TrinityGraphDemandAggregator {
             this.target = target;
             this.requestedAmount = requestedAmount;
             this.quantityMode = quantityMode;
-            this.inventory = new LinkedHashMap<>(available);
+            this.inventory = new LinkedHashMap<>(available.finiteAmounts());
+            this.unlimitedInventory = available.unlimitedKeys();
             this.limits = limits;
             this.mode = mode;
             this.control = control;
@@ -490,7 +493,10 @@ public final class TrinityGraphDemandAggregator {
             Map<AEKey, BigInteger> retainedSeed = unitProof == null ? Map.of() : unitProof.internalSeed();
             for (Map.Entry<AEKey, BigInteger> requirement : internalRequirements.entrySet()) {
                 AEKey key = requirement.getKey();
-                BigInteger safeSurplus = this.inventory.getOrDefault(key, BigInteger.ZERO)
+                BigInteger usefulInventory = availableUpTo(
+                        key,
+                        requirement.getValue().add(retainedSeed.getOrDefault(key, BigInteger.ZERO)));
+                BigInteger safeSurplus = usefulInventory
                         .subtract(retainedSeed.getOrDefault(key, BigInteger.ZERO))
                         .max(BigInteger.ZERO);
                 if (key.equals(this.target) || safeSurplus.compareTo(requirement.getValue()) < 0) {
@@ -521,7 +527,7 @@ public final class TrinityGraphDemandAggregator {
                     settledWithdrawals.put(key, required);
                 }
                 BigInteger shortage = required
-                        .subtract(this.inventory.getOrDefault(key, BigInteger.ZERO))
+                        .subtract(availableUpTo(key, required))
                         .max(BigInteger.ZERO);
                 if (key.equals(this.target)) {
                     shortage = shortage.max(BigInteger.ONE);
@@ -696,6 +702,10 @@ public final class TrinityGraphDemandAggregator {
             Map.Entry<AEKey, BigInteger> input = cursor.inputs().get(cursor.inputIndex());
             AEKey key = input.getKey();
             BigInteger required = input.getValue();
+            if (this.unlimitedInventory.contains(key)) {
+                reserveFromInventory(key, required);
+                return new ContinueAction(continuation);
+            }
             BigInteger available = this.inventory.getOrDefault(key, BigInteger.ZERO);
             if (available.compareTo(required) >= 0) {
                 reserveFromInventory(key, required);
@@ -838,6 +848,7 @@ public final class TrinityGraphDemandAggregator {
                     producible.add(key);
                 }
             }
+            inputs.stream().filter(this.unlimitedInventory::contains).forEach(producible::add);
             return Collections.unmodifiableSet(producible);
         }
 
@@ -865,6 +876,10 @@ public final class TrinityGraphDemandAggregator {
         }
 
         private BigInteger reserveFromInventory(AEKey key, BigInteger required) {
+            if (this.unlimitedInventory.contains(key)) {
+                mergeState(this.initialInputs, key, required);
+                return required;
+            }
             BigInteger available = this.inventory.getOrDefault(key, BigInteger.ZERO);
             BigInteger reserved = required.min(available);
             if (reserved.signum() > 0) {
@@ -873,6 +888,11 @@ public final class TrinityGraphDemandAggregator {
                 mergeState(this.initialInputs, key, reserved);
             }
             return reserved;
+        }
+
+        private BigInteger availableUpTo(AEKey key, BigInteger usefulUpper) {
+            return this.unlimitedInventory.contains(key) ?
+                    usefulUpper : this.inventory.getOrDefault(key, BigInteger.ZERO).min(usefulUpper);
         }
 
         private BigInteger positiveDemand(AEKey key) {

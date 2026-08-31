@@ -129,13 +129,6 @@ public record TrinityCycleFeasibilityRequest(
     }
 
     /**
-     * @return whether every firing axis spans the complete downstream {@code long} domain
-     */
-    public boolean fullLongFiringDomain() {
-        return firingBounds.values().stream().allMatch(bounds -> bounds.equals(TrinityFiringBounds.full()));
-    }
-
-    /**
      * Replaces only firing domains while preserving all other immutable feasibility inputs.
      */
     public TrinityCycleFeasibilityRequest withFiringBounds(

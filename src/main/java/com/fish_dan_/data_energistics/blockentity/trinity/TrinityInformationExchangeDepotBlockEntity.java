@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.grid.ExactExtractableStorage;
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess;
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess.FiniteTransferResult;
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess.FiniteTransferTarget;
@@ -87,6 +88,7 @@ import appeng.util.ConfigManager;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
+import java.math.BigInteger;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -1822,7 +1824,16 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         }
     }
 
-    private final class HatchStorage implements MEStorage {
+    private final class HatchStorage implements MEStorage, ExactExtractableStorage {
+
+        @Override
+        public BigInteger exactAvailable(AEKey key, IActionSource source) {
+            TrinityDataCoreBlockEntity host = boundHost();
+            if (!canUseStorage(host) || !(level instanceof ServerLevel serverLevel)) {
+                return BigInteger.ZERO;
+            }
+            return TrinityDataCoreStorageSavedData.get(serverLevel.getServer()).amount(host.getStorageId(), key);
+        }
 
         @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {

@@ -38,11 +38,10 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Coordinates sequential base-2^15 objectives, overflow proof, and exact conservation verification.
+ * Coordinates sequential exact radix objectives, request-derived finite model envelopes, and BigInteger verification.
  */
 public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeasibilityModel {
 
-    private static final BigInteger LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE);
     private static final BigInteger SINGLE_DIGIT_LOGICAL_UPPER = BigInteger.valueOf(TrinityRadixDigits.BASE - 1L);
 
     private final TrinityExactConservationVerifier conservationVerifier;
@@ -105,7 +104,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                 request,
                 TrinityRadixModelPass.ShortageMissing.INSTANCE,
                 logicalUpper,
-                false,
                 control,
                 metrics,
                 stateBudget);
@@ -121,7 +119,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                 request,
                 new TrinityRadixModelPass.ShortageExternal(optimalMissing),
                 logicalUpper,
-                false,
                 control,
                 metrics,
                 stateBudget);
@@ -139,7 +136,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                             optimalExternal,
                             seedLower),
                     logicalUpper,
-                    false,
                     control,
                     metrics,
                     stateBudget);
@@ -160,7 +156,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                                     optimalSeed,
                                     firingObjectiveLower),
                             logicalUpper,
-                            false,
                             control,
                             metrics,
                             stateBudget);
@@ -177,7 +172,7 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
             TrinityRadixSolvedModel canonical = firing.value();
             for (TrinityPatternVariant variant : request.variants()) {
                 TrinityFiringBounds bounds = request.firingBounds().get(variant);
-                if (bounds.lowerInclusive().equals(bounds.upperInclusive())) {
+                if (bounds.fixed()) {
                     BigInteger fixedCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
                     if (!fixedCount.equals(bounds.lowerInclusive())) {
                         throw new IllegalStateException("An exact Trinity shortage solution violated a fixed axis");
@@ -186,14 +181,13 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                     continue;
                 }
                 BigInteger witnessCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
-                BigInteger identityUpper = this.exactBounds.identityObjectiveUpperBound(
+                BigInteger identityUpper = bounds.upperOr(this.exactBounds.identityObjectiveUpperBound(
                         request,
                         optimalExternal,
                         optimalSeed,
                         optimalFirings,
                         fixedFirings,
-                        variant)
-                        .min(bounds.upperInclusive());
+                        variant));
                 if (witnessCount.compareTo(identityUpper) > 0) {
                     throw new IllegalStateException("A Trinity shortage identity witness exceeded its proven upper bound");
                 }
@@ -211,7 +205,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                                 fixedFirings,
                                 variant),
                         logicalUpper,
-                        false,
                         control,
                         metrics,
                         stateBudget);
@@ -239,7 +232,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                                 fixedReserves,
                                 key),
                         logicalUpper,
-                        false,
                         control,
                         metrics,
                         stateBudget);
@@ -300,9 +292,10 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                                                                                        TrinityCycleFeasibilityRequest request,
                                                                                        TrinityPlanningControl control) {
         TrinityRadixSolverMetrics metrics = new TrinityRadixSolverMetrics();
-        BigInteger logicalUpper = request.ordinaryLogicalUpperBound()
-                .map(upper -> upper.min(LONG_MAX))
-                .orElse(LONG_MAX);
+        BigInteger logicalUpper = completeLogicalUpper(
+                request,
+                TrinityRadixModelPass.External.INSTANCE,
+                control);
         try {
             TrinityRadixModelPass pass = TrinityRadixModelPass.External.INSTANCE;
             control.recordSolverModel();
@@ -318,13 +311,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
             TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExact(request, pass, solved, true);
             if (!exact.successful()) {
                 return TrinityAlgorithmResult.failure(exact.diagnostic());
-            }
-            if (solved.firings().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) ||
-                    solved.modelSeed().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) ||
-                    solved.externalInputs().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) ||
-                    solved.actualInputs().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) ||
-                    solved.missingInputs().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong)) {
-                return TrinityRadixDiagnostics.inexact("radix_representable_bound", "axis_exceeds_long");
             }
             return TrinityAlgorithmResult.success(new TrinityCycleFeasibilitySolution(
                     solved.firings(),
@@ -351,15 +337,14 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                                                                                     TrinityCycleFeasibilityRequest request,
                                                                                     TrinityPlanningControl control) {
         TrinityRadixSolverMetrics metrics = new TrinityRadixSolverMetrics();
-        BigInteger representableUpper = request.ordinaryLogicalUpperBound()
-                .map(upper -> upper.min(LONG_MAX))
-                .orElse(LONG_MAX);
-        boolean allowOverflowProof = representableUpper.equals(LONG_MAX);
+        BigInteger logicalUpper = completeLogicalUpper(
+                request,
+                TrinityRadixModelPass.External.INSTANCE,
+                control);
         TrinityAlgorithmResult<TrinityRadixSolvedModel> external = optimize(
                 request,
                 TrinityRadixModelPass.External.INSTANCE,
-                representableUpper,
-                allowOverflowProof,
+                logicalUpper,
                 control,
                 metrics);
         if (!external.successful()) {
@@ -372,8 +357,7 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
             TrinityAlgorithmResult<TrinityRadixSolvedModel> seed = optimize(
                     request,
                     new TrinityRadixModelPass.Seed(optimalExternal, seedLower),
-                    representableUpper,
-                    allowOverflowProof,
+                    logicalUpper,
                     control,
                     metrics);
             if (!seed.successful()) {
@@ -420,7 +404,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                 request,
                 TrinityRadixModelPass.External.INSTANCE,
                 logicalUpper,
-                false,
                 control,
                 metrics);
         if (!external.successful()) {
@@ -439,7 +422,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                 request,
                 new TrinityRadixModelPass.Seed(optimalExternal, seedLower),
                 logicalUpper,
-                false,
                 control,
                 metrics);
         if (!seed.successful()) {
@@ -490,7 +472,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                         request,
                         firingPass,
                         firingDomainUpper,
-                        false,
                         control,
                         metrics);
         if (!firing.successful()) {
@@ -507,7 +488,7 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
         TrinityRadixSolvedModel canonical = firing.value();
         for (TrinityPatternVariant variant : request.variants()) {
             TrinityFiringBounds bounds = request.firingBounds().get(variant);
-            if (bounds.lowerInclusive().equals(bounds.upperInclusive())) {
+            if (bounds.fixed()) {
                 BigInteger fixedCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
                 if (!fixedCount.equals(bounds.lowerInclusive())) {
                     throw new IllegalStateException("An exact Trinity firing solution violated a fixed axis");
@@ -522,14 +503,13 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                     fixedFirings,
                     variant);
             BigInteger witnessCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
-            BigInteger identityUpper = this.exactBounds.identityObjectiveUpperBound(
+            BigInteger identityUpper = bounds.upperOr(this.exactBounds.identityObjectiveUpperBound(
                     request,
                     optimalExternal,
                     optimalSeed,
                     optimalFirings,
                     fixedFirings,
-                    variant)
-                    .min(bounds.upperInclusive());
+                    variant));
             if (witnessCount.compareTo(identityUpper) > 0) {
                 throw new IllegalStateException("A Trinity identity witness exceeded its proven upper bound");
             }
@@ -541,7 +521,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                     request,
                     identityPass,
                     identityDomainUpper,
-                    false,
                     control,
                     metrics);
             if (!identity.successful()) {
@@ -591,18 +570,30 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
         return upper.multiply(BigInteger.valueOf(request.variants().size()));
     }
 
+    private BigInteger completeLogicalUpper(
+                                            TrinityCycleFeasibilityRequest request,
+                                            TrinityRadixModelPass pass,
+                                            TrinityPlanningControl control) {
+        Optional<BigInteger> ordinary = request.ordinaryLogicalUpperBound();
+        if (ordinary.isPresent()) {
+            return ordinary.orElseThrow();
+        }
+        BigInteger initialUpper = smallDomainUpper(request);
+        control.recordSolverModel();
+        TrinityRadixBuiltModel envelope = this.modelAssembler.assemble(request, pass, initialUpper);
+        return initialUpper.max(envelope.model().proofUpperBound());
+    }
+
     private TrinityAlgorithmResult<TrinityRadixSolvedModel> optimize(
                                                                      TrinityCycleFeasibilityRequest request,
                                                                      TrinityRadixModelPass pass,
                                                                      BigInteger logicalUpper,
-                                                                     boolean allowOverflowProof,
                                                                      TrinityPlanningControl control,
                                                                      TrinityRadixSolverMetrics metrics) {
         return optimize(
                 request,
                 pass,
                 logicalUpper,
-                allowOverflowProof,
                 control,
                 metrics,
                 TrinityCycleSolveBudget.unbounded());
@@ -612,7 +603,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                                                                      TrinityCycleFeasibilityRequest request,
                                                                      TrinityRadixModelPass pass,
                                                                      BigInteger logicalUpper,
-                                                                     boolean allowOverflowProof,
                                                                      TrinityPlanningControl control,
                                                                      TrinityRadixSolverMetrics metrics,
                                                                      TrinityCycleSolveBudget stateBudget) {
@@ -625,25 +615,12 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                     metrics,
                     stateBudget);
             if (!optimized.successful()) {
-                if (optimized.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
-                    return TrinityAlgorithmResult.failure(optimized.diagnostic());
-                }
-                if (!allowOverflowProof) {
-                    return TrinityAlgorithmResult.failure(optimized.diagnostic());
-                }
-                return probeOverflow(request, pass, built, control, metrics, optimized.diagnostic());
+                return TrinityAlgorithmResult.failure(optimized.diagnostic());
             }
             TrinityRadixSolvedModel solved = built.decode(optimized.value());
             TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExact(request, pass, solved, true);
             if (!exact.successful()) {
                 return TrinityAlgorithmResult.failure(exact.diagnostic());
-            }
-            if (solved.firings().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) ||
-                    solved.modelSeed().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) ||
-                    solved.externalInputs().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) ||
-                    solved.actualInputs().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) ||
-                    solved.missingInputs().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong)) {
-                return TrinityRadixDiagnostics.inexact("radix_representable_bound", "axis_exceeds_long");
             }
             return TrinityAlgorithmResult.success(solved);
         } catch (TrinityRadixModelLimitException exception) {
@@ -657,49 +634,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                     "gui.data_energistics.trinity_planning.diagnostic.no_integer_solution",
                     Map.of("constraint", exception.getMessage()));
         }
-    }
-
-    private TrinityAlgorithmResult<TrinityRadixSolvedModel> probeOverflow(
-                                                                          TrinityCycleFeasibilityRequest request,
-                                                                          TrinityRadixModelPass pass,
-                                                                          TrinityRadixBuiltModel representableModel,
-                                                                          TrinityPlanningControl control,
-                                                                          TrinityRadixSolverMetrics metrics,
-                                                                          TrinityPlanningDiagnostic infeasible) {
-        BigInteger proofUpper = representableModel.model().proofUpperBound();
-        control.recordSolverModel();
-        TrinityRadixBuiltModel proofModel = this.modelAssembler.assemble(request, pass, proofUpper);
-        TrinityAlgorithmResult<Map<Variable, BigInteger>> proof = this.objectiveSearch.findFeasible(
-                proofModel,
-                control,
-                metrics);
-        if (!proof.successful()) {
-            return proof.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION ?
-                    TrinityAlgorithmResult.failure(infeasible) :
-                    TrinityAlgorithmResult.failure(proof.diagnostic());
-        }
-        TrinityRadixSolvedModel solved = proofModel.decode(proof.value());
-        TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExact(
-                request,
-                pass,
-                solved,
-                !request.fullLongFiringDomain());
-        if (!exact.successful()) {
-            return TrinityAlgorithmResult.failure(exact.diagnostic());
-        }
-        if (!solved.firings().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) &&
-                !solved.modelSeed().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) &&
-                !solved.externalInputs().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) &&
-                !solved.actualInputs().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong) &&
-                !solved.missingInputs().values().stream().anyMatch(TrinityRadixCycleFeasibilityModel::outsideLong)) {
-            return TrinityRadixDiagnostics.inexact("radix_long_domain", "proof_found_representable_witness");
-        }
-        return TrinityRadixDiagnostics.failure(
-                TrinityPlanningDiagnosticCode.ARITHMETIC_OVERFLOW,
-                "gui.data_energistics.trinity_planning.mip.arithmetic_overflow",
-                Map.of(
-                        "pass", pass.getClass().getSimpleName(),
-                        "proofUpper", proofUpper.toString()));
     }
 
     private TrinityAlgorithmResult<Map<AEKey, BigInteger>> verifyExact(
@@ -837,9 +771,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
         finiteKeys.removeAll(request.producibleInputs());
         for (AEKey key : finiteKeys) {
             BigInteger required = requiredInputs.getOrDefault(key, BigInteger.ZERO);
-            if (required.compareTo(LONG_MAX) > 0) {
-                return TrinityRadixDiagnostics.inexact("shortage_required_long", key.toString());
-            }
             BigInteger available = request.available().getOrDefault(key, BigInteger.ZERO);
             BigInteger actual = required.min(available);
             BigInteger missing = required.subtract(actual);
@@ -857,10 +788,6 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
             return TrinityRadixDiagnostics.inexact("shortage_missing", solved.missingInputs().toString());
         }
         return TrinityAlgorithmResult.success(Map.copyOf(requiredInputs));
-    }
-
-    private static boolean outsideLong(BigInteger value) {
-        return value.compareTo(LONG_MAX) > 0;
     }
 
     private static BigInteger total(Map<?, BigInteger> amounts) {
