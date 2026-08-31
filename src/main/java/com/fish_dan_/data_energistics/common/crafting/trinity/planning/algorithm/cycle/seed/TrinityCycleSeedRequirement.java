@@ -4,11 +4,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,27 +33,35 @@ public record TrinityCycleSeedRequirement(Map<AEKey, BigInteger> amounts) {
         if (selection == null || internalKeys == null || internalKeys.isEmpty()) {
             throw new IllegalArgumentException("A Trinity cycle seed proof requires a selection and internal keys");
         }
-        ArrayList<TrinityVariantFiring> oneUnit = new ArrayList<>();
+        ObjectArrayList<TrinityVariantFiring> oneUnit = new ObjectArrayList<>();
         oneUnit.addAll(selection.prefixOrder());
         oneUnit.addAll(selection.localOrder());
         oneUnit.addAll(selection.suffixOrder());
-        return new TrinityCycleSeedRequirement(minimumSeed(oneUnit, internalKeys));
+        return fromOrder(oneUnit, internalKeys);
     }
 
     /**
-     * Freezes a positive exact reserve.
+     * Derives the internal restart reserve of one already normalized unit order.
      */
-    public TrinityCycleSeedRequirement {
-        if (amounts == null) {
-            throw new IllegalArgumentException("A Trinity cycle seed requirement cannot be null");
-        }
+    public static TrinityCycleSeedRequirement fromOrder(
+                                                        List<TrinityVariantFiring> order,
+                                                        Set<AEKey> internalKeys) {
+        Map<AEKey, BigInteger> minimumInputs = minimumInputs(order);
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> internal = new Object2ObjectLinkedOpenHashMap<>();
+        minimumInputs.forEach((key, amount) -> {
+            if (internalKeys.contains(key)) {
+                internal.put(key, amount);
+            }
+        });
+        return new TrinityCycleSeedRequirement(Object2ObjectMaps.unmodifiable(internal));
     }
 
-    private static Map<AEKey, BigInteger> minimumSeed(
-                                                      List<TrinityVariantFiring> order,
-                                                      Set<AEKey> internalKeys) {
-        LinkedHashMap<AEKey, BigInteger> balance = new LinkedHashMap<>();
-        LinkedHashMap<AEKey, BigInteger> seed = new LinkedHashMap<>();
+    /**
+     * @return exact prefix input for every key touched by the ordered firing unit
+     */
+    public static Map<AEKey, BigInteger> minimumInputs(List<TrinityVariantFiring> order) {
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> balance = new Object2ObjectLinkedOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> required = new Object2ObjectLinkedOpenHashMap<>();
         for (TrinityVariantFiring firing : order) {
             BigInteger count = firing.count();
             firing.variant().inputs().forEach((key, inputAmount) -> {
@@ -65,14 +73,12 @@ public record TrinityCycleSeedRequirement(Map<AEKey, BigInteger> amounts) {
                 BigInteger deficit = requiredAtStart.subtract(balance.getOrDefault(key, BigInteger.ZERO));
                 if (deficit.signum() > 0) {
                     balance.merge(key, deficit, BigInteger::add);
-                    if (internalKeys.contains(key)) {
-                        seed.merge(key, deficit, BigInteger::add);
-                    }
+                    required.merge(key, deficit, BigInteger::add);
                 }
             });
             firing.variant().netChange().forEach(
                     (key, amount) -> balance.merge(key, amount.multiply(count), BigInteger::add));
         }
-        return Collections.unmodifiableMap(seed);
+        return Object2ObjectMaps.unmodifiable(required);
     }
 }

@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
@@ -102,6 +103,31 @@ public final class TrinityAcyclicRouteOptimizer {
                 maxSearchStates <= 0 || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity acyclic route optimization requires complete inputs");
         }
+        return optimize(
+                topology,
+                variants,
+                target,
+                requestedAmount,
+                quantityMode,
+                available,
+                Set.of(),
+                maxSearchStates,
+                mode,
+                control);
+    }
+
+    /** Uses a quantity-free route hint only as an exactly revalidated incumbent. */
+    public TrinityAlgorithmResult<TrinityAcyclicPlan> optimize(
+                                                               TrinityCraftingTopology topology,
+                                                               List<TrinityPatternVariant> variants,
+                                                               AEKey target,
+                                                               BigInteger requestedAmount,
+                                                               CraftingQuantityMode quantityMode,
+                                                               Map<AEKey, BigInteger> available,
+                                                               Set<TrinityPatternIdentity> routeHint,
+                                                               int maxSearchStates,
+                                                               TrinityPlanningMode mode,
+                                                               TrinityPlanningControl control) {
         List<TrinityPatternVariant> reachable = this.routePruner.retainExecutableTargetRoutes(
                 variants,
                 target,
@@ -136,7 +162,38 @@ public final class TrinityAcyclicRouteOptimizer {
         control.recordSolverModel();
         AcyclicModelTemplate modelTemplate = createModelTemplate(templateRequest);
 
+        TrinityAcyclicPlan hintedIncumbent = null;
+        if (!routeHint.isEmpty()) {
+            TrinityAlgorithmResult<SolvedPass> hinted = solve(
+                    new ModelRequest(
+                            reachable,
+                            target,
+                            requestedAmount,
+                            requiredTargetNet,
+                            quantityMode,
+                            inventory,
+                            new HintFeasibilityPass(routeHint)),
+                    budget,
+                    modelTemplate,
+                    control);
+            if (hinted.successful()) {
+                TrinityAlgorithmResult<TrinityAcyclicPlan> built = buildQualifiedPlan(
+                        topology,
+                        hinted.value().model(),
+                        budget.used(),
+                        TrinityPlanQuality.VERIFIED_FEASIBLE);
+                if (built.successful()) {
+                    hintedIncumbent = built.value();
+                }
+            } else if (hinted.diagnostic().code() == TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED) {
+                return TrinityAlgorithmResult.failure(hinted.diagnostic());
+            }
+        }
+
         if (mode == TrinityPlanningMode.FIRST_FEASIBLE) {
+            if (hintedIncumbent != null) {
+                return TrinityAlgorithmResult.success(hintedIncumbent);
+            }
             TrinityAlgorithmResult<SolvedPass> feasible = solve(
                     new ModelRequest(
                             reachable,
@@ -172,7 +229,9 @@ public final class TrinityAcyclicRouteOptimizer {
                 modelTemplate,
                 control);
         if (!externalResult.successful()) {
-            return TrinityAlgorithmResult.failure(externalResult.diagnostic());
+            return hintedIncumbent == null ?
+                    TrinityAlgorithmResult.failure(externalResult.diagnostic()) :
+                    recoverIncumbent(hintedIncumbent, externalResult.diagnostic());
         }
         TrinityAlgorithmResult<TrinityAcyclicPlan> externalPlan = buildQualifiedPlan(
                 topology,
@@ -1229,11 +1288,13 @@ public final class TrinityAcyclicRouteOptimizer {
         }
     }
 
-    private sealed interface ModelPass permits FeasibilityPass, ExternalPass, FiringPass, IdentityPass {}
+    private sealed interface ModelPass permits FeasibilityPass, HintFeasibilityPass, ExternalPass, FiringPass, IdentityPass {}
 
     private enum FeasibilityPass implements ModelPass {
         INSTANCE
     }
+
+    private record HintFeasibilityPass(Set<TrinityPatternIdentity> selectedPatterns) implements ModelPass {}
 
     private enum ExternalPass implements ModelPass {
         INSTANCE
@@ -1287,6 +1348,12 @@ public final class TrinityAcyclicRouteOptimizer {
             Expression firingTotal = model.getExpression("firing_total");
             if (pass instanceof FeasibilityPass) {
                 // Zero objective: obtain any integer witness and verify it exactly after the solve.
+            } else if (pass instanceof HintFeasibilityPass hintPass) {
+                firingVariables.forEach((variant, variable) -> {
+                    if (!hintPass.selectedPatterns().contains(variant.patternIdentity())) {
+                        variable.upper(BigInteger.ZERO);
+                    }
+                });
             } else if (pass instanceof ExternalPass) {
                 externalTotal.weight(BigDecimal.ONE);
             } else if (pass instanceof FiringPass firingPass) {

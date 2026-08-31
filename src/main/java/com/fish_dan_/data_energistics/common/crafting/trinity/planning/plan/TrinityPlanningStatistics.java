@@ -1,20 +1,26 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan;
 
+import java.math.BigInteger;
+
 /**
  * Immutable algorithm counters used for acceptance tests and structured planning logs.
  *
- * @param sccCount           strongly connected components visited
- * @param variantCount       legal binding variants considered
- * @param planningNanos      complete duration of the current Trinity planning request
- * @param firstFeasibleNanos duration before the final complete publishable plan was available; this currently does
- *                           not expose an earlier solver witness
- * @param mipNanos           time spent inside MIP solves by the current request; zero for an exact cache hit
- * @param scheduleStates     compressed scheduler states explored
- * @param solverPasses       actual ojAlgo minimise, maximise and probe calls made by the current request
- * @param solverModels       base or encoded solver models assembled by the current request
- * @param jointStates        joint branch-and-bound states charged to the current request
- * @param routeStates        DAG or mixed-graph route states charged to the current request
- * @param quality            exact proof strength of the executable plan
+ * @param sccCount              strongly connected components visited
+ * @param variantCount          legal binding variants considered
+ * @param planningNanos         complete duration of the current Trinity planning request
+ * @param firstFeasibleNanos    duration before the final complete publishable plan was available; this currently does
+ *                              not expose an earlier solver witness
+ * @param mipNanos              time spent inside MIP solves by the current request; zero for an exact cache hit
+ * @param scheduleStates        compressed scheduler states explored
+ * @param solverPasses          actual ojAlgo minimise, maximise and probe calls made by the current request
+ * @param solverModels          base or encoded solver models assembled by the current request
+ * @param jointStates           joint branch-and-bound states charged to the current request
+ * @param routeStates           DAG or mixed-graph route states charged to the current request
+ * @param quality               exact proof strength of the executable plan
+ * @param seedRetentionKinds    number of exact internal keys retained for a later cycle start
+ * @param seedRetentionRequired aggregate retained restart seed
+ * @param seedRetentionFinal    aggregate final balance on retained seed keys
+ * @param seedRefinementPasses  additional cycle selection passes used to establish restart safety
  */
 public record TrinityPlanningStatistics(
                                         int sccCount,
@@ -27,19 +33,11 @@ public record TrinityPlanningStatistics(
                                         int solverModels,
                                         int jointStates,
                                         int routeStates,
-                                        TrinityPlanQuality quality) {
-
-    /**
-     * Rejects negative counters before metrics can misrepresent planner behavior.
-     */
-    public TrinityPlanningStatistics {
-        if (sccCount < 0 || variantCount < 0 || planningNanos < 0L || firstFeasibleNanos < 0L ||
-                firstFeasibleNanos > planningNanos || mipNanos < 0L || mipNanos > planningNanos ||
-                scheduleStates < 0 || solverPasses < 0 || solverModels < 0 || jointStates < 0 || routeStates < 0 ||
-                quality == null) {
-            throw new IllegalArgumentException("Trinity planning statistics must be non-negative and consistent");
-        }
-    }
+                                        TrinityPlanQuality quality,
+                                        int seedRetentionKinds,
+                                        BigInteger seedRetentionRequired,
+                                        BigInteger seedRetentionFinal,
+                                        int seedRefinementPasses) {
 
     /**
      * Compatibility constructor for existing exact planning paths while richer counters are introduced.
@@ -61,7 +59,11 @@ public record TrinityPlanningStatistics(
                 0,
                 0,
                 0,
-                TrinityPlanQuality.PROVED_OPTIMAL);
+                TrinityPlanQuality.PROVED_OPTIMAL,
+                0,
+                BigInteger.ZERO,
+                BigInteger.ZERO,
+                0);
     }
 
     /**
@@ -86,7 +88,11 @@ public record TrinityPlanningStatistics(
                 0,
                 0,
                 0,
-                quality);
+                quality,
+                0,
+                BigInteger.ZERO,
+                BigInteger.ZERO,
+                0);
     }
 
     /**
@@ -114,7 +120,11 @@ public record TrinityPlanningStatistics(
                 this.solverModels,
                 this.jointStates,
                 this.routeStates,
-                this.quality);
+                this.quality,
+                this.seedRetentionKinds,
+                this.seedRetentionRequired,
+                this.seedRetentionFinal,
+                this.seedRefinementPasses);
     }
 
     /**
@@ -139,6 +149,10 @@ public record TrinityPlanningStatistics(
                 requestSolverModels,
                 requestJointStates,
                 requestRouteStates,
-                this.quality);
+                this.quality,
+                this.seedRetentionKinds,
+                this.seedRetentionRequired,
+                this.seedRetentionFinal,
+                this.seedRefinementPasses);
     }
 }

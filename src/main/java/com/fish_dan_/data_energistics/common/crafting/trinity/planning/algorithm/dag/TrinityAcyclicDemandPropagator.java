@@ -12,14 +12,20 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer.ShortageEvidence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRoutePruner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.proof.TrinityAcyclicRouteFamily;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.proof.TrinityAcyclicRouteHint;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -29,6 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Propagates aggregate demand through acyclic keys without expanding one state per requested item.
@@ -84,6 +91,35 @@ public final class TrinityAcyclicDemandPropagator {
                 maxSearchStates <= 0 || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity acyclic propagation requires complete, positive inputs");
         }
+        return propagate(
+                topology,
+                variants,
+                Map.of(),
+                Map.of(),
+                target,
+                requestedAmount,
+                quantityMode,
+                available,
+                maxSearchStates,
+                mode,
+                control);
+    }
+
+    /**
+     * Reuses compiled producer families while keeping inventory-sensitive pruning request-local.
+     */
+    public TrinityAlgorithmResult<TrinityAcyclicPlan> propagate(
+                                                                TrinityCraftingTopology topology,
+                                                                List<TrinityPatternVariant> variants,
+                                                                Map<AEKey, TrinityAcyclicRouteFamily> routeFamilies,
+                                                                Map<AEKey, TrinityAcyclicRouteHint> routeHints,
+                                                                AEKey target,
+                                                                BigInteger requestedAmount,
+                                                                CraftingQuantityMode quantityMode,
+                                                                Map<AEKey, BigInteger> available,
+                                                                int maxSearchStates,
+                                                                TrinityPlanningMode mode,
+                                                                TrinityPlanningControl control) {
         StopState initialState = stopState(control);
         if (initialState != StopState.RUNNING) {
             return stopped(initialState);
@@ -114,7 +150,8 @@ public final class TrinityAcyclicDemandPropagator {
                 target,
                 available);
         List<TrinityPatternVariant> planningVariants = executableRoutes.isEmpty() ? variants : executableRoutes;
-        Map<AEKey, List<TrinityPatternVariant>> producers = indexProducers(planningVariants);
+        Map<AEKey, List<TrinityPatternVariant>> producers = indexProducers(planningVariants, routeFamilies);
+        Set<TrinityPatternIdentity> routeHint = routeHintIdentities(routeFamilies, routeHints);
         if (requiresGlobalRouteOptimization(topology, reachableComponents, producers)) {
             Optional<Attempt> competition = this.competitionPlanner.plan(
                     topology,
@@ -124,6 +161,7 @@ public final class TrinityAcyclicDemandPropagator {
                     requestedAmount,
                     quantityMode,
                     available,
+                    routeHint,
                     maxSearchStates,
                     mode,
                     control);
@@ -147,6 +185,7 @@ public final class TrinityAcyclicDemandPropagator {
                     requestedAmount,
                     quantityMode,
                     available,
+                    routeHint,
                     maxSearchStates,
                     mode,
                     control);
@@ -257,6 +296,7 @@ public final class TrinityAcyclicDemandPropagator {
                                                                           BigInteger requestedAmount,
                                                                           CraftingQuantityMode quantityMode,
                                                                           Map<AEKey, BigInteger> available,
+                                                                          Set<TrinityPatternIdentity> routeHint,
                                                                           int maxSearchStates,
                                                                           TrinityPlanningMode mode,
                                                                           TrinityPlanningControl control) {
@@ -267,6 +307,7 @@ public final class TrinityAcyclicDemandPropagator {
                 requestedAmount,
                 quantityMode,
                 available,
+                routeHint,
                 maxSearchStates,
                 mode,
                 control);
@@ -363,24 +404,40 @@ public final class TrinityAcyclicDemandPropagator {
     }
 
     private static Map<AEKey, List<TrinityPatternVariant>> indexProducers(
-                                                                          List<TrinityPatternVariant> variants) {
-        HashMap<AEKey, ArrayList<TrinityPatternVariant>> mutable = new HashMap<>();
-        for (TrinityPatternVariant variant : variants) {
-            if (variant == null) {
-                throw new IllegalArgumentException("A Trinity acyclic graph cannot contain a null variant");
+                                                                          List<TrinityPatternVariant> variants,
+                                                                          Map<AEKey, TrinityAcyclicRouteFamily> routeFamilies) {
+        ObjectOpenHashSet<TrinityPatternVariant> retained = new ObjectOpenHashSet<>(variants);
+        Object2ObjectLinkedOpenHashMap<AEKey, List<TrinityPatternVariant>> producers = new Object2ObjectLinkedOpenHashMap<>();
+        routeFamilies.forEach((key, family) -> {
+            ObjectArrayList<TrinityPatternVariant> candidates = new ObjectArrayList<>();
+            family.candidates().stream().filter(retained::contains).forEach(candidates::add);
+            if (!candidates.isEmpty()) {
+                producers.put(key, candidates);
             }
+        });
+        for (TrinityPatternVariant variant : variants) {
             variant.outputs().forEach((key, amount) -> {
-                if (amount.signum() > 0) {
-                    mutable.computeIfAbsent(key, ignored -> new ArrayList<>()).add(variant);
+                if (amount.signum() > 0 && !routeFamilies.containsKey(key)) {
+                    producers.computeIfAbsent(key, ignored -> new ObjectArrayList<>()).add(variant);
                 }
             });
         }
-        HashMap<AEKey, List<TrinityPatternVariant>> producers = new HashMap<>();
-        mutable.forEach((key, candidates) -> {
-            candidates.sort(Comparator.naturalOrder());
-            producers.put(key, List.copyOf(candidates));
-        });
+        producers.values().forEach(candidates -> candidates.sort(Comparator.naturalOrder()));
         return producers;
+    }
+
+    private static Set<TrinityPatternIdentity> routeHintIdentities(
+                                                                   Map<AEKey, TrinityAcyclicRouteFamily> families,
+                                                                   Map<AEKey, TrinityAcyclicRouteHint> hints) {
+        if (hints.isEmpty()) {
+            return Set.of();
+        }
+        ObjectOpenHashSet<TrinityPatternIdentity> selected = new ObjectOpenHashSet<>();
+        families.values().forEach(family -> family.provedUniqueProducer()
+                .map(TrinityPatternVariant::patternIdentity)
+                .ifPresent(selected::add));
+        hints.values().forEach(hint -> selected.addAll(hint.selectedIdentities()));
+        return selected;
     }
 
     private static List<Integer> reachablePredecessors(TrinityCraftingTopology topology, int targetComponent) {

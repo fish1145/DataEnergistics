@@ -17,6 +17,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -64,6 +65,33 @@ public final class TrinityAcyclicCompetitionPlanner {
                                   int maxSearchStates,
                                   TrinityPlanningMode mode,
                                   TrinityPlanningControl control) {
+        return plan(
+                topology,
+                planningVariants,
+                producers,
+                target,
+                requestedAmount,
+                quantityMode,
+                available,
+                Set.of(),
+                maxSearchStates,
+                mode,
+                control);
+    }
+
+    /** Uses cached route identities only as local exact-feasibility incumbents. */
+    public Optional<Attempt> plan(
+                                  TrinityCraftingTopology topology,
+                                  List<TrinityPatternVariant> planningVariants,
+                                  Map<AEKey, List<TrinityPatternVariant>> producers,
+                                  AEKey target,
+                                  BigInteger requestedAmount,
+                                  CraftingQuantityMode quantityMode,
+                                  Map<AEKey, BigInteger> available,
+                                  Set<TrinityPatternIdentity> routeHint,
+                                  int maxSearchStates,
+                                  TrinityPlanningMode mode,
+                                  TrinityPlanningControl control) {
         Preparation preparation = prepare(
                 topology,
                 producers,
@@ -79,9 +107,11 @@ public final class TrinityAcyclicCompetitionPlanner {
             return Optional.empty();
         }
 
-        int wholeGraphBudget = routePassUpperBound(planningVariants.size());
+        int wholeGraphBudget = routePassUpperBound(planningVariants.size(), !routeHint.isEmpty());
         long localBudget = regions.stream()
-                .mapToLong(region -> routePassUpperBound(region.variants().size()))
+                .mapToLong(region -> routePassUpperBound(
+                        region.variants().size(),
+                        region.patterns().stream().anyMatch(routeHint::contains)))
                 .sum();
         if (localBudget + wholeGraphBudget + 1L > maxSearchStates) {
             return Optional.empty();
@@ -103,7 +133,10 @@ public final class TrinityAcyclicCompetitionPlanner {
                     region.amount(),
                     CraftingQuantityMode.NET_NEW,
                     projectInventory(preparation.remainingInventory(), region.touchedKeys()),
-                    routePassUpperBound(region.variants().size()),
+                    localHint(routeHint, region.patterns()),
+                    routePassUpperBound(
+                            region.variants().size(),
+                            region.patterns().stream().anyMatch(routeHint::contains)),
                     mode,
                     control);
             if (!local.successful()) {
@@ -117,6 +150,7 @@ public final class TrinityAcyclicCompetitionPlanner {
                         requestedAmount,
                         quantityMode,
                         available,
+                        routeHint,
                         wholeGraphBudget,
                         mode,
                         control), wholeGraphBudget));
@@ -147,6 +181,7 @@ public final class TrinityAcyclicCompetitionPlanner {
                     requestedAmount,
                     quantityMode,
                     available,
+                    routeHint,
                     wholeGraphBudget,
                     mode,
                     control), wholeGraphBudget));
@@ -164,6 +199,7 @@ public final class TrinityAcyclicCompetitionPlanner {
                                                                           BigInteger requestedAmount,
                                                                           CraftingQuantityMode quantityMode,
                                                                           Map<AEKey, BigInteger> available,
+                                                                          Set<TrinityPatternIdentity> routeHint,
                                                                           int maxSearchStates,
                                                                           TrinityPlanningMode mode,
                                                                           TrinityPlanningControl control) {
@@ -174,6 +210,7 @@ public final class TrinityAcyclicCompetitionPlanner {
                 requestedAmount,
                 quantityMode,
                 available,
+                routeHint,
                 maxSearchStates,
                 mode,
                 control);
@@ -463,8 +500,16 @@ public final class TrinityAcyclicCompetitionPlanner {
         amounts.merge(key, amount, BigInteger::add);
     }
 
-    private static int routePassUpperBound(int variantCount) {
-        return Math.addExact(variantCount, 1);
+    private static Set<TrinityPatternIdentity> localHint(
+                                                         Set<TrinityPatternIdentity> routeHint,
+                                                         Set<TrinityPatternIdentity> regionPatterns) {
+        ObjectOpenHashSet<TrinityPatternIdentity> selected = new ObjectOpenHashSet<>(routeHint);
+        selected.retainAll(regionPatterns);
+        return selected;
+    }
+
+    private static int routePassUpperBound(int variantCount, boolean hasHint) {
+        return Math.addExact(Math.addExact(variantCount, 1), hasHint ? 1 : 0);
     }
 
     private static TrinityAlgorithmResult<TrinityAcyclicPlan> cancelled() {

@@ -55,32 +55,6 @@ public record TrinityCycleDemand(
     }
 
     /**
-     * Validates and freezes a component-wide demand so solver passes cannot observe caller mutation.
-     */
-    public TrinityCycleDemand {
-        settledWithdrawals = boundsView(
-                settledWithdrawals,
-                false,
-                "settled withdrawal");
-        terminalBalanceLowerBounds = boundsView(
-                terminalBalanceLowerBounds,
-                false,
-                "terminal balance");
-        requiredNetChangeLowerBounds = boundsView(
-                requiredNetChangeLowerBounds,
-                true,
-                "required net change");
-        finalBalanceLowerBounds = boundsView(
-                finalBalanceLowerBounds,
-                false,
-                "effective final balance");
-        if (netNewKeys == null) {
-            throw new IllegalArgumentException("Trinity net-new keys cannot be null");
-        }
-        netNewKeys = Collections.unmodifiableSet(netNewKeys);
-    }
-
-    /**
      * Compatibility constructor for callers whose lower bounds are already terminal balances.
      */
     public TrinityCycleDemand(
@@ -101,9 +75,6 @@ public record TrinityCycleDemand(
      * Adds internal restart reserves without changing delivery or net-new semantics.
      */
     public TrinityCycleDemand withRetainedSeed(Map<AEKey, BigInteger> retainedSeed) {
-        if (retainedSeed == null) {
-            throw new IllegalArgumentException("A Trinity retained seed map cannot be null");
-        }
         LinkedHashMap<AEKey, BigInteger> terminal = new LinkedHashMap<>(terminalBalanceLowerBounds);
         retainedSeed.forEach((key, amount) -> terminal.merge(key, amount, BigInteger::max));
         return new TrinityCycleDemand(
@@ -127,14 +98,7 @@ public record TrinityCycleDemand(
                                                BigInteger requestedAmount,
                                                CraftingQuantityMode quantityMode,
                                                Map<AEKey, BigInteger> available) {
-        if (target == null || requestedAmount == null || requestedAmount.signum() <= 0 ||
-                quantityMode == null || available == null) {
-            throw new IllegalArgumentException("A Trinity cycle target demand is incomplete");
-        }
         BigInteger availableTarget = available.getOrDefault(target, BigInteger.ZERO);
-        if (availableTarget == null || availableTarget.signum() < 0) {
-            throw new IllegalArgumentException("Trinity target inventory cannot be negative or null");
-        }
         if (quantityMode == CraftingQuantityMode.NET_NEW) {
             return new TrinityCycleDemand(
                     Map.of(),
@@ -150,15 +114,5 @@ public record TrinityCycleDemand(
                 Map.of(),
                 Map.of(target, requestedAmount),
                 Map.of(target, requiredNet));
-    }
-
-    private static Map<AEKey, BigInteger> boundsView(
-                                                     Map<AEKey, BigInteger> source,
-                                                     boolean required,
-                                                     String description) {
-        if (source == null || required && source.isEmpty()) {
-            throw new IllegalArgumentException("Trinity " + description + " bounds are incomplete");
-        }
-        return Collections.unmodifiableMap(source);
     }
 }

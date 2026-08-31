@@ -4,7 +4,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.proof.TrinityAcyclicRouteHint;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphPattern;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
@@ -12,12 +15,31 @@ import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfig
 import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Exposes the structural and dynamic stages used by the server-lifetime planning cache.
  */
 public interface TrinityGraphPlanningPipeline extends TrinityGraphPlanner {
+
+    /**
+     * Expands one complete pattern semantic independently of target, amount, inventory, and planning budget.
+     */
+    TrinityAlgorithmResult<List<TrinityPatternVariant>> expandPattern(
+                                                                      TrinityCraftingGraphPattern pattern,
+                                                                      int maxBindingVariants,
+                                                                      TrinityPlanningControl control);
+
+    /**
+     * Compacts already expanded variants and analyzes one target closure without repeating binding enumeration.
+     */
+    TrinityAlgorithmResult<TrinityCompiledGraph> compileExpanded(
+                                                                 TrinityCraftingGraphSnapshot reachableSnapshot,
+                                                                 AEKey target,
+                                                                 List<TrinityPatternVariant> expandedVariants,
+                                                                 int maxSccKeys,
+                                                                 TrinityPlanningControl control);
 
     /**
      * Expands bindings and analyzes topology for one already target-reachable graph.
@@ -49,8 +71,31 @@ public interface TrinityGraphPlanningPipeline extends TrinityGraphPlanner {
      * @param control         lifecycle cancellation boundary
      * @return current-revision immutable plan or deterministic dynamic rejection
      */
+    default TrinityAlgorithmResult<TrinityCraftingPlan> solve(
+                                                              TrinityCompiledGraph compiled,
+                                                              long catalogRevision,
+                                                              BigInteger requestedAmount,
+                                                              CraftingQuantityMode quantityMode,
+                                                              Map<AEKey, BigInteger> available,
+                                                              TrinityPlanningLimits limits,
+                                                              TrinityPlanningMode mode,
+                                                              TrinityPlanningControl control) {
+        return solve(
+                compiled,
+                Map.of(),
+                catalogRevision,
+                requestedAmount,
+                quantityMode,
+                available,
+                limits,
+                mode,
+                control);
+    }
+
+    /** Solves with request-local quantity-free route hints layered over the compiled structure. */
     TrinityAlgorithmResult<TrinityCraftingPlan> solve(
                                                       TrinityCompiledGraph compiled,
+                                                      Map<AEKey, TrinityAcyclicRouteHint> routeHints,
                                                       long catalogRevision,
                                                       BigInteger requestedAmount,
                                                       CraftingQuantityMode quantityMode,

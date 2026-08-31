@@ -8,6 +8,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.proof.TrinityCycleUnitProof;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.selection.TrinityCyclePlanSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.selection.TrinityCycleSelection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
@@ -22,6 +24,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.T
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
@@ -91,7 +96,34 @@ public final class TrinityGraphDemandAggregator {
                 available,
                 limits,
                 mode,
-                control).solve();
+                control,
+                Map.of(),
+                Int2ObjectMaps.emptyMap()).solve();
+    }
+
+    /** Resolves demand with quantity-independent cycle and coefficient proofs attached to the compiled structure. */
+    public TrinityAlgorithmResult<TrinityGraphDemandSolution> aggregate(
+                                                                        TrinityCraftingTopology topology,
+                                                                        AEKey target,
+                                                                        BigInteger requestedAmount,
+                                                                        CraftingQuantityMode quantityMode,
+                                                                        Map<AEKey, BigInteger> available,
+                                                                        TrinityPlanningLimits limits,
+                                                                        TrinityPlanningMode mode,
+                                                                        TrinityPlanningControl control,
+                                                                        Map<AEKey, TrinityCycleUnitProof> cycleUnitProofs,
+                                                                        Int2ObjectMap<TrinityMipCoefficientTemplate> cycleMipTemplates) {
+        return new PlanningAccumulator(
+                topology,
+                target,
+                requestedAmount,
+                quantityMode,
+                available,
+                limits,
+                mode,
+                control,
+                cycleUnitProofs,
+                cycleMipTemplates).solve();
     }
 
     /**
@@ -129,6 +161,8 @@ public final class TrinityGraphDemandAggregator {
         private final TrinityPlanningLimits limits;
         private final TrinityPlanningMode mode;
         private final TrinityPlanningControl control;
+        private final Map<AEKey, TrinityCycleUnitProof> cycleUnitProofs;
+        private final Int2ObjectMap<TrinityMipCoefficientTemplate> cycleMipTemplates;
         private final Map<Integer, Integer> topologicalPositions;
         private final RouteSearchBudget routeSearchBudget;
         private final LinkedHashMap<AEKey, BigInteger> demand = new LinkedHashMap<>();
@@ -158,7 +192,9 @@ public final class TrinityGraphDemandAggregator {
                                     Map<AEKey, BigInteger> available,
                                     TrinityPlanningLimits limits,
                                     TrinityPlanningMode mode,
-                                    TrinityPlanningControl control) {
+                                    TrinityPlanningControl control,
+                                    Map<AEKey, TrinityCycleUnitProof> cycleUnitProofs,
+                                    Int2ObjectMap<TrinityMipCoefficientTemplate> cycleMipTemplates) {
             this.topology = topology;
             this.target = target;
             this.requestedAmount = requestedAmount;
@@ -167,6 +203,8 @@ public final class TrinityGraphDemandAggregator {
             this.limits = limits;
             this.mode = mode;
             this.control = control;
+            this.cycleUnitProofs = cycleUnitProofs;
+            this.cycleMipTemplates = cycleMipTemplates;
             this.topologicalPositions = topologicalPositions(topology);
             this.routeSearchBudget = new RouteSearchBudget(limits.maxScheduleStates(), control);
             this.demand.put(target, requestedAmount);
@@ -413,14 +451,7 @@ public final class TrinityGraphDemandAggregator {
                 return TrinityAlgorithmResult.success(Optional.empty());
             }
             CyclePreparation request = prepared.orElseThrow();
-            TrinityAlgorithmResult<TrinityCycleSelection> solved = TrinityGraphDemandAggregator.this.cyclePlanSelector.select(
-                    component,
-                    request.demand(),
-                    this.inventory,
-                    request.producibleInputs(),
-                    this.limits.maxScheduleStates(),
-                    this.mode,
-                    this.control);
+            TrinityAlgorithmResult<TrinityCycleSelection> solved = selectCycle(component, request);
             if (!solved.successful()) {
                 return failedNested(solved.diagnostic());
             }
@@ -442,17 +473,27 @@ public final class TrinityGraphDemandAggregator {
 
         private Optional<CyclePreparation> prepareCycleRequest(TrinityStronglyConnectedComponent component) {
             LinkedHashMap<AEKey, BigInteger> internalRequirements = new LinkedHashMap<>();
-            boolean requiresCycle = !this.cycleOutputDemands
-                    .getOrDefault(component.index(), new LinkedHashMap<>())
-                    .isEmpty();
+            Map<AEKey, BigInteger> recordedCycleOutputs = this.cycleOutputDemands.get(component.index());
+            Map<AEKey, BigInteger> requestedCycleOutputs = recordedCycleOutputs == null ?
+                    Map.of() : recordedCycleOutputs;
+            boolean requiresCycle = !requestedCycleOutputs.isEmpty();
             for (AEKey key : component.keys()) {
                 BigInteger required = positiveDemand(key);
                 if (required.signum() <= 0) {
                     continue;
                 }
                 internalRequirements.put(key, required);
-                if (key.equals(this.target) ||
-                        this.inventory.getOrDefault(key, BigInteger.ZERO).compareTo(required) < 0) {
+            }
+            ObjectOpenHashSet<AEKey> demandedCycleKeys = new ObjectOpenHashSet<>(internalRequirements.keySet());
+            demandedCycleKeys.addAll(requestedCycleOutputs.keySet());
+            TrinityCycleUnitProof unitProof = selectUnitProof(component, demandedCycleKeys);
+            Map<AEKey, BigInteger> retainedSeed = unitProof == null ? Map.of() : unitProof.internalSeed();
+            for (Map.Entry<AEKey, BigInteger> requirement : internalRequirements.entrySet()) {
+                AEKey key = requirement.getKey();
+                BigInteger safeSurplus = this.inventory.getOrDefault(key, BigInteger.ZERO)
+                        .subtract(retainedSeed.getOrDefault(key, BigInteger.ZERO))
+                        .max(BigInteger.ZERO);
+                if (key.equals(this.target) || safeSurplus.compareTo(requirement.getValue()) < 0) {
                     requiresCycle = true;
                 }
             }
@@ -489,8 +530,6 @@ public final class TrinityGraphDemandAggregator {
                     requiredNetChanges.put(key, shortage);
                 }
             }
-            Map<AEKey, BigInteger> requestedCycleOutputs = this.cycleOutputDemands
-                    .getOrDefault(component.index(), new LinkedHashMap<>());
             requestedCycleOutputs.forEach((key, amount) -> {
                 merge(settledWithdrawals, key, amount);
                 merge(requiredNetChanges, key, amount);
@@ -501,11 +540,55 @@ public final class TrinityGraphDemandAggregator {
                     requiredNetChanges,
                     this.quantityMode == CraftingQuantityMode.NET_NEW && component.keys().contains(this.target) ?
                             Set.of(this.target) : Set.of());
+            if (!retainedSeed.isEmpty()) {
+                cycleDemand = cycleDemand.withRetainedSeed(retainedSeed);
+            }
             Set<AEKey> producibleInputs = producibleInputs(component);
             return Optional.of(new CyclePreparation(
                     internalRequirements,
                     cycleDemand,
-                    producibleInputs));
+                    producibleInputs,
+                    unitProof));
+        }
+
+        private @Nullable TrinityCycleUnitProof selectUnitProof(
+                                                                TrinityStronglyConnectedComponent component,
+                                                                Set<AEKey> demandedKeys) {
+            for (AEKey key : component.keys()) {
+                if (demandedKeys.contains(key)) {
+                    TrinityCycleUnitProof proof = this.cycleUnitProofs.get(key);
+                    if (proof != null) {
+                        return proof.instantiate(this.inventory, component.keys());
+                    }
+                }
+            }
+            return null;
+        }
+
+        private TrinityAlgorithmResult<TrinityCycleSelection> selectCycle(
+                                                                          TrinityStronglyConnectedComponent component,
+                                                                          CyclePreparation request) {
+            TrinityMipCoefficientTemplate template = this.cycleMipTemplates.get(component.index());
+            if (template == null) {
+                return TrinityGraphDemandAggregator.this.cyclePlanSelector.select(
+                        component,
+                        request.demand(),
+                        this.inventory,
+                        request.producibleInputs(),
+                        this.limits.maxScheduleStates(),
+                        this.mode,
+                        this.control);
+            }
+            return TrinityGraphDemandAggregator.this.cyclePlanSelector.select(
+                    component,
+                    request.demand(),
+                    this.inventory,
+                    request.producibleInputs(),
+                    this.limits.maxScheduleStates(),
+                    this.mode,
+                    this.control,
+                    request.unitProof(),
+                    template);
         }
 
         private SearchAction advanceDiagnosticCycle(
@@ -522,14 +605,7 @@ public final class TrinityGraphDemandAggregator {
             }
             TrinityPlanningDiagnostic cycleFailure = null;
             if (evidence == null) {
-                TrinityAlgorithmResult<TrinityCycleSelection> selected = TrinityGraphDemandAggregator.this.cyclePlanSelector.select(
-                        component,
-                        request.demand(),
-                        this.inventory,
-                        request.producibleInputs(),
-                        this.limits.maxScheduleStates(),
-                        this.mode,
-                        this.control);
+                TrinityAlgorithmResult<TrinityCycleSelection> selected = selectCycle(component, request);
                 if (selected.successful()) {
                     evidence = TrinityCycleDiagnosticEvidence.fromSelection(selected.value(), request.demand());
                 } else {
@@ -1252,7 +1328,8 @@ public final class TrinityGraphDemandAggregator {
     private record CyclePreparation(
                                     Map<AEKey, BigInteger> internalRequirements,
                                     TrinityCycleDemand demand,
-                                    Set<AEKey> producibleInputs) {}
+                                    Set<AEKey> producibleInputs,
+                                    @Nullable TrinityCycleUnitProof unitProof) {}
 
     private enum StepSuccess {
         INSTANCE

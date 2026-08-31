@@ -16,6 +16,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilityRequest;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilitySession;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilitySolution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityLexicographicObjective;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticEvidence;
@@ -26,6 +27,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
@@ -117,16 +119,40 @@ public final class TrinityJointCycleSearch {
                 available == null || producibleInputs == null || maxSearchStates <= 0 || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity joint search request is incomplete");
         }
-        return new SearchSession(
-                component.index(),
-                component.cycleVariants().stream().sorted().toList(),
-                Collections.unmodifiableSet(new LinkedHashSet<>(component.keys())),
+        return search(
+                component,
                 demand,
-                copyAvailable(available),
-                copyKeys(producibleInputs),
+                available,
+                producibleInputs,
                 maxSearchStates,
                 mode,
-                control).search();
+                control,
+                TrinityMipCoefficientTemplate.create(
+                        component.cycleVariants(),
+                        new ObjectArrayList<>(component.keys())));
+    }
+
+    /** Searches with a semantic coefficient template supplied by the compiled component cache. */
+    public TrinityAlgorithmResult<TrinityJointCyclePlan> search(
+                                                                TrinityStronglyConnectedComponent component,
+                                                                TrinityCycleDemand demand,
+                                                                Map<AEKey, BigInteger> available,
+                                                                Set<AEKey> producibleInputs,
+                                                                int maxSearchStates,
+                                                                TrinityPlanningMode mode,
+                                                                TrinityPlanningControl control,
+                                                                TrinityMipCoefficientTemplate coefficientTemplate) {
+        return new SearchSession(
+                component.index(),
+                coefficientTemplate.variants(),
+                coefficientTemplate.internalKeys(),
+                demand,
+                available,
+                producibleInputs,
+                maxSearchStates,
+                mode,
+                control,
+                coefficientTemplate).search();
     }
 
     /**
@@ -160,6 +186,7 @@ public final class TrinityJointCycleSearch {
         private final SearchBudget budget;
         private final TrinityPlanningMode mode;
         private final TrinityPlanningControl control;
+        private final TrinityMipCoefficientTemplate coefficientTemplate;
         private final TrinityCycleFeasibilitySession feasibilitySession;
         private final SolverMetrics metrics = new SolverMetrics();
         private final Set<FeasibilityKey> infeasibleBoxes = new LinkedHashSet<>();
@@ -176,7 +203,8 @@ public final class TrinityJointCycleSearch {
                               Set<AEKey> producibleInputs,
                               int maxSearchStates,
                               TrinityPlanningMode mode,
-                              TrinityPlanningControl control) {
+                              TrinityPlanningControl control,
+                              TrinityMipCoefficientTemplate coefficientTemplate) {
             if (componentIndex < 0) {
                 throw new IllegalArgumentException("A Trinity joint search component index cannot be negative");
             }
@@ -189,6 +217,7 @@ public final class TrinityJointCycleSearch {
             this.budget = new SearchBudget(maxSearchStates, control);
             this.mode = mode;
             this.control = control;
+            this.coefficientTemplate = coefficientTemplate;
             this.feasibilitySession = feasibilityModel.openSession(request(TrinityFiringBox.full(this.variants)));
         }
 
@@ -410,7 +439,10 @@ public final class TrinityJointCycleSearch {
                     box.asMap(),
                     fixedExternalLevel,
                     BigInteger.ZERO,
-                    box.totalLowerBound());
+                    box.totalLowerBound(),
+                    false,
+                    0,
+                    this.coefficientTemplate);
         }
 
         private SearchNode node(
@@ -762,30 +794,6 @@ public final class TrinityJointCycleSearch {
                 metrics.passes,
                 metrics.nanos,
                 quality);
-    }
-
-    private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
-        source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() < 0) {
-                throw new IllegalArgumentException("Trinity joint cycle inventory cannot be negative or null");
-            }
-            if (amount.signum() > 0) {
-                copied.put(key, amount);
-            }
-        });
-        return Collections.unmodifiableMap(copied);
-    }
-
-    private static Set<AEKey> copyKeys(Set<AEKey> source) {
-        LinkedHashSet<AEKey> copied = new LinkedHashSet<>();
-        for (AEKey key : source) {
-            if (key == null) {
-                throw new IllegalArgumentException("A Trinity producible input key cannot be null");
-            }
-            copied.add(key);
-        }
-        return Collections.unmodifiableSet(copied);
     }
 
     private static <T> TrinityAlgorithmResult<T> failure(

@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.bounds.TrinityCycleObjectiveBounds;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate.Coefficient;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityExactConservationVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
@@ -14,6 +15,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.ojalgo.optimisation.Expression;
 import org.ojalgo.optimisation.ExpressionsBasedModel;
 import org.ojalgo.optimisation.Optimisation;
@@ -769,20 +772,15 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                                         Map<TrinityPatternVariant, Variable> firingVariables,
                                         Map<AEKey, Variable> seedVariables,
                                         Map<AEKey, Variable> externalVariables) {
-        LinkedHashSet<AEKey> touchedKeys = new LinkedHashSet<>();
-        request.variants().forEach(variant -> {
-            touchedKeys.addAll(variant.inputs().keySet());
-            touchedKeys.addAll(variant.outputs().keySet());
-        });
-        touchedKeys.addAll(request.demand().finalBalanceLowerBounds().keySet());
-        touchedKeys.addAll(request.demand().requiredNetChangeLowerBounds().keySet());
+        ObjectArrayList<AEKey> touchedKeys = new ObjectArrayList<>(request.coefficientTemplate().touchedKeys());
+        ObjectOpenHashSet<AEKey> seenKeys = new ObjectOpenHashSet<>(touchedKeys);
+        request.demand().finalBalanceLowerBounds().keySet().forEach(key -> addStableKey(key, seenKeys, touchedKeys));
+        request.demand().requiredNetChangeLowerBounds().keySet().forEach(
+                key -> addStableKey(key, seenKeys, touchedKeys));
         int conservationIndex = 0;
         for (AEKey key : touchedKeys) {
             Expression conservation = model.addExpression("conservation_" + conservationIndex++);
-            firingVariables.forEach((variant, variable) -> setIfNonZero(
-                    conservation,
-                    variable,
-                    variant.netChange().getOrDefault(key, BigInteger.ZERO)));
+            setNetCoefficients(conservation, request, firingVariables, key);
             Variable reserve = request.internalKeys().contains(key) ?
                     seedVariables.get(key) : externalVariables.get(key);
             if (reserve != null) {
@@ -793,10 +791,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         int netIndex = 0;
         for (Map.Entry<AEKey, BigInteger> bound : request.demand().requiredNetChangeLowerBounds().entrySet()) {
             Expression net = model.addExpression("required_net_" + netIndex++);
-            firingVariables.forEach((variant, variable) -> setIfNonZero(
-                    net,
-                    variable,
-                    variant.netChange().getOrDefault(bound.getKey(), BigInteger.ZERO)));
+            setNetCoefficients(net, request, firingVariables, bound.getKey());
             net.lower(bound.getValue());
         }
         int settlementIndex = 0;
@@ -804,10 +799,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                 .anyMatch(request.demand().requiredNetChangeLowerBounds()::containsKey);
         for (AEKey key : request.internalKeys()) {
             Expression settlement = model.addExpression("settled_internal_" + settlementIndex++);
-            firingVariables.forEach((variant, variable) -> setIfNonZero(
-                    settlement,
-                    variable,
-                    variant.netChange().getOrDefault(key, BigInteger.ZERO)));
+            setNetCoefficients(settlement, request, firingVariables, key);
             BigInteger requestedOutput = request.demand().requiredNetChangeLowerBounds().get(key);
             if (requestedOutput != null) {
                 settlement.lower(requestedOutput);
@@ -816,6 +808,24 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             } else {
                 settlement.lower(BigInteger.ZERO);
             }
+        }
+    }
+
+    private static void setNetCoefficients(
+                                           Expression expression,
+                                           TrinityCycleFeasibilityRequest request,
+                                           Map<TrinityPatternVariant, Variable> firingVariables,
+                                           AEKey key) {
+        for (Coefficient coefficient : request.coefficientTemplate().coefficients(key)) {
+            expression.set(
+                    firingVariables.get(request.variants().get(coefficient.variantIndex())),
+                    coefficient.value());
+        }
+    }
+
+    private static void addStableKey(AEKey key, Set<AEKey> seen, List<AEKey> destination) {
+        if (seen.add(key)) {
+            destination.add(key);
         }
     }
 

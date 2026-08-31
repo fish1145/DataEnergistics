@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.T
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGateway;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanningStatistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
@@ -232,14 +233,29 @@ public final class TrinityRemainingPlanCalculation {
                     available,
                     limits));
             if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
+                var cache = computation.cacheStatistics();
+                TrinityPlanningStatistics statistics = computation.result().successful() ?
+                        computation.result().value().statistics() : TrinityPlanningStatistics.empty();
                 Data_Energistics.LOGGER.info(
-                        "Trinity remaining planning completed target={} mode={} revision={} cachePath={} outcome={}",
+                        "Trinity remaining planning completed target={} mode={} revision={} cachePath={} outcome={} seedRetentionKinds={} seedRetentionRequired={} seedRetentionFinal={} seedRefinementPasses={} patternExpansionHits={} patternExpansionMisses={} targetStructureHit={} dagRouteProofHits={} dagRouteHintHits={} cycleUnitProofHits={} mipTemplateHits={} requestInFlightShared={}",
                         target,
                         quantityMode,
                         graph.revision(),
                         computation.cachePath(),
                         computation.result().successful() ?
-                                "SELECTED" : computation.result().diagnostic().code());
+                                "SELECTED" : computation.result().diagnostic().code(),
+                        statistics.seedRetentionKinds(),
+                        statistics.seedRetentionRequired(),
+                        statistics.seedRetentionFinal(),
+                        statistics.seedRefinementPasses(),
+                        cache.patternExpansionHits(),
+                        cache.patternExpansionMisses(),
+                        cache.targetStructureHit(),
+                        cache.dagRouteProofHits(),
+                        cache.dagRouteHintHits(),
+                        cache.cycleUnitProofHits(),
+                        cache.mipTemplateHits(),
+                        cache.requestInFlightShared());
             }
             return computation.result().successful() ?
                     TrinityPlanningAttempt.success(computation.result().value()) :

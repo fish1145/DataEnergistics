@@ -202,6 +202,63 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
     }
 
     @Override
+    public <K, V> Optional<V> getIfPresent(
+                                           long gridScope,
+                                           TrinityComputationNamespace namespace,
+                                           long revision,
+                                           K key) {
+        validateKey(gridScope, namespace, revision, key);
+        synchronized (this.cacheLock) {
+            requireOpen();
+            GridPartition partition = this.partitions.get(gridScope);
+            if (partition == null) {
+                return Optional.empty();
+            }
+            CacheEntry<?> existing = partition.entries.get(new ScopedKey(namespace, revision, key));
+            if (existing == null || existing.state.get() != CacheEntryState.PUBLISHED ||
+                    existing.result.isCancelled() || existing.result.isCompletedExceptionally()) {
+                return Optional.empty();
+            }
+            CacheEntry<V> entry = castEntry(existing);
+            return Optional.of(entry.result.getNow(null));
+        }
+    }
+
+    @Override
+    public <K, V> boolean publishIfAbsent(
+                                          long gridScope,
+                                          TrinityComputationNamespace namespace,
+                                          long revision,
+                                          K key,
+                                          V value) {
+        validateKey(gridScope, namespace, revision, key);
+        List<CacheEntry<?>> cancelled = new ArrayList<>();
+        boolean published = false;
+        synchronized (this.cacheLock) {
+            requireOpen();
+            GridPartition partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
+            ScopedKey scopedKey = new ScopedKey(namespace, revision, key);
+            boolean staleRevision = advanceRevision(partition, namespace, revision, cancelled);
+            if (!staleRevision && !partition.entries.containsKey(scopedKey) &&
+                    !partition.bypassEntries.containsKey(scopedKey) && reserveRegisteredSlot(partition)) {
+                CacheEntry<V> entry = new CacheEntry<>(
+                        partition,
+                        scopedKey,
+                        () -> TrinityCachedComputation.cacheable(value),
+                        true,
+                        true,
+                        false);
+                entry.state.set(CacheEntryState.PUBLISHED);
+                entry.result.complete(value);
+                partition.entries.put(scopedKey, entry);
+                published = true;
+            }
+        }
+        cancelled.forEach(CacheEntry::cancelObsolete);
+        return published;
+    }
+
+    @Override
     public <V> Future<V> submit(long gridScope, Callable<V> calculation) {
         return submit(this.executor, gridScope, calculation);
     }
@@ -303,6 +360,22 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
                                                Callable<TrinityCachedComputation<V>> calculation) {
         if (gridScope < 0L || namespace == null || key == null || calculation == null) {
             throw new IllegalArgumentException("A Trinity computation cache request is incomplete");
+        }
+        if (namespace.revisionBound() && revision < 0L) {
+            throw new IllegalArgumentException("A revision-bound Trinity computation requires a publication revision");
+        }
+        if (!namespace.revisionBound() && revision != SEMANTIC_REVISION) {
+            throw new IllegalArgumentException("A semantic Trinity computation must use the semantic revision marker");
+        }
+    }
+
+    private static <K> void validateKey(
+                                        long gridScope,
+                                        TrinityComputationNamespace namespace,
+                                        long revision,
+                                        K key) {
+        if (gridScope < 0L || namespace == null || key == null) {
+            throw new IllegalArgumentException("A Trinity computation cache key is incomplete");
         }
         if (namespace.revisionBound() && revision < 0L) {
             throw new IllegalArgumentException("A revision-bound Trinity computation requires a publication revision");

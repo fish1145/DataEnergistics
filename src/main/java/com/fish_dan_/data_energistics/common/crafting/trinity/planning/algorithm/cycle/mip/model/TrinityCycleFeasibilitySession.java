@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import appeng.api.stacks.AEKey;
@@ -92,7 +93,8 @@ public final class TrinityCycleFeasibilitySession {
                                     TrinityCycleDemand demand,
                                     Map<AEKey, BigInteger> available,
                                     Set<AEKey> producibleInputs,
-                                    boolean shortageDiagnostic) {
+                                    boolean shortageDiagnostic,
+                                    TrinityMipCoefficientTemplate coefficientTemplate) {
 
         private static RequestStructure from(TrinityCycleFeasibilityRequest request) {
             return new RequestStructure(
@@ -101,7 +103,8 @@ public final class TrinityCycleFeasibilitySession {
                     request.demand(),
                     request.available(),
                     request.producibleInputs(),
-                    request.shortageDiagnostic());
+                    request.shortageDiagnostic(),
+                    request.coefficientTemplate());
         }
     }
 }

@@ -6,8 +6,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,11 +23,4 @@ public record TrinityDeterministicBasis(
                                         List<TrinityVariantFiring> primitiveOrder,
                                         Map<TrinityPatternVariant, BigInteger> primitiveFirings,
                                         Map<AEKey, BigInteger> primitiveNet,
-                                        TrinityDeterministicResidualTopology residualTopology) {
-
-    public TrinityDeterministicBasis {
-        primitiveOrder = List.copyOf(primitiveOrder);
-        primitiveFirings = Collections.unmodifiableMap(new LinkedHashMap<>(primitiveFirings));
-        primitiveNet = Collections.unmodifiableMap(new LinkedHashMap<>(primitiveNet));
-    }
-}
+                                        TrinityDeterministicResidualTopology residualTopology) {}

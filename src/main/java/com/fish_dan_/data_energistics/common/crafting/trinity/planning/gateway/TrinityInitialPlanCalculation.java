@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.PlanningCachePath;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningCacheStatistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
@@ -90,7 +91,7 @@ public final class TrinityInitialPlanCalculation {
                     request,
                     result.diagnostic(),
                     computation.planningNanos());
-            logFailure(request, failedAttempt.diagnostic(), computation.cachePath());
+            logFailure(request, failedAttempt.diagnostic(), computation.cachePath(), computation.cacheStatistics());
             return failedAttempt;
         }
 
@@ -105,14 +106,15 @@ public final class TrinityInitialPlanCalculation {
                     Map.of(
                             "planBytes", Long.toString(plan.bytes()),
                             "maxTrinityBytes", Long.toString(request.maxTrinityBytes())));
-            logFailure(request, diagnostic, computation.cachePath());
+            logFailure(request, diagnostic, computation.cachePath(), computation.cacheStatistics());
             return TrinityPlanningAttempt.failure(diagnostic);
         }
 
         if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
             TrinityPlanningStatistics statistics = plan.statistics();
+            TrinityPlanningCacheStatistics cache = computation.cacheStatistics();
             Data_Energistics.LOGGER.info(
-                    "Trinity planning selected request={} target={} mode={} revision={} cachePath={} quality={} scc={} variants={} planningNanos={} firstFeasibleNanos={} mipNanos={} scheduleStates={} solverPasses={} solverModels={} jointStates={} routeStates={}",
+                    "Trinity planning selected request={} target={} mode={} revision={} cachePath={} quality={} scc={} variants={} planningNanos={} firstFeasibleNanos={} mipNanos={} scheduleStates={} solverPasses={} solverModels={} jointStates={} routeStates={} seedRetentionKinds={} seedRetentionRequired={} seedRetentionFinal={} seedRefinementPasses={} patternExpansionHits={} patternExpansionMisses={} targetStructureHit={} dagRouteProofHits={} dagRouteHintHits={} cycleUnitProofHits={} mipTemplateHits={} requestInFlightShared={}",
                     request.requestId(),
                     request.target(),
                     request.quantityMode(),
@@ -128,7 +130,19 @@ public final class TrinityInitialPlanCalculation {
                     statistics.solverPasses(),
                     statistics.solverModels(),
                     statistics.jointStates(),
-                    statistics.routeStates());
+                    statistics.routeStates(),
+                    statistics.seedRetentionKinds(),
+                    statistics.seedRetentionRequired(),
+                    statistics.seedRetentionFinal(),
+                    statistics.seedRefinementPasses(),
+                    cache.patternExpansionHits(),
+                    cache.patternExpansionMisses(),
+                    cache.targetStructureHit(),
+                    cache.dagRouteProofHits(),
+                    cache.dagRouteHintHits(),
+                    cache.cycleUnitProofHits(),
+                    cache.mipTemplateHits(),
+                    cache.requestInFlightShared());
         }
         return TrinityPlanningAttempt.success(plan);
     }
@@ -156,19 +170,28 @@ public final class TrinityInitialPlanCalculation {
     private static void logFailure(
                                    TrinityInitialPlanningRequest request,
                                    TrinityPlanningDiagnostic diagnostic,
-                                   PlanningCachePath cachePath) {
+                                   PlanningCachePath cachePath,
+                                   TrinityPlanningCacheStatistics cache) {
         if (!DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
             return;
         }
         Data_Energistics.LOGGER.info(
-                "Trinity planning stopped request={} target={} mode={} revision={} cachePath={} reason={} metadata={}",
+                "Trinity planning stopped request={} target={} mode={} revision={} cachePath={} reason={} metadata={} patternExpansionHits={} patternExpansionMisses={} targetStructureHit={} dagRouteProofHits={} dagRouteHintHits={} cycleUnitProofHits={} mipTemplateHits={} requestInFlightShared={}",
                 request.requestId(),
                 request.target(),
                 request.quantityMode(),
                 request.graph().revision(),
                 cachePath,
                 diagnostic.code(),
-                diagnostic.metadata());
+                diagnostic.metadata(),
+                cache.patternExpansionHits(),
+                cache.patternExpansionMisses(),
+                cache.targetStructureHit(),
+                cache.dagRouteProofHits(),
+                cache.dagRouteHintHits(),
+                cache.cycleUnitProofHits(),
+                cache.mipTemplateHits(),
+                cache.requestInFlightShared());
     }
 
     private static TrinityPlanningInput input(TrinityInitialPlanningRequest request) {

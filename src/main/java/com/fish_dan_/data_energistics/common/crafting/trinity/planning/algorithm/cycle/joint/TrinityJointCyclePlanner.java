@@ -7,9 +7,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.search.TrinityJointCycleSearch;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.math.BigInteger;
 import java.util.Map;
@@ -130,6 +132,29 @@ public final class TrinityJointCyclePlanner {
                                                               int maxSearchStates,
                                                               TrinityPlanningMode mode,
                                                               TrinityPlanningControl control) {
+        return plan(
+                component,
+                demand,
+                available,
+                producibleInputs,
+                maxSearchStates,
+                mode,
+                control,
+                TrinityMipCoefficientTemplate.create(
+                        component.cycleVariants(),
+                        new ObjectArrayList<>(component.keys())));
+    }
+
+    /** Uses a cached sparse coefficient layout while keeping the model and request bounds private. */
+    public TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
+                                                              TrinityStronglyConnectedComponent component,
+                                                              TrinityCycleDemand demand,
+                                                              Map<AEKey, BigInteger> available,
+                                                              Set<AEKey> producibleInputs,
+                                                              int maxSearchStates,
+                                                              TrinityPlanningMode mode,
+                                                              TrinityPlanningControl control,
+                                                              TrinityMipCoefficientTemplate coefficientTemplate) {
         return this.search.search(
                 component,
                 demand,
@@ -137,7 +162,8 @@ public final class TrinityJointCyclePlanner {
                 producibleInputs,
                 maxSearchStates,
                 mode,
-                control);
+                control,
+                coefficientTemplate);
     }
 
     /**

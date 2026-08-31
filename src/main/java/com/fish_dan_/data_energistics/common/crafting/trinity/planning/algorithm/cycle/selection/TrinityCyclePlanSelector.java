@@ -15,6 +15,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.TrinityJointCyclePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.TrinityJointCyclePlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.macro.TrinityCycleMacro;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.proof.TrinityCycleUnitProof;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.seed.TrinityCycleSeedRequirement;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
@@ -26,6 +28,7 @@ import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
 import java.util.Collections;
@@ -93,16 +96,42 @@ public final class TrinityCyclePlanSelector {
                 producibleInputs == null || maxStates <= 0 || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity cycle selection request is incomplete");
         }
-        Map<AEKey, BigInteger> inventory = Collections.unmodifiableMap(available);
-        Set<AEKey> producible = Collections.unmodifiableSet(producibleInputs);
+        TrinityMipCoefficientTemplate coefficientTemplate = TrinityMipCoefficientTemplate.create(
+                component.cycleVariants(),
+                component.keys());
         return selectRetainingSeed(
                 component,
                 demand,
-                inventory,
-                producible,
+                available,
+                producibleInputs,
                 maxStates,
                 mode,
-                control);
+                control,
+                null,
+                coefficientTemplate);
+    }
+
+    /** Selects with cached unit and sparse coefficient proofs from the compiled target structure. */
+    public TrinityAlgorithmResult<TrinityCycleSelection> select(
+                                                                TrinityStronglyConnectedComponent component,
+                                                                TrinityCycleDemand demand,
+                                                                Map<AEKey, BigInteger> available,
+                                                                Set<AEKey> producibleInputs,
+                                                                int maxStates,
+                                                                TrinityPlanningMode mode,
+                                                                TrinityPlanningControl control,
+                                                                @Nullable TrinityCycleUnitProof unitProof,
+                                                                TrinityMipCoefficientTemplate coefficientTemplate) {
+        return selectRetainingSeed(
+                component,
+                demand,
+                available,
+                producibleInputs,
+                maxStates,
+                mode,
+                control,
+                unitProof,
+                coefficientTemplate);
     }
 
     private TrinityAlgorithmResult<TrinityCycleSelection> selectRetainingSeed(
@@ -112,12 +141,15 @@ public final class TrinityCyclePlanSelector {
                                                                               Set<AEKey> producibleInputs,
                                                                               int maxStates,
                                                                               TrinityPlanningMode mode,
-                                                                              TrinityPlanningControl control) {
+                                                                              TrinityPlanningControl control,
+                                                                              @Nullable TrinityCycleUnitProof unitProof,
+                                                                              TrinityMipCoefficientTemplate coefficientTemplate) {
         TrinityCycleDemand refinedDemand = demand;
         LinkedHashMap<AEKey, BigInteger> retainedSeed = new LinkedHashMap<>();
         int remainingStates = maxStates;
         int accumulatedStates = 0;
         long accumulatedNanos = 0L;
+        int seedRefinementPasses = 0;
         TrinityPlanQuality retainedQuality = TrinityPlanQuality.PROVED_OPTIMAL;
         Set<AEKey> internalKeys = new ObjectOpenHashSet<>(component.keys());
         while (true) {
@@ -128,7 +160,9 @@ public final class TrinityCyclePlanSelector {
                     producibleInputs,
                     remainingStates,
                     mode,
-                    control);
+                    control,
+                    unitProof,
+                    coefficientTemplate);
             if (!selectedResult.successful()) {
                 return selectedResult;
             }
@@ -170,12 +204,14 @@ public final class TrinityCyclePlanSelector {
                         accumulatedStates,
                         accumulatedNanos,
                         retainedQuality,
-                        retainedSeed));
+                        retainedSeed,
+                        seedRefinementPasses));
             }
             int chargedStates = Math.max(1, selected.scheduleStates());
             if (selected.scheduleStates() == 0) {
                 accumulatedStates = Math.addExact(accumulatedStates, 1);
             }
+            seedRefinementPasses = Math.incrementExact(seedRefinementPasses);
             remainingStates -= chargedStates;
             if (remainingStates <= 0) {
                 return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
@@ -225,14 +261,16 @@ public final class TrinityCyclePlanSelector {
                                                                      Set<AEKey> producible,
                                                                      int maxStates,
                                                                      TrinityPlanningMode mode,
-                                                                     TrinityPlanningControl control) {
+                                                                     TrinityPlanningControl control,
+                                                                     @Nullable TrinityCycleUnitProof unitProof,
+                                                                     TrinityMipCoefficientTemplate coefficientTemplate) {
         Optional<ScalarDemand> scalar = scalarDemand(component, demand);
         if (scalar.isPresent()) {
             ScalarDemand request = scalar.orElseThrow();
-            Optional<List<TrinityVariantFiring>> deterministicOrder = this.deterministicCycleSequence.resolve(
-                    component,
-                    request.target(),
-                    inventory);
+            Optional<List<TrinityVariantFiring>> deterministicOrder = unitProof != null &&
+                    unitProof.reservoir().equals(request.target()) ?
+                            Optional.of(unitProof.order()) :
+                            this.deterministicCycleSequence.resolve(component, request.target(), inventory);
             if (deterministicOrder.isPresent() && completeUniqueRoute(
                     component,
                     deterministicOrder.orElseThrow())) {
@@ -296,7 +334,8 @@ public final class TrinityCyclePlanSelector {
                     maxStates,
                     mode,
                     control,
-                    componentNanos);
+                    componentNanos,
+                    coefficientTemplate);
             case TERMINAL -> TrinityAlgorithmResult.failure(deterministic.diagnostic());
         };
     }
@@ -329,7 +368,8 @@ public final class TrinityCyclePlanSelector {
                                                                          int maxStates,
                                                                          TrinityPlanningMode mode,
                                                                          TrinityPlanningControl control,
-                                                                         long componentNanos) {
+                                                                         long componentNanos,
+                                                                         TrinityMipCoefficientTemplate coefficientTemplate) {
         TrinityAlgorithmResult<TrinityJointCyclePlan> joint = this.jointCyclePlanner.plan(
                 component,
                 demand,
@@ -337,7 +377,8 @@ public final class TrinityCyclePlanSelector {
                 producibleInputs,
                 maxStates,
                 mode,
-                control);
+                control,
+                coefficientTemplate);
         if (!joint.successful()) {
             return TrinityAlgorithmResult.failure(joint.diagnostic());
         }
