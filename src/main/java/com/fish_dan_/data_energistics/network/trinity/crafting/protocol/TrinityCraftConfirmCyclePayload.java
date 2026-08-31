@@ -6,7 +6,9 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.diagnostic.
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleHeader;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleMaterialContribution;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingExactPlanAmounts;
 import com.fish_dan_.data_energistics.network.trinity.crafting.client.TrinityCraftConfirmCycleClientHandler;
+import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.ExactPlanAmounts;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.ExactShortage;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.Header;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.InventoryUsage;
@@ -41,6 +43,7 @@ public final class TrinityCraftConfirmCyclePayload implements CustomPacketPayloa
     private static final int INVENTORY_USAGE_RECORD = 2;
     private static final int EXACT_SHORTAGE_RECORD = 3;
     private static final int UNRESOLVED_DEMAND_RECORD = 4;
+    private static final int EXACT_PLAN_AMOUNTS_RECORD = 5;
     private static final int MAX_BIG_INTEGER_BYTES = 512;
 
     private final int containerId;
@@ -149,13 +152,16 @@ public final class TrinityCraftConfirmCyclePayload implements CustomPacketPayloa
                 Math.addExact(
                         Math.addExact(summary.cycles().size(), summary.inventoryUsageBasisPoints().size()),
                         summary.contributions().size()),
-                Math.addExact(summary.exactShortages().size(), summary.unresolvedDemands().size()));
+                Math.addExact(
+                        Math.addExact(summary.exactShortages().size(), summary.unresolvedDemands().size()),
+                        summary.exactPlanAmounts().size()));
         ArrayList<TrinityCraftConfirmCycleRecord> records = new ArrayList<>(totalRecordCount);
         summary.cycles().forEach(cycle -> records.add(new Header(cycle)));
         summary.inventoryUsageBasisPoints().forEach((key, basisPoints) -> records.add(new InventoryUsage(key, basisPoints)));
         summary.contributions().forEach(contribution -> records.add(new Material(contribution)));
         summary.exactShortages().forEach(shortage -> records.add(new ExactShortage(shortage)));
         summary.unresolvedDemands().forEach(unresolved -> records.add(new UnresolvedDemand(unresolved)));
+        summary.exactPlanAmounts().forEach(amounts -> records.add(new ExactPlanAmounts(amounts)));
         return List.copyOf(records);
     }
 
@@ -188,6 +194,7 @@ public final class TrinityCraftConfirmCyclePayload implements CustomPacketPayloa
             case InventoryUsage entry -> writeInventoryUsage(buffer, entry);
             case ExactShortage entry -> writeExactShortage(buffer, entry.value());
             case UnresolvedDemand entry -> writeUnresolvedDemand(buffer, entry.value());
+            case ExactPlanAmounts entry -> writeExactPlanAmounts(buffer, entry.value());
         }
     }
 
@@ -198,6 +205,7 @@ public final class TrinityCraftConfirmCyclePayload implements CustomPacketPayloa
             case INVENTORY_USAGE_RECORD -> readInventoryUsage(buffer);
             case EXACT_SHORTAGE_RECORD -> readExactShortage(buffer);
             case UNRESOLVED_DEMAND_RECORD -> readUnresolvedDemand(buffer);
+            case EXACT_PLAN_AMOUNTS_RECORD -> readExactPlanAmounts(buffer);
             default -> throw new IllegalArgumentException("Unknown Trinity crafting confirmation record type");
         };
     }
@@ -291,6 +299,24 @@ public final class TrinityCraftConfirmCyclePayload implements CustomPacketPayloa
     private static UnresolvedDemand readUnresolvedDemand(RegistryFriendlyByteBuf buffer) {
         return new UnresolvedDemand(new TrinityCraftingUnresolvedDemand(
                 AEKey.STREAM_CODEC.decode(buffer),
+                readBigInteger(buffer)));
+    }
+
+    private static void writeExactPlanAmounts(
+                                              RegistryFriendlyByteBuf buffer,
+                                              TrinityCraftingExactPlanAmounts amounts) {
+        buffer.writeByte(EXACT_PLAN_AMOUNTS_RECORD);
+        AEKey.STREAM_CODEC.encode(buffer, amounts.key());
+        writeBigInteger(buffer, amounts.missing());
+        writeBigInteger(buffer, amounts.stored());
+        writeBigInteger(buffer, amounts.crafting());
+    }
+
+    private static ExactPlanAmounts readExactPlanAmounts(RegistryFriendlyByteBuf buffer) {
+        return new ExactPlanAmounts(new TrinityCraftingExactPlanAmounts(
+                AEKey.STREAM_CODEC.decode(buffer),
+                readBigInteger(buffer),
+                readBigInteger(buffer),
                 readBigInteger(buffer)));
     }
 

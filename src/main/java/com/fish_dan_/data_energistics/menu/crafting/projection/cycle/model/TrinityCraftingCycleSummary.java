@@ -40,12 +40,15 @@ public final class TrinityCraftingCycleSummary {
     private final Map<AEKey, TrinityCraftingExactShortage> exactShortagesByKey;
     private final List<TrinityCraftingUnresolvedDemand> unresolvedDemands;
     private final Map<AEKey, TrinityCraftingUnresolvedDemand> unresolvedDemandsByKey;
+    private final List<TrinityCraftingExactPlanAmounts> exactPlanAmounts;
+    private final Map<AEKey, TrinityCraftingExactPlanAmounts> exactPlanAmountsByKey;
 
     private TrinityCraftingCycleSummary(Map<AEKey, Integer> inventoryUsageBasisPoints,
                                         List<TrinityCraftingCycleHeader> cycles,
                                         List<TrinityCraftingCycleMaterialContribution> contributions,
                                         List<TrinityCraftingExactShortage> exactShortages,
-                                        List<TrinityCraftingUnresolvedDemand> unresolvedDemands) {
+                                        List<TrinityCraftingUnresolvedDemand> unresolvedDemands,
+                                        List<TrinityCraftingExactPlanAmounts> exactPlanAmounts) {
         this.inventoryUsageBasisPoints = copyInventoryUsage(inventoryUsageBasisPoints);
         this.cycles = copyAndValidateCycles(cycles);
         this.contributions = copyAndValidateContributions(contributions, this.cycles);
@@ -54,6 +57,8 @@ public final class TrinityCraftingCycleSummary {
         this.exactShortagesByKey = indexExactShortages(this.exactShortages);
         this.unresolvedDemands = copyUnresolvedDemands(unresolvedDemands, this.exactShortagesByKey.keySet());
         this.unresolvedDemandsByKey = indexUnresolvedDemands(this.unresolvedDemands);
+        this.exactPlanAmounts = copyExactPlanAmounts(exactPlanAmounts);
+        this.exactPlanAmountsByKey = indexExactPlanAmounts(this.exactPlanAmounts);
     }
 
     /**
@@ -67,7 +72,7 @@ public final class TrinityCraftingCycleSummary {
     public static TrinityCraftingCycleSummary create(Map<AEKey, Integer> inventoryUsageBasisPoints,
                                                      List<TrinityCraftingCycleHeader> cycles,
                                                      List<TrinityCraftingCycleMaterialContribution> contributions) {
-        return create(inventoryUsageBasisPoints, cycles, contributions, List.of(), List.of());
+        return create(inventoryUsageBasisPoints, cycles, contributions, List.of(), List.of(), List.of());
     }
 
     /**
@@ -78,13 +83,15 @@ public final class TrinityCraftingCycleSummary {
                                                      List<TrinityCraftingCycleHeader> cycles,
                                                      List<TrinityCraftingCycleMaterialContribution> contributions,
                                                      List<TrinityCraftingExactShortage> exactShortages,
-                                                     List<TrinityCraftingUnresolvedDemand> unresolvedDemands) {
+                                                     List<TrinityCraftingUnresolvedDemand> unresolvedDemands,
+                                                     List<TrinityCraftingExactPlanAmounts> exactPlanAmounts) {
         return new TrinityCraftingCycleSummary(
                 inventoryUsageBasisPoints,
                 cycles,
                 contributions,
                 exactShortages,
-                unresolvedDemands);
+                unresolvedDemands,
+                exactPlanAmounts);
     }
 
     /**
@@ -118,6 +125,11 @@ public final class TrinityCraftingCycleSummary {
         return this.unresolvedDemands;
     }
 
+    /** @return exact confirmation-table rows in stable transport order */
+    public List<TrinityCraftingExactPlanAmounts> exactPlanAmounts() {
+        return this.exactPlanAmounts;
+    }
+
     /** Looks up an exact finite-input shortage for one material. */
     public Optional<TrinityCraftingExactShortage> exactShortage(AEKey key) {
         return Optional.ofNullable(this.exactShortagesByKey.get(key));
@@ -126,6 +138,11 @@ public final class TrinityCraftingCycleSummary {
     /** Looks up an unresolved intermediate demand for one material. */
     public Optional<TrinityCraftingUnresolvedDemand> unresolvedDemand(AEKey key) {
         return Optional.ofNullable(this.unresolvedDemandsByKey.get(key));
+    }
+
+    /** Looks up exact stored, missing and crafting counters for one table row. */
+    public Optional<TrinityCraftingExactPlanAmounts> exactPlanAmounts(AEKey key) {
+        return Optional.ofNullable(this.exactPlanAmountsByKey.get(key));
     }
 
     /**
@@ -251,6 +268,26 @@ public final class TrinityCraftingCycleSummary {
                                                                                       List<TrinityCraftingUnresolvedDemand> unresolvedDemands) {
         LinkedHashMap<AEKey, TrinityCraftingUnresolvedDemand> indexed = new LinkedHashMap<>();
         unresolvedDemands.forEach(unresolved -> indexed.put(unresolved.key(), unresolved));
+        return Collections.unmodifiableMap(indexed);
+    }
+
+    private static List<TrinityCraftingExactPlanAmounts> copyExactPlanAmounts(
+                                                                              List<TrinityCraftingExactPlanAmounts> source) {
+        ArrayList<TrinityCraftingExactPlanAmounts> copied = new ArrayList<>(source.size());
+        HashSet<AEKey> keys = new HashSet<>();
+        for (TrinityCraftingExactPlanAmounts amounts : source) {
+            if (!keys.add(amounts.key())) {
+                throw new IllegalArgumentException("Trinity crafting confirmation cannot repeat an exact plan row");
+            }
+            copied.add(amounts);
+        }
+        return List.copyOf(copied);
+    }
+
+    private static Map<AEKey, TrinityCraftingExactPlanAmounts> indexExactPlanAmounts(
+                                                                                     List<TrinityCraftingExactPlanAmounts> amounts) {
+        LinkedHashMap<AEKey, TrinityCraftingExactPlanAmounts> indexed = new LinkedHashMap<>();
+        amounts.forEach(entry -> indexed.put(entry.key(), entry));
         return Collections.unmodifiableMap(indexed);
     }
 

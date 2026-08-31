@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.diagnostic.
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleHeader;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleMaterialContribution;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingExactPlanAmounts;
 
 import appeng.api.stacks.AEKey;
 
@@ -15,7 +16,8 @@ public sealed interface TrinityCraftConfirmCycleRecord permits TrinityCraftConfi
                                                        TrinityCraftConfirmCycleRecord.Material,
                                                        TrinityCraftConfirmCycleRecord.InventoryUsage,
                                                        TrinityCraftConfirmCycleRecord.ExactShortage,
-                                                       TrinityCraftConfirmCycleRecord.UnresolvedDemand {
+                                                       TrinityCraftConfirmCycleRecord.UnresolvedDemand,
+                                                       TrinityCraftConfirmCycleRecord.ExactPlanAmounts {
 
     /** Carries one validated repeat-block header. */
     record Header(TrinityCraftingCycleHeader value) implements TrinityCraftConfirmCycleRecord {}
@@ -28,6 +30,9 @@ public sealed interface TrinityCraftConfirmCycleRecord permits TrinityCraftConfi
 
     /** Carries one unresolved intermediate demand. */
     record UnresolvedDemand(TrinityCraftingUnresolvedDemand value) implements TrinityCraftConfirmCycleRecord {}
+
+    /** Carries exact stored, missing and crafting counters for one confirmation-table row. */
+    record ExactPlanAmounts(TrinityCraftingExactPlanAmounts value) implements TrinityCraftConfirmCycleRecord {}
 
     /** Carries one capped ME inventory-usage percentage without assigning it to an individual cycle. */
     record InventoryUsage(AEKey key, int basisPoints) implements TrinityCraftConfirmCycleRecord {

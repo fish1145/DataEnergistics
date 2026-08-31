@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.crafting.confirm.presentation;
 
 import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
+import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleHeader;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleMaterialContribution;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
@@ -10,6 +11,7 @@ import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
@@ -53,16 +55,22 @@ public final class TrinityCraftConfirmCycleTooltip {
             lines.add(detail("inventory_usage", formatPercentage(inventoryUsage.getAsInt())));
         }
         exactShortage.ifPresent(shortage -> {
-            lines.add(Component.translatable(KEY_PREFIX + "shortage_required", shortage.required().toString())
+            lines.add(Component.translatable(
+                    KEY_PREFIX + "shortage_required",
+                    TrinityAmountFormatter.format(shortage.required()))
                     .withStyle(ChatFormatting.RED));
-            lines.add(Component.translatable(KEY_PREFIX + "shortage_available", shortage.available().toString())
+            lines.add(Component.translatable(
+                    KEY_PREFIX + "shortage_available",
+                    TrinityAmountFormatter.format(shortage.available()))
                     .withStyle(ChatFormatting.RED));
-            lines.add(Component.translatable(KEY_PREFIX + "shortage_missing", shortage.missing().toString())
+            lines.add(Component.translatable(
+                    KEY_PREFIX + "shortage_missing",
+                    TrinityAmountFormatter.format(shortage.missing()))
                     .withStyle(ChatFormatting.RED));
         });
         unresolvedDemand.ifPresent(unresolved -> lines.add(Component.translatable(
                 KEY_PREFIX + "unresolved_demand",
-                unresolved.amount().toString()).withStyle(ChatFormatting.YELLOW)));
+                TrinityAmountFormatter.format(unresolved.amount())).withStyle(ChatFormatting.YELLOW)));
         selectedContribution.ifPresent(contribution -> {
             TrinityCraftingCycleHeader cycle = summary.cycles().get(contribution.displayOrdinal() - 1);
             int relatedPage = contributions.indexOf(contribution) + 1;
@@ -103,11 +111,19 @@ public final class TrinityCraftConfirmCycleTooltip {
             lines.add(detail("stage_count", cycle.stageCount()));
             lines.add(detail("pattern_type_count", cycle.patternTypeCount()));
         });
-        return List.copyOf(lines);
+        return lines;
     }
 
-    private static Component detail(String suffix, Object value) {
-        return Component.translatable(KEY_PREFIX + suffix, value.toString()).withStyle(ChatFormatting.GRAY);
+    private static Component detail(String suffix, String value) {
+        return Component.translatable(KEY_PREFIX + suffix, value).withStyle(ChatFormatting.GRAY);
+    }
+
+    private static Component detail(String suffix, BigInteger value) {
+        return detail(suffix, TrinityAmountFormatter.format(value));
+    }
+
+    private static Component detail(String suffix, int value) {
+        return detail(suffix, TrinityAmountFormatter.format(value));
     }
 
     private static String formatPercentage(int basisPoints) {

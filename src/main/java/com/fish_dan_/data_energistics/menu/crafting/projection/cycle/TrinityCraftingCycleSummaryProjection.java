@@ -15,9 +15,11 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.diagnostic.
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleHeader;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleMaterialContribution;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingExactPlanAmounts;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -61,7 +63,10 @@ public final class TrinityCraftingCycleSummaryProjection {
         return TrinityCraftingCycleSummary.create(
                 projectInventoryUsage(plan.initialExpectedInputs(), availableInventory),
                 cycles,
-                contributions);
+                contributions,
+                List.of(),
+                List.of(),
+                exactPlanAmounts(plan.initialExpectedInputs(), Map.of(), plan.plannedOutputs()));
     }
 
     /**
@@ -85,6 +90,8 @@ public final class TrinityCraftingCycleSummaryProjection {
         }
 
         LinkedHashMap<AEKey, BigInteger> used = new LinkedHashMap<>();
+        LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
+        LinkedHashMap<AEKey, BigInteger> missing = new LinkedHashMap<>();
         ArrayList<TrinityCraftingExactShortage> exactShortages = new ArrayList<>();
         ArrayList<TrinityCraftingUnresolvedDemand> unresolvedDemands = new ArrayList<>();
         if (diagnostic.inputShortage().isPresent()) {
@@ -97,15 +104,18 @@ public final class TrinityCraftingCycleSummaryProjection {
                     shortage.required(),
                     shortage.available(),
                     shortage.missing()));
+            missing.put(shortage.key(), shortage.missing());
         } else if (diagnostic.partialPlan().isPresent()) {
             TrinityPlanningDiagnostic.PartialPlan partial = diagnostic.partialPlan().orElseThrow();
             used.putAll(partial.usedItems());
+            emitted.putAll(partial.emittedItems());
             partial.inputRequirements().forEach((key, requirement) -> exactShortages.add(
                     new TrinityCraftingExactShortage(
                             key,
                             requirement.required(),
                             requirement.available(),
                             requirement.missing())));
+            partial.inputRequirements().forEach((key, requirement) -> missing.put(key, requirement.missing()));
             partial.missingItems().forEach((key, amount) -> {
                 if (!partial.inputRequirements().containsKey(key)) {
                     unresolvedDemands.add(new TrinityCraftingUnresolvedDemand(key, amount));
@@ -121,7 +131,24 @@ public final class TrinityCraftingCycleSummaryProjection {
                 cycles,
                 contributions,
                 exactShortages,
-                unresolvedDemands);
+                unresolvedDemands,
+                exactPlanAmounts(used, missing, emitted));
+    }
+
+    private static List<TrinityCraftingExactPlanAmounts> exactPlanAmounts(
+                                                                          Map<AEKey, BigInteger> stored,
+                                                                          Map<AEKey, BigInteger> missing,
+                                                                          Map<AEKey, BigInteger> crafting) {
+        ObjectLinkedOpenHashSet<AEKey> keys = new ObjectLinkedOpenHashSet<>(stored.keySet());
+        keys.addAll(missing.keySet());
+        keys.addAll(crafting.keySet());
+        ArrayList<TrinityCraftingExactPlanAmounts> rows = new ArrayList<>(keys.size());
+        keys.forEach(key -> rows.add(new TrinityCraftingExactPlanAmounts(
+                key,
+                missing.getOrDefault(key, BigInteger.ZERO),
+                stored.getOrDefault(key, BigInteger.ZERO),
+                crafting.getOrDefault(key, BigInteger.ZERO))));
+        return rows;
     }
 
     private static Map<AEKey, Integer> projectInventoryUsage(Map<AEKey, BigInteger> inputs,

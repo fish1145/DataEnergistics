@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.menu.crafting.projection;
 
-import com.fish_dan_.data_energistics.common.crafting.LongAmountMath;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityDiagnosedCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 
 import appeng.api.stacks.AEKey;
 import appeng.menu.me.crafting.CraftingPlanSummary;
@@ -82,41 +82,29 @@ public final class TrinityCraftingPlanSummaryProjection {
         ArrayList<CraftingPlanSummaryEntry> entries = new ArrayList<>(amounts.size());
         amounts.forEach((key, value) -> entries.add(new CraftingPlanSummaryEntry(
                 key,
-                value.missing,
-                value.stored,
-                value.crafting)));
+                TrinityAe2AmountProjection.toAe2Amount(value.missing),
+                TrinityAe2AmountProjection.toAe2Amount(value.stored),
+                TrinityAe2AmountProjection.toAe2Amount(value.crafting))));
         Collections.sort(entries);
         return new CraftingPlanSummary(bytes, simulation, List.copyOf(entries));
     }
 
     private static final class Amounts {
 
-        private long missing;
-        private long stored;
-        private long crafting;
+        private BigInteger missing = BigInteger.ZERO;
+        private BigInteger stored = BigInteger.ZERO;
+        private BigInteger crafting = BigInteger.ZERO;
 
         private void addMissing(BigInteger amount) {
-            addMissing(LongAmountMath.saturatingLongValueNonNegative(amount));
-        }
-
-        private void addMissing(long amount) {
-            this.missing = LongAmountMath.saturatingAddNonNegative(this.missing, amount);
+            this.missing = this.missing.add(amount);
         }
 
         private void addStored(BigInteger amount) {
-            addStored(LongAmountMath.saturatingLongValueNonNegative(amount));
-        }
-
-        private void addStored(long amount) {
-            this.stored = LongAmountMath.saturatingAddNonNegative(this.stored, amount);
+            this.stored = this.stored.add(amount);
         }
 
         private void addCrafting(BigInteger amount) {
-            addCrafting(LongAmountMath.saturatingLongValueNonNegative(amount));
-        }
-
-        private void addCrafting(long amount) {
-            this.crafting = LongAmountMath.saturatingAddNonNegative(this.crafting, amount);
+            this.crafting = this.crafting.add(amount);
         }
     }
 }

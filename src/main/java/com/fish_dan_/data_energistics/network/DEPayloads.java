@@ -35,7 +35,7 @@ public final class DEPayloads {
     private DEPayloads() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("6");
+        PayloadRegistrar registrar = event.registrar("7");
         registrar.playToServer(
                 PatternEncodingPreferencesSyncPayload.TYPE,
                 PatternEncodingPreferencesSyncPayload.STREAM_CODEC,
