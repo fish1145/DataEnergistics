@@ -392,7 +392,7 @@ public final class TrinityAcyclicDemandPropagator {
                 quantityMode,
                 TrinityPlanningInventory.finite(available),
                 maxSearchStates,
-                TrinityPlanningMode.OPTIMAL,
+                TrinityPlanningMode.FIRST_FEASIBLE,
                 control);
     }
 

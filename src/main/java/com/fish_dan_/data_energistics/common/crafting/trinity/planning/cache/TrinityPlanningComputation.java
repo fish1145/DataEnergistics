@@ -411,23 +411,32 @@ public final class TrinityPlanningComputation {
                                                                           TrinityPlanningInventory projectedInventory,
                                                                           TrinityPlanningLimits limits,
                                                                           TrinityPlanningSession session) {
-        Optional<TrinityPlanningControl> optimizationControl = session.optimizationControl();
-        if (optimizationControl.isPresent()) {
-            TrinityAlgorithmResult<TrinityCraftingPlan> optimized = this.pipeline.solve(
-                    structure.structure(),
-                    structure.routeHints(),
-                    input.graph().revision(),
-                    input.requestedAmount(),
-                    input.quantityMode(),
+        Optional<TrinityPlanningControl> boundedControl = session.boundedControl();
+        if (boundedControl.isPresent()) {
+            TrinityAlgorithmResult<TrinityCraftingPlan> bounded = solveFirstFeasible(
+                    structure,
+                    input,
                     projectedInventory,
                     limits,
-                    TrinityPlanningMode.OPTIMAL,
-                    optimizationControl.orElseThrow());
-            if (optimized.successful() ||
-                    optimized.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_TIMEOUT) {
-                return optimized;
+                    boundedControl.orElseThrow());
+            if (bounded.successful() || !retryableFeasibilityStop(bounded.diagnostic())) {
+                return bounded;
             }
         }
+        return solveFirstFeasible(
+                structure,
+                input,
+                projectedInventory,
+                limits,
+                session.feasibilityControl());
+    }
+
+    private TrinityAlgorithmResult<TrinityCraftingPlan> solveFirstFeasible(
+                                                                           TrinityCompiledGraphProofView structure,
+                                                                           TrinityPlanningInput input,
+                                                                           TrinityPlanningInventory projectedInventory,
+                                                                           TrinityPlanningLimits limits,
+                                                                           TrinityPlanningControl control) {
         return this.pipeline.solve(
                 structure.structure(),
                 structure.routeHints(),
@@ -437,7 +446,13 @@ public final class TrinityPlanningComputation {
                 projectedInventory,
                 limits,
                 TrinityPlanningMode.FIRST_FEASIBLE,
-                session.feasibilityControl());
+                control);
+    }
+
+    private static boolean retryableFeasibilityStop(TrinityPlanningDiagnostic diagnostic) {
+        return diagnostic.code() == TrinityPlanningDiagnosticCode.MIP_TIMEOUT ||
+                diagnostic.code() == TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT &&
+                        "timeout".equals(diagnostic.metadata().get("reason"));
     }
 
     private TrinityAlgorithmResult<TrinityCraftingPlan> withRequestTiming(

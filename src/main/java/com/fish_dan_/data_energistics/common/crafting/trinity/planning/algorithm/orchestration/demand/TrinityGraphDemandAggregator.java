@@ -145,7 +145,7 @@ public final class TrinityGraphDemandAggregator {
                 quantityMode,
                 inventory,
                 limits,
-                TrinityPlanningMode.OPTIMAL,
+                TrinityPlanningMode.FIRST_FEASIBLE,
                 control);
     }
 

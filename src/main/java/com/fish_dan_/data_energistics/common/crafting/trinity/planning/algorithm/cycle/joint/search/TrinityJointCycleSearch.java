@@ -63,9 +63,6 @@ public final class TrinityJointCycleSearch {
      * Decodes the mandatory compressed-state count from a scheduler diagnostic.
      */
     public static int diagnosticStates(TrinityPlanningDiagnostic diagnostic) {
-        if (diagnostic == null) {
-            throw new IllegalArgumentException("A Trinity schedule diagnostic is required");
-        }
         String encodedStates = diagnostic.metadata().get("states");
         if (encodedStates == null) {
             throw new IllegalStateException("A Trinity schedule diagnostic must report visited states");
@@ -95,17 +92,14 @@ public final class TrinityJointCycleSearch {
                             TrinityCycleFeasibilityModel feasibilityModel,
                             TrinityJointCandidateEvaluator candidateEvaluator,
                             TrinityExternalPrefixCut externalPrefixCut) {
-        if (feasibilityModel == null || candidateEvaluator == null || externalPrefixCut == null) {
-            throw new IllegalArgumentException("A Trinity joint search requires feasibility, evaluation and cuts");
-        }
         this.feasibilityModel = feasibilityModel;
         this.candidateEvaluator = candidateEvaluator;
         this.externalPrefixCut = externalPrefixCut;
     }
 
     /**
-     * Searches every firing box that can improve the executable incumbent until optimality is proved or a shared
-     * bound terminates the search.
+     * Returns the first exactly verified executable candidate in production mode. The retained compatibility mode
+     * may continue through improving boxes until a shared bound terminates the search.
      */
     public TrinityAlgorithmResult<TrinityJointCyclePlan> search(
                                                                 TrinityStronglyConnectedComponent component,
@@ -115,8 +109,7 @@ public final class TrinityJointCycleSearch {
                                                                 int maxSearchStates,
                                                                 TrinityPlanningMode mode,
                                                                 TrinityPlanningControl control) {
-        if (component == null || !component.cyclic() || component.cycleVariants().isEmpty() || demand == null ||
-                available == null || producibleInputs == null || maxSearchStates <= 0 || mode == null || control == null) {
+        if (!component.cyclic() || component.cycleVariants().isEmpty() || maxSearchStates <= 0) {
             throw new IllegalArgumentException("A Trinity joint search request is incomplete");
         }
         return search(
@@ -171,7 +164,7 @@ public final class TrinityJointCycleSearch {
                 available,
                 producibleInputs,
                 maxSearchStates,
-                TrinityPlanningMode.OPTIMAL,
+                TrinityPlanningMode.FIRST_FEASIBLE,
                 control);
     }
 
@@ -538,7 +531,7 @@ public final class TrinityJointCycleSearch {
             }
             TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> diagnosed = feasibilityModel.solve(
                     request(rootBox).forShortageDiagnosis(remainingStates),
-                    TrinityPlanningMode.OPTIMAL,
+                    TrinityPlanningMode.FIRST_FEASIBLE,
                     this.control);
             int diagnosisStates = diagnosed.successful() ?
                     diagnosed.value().diagnosticStates() : diagnosisStates(diagnosed.diagnostic());

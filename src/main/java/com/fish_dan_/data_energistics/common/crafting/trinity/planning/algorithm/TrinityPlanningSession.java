@@ -5,10 +5,10 @@ import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 
 /**
- * Request-local owner of the monotonic optimality budget and cooperative cancellation source.
+ * Request-local owner of the monotonic planning budget and cooperative cancellation source.
  * <p>
- * Structural compilation and feasibility fallback use cancellation-only controls. Optional objective refinement uses
- * a bounded control created from the remaining request budget. This object is thread-confined and is never cached.
+ * Structural compilation and feasibility fallback use cancellation-only controls. The initial solve uses a bounded
+ * control created from the remaining request budget. This object is thread-confined and is never cached.
  */
 public final class TrinityPlanningSession {
 
@@ -18,26 +18,26 @@ public final class TrinityPlanningSession {
     public static TrinityPlanningSession create(
                                                 BooleanSupplier cancellation,
                                                 LongSupplier nanoClock,
-                                                long optimisationBudgetNanos) {
-        if (cancellation == null || nanoClock == null || optimisationBudgetNanos <= 0L) {
+                                                long planningBudgetNanos) {
+        if (planningBudgetNanos <= 0L) {
             throw new IllegalArgumentException("A Trinity planning session requires cancellation, a clock and a positive budget");
         }
-        return new TrinityPlanningSession(cancellation, nanoClock, optimisationBudgetNanos);
+        return new TrinityPlanningSession(cancellation, nanoClock, planningBudgetNanos);
     }
 
     private final BooleanSupplier cancellation;
     private final LongSupplier nanoClock;
-    private final long optimisationBudgetNanos;
+    private final long planningBudgetNanos;
     private final long startedNanos;
     private final TrinityPlanningMetrics metrics;
 
     private TrinityPlanningSession(
                                    BooleanSupplier cancellation,
                                    LongSupplier nanoClock,
-                                   long optimisationBudgetNanos) {
+                                   long planningBudgetNanos) {
         this.cancellation = cancellation;
         this.nanoClock = nanoClock;
-        this.optimisationBudgetNanos = optimisationBudgetNanos;
+        this.planningBudgetNanos = planningBudgetNanos;
         this.startedNanos = nanoClock.getAsLong();
         this.metrics = TrinityPlanningMetrics.create();
     }
@@ -51,10 +51,10 @@ public final class TrinityPlanningSession {
 
     /**
      * Creates a bounded control from the remaining request budget. An empty result means compilation already consumed
-     * the complete optimisation allowance and the caller must enter first-feasible mode directly.
+     * the complete bounded allowance and the caller must enter cancellation-only feasibility directly.
      */
-    public Optional<TrinityPlanningControl> optimizationControl() {
-        long remaining = remainingOptimizationNanos();
+    public Optional<TrinityPlanningControl> boundedControl() {
+        long remaining = remainingPlanningNanos();
         return remaining == 0L ? Optional.empty() :
                 Optional.of(TrinityPlanningControl.create(
                         this.cancellation,
@@ -89,14 +89,14 @@ public final class TrinityPlanningSession {
     }
 
     /**
-     * @return remaining non-negative optimality budget
+     * @return remaining non-negative planning budget
      */
-    public long remainingOptimizationNanos() {
+    public long remainingPlanningNanos() {
         long now = this.nanoClock.getAsLong();
         if (now < this.startedNanos) {
             throw new IllegalStateException("The Trinity planning session clock moved backwards");
         }
         long elapsed = now - this.startedNanos;
-        return elapsed >= this.optimisationBudgetNanos ? 0L : this.optimisationBudgetNanos - elapsed;
+        return elapsed >= this.planningBudgetNanos ? 0L : this.planningBudgetNanos - elapsed;
     }
 }

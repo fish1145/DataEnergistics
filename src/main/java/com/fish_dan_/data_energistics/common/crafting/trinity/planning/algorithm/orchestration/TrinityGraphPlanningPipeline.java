@@ -123,7 +123,7 @@ public interface TrinityGraphPlanningPipeline extends TrinityGraphPlanner {
                 quantityMode,
                 TrinityPlanningInventory.finite(available),
                 limits,
-                TrinityPlanningMode.OPTIMAL,
+                TrinityPlanningMode.FIRST_FEASIBLE,
                 control);
     }
 
@@ -145,7 +145,7 @@ public interface TrinityGraphPlanningPipeline extends TrinityGraphPlanner {
                 quantityMode,
                 TrinityPlanningInventory.finite(available),
                 TrinityPlanningLimits.capture(settings),
-                TrinityPlanningMode.OPTIMAL,
+                TrinityPlanningMode.FIRST_FEASIBLE,
                 control);
     }
 }

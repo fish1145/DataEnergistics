@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Ordinary exact-window ojAlgo model retaining the established sequential objective semantics.
@@ -461,7 +460,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                             "states", Integer.toString(stateBudget.used())));
         }
         ModelData data = modelTemplate.forPass(request, pass);
-        configureDeadline(data.model(), control);
+        TrinityOjAlgoSolvePolicy.configure(data.model(), control, pass == FeasibilityPass.INSTANCE);
         long started = System.nanoTime();
         Optimisation.Result result = data.model().minimise();
         long elapsedNanos = Math.max(0L, System.nanoTime() - started);
@@ -475,7 +474,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         }
         boolean objectiveProved = result.getState().isOptimal();
         if (!objectiveProved && !result.getState().isFeasible()) {
-            if (control.deadlineExceeded()) {
+            if (control.deadlineExceeded() || result.getState() != Optimisation.State.INFEASIBLE) {
                 return timeout(metrics, result.getState().name());
             }
             return failure(
@@ -536,19 +535,6 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                 code == TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT ?
                         solution(incumbent, metrics, TrinityPlanQuality.VERIFIED_FEASIBLE) :
                         TrinityAlgorithmResult.failure(diagnostic);
-    }
-
-    private static void configureDeadline(ExpressionsBasedModel model, TrinityPlanningControl control) {
-        if (!control.deadlineConfigured()) {
-            return;
-        }
-        long remainingNanos = control.remainingNanos();
-        long remainingMillis = Math.max(
-                1L,
-                TimeUnit.NANOSECONDS.toMillis(remainingNanos) +
-                        (remainingNanos % 1_000_000L == 0L ? 0L : 1L));
-        model.options.time_abort = remainingMillis;
-        model.options.time_suffice = remainingMillis;
     }
 
     private TrinityAlgorithmResult<Map<AEKey, BigInteger>> verifyExact(
@@ -819,12 +805,6 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
     private static void addStableKey(AEKey key, Set<AEKey> seen, List<AEKey> destination) {
         if (seen.add(key)) {
             destination.add(key);
-        }
-    }
-
-    private static void setIfNonZero(Expression expression, Variable variable, BigInteger coefficient) {
-        if (coefficient.signum() != 0) {
-            expression.set(variable, coefficient);
         }
     }
 

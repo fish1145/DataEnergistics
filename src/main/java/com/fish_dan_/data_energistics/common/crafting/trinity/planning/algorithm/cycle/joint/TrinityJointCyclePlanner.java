@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
@@ -107,9 +106,6 @@ public final class TrinityJointCyclePlanner {
     private final TrinityJointCycleSearch search;
 
     TrinityJointCyclePlanner(TrinityJointCycleSearch search) {
-        if (search == null) {
-            throw new IllegalArgumentException("A Trinity joint planner requires an exact search");
-        }
         this.search = search;
     }
 
@@ -166,9 +162,7 @@ public final class TrinityJointCyclePlanner {
                 coefficientTemplate);
     }
 
-    /**
-     * Compatibility entry point that retains complete optimisation.
-     */
+    /** Compatibility entry point that returns the first exactly verified executable cycle. */
     public TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
                                                               TrinityStronglyConnectedComponent component,
                                                               TrinityCycleDemand demand,
@@ -182,11 +176,7 @@ public final class TrinityJointCyclePlanner {
                 available,
                 producibleInputs,
                 maxSearchStates,
-                TrinityPlanningMode.OPTIMAL,
+                TrinityPlanningMode.FIRST_FEASIBLE,
                 control);
-    }
-
-    static int diagnosticStates(TrinityPlanningDiagnostic diagnostic) {
-        return TrinityJointCycleSearch.diagnosticStates(diagnostic);
     }
 }

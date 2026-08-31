@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
@@ -107,7 +108,7 @@ public record TrinityCycleFeasibilityRequest(
                 boundedAxes.stream().anyMatch(key -> variant.netChange().getOrDefault(key, BigInteger.ZERO).signum() > 0)) &&
                 externalConsumedAxes.stream().allMatch(key -> variants.stream().allMatch(variant -> variant.netChange().getOrDefault(key, BigInteger.ZERO).signum() <= 0));
         if (!monotone) {
-            return Optional.empty();
+            return explicitLogicalUpperBound();
         }
         BigInteger demandBound = demand.finalBalanceLowerBounds().values().stream()
                 .reduce(BigInteger.ZERO, BigInteger::add)
@@ -128,6 +129,41 @@ public record TrinityCycleFeasibilityRequest(
                 .max(baseBound.add(seedLowerBound)));
     }
 
+    private Optional<BigInteger> explicitLogicalUpperBound() {
+        if (firingBounds.values().stream().anyMatch(bounds -> bounds.upperInclusive().isEmpty())) {
+            return Optional.empty();
+        }
+        BigInteger upper = seedLowerBound.max(firingLowerBound);
+        if (fixedExternalTotal.isPresent()) {
+            upper = upper.max(fixedExternalTotal.orElseThrow());
+        }
+        for (BigInteger amount : demand.finalBalanceLowerBounds().values()) {
+            upper = upper.max(amount);
+        }
+        for (BigInteger amount : demand.requiredNetChangeLowerBounds().values()) {
+            upper = upper.max(amount);
+        }
+        ObjectOpenHashSet<AEKey> reserveKeys = new ObjectOpenHashSet<>(internalKeys);
+        variants.forEach(variant -> reserveKeys.addAll(variant.inputs().keySet()));
+        reserveKeys.addAll(demand.finalBalanceLowerBounds().keySet());
+        for (TrinityPatternVariant variant : variants) {
+            BigInteger variantUpper = firingBounds.get(variant).upperInclusive().orElseThrow();
+            upper = upper.max(variantUpper);
+        }
+        for (AEKey key : reserveKeys) {
+            BigInteger required = demand.finalBalanceLowerBounds().getOrDefault(key, BigInteger.ZERO);
+            for (TrinityPatternVariant variant : variants) {
+                BigInteger coefficient = variant.netChange().getOrDefault(key, BigInteger.ZERO);
+                if (coefficient.signum() < 0) {
+                    required = required.add(coefficient.negate().multiply(
+                            firingBounds.get(variant).upperInclusive().orElseThrow()));
+                }
+            }
+            upper = upper.max(required);
+        }
+        return Optional.of(upper.max(BigInteger.ONE));
+    }
+
     /**
      * Replaces only firing domains while preserving all other immutable feasibility inputs.
      */
@@ -146,6 +182,17 @@ public record TrinityCycleFeasibilityRequest(
                 shortageDiagnostic,
                 shortageStateLimit,
                 coefficientTemplate);
+    }
+
+    /** Caps only currently open firing axes for one request-private bounded feasibility model. */
+    public TrinityCycleFeasibilityRequest withOpenFiringUpper(BigInteger upper) {
+        Map<TrinityPatternVariant, TrinityFiringBounds> bounded = new Object2ObjectLinkedOpenHashMap<>();
+        firingBounds.forEach((variant, bounds) -> bounded.put(
+                variant,
+                bounds.upperInclusive().isPresent() ? bounds : new TrinityFiringBounds(
+                        bounds.lowerInclusive(),
+                        upper.max(bounds.lowerInclusive()))));
+        return withFiringBounds(bounded);
     }
 
     /**

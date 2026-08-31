@@ -356,7 +356,7 @@ public final class TrinityAcyclicRouteOptimizer {
                 quantityMode,
                 available,
                 maxSearchStates,
-                TrinityPlanningMode.OPTIMAL,
+                TrinityPlanningMode.FIRST_FEASIBLE,
                 control);
     }
 

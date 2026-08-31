@@ -105,7 +105,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                             quantityMode,
                             inventory,
                             limits,
-                            TrinityPlanningMode.OPTIMAL,
+                            TrinityPlanningMode.FIRST_FEASIBLE,
                             control) :
                     TrinityAlgorithmResult.failure(compiled.diagnostic());
         } catch (ArithmeticException exception) {

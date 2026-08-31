@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.bounds;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilityRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityFiringBounds;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import appeng.api.stacks.AEKey;
@@ -53,6 +54,36 @@ public final class TrinityCycleObjectiveBounds {
                         .reduce(BigInteger.ZERO, BigInteger::add))
                 .min(BigInteger::compareTo)
                 .orElse(BigInteger.ZERO);
+    }
+
+    /** Derives a compact first feasibility domain from the current component demand and transition magnitudes. */
+    public BigInteger compactFiringUpper(TrinityCycleFeasibilityRequest request) {
+        BigInteger upper = BigInteger.ONE
+                .max(request.seedLowerBound())
+                .max(request.firingLowerBound())
+                .max(minimumFirstExternalInput(request))
+                .max(minimumFirstInternalInput(request));
+        if (request.fixedExternalTotal().isPresent()) {
+            upper = upper.max(request.fixedExternalTotal().orElseThrow());
+        }
+        for (BigInteger amount : request.demand().finalBalanceLowerBounds().values()) {
+            upper = upper.max(amount);
+        }
+        for (BigInteger amount : request.demand().requiredNetChangeLowerBounds().values()) {
+            upper = upper.max(amount);
+        }
+        for (TrinityFiringBounds bounds : request.firingBounds().values()) {
+            upper = upper.max(bounds.lowerInclusive());
+        }
+        for (TrinityPatternVariant variant : request.variants()) {
+            for (BigInteger amount : variant.inputs().values()) {
+                upper = upper.max(amount);
+            }
+            for (BigInteger amount : variant.outputs().values()) {
+                upper = upper.max(amount);
+            }
+        }
+        return upper.multiply(BigInteger.valueOf(request.variants().size()));
     }
 
     /**

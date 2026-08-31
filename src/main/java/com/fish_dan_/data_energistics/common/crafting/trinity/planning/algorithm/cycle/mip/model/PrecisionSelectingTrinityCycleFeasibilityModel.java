@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
@@ -8,11 +10,14 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityExactConservationVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
 
+import net.minecraft.network.chat.Component;
+
 import appeng.api.stacks.AEKey;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -20,6 +25,7 @@ import java.util.Set;
  */
 final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCycleFeasibilityModel {
 
+    private static final int MAX_BOUNDED_ORDINARY_DOMAINS = 4;
     private static final BigInteger ORDINARY_EXACT_LIMIT = BigInteger.ONE.shiftLeft(52).subtract(BigInteger.ONE);
     private static final TrinityCycleObjectiveBounds OBJECTIVE_BOUNDS = TrinityCycleObjectiveBounds.create();
 
@@ -38,9 +44,6 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                                                                          TrinityCycleFeasibilityRequest request,
                                                                          TrinityPlanningMode mode,
                                                                          TrinityPlanningControl control) {
-        if (request == null || mode == null || control == null) {
-            throw new IllegalArgumentException("A Trinity feasibility solve requires a request and control");
-        }
         return openSession(request).solve(request, mode, control);
     }
 
@@ -64,6 +67,15 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                                                                              TrinityPlanningMode mode,
                                                                              TrinityPlanningControl control) {
             if (requiresRadix(request)) {
+                if (mode == TrinityPlanningMode.FIRST_FEASIBLE) {
+                    TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> bounded = solveBoundedOrdinary(
+                            request,
+                            control);
+                    if (bounded.successful() ||
+                            bounded.diagnostic().code() != TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT) {
+                        return bounded;
+                    }
+                }
                 return radix.solve(request, mode, control);
             }
             TrinityCycleFeasibilitySession session = this.ordinarySession;
@@ -73,6 +85,44 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                 this.ordinarySession = session;
             }
             return session.solve(request, mode, control);
+        }
+
+        private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solveBoundedOrdinary(
+                                                                                             TrinityCycleFeasibilityRequest request,
+                                                                                             TrinityPlanningControl control) {
+            BigInteger firingUpper = OBJECTIVE_BOUNDS.compactFiringUpper(request);
+            for (int domain = 0; domain < MAX_BOUNDED_ORDINARY_DOMAINS; domain++) {
+                TrinityCycleFeasibilityRequest bounded = request.withOpenFiringUpper(firingUpper);
+                if (requiresRadix(bounded)) {
+                    return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                            TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                            Component.translatable(
+                                    "gui.data_energistics.trinity_planning.mip.radix_model_limit"),
+                            Map.of("phase", "bounded_ordinary_precision")));
+                }
+                TrinityCycleFeasibilitySession session = this.ordinarySession;
+                if (session == null) {
+                    control.recordSolverModel();
+                    session = ordinary.openSession(bounded);
+                    this.ordinarySession = session;
+                }
+                TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solved = session.solve(
+                        bounded,
+                        TrinityPlanningMode.FIRST_FEASIBLE,
+                        control);
+                if (solved.successful() ||
+                        solved.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
+                    return solved;
+                }
+                firingUpper = firingUpper.multiply(firingUpper).max(BigInteger.TWO);
+            }
+            return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    Component.translatable(
+                            "gui.data_energistics.trinity_planning.mip.schedule_search_limit"),
+                    Map.of(
+                            "phase", "bounded_ordinary_expansion",
+                            "states", Integer.toString(MAX_BOUNDED_ORDINARY_DOMAINS))));
         }
     }
 

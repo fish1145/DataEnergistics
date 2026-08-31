@@ -47,6 +47,6 @@ public interface TrinityCycleFeasibilityModel {
     default TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solve(
                                                                           TrinityCycleFeasibilityRequest request,
                                                                           TrinityPlanningControl control) {
-        return solve(request, TrinityPlanningMode.OPTIMAL, control);
+        return solve(request, TrinityPlanningMode.FIRST_FEASIBLE, control);
     }
 }
