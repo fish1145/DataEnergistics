@@ -23,6 +23,8 @@ import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -135,6 +137,7 @@ public final class TrinityGraphPlanAssembler {
         LinkedHashMap<TrinityPatternIdentity, BigInteger> patternFirings = new LinkedHashMap<>();
         LinkedHashMap<AEKey, BigInteger> netChange = new LinkedHashMap<>();
         LinkedHashMap<AEKey, BigInteger> minimumSeed = new LinkedHashMap<>();
+        LinkedHashMap<AEKey, BigInteger> retainedSeed = new LinkedHashMap<>();
         LinkedHashMap<AEKey, BigInteger> stackRequests = new LinkedHashMap<>();
         int repeatIndex = 0;
 
@@ -191,6 +194,7 @@ public final class TrinityGraphPlanAssembler {
                     patternFirings,
                     stackRequests);
             cycle.minimumSeed().forEach((key, amount) -> minimumSeed.merge(key, amount, BigInteger::max));
+            cycle.retainedSeed().forEach((key, amount) -> retainedSeed.merge(key, amount, BigInteger::max));
             mergeScaled(netChange, cycle.netChange(), BigInteger.ONE);
         }
         removeZeros(netChange);
@@ -205,6 +209,21 @@ public final class TrinityGraphPlanAssembler {
                 stages,
                 stageOrder,
                 repeatBlocks);
+        Map.Entry<AEKey, BigInteger> lostSeed = firstMissingTerminalSeed(
+                demandSolution.initialInputs(),
+                plannedStages,
+                stageOrder,
+                repeatBlocks,
+                retainedSeed);
+        if (lostSeed != null) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
+                    "gui.data_energistics.trinity_planning.diagnostic.internal_error",
+                    Map.of(
+                            "phase", "terminal_seed_validation",
+                            "key", lostSeed.getKey().toString(),
+                            "required", lostSeed.getValue().toString()));
+        }
         return TrinityAlgorithmResult.success(new TrinityGraphPlanAssembly(
                 demandSolution.initialInputs(),
                 Collections.unmodifiableMap(patternFirings),
@@ -217,6 +236,41 @@ public final class TrinityGraphPlanAssembler {
                 demandSolution.scheduleStates(),
                 demandSolution.mipNanos(),
                 demandSolution.quality()));
+    }
+
+    private static Map.Entry<AEKey, BigInteger> firstMissingTerminalSeed(
+                                                                         Map<AEKey, BigInteger> initialInputs,
+                                                                         List<TrinityPlanStage> stages,
+                                                                         List<Integer> stageOrder,
+                                                                         List<TrinityCycleRepeatBlock> repeatBlocks,
+                                                                         Map<AEKey, BigInteger> retainedSeed) {
+        if (retainedSeed.isEmpty()) {
+            return null;
+        }
+        Int2ObjectOpenHashMap<TrinityPlanStage> stagesByIndex = new Int2ObjectOpenHashMap<>();
+        stages.forEach(stage -> stagesByIndex.put(stage.index(), stage));
+        Int2ObjectOpenHashMap<TrinityCycleRepeatBlock> blocksByStage = new Int2ObjectOpenHashMap<>();
+        repeatBlocks.forEach(block -> block.stageOrder().forEach(
+                stageIndex -> blocksByStage.put(stageIndex, block)));
+        IntOpenHashSet completedBlocks = new IntOpenHashSet();
+        LinkedHashMap<AEKey, BigInteger> balances = new LinkedHashMap<>(initialInputs);
+        for (Integer stageIndex : stageOrder) {
+            TrinityPlanStage stage = stagesByIndex.get(stageIndex);
+            if (!stage.cycleStage()) {
+                mergeScaled(balances, stage.netChange(), BigInteger.ONE);
+                continue;
+            }
+            TrinityCycleRepeatBlock block = blocksByStage.get(stageIndex);
+            if (completedBlocks.add(block.index())) {
+                mergeScaled(balances, block.netChange(), BigInteger.ONE);
+            }
+        }
+        removeZeros(balances);
+        return retainedSeed.entrySet().stream()
+                .filter(entry -> balances.getOrDefault(entry.getKey(), BigInteger.ZERO)
+                        .compareTo(entry.getValue()) < 0)
+                .findFirst()
+                .orElse(null);
     }
 
     /**

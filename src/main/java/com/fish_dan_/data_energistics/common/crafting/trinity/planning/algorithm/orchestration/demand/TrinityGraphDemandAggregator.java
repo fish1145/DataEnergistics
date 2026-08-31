@@ -464,7 +464,8 @@ public final class TrinityGraphDemandAggregator {
                 return Optional.empty();
             }
 
-            LinkedHashMap<AEKey, BigInteger> finalBalances = new LinkedHashMap<>();
+            LinkedHashMap<AEKey, BigInteger> settledWithdrawals = new LinkedHashMap<>();
+            LinkedHashMap<AEKey, BigInteger> terminalBalances = new LinkedHashMap<>();
             LinkedHashMap<AEKey, BigInteger> requiredNetChanges = new LinkedHashMap<>();
             for (Map.Entry<AEKey, BigInteger> requirement : internalRequirements.entrySet()) {
                 AEKey key = requirement.getKey();
@@ -473,7 +474,11 @@ public final class TrinityGraphDemandAggregator {
                     merge(requiredNetChanges, key, required);
                     continue;
                 }
-                finalBalances.put(key, required);
+                if (key.equals(this.target)) {
+                    terminalBalances.put(key, required);
+                } else {
+                    settledWithdrawals.put(key, required);
+                }
                 BigInteger shortage = required
                         .subtract(this.inventory.getOrDefault(key, BigInteger.ZERO))
                         .max(BigInteger.ZERO);
@@ -484,10 +489,18 @@ public final class TrinityGraphDemandAggregator {
                     requiredNetChanges.put(key, shortage);
                 }
             }
-            Map<AEKey, BigInteger> requestedCycleOutputs = Map.copyOf(
-                    this.cycleOutputDemands.getOrDefault(component.index(), new LinkedHashMap<>()));
-            requestedCycleOutputs.forEach((key, amount) -> merge(requiredNetChanges, key, amount));
-            TrinityCycleDemand cycleDemand = new TrinityCycleDemand(finalBalances, requiredNetChanges);
+            Map<AEKey, BigInteger> requestedCycleOutputs = this.cycleOutputDemands
+                    .getOrDefault(component.index(), new LinkedHashMap<>());
+            requestedCycleOutputs.forEach((key, amount) -> {
+                merge(settledWithdrawals, key, amount);
+                merge(requiredNetChanges, key, amount);
+            });
+            TrinityCycleDemand cycleDemand = new TrinityCycleDemand(
+                    settledWithdrawals,
+                    terminalBalances,
+                    requiredNetChanges,
+                    this.quantityMode == CraftingQuantityMode.NET_NEW && component.keys().contains(this.target) ?
+                            Set.of(this.target) : Set.of());
             Set<AEKey> producibleInputs = producibleInputs(component);
             return Optional.of(new CyclePreparation(
                     internalRequirements,
