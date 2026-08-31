@@ -40,7 +40,7 @@ public final class TrinityCraftingPlanSummaryProjection {
     }
 
     /**
-     * Projects an exact input shortage without passing the non-native plan through AE2's concrete-plan summary path.
+     * Projects exact shortages and zero-counter unresolved rows without using AE2's concrete-plan summary path.
      *
      * @param plan standalone exact Trinity shortage diagnostic
      * @return native AE2 confirmation summary

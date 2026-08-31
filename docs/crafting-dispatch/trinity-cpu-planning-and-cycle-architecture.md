@@ -105,9 +105,12 @@ cache key；最终计划仍只保存实际需要提取的有限数量，不把�
 - minimum seed、目标净增量和最终交付量；
 - 保守 `bytes()`、诊断与算法统计。
 
-`TrinityDiagnosedCraftingPlan` 只用于 UI，不允许提交：普通 fallback 原样委托 AE2 simulation；DAG 或 joint-cycle root
-可精确证明输入不足时，则以常量空间投影 `available` 与 `missing` 计数，不再等待 AE2 大数量展开。只有完成 ordinary/radix
-整数解码、`BigInteger` 守恒和逐 key 缺料复验的结果才能成为权威缺料；虚拟输入和诊断 firing 不进入 executable plan。
+`TrinityDiagnosedCraftingPlan` 只用于 UI，不允许提交：普通 fallback 原样委托 AE2 simulation；Trinity 失败则保留所选路线的完整
+材料证据。确认页把满足 `required = available + missing` 的外部输入显示为红色 exact shortage，把尚未安全展开到外部叶子的
+正需求显示为黄色 unresolved demand；环成员身份不自动等于缺料。普通图搜索穷尽可执行替代路线后才回滚到请求初态执行一次
+有界诊断重走，因此一个 cycle seed 失败不会覆盖其它独立分支。只有 ordinary/radix 整数解码、`BigInteger` 守恒、逐 key
+缺料复验和完整前缀排程均完成的环才携带诊断环证据；虚拟输入、诊断 firing 和诊断排程不会进入 executable incumbent、
+plan cache、执行 NBT 或 `TrinityGraphDemandSolution`。
 
 所有 Trinity 提交入口共享 `TrinityPlanAdmission` 接纳边界。AE2 原生 `CraftingPlan` 和显式实现
 `TrinityCpuExecutablePlan` 的扩展计划可执行；其它 `ICraftingPlan` 可能携带专用 CPU 的 host、seed、借用或排程语义，
@@ -239,6 +242,8 @@ joint root 在这些上界下返回 `MIP_NO_INTEGER_SOLUTION` 且尚无 incumben
 `actual + missing`，先证明最小 missing，再固定 external、seed、firing、稳定 firing identity 和逐 key reserve identity。
 ordinary 与 radix 都执行相同目标并用 `BigInteger` 重放；只有正 missing 的完整证明才转换成 `INSUFFICIENT_INPUT`。missing 为零、
 诊断超时、状态/模型上限或 relaxed model 仍不可行时保留原 `MIP_NO_INTEGER_SOLUTION`，不会把诊断候选升级成计划。
+若 shortage firing vector 已证明，则仅在真实库存加上该向量的 missing 后调用现有 candidate evaluator；再次通过 minimum-seed、
+前缀非负和压缩排程验证的结果只转换成 non-executable cycle evidence。排程失败仍可保留精确材料缺口，但不会显示环次数或净变化。
 
 普通范围只有在全部变量、系数、守恒行和目标值都能在二进制浮点精确整数窗口内表达时，才进入 ordinary ojAlgo model。
 超过该窗口时，firing、余额和目标值使用以 `2^15` 为基数的非负整数 digit 与有符号整数 carry 编码；每个 digit/carry 都是
@@ -421,7 +426,9 @@ ojAlgo minimise/maximise/probe；exact 与 proven-equivalent cache hit 的本请
 最终完整计划可发布时刻为准，不能冒充更早但尚未通过最终 byte/`long` 边界的数值 witness 时间。请求累计指标达到类型上限时
 饱和，遥测溢出不得反向终止规划。库存捕获另记录 `inventorySentinelProbes` 与 `effectiveLongMaxKeys`；缺料诊断 metadata
 记录 `shortageKinds`、首个稳定 key 的 `required/available/missing`、ordinary/radix model、真实 solver pass/MIP nanos 和
-`shortageDiagnosisStates`。`MIP_NO_INTEGER_SOLUTION` 只表示库存诊断没有证明出正缺料的结构性或整数不可行。
+`shortageDiagnosisStates`。全图诊断另记录 `diagnosticExactShortageKinds`、`diagnosticUnresolvedKinds`、
+`diagnosticProvedCycles`、`diagnosticUnprovedCycleComponents`、`diagnosticContinuationStates` 和首个
+`diagnosticCycleProofStop`。`MIP_NO_INTEGER_SOLUTION` 只表示库存诊断没有证明出正缺料的结构性或整数不可行。
 等待状态只在状态迁移或限频周期记录，避免日志刷屏。
 
 ## 11. 实施顺序
@@ -496,7 +503,10 @@ producer安全稀疏化旧依赖；缺少输出元数据的旧快照继续保留
 - 玩家选择通过 AE2 `IActionSource` context 进入本次计算，机器和外部请求使用 COMMON 默认值；
 - 有合格 Trinity CPU 时只启动 Trinity Future；无合格 CPU 时不捕获图或库存并直接走 AE2；
 - 计划超过请求开始时捕获的最大 Trinity 容量时拒绝 Trinity 结果并返回对应诊断；
-- 确认页显示 Trinity-only、循环动态材料警告、诊断以及与 AE2 原生计划一致的可用/待合成数量；
+- 确认页显示 Trinity-only、循环动态材料警告、红色 exact shortage、黄色 unresolved demand 以及与 AE2 原生计划一致的
+  可用/待合成数量；
+- 成功计划与诊断计划只展示经完整排程证明的环；默认 `[`/`]` KeyMapping 在当前确认页切换上一环/下一环，可由玩家在控制设置
+  重新绑定。它们不是界面按钮，也不向服务器发送选择状态；彩条和材料 tooltip 只使用当前所选环；
 - CPU 状态页从 stage/repeat 游标推导待合成量，并把已封存 completion buffer 计入已存储量；
 - 确认页过滤、自动选核与 `submitJob` 都复用同一 CPU-family admission 边界。
 - 新计算和重算立即清除旧计划摘要；确认页只在新结果已经过下一轮 CPU 资格过滤后开放按钮与 Enter 提交。

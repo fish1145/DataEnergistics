@@ -16,7 +16,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * Appends the capped Trinity inventory usage percentage and per-cycle statistics after AE2's native material tooltip.
+ * Appends plan-wide inventory usage, typed diagnostic amounts and the selected cycle after AE2's native tooltip.
  */
 public final class TrinityCraftConfirmCycleTooltip {
 

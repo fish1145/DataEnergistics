@@ -9,7 +9,7 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.Trini
 import appeng.api.stacks.AEKey;
 
 /**
- * Closed classification of the three record families carried by the cycle-summary protocol.
+ * Closed classification of the five record families carried by the cycle-summary protocol.
  */
 public sealed interface TrinityCraftConfirmCycleRecord permits TrinityCraftConfirmCycleRecord.Header,
                                                        TrinityCraftConfirmCycleRecord.Material,

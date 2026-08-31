@@ -349,6 +349,23 @@ reserve 拆为 actual/missing，依次证明 missing、external、seed、firing�
 该修复不改变 exact `AEKey` 规则，也不会从花、甘蔗或原矿推测未发布的转换配方。当前分支没有为此新增测试源码、配方 fixture
 或 benchmark；现有 Gradle 检查只能证明既有自动化未回归，完整订单样板与创造盘行为仍由真实游戏环境验收。
 
+### C-027：缺料诊断被首个 seed 覆盖，且确认页缺少可验证环上下文
+
+旧图聚合在 joint cycle 只有一种缺料时把完整 partial result 降格为单个 `InputShortage`，外层随后直接返回该 seed；其它已经累计
+或尚未遍历的独立材料因此消失。partial 合并还会清空 exact `inputRequirements`，无 typed evidence 时确认页只能把最终请求物显示为
+missing。成功计划的环摘要只存在于 executable repeat block，失败诊断没有环元数据，也无法区分“确定缺料”和“尚未解析的中间需求”。
+
+修复后，单项与多项 shortage 使用同一完整材料视图；正常路线搜索保持原有回溯并优先寻找成功计划，只有最终失败后才回滚到初始
+库存和 demand，以剩余 route/SCC state 做确定性诊断重走。满足 `required = available + missing` 的外部输入保留为 exact shortage；
+搜索上限、未证明 SCC 或无法安全展开的余额保留为 unresolved，不把局部贪心路线的 shortage 提升成新的顶层失败原因。只有在虚拟补齐
+missing 后再次通过 exact conservation、minimum seed 和完整压缩排程的环才形成独立 diagnostic evidence，该类型没有回转 executable
+selection 的入口，所有诊断结果仍为 transient failure。
+
+确认页协议在原有 container/revision 原子分包中增加 exact-shortage 与 unresolved-demand 两类 record，并将协议版本提升到 6。AE2
+missing 继续使用红色；unresolved 使用零 counter 原生行、黄色覆盖层和独立 tooltip，不伪装为“缺少”或“待合成”。成功与诊断环均由
+客户端 screen-local KeyMapping 选择，默认 `[` 为上一环、`]` 为下一环；没有新增鼠标按钮或服务器选择包。当前分支仍未新增测试源码、
+配方 fixture 或 benchmark，真实订单中的材料完整性和 tooltip 可读性由游戏环境验收。
+
 ## 4. 修复映射
 
 下表“主要证据”记录历史审计依据；除非在第 6 节明确列为本次实际执行，否则不代表当前工作树仍能运行这些测试或 GameTest。
@@ -381,6 +398,7 @@ reserve 拆为 actual/missing，依次证明 missing、external、seed、firing�
 | C-024 | Pattern Core V3→V4 容量对齐迁移与 V2 拒绝 | 进行中 | 同档位容量迁移、旧 V2 拒绝、真实玩家拆除/掉落/重放 GameTest |
 | C-025 | primitive cycle macro、settled export、等价 binding 压缩 | 已完成 | 完整有限库存 256M 链路、玩家请求域循环、joint SCC 与共享 binding 契约 |
 | C-026 | 成功限定缓存、创造库存探测、cycle shortage diagnosis | 已完成 | 现有 test/build；失败重复请求、exact-key 缺料与完整订单由真实环境验收 |
+| C-027 | 全图诊断重走、已证明环证据、确认页材料分类与按键切环 | 已完成 | 现有 test/build、IDEA inspections；完整材料列表和交互由真实环境验收 |
 
 ## 5. 风险与控制
 
@@ -455,7 +473,7 @@ GameTest 或性能 benchmark；本次只运行现有 `test`、`build`、Spotless
 
 历史审计只有以下证据同时成立才可关闭；这些条件不能被解释为当前分支已经重新执行：
 
-1. C-001 至 C-025 均有直接行为测试或集成证据；
+1. C-001 至 C-027 均有直接行为测试或集成证据；
 2. 自增殖和多步增殖在真实 Trinity CPU GameTest 中完成且数量守恒；
 3. 大数量规划没有按 Q 展开；
 4. schema 1/2 重载、取消和动态借料不丢失或复制；

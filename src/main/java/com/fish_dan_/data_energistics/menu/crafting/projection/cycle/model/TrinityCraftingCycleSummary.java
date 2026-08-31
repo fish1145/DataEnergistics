@@ -18,7 +18,7 @@ import java.util.OptionalInt;
 import java.util.Set;
 
 /**
- * Immutable, network-friendly cycle statistics projected from one executable Trinity crafting plan.
+ * Immutable, network-friendly cycle and material statistics projected from one executable or diagnosed Trinity plan.
  *
  * <p>
  * Cycle headers, material contributions and inventory usage percentages remain separate so a transport can flatten
@@ -57,7 +57,7 @@ public final class TrinityCraftingCycleSummary {
     }
 
     /**
-     * Rebuilds one complete summary from the three record families used by the network representation.
+     * Rebuilds an executable summary from the original three record families used by the network representation.
      *
      * @param inventoryUsageBasisPoints inventory usage percentages in hundredths of a percentage point
      * @param cycles                    cycle header records

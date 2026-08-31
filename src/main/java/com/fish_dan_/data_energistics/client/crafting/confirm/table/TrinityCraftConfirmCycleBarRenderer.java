@@ -11,7 +11,7 @@ import appeng.menu.me.crafting.CraftingPlanSummaryEntry;
 import java.util.List;
 
 /**
- * Draws two-pixel cycle-membership bars beneath the visible cells of AE2's 3x5 confirmation table.
+ * Draws the selected cycle's two-pixel membership bar beneath visible cells of AE2's 3x5 confirmation table.
  */
 public final class TrinityCraftConfirmCycleBarRenderer {
 
@@ -27,7 +27,7 @@ public final class TrinityCraftConfirmCycleBarRenderer {
     private TrinityCraftConfirmCycleBarRenderer() {}
 
     /**
-     * Draws only cycle members from the complete current summary while following AE2's current row offset.
+     * Draws only members of the current screen-local cycle selection while following AE2's current row offset.
      */
     public static void render(GuiGraphics graphics,
                               CraftingPlanSummary plan,
