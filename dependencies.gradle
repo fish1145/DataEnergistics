@@ -3,8 +3,6 @@ dependencies {
     compileOnly(libs.jspecify)
 
     testImplementation(libs.testframework)
-    testImplementation(libs.junit.jupiter)
-    testRuntimeOnly(libs.junit.platform.launcher)
 
     jarJar(api(forge.mdlib.get()))
     jarJar(api(libs.ojalgo.get()))
