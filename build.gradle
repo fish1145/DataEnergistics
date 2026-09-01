@@ -81,9 +81,9 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << "-Xlint:-removal"
 }
 
-tasks.withType(Test).configureEach {
-    useJUnitPlatform()
-    failOnNoDiscoveredTests = false
+// GameTests run through NeoForge's dedicated launcher; no ordinary JVM test suite is retained.
+tasks.named("test") {
+    enabled = false
 }
 
 lombok {
