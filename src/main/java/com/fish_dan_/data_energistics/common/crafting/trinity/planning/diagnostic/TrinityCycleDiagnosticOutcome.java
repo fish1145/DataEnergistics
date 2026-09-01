@@ -4,10 +4,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic.PartialPlan;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -27,32 +27,23 @@ public record TrinityCycleDiagnosticOutcome(
                                             Map<AEKey, BigInteger> boundaryInputs) {
 
     /**
-     * Freezes the accounting and rejects overlapping actual, missing and predecessor-produced allocations.
+     * Validates the owned accounting and rejects overlapping actual, missing and predecessor-produced allocations.
      */
     public TrinityCycleDiagnosticOutcome {
-        if (evidence == null || actualInputs == null || inputRequirements == null || boundaryInputs == null) {
-            throw new IllegalArgumentException("A Trinity diagnostic cycle outcome requires complete accounting");
-        }
-        Map<AEKey, BigInteger> copiedActualInputs = copyPositiveAmounts(actualInputs, "actual input");
-        Map<AEKey, BigInteger> copiedBoundaryInputs = copyPositiveAmounts(boundaryInputs, "boundary input");
-        LinkedHashMap<AEKey, InputRequirement> copiedRequirements = new LinkedHashMap<>();
-        inputRequirements.forEach((key, requirement) -> {
-            if (key == null || requirement == null) {
-                throw new IllegalArgumentException("A Trinity diagnostic cycle shortage cannot be null");
-            }
-            if (!copiedActualInputs.getOrDefault(key, BigInteger.ZERO).equals(requirement.available())) {
+        actualInputs = validatePositiveAmounts(actualInputs, "actual input");
+        boundaryInputs = validatePositiveAmounts(boundaryInputs, "boundary input");
+        for (Map.Entry<AEKey, InputRequirement> shortage : inputRequirements.entrySet()) {
+            if (!actualInputs.getOrDefault(shortage.getKey(), BigInteger.ZERO).equals(shortage.getValue().available())) {
                 throw new IllegalArgumentException("A Trinity diagnostic cycle shortage must match its actual input");
             }
-            copiedRequirements.put(key, requirement);
-        });
-        if (copiedBoundaryInputs.keySet().stream().anyMatch(key -> copiedActualInputs.containsKey(key) ||
-                copiedRequirements.containsKey(key))) {
-            throw new IllegalArgumentException(
-                    "A Trinity diagnostic cycle input cannot be both reserved and predecessor-produced");
         }
-        actualInputs = copiedActualInputs;
-        inputRequirements = Collections.unmodifiableMap(copiedRequirements);
-        boundaryInputs = copiedBoundaryInputs;
+        for (AEKey key : boundaryInputs.keySet()) {
+            if (actualInputs.containsKey(key) || inputRequirements.containsKey(key)) {
+                throw new IllegalArgumentException(
+                        "A Trinity diagnostic cycle input cannot be both reserved and predecessor-produced");
+            }
+        }
+        inputRequirements = Collections.unmodifiableMap(inputRequirements);
     }
 
     /**
@@ -62,12 +53,9 @@ public record TrinityCycleDiagnosticOutcome(
                                                        TrinityCycleDiagnosticEvidence evidence,
                                                        Map<AEKey, BigInteger> available,
                                                        Set<AEKey> producibleInputs) {
-        if (evidence == null || available == null || producibleInputs == null) {
-            throw new IllegalArgumentException("A Trinity diagnostic cycle split request is incomplete");
-        }
-        LinkedHashMap<AEKey, BigInteger> actual = new LinkedHashMap<>();
-        LinkedHashMap<AEKey, InputRequirement> shortages = new LinkedHashMap<>();
-        LinkedHashMap<AEKey, BigInteger> boundary = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> actual = new Object2ObjectLinkedOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, InputRequirement> shortages = new Object2ObjectLinkedOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> boundary = new Object2ObjectLinkedOpenHashMap<>();
         evidence.initialInputs().forEach((key, required) -> {
             BigInteger stored = available.getOrDefault(key, BigInteger.ZERO);
             if (stored.signum() < 0) {
@@ -92,7 +80,7 @@ public record TrinityCycleDiagnosticOutcome(
      * Produces the non-executable material view attached to a terminal diagnostic.
      */
     public PartialPlan materials() {
-        LinkedHashMap<AEKey, BigInteger> missing = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> missing = new Object2ObjectLinkedOpenHashMap<>();
         this.inputRequirements.forEach((key, requirement) -> missing.put(key, requirement.missing()));
         return new PartialPlan(
                 this.actualInputs,
@@ -101,16 +89,14 @@ public record TrinityCycleDiagnosticOutcome(
                 this.inputRequirements);
     }
 
-    private static Map<AEKey, BigInteger> copyPositiveAmounts(
-                                                              Map<AEKey, BigInteger> source,
-                                                              String role) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
+    private static Map<AEKey, BigInteger> validatePositiveAmounts(
+                                                                  Map<AEKey, BigInteger> source,
+                                                                  String role) {
         source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() <= 0) {
+            if (amount.signum() <= 0) {
                 throw new IllegalArgumentException("A Trinity diagnostic cycle " + role + " must be positive");
             }
-            copied.put(key, amount);
         });
-        return Collections.unmodifiableMap(copied);
+        return Collections.unmodifiableMap(source);
     }
 }

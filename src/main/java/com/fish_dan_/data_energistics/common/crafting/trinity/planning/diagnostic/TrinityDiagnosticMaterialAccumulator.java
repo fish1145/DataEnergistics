@@ -5,9 +5,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic.PartialPlan;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 
 import java.math.BigInteger;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -24,9 +25,6 @@ public final class TrinityDiagnosticMaterialAccumulator {
     private PartialPlan accumulated;
 
     private TrinityDiagnosticMaterialAccumulator(PartialPlan accumulated) {
-        if (accumulated == null) {
-            throw new IllegalArgumentException("A Trinity diagnostic material accumulator requires initial evidence");
-        }
         this.accumulated = accumulated;
     }
 
@@ -41,21 +39,22 @@ public final class TrinityDiagnosticMaterialAccumulator {
      * Promotes a conclusive one-key shortage to the same material representation used by multi-key diagnostics.
      */
     public static PartialPlan fromShortage(InputShortage shortage) {
-        if (shortage == null) {
-            throw new IllegalArgumentException("A Trinity diagnostic shortage cannot be null");
-        }
-        LinkedHashMap<AEKey, BigInteger> used = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> used = new Object2ObjectLinkedOpenHashMap<>();
         if (shortage.available().signum() > 0) {
             used.put(shortage.key(), shortage.available());
         }
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> missing = new Object2ObjectLinkedOpenHashMap<>();
+        missing.put(shortage.key(), shortage.missing());
+        Object2ObjectLinkedOpenHashMap<AEKey, InputRequirement> requirements = new Object2ObjectLinkedOpenHashMap<>();
+        requirements.put(shortage.key(), new InputRequirement(
+                shortage.required(),
+                shortage.available(),
+                shortage.missing()));
         return new PartialPlan(
                 used,
                 Map.of(),
-                Map.of(shortage.key(), shortage.missing()),
-                Map.of(shortage.key(), new InputRequirement(
-                        shortage.required(),
-                        shortage.available(),
-                        shortage.missing())));
+                missing,
+                requirements);
     }
 
     /**
@@ -63,9 +62,6 @@ public final class TrinityDiagnosticMaterialAccumulator {
      * demand.
      */
     public void add(PartialPlan nested) {
-        if (nested == null) {
-            throw new IllegalArgumentException("Nested Trinity diagnostic material evidence cannot be null");
-        }
         this.accumulated = merge(this.accumulated, nested);
     }
 
@@ -77,15 +73,15 @@ public final class TrinityDiagnosticMaterialAccumulator {
     }
 
     private static PartialPlan merge(PartialPlan accumulated, PartialPlan nested) {
-        LinkedHashMap<AEKey, BigInteger> used = sum(accumulated.usedItems(), nested.usedItems());
-        LinkedHashMap<AEKey, BigInteger> emitted = sum(accumulated.emittedItems(), nested.emittedItems());
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> used = sum(accumulated.usedItems(), nested.usedItems());
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> emitted = sum(accumulated.emittedItems(), nested.emittedItems());
 
-        LinkedHashMap<AEKey, BigInteger> remainingAccumulated = new LinkedHashMap<>(
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> remainingAccumulated = new Object2ObjectLinkedOpenHashMap<>(
                 accumulated.missingItems());
         nested.emittedItems().forEach((key, amount) -> subtractPositive(remainingAccumulated, key, amount));
 
-        LinkedHashMap<AEKey, BigInteger> missing = sum(remainingAccumulated, nested.missingItems());
-        LinkedHashMap<AEKey, InputRequirement> exactCandidates = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> missing = sum(remainingAccumulated, nested.missingItems());
+        Object2ObjectLinkedOpenHashMap<AEKey, InputRequirement> exactCandidates = new Object2ObjectLinkedOpenHashMap<>();
         accumulated.inputRequirements().forEach((key, requirement) -> {
             if (requirement.missing().equals(remainingAccumulated.get(key))) {
                 mergeRequirement(exactCandidates, key, requirement);
@@ -96,7 +92,7 @@ public final class TrinityDiagnosticMaterialAccumulator {
                 key,
                 requirement));
 
-        LinkedHashMap<AEKey, InputRequirement> exactRequirements = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, InputRequirement> exactRequirements = new Object2ObjectLinkedOpenHashMap<>();
         exactCandidates.forEach((key, requirement) -> {
             if (requirement.missing().equals(missing.get(key))) {
                 exactRequirements.put(key, requirement);
@@ -105,23 +101,19 @@ public final class TrinityDiagnosticMaterialAccumulator {
         return new PartialPlan(used, emitted, missing, exactRequirements);
     }
 
-    private static LinkedHashMap<AEKey, BigInteger> sum(
-                                                        Map<AEKey, BigInteger> left,
-                                                        Map<AEKey, BigInteger> right) {
-        LinkedHashMap<AEKey, BigInteger> result = new LinkedHashMap<>(left);
+    private static Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> sum(
+                                                                         Map<AEKey, BigInteger> left,
+                                                                         Map<AEKey, BigInteger> right) {
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> result = new Object2ObjectLinkedOpenHashMap<>(left);
         right.forEach((key, amount) -> result.merge(key, amount, BigInteger::add));
         return result;
     }
 
     private static void subtractPositive(
-                                         Map<AEKey, BigInteger> amounts,
+                                         Object2ObjectMap<AEKey, BigInteger> amounts,
                                          AEKey key,
                                          BigInteger amount) {
-        BigInteger existing = amounts.get(key);
-        if (existing == null) {
-            return;
-        }
-        BigInteger remaining = existing.subtract(amount);
+        BigInteger remaining = amounts.getOrDefault(key, BigInteger.ZERO).subtract(amount);
         if (remaining.signum() > 0) {
             amounts.put(key, remaining);
         } else {
@@ -130,12 +122,12 @@ public final class TrinityDiagnosticMaterialAccumulator {
     }
 
     private static void mergeRequirement(
-                                         Map<AEKey, InputRequirement> requirements,
+                                         Object2ObjectMap<AEKey, InputRequirement> requirements,
                                          AEKey key,
                                          InputRequirement added) {
-        requirements.compute(key, (ignored, existing) -> existing == null ? added : new InputRequirement(
-                existing.required().add(added.required()),
-                existing.available().add(added.available()),
-                existing.missing().add(added.missing())));
+        requirements.merge(key, added, (existing, value) -> new InputRequirement(
+                existing.required().add(value.required()),
+                existing.available().add(value.available()),
+                existing.missing().add(value.missing())));
     }
 }
