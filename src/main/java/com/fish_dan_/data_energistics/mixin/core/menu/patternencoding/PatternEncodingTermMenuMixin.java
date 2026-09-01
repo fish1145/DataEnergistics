@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.mixin.core.menu.patternencoding;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
+import com.fish_dan_.data_energistics.common.crafting.pattern.EncodedPatternRecipeReference;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.integration.ae.extendedaeplus.EaepPatternEncodingHandoff;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
@@ -289,6 +290,11 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Override
+    public @Nullable EncodedPatternRecipeReference data_energistics$getEncodedPatternRecipeReference() {
+        return EncodedPatternRecipeReference.get(this.encodedPatternSlot.getItem());
+    }
+
+    @Override
     public void data_energistics$requestMultiblockTransfer(MultiblockRecipeView recipe) {
         if (!this.isClientSide()) {
             throw new IllegalStateException("Multiblock pattern transfer requests must originate on the client");
@@ -513,6 +519,12 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             EncodedPatternDynamicOutput.apply(
                     encodedPattern,
                     this.mode == EncodingMode.PROCESSING && this.dataEnergistics$processingOutputSameItem);
+            EncodedPatternRecipeReference.applyProcessingRecipeType(
+                    encodedPattern,
+                    PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
+                            this,
+                            data_energistics$getPreferenceSession(),
+                            this));
 
             ItemStack encodeOutput = this.encodedPatternSlot.getItem();
             if (!encodeOutput.isEmpty() && !PatternDetailsHelper.isEncodedPattern(encodeOutput) && !AEItems.BLANK_PATTERN.is(encodeOutput)) {

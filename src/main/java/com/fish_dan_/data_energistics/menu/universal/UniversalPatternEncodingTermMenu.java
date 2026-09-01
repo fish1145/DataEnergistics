@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.menu.universal;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
+import com.fish_dan_.data_energistics.common.crafting.pattern.EncodedPatternRecipeReference;
 import com.fish_dan_.data_energistics.integration.ae.extendedaeplus.EaepPatternEncodingHandoff;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.LegacyPatternEncodingPreferences;
@@ -206,6 +207,12 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                     encodedPattern,
                     this.mode == EncodingMode.PROCESSING &&
                             ((PatternOutputMatchMenu) this).data_energistics$isProcessingOutputSameItem());
+            EncodedPatternRecipeReference.applyProcessingRecipeType(
+                    encodedPattern,
+                    PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
+                            this,
+                            data_energistics$getPreferenceSession(),
+                            this));
             encodedPatternInv.setItemDirect(0, encodedPattern);
             encodedSuccessfully = true;
         } finally {
@@ -261,6 +268,16 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     @Override
     public EncodingMode data_energistics$getEncodingMode() {
         return this.getMode();
+    }
+
+    @Override
+    public @Nullable EncodedPatternRecipeReference data_energistics$getEncodedPatternRecipeReference() {
+        for (var slot : this.slots) {
+            if (this.getSlotSemantic(slot) == SlotSemantics.ENCODED_PATTERN) {
+                return EncodedPatternRecipeReference.get(slot.getItem());
+            }
+        }
+        return null;
     }
 
     @Override

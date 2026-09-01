@@ -14,6 +14,7 @@ import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -192,6 +193,14 @@ public final class DEDataComponents {
             () -> DataComponentType.<Boolean>builder()
                     .persistent(Codec.BOOL)
                     .networkSynchronized(ByteBufCodecs.BOOL)
+                    .cacheEncoding()
+                    .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ResourceLocation>> PROCESSING_PATTERN_RECIPE_TYPE = DATA_COMPONENT_TYPES.register(
+            "processing_pattern_recipe_type",
+            () -> DataComponentType.<ResourceLocation>builder()
+                    .persistent(ResourceLocation.CODEC)
+                    .networkSynchronized(ResourceLocation.STREAM_CODEC)
                     .cacheEncoding()
                     .build());
 

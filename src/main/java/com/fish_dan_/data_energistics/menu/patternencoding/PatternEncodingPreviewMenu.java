@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.menu.patternencoding;
 
+import com.fish_dan_.data_energistics.common.crafting.pattern.EncodedPatternRecipeReference;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -26,6 +28,10 @@ public interface PatternEncodingPreviewMenu {
     long data_energistics$getNetworkBlankPatternCount();
 
     EncodingMode data_energistics$getEncodingMode();
+
+    /** Returns the persistent recipe or recipe-type reference carried by the displayed encoded pattern. */
+    @Nullable
+    EncodedPatternRecipeReference data_energistics$getEncodedPatternRecipeReference();
 
     /**
      * Returns provider rows together with the exact ranking context used to resolve their workstation metadata.

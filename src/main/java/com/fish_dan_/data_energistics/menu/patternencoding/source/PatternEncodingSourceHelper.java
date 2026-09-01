@@ -226,6 +226,25 @@ public final class PatternEncodingSourceHelper {
     }
 
     /**
+     * Resolves the recipe type that should be persisted on the next encoded pattern.
+     */
+    @Nullable
+    public static ResourceLocation resolveProcessingPatternRecipeType(
+                                                                      PatternEncodingPreviewMenu previewMenu,
+                                                                      PatternEncodingPreferenceSession session,
+                                                                      PatternEncodingSourceAware sourceAware) {
+        if (!sourceAware.data_energistics$isPatternSourceEnabled()) {
+            return null;
+        }
+        EncodingMode mode = previewMenu.data_energistics$getEncodingMode();
+        if (mode != EncodingMode.PROCESSING) {
+            return null;
+        }
+        PatternEncodingRankingContext context = session.rankingContext();
+        return context == null ? null : context.recipeTypeId();
+    }
+
+    /**
      * Verifies that a client ranking context describes the current recipe mode.
      * Fixed vanilla modes are derived entirely on the server; processing contexts carry only a viewer recipe type.
      */
