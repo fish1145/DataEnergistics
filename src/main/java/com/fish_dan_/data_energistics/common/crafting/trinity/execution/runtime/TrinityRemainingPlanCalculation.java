@@ -8,14 +8,16 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGateway;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanningStatistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -85,13 +87,13 @@ public final class TrinityRemainingPlanCalculation {
      * @param target            remaining requested key
      * @param requestedAmount   remaining delivery amount
      * @param quantityMode      retained quantity semantics
-     * @param settings          immutable planner budgets
+     * @param settings          server-thread configuration captured for new work
      * @param currentTick       current server tick used by bounded same-revision retries
      * @return current advancement result
      */
     public Result advance(Optional<TrinityCraftingGraphSnapshot> snapshot,
                           long gridScope,
-                          Supplier<Map<AEKey, BigInteger>> availableSupplier,
+                          Supplier<TrinityPlanningInventory> availableSupplier,
                           AEKey target,
                           BigInteger requestedAmount,
                           CraftingQuantityMode quantityMode,
@@ -118,7 +120,15 @@ public final class TrinityRemainingPlanCalculation {
             this.retryAtTick = -1L;
         }
 
-        Map<AEKey, BigInteger> available = availableSupplier.get();
+        TrinityPlanningInventory inventory;
+        try {
+            inventory = availableSupplier.get();
+        } catch (RuntimeException exception) {
+            this.attemptedRevision = graph.revision();
+            scheduleRetry(graph.revision(), currentTick, settings.dynamicRetryMaxTicks);
+            return new Fault(exception, graph.revision());
+        }
+        TrinityPlanningLimits limits = TrinityPlanningLimits.capture(settings);
         this.attemptedRevision = graph.revision();
         TrinityPlanningGateway gateway = this.gatewaySupplier.get();
         this.pending = gateway.beginTrinity(gridScope, graph.revision(), () -> calculate(
@@ -128,8 +138,8 @@ public final class TrinityRemainingPlanCalculation {
                 target,
                 requestedAmount,
                 quantityMode,
-                available,
-                settings));
+                inventory,
+                limits));
         return new Waiting();
     }
 
@@ -218,8 +228,8 @@ public final class TrinityRemainingPlanCalculation {
                                                     AEKey target,
                                                     BigInteger requestedAmount,
                                                     CraftingQuantityMode quantityMode,
-                                                    Map<AEKey, BigInteger> available,
-                                                    TrinityCraftingSchema settings) {
+                                                    TrinityPlanningInventory inventory,
+                                                    TrinityPlanningLimits limits) {
         try {
             TrinityPlanningComputationResult computation = gateway.calculateRemainingTrinity(new TrinityPlanningInput(
                     gridScope,
@@ -227,17 +237,32 @@ public final class TrinityRemainingPlanCalculation {
                     target,
                     requestedAmount,
                     quantityMode,
-                    available,
-                    settings));
+                    inventory,
+                    limits));
             if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
+                var cache = computation.cacheStatistics();
+                TrinityPlanningStatistics statistics = computation.result().successful() ?
+                        computation.result().value().statistics() : TrinityPlanningStatistics.empty();
                 Data_Energistics.LOGGER.info(
-                        "Trinity remaining planning completed target={} mode={} revision={} cachePath={} outcome={}",
+                        "Trinity remaining planning completed target={} mode={} revision={} cachePath={} outcome={} seedRetentionKinds={} seedRetentionRequired={} seedRetentionFinal={} seedRefinementPasses={} patternExpansionHits={} patternExpansionMisses={} targetStructureHit={} dagRouteProofHits={} dagRouteHintHits={} cycleUnitProofHits={} mipTemplateHits={} requestInFlightShared={}",
                         target,
                         quantityMode,
                         graph.revision(),
                         computation.cachePath(),
                         computation.result().successful() ?
-                                "SELECTED" : computation.result().diagnostic().code());
+                                "SELECTED" : computation.result().diagnostic().code(),
+                        statistics.seedRetentionKinds(),
+                        statistics.seedRetentionRequired(),
+                        statistics.seedRetentionFinal(),
+                        statistics.seedRefinementPasses(),
+                        cache.patternExpansionHits(),
+                        cache.patternExpansionMisses(),
+                        cache.targetStructureHit(),
+                        cache.dagRouteProofHits(),
+                        cache.dagRouteHintHits(),
+                        cache.cycleUnitProofHits(),
+                        cache.mipTemplateHits(),
+                        cache.requestInFlightShared());
             }
             return computation.result().successful() ?
                     TrinityPlanningAttempt.success(computation.result().value()) :

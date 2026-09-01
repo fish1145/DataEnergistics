@@ -19,6 +19,8 @@ import java.util.Map;
  * @param firingVariables     stable firing axes
  * @param seedVariables       internal reserve axes
  * @param externalVariables   boundary reserve axes
+ * @param actualVariables     diagnostic-only captured inventory axes
+ * @param missingVariables    diagnostic-only virtual reserve axes
  * @param objective           logical objective for the current pass
  * @param minimize            whether the objective is minimised rather than maximised
  * @param objectiveLowerBound exact certified lower bound
@@ -29,6 +31,8 @@ public record TrinityRadixBuiltModel(
                                      Map<TrinityPatternVariant, TrinityRadixVariable> firingVariables,
                                      Map<AEKey, TrinityRadixVariable> seedVariables,
                                      Map<AEKey, TrinityRadixVariable> externalVariables,
+                                     Map<AEKey, TrinityRadixVariable> actualVariables,
+                                     Map<AEKey, TrinityRadixVariable> missingVariables,
                                      TrinityRadixVariable objective,
                                      boolean minimize,
                                      BigInteger objectiveLowerBound,
@@ -43,7 +47,9 @@ public record TrinityRadixBuiltModel(
         return new TrinityRadixSolvedModel(
                 Collections.unmodifiableMap(firings),
                 decodePositive(seedVariables, values),
-                decodePositive(externalVariables, values));
+                decodePositive(externalVariables, values),
+                decodePositive(actualVariables, values),
+                decodePositive(missingVariables, values));
     }
 
     private static Map<AEKey, BigInteger> decodePositive(

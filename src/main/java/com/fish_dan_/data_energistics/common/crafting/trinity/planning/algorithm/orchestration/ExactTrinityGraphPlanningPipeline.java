@@ -5,8 +5,12 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.proof.TrinityCycleUnitProofIndex;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.TrinityAcyclicDemandPropagator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.TrinityAcyclicPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.proof.TrinityAcyclicRouteFamily;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.proof.TrinityAcyclicRouteHint;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.assembly.TrinityGraphPlanAssembler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.assembly.TrinityGraphPlanAssembly;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.demand.TrinityGraphDemandAggregator;
@@ -15,21 +19,22 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityGraphTopologyAnalyzer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityPatternVariantExpander;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityTransitionEffectCompactor;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphPattern;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 
 import java.math.BigInteger;
 import java.util.ArrayDeque;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -44,17 +49,20 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
     private static final String TIMEOUT_KEY = "gui.data_energistics.trinity_planning.diagnostic.timeout";
 
     private final TrinityPatternVariantExpander variantExpander;
+    private final TrinityTransitionEffectCompactor effectCompactor;
     private final TrinityGraphTopologyAnalyzer topologyAnalyzer;
     private final TrinityAcyclicDemandPropagator acyclicDemandPropagator;
     private final TrinityGraphDemandAggregator demandAggregator;
     private final TrinityGraphPlanAssembler planAssembler;
 
     ExactTrinityGraphPlanningPipeline(TrinityPatternVariantExpander variantExpander,
+                                      TrinityTransitionEffectCompactor effectCompactor,
                                       TrinityGraphTopologyAnalyzer topologyAnalyzer,
                                       TrinityAcyclicDemandPropagator acyclicDemandPropagator,
                                       TrinityGraphDemandAggregator demandAggregator,
                                       TrinityGraphPlanAssembler planAssembler) {
         this.variantExpander = variantExpander;
+        this.effectCompactor = effectCompactor;
         this.topologyAnalyzer = topologyAnalyzer;
         this.acyclicDemandPropagator = acyclicDemandPropagator;
         this.demandAggregator = demandAggregator;
@@ -67,11 +75,11 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                                                             AEKey target,
                                                             BigInteger requestedAmount,
                                                             CraftingQuantityMode quantityMode,
-                                                            Map<AEKey, BigInteger> available,
-                                                            TrinityCraftingSchema settings,
+                                                            TrinityPlanningInventory inventory,
+                                                            TrinityPlanningLimits limits,
                                                             TrinityPlanningControl control) {
         if (snapshot == null || target == null || requestedAmount == null || requestedAmount.signum() <= 0 ||
-                quantityMode == null || available == null || settings == null || control == null) {
+                quantityMode == null || inventory == null || limits == null || control == null) {
             throw new IllegalArgumentException("A Trinity graph planning request is incomplete");
         }
         try {
@@ -86,17 +94,19 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
             TrinityAlgorithmResult<TrinityCompiledGraph> compiled = compileExact(
                     reachableSnapshot,
                     target,
-                    settings.maxBindingVariants,
-                    settings.maxSccKeys,
+                    limits.maxBindingVariants(),
+                    limits.maxSccKeys(),
                     control);
             return compiled.successful() ?
                     solveExact(
                             compiled.value(),
+                            Map.of(),
                             snapshot.revision(),
                             requestedAmount,
                             quantityMode,
-                            copyAvailable(available),
-                            settings,
+                            inventory,
+                            limits,
+                            TrinityPlanningMode.FIRST_FEASIBLE,
                             control) :
                     TrinityAlgorithmResult.failure(compiled.diagnostic());
         } catch (ArithmeticException exception) {
@@ -128,6 +138,31 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
         }
     }
 
+    @Override
+    public TrinityAlgorithmResult<List<TrinityPatternVariant>> expandPattern(
+                                                                             TrinityCraftingGraphPattern pattern,
+                                                                             int maxBindingVariants,
+                                                                             TrinityPlanningControl control) {
+        return this.variantExpander.expandPattern(pattern, maxBindingVariants, control);
+    }
+
+    @Override
+    public TrinityAlgorithmResult<TrinityCompiledGraph> compileExpanded(
+                                                                        TrinityCraftingGraphSnapshot reachableSnapshot,
+                                                                        AEKey target,
+                                                                        List<TrinityPatternVariant> expandedVariants,
+                                                                        int maxSccKeys,
+                                                                        TrinityPlanningControl control) {
+        try {
+            return compileExpandedExact(reachableSnapshot, target, expandedVariants, maxSccKeys, control);
+        } catch (ArithmeticException exception) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.ARITHMETIC_OVERFLOW,
+                    ARITHMETIC_OVERFLOW_KEY,
+                    Map.of("reason", exception.getClass().getSimpleName()));
+        }
+    }
+
     private TrinityAlgorithmResult<TrinityCompiledGraph> compileExact(
                                                                       TrinityCraftingGraphSnapshot reachableSnapshot,
                                                                       AEKey target,
@@ -149,14 +184,33 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
         }
         TrinityAlgorithmResult<List<TrinityPatternVariant>> expanded = this.variantExpander.expand(
                 reachableSnapshot,
-                maxBindingVariants);
+                maxBindingVariants,
+                control);
         if (!expanded.successful()) {
             return TrinityAlgorithmResult.failure(expanded.diagnostic());
         }
+        return compileExpandedExact(reachableSnapshot, target, expanded.value(), maxSccKeys, control);
+    }
+
+    private TrinityAlgorithmResult<TrinityCompiledGraph> compileExpandedExact(
+                                                                              TrinityCraftingGraphSnapshot reachableSnapshot,
+                                                                              AEKey target,
+                                                                              List<TrinityPatternVariant> expandedVariants,
+                                                                              int maxSccKeys,
+                                                                              TrinityPlanningControl control) {
+        StopState state = stopState(control);
+        if (state == StopState.CANCELLED) {
+            return cancelled();
+        }
+        if (state == StopState.DEADLINE_EXCEEDED) {
+            return deadlineExceeded();
+        }
+        List<TrinityPatternVariant> compacted = this.effectCompactor.compact(expandedVariants);
         TrinityAlgorithmResult<TrinityCraftingTopology> analyzed = this.topologyAnalyzer.analyze(
                 reachableSnapshot,
-                expanded.value(),
-                maxSccKeys);
+                compacted,
+                maxSccKeys,
+                control);
         if (!analyzed.successful()) {
             return TrinityAlgorithmResult.failure(analyzed.diagnostic());
         }
@@ -175,34 +229,42 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
         return TrinityAlgorithmResult.success(new TrinityCompiledGraph(
                 target,
                 reachableSnapshot.patterns().stream().map(TrinityCraftingGraphPattern::identity).toList(),
-                expanded.value(),
+                expandedVariants.size(),
+                compacted,
                 analyzed.value(),
                 targetComponent,
                 reachableCycle,
-                relevantInventoryKeys));
+                relevantInventoryKeys,
+                Map.of(),
+                TrinityCycleUnitProofIndex.empty(),
+                Int2ObjectMaps.emptyMap()));
     }
 
     @Override
     public TrinityAlgorithmResult<TrinityCraftingPlan> solve(
                                                              TrinityCompiledGraph compiled,
+                                                             Map<AEKey, TrinityAcyclicRouteHint> routeHints,
                                                              long catalogRevision,
                                                              BigInteger requestedAmount,
                                                              CraftingQuantityMode quantityMode,
-                                                             Map<AEKey, BigInteger> available,
-                                                             TrinityCraftingSchema settings,
+                                                             TrinityPlanningInventory inventory,
+                                                             TrinityPlanningLimits limits,
+                                                             TrinityPlanningMode mode,
                                                              TrinityPlanningControl control) {
         if (compiled == null || catalogRevision < 0L || requestedAmount == null || requestedAmount.signum() <= 0 ||
-                quantityMode == null || available == null || settings == null || control == null) {
+                quantityMode == null || inventory == null || limits == null || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity compiled graph solve request is incomplete");
         }
         try {
             return solveExact(
                     compiled,
+                    routeHints,
                     catalogRevision,
                     requestedAmount,
                     quantityMode,
-                    copyAvailable(available),
-                    settings,
+                    inventory,
+                    limits,
+                    mode,
                     control);
         } catch (ArithmeticException exception) {
             return failure(
@@ -214,11 +276,13 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
 
     private TrinityAlgorithmResult<TrinityCraftingPlan> solveExact(
                                                                    TrinityCompiledGraph compiled,
+                                                                   Map<AEKey, TrinityAcyclicRouteHint> routeHints,
                                                                    long catalogRevision,
                                                                    BigInteger requestedAmount,
                                                                    CraftingQuantityMode quantityMode,
-                                                                   Map<AEKey, BigInteger> available,
-                                                                   TrinityCraftingSchema settings,
+                                                                   TrinityPlanningInventory inventory,
+                                                                   TrinityPlanningLimits limits,
+                                                                   TrinityPlanningMode mode,
                                                                    TrinityPlanningControl control) {
         StopState state = stopState(control);
         if (state == StopState.CANCELLED) {
@@ -227,25 +291,27 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
         if (state == StopState.DEADLINE_EXCEEDED) {
             return deadlineExceeded();
         }
-        long requestedLong = requestedAmount.longValueExact();
         long startedNanos = System.nanoTime();
         TrinityAlgorithmResult<TrinityGraphPlanAssembly> assembled = compiled.reachableCycle() ?
                 solveWithCycles(
-                        compiled.topology(),
-                        compiled.target(),
+                        compiled,
                         requestedAmount,
                         quantityMode,
-                        available,
-                        settings,
+                        inventory,
+                        limits,
+                        mode,
                         control) :
                 solveAcyclic(
                         compiled.topology(),
                         compiled.variants(),
+                        compiled.routeFamilies(),
+                        routeHints,
                         compiled.target(),
                         requestedAmount,
                         quantityMode,
-                        available,
-                        settings,
+                        inventory,
+                        limits,
+                        mode,
                         control);
         if (!assembled.successful()) {
             return TrinityAlgorithmResult.failure(assembled.diagnostic());
@@ -255,7 +321,6 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                         catalogRevision,
                         compiled.target(),
                         requestedAmount,
-                        requestedLong,
                         quantityMode,
                         compiled.variants(),
                         compiled.topology(),
@@ -265,47 +330,62 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
     }
 
     private TrinityAlgorithmResult<TrinityGraphPlanAssembly> solveWithCycles(
-                                                                             TrinityCraftingTopology topology,
-                                                                             AEKey target,
+                                                                             TrinityCompiledGraph compiled,
                                                                              BigInteger requestedAmount,
                                                                              CraftingQuantityMode quantityMode,
-                                                                             Map<AEKey, BigInteger> available,
-                                                                             TrinityCraftingSchema settings,
+                                                                             TrinityPlanningInventory inventory,
+                                                                             TrinityPlanningLimits limits,
+                                                                             TrinityPlanningMode mode,
                                                                              TrinityPlanningControl control) {
         TrinityAlgorithmResult<TrinityGraphDemandSolution> solved = this.demandAggregator.aggregate(
-                topology,
-                target,
+                compiled.topology(),
+                compiled.target(),
                 requestedAmount,
                 quantityMode,
-                available,
-                settings,
-                control);
+                inventory,
+                limits,
+                mode,
+                control,
+                compiled.cycleUnitProofs().byReservoir(),
+                compiled.cycleMipTemplates());
         return solved.successful() ?
-                this.planAssembler.assembleDemand(target, topology, solved.value()) :
+                this.planAssembler.assembleDemand(compiled.target(), compiled.topology(), solved.value()) :
                 TrinityAlgorithmResult.failure(solved.diagnostic());
     }
 
     private TrinityAlgorithmResult<TrinityGraphPlanAssembly> solveAcyclic(
                                                                           TrinityCraftingTopology topology,
                                                                           List<TrinityPatternVariant> variants,
+                                                                          Map<AEKey, TrinityAcyclicRouteFamily> routeFamilies,
+                                                                          Map<AEKey, TrinityAcyclicRouteHint> routeHints,
                                                                           AEKey target,
                                                                           BigInteger requestedAmount,
                                                                           CraftingQuantityMode quantityMode,
-                                                                          Map<AEKey, BigInteger> available,
-                                                                          TrinityCraftingSchema settings,
+                                                                          TrinityPlanningInventory inventory,
+                                                                          TrinityPlanningLimits limits,
+                                                                          TrinityPlanningMode mode,
                                                                           TrinityPlanningControl control) {
+        int recordedRouteStates = control.recordedRouteStates();
         TrinityAlgorithmResult<TrinityAcyclicPlan> propagated = this.acyclicDemandPropagator.propagate(
                 topology,
                 variants,
+                routeFamilies,
+                routeHints,
                 target,
                 requestedAmount,
                 quantityMode,
-                available,
-                settings.maxScheduleStates,
+                inventory,
+                limits.maxScheduleStates(),
+                mode,
                 control);
-        return propagated.successful() ?
-                TrinityAlgorithmResult.success(this.planAssembler.assembleAcyclic(propagated.value())) :
-                TrinityAlgorithmResult.failure(propagated.diagnostic());
+        if (!propagated.successful()) {
+            return TrinityAlgorithmResult.failure(propagated.diagnostic());
+        }
+        int optimizerStates = Math.subtractExact(control.recordedRouteStates(), recordedRouteStates);
+        if (optimizerStates == 0) {
+            control.recordRouteStates(propagated.value().statesVisited());
+        }
+        return TrinityAlgorithmResult.success(this.planAssembler.assembleAcyclic(propagated.value()));
     }
 
     private static boolean hasReachableCycle(TrinityCraftingTopology topology, int targetComponent) {
@@ -324,19 +404,6 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
             pending.addAll(component.predecessorIndexes());
         }
         return false;
-    }
-
-    private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
-        source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() < 0) {
-                throw new IllegalArgumentException("Trinity graph-planning inventory cannot be negative or null");
-            }
-            if (amount.signum() > 0) {
-                copied.put(key, amount);
-            }
-        });
-        return Collections.unmodifiableMap(copied);
     }
 
     private static StopState stopState(TrinityPlanningControl control) {

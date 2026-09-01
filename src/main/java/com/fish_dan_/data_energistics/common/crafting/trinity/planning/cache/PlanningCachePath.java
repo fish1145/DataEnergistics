@@ -5,10 +5,22 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache;
  */
 public enum PlanningCachePath {
 
-    /** Quantity, mode, relevant inventory, structure, and revision matched a completed solved result. */
-    EXACT_HIT,
+    /** An identical quantity, inventory, limits, and revision request joined a calculation already in progress. */
+    IN_FLIGHT_SHARED,
 
-    /** Target structure matched, while quantity, inventory, or revision required dynamic demand solving. */
+    /** A previously verified multi-producer identity route supplied the first exact incumbent. */
+    ROUTE_HINT_HIT,
+
+    /** Quantity-independent DAG producer proofs were reused across a target closure. */
+    ROUTE_PROOF_HIT,
+
+    /** A deterministic cycle unit order and restart seed were reused. */
+    CYCLE_UNIT_HIT,
+
+    /** More than one semantic route, cycle, or coefficient proof family was reused. */
+    MIXED_PROOF_HIT,
+
+    /** Target structure matched, while quantity and inventory were instantiated for this request. */
     STRUCTURE_HIT,
 
     /** Target-reachable semantics required binding expansion and topology analysis. */

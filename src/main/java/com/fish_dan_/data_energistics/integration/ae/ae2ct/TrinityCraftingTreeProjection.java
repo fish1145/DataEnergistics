@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.integration.ae.ae2ct;
 
-import com.fish_dan_.data_energistics.common.crafting.LongAmountMath;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
@@ -293,10 +293,10 @@ public final class TrinityCraftingTreeProjection {
             ArrayList<GenericStack> stacks = new ArrayList<>(this.outputs.size());
             stacks.add(new GenericStack(
                     this.primaryOutput,
-                    LongAmountMath.saturatingLongValueNonNegative(this.outputs.get(this.primaryOutput))));
+                    TrinityAe2AmountProjection.toAe2Amount(this.outputs.get(this.primaryOutput))));
             this.outputs.forEach((key, amount) -> {
                 if (!key.equals(this.primaryOutput)) {
-                    stacks.add(new GenericStack(key, LongAmountMath.saturatingLongValueNonNegative(amount)));
+                    stacks.add(new GenericStack(key, TrinityAe2AmountProjection.toAe2Amount(amount)));
                 }
             });
             return List.copyOf(stacks);
@@ -306,7 +306,7 @@ public final class TrinityCraftingTreeProjection {
             ArrayList<GenericStack> stacks = new ArrayList<>(amounts.size());
             amounts.forEach((key, amount) -> stacks.add(new GenericStack(
                     key,
-                    LongAmountMath.saturatingLongValueNonNegative(amount))));
+                    TrinityAe2AmountProjection.toAe2Amount(amount))));
             return List.copyOf(stacks);
         }
     }

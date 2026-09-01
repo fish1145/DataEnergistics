@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import appeng.api.stacks.AEKey;
 
@@ -19,20 +20,22 @@ import java.util.Map;
  * @param externalInputs positive amounts actually reserved from the immutable inventory snapshot
  * @param netChange      exact signed transition effect
  * @param statesVisited  graph-dependent propagation states, independent of requested quantity
+ * @param quality        exact proof strength retained by this plan
  */
 public record TrinityAcyclicPlan(
                                  List<TrinityVariantFiring> executionOrder,
                                  Map<TrinityPatternVariant, BigInteger> firings,
                                  Map<AEKey, BigInteger> externalInputs,
                                  Map<AEKey, BigInteger> netChange,
-                                 int statesVisited) {
+                                 int statesVisited,
+                                 TrinityPlanQuality quality) {
 
     /**
      * Copies every exact amount and checks aggregate ordering consistency.
      */
     public TrinityAcyclicPlan {
         if (executionOrder == null || firings == null || externalInputs == null || netChange == null ||
-                statesVisited < 0) {
+                statesVisited < 0 || quality == null) {
             throw new IllegalArgumentException("A Trinity acyclic plan requires complete non-negative accounting");
         }
         executionOrder = List.copyOf(executionOrder);
@@ -48,6 +51,37 @@ public record TrinityAcyclicPlan(
         if (!orderedFirings.equals(firings)) {
             throw new IllegalArgumentException("A Trinity acyclic execution order must match its firing vector");
         }
+    }
+
+    /**
+     * Compatibility constructor for exact propagation paths.
+     */
+    public TrinityAcyclicPlan(
+                              List<TrinityVariantFiring> executionOrder,
+                              Map<TrinityPatternVariant, BigInteger> firings,
+                              Map<AEKey, BigInteger> externalInputs,
+                              Map<AEKey, BigInteger> netChange,
+                              int statesVisited) {
+        this(
+                executionOrder,
+                firings,
+                externalInputs,
+                netChange,
+                statesVisited,
+                TrinityPlanQuality.PROVED_OPTIMAL);
+    }
+
+    /**
+     * Returns the same validated execution accounting with a weaker, explicit proof quality.
+     */
+    public TrinityAcyclicPlan withQuality(TrinityPlanQuality value) {
+        return new TrinityAcyclicPlan(
+                this.executionOrder,
+                this.firings,
+                this.externalInputs,
+                this.netChange,
+                this.statesVisited,
+                value);
     }
 
     private static Map<TrinityPatternVariant, BigInteger> copyPositiveFirings(

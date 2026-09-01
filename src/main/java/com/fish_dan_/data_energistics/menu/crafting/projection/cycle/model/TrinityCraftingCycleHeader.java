@@ -5,7 +5,7 @@ import java.math.BigInteger;
 /**
  * One compact repeat-block header displayed as a colored cycle.
  *
- * @param blockIndex        stable server-side repeat-block index
+ * @param blockIndex        stable server-side repeat-block or proved diagnostic component index
  * @param displayOrdinal    one-based ordinal assigned after sorting by block index
  * @param repetitions       complete repeat count
  * @param patternExecutions exact sum of stage firing counts multiplied by repetitions

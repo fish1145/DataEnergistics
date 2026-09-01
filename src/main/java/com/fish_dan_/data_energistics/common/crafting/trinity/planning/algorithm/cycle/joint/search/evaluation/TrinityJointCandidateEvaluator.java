@@ -131,7 +131,14 @@ public final class TrinityJointCandidateEvaluator {
                 demand.finalBalanceLowerBounds(),
                 demand.requiredNetChangeLowerBounds());
         if (!exact.successful()) {
-            return TrinityAlgorithmResult.failure(exact.diagnostic());
+            TrinityPlanningDiagnostic diagnostic = exact.diagnostic();
+            LinkedHashMap<String, String> metadata = new LinkedHashMap<>(diagnostic.metadata());
+            metadata.put("states", Integer.toString(scheduled.schedule().statesVisited()));
+            return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    diagnostic.code(),
+                    diagnostic.message(),
+                    metadata,
+                    diagnostic.detail()));
         }
 
         Map<AEKey, BigInteger> finalBalances = addSigned(initialInputs, accounting.netChange());

@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.selection.TrinityCycleSelection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import appeng.api.stacks.AEKey;
 
@@ -31,5 +32,16 @@ public record TrinityGraphDemandSolution(
         initialInputs = Collections.unmodifiableMap(new LinkedHashMap<>(initialInputs));
         acyclicFirings = Collections.unmodifiableMap(new LinkedHashMap<>(acyclicFirings));
         cycleSolutions = List.copyOf(cycleSolutions);
+    }
+
+    /**
+     * @return weakest proof quality among every selected cycle
+     */
+    public TrinityPlanQuality quality() {
+        TrinityPlanQuality quality = TrinityPlanQuality.PROVED_OPTIMAL;
+        for (TrinityCycleSelection cycle : this.cycleSolutions) {
+            quality = quality.combine(cycle.quality());
+        }
+        return quality;
     }
 }

@@ -4,21 +4,19 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.seed.TrinityCycleSeedRequirement;
 
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Groups complete cycle rotations at exact affine balance breakpoints instead of searching firing-by-firing.
+ * Proves a fixed deterministic unit repeated an arbitrary BigInteger number of times by affine prefix bounds.
  */
 final class AffineTrinityDeterministicRepeatScheduler implements TrinityDeterministicRepeatScheduler {
 
@@ -27,12 +25,8 @@ final class AffineTrinityDeterministicRepeatScheduler implements TrinityDetermin
     private static final String NO_EXECUTABLE_ORDER_KEY = "gui.data_energistics.trinity_planning.diagnostic.no_executable_order";
 
     /**
-     * @param oneCycleOrder   exact firing blocks for one cycle
-     * @param repetitions     positive number of complete cycles
-     * @param initialBalances exact seed and externally consumed inputs for all repetitions
-     * @param maxStates       positive compressed-state limit
-     * @param control         cancellation and deadline boundary
-     * @return aggregate executable schedule without per-firing expansion
+     * The worst prefix of unit {@code j} differs from the first unit by {@code j * unitNet}. Therefore one exact
+     * prefix scan plus the negative unit slope proves every repetition without iterating the requested quantity.
      */
     @Override
     public TrinityAlgorithmResult<TrinityCompressedSchedule> schedule(
@@ -41,164 +35,84 @@ final class AffineTrinityDeterministicRepeatScheduler implements TrinityDetermin
                                                                       Map<AEKey, BigInteger> initialBalances,
                                                                       int maxStates,
                                                                       TrinityPlanningControl control) {
-        if (oneCycleOrder == null || oneCycleOrder.isEmpty() || repetitions == null || repetitions.signum() <= 0 ||
-                initialBalances == null || maxStates <= 0 || control == null) {
+        if (oneCycleOrder.isEmpty() || repetitions.signum() <= 0 || maxStates <= 0) {
             throw new IllegalArgumentException("A deterministic Trinity repeat schedule requires complete inputs");
         }
-        List<TrinityVariantFiring> cycle = List.copyOf(oneCycleOrder);
-        LinkedHashMap<AEKey, BigInteger> balances = copyBalances(initialBalances);
-        ArrayList<TrinityVariantFiring> batches = new ArrayList<>();
-        BigInteger remaining = repetitions;
-        int statesVisited = 1;
-
-        while (remaining.signum() > 0) {
-            if (control.cancellationRequested()) {
-                return failure(
-                        TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
-                        CANCELLED_KEY,
-                        Map.of("states", Integer.toString(statesVisited)));
-            }
-            if (control.deadlineExceeded()) {
-                return failure(
-                        TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
-                        SEARCH_LIMIT_KEY,
-                        Map.of("reason", "timeout", "states", Integer.toString(statesVisited)));
-            }
-            if (statesVisited >= maxStates) {
-                return failure(
-                        TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
-                        SEARCH_LIMIT_KEY,
-                        Map.of(
-                                "limit", Integer.toString(maxStates),
-                                "states", Integer.toString(statesVisited)));
-            }
-
-            CycleBatch selected = selectLargestExecutableRotation(cycle, remaining, balances);
-            if (selected.cycles().signum() <= 0) {
-                return failure(
-                        TrinityPlanningDiagnosticCode.NO_EXECUTABLE_ORDER,
-                        NO_EXECUTABLE_ORDER_KEY,
-                        Map.of("states", Integer.toString(statesVisited)));
-            }
-            applyRotation(cycle, selected, balances, batches);
-            remaining = remaining.subtract(selected.cycles());
-            statesVisited = Math.addExact(statesVisited, 1);
+        if (control.cancellationRequested()) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                    CANCELLED_KEY,
+                    Map.of("states", "0"));
         }
-        return TrinityAlgorithmResult.success(new TrinityCompressedSchedule(
-                List.copyOf(batches),
-                positiveBalances(balances),
+        if (control.deadlineExceeded()) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    SEARCH_LIMIT_KEY,
+                    Map.of("reason", "timeout", "states", "0"));
+        }
+
+        List<TrinityVariantFiring> unit = oneCycleOrder;
+        int statesVisited = Math.addExact(unit.size(), 1);
+        if (statesVisited > maxStates) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    SEARCH_LIMIT_KEY,
+                    Map.of("limit", Integer.toString(maxStates), "states", Integer.toString(statesVisited)));
+        }
+
+        Map<AEKey, BigInteger> unitNet = unitNet(unit);
+        Map<AEKey, BigInteger> required = TrinityCycleSeedRequirement.repeatedMinimumInputs(unit, repetitions);
+        if (control.cancellationRequested()) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                    CANCELLED_KEY,
+                    Map.of("states", Integer.toString(statesVisited)));
+        }
+        if (control.deadlineExceeded()) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    SEARCH_LIMIT_KEY,
+                    Map.of("reason", "timeout", "states", Integer.toString(statesVisited)));
+        }
+        if (!hasInputs(initialBalances, required)) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.NO_EXECUTABLE_ORDER,
+                    NO_EXECUTABLE_ORDER_KEY,
+                    Map.of("states", Integer.toString(statesVisited)));
+        }
+
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> finalBalances = copyBalances(initialBalances);
+        unitNet.forEach((key, amount) -> {
+            BigInteger updated = finalBalances.getOrDefault(key, BigInteger.ZERO)
+                    .add(amount.multiply(repetitions));
+            if (updated.signum() < 0) {
+                throw new IllegalStateException("An exact Trinity repeat proof produced a negative balance");
+            }
+            if (updated.signum() == 0) {
+                finalBalances.remove(key);
+            } else {
+                finalBalances.put(key, updated);
+            }
+        });
+        return TrinityAlgorithmResult.success(TrinityCompressedSchedule.repeated(
+                List.of(),
+                unit,
+                repetitions,
+                List.of(),
+                finalBalances,
                 statesVisited));
     }
 
-    private static CycleBatch selectLargestExecutableRotation(
-                                                              List<TrinityVariantFiring> cycle,
-                                                              BigInteger remaining,
-                                                              Map<AEKey, BigInteger> balances) {
-        CycleBatch selected = new CycleBatch(0, BigInteger.ZERO);
-        for (int rotation = 0; rotation < cycle.size(); rotation++) {
-            BigInteger cycles = maximumExecutableCycles(cycle, rotation, remaining, balances);
-            if (cycles.compareTo(selected.cycles()) > 0) {
-                selected = new CycleBatch(rotation, cycles);
-            }
-        }
-        return selected;
-    }
-
-    private static BigInteger maximumExecutableCycles(
-                                                      List<TrinityVariantFiring> cycle,
-                                                      int rotation,
-                                                      BigInteger remaining,
-                                                      Map<AEKey, BigInteger> balances) {
-        BigInteger lower = BigInteger.ONE;
-        BigInteger upper = remaining;
-        LinkedHashMap<AEKey, BigInteger> prefixPerCycle = new LinkedHashMap<>();
-        for (int offset = 0; offset < cycle.size(); offset++) {
-            TrinityVariantFiring firing = cycle.get((rotation + offset) % cycle.size());
-            for (Map.Entry<AEKey, BigInteger> input : firing.variant().inputs().entrySet()) {
-                BigInteger delta = firing.variant().netChange().getOrDefault(input.getKey(), BigInteger.ZERO);
-                BigInteger constant = delta.signum() < 0 ? input.getValue().add(delta) : input.getValue();
-                BigInteger requiredPerCycle = delta.signum() < 0 ?
-                        delta.negate().multiply(firing.count()) :
-                        BigInteger.ZERO;
-                BigInteger prefix = prefixPerCycle.getOrDefault(input.getKey(), BigInteger.ZERO);
-                BigInteger slope = requiredPerCycle.subtract(prefix);
-                BigInteger margin = balances.getOrDefault(input.getKey(), BigInteger.ZERO).subtract(constant);
-                if (slope.signum() > 0) {
-                    if (margin.signum() < 0) {
-                        return BigInteger.ZERO;
-                    }
-                    upper = upper.min(margin.divide(slope));
-                } else if (slope.signum() == 0) {
-                    if (margin.signum() < 0) {
-                        return BigInteger.ZERO;
-                    }
-                } else if (margin.signum() < 0) {
-                    lower = lower.max(ceilDivide(margin.negate(), slope.negate()));
-                }
-                if (upper.compareTo(lower) < 0) {
-                    return BigInteger.ZERO;
-                }
-            }
-            firing.variant().netChange().forEach((key, amount) -> prefixPerCycle.merge(
-                    key,
-                    amount.multiply(firing.count()),
-                    BigInteger::add));
-        }
-        return upper.compareTo(lower) >= 0 ? upper : BigInteger.ZERO;
-    }
-
-    private static void applyRotation(
-                                      List<TrinityVariantFiring> cycle,
-                                      CycleBatch selected,
-                                      Map<AEKey, BigInteger> balances,
-                                      List<TrinityVariantFiring> batches) {
-        for (int offset = 0; offset < cycle.size(); offset++) {
-            TrinityVariantFiring base = cycle.get((selected.rotation() + offset) % cycle.size());
-            BigInteger count = base.count().multiply(selected.cycles());
-            Map<AEKey, BigInteger> required = requiredAtStart(base.variant(), count);
-            if (!hasInputs(balances, required)) {
-                throw new IllegalStateException("An exact Trinity cycle batch violated its derived balance bound");
-            }
-            base.variant().netChange().forEach((key, amount) -> {
-                BigInteger updated = balances.getOrDefault(key, BigInteger.ZERO).add(amount.multiply(count));
-                if (updated.signum() < 0) {
-                    throw new IllegalStateException("An exact Trinity cycle batch produced a negative balance");
-                }
-                if (updated.signum() == 0) {
-                    balances.remove(key);
-                } else {
-                    balances.put(key, updated);
-                }
+    private static Map<AEKey, BigInteger> unitNet(List<TrinityVariantFiring> unit) {
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> netChange = new Object2ObjectLinkedOpenHashMap<>();
+        for (TrinityVariantFiring firing : unit) {
+            firing.variant().netChange().forEach((key, amount) -> {
+                BigInteger delta = amount.multiply(firing.count());
+                netChange.merge(key, delta, BigInteger::add);
             });
-            appendBatch(batches, new TrinityVariantFiring(base.variant(), count));
         }
-    }
-
-    private static Map<AEKey, BigInteger> requiredAtStart(
-                                                          TrinityPatternVariant variant,
-                                                          BigInteger count) {
-        LinkedHashMap<AEKey, BigInteger> required = new LinkedHashMap<>();
-        variant.inputs().forEach((key, input) -> {
-            BigInteger net = variant.netChange().getOrDefault(key, BigInteger.ZERO);
-            BigInteger amount = net.signum() < 0 ?
-                    input.add(net.negate().multiply(count.subtract(BigInteger.ONE))) :
-                    input;
-            required.put(key, amount);
-        });
-        return Collections.unmodifiableMap(required);
-    }
-
-    private static void appendBatch(List<TrinityVariantFiring> batches, TrinityVariantFiring added) {
-        if (!batches.isEmpty()) {
-            TrinityVariantFiring previous = batches.getLast();
-            if (previous.variant().equals(added.variant())) {
-                batches.set(
-                        batches.size() - 1,
-                        new TrinityVariantFiring(previous.variant(), previous.count().add(added.count())));
-                return;
-            }
-        }
-        batches.add(added);
+        netChange.values().removeIf(amount -> amount.signum() == 0);
+        return netChange;
     }
 
     private static boolean hasInputs(Map<AEKey, BigInteger> balances, Map<AEKey, BigInteger> required) {
@@ -207,26 +121,18 @@ final class AffineTrinityDeterministicRepeatScheduler implements TrinityDetermin
                 .compareTo(entry.getValue()) >= 0);
     }
 
-    private static LinkedHashMap<AEKey, BigInteger> copyBalances(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
+    private static Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> copyBalances(
+                                                                                  Map<AEKey, BigInteger> source) {
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> copied = new Object2ObjectLinkedOpenHashMap<>();
         source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() < 0) {
-                throw new IllegalArgumentException("Trinity deterministic repeat balances cannot be negative or null");
+            if (amount.signum() < 0) {
+                throw new IllegalArgumentException("Trinity deterministic repeat balances cannot be negative");
             }
             if (amount.signum() > 0) {
                 copied.put(key, amount);
             }
         });
         return copied;
-    }
-
-    private static Map<AEKey, BigInteger> positiveBalances(Map<AEKey, BigInteger> balances) {
-        return Collections.unmodifiableMap(new LinkedHashMap<>(balances));
-    }
-
-    private static BigInteger ceilDivide(BigInteger numerator, BigInteger denominator) {
-        BigInteger[] division = numerator.divideAndRemainder(denominator);
-        return division[1].signum() == 0 ? division[0] : division[0].add(BigInteger.ONE);
     }
 
     private static <T> TrinityAlgorithmResult<T> failure(
@@ -238,6 +144,4 @@ final class AffineTrinityDeterministicRepeatScheduler implements TrinityDetermin
                 Component.translatable(translationKey),
                 metadata));
     }
-
-    private record CycleBatch(int rotation, BigInteger cycles) {}
 }

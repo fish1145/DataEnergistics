@@ -1,8 +1,9 @@
 package com.fish_dan_.data_energistics.menu.crafting.projection;
 
-import com.fish_dan_.data_energistics.common.crafting.LongAmountMath;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityDiagnosedCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 
 import appeng.api.stacks.AEKey;
 import appeng.menu.me.crafting.CraftingPlanSummary;
@@ -39,7 +40,7 @@ public final class TrinityCraftingPlanSummaryProjection {
     }
 
     /**
-     * Projects an exact input shortage without passing the non-native plan through AE2's concrete-plan summary path.
+     * Projects exact shortages and zero-counter unresolved rows without using AE2's concrete-plan summary path.
      *
      * @param plan standalone exact Trinity shortage diagnostic
      * @return native AE2 confirmation summary
@@ -49,17 +50,28 @@ public final class TrinityCraftingPlanSummaryProjection {
             throw new IllegalArgumentException("An AE2 fallback diagnostic must use its native delegate summary");
         }
         LinkedHashMap<AEKey, Amounts> amounts = new LinkedHashMap<>();
-        for (var used : plan.usedItems()) {
-            amounts.computeIfAbsent(used.getKey(), ignored -> new Amounts())
-                    .addStored(used.getLongValue());
-        }
-        for (var emitted : plan.emittedItems()) {
-            amounts.computeIfAbsent(emitted.getKey(), ignored -> new Amounts())
-                    .addCrafting(emitted.getLongValue());
-        }
-        for (var missing : plan.missingItems()) {
-            amounts.computeIfAbsent(missing.getKey(), ignored -> new Amounts())
-                    .addMissing(missing.getLongValue());
+        TrinityPlanningDiagnostic diagnostic = plan.diagnostic();
+        if (diagnostic.inputShortage().isPresent()) {
+            TrinityPlanningDiagnostic.InputShortage shortage = diagnostic.inputShortage().orElseThrow();
+            Amounts shortageAmounts = amounts.computeIfAbsent(shortage.key(), ignored -> new Amounts());
+            shortageAmounts.addStored(shortage.available());
+            shortageAmounts.addMissing(shortage.missing());
+        } else if (diagnostic.partialPlan().isPresent()) {
+            TrinityPlanningDiagnostic.PartialPlan partial = diagnostic.partialPlan().orElseThrow();
+            partial.usedItems().forEach((key, amount) -> amounts
+                    .computeIfAbsent(key, ignored -> new Amounts())
+                    .addStored(amount));
+            partial.emittedItems().forEach((key, amount) -> amounts
+                    .computeIfAbsent(key, ignored -> new Amounts())
+                    .addCrafting(amount));
+            partial.inputRequirements().forEach((key, requirement) -> amounts
+                    .computeIfAbsent(key, ignored -> new Amounts())
+                    .addMissing(requirement.missing()));
+            partial.missingItems().keySet().stream()
+                    .filter(key -> !partial.inputRequirements().containsKey(key))
+                    .forEach(key -> amounts.computeIfAbsent(key, ignored -> new Amounts()));
+        } else {
+            amounts.computeIfAbsent(plan.finalOutput().what(), ignored -> new Amounts());
         }
         return summarize(plan.bytes(), true, amounts);
     }
@@ -70,37 +82,29 @@ public final class TrinityCraftingPlanSummaryProjection {
         ArrayList<CraftingPlanSummaryEntry> entries = new ArrayList<>(amounts.size());
         amounts.forEach((key, value) -> entries.add(new CraftingPlanSummaryEntry(
                 key,
-                value.missing,
-                value.stored,
-                value.crafting)));
+                TrinityAe2AmountProjection.toAe2Amount(value.missing),
+                TrinityAe2AmountProjection.toAe2Amount(value.stored),
+                TrinityAe2AmountProjection.toAe2Amount(value.crafting))));
         Collections.sort(entries);
         return new CraftingPlanSummary(bytes, simulation, List.copyOf(entries));
     }
 
     private static final class Amounts {
 
-        private long missing;
-        private long stored;
-        private long crafting;
+        private BigInteger missing = BigInteger.ZERO;
+        private BigInteger stored = BigInteger.ZERO;
+        private BigInteger crafting = BigInteger.ZERO;
 
-        private void addMissing(long amount) {
-            this.missing = LongAmountMath.saturatingAddNonNegative(this.missing, amount);
+        private void addMissing(BigInteger amount) {
+            this.missing = this.missing.add(amount);
         }
 
         private void addStored(BigInteger amount) {
-            addStored(LongAmountMath.saturatingLongValueNonNegative(amount));
-        }
-
-        private void addStored(long amount) {
-            this.stored = LongAmountMath.saturatingAddNonNegative(this.stored, amount);
+            this.stored = this.stored.add(amount);
         }
 
         private void addCrafting(BigInteger amount) {
-            addCrafting(LongAmountMath.saturatingLongValueNonNegative(amount));
-        }
-
-        private void addCrafting(long amount) {
-            this.crafting = LongAmountMath.saturatingAddNonNegative(this.crafting, amount);
+            this.crafting = this.crafting.add(amount);
         }
     }
 }

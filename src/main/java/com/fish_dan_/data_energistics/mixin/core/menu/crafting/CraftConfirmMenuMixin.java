@@ -171,7 +171,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Unique
     private static Component dataEnergistics$formatDiagnostic(TrinityPlanningDiagnostic diagnostic) {
         Component message = diagnostic.message();
-        return diagnostic.inputShortage()
+        Component exactShortage = diagnostic.inputShortage()
                 .<Component>map(shortage -> message.copy().append(
                         Component.translatable(
                                 "gui.data_energistics.trinity_planning.diagnostic.input_shortage_detail",
@@ -181,6 +181,19 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
                                 shortage.required())
                                 .withStyle(dataEnergistics$diagnosticDetailColor(diagnostic))))
                 .orElse(message);
+        if (diagnostic.inputShortage().isPresent() || diagnostic.partialPlan().isEmpty() ||
+                diagnostic.partialPlan().orElseThrow().inputRequirements().isEmpty()) {
+            return exactShortage;
+        }
+        TrinityPlanningDiagnostic.PartialPlan partial = diagnostic.partialPlan().orElseThrow();
+        var first = partial.inputRequirements().entrySet().iterator().next();
+        return message.copy().append(Component.translatable(
+                "gui.data_energistics.trinity_planning.diagnostic.input_shortage_summary",
+                partial.inputRequirements().size(),
+                first.getKey().getDisplayName(),
+                first.getValue().missing(),
+                first.getValue().available(),
+                first.getValue().required()).withStyle(dataEnergistics$diagnosticDetailColor(diagnostic)));
     }
 
     @Unique
@@ -207,9 +220,14 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             return planSummary;
         }
         if (job instanceof TrinityDiagnosedCraftingPlan diagnosed) {
-            return diagnosed.ae2FallbackEstimate() ?
-                    original.call(grid, actionSource, diagnosed.delegate()) :
-                    TrinityCraftingPlanSummaryProjection.createDiagnostic(diagnosed);
+            if (diagnosed.ae2FallbackEstimate()) {
+                return original.call(grid, actionSource, diagnosed.delegate());
+            }
+            CraftingPlanSummary planSummary = TrinityCraftingPlanSummaryProjection.createDiagnostic(diagnosed);
+            dataEnergistics$syncCycleSummary(TrinityCraftingCycleSummaryProjection.create(
+                    diagnosed,
+                    grid.getStorageService().getInventory().getAvailableStacks()));
+            return planSummary;
         }
         return original.call(grid, actionSource, job);
     }
@@ -219,6 +237,11 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         TrinityCraftingCycleSummary summary = TrinityCraftingCycleSummaryProjection.create(
                 plan,
                 grid.getStorageService().getInventory().getAvailableStacks());
+        dataEnergistics$syncCycleSummary(summary);
+    }
+
+    @Unique
+    private void dataEnergistics$syncCycleSummary(TrinityCraftingCycleSummary summary) {
         ServerPlayer player = (ServerPlayer) this.getPlayer();
         for (TrinityCraftConfirmCyclePayload payload : TrinityCraftConfirmCyclePayload.batches(
                 this.containerId,

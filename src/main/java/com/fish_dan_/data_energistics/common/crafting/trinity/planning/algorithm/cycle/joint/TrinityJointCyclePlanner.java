@@ -1,14 +1,16 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.search.TrinityJointCycleSearch;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.math.BigInteger;
 import java.util.Map;
@@ -104,9 +106,6 @@ public final class TrinityJointCyclePlanner {
     private final TrinityJointCycleSearch search;
 
     TrinityJointCyclePlanner(TrinityJointCycleSearch search) {
-        if (search == null) {
-            throw new IllegalArgumentException("A Trinity joint planner requires an exact search");
-        }
         this.search = search;
     }
 
@@ -127,17 +126,57 @@ public final class TrinityJointCyclePlanner {
                                                               Map<AEKey, BigInteger> available,
                                                               Set<AEKey> producibleInputs,
                                                               int maxSearchStates,
+                                                              TrinityPlanningMode mode,
                                                               TrinityPlanningControl control) {
+        return plan(
+                component,
+                demand,
+                available,
+                producibleInputs,
+                maxSearchStates,
+                mode,
+                control,
+                TrinityMipCoefficientTemplate.create(
+                        component.cycleVariants(),
+                        new ObjectArrayList<>(component.keys())));
+    }
+
+    /** Uses a cached sparse coefficient layout while keeping the model and request bounds private. */
+    public TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
+                                                              TrinityStronglyConnectedComponent component,
+                                                              TrinityCycleDemand demand,
+                                                              Map<AEKey, BigInteger> available,
+                                                              Set<AEKey> producibleInputs,
+                                                              int maxSearchStates,
+                                                              TrinityPlanningMode mode,
+                                                              TrinityPlanningControl control,
+                                                              TrinityMipCoefficientTemplate coefficientTemplate) {
         return this.search.search(
                 component,
                 demand,
                 available,
                 producibleInputs,
                 maxSearchStates,
-                control);
+                mode,
+                control,
+                coefficientTemplate);
     }
 
-    static int diagnosticStates(TrinityPlanningDiagnostic diagnostic) {
-        return TrinityJointCycleSearch.diagnosticStates(diagnostic);
+    /** Compatibility entry point that returns the first exactly verified executable cycle. */
+    public TrinityAlgorithmResult<TrinityJointCyclePlan> plan(
+                                                              TrinityStronglyConnectedComponent component,
+                                                              TrinityCycleDemand demand,
+                                                              Map<AEKey, BigInteger> available,
+                                                              Set<AEKey> producibleInputs,
+                                                              int maxSearchStates,
+                                                              TrinityPlanningControl control) {
+        return plan(
+                component,
+                demand,
+                available,
+                producibleInputs,
+                maxSearchStates,
+                TrinityPlanningMode.FIRST_FEASIBLE,
+                control);
     }
 }

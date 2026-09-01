@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
-import com.fish_dan_.data_energistics.common.crafting.LongAmountMath;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEKey;
@@ -107,11 +107,7 @@ final class TrinityScheduledOutputIndex {
      */
     public void addTo(KeyCounter output) {
         for (AEKey key : this.keys) {
-            long existing = output.get(key);
-            if (existing < 0L) {
-                throw new IllegalArgumentException("Destination counter contains a negative amount for " + key);
-            }
-            output.set(key, LongAmountMath.saturatingAddNonNegative(existing, amount(key)));
+            TrinityAe2AmountProjection.addToKeyCounter(output, key, this.amounts.get(key));
         }
     }
 

@@ -7,8 +7,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.sch
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalTicket;
 
-import org.jspecify.annotations.Nullable;
-
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -126,8 +124,6 @@ public final class TrinityWorkerProposalCoordinator {
 
     private final Supplier<DispatchProposalScheduler> scheduler;
     private final Map<Object, ProposalSlot> slots = new IdentityHashMap<>();
-    @Nullable
-    private Object lastPolledIdentity;
 
     TrinityWorkerProposalCoordinator(Supplier<DispatchProposalScheduler> scheduler) {
         if (scheduler == null) {
@@ -151,7 +147,6 @@ public final class TrinityWorkerProposalCoordinator {
             throw new IllegalArgumentException("Current dispatch work identity must not be null");
         }
         ProposalSlot slot = this.slots.get(workIdentity);
-        this.lastPolledIdentity = workIdentity;
         if (slot == null) {
             return Empty.INSTANCE;
         }
@@ -220,6 +215,32 @@ public final class TrinityWorkerProposalCoordinator {
     }
 
     /**
+     * @return whether any exact slot has completed and requires server-thread settlement rather than event waiting
+     */
+    public boolean hasActionableProposal() {
+        return this.slots.values().stream()
+                .anyMatch(slot -> !(slot.ticket().state() instanceof DispatchProposalTicket.Pending));
+    }
+
+    /**
+     * Returns whether one exact work can be processed now under the current new-proposal admission policy.
+     * Existing terminal or ready slots remain actionable during admission backoff; a slotless work is actionable only
+     * when the caller permits a new proposal, and a pending slot always waits for its completion event.
+     *
+     * @param workIdentity     server-thread work identity
+     * @param allowNewProposal whether a slotless work may submit a new proposal
+     * @return whether this exact work can make immediate server-thread progress
+     */
+    public boolean dispatchable(Object workIdentity, boolean allowNewProposal) {
+        if (workIdentity == null) {
+            throw new IllegalArgumentException("Dispatch work identity must not be null");
+        }
+        ProposalSlot slot = this.slots.get(workIdentity);
+        return slot == null ?
+                allowNewProposal : !(slot.ticket().state() instanceof DispatchProposalTicket.Pending);
+    }
+
+    /**
      * @return whether this worker still owns any unconsumed proposal ticket state
      */
     public boolean outstanding() {
@@ -227,29 +248,29 @@ public final class TrinityWorkerProposalCoordinator {
     }
 
     /**
-     * Releases the currently consumed ready proposal after server-thread commit or rejection.
+     * Returns whether one exact work identity still owns an unconsumed proposal.
+     *
+     * @param workIdentity server-thread work identity
+     * @return whether that work, rather than any other work on the worker, owns a slot
      */
-    public void release() {
-        releaseLast();
+    public boolean outstanding(Object workIdentity) {
+        if (workIdentity == null) {
+            throw new IllegalArgumentException("Dispatch work identity must not be null");
+        }
+        return this.slots.containsKey(workIdentity);
     }
 
     /**
-     * Releases the proposal most recently selected by {@link #poll(CraftingDispatchLease, Object)}.
+     * Releases the consumed proposal for one exact work identity after server-thread commit or rejection.
+     * Other independent work slots remain owned until their own settlement boundary.
+     *
+     * @param workIdentity consumed server-thread work identity
      */
-    public void releaseLast() {
-        if (this.lastPolledIdentity != null) {
-            closeSlot(this.lastPolledIdentity);
-            this.lastPolledIdentity = null;
+    public void release(Object workIdentity) {
+        if (workIdentity == null) {
+            throw new IllegalArgumentException("Consumed dispatch work identity must not be null");
         }
-    }
-
-    /**
-     * Records and releases a proposal rejected by server-thread generation or route revalidation.
-     */
-    public void discardStale() {
-        if (this.lastPolledIdentity != null) {
-            discardStale(this.lastPolledIdentity);
-        }
+        closeSlot(workIdentity);
     }
 
     /**
@@ -266,9 +287,6 @@ public final class TrinityWorkerProposalCoordinator {
             slot.ticket().recordStale();
             closeSlot(workIdentity);
         }
-        if (this.lastPolledIdentity == workIdentity) {
-            this.lastPolledIdentity = null;
-        }
     }
 
     /**
@@ -279,7 +297,6 @@ public final class TrinityWorkerProposalCoordinator {
             slot.ticket().close();
         }
         this.slots.clear();
-        this.lastPolledIdentity = null;
     }
 
     private Decision terminal(Object workIdentity, Decision decision) {

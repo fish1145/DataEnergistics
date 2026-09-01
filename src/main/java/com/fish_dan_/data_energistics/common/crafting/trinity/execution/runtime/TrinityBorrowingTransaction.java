@@ -10,6 +10,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.storage.MEStorage;
 import appeng.crafting.inv.ListCraftingInventory;
 
+import java.math.BigInteger;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +55,7 @@ public final class TrinityBorrowingTransaction {
     private final IActionSource source;
     private final int cpuNumber;
     private final Consumer<AEKey> changeListener;
-    private final Map<AEKey, Long> reservedBefore = new LinkedHashMap<>();
+    private final Map<AEKey, BigInteger> reservedBefore = new LinkedHashMap<>();
     private final Map<AEKey, Long> ownedReservations = new LinkedHashMap<>();
 
     TrinityBorrowingTransaction(MEStorage network,
@@ -82,12 +83,7 @@ public final class TrinityBorrowingTransaction {
         if (amount <= 0L) {
             throw new IllegalArgumentException("A dynamic borrowing transfer must be positive");
         }
-        ensureRepresentableTotal(this.ownedReservations.getOrDefault(key, 0L), amount);
-        long reserved = Math.addExact(
-                this.ledger.amount(key, TrinityBorrowingLedger.State.RESERVED),
-                amount);
-        ensureRepresentableTotal(this.ledger.amount(key, TrinityBorrowingLedger.State.COMMITTED), reserved);
-        ensureRepresentableTotal(this.ledger.amount(key, TrinityBorrowingLedger.State.RELEASED), reserved);
+        Math.addExact(this.ownedReservations.getOrDefault(key, 0L), amount);
     }
 
     /**
@@ -123,14 +119,16 @@ public final class TrinityBorrowingTransaction {
     }
 
     private void commitBorrowedPortion(AEKey key, long consumed) {
-        long reserved = this.ledger.amount(key, TrinityBorrowingLedger.State.RESERVED);
-        long committed = Math.min(reserved, consumed);
+        BigInteger reserved = this.ledger.amount(key, TrinityBorrowingLedger.State.RESERVED);
+        long committed = reserved.min(BigInteger.valueOf(consumed)).longValueExact();
         if (committed == 0L) {
             return;
         }
         this.ledger.commit(key, committed);
-        long earlierReservation = this.reservedBefore.getOrDefault(key, reserved);
-        long ownedCommitted = Math.max(0L, committed - Math.min(committed, earlierReservation));
+        BigInteger earlierReservation = this.reservedBefore.getOrDefault(key, reserved);
+        long ownedCommitted = BigInteger.valueOf(committed)
+                .subtract(earlierReservation.min(BigInteger.valueOf(committed)))
+                .longValueExact();
         if (ownedCommitted == 0L) {
             return;
         }
@@ -211,12 +209,6 @@ public final class TrinityBorrowingTransaction {
             this.ownedReservations.remove(key);
         } else {
             this.ownedReservations.put(key, retained);
-        }
-    }
-
-    private static void ensureRepresentableTotal(long settled, long outstanding) {
-        if (settled > Long.MAX_VALUE - outstanding) {
-            throw new ArithmeticException("Trinity borrowing balance exceeds the AE2 long amount boundary");
         }
     }
 }

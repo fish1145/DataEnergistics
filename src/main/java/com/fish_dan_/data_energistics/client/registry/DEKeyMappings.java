@@ -23,6 +23,16 @@ public final class DEKeyMappings {
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_Z,
             KEY_CATEGORY);
+    public static final KeyMapping PREVIOUS_TRINITY_CYCLE = new KeyMapping(
+            "key.data_energistics.previous_trinity_cycle",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_LEFT_BRACKET,
+            KEY_CATEGORY);
+    public static final KeyMapping NEXT_TRINITY_CYCLE = new KeyMapping(
+            "key.data_energistics.next_trinity_cycle",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_RIGHT_BRACKET,
+            KEY_CATEGORY);
 
     private DEKeyMappings() {}
 }

@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.grid.VirtualGridBridge;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.common.crafting.LongAmountMath;
 import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
+import com.fish_dan_.data_energistics.common.crafting.trinity.capacity.TrinityCpuStorageCapacity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lifecycle.TrinityDispatchProposalLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.schedule.DispatchProposalMetrics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
@@ -41,7 +42,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.NetworkCraftingGraphCaptureSource;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingGraphRebuilder;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingProviderRevision;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventorySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityCraftingRequestContext;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
@@ -90,13 +94,12 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 import java.math.BigInteger;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -217,15 +220,18 @@ public abstract class CraftingServiceMixin
         }
 
         TrinityCraftingSchema settings = DataEnergisticsConfiguration.INSTANCE.trinity.crafting;
-        IActionSource actionSource = simRequester.getActionSource();
+        IActionSource actionSource = Objects.requireNonNull(
+                simRequester.getActionSource(),
+                "A crafting simulation requester requires an action source");
         CraftingQuantityMode quantityMode = TrinityCraftingRequestContext.resolve(
                 actionSource,
                 settings.defaultQuantityMode);
         Optional<TrinityCraftingGraphSnapshot> graph = data_energistics$trinityCraftingGraphSnapshot();
         CraftingProviderPublicationIndex publications = data_energistics$craftingProviderPublicationIndex();
         long publicationRevision = publications.publicationRevision();
-        long maxTrinityBytes = dataEnergistics$maxPlanningTrinityBytes(actionSource);
-        if (maxTrinityBytes <= 0L) {
+        Optional<TrinityCpuStorageCapacity> maxTrinityCapacity = dataEnergistics$maxPlanningTrinityCapacity(
+                actionSource);
+        if (maxTrinityCapacity.isEmpty()) {
             boolean requiresTrinity;
             try {
                 requiresTrinity = graph
@@ -247,15 +253,46 @@ public abstract class CraftingServiceMixin
             return original.call(level, simRequester, what, amount, strategy);
         }
 
+        TrinityPlanningLimits planningLimits = TrinityPlanningLimits.capture(settings);
         long requestId = DATA_ENERGISTICS_INITIAL_PLANNING_SEQUENCE.incrementAndGet();
-        Map<AEKey, BigInteger> available = graph
-                .map(this::dataEnergistics$capturePlanningInventory)
-                .orElse(Map.of());
+        TrinityPlanningInventorySnapshot inventorySnapshot;
+        try {
+            inventorySnapshot = graph
+                    .map(snapshot -> dataEnergistics$capturePlanningInventory(snapshot, actionSource))
+                    .orElseGet(TrinityPlanningInventorySnapshot::empty);
+        } catch (TrinityPlanningInventorySnapshot.CaptureException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Failed to capture Trinity planning inventory for request {} and key {}",
+                    requestId,
+                    exception.key(),
+                    exception);
+            TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.internal_error"),
+                    Map.of(
+                            "key", exception.key().toString(),
+                            "phase", "inventory_capture",
+                            "reason", exception.getCause().getClass().getSimpleName()));
+            return CompletableFuture.completedFuture(TrinityDiagnosedCraftingPlan.forDiagnostic(
+                    new GenericStack(what, amount),
+                    diagnostic));
+        }
+        TrinityPlanningInventory inventory = inventorySnapshot.inventory();
 
         long gridScope = publications.publicationScope();
         long graphRevision = graph
                 .map(TrinityCraftingGraphSnapshot::revision)
                 .orElse(publications.publicationRevision());
+        if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
+            Data_Energistics.LOGGER.info(
+                    "Trinity planning inventory captured request={} target={} revision={} finiteKeys={} unlimitedKeys={} inventorySentinelProbes={}",
+                    requestId,
+                    what,
+                    graphRevision,
+                    inventory.finiteAmounts().size(),
+                    inventory.unlimitedKeys().size(),
+                    inventorySnapshot.sentinelProbes());
+        }
         return TrinityPlanningGatewayLifecycle.gateway().begin(
                 true,
                 gridScope,
@@ -268,9 +305,9 @@ public abstract class CraftingServiceMixin
                         what,
                         amount,
                         quantityMode,
-                        available,
-                        maxTrinityBytes,
-                        settings),
+                        inventory,
+                        maxTrinityCapacity.orElseThrow(),
+                        planningLimits),
                 () -> original.call(level, simRequester, what, amount, strategy));
     }
 
@@ -349,9 +386,9 @@ public abstract class CraftingServiceMixin
                                                                                AEKey target,
                                                                                long amount,
                                                                                CraftingQuantityMode quantityMode,
-                                                                               Map<AEKey, BigInteger> available,
-                                                                               long maxTrinityBytes,
-                                                                               TrinityCraftingSchema settings) throws Exception {
+                                                                               TrinityPlanningInventory inventory,
+                                                                               TrinityCpuStorageCapacity maxTrinityCapacity,
+                                                                               TrinityPlanningLimits limits) throws Exception {
         if (graph.isEmpty()) {
             TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.STALE_GRAPH,
@@ -376,25 +413,22 @@ public abstract class CraftingServiceMixin
                 .target(target)
                 .requestedAmount(BigInteger.valueOf(amount))
                 .quantityMode(quantityMode)
-                .available(available)
-                .settings(settings)
-                .maxTrinityBytes(maxTrinityBytes)
+                .inventory(inventory)
+                .limits(limits)
+                .maxTrinityCapacity(maxTrinityCapacity)
                 .build();
         return DATA_ENERGISTICS_INITIAL_PLAN_CALCULATION.calculate(request);
     }
 
     @Unique
-    private Map<AEKey, BigInteger> dataEnergistics$capturePlanningInventory(
-                                                                            TrinityCraftingGraphSnapshot graph) {
-        LinkedHashMap<AEKey, BigInteger> available = new LinkedHashMap<>();
-        var cachedInventory = this.grid.getStorageService().getCachedInventory();
-        for (AEKey key : graph.keys()) {
-            long amount = cachedInventory.get(key);
-            if (amount > 0L) {
-                available.put(key, BigInteger.valueOf(amount));
-            }
-        }
-        return Collections.unmodifiableMap(available);
+    private TrinityPlanningInventorySnapshot dataEnergistics$capturePlanningInventory(
+                                                                                      TrinityCraftingGraphSnapshot graph,
+                                                                                      IActionSource actionSource) {
+        var storageService = this.grid.getStorageService();
+        return TrinityPlanningInventorySnapshot.capture(
+                graph.keys(),
+                storageService.getInventory(),
+                actionSource);
     }
 
     /**
@@ -406,8 +440,9 @@ public abstract class CraftingServiceMixin
      * </p>
      */
     @Unique
-    private long dataEnergistics$maxPlanningTrinityBytes(@Nullable IActionSource source) {
-        long maxBytes = 0L;
+    private Optional<TrinityCpuStorageCapacity> dataEnergistics$maxPlanningTrinityCapacity(
+                                                                                           @Nullable IActionSource source) {
+        Optional<TrinityCpuStorageCapacity> maximum = Optional.empty();
         for (TrinityDataCoreCraftingRuntime runtime : dataEnergistics$trinityDataCoreRuntimes()) {
             if (runtime.publishedCpus().isEmpty()) {
                 continue;
@@ -419,10 +454,11 @@ public abstract class CraftingServiceMixin
             if (coordinator.number() == 0 &&
                     coordinator.isActive() &&
                     sourceAllowed) {
-                maxBytes = Math.max(maxBytes, coordinator.getAvailableStorage());
+                TrinityCpuStorageCapacity capacity = coordinator.storageCapacity();
+                maximum = maximum.map(current -> current.max(capacity)).or(() -> Optional.of(capacity));
             }
         }
-        return maxBytes;
+        return maximum;
     }
 
     @Override

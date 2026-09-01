@@ -7,6 +7,7 @@ import net.minecraft.nbt.CompoundTag;
 
 import appeng.api.stacks.AEKey;
 
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -43,25 +44,22 @@ public final class TrinityBorrowingLedger {
      * @param committed amount transferred to providers
      * @param released  amount returned without being committed
      */
-    public record Balances(long reserved, long committed, long released) {
+    public record Balances(BigInteger reserved, BigInteger committed, BigInteger released) {
 
         /**
          * Rejects negative state amounts before they can hide an ownership violation.
          */
         public Balances {
-            if (reserved < 0L || committed < 0L || released < 0L) {
+            if (reserved.signum() < 0 || committed.signum() < 0 || released.signum() < 0) {
                 throw new IllegalArgumentException("Trinity borrowing balances cannot be negative");
-            }
-            if (reserved > Long.MAX_VALUE - committed || reserved + committed > Long.MAX_VALUE - released) {
-                throw new ArithmeticException("Trinity borrowing balance total exceeds the exact long boundary");
             }
         }
 
         /**
          * @return exact amount ever reserved for this key
          */
-        public long total() {
-            return Math.addExact(Math.addExact(this.reserved, this.committed), this.released);
+        public BigInteger total() {
+            return this.reserved.add(this.committed).add(this.released);
         }
     }
 
@@ -103,10 +101,7 @@ public final class TrinityBorrowingLedger {
     public void reserve(AEKey key, long amount) {
         requireTransfer(key, amount);
         MutableBalances balances = this.entries.computeIfAbsent(key, ignored -> new MutableBalances());
-        long reserved = Math.addExact(balances.reserved, amount);
-        ensureRepresentableTotal(balances.committed, reserved);
-        ensureRepresentableTotal(balances.released, reserved);
-        balances.reserved = reserved;
+        balances.reserved = balances.reserved.add(BigInteger.valueOf(amount));
     }
 
     /**
@@ -117,9 +112,9 @@ public final class TrinityBorrowingLedger {
      */
     public void commit(AEKey key, long amount) {
         MutableBalances balances = requireReserved(key, amount);
-        long committed = Math.addExact(balances.committed, amount);
-        balances.reserved -= amount;
-        balances.committed = committed;
+        BigInteger transferred = BigInteger.valueOf(amount);
+        balances.reserved = balances.reserved.subtract(transferred);
+        balances.committed = balances.committed.add(transferred);
     }
 
     /**
@@ -130,9 +125,9 @@ public final class TrinityBorrowingLedger {
      */
     public void release(AEKey key, long amount) {
         MutableBalances balances = requireReserved(key, amount);
-        long released = Math.addExact(balances.released, amount);
-        balances.reserved -= amount;
-        balances.released = released;
+        BigInteger transferred = BigInteger.valueOf(amount);
+        balances.reserved = balances.reserved.subtract(transferred);
+        balances.released = balances.released.add(transferred);
     }
 
     /**
@@ -140,13 +135,10 @@ public final class TrinityBorrowingLedger {
      * @param state ownership state to inspect
      * @return amount currently aggregated in that state
      */
-    public long amount(AEKey key, State state) {
-        if (key == null || state == null) {
-            throw new IllegalArgumentException("A Trinity borrowing query requires key and state");
-        }
+    public BigInteger amount(AEKey key, State state) {
         MutableBalances balances = this.entries.get(key);
         if (balances == null) {
-            return 0L;
+            return BigInteger.ZERO;
         }
         return switch (state) {
             case RESERVED -> balances.reserved;
@@ -183,23 +175,17 @@ public final class TrinityBorrowingLedger {
     private MutableBalances requireReserved(AEKey key, long amount) {
         requireTransfer(key, amount);
         MutableBalances balances = this.entries.get(key);
-        if (balances == null || balances.reserved < amount) {
+        if (balances == null || balances.reserved.compareTo(BigInteger.valueOf(amount)) < 0) {
             throw new IllegalStateException("A Trinity borrowing transition cannot exceed CPU-owned reservations");
         }
         return balances;
     }
 
-    private static void ensureRepresentableTotal(long settled, long outstanding) {
-        if (settled > Long.MAX_VALUE - outstanding) {
-            throw new ArithmeticException("Trinity borrowing balance exceeds the AE2 long amount boundary");
-        }
-    }
-
     private static final class MutableBalances {
 
-        private long reserved;
-        private long committed;
-        private long released;
+        private BigInteger reserved = BigInteger.ZERO;
+        private BigInteger committed = BigInteger.ZERO;
+        private BigInteger released = BigInteger.ZERO;
 
         private MutableBalances() {}
 

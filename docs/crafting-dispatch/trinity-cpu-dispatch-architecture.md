@@ -186,7 +186,8 @@ flowchart LR
 - Actor 只计算候选、排序、容量上限和 proposal；
 - Actor 不持有可跨 tick 使用的世界、网格、方块实体或供应器可变引用；
 - 空闲 worker 保留身份和调度游标，但可以挂起，不持续占用运行线程；
-- worker 异常只取消该 worker 当前 proposal，记录完整上下文后允许下一 tick 重建规划状态。
+- 正常 work 提交、拒绝或 stale 只释放该 exact work identity 的 proposal；worker 生命周期变化、取消或异常隔离才清理全部 slots，
+  记录完整上下文后允许下一 tick 重建规划状态。
 
 Virtual Actor 不等于每个 worker 拥有一个长期占用的操作系统平台线程。实现应使用受控虚拟线程执行器或等价的有界调度设施，禁止为每个图样或每次自动请求无界创建线程。
 
@@ -216,7 +217,16 @@ Virtual Actor 不等于每个 worker 拥有一个长期占用的操作系统平�
 
 网络重建、供应器移除、机器卸载、维度卸载、访问租约变化、样板目录重发或任务变化后，旧 proposal 必须被服务器线程判定为 `STALE`，不得按旧容量提交。
 
-proposal 只能携带不可变身份、数量和版本，不能携带已经准备好的 `CountedCraftingAdmission`、已提取输入、能源预扣或第三方可变引用。admission 只能由服务器线程在真实物理提交前准备，并在同一 tick、同一同步调用链中完成一次性 commit。proposal 可以跨 tick 等待，但提交前必须重验 grid/runtime/worker/job/work/route/provider/pattern/target 的完整身份与代次；任一不匹配即释放并重新规划。
+proposal 只能携带不可变身份、数量和版本，不能携带已经准备好的 `CountedCraftingAdmission`、已提取输入、能源预扣或第三方可变引用。admission 只能由服务器线程在真实物理提交前准备，并在同一 tick、同一同步调用链中完成一次性 commit。proposal 可以跨 tick 等待，但提交前必须重验 grid/runtime/worker/job/work/route/provider/pattern/target 的完整身份与代次。首选 provider/target 在取得输入所有权前变为 busy、stale、blocked 或无容量时，服务器线程才释放其瞬态 reservation，并根据已捕获的当前候选重新提交异步 proposal；替代 target必须再次经过 shard、provider quantum和 `MachineTargetId` reservation，不能由同步 capacity planner绕过。provider-wide和exact-target失败以不可变、请求级 exclusion history随replacement传递，候选最多各尝试一次；候选耗尽后进入正常provider退避。任务、Grid 或 generation 整体失效时停止 fallback并取消该 work。
+
+同一 worker 可以为多个依赖无关的 work identity 保留独立 proposal slot。当前 work 的 outstanding、release 和 stale 判定必须按
+identity 精确执行；worker 级 aggregate outstanding 只用于调度快照和等待事件，不能回填到另一个已经 committed 的 slice。
+当前提交成功只关闭自己的 ticket 与 reservation，其它 work 继续保留到各自的服务器线程结算边界。
+
+一个有界 worker pass 优先按稳定顺序消费所有非 Pending 的既有 leases，再为未租用 ready stage 创建新 proposal；Pending lease
+不得阻塞后面的 Ready/terminal lease。多个 completion 事件即使合并为一次 worker 唤醒，也必须在 provider quantum 和 Grid
+窗口内连续结算多个 work。worker 级 proposal backoff 只限制创建新 slot，不能阻止已 Ready/terminal ticket 的服务器线程结算。
+一次 step 完成一个或多个物理调用都必须报告 physical progress，供 runtime、Grid 和 server 三层公平游标重新入队。
 
 ## 8. CPU 预选策略
 
@@ -766,11 +776,15 @@ provider 类不得实现或引用这些类型。这样 DataEnergistics 缺失时
 ### 阶段 4：Virtual Worker Actor 和 Provider Shard（已完成）
 
 - 已把 provider target 选择迁移到只接收不可变快照的独立固定有界 executor；
-- 已建立全局 1024、单 Grid 256、每 worker 单 outstanding 的 proposal admission；
+- 已建立全局 1024、单 Grid 256、每 worker 受 Grid actor permits 约束且按独立 work identity 分槽的 proposal admission；
 - 已建立 route/job/work generation lease、取消/暂停/重载清理和服务器线程 provider/输入/能源/账本重验；
 - 已用 worker ready queue、proposal completion handoff 与 retry priority queue 替换 retained worker 全扫描；
 - 已按 provider 稳定身份固定映射到 16 个 shard，同 provider route 的并发 proposal 共享容量预留；
 - 已增加跨 provider 的 `MachineTargetId` 独占 reservation，并将释放生命周期绑定到 proposal ticket；
+- 已将 committed/rejected/stale proposal 的释放绑定到 exact work identity；worker aggregate outstanding 不参与单个 slice 状态；
+- 已让 worker pass 优先消费所有可结算 leases，并将 admission backoff 限定为新 proposal；任意 Pending slot 不再遮蔽其它 Ready work；
+- 已让服务器线程在首选异步 target 的 pre-ownership 重验证失败后，累计过滤失败 route/provider并通过 scheduler重新预留其它当前候选，不再把单一过时候选提升为整个 work 的 provider wait，也不会在多个失效target之间跨事件反复选择；
+- 同一 AE2 Pattern Provider 的专用 `ICraftingMachine` 保留 provider-scoped 单次路线，但不会再删除同一次容量捕获中的其它外部处理侧；
 - worker/队列/Grid admission 压力只触发有界退避，不在被拒绝的同一轮绕过异步上限执行同步资源提交；
 - worker round-robin、稳定 pattern work 顺序和 capacity target cursor 共同保留分层公平性，shard 只负责原子竞争边界；
 - 保持所有真实世界提交在服务器线程。

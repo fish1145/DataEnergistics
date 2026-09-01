@@ -370,14 +370,28 @@ public final class DataEnergisticsConfiguration {
         public int maxSccKeys = 64;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Maximum legal input-binding variants per request.", "单次请求允许的最大合法输入绑定变体数。" })
+        @Configurable.Comment({
+                "Maximum deduplicated input-binding variants materialized for one request.",
+                "单次请求允许物化的最大去重输入绑定变体总数。"
+        })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
         public int maxBindingVariants = 32768;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Maximum compressed scheduling states.", "最大压缩排程状态数。" })
+        @Configurable.Comment({
+                "Maximum compressed states for each independent route search or cyclic component.",
+                "每个独立路线搜索或循环分量允许的最大压缩状态数。"
+        })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
         public int maxScheduleStates = 500000;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Maximum time spent proving a Trinity plan optimal before retaining a verified feasible plan, in milliseconds.",
+                "Trinity 计划证明全局最优的最长时间，超时后保留已验证可行计划，单位毫秒。"
+        })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int planningBudgetMs = 30_000;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Per-tick graph rebuild budget in milliseconds.", "每 tick 合成图重建预算，单位毫秒。" })

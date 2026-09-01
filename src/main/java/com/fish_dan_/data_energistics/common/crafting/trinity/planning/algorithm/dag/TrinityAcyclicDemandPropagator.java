@@ -6,17 +6,27 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicCompetitionPlanner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicCompetitionPlanner.Attempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRouteOptimizer.ShortageEvidence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization.TrinityAcyclicRoutePruner;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.proof.TrinityAcyclicRouteFamily;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.proof.TrinityAcyclicRouteHint;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -25,6 +35,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * Propagates aggregate demand through acyclic keys without expanding one state per requested item.
@@ -44,11 +56,13 @@ public final class TrinityAcyclicDemandPropagator {
 
     private final TrinityAcyclicRouteOptimizer routeOptimizer;
     private final TrinityAcyclicRoutePruner routePruner;
+    private final TrinityAcyclicCompetitionPlanner competitionPlanner;
 
     TrinityAcyclicDemandPropagator(TrinityAcyclicRouteOptimizer routeOptimizer,
                                    TrinityAcyclicRoutePruner routePruner) {
         this.routeOptimizer = routeOptimizer;
         this.routePruner = routePruner;
+        this.competitionPlanner = TrinityAcyclicCompetitionPlanner.create(routeOptimizer);
     }
 
     /**
@@ -57,8 +71,9 @@ public final class TrinityAcyclicDemandPropagator {
      * @param target          requested output key
      * @param requestedAmount positive requested amount
      * @param quantityMode    net-new or final-total semantics
-     * @param available       immutable non-negative inventory snapshot
+     * @param inventory       immutable finite/unlimited inventory snapshot
      * @param maxSearchStates maximum aggregate route-optimization states
+     * @param mode            complete optimisation or first-feasible fallback
      * @param control         cooperative cancellation and shared deadline
      * @return compact plan, or an explicit cycle/unsupported diagnostic
      */
@@ -68,14 +83,44 @@ public final class TrinityAcyclicDemandPropagator {
                                                                 AEKey target,
                                                                 BigInteger requestedAmount,
                                                                 CraftingQuantityMode quantityMode,
-                                                                Map<AEKey, BigInteger> available,
+                                                                TrinityPlanningInventory inventory,
                                                                 int maxSearchStates,
+                                                                TrinityPlanningMode mode,
                                                                 TrinityPlanningControl control) {
         if (topology == null || variants == null || target == null || requestedAmount == null ||
-                requestedAmount.signum() <= 0 || quantityMode == null || available == null ||
-                maxSearchStates <= 0 || control == null) {
+                requestedAmount.signum() <= 0 || quantityMode == null || inventory == null ||
+                maxSearchStates <= 0 || mode == null || control == null) {
             throw new IllegalArgumentException("A Trinity acyclic propagation requires complete, positive inputs");
         }
+        return propagate(
+                topology,
+                variants,
+                Map.of(),
+                Map.of(),
+                target,
+                requestedAmount,
+                quantityMode,
+                inventory,
+                maxSearchStates,
+                mode,
+                control);
+    }
+
+    /**
+     * Reuses compiled producer families while keeping inventory-sensitive pruning request-local.
+     */
+    public TrinityAlgorithmResult<TrinityAcyclicPlan> propagate(
+                                                                TrinityCraftingTopology topology,
+                                                                List<TrinityPatternVariant> variants,
+                                                                Map<AEKey, TrinityAcyclicRouteFamily> routeFamilies,
+                                                                Map<AEKey, TrinityAcyclicRouteHint> routeHints,
+                                                                AEKey target,
+                                                                BigInteger requestedAmount,
+                                                                CraftingQuantityMode quantityMode,
+                                                                TrinityPlanningInventory inventory,
+                                                                int maxSearchStates,
+                                                                TrinityPlanningMode mode,
+                                                                TrinityPlanningControl control) {
         StopState initialState = stopState(control);
         if (initialState != StopState.RUNNING) {
             return stopped(initialState);
@@ -104,55 +149,51 @@ public final class TrinityAcyclicDemandPropagator {
         List<TrinityPatternVariant> executableRoutes = this.routePruner.retainExecutableTargetRoutes(
                 variants,
                 target,
-                available);
+                inventory);
         List<TrinityPatternVariant> planningVariants = executableRoutes.isEmpty() ? variants : executableRoutes;
-        Map<AEKey, List<TrinityPatternVariant>> producers = indexProducers(planningVariants);
+        Map<AEKey, List<TrinityPatternVariant>> producers = indexProducers(planningVariants, routeFamilies);
+        Set<TrinityPatternIdentity> routeHint = routeHintIdentities(routeFamilies, routeHints);
         if (requiresGlobalRouteOptimization(topology, reachableComponents, producers)) {
-            TrinityAlgorithmResult<TrinityAcyclicPlan> optimized = this.routeOptimizer.optimize(
+            Optional<Attempt> competition = this.competitionPlanner.plan(
                     topology,
                     planningVariants,
+                    producers,
                     target,
                     requestedAmount,
                     quantityMode,
-                    available,
+                    inventory,
+                    routeHint,
                     maxSearchStates,
+                    mode,
                     control);
-            if (optimized.successful()) {
-                return optimized;
-            }
-            if (optimized.diagnostic().code() == TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT) {
-                TrinityAlgorithmResult<ShortageEvidence> diagnosed = this.routeOptimizer.diagnoseShortage(
+            if (competition.isPresent()) {
+                Attempt attempt = competition.orElseThrow();
+                return completeOptimizedResult(
+                        attempt.result(),
                         variants,
                         target,
                         requestedAmount,
                         quantityMode,
-                        available,
-                        maxSearchStates,
+                        inventory,
+                        attempt.diagnosticBudget(),
                         control);
-                if (diagnosed.successful()) {
-                    return insufficient(diagnosed.value());
-                }
-                if (diagnosed.diagnostic().partialPlan().isPresent()) {
-                    return TrinityAlgorithmResult.failure(diagnosed.diagnostic());
-                }
-                return TrinityAlgorithmResult.failure(diagnosed.diagnostic().withDetail(
-                        new TrinityPlanningDiagnostic.PartialPlan(
-                                Map.of(),
-                                Map.of(),
-                                Map.of(target, requestedAmount))));
             }
-            if (optimized.diagnostic().inputShortage().isPresent() ||
-                    optimized.diagnostic().partialPlan().isPresent()) {
-                return optimized;
-            }
-            return TrinityAlgorithmResult.failure(optimized.diagnostic().withDetail(
-                    new TrinityPlanningDiagnostic.PartialPlan(
-                            Map.of(),
-                            Map.of(),
-                            Map.of(target, requestedAmount))));
+            return optimizeWholeGraph(
+                    topology,
+                    planningVariants,
+                    variants,
+                    target,
+                    requestedAmount,
+                    quantityMode,
+                    inventory,
+                    routeHint,
+                    maxSearchStates,
+                    mode,
+                    control);
         }
 
-        Map<AEKey, BigInteger> inventory = copyAvailable(available);
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> finiteInventory = new Object2ObjectLinkedOpenHashMap<>(
+                inventory.finiteAmounts());
         LinkedHashMap<AEKey, BigInteger> need = new LinkedHashMap<>();
         merge(need, target, requestedAmount);
         LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
@@ -177,13 +218,18 @@ public final class TrinityAcyclicDemandPropagator {
                 if (required.signum() <= 0 && !forceFinalTotalProduction) {
                     continue;
                 }
-                BigInteger availableAmount = inventory.getOrDefault(key, BigInteger.ZERO);
+                boolean unlimited = inventory.unlimited(key);
+                BigInteger positiveRequired = required.max(BigInteger.ZERO);
+                BigInteger availableAmount = unlimited ?
+                        positiveRequired : finiteInventory.getOrDefault(key, BigInteger.ZERO);
                 BigInteger reserved = key.equals(target) && quantityMode == CraftingQuantityMode.NET_NEW ?
                         BigInteger.ZERO :
-                        required.max(BigInteger.ZERO).min(availableAmount);
+                        positiveRequired.min(availableAmount);
                 if (reserved.signum() > 0) {
                     merge(reservedInputs, key, reserved);
-                    inventory.put(key, availableAmount.subtract(reserved));
+                    if (!unlimited) {
+                        finiteInventory.put(key, availableAmount.subtract(reserved));
+                    }
                     merge(need, key, reserved.negate());
                 }
                 BigInteger missing = need.getOrDefault(key, BigInteger.ZERO).max(BigInteger.ZERO);
@@ -193,7 +239,6 @@ public final class TrinityAcyclicDemandPropagator {
                 }
                 states = Math.addExact(states, Math.max(1, candidates.size()));
                 if (candidates.isEmpty()) {
-                    BigInteger positiveRequired = required.max(BigInteger.ZERO);
                     if (missing.signum() > 0) {
                         mergeRequirement(shortages, key, positiveRequired, reserved, missing);
                         merge(need, key, missing.negate());
@@ -249,38 +294,143 @@ public final class TrinityAcyclicDemandPropagator {
                 states));
     }
 
-    private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
-        source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() < 0) {
-                throw new IllegalArgumentException("Trinity available inventory cannot be negative or null");
+    private TrinityAlgorithmResult<TrinityAcyclicPlan> optimizeWholeGraph(
+                                                                          TrinityCraftingTopology topology,
+                                                                          List<TrinityPatternVariant> planningVariants,
+                                                                          List<TrinityPatternVariant> diagnosticVariants,
+                                                                          AEKey target,
+                                                                          BigInteger requestedAmount,
+                                                                          CraftingQuantityMode quantityMode,
+                                                                          TrinityPlanningInventory inventory,
+                                                                          Set<TrinityPatternIdentity> routeHint,
+                                                                          int maxSearchStates,
+                                                                          TrinityPlanningMode mode,
+                                                                          TrinityPlanningControl control) {
+        TrinityAlgorithmResult<TrinityAcyclicPlan> optimized = this.routeOptimizer.optimize(
+                topology,
+                planningVariants,
+                target,
+                requestedAmount,
+                quantityMode,
+                inventory,
+                routeHint,
+                maxSearchStates,
+                mode,
+                control);
+        return completeOptimizedResult(
+                optimized,
+                diagnosticVariants,
+                target,
+                requestedAmount,
+                quantityMode,
+                inventory,
+                maxSearchStates,
+                control);
+    }
+
+    private TrinityAlgorithmResult<TrinityAcyclicPlan> completeOptimizedResult(
+                                                                               TrinityAlgorithmResult<TrinityAcyclicPlan> optimized,
+                                                                               List<TrinityPatternVariant> diagnosticVariants,
+                                                                               AEKey target,
+                                                                               BigInteger requestedAmount,
+                                                                               CraftingQuantityMode quantityMode,
+                                                                               TrinityPlanningInventory inventory,
+                                                                               int maxSearchStates,
+                                                                               TrinityPlanningControl control) {
+        if (optimized.successful()) {
+            return optimized;
+        }
+        if (optimized.diagnostic().code() == TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT) {
+            TrinityAlgorithmResult<ShortageEvidence> diagnosed = this.routeOptimizer.diagnoseShortage(
+                    diagnosticVariants,
+                    target,
+                    requestedAmount,
+                    quantityMode,
+                    inventory,
+                    maxSearchStates,
+                    control);
+            if (diagnosed.successful()) {
+                return insufficient(diagnosed.value());
             }
-            if (amount.signum() > 0) {
-                copied.put(key, amount);
+            if (diagnosed.diagnostic().partialPlan().isPresent()) {
+                return TrinityAlgorithmResult.failure(diagnosed.diagnostic());
             }
-        });
-        return copied;
+            return TrinityAlgorithmResult.failure(diagnosed.diagnostic().withDetail(
+                    new TrinityPlanningDiagnostic.PartialPlan(
+                            Map.of(),
+                            Map.of(),
+                            Map.of(target, requestedAmount))));
+        }
+        if (optimized.diagnostic().inputShortage().isPresent() ||
+                optimized.diagnostic().partialPlan().isPresent()) {
+            return optimized;
+        }
+        return TrinityAlgorithmResult.failure(optimized.diagnostic().withDetail(
+                new TrinityPlanningDiagnostic.PartialPlan(
+                        Map.of(),
+                        Map.of(),
+                        Map.of(target, requestedAmount))));
+    }
+
+    /**
+     * Compatibility entry point that retains full optimisation.
+     */
+    public TrinityAlgorithmResult<TrinityAcyclicPlan> propagate(
+                                                                TrinityCraftingTopology topology,
+                                                                List<TrinityPatternVariant> variants,
+                                                                AEKey target,
+                                                                BigInteger requestedAmount,
+                                                                CraftingQuantityMode quantityMode,
+                                                                Map<AEKey, BigInteger> available,
+                                                                int maxSearchStates,
+                                                                TrinityPlanningControl control) {
+        return propagate(
+                topology,
+                variants,
+                target,
+                requestedAmount,
+                quantityMode,
+                TrinityPlanningInventory.finite(available),
+                maxSearchStates,
+                TrinityPlanningMode.FIRST_FEASIBLE,
+                control);
     }
 
     private static Map<AEKey, List<TrinityPatternVariant>> indexProducers(
-                                                                          List<TrinityPatternVariant> variants) {
-        HashMap<AEKey, ArrayList<TrinityPatternVariant>> mutable = new HashMap<>();
-        for (TrinityPatternVariant variant : variants) {
-            if (variant == null) {
-                throw new IllegalArgumentException("A Trinity acyclic graph cannot contain a null variant");
+                                                                          List<TrinityPatternVariant> variants,
+                                                                          Map<AEKey, TrinityAcyclicRouteFamily> routeFamilies) {
+        ObjectOpenHashSet<TrinityPatternVariant> retained = new ObjectOpenHashSet<>(variants);
+        Object2ObjectLinkedOpenHashMap<AEKey, List<TrinityPatternVariant>> producers = new Object2ObjectLinkedOpenHashMap<>();
+        routeFamilies.forEach((key, family) -> {
+            ObjectArrayList<TrinityPatternVariant> candidates = new ObjectArrayList<>();
+            family.candidates().stream().filter(retained::contains).forEach(candidates::add);
+            if (!candidates.isEmpty()) {
+                producers.put(key, candidates);
             }
+        });
+        for (TrinityPatternVariant variant : variants) {
             variant.outputs().forEach((key, amount) -> {
-                if (amount.signum() > 0) {
-                    mutable.computeIfAbsent(key, ignored -> new ArrayList<>()).add(variant);
+                if (amount.signum() > 0 && !routeFamilies.containsKey(key)) {
+                    producers.computeIfAbsent(key, ignored -> new ObjectArrayList<>()).add(variant);
                 }
             });
         }
-        HashMap<AEKey, List<TrinityPatternVariant>> producers = new HashMap<>();
-        mutable.forEach((key, candidates) -> {
-            candidates.sort(Comparator.naturalOrder());
-            producers.put(key, List.copyOf(candidates));
-        });
+        producers.values().forEach(candidates -> candidates.sort(Comparator.naturalOrder()));
         return producers;
+    }
+
+    private static Set<TrinityPatternIdentity> routeHintIdentities(
+                                                                   Map<AEKey, TrinityAcyclicRouteFamily> families,
+                                                                   Map<AEKey, TrinityAcyclicRouteHint> hints) {
+        if (hints.isEmpty()) {
+            return Set.of();
+        }
+        ObjectOpenHashSet<TrinityPatternIdentity> selected = new ObjectOpenHashSet<>();
+        families.values().forEach(family -> family.provedUniqueProducer()
+                .map(TrinityPatternVariant::patternIdentity)
+                .ifPresent(selected::add));
+        hints.values().forEach(hint -> selected.addAll(hint.selectedIdentities()));
+        return selected;
     }
 
     private static List<Integer> reachablePredecessors(TrinityCraftingTopology topology, int targetComponent) {

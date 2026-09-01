@@ -36,9 +36,7 @@ public record TrinityCyclePlan(
      * Copies the complete cycle accounting and rejects an inconsistent firing vector.
      */
     public TrinityCyclePlan {
-        if (oneCycleOrder == null || oneCycleOrder.isEmpty() || repetitions == null || repetitions.signum() <= 0 ||
-                aggregateFirings == null || minimumSeed == null || initialInputs == null || netChange == null ||
-                schedule == null) {
+        if (oneCycleOrder.isEmpty() || repetitions.signum() <= 0) {
             throw new IllegalArgumentException("A Trinity cycle plan requires complete positive accounting");
         }
         oneCycleOrder = List.copyOf(oneCycleOrder);
@@ -80,7 +78,7 @@ public record TrinityCyclePlan(
                                                                               Map<TrinityPatternVariant, BigInteger> source) {
         LinkedHashMap<TrinityPatternVariant, BigInteger> copied = new LinkedHashMap<>();
         source.forEach((variant, count) -> {
-            if (variant == null || count == null || count.signum() <= 0) {
+            if (count.signum() <= 0) {
                 throw new IllegalArgumentException("A Trinity cycle firing count must be positive");
             }
             copied.put(variant, count);
@@ -91,7 +89,7 @@ public record TrinityCyclePlan(
     private static Map<AEKey, BigInteger> copyPositiveAmounts(Map<AEKey, BigInteger> source) {
         LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
         source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() <= 0) {
+            if (amount.signum() <= 0) {
                 throw new IllegalArgumentException("A Trinity cycle input amount must be positive");
             }
             copied.put(key, amount);
@@ -102,7 +100,7 @@ public record TrinityCyclePlan(
     private static Map<AEKey, BigInteger> copySignedNonZero(Map<AEKey, BigInteger> source) {
         LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
         source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() == 0) {
+            if (amount.signum() == 0) {
                 throw new IllegalArgumentException("A Trinity cycle net amount must be non-zero");
             }
             copied.put(key, amount);

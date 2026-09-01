@@ -54,7 +54,7 @@ public final class TrinityExternalPrefixCut {
             changed = false;
             for (int index = 0; index < box.variants().size(); index++) {
                 TrinityPatternVariant variant = box.variants().get(index);
-                if (box.bounds().get(index).upperInclusive().signum() == 0 || reachable.contains(variant) ||
+                if (!box.bounds().get(index).permitsPositive() || reachable.contains(variant) ||
                         !canTrigger(variant, internalKeys, optimisticAmounts)) {
                     continue;
                 }
@@ -71,7 +71,7 @@ public final class TrinityExternalPrefixCut {
 
         ArrayList<Integer> unreachableAxes = new ArrayList<>();
         for (int index = 0; index < box.variants().size(); index++) {
-            if (box.bounds().get(index).upperInclusive().signum() > 0 &&
+            if (box.bounds().get(index).permitsPositive() &&
                     !reachable.contains(box.variants().get(index))) {
                 unreachableAxes.add(index);
             }
@@ -108,7 +108,7 @@ public final class TrinityExternalPrefixCut {
                                                                   Set<AEKey> internalKeys) {
         LinkedHashMap<AEKey, BigInteger> thresholds = new LinkedHashMap<>();
         for (int index = 0; index < box.variants().size(); index++) {
-            if (box.bounds().get(index).upperInclusive().signum() == 0) {
+            if (!box.bounds().get(index).permitsPositive()) {
                 continue;
             }
             box.variants().get(index).inputs().forEach((key, amount) -> {

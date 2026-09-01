@@ -11,10 +11,31 @@ public enum TrinityComputationNamespace {
     /** Target-reachable graph derived from one publication revision. */
     REACHABLE_GRAPH(RevisionDomain.PLANNING),
 
-    /** Binding and topology structure keyed entirely by pattern semantics. */
+    /** Complete binding expansion of one immutable pattern semantic. */
+    PATTERN_EXPANSION(null),
+
+    /** Target closure topology assembled from semantic pattern expansions. */
+    TARGET_STRUCTURE(null),
+
+    /** Quantity-independent producer family for one exact DAG output axis. */
+    DAG_ROUTE_PROOF(null),
+
+    /** Previously verified quantity-free choices for one multi-producer route family. */
+    DAG_ROUTE_HINT(null),
+
+    /** Exact deterministic unit route and restart seed for one semantic cyclic component. */
+    CYCLE_UNIT_PROOF(null),
+
+    /** Sparse immutable conservation coefficients for one semantic cyclic component. */
+    MIP_COEFFICIENT_TEMPLATE(null),
+
+    /** Legacy semantic namespace retained for lower-level cache lifecycle compatibility checks. */
     COMPILED_GRAPH(null),
 
-    /** Quantity and inventory-sensitive solved planning result. */
+    /** Exact quantity and inventory request shared only while its calculation remains in flight. */
+    REQUEST_IN_FLIGHT(RevisionDomain.PLANNING),
+
+    /** Legacy revision-bound namespace retained for lower-level cache lifecycle compatibility checks. */
     SOLVED_PLAN(RevisionDomain.PLANNING),
 
     /** Provider capacity snapshot captured for one publication and capacity epoch. */

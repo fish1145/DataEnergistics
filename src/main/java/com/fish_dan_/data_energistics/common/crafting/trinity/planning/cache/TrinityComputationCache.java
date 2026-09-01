@@ -123,6 +123,27 @@ public interface TrinityComputationCache extends AutoCloseable {
                                                                                                                          throws InterruptedException, ExecutionException;
 
     /**
+     * Reads one completed retained value without creating or joining an active computation.
+     */
+    <K, V> Optional<V> getIfPresent(
+                                    long gridScope,
+                                    TrinityComputationNamespace namespace,
+                                    long revision,
+                                    K key);
+
+    /**
+     * Atomically publishes one already verified immutable value when no retained or active entry owns the key.
+     *
+     * @return whether this call installed the retained value
+     */
+    <K, V> boolean publishIfAbsent(
+                                   long gridScope,
+                                   TrinityComputationNamespace namespace,
+                                   long revision,
+                                   K key,
+                                   V value);
+
+    /**
      * Submits one lifecycle-tracked orchestration task on the cache's default executor without registering it in the
      * LRU. The returned future owns the orchestration, while completed inner values remain globally reusable.
      *

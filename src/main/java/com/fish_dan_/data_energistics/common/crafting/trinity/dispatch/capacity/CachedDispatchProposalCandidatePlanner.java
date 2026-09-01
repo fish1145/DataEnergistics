@@ -21,6 +21,8 @@ import java.util.function.Supplier;
  */
 final class CachedDispatchProposalCandidatePlanner implements DispatchProposalCandidatePlanner {
 
+    private static final BigInteger MAX_PHYSICAL_CRAFTS = BigInteger.valueOf(Long.MAX_VALUE);
+
     private final Supplier<TrinityComputationCache> cache;
 
     CachedDispatchProposalCandidatePlanner(Supplier<TrinityComputationCache> cache) {
@@ -61,7 +63,7 @@ final class CachedDispatchProposalCandidatePlanner implements DispatchProposalCa
     }
 
     private static DispatchProposalCandidatePlan calculate(CandidateKey key) {
-        long maximumCount = key.remainingCrafts().longValueExact();
+        long maximumCount = key.remainingCrafts().min(MAX_PHYSICAL_CRAFTS).longValueExact();
         ProviderTargetRotation rotation = ProviderTargetRotation.create(key.snapshots(), key.cursor());
         ArrayList<DispatchProposalCandidatePlan.Candidate> candidates = new ArrayList<>(rotation.targets().size());
         for (ProviderTargetRotation.Target target : rotation.targets()) {
@@ -124,8 +126,8 @@ final class CachedDispatchProposalCandidatePlanner implements DispatchProposalCa
                 throw new IllegalArgumentException("Dispatch proposal candidate cache key must be complete");
             }
             snapshots = List.copyOf(snapshots);
-            if (remainingCrafts.signum() <= 0 || remainingCrafts.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-                throw new IllegalArgumentException("Dispatch proposal candidate work must be in the positive long domain");
+            if (remainingCrafts.signum() <= 0) {
+                throw new IllegalArgumentException("Dispatch proposal candidate work must be positive");
             }
         }
     }

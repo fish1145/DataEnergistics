@@ -27,9 +27,8 @@ public final class TrinityPlanByteEstimator {
      *
      * @param input complete planner accounting
      * @return conservative capacity bytes
-     * @throws ArithmeticException when the result cannot cross the AE2 {@code long} boundary exactly
      */
-    public long estimate(TrinityPlanByteEstimateInput input) {
+    public BigInteger estimate(TrinityPlanByteEstimateInput input) {
         if (input == null) {
             throw new IllegalArgumentException("A Trinity byte estimate requires accounting input");
         }
@@ -49,6 +48,6 @@ public final class TrinityPlanByteEstimator {
                 bytes = bytes.add(BigInteger.ONE);
             }
         }
-        return bytes.longValueExact();
+        return bytes;
     }
 }

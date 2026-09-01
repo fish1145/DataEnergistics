@@ -9,9 +9,12 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.demand.TrinityGraphDemandAggregator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityGraphTopologyAnalyzer;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityPatternVariantExpander;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityTransitionEffectCompactor;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanByteEstimator;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import appeng.api.stacks.AEKey;
@@ -37,6 +40,7 @@ public interface TrinityGraphPlanner {
     static TrinityGraphPlanningPipeline pipeline() {
         return new ExactTrinityGraphPlanningPipeline(
                 TrinityPatternVariantExpander.create(),
+                TrinityTransitionEffectCompactor.create(),
                 TrinityGraphTopologyAnalyzer.create(),
                 TrinityAcyclicDemandPropagator.create(),
                 TrinityGraphDemandAggregator.create(TrinityCyclePlanSelector.create()),
@@ -48,8 +52,8 @@ public interface TrinityGraphPlanner {
      * @param target          requested output key
      * @param requestedAmount positive requested delivery
      * @param quantityMode    net-new or final-total semantics
-     * @param available       non-negative network inventory snapshot
-     * @param settings        immutable planner bounds
+     * @param inventory       finite/unlimited network inventory snapshot
+     * @param limits          immutable planner bounds
      * @param control         cooperative cancellation and total deadline
      * @return complete Trinity-only plan or one stable fallback diagnostic
      */
@@ -58,7 +62,28 @@ public interface TrinityGraphPlanner {
                                                      AEKey target,
                                                      BigInteger requestedAmount,
                                                      CraftingQuantityMode quantityMode,
-                                                     Map<AEKey, BigInteger> available,
-                                                     TrinityCraftingSchema settings,
+                                                     TrinityPlanningInventory inventory,
+                                                     TrinityPlanningLimits limits,
                                                      TrinityPlanningControl control);
+
+    /**
+     * Compatibility entry point that captures a mutable configuration before planning.
+     */
+    default TrinityAlgorithmResult<TrinityCraftingPlan> plan(
+                                                             TrinityCraftingGraphSnapshot snapshot,
+                                                             AEKey target,
+                                                             BigInteger requestedAmount,
+                                                             CraftingQuantityMode quantityMode,
+                                                             Map<AEKey, BigInteger> available,
+                                                             TrinityCraftingSchema settings,
+                                                             TrinityPlanningControl control) {
+        return plan(
+                snapshot,
+                target,
+                requestedAmount,
+                quantityMode,
+                TrinityPlanningInventory.finite(available),
+                TrinityPlanningLimits.capture(settings),
+                control);
+    }
 }

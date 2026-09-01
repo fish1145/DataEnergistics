@@ -30,7 +30,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
     private final Executor executor;
     private final int gridEntryLimit;
     private final Map<Long, GridPartition> partitions = new HashMap<>();
-    private final ThreadLocal<CacheEntry<?>> callerOwnedEntry = new ThreadLocal<>();
+    private final ThreadLocal<CacheEntry<?>> inlineOwnerEntry = new ThreadLocal<>();
     private boolean closed;
 
     BoundedTrinityComputationCache(Executor executor, int gridEntryLimit) {
@@ -127,7 +127,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
             if (!lifecycleActive.getAsBoolean()) {
                 return Optional.empty();
             }
-            parentEntry = this.callerOwnedEntry.get();
+            parentEntry = this.inlineOwnerEntry.get();
             if (parentEntry != null) {
                 parentEntry.requireInlineAdmission();
             }
@@ -202,6 +202,63 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
     }
 
     @Override
+    public <K, V> Optional<V> getIfPresent(
+                                           long gridScope,
+                                           TrinityComputationNamespace namespace,
+                                           long revision,
+                                           K key) {
+        validateKey(gridScope, namespace, revision, key);
+        synchronized (this.cacheLock) {
+            requireOpen();
+            GridPartition partition = this.partitions.get(gridScope);
+            if (partition == null) {
+                return Optional.empty();
+            }
+            CacheEntry<?> existing = partition.entries.get(new ScopedKey(namespace, revision, key));
+            if (existing == null || existing.state.get() != CacheEntryState.PUBLISHED ||
+                    existing.result.isCancelled() || existing.result.isCompletedExceptionally()) {
+                return Optional.empty();
+            }
+            CacheEntry<V> entry = castEntry(existing);
+            return Optional.of(entry.result.getNow(null));
+        }
+    }
+
+    @Override
+    public <K, V> boolean publishIfAbsent(
+                                          long gridScope,
+                                          TrinityComputationNamespace namespace,
+                                          long revision,
+                                          K key,
+                                          V value) {
+        validateKey(gridScope, namespace, revision, key);
+        List<CacheEntry<?>> cancelled = new ArrayList<>();
+        boolean published = false;
+        synchronized (this.cacheLock) {
+            requireOpen();
+            GridPartition partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
+            ScopedKey scopedKey = new ScopedKey(namespace, revision, key);
+            boolean staleRevision = advanceRevision(partition, namespace, revision, cancelled);
+            if (!staleRevision && !partition.entries.containsKey(scopedKey) &&
+                    !partition.bypassEntries.containsKey(scopedKey) && reserveRegisteredSlot(partition)) {
+                CacheEntry<V> entry = new CacheEntry<>(
+                        partition,
+                        scopedKey,
+                        () -> TrinityCachedComputation.cacheable(value),
+                        true,
+                        true,
+                        false);
+                entry.state.set(CacheEntryState.PUBLISHED);
+                entry.result.complete(value);
+                partition.entries.put(scopedKey, entry);
+                published = true;
+            }
+        }
+        cancelled.forEach(CacheEntry::cancelObsolete);
+        return published;
+    }
+
+    @Override
     public <V> Future<V> submit(long gridScope, Callable<V> calculation) {
         return submit(this.executor, gridScope, calculation);
     }
@@ -250,7 +307,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
             GridPartition partition = this.partitions.computeIfAbsent(gridScope, GridPartition::new);
             advanceRevision(
                     partition,
-                    TrinityComputationNamespace.SOLVED_PLAN,
+                    TrinityComputationNamespace.REQUEST_IN_FLIGHT,
                     currentRevision,
                     cancelled);
         }
@@ -301,8 +358,19 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
                                                long revision,
                                                K key,
                                                Callable<TrinityCachedComputation<V>> calculation) {
-        if (gridScope < 0L || namespace == null || key == null || calculation == null) {
-            throw new IllegalArgumentException("A Trinity computation cache request is incomplete");
+        validateKey(gridScope, namespace, revision, key);
+        if (calculation == null) {
+            throw new IllegalArgumentException("A Trinity computation cache calculation is required");
+        }
+    }
+
+    private static <K> void validateKey(
+                                        long gridScope,
+                                        TrinityComputationNamespace namespace,
+                                        long revision,
+                                        K key) {
+        if (gridScope < 0L || namespace == null || key == null) {
+            throw new IllegalArgumentException("A Trinity computation cache key is incomplete");
         }
         if (namespace.revisionBound() && revision < 0L) {
             throw new IllegalArgumentException("A revision-bound Trinity computation requires a publication revision");
@@ -515,11 +583,8 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
         }
 
         private Void execute() {
-            CacheEntry<?> previousCallerOwnedEntry = null;
-            if (this.callerOwned) {
-                previousCallerOwnedEntry = BoundedTrinityComputationCache.this.callerOwnedEntry.get();
-                BoundedTrinityComputationCache.this.callerOwnedEntry.set(this);
-            }
+            CacheEntry<?> previousInlineOwner = BoundedTrinityComputationCache.this.inlineOwnerEntry.get();
+            BoundedTrinityComputationCache.this.inlineOwnerEntry.set(this);
             try {
                 TrinityCachedComputation<V> computed = this.calculation.call();
                 if (computed == null) {
@@ -540,12 +605,10 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
                 fail(exception);
                 return null;
             } finally {
-                if (this.callerOwned) {
-                    if (previousCallerOwnedEntry == null) {
-                        BoundedTrinityComputationCache.this.callerOwnedEntry.remove();
-                    } else {
-                        BoundedTrinityComputationCache.this.callerOwnedEntry.set(previousCallerOwnedEntry);
-                    }
+                if (previousInlineOwner == null) {
+                    BoundedTrinityComputationCache.this.inlineOwnerEntry.remove();
+                } else {
+                    BoundedTrinityComputationCache.this.inlineOwnerEntry.set(previousInlineOwner);
                 }
             }
         }

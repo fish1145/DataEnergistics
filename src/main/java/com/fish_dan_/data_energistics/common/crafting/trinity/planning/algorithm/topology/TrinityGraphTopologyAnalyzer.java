@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
@@ -48,16 +49,37 @@ public final class TrinityGraphTopologyAnalyzer {
                                                                    TrinityCraftingGraphSnapshot snapshot,
                                                                    List<TrinityPatternVariant> variants,
                                                                    int maxSccKeys) {
-        if (snapshot == null || variants == null || maxSccKeys <= 0) {
+        return analyze(snapshot, variants, maxSccKeys, TrinityPlanningControl.unbounded());
+    }
+
+    /**
+     * Analyzes topology while observing the request-wide cancellation and deadline boundary.
+     */
+    public TrinityAlgorithmResult<TrinityCraftingTopology> analyze(
+                                                                   TrinityCraftingGraphSnapshot snapshot,
+                                                                   List<TrinityPatternVariant> variants,
+                                                                   int maxSccKeys,
+                                                                   TrinityPlanningControl control) {
+        if (snapshot == null || variants == null || maxSccKeys <= 0 || control == null) {
             throw new IllegalArgumentException(
                     "A Trinity topology analysis requires complete inputs and a positive SCC key limit");
+        }
+
+        StopState initialState = stopState(control);
+        if (initialState != StopState.RUNNING) {
+            return stopped(initialState);
         }
 
         Graph graph = Graph.create(snapshot, variants);
         if (graph.keys().isEmpty()) {
             throw new IllegalArgumentException("A Trinity topology requires at least one graph key");
         }
-        List<List<Integer>> rawComponents = tarjan(graph.adjacency());
+        TarjanState tarjan = new TarjanState(graph.adjacency());
+        StopState traversalState = tarjan.traverse(control);
+        if (traversalState != StopState.RUNNING) {
+            return stopped(traversalState);
+        }
+        List<List<Integer>> rawComponents = tarjan.components();
         rawComponents.sort(Comparator.comparingInt(component -> component.stream()
                 .mapToInt(Integer::intValue)
                 .min()
@@ -215,14 +237,25 @@ public final class TrinityGraphTopologyAnalyzer {
         return List.copyOf(order);
     }
 
-    private static List<List<Integer>> tarjan(List<List<Integer>> adjacency) {
-        TarjanState state = new TarjanState(adjacency);
-        for (int node = 0; node < adjacency.size(); node++) {
-            if (state.indexes[node] < 0) {
-                state.visit(node);
-            }
+    private static StopState stopState(TrinityPlanningControl control) {
+        if (control.cancellationRequested()) {
+            return StopState.CANCELLED;
         }
-        return state.components;
+        return control.deadlineExceeded() ? StopState.DEADLINE_EXCEEDED : StopState.RUNNING;
+    }
+
+    private static <T> TrinityAlgorithmResult<T> stopped(StopState state) {
+        return switch (state) {
+            case CANCELLED -> TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.cancelled"),
+                    Map.of("phase", "topology")));
+            case DEADLINE_EXCEEDED -> TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.timeout"),
+                    Map.of("phase", "topology")));
+            case RUNNING -> throw new IllegalArgumentException("A running Trinity topology analysis is not stopped");
+        };
     }
 
     private record Graph(
@@ -284,32 +317,99 @@ public final class TrinityGraphTopologyAnalyzer {
             Arrays.fill(this.indexes, -1);
         }
 
-        private void visit(int node) {
+        private StopState traverse(TrinityPlanningControl control) {
+            for (int node = 0; node < this.adjacency.size(); node++) {
+                StopState state = stopState(control);
+                if (state != StopState.RUNNING) {
+                    return state;
+                }
+                if (this.indexes[node] < 0) {
+                    state = traverseFrom(node, control);
+                    if (state != StopState.RUNNING) {
+                        return state;
+                    }
+                }
+            }
+            return StopState.RUNNING;
+        }
+
+        private StopState traverseFrom(int start, TrinityPlanningControl control) {
+            ArrayDeque<TarjanFrame> frames = new ArrayDeque<>();
+            discover(start);
+            frames.push(new TarjanFrame(start, -1));
+            while (!frames.isEmpty()) {
+                StopState state = stopState(control);
+                if (state != StopState.RUNNING) {
+                    return state;
+                }
+                TarjanFrame frame = frames.peek();
+                List<Integer> successors = this.adjacency.get(frame.node);
+                if (frame.nextSuccessor < successors.size()) {
+                    int successor = successors.get(frame.nextSuccessor++);
+                    if (this.indexes[successor] < 0) {
+                        discover(successor);
+                        frames.push(new TarjanFrame(successor, frame.node));
+                    } else if (this.onStack[successor]) {
+                        this.lowLinks[frame.node] = Math.min(
+                                this.lowLinks[frame.node],
+                                this.indexes[successor]);
+                    }
+                    continue;
+                }
+
+                frames.pop();
+                if (frame.parent >= 0) {
+                    this.lowLinks[frame.parent] = Math.min(
+                            this.lowLinks[frame.parent],
+                            this.lowLinks[frame.node]);
+                }
+                completeComponent(frame.node);
+            }
+            return StopState.RUNNING;
+        }
+
+        private void discover(int node) {
             this.indexes[node] = this.nextIndex;
             this.lowLinks[node] = this.nextIndex;
             this.nextIndex++;
             this.stack.push(node);
             this.onStack[node] = true;
-
-            for (Integer successor : this.adjacency.get(node)) {
-                if (this.indexes[successor] < 0) {
-                    visit(successor);
-                    this.lowLinks[node] = Math.min(this.lowLinks[node], this.lowLinks[successor]);
-                } else if (this.onStack[successor]) {
-                    this.lowLinks[node] = Math.min(this.lowLinks[node], this.indexes[successor]);
-                }
-            }
-
-            if (this.lowLinks[node] == this.indexes[node]) {
-                ArrayList<Integer> component = new ArrayList<>();
-                int member;
-                do {
-                    member = this.stack.pop();
-                    this.onStack[member] = false;
-                    component.add(member);
-                } while (member != node);
-                this.components.add(component);
-            }
         }
+
+        private void completeComponent(int node) {
+            if (this.lowLinks[node] != this.indexes[node]) {
+                return;
+            }
+            ArrayList<Integer> component = new ArrayList<>();
+            int member;
+            do {
+                member = this.stack.pop();
+                this.onStack[member] = false;
+                component.add(member);
+            } while (member != node);
+            this.components.add(component);
+        }
+
+        private List<List<Integer>> components() {
+            return this.components;
+        }
+    }
+
+    private static final class TarjanFrame {
+
+        private final int node;
+        private final int parent;
+        private int nextSuccessor;
+
+        private TarjanFrame(int node, int parent) {
+            this.node = node;
+            this.parent = parent;
+        }
+    }
+
+    private enum StopState {
+        RUNNING,
+        CANCELLED,
+        DEADLINE_EXCEEDED
     }
 }
