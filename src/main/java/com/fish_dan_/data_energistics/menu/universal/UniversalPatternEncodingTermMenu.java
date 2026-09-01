@@ -339,7 +339,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     @Override
     public void data_energistics$renamePatternProvider(long providerId, String name) {
         if (this.isClientSide()) {
-            sendClientAction(ACTION_RENAME_PATTERN_PROVIDER, providerId + "\n" + (name == null ? "" : name));
+            sendClientAction(ACTION_RENAME_PATTERN_PROVIDER, providerId + "\n" + name);
             return;
         }
 
@@ -713,19 +713,19 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 this.getActionSource()) > 0;
     }
 
-    private void transferEncodedPatternToProviderFromClient(Long providerId) {
+    private void transferEncodedPatternToProviderFromClient(@Nullable Long providerId) {
         if (providerId != null) {
             data_energistics$transferEncodedPatternToProvider(providerId);
         }
     }
 
-    private void openPatternProviderMenuFromClient(Long providerId) {
+    private void openPatternProviderMenuFromClient(@Nullable Long providerId) {
         if (providerId != null) {
             data_energistics$openPatternProviderMenu(providerId);
         }
     }
 
-    private void renamePatternProviderFromClient(String payload) {
+    private void renamePatternProviderFromClient(@Nullable String payload) {
         if (payload == null) {
             return;
         }
@@ -744,21 +744,21 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
     }
 
-    private void transferEncodedPatternToProviderLeafFromClient(String payload) {
+    private void transferEncodedPatternToProviderLeafFromClient(@Nullable String payload) {
         PatternProviderLeafActionTarget target = PatternProviderLeafActionTarget.decode(payload);
         if (target != null) {
             transferEncodedPatternToProviderLeaf(target);
         }
     }
 
-    private void openPatternProviderLeafMenuFromClient(String payload) {
+    private void openPatternProviderLeafMenuFromClient(@Nullable String payload) {
         PatternProviderLeafActionTarget target = PatternProviderLeafActionTarget.decode(payload);
         if (target != null) {
             openPatternProviderLeafMenu(target);
         }
     }
 
-    private void renamePatternProviderLeafFromClient(String payload) {
+    private void renamePatternProviderLeafFromClient(@Nullable String payload) {
         PatternProviderLeafActionTarget.Rename rename = PatternProviderLeafActionTarget.decodeRename(payload);
         if (rename != null) {
             renamePatternProviderLeaf(rename.target(), rename.name());
@@ -915,7 +915,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         var level = this.getPlayer().level();
         var items = NonNullList.withSize(CRAFTING_GRID_SLOTS, ItemStack.EMPTY);
         for (int i = 0; i < ingredients.length; i++) {
-            items.set(i, ingredients[i] == null ? ItemStack.EMPTY : ingredients[i]);
+            items.set(i, ingredients[i]);
         }
         var input = CraftingInput.of(CRAFTING_GRID_WIDTH, CRAFTING_GRID_HEIGHT, items);
         return level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, input, level).orElse(null);
