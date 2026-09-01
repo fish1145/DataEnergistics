@@ -55,6 +55,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -892,6 +893,7 @@ public final class PatternProviderSyncHelper {
                 entry.providerDigest(),
                 entry.displayName(),
                 entry.iconItemId(),
+                entry.identity().kind().name().toLowerCase(Locale.ROOT),
                 entry.renameable(),
                 entry.openable(),
                 entry.patternSlotCount(),

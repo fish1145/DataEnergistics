@@ -511,7 +511,8 @@ final class PatternProviderLeafPanel {
     private String locationSearchText(LeafRow row) {
         PatternEncodingPreviewMenu.SyncedPatternProviderLeafLocation location = row.leaf().location();
         if (location.kind() == PatternEncodingPreviewMenu.SyncedPatternProviderLeafLocationKind.UNLOCATED) {
-            return "unlocated #" + row.ordinal();
+            return "unlocated #" + row.ordinal() + " " + row.leaf().providerKind() + " " +
+                    providerKindName(row).getString();
         }
         BlockPos position = location.blockPos();
         String mount = location.kind() == PatternEncodingPreviewMenu.SyncedPatternProviderLeafLocationKind.PART ?
@@ -524,7 +525,8 @@ final class PatternProviderLeafPanel {
         PatternEncodingPreviewMenu.SyncedPatternProviderLeafLocation location = row.leaf().location();
         if (location.kind() == PatternEncodingPreviewMenu.SyncedPatternProviderLeafLocationKind.UNLOCATED) {
             return Component.translatable(
-                    "screen.data_energistics.pattern_writer_preview.leaf_location.unlocated", row.ordinal()).getString();
+                    "screen.data_energistics.pattern_writer_preview.leaf_location.unlocated",
+                    row.ordinal(), providerKindName(row)).getString();
         }
         BlockPos position = location.blockPos();
         String summary = location.dimensionId() + " · " + position.getX() + " " + position.getY() + " " + position.getZ();
@@ -538,7 +540,8 @@ final class PatternProviderLeafPanel {
         PatternEncodingPreviewMenu.SyncedPatternProviderLeafLocation location = row.leaf().location();
         if (location.kind() == PatternEncodingPreviewMenu.SyncedPatternProviderLeafLocationKind.UNLOCATED) {
             return Component.translatable(
-                    "screen.data_energistics.pattern_writer_preview.leaf_location.unlocated", row.ordinal());
+                    "screen.data_energistics.pattern_writer_preview.leaf_location.unlocated",
+                    row.ordinal(), providerKindName(row));
         }
         BlockPos position = location.blockPos();
         Component base = Component.translatable(
@@ -556,6 +559,11 @@ final class PatternProviderLeafPanel {
                 "screen.data_energistics.pattern_writer_preview.leaf_mount.center") :
                 Component.translatable(
                         "screen.data_energistics.pattern_writer_preview.leaf_mount." + side.getName());
+    }
+
+    private static Component providerKindName(LeafRow row) {
+        return Component.translatable(
+                "screen.data_energistics.pattern_writer_preview.leaf_kind." + row.leaf().providerKind());
     }
 
     private void drawRows(GuiGraphics graphics, int mouseX, int mouseY) {

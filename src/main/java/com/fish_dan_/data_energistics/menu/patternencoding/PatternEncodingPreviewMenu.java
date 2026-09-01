@@ -270,6 +270,7 @@ public interface PatternEncodingPreviewMenu {
                                      String providerDigest,
                                      Component displayName,
                                      ResourceLocation iconItemId,
+                                     String providerKind,
                                      boolean renameable,
                                      boolean openable,
                                      int patternSlotCount,
@@ -290,6 +291,7 @@ public interface PatternEncodingPreviewMenu {
                     data.readUtf(71),
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(data),
                     data.readResourceLocation(),
+                    data.readUtf(32),
                     data.readBoolean(),
                     data.readBoolean(),
                     data.readVarInt(),
@@ -302,6 +304,7 @@ public interface PatternEncodingPreviewMenu {
             data.writeUtf(this.providerDigest, 71);
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(data, this.displayName);
             data.writeResourceLocation(this.iconItemId);
+            data.writeUtf(this.providerKind, 32);
             data.writeBoolean(this.renameable);
             data.writeBoolean(this.openable);
             data.writeVarInt(this.patternSlotCount);
