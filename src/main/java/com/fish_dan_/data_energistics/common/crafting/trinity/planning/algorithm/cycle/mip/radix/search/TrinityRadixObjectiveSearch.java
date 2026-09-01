@@ -43,7 +43,6 @@ public final class TrinityRadixObjectiveSearch {
 
     @SuppressWarnings("unchecked")
     private static final IntegerStrategy INTEGER_STRATEGY = IntegerStrategy.DEFAULT
-            .withParallelism(() -> 1)
             .withPriorityDefinitions(NodeKey.MIN_OBJECTIVE);
 
     private final TrinityRadixCodec codec;
@@ -473,6 +472,7 @@ public final class TrinityRadixObjectiveSearch {
                                        ExpressionsBasedModel model,
                                        TrinityPlanningControl control,
                                        boolean firstFeasible) {
+        model.options.parallelism(1);
         model.options.integer(INTEGER_STRATEGY);
         TrinityOjAlgoSolvePolicy.configure(model, control, firstFeasible);
     }

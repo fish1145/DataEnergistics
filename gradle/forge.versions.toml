@@ -3,10 +3,10 @@ ae2 = "19.2.17"
 ae2wt = "19.5.1"
 configuration = "3.1.1-neoforge"
 
-jei = "19.44.0.401"
+jei = "19.51.0.417"
 emi = "1.1.24+1.21.1"
 
-ldlib = "2.2.35"
+ldlib = "2.2.38"
 mekanism = "1.21.1-10.7.19.85"
 pneumaticcraft = "8.2.23+mc1.21.1"
 kotlinforforge = "5.12.0"
@@ -14,9 +14,9 @@ curios = "9.5.1+1.21.1"
 architectury = "13.0.11"
 brandonscore = "1.21.1-3.2.1.309"
 codechickenlib = "1.21.1-4.6.1.529"
-draconic-evolution = "1.21.1-3.1.4.632"
-modern-industrialization = "2.5.5"
-grandpower = "3.0.0"
+draconic-evolution = "1.21.1-3.1.4.633"
+modern-industrialization = "2.5.6"
+grandpower = "3.0.2"
 
 ## ftb mod ##
 ftblibrary = "2101.1.35"
@@ -26,7 +26,7 @@ ftbultimine  = "2101.1.15"
 jade = "15.10.6+neoforge"
 sodium = "mc1.21.1-0.6.13-neoforge" # Required by Iris 1.8.12
 iris = "1.8.12+1.21.1-neoforge"
-modernfix = "VsJnrw8k" # 5.27.20+mc1.21.1
+modernfix = "5HLHxQ2F" # 5.27.24+mc1.21.1
 bhc = "1.21.1-1.4.1"
 
 ## cursemaven ##
@@ -41,19 +41,19 @@ aae = "8564177"
 aecs = "8498888"
 actually-additions = "8281896"
 eco = "8463264"
-extendedae-plus = "8379620"
+extendedae-plus = "8755074"
 applied-flux = "8204513"
 applied-pneumatics = "7723695"
 applied-create = "8546920"
 mega-cells = "7952621"
-sut = "8633889"
+sut = "8740213"
 cloth-config = "5729127"
 amek = "7096962"
-jech = "8541967"
+jech = "8771217"
 ctm = "5587515"
 worldedit = "5830452"
 worldedit-cui-forge = "7195941"
-oritech = "8556549"
+oritech = "8780299"
 athena = "dJgL278E"
 
 ## libs ##
