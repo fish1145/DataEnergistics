@@ -40,6 +40,8 @@ import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.parts.crafting.PatternProviderPart;
 import appeng.parts.encoding.EncodingMode;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2LongMaps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
@@ -56,7 +58,6 @@ import org.jspecify.annotations.Nullable;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -80,7 +81,7 @@ public final class PatternProviderSyncHelper {
                                                                                                      LongSupplier nextIdSupplier,
                                                                                                      @Nullable PatternEncodingRankingContext rankingContext,
                                                                                                      List<ResourceLocation> viewerWorkstationIds,
-                                                                                                     Map<String, Long> leafClickCounts) {
+                                                                                                     Object2LongMap<String> leafClickCounts) {
         syncedProviderTargetsById.clear();
         if (grid == null) {
             syncedPatternProviderIds.clear();
@@ -120,7 +121,8 @@ public final class PatternProviderSyncHelper {
     static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregateSyncedPatternProviders(
                                                                                                 List<PatternProviderAggregationEntry> discoveredProviders,
                                                                                                 Long2ObjectMap<ObjectList<PatternContainer>> syncedProviderTargetsById) {
-        return aggregateSyncedPatternProviders(discoveredProviders, syncedProviderTargetsById, Map.of());
+        return aggregateSyncedPatternProviders(
+                discoveredProviders, syncedProviderTargetsById, Object2LongMaps.emptyMap());
     }
 
     /**
@@ -129,7 +131,7 @@ public final class PatternProviderSyncHelper {
     static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregateSyncedPatternProviders(
                                                                                                 List<PatternProviderAggregationEntry> discoveredProviders,
                                                                                                 Long2ObjectMap<ObjectList<PatternContainer>> syncedProviderTargetsById,
-                                                                                                Map<String, Long> leafClickCounts) {
+                                                                                                Object2LongMap<String> leafClickCounts) {
         return aggregateSyncedPatternProviders(
                 discoveredProviders, syncedProviderTargetsById, leafClickCounts, null, List.of());
     }
@@ -137,7 +139,7 @@ public final class PatternProviderSyncHelper {
     private static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregateSyncedPatternProviders(
                                                                                                         List<PatternProviderAggregationEntry> discoveredProviders,
                                                                                                         Long2ObjectMap<ObjectList<PatternContainer>> syncedProviderTargetsById,
-                                                                                                        Map<String, Long> leafClickCounts,
+                                                                                                        Object2LongMap<String> leafClickCounts,
                                                                                                         @Nullable PatternEncodingRankingContext rankingContext,
                                                                                                         List<ResourceLocation> viewerWorkstationIds) {
         syncedProviderTargetsById.clear();
@@ -923,7 +925,7 @@ public final class PatternProviderSyncHelper {
     }
 
     private static Comparator<AggregatedPatternProvider> createAggregatedProviderRankingComparator(
-                                                                                                   Map<String, Long> leafClickCounts) {
+                                                                                                   Object2LongMap<String> leafClickCounts) {
         return Comparator.comparing(AggregatedPatternProvider::exactContextMatch)
                 .reversed()
                 .thenComparing(Comparator.<AggregatedPatternProvider>comparingLong(
@@ -1406,10 +1408,10 @@ public final class PatternProviderSyncHelper {
                     .orElse(null);
         }
 
-        private long leafCountScore(Map<String, Long> leafClickCounts) {
+        private long leafCountScore(Object2LongMap<String> leafClickCounts) {
             long score = 0L;
             for (PatternProviderAggregationEntry leaf : this.leaves) {
-                long count = leafClickCounts.getOrDefault(leaf.providerDigest(), 0L);
+                long count = leafClickCounts.getLong(leaf.providerDigest());
                 if (Long.MAX_VALUE - score < count) {
                     return Long.MAX_VALUE;
                 }
