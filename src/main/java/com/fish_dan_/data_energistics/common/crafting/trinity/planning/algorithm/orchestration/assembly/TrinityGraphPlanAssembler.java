@@ -351,7 +351,7 @@ public final class TrinityGraphPlanAssembler {
                     false,
                     batch.variant(),
                     batch.count(),
-                    false));
+                    true));
             stageOrder.add(stageIndex);
             mergePatternFiring(patternFirings, batch.variant(), batch.count());
             mergeScaled(stackRequests, batch.variant().inputs(), batch.count());
@@ -397,8 +397,8 @@ public final class TrinityGraphPlanAssembler {
                                           boolean cycle,
                                           TrinityPatternVariant variant,
                                           BigInteger count,
-                                          boolean compressedCycleBatch) {
-        Map<AEKey, BigInteger> required = compressedCycleBatch ?
+                                          boolean sequentialBatch) {
+        Map<AEKey, BigInteger> required = sequentialBatch ?
                 requiredAtStart(variant, count) :
                 multiplyPositive(variant.inputs(), count);
         return new TrinityPlanStage(

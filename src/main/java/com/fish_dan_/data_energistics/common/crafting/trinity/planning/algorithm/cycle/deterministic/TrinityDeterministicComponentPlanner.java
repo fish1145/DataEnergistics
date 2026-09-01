@@ -14,7 +14,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.proof.TrinityCycleUnitProof;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityDeterministicRepeatScheduler;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityMinimumSeedScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 
 import appeng.api.stacks.AEKey;
@@ -38,9 +37,7 @@ public final class TrinityDeterministicComponentPlanner {
         return new TrinityDeterministicComponentPlanner(
                 TrinityDeterministicApplicability.create(TrinityDeterministicCycleSequence.create()),
                 TrinityDeterministicFiringCalculator.create(),
-                TrinityDeterministicProofAssembler.create(
-                        TrinityMinimumSeedScheduler.create(),
-                        TrinityDeterministicRepeatScheduler.create()));
+                TrinityDeterministicProofAssembler.create(TrinityDeterministicRepeatScheduler.create()));
     }
 
     private final TrinityDeterministicApplicability applicability;
