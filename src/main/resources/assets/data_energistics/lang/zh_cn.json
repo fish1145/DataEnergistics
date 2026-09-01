@@ -623,6 +623,8 @@
 	"message.data_energistics.digital_storage_depot.bucket_mode_on": "数位化存储仓已切换为桶模式",
 	"message.data_energistics.pattern_provider.context_unknown": "所选样板供应器未声明当前配方类别与工作站上下文",
 	"message.data_energistics.pattern_provider.duplicate_cleared": "[此设备已有相同样板，已清空样板并返回网络]",
+	"message.data_energistics.pattern_provider.leaf_open_unavailable": "所选具体样板供应器无法打开界面",
+	"message.data_energistics.pattern_provider.leaf_unavailable": "所选具体样板供应器已离线或不再属于当前分组",
 	"message.data_energistics.pattern_provider.target_unavailable": "所选样板供应器的上传目标不可用",
 	"message.data_energistics.pattern_provider.workstation_ambiguous": "当前配方匹配多个工作站，无法根据当前网络暴露与排序结果确定工作站",
 	"message.data_energistics.pattern_provider.workstation_mismatch": "编码配方所用工作站与所选样板供应器不一致，请重新编码或选择匹配的供应器",

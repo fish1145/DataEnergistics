@@ -15,6 +15,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSource
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternOutputMatchMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternUploadRecorder;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
+import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderLeafActionTarget;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncTracker;
@@ -54,12 +55,13 @@ import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 
 public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                                               implements UniversalTerminalMenuBridge, PatternEncodingPreviewMenu, PatternEncodingSourceAware,
@@ -68,6 +70,9 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     private static final String ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER = "transferEncodedPatternToProvider";
     private static final String ACTION_OPEN_PATTERN_PROVIDER_MENU = "openPatternProviderMenu";
     private static final String ACTION_RENAME_PATTERN_PROVIDER = "renamePatternProvider";
+    private static final String ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER_LEAF = "transferEncodedPatternToProviderLeaf";
+    private static final String ACTION_OPEN_PATTERN_PROVIDER_LEAF_MENU = "openPatternProviderLeafMenu";
+    private static final String ACTION_RENAME_PATTERN_PROVIDER_LEAF = "renamePatternProviderLeaf";
     private static final String ACTION_CLEAR_PATTERN_SOURCE_STATE = "dataEnergistics$clearPatternSourceState";
     private static final String ACTION_SET_PATTERN_SOURCE_ENABLED = "dataEnergistics$setPatternSourceEnabled";
     private static final String ACTION_SET_UPLOAD_ENABLED = "dataEnergistics$setUploadEnabled";
@@ -96,8 +101,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     @GuiSync(898)
     public int previewPanelOffsetY;
 
-    private final Map<PatternContainer, Long> syncedPatternProviderIds = new IdentityHashMap<>();
-    private final Map<Long, List<PatternContainer>> syncedPatternProvidersById = new HashMap<>();
+    private final Reference2LongOpenHashMap<PatternContainer> syncedPatternProviderIds = new Reference2LongOpenHashMap<>();
+    private final Long2ObjectOpenHashMap<ObjectList<PatternContainer>> syncedPatternProvidersById = new Long2ObjectOpenHashMap<>();
     private final PatternProviderSyncTracker patternProviderSyncTracker = new PatternProviderSyncTracker();
     private long lastPreferenceRevision = -1L;
     private long nextSyncedPatternProviderId = 1;
@@ -116,6 +121,12 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 this::openPatternProviderMenuFromClient);
         registerClientAction(ACTION_RENAME_PATTERN_PROVIDER, String.class,
                 this::renamePatternProviderFromClient);
+        registerClientAction(ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER_LEAF, String.class,
+                this::transferEncodedPatternToProviderLeafFromClient);
+        registerClientAction(ACTION_OPEN_PATTERN_PROVIDER_LEAF_MENU, String.class,
+                this::openPatternProviderLeafMenuFromClient);
+        registerClientAction(ACTION_RENAME_PATTERN_PROVIDER_LEAF, String.class,
+                this::renamePatternProviderLeafFromClient);
         if (this.isServerSide()) {
             LegacyPatternEncodingPreferences legacyPreferences = LegacyPatternEncodingPreferences.capture(
                     this.getPlayer(),
@@ -266,11 +277,13 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         syncPatternProvidersFromNetwork();
         var providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
         if (providers == null || providers.isEmpty()) {
-            this.getPlayer().sendSystemMessage(Component.translatable(
-                    "message.data_energistics.pattern_provider.target_unavailable"));
+            sendProviderUnavailable();
             return;
         }
+        transferEncodedPatternToProviders(providerId, providers);
+    }
 
+    private void transferEncodedPatternToProviders(long providerId, ObjectList<PatternContainer> providers) {
         var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
         ItemStack encodedPattern = encodedPatternInv.getStackInSlot(0);
         var uploadContext = PatternProviderSyncHelper.createPatternUploadContext(
@@ -314,13 +327,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
             return;
         }
 
+        syncPatternProvidersFromNetwork();
         var providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
-        if (providers == null || providers.isEmpty()) {
-            syncPatternProvidersFromNetwork();
-            providers = PatternProviderSyncHelper.findProvidersById(this.syncedPatternProvidersById, providerId);
-            if (providers == null || providers.isEmpty()) {
-                return;
-            }
+        if (providers == null || providers.size() != 1) {
+            return;
         }
 
         PatternProviderMenuOpenHelper.openProviderGroup(providers, this.getPlayer());
@@ -343,6 +353,83 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
 
         renamePatternProviders(providers, name);
+    }
+
+    @Override
+    public void data_energistics$transferEncodedPatternToProviderLeaf(long groupId, long leafId) {
+        transferEncodedPatternToProviderLeaf(new PatternProviderLeafActionTarget(groupId, leafId));
+    }
+
+    private void transferEncodedPatternToProviderLeaf(PatternProviderLeafActionTarget target) {
+        if (this.isClientSide()) {
+            sendClientAction(ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER_LEAF, target.encode());
+            return;
+        }
+        if (!data_energistics$isUploadEnabled()) {
+            return;
+        }
+        syncPatternProvidersFromNetwork();
+        PatternContainer provider = findProviderLeaf(target);
+        if (provider == null) {
+            sendProviderUnavailable();
+            return;
+        }
+        transferEncodedPatternToProviders(target.groupId(), ObjectLists.singleton(provider));
+    }
+
+    @Override
+    public void data_energistics$openPatternProviderLeafMenu(long groupId, long leafId) {
+        openPatternProviderLeafMenu(new PatternProviderLeafActionTarget(groupId, leafId));
+    }
+
+    private void openPatternProviderLeafMenu(PatternProviderLeafActionTarget target) {
+        if (this.isClientSide()) {
+            sendClientAction(ACTION_OPEN_PATTERN_PROVIDER_LEAF_MENU, target.encode());
+            return;
+        }
+        syncPatternProvidersFromNetwork();
+        PatternContainer provider = findProviderLeaf(target);
+        if (provider == null) {
+            sendProviderUnavailable();
+            return;
+        }
+        if (!PatternProviderMenuOpenHelper.openProviderGroup(ObjectLists.singleton(provider), this.getPlayer())) {
+            this.getPlayer().sendSystemMessage(Component.translatable(
+                    "message.data_energistics.pattern_provider.leaf_open_unavailable"));
+        }
+    }
+
+    @Override
+    public void data_energistics$renamePatternProviderLeaf(long groupId, long leafId, String name) {
+        renamePatternProviderLeaf(new PatternProviderLeafActionTarget(groupId, leafId), name);
+    }
+
+    private void renamePatternProviderLeaf(PatternProviderLeafActionTarget target, String name) {
+        if (this.isClientSide()) {
+            sendClientAction(ACTION_RENAME_PATTERN_PROVIDER_LEAF, target.encodeRename(name == null ? "" : name));
+            return;
+        }
+        syncPatternProvidersFromNetwork();
+        PatternContainer provider = findProviderLeaf(target);
+        if (provider == null) {
+            sendProviderUnavailable();
+            return;
+        }
+        renamePatternProviders(ObjectLists.singleton(provider), name);
+    }
+
+    @Nullable
+    private PatternContainer findProviderLeaf(PatternProviderLeafActionTarget target) {
+        return PatternProviderSyncHelper.findProviderLeafById(
+                this.syncedPatternProviderIds,
+                this.syncedPatternProvidersById,
+                target.groupId(),
+                target.leafId());
+    }
+
+    private void sendProviderUnavailable() {
+        this.getPlayer().sendSystemMessage(Component.translatable(
+                "message.data_energistics.pattern_provider.leaf_unavailable"));
     }
 
     @Override
@@ -654,6 +741,27 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         } catch (NumberFormatException exception) {
             Data_Energistics.LOGGER.warn("Rejected malformed Universal pattern provider rename payload: {}",
                     payload, exception);
+        }
+    }
+
+    private void transferEncodedPatternToProviderLeafFromClient(String payload) {
+        PatternProviderLeafActionTarget target = PatternProviderLeafActionTarget.decode(payload);
+        if (target != null) {
+            transferEncodedPatternToProviderLeaf(target);
+        }
+    }
+
+    private void openPatternProviderLeafMenuFromClient(String payload) {
+        PatternProviderLeafActionTarget target = PatternProviderLeafActionTarget.decode(payload);
+        if (target != null) {
+            openPatternProviderLeafMenu(target);
+        }
+    }
+
+    private void renamePatternProviderLeafFromClient(String payload) {
+        PatternProviderLeafActionTarget.Rename rename = PatternProviderLeafActionTarget.decodeRename(payload);
+        if (rename != null) {
+            renamePatternProviderLeaf(rename.target(), rename.name());
         }
     }
 

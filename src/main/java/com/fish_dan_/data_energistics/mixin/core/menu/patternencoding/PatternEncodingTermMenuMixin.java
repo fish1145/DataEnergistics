@@ -19,6 +19,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingTransf
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternOutputMatchMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternUploadRecorder;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
+import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderLeafActionTarget;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderMenuOpenHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncTracker;
@@ -56,6 +57,10 @@ import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -66,10 +71,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 // Apply after EAEP's default-priority TAIL hook so this cancellable encode path bypasses its uploader.
@@ -87,6 +89,12 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     private static final String DATA_ENERGISTICS_ACTION_OPEN_PATTERN_PROVIDER_MENU = "dataEnergistics$openPatternProviderMenu";
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_RENAME_PATTERN_PROVIDER = "dataEnergistics$renamePatternProvider";
+    @Unique
+    private static final String DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER_LEAF = "dataEnergistics$transferEncodedPatternToProviderLeaf";
+    @Unique
+    private static final String DATA_ENERGISTICS_ACTION_OPEN_PATTERN_PROVIDER_LEAF_MENU = "dataEnergistics$openPatternProviderLeafMenu";
+    @Unique
+    private static final String DATA_ENERGISTICS_ACTION_RENAME_PATTERN_PROVIDER_LEAF = "dataEnergistics$renamePatternProviderLeaf";
     @Unique
     private static final String DATA_ENERGISTICS_ACTION_SET_PATTERN_SOURCE_ENABLED = "dataEnergistics$setPatternSourceEnabled";
     @Unique
@@ -117,9 +125,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     public boolean dataEnergistics$patternSourceEnabled = true;
 
     @Unique
-    private final Map<PatternContainer, Long> dataEnergistics$syncedPatternProviderIds = new IdentityHashMap<>();
+    private final Reference2LongOpenHashMap<PatternContainer> dataEnergistics$syncedPatternProviderIds = new Reference2LongOpenHashMap<>();
     @Unique
-    private final Map<Long, List<PatternContainer>> dataEnergistics$syncedPatternProvidersById = new HashMap<>();
+    private final Long2ObjectOpenHashMap<ObjectList<PatternContainer>> dataEnergistics$syncedPatternProvidersById = new Long2ObjectOpenHashMap<>();
 
     @Unique
     private long dataEnergistics$nextSyncedPatternProviderId = 1;
@@ -575,11 +583,16 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 this.dataEnergistics$syncedPatternProvidersById,
                 providerId);
         if (providers == null || providers.isEmpty()) {
-            this.getPlayer().sendSystemMessage(Component.translatable(
-                    "message.data_energistics.pattern_provider.target_unavailable"));
+            dataEnergistics$sendProviderUnavailable();
             return;
         }
+        dataEnergistics$transferEncodedPatternToProviders(providerId, providers);
+    }
 
+    @Unique
+    private void dataEnergistics$transferEncodedPatternToProviders(
+                                                                   long providerId,
+                                                                   ObjectList<PatternContainer> providers) {
         ItemStack encodedPattern = this.encodedPatternSlot.getItem();
         var uploadContext = PatternProviderSyncHelper.createPatternUploadContext(
                 this,
@@ -622,13 +635,10 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             return;
         }
 
+        dataEnergistics$syncPatternProvidersFromNetwork();
         var providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
-        if (providers == null || providers.isEmpty()) {
-            dataEnergistics$syncPatternProvidersFromNetwork();
-            providers = PatternProviderSyncHelper.findProvidersById(this.dataEnergistics$syncedPatternProvidersById, providerId);
-            if (providers == null || providers.isEmpty()) {
-                return;
-            }
+        if (providers == null || providers.size() != 1) {
+            return;
         }
 
         PatternProviderMenuOpenHelper.openProviderGroup(providers, this.getPlayer());
@@ -652,6 +662,89 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
 
         dataEnergistics$renamePatternProviders(providers, name);
+    }
+
+    @Override
+    public void data_energistics$transferEncodedPatternToProviderLeaf(long groupId, long leafId) {
+        dataEnergistics$transferEncodedPatternToProviderLeaf(new PatternProviderLeafActionTarget(groupId, leafId));
+    }
+
+    @Unique
+    private void dataEnergistics$transferEncodedPatternToProviderLeaf(PatternProviderLeafActionTarget target) {
+        if (this.isClientSide()) {
+            sendClientAction(DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER_LEAF, target.encode());
+            return;
+        }
+        if (!this.dataEnergistics$uploadEnabled) {
+            return;
+        }
+        dataEnergistics$syncPatternProvidersFromNetwork();
+        PatternContainer provider = dataEnergistics$findProviderLeaf(target);
+        if (provider == null) {
+            dataEnergistics$sendProviderUnavailable();
+            return;
+        }
+        dataEnergistics$transferEncodedPatternToProviders(target.groupId(), ObjectLists.singleton(provider));
+    }
+
+    @Override
+    public void data_energistics$openPatternProviderLeafMenu(long groupId, long leafId) {
+        dataEnergistics$openPatternProviderLeafMenu(new PatternProviderLeafActionTarget(groupId, leafId));
+    }
+
+    @Unique
+    private void dataEnergistics$openPatternProviderLeafMenu(PatternProviderLeafActionTarget target) {
+        if (this.isClientSide()) {
+            sendClientAction(DATA_ENERGISTICS_ACTION_OPEN_PATTERN_PROVIDER_LEAF_MENU, target.encode());
+            return;
+        }
+        dataEnergistics$syncPatternProvidersFromNetwork();
+        PatternContainer provider = dataEnergistics$findProviderLeaf(target);
+        if (provider == null) {
+            dataEnergistics$sendProviderUnavailable();
+            return;
+        }
+        if (!PatternProviderMenuOpenHelper.openProviderGroup(ObjectLists.singleton(provider), this.getPlayer())) {
+            this.getPlayer().sendSystemMessage(Component.translatable(
+                    "message.data_energistics.pattern_provider.leaf_open_unavailable"));
+        }
+    }
+
+    @Override
+    public void data_energistics$renamePatternProviderLeaf(long groupId, long leafId, String name) {
+        dataEnergistics$renamePatternProviderLeaf(new PatternProviderLeafActionTarget(groupId, leafId), name);
+    }
+
+    @Unique
+    private void dataEnergistics$renamePatternProviderLeaf(PatternProviderLeafActionTarget target, String name) {
+        if (this.isClientSide()) {
+            sendClientAction(DATA_ENERGISTICS_ACTION_RENAME_PATTERN_PROVIDER_LEAF,
+                    target.encodeRename(name == null ? "" : name));
+            return;
+        }
+        dataEnergistics$syncPatternProvidersFromNetwork();
+        PatternContainer provider = dataEnergistics$findProviderLeaf(target);
+        if (provider == null) {
+            dataEnergistics$sendProviderUnavailable();
+            return;
+        }
+        dataEnergistics$renamePatternProviders(ObjectLists.singleton(provider), name);
+    }
+
+    @Unique
+    @Nullable
+    private PatternContainer dataEnergistics$findProviderLeaf(PatternProviderLeafActionTarget target) {
+        return PatternProviderSyncHelper.findProviderLeafById(
+                this.dataEnergistics$syncedPatternProviderIds,
+                this.dataEnergistics$syncedPatternProvidersById,
+                target.groupId(),
+                target.leafId());
+    }
+
+    @Unique
+    private void dataEnergistics$sendProviderUnavailable() {
+        this.getPlayer().sendSystemMessage(Component.translatable(
+                "message.data_energistics.pattern_provider.leaf_unavailable"));
     }
 
     @Override
@@ -889,6 +982,12 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 this::dataEnergistics$openPatternProviderMenuFromClient);
         registerClientAction(DATA_ENERGISTICS_ACTION_RENAME_PATTERN_PROVIDER, String.class,
                 this::dataEnergistics$renamePatternProviderFromClient);
+        registerClientAction(DATA_ENERGISTICS_ACTION_TRANSFER_ENCODED_PATTERN_TO_PROVIDER_LEAF, String.class,
+                this::dataEnergistics$transferEncodedPatternToProviderLeafFromClient);
+        registerClientAction(DATA_ENERGISTICS_ACTION_OPEN_PATTERN_PROVIDER_LEAF_MENU, String.class,
+                this::dataEnergistics$openPatternProviderLeafMenuFromClient);
+        registerClientAction(DATA_ENERGISTICS_ACTION_RENAME_PATTERN_PROVIDER_LEAF, String.class,
+                this::dataEnergistics$renamePatternProviderLeafFromClient);
         registerClientAction(DATA_ENERGISTICS_ACTION_SET_PATTERN_SOURCE_ENABLED, Boolean.class,
                 this::dataEnergistics$setPatternSourceEnabledFromClient);
         registerClientAction(DATA_ENERGISTICS_ACTION_SET_UPLOAD_ENABLED, Boolean.class,
@@ -1006,6 +1105,30 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         } catch (NumberFormatException exception) {
             Data_Energistics.LOGGER.warn("Rejected malformed pattern provider rename payload: {}", payload,
                     exception);
+        }
+    }
+
+    @Unique
+    private void dataEnergistics$transferEncodedPatternToProviderLeafFromClient(String payload) {
+        PatternProviderLeafActionTarget target = PatternProviderLeafActionTarget.decode(payload);
+        if (target != null) {
+            dataEnergistics$transferEncodedPatternToProviderLeaf(target);
+        }
+    }
+
+    @Unique
+    private void dataEnergistics$openPatternProviderLeafMenuFromClient(String payload) {
+        PatternProviderLeafActionTarget target = PatternProviderLeafActionTarget.decode(payload);
+        if (target != null) {
+            dataEnergistics$openPatternProviderLeafMenu(target);
+        }
+    }
+
+    @Unique
+    private void dataEnergistics$renamePatternProviderLeafFromClient(String payload) {
+        PatternProviderLeafActionTarget.Rename rename = PatternProviderLeafActionTarget.decodeRename(payload);
+        if (rename != null) {
+            dataEnergistics$renamePatternProviderLeaf(rename.target(), rename.name());
         }
     }
 
