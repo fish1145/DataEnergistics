@@ -693,8 +693,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             String countText = provider.usedPatternSlotCount() + "/" + provider.patternSlotCount();
             int countWidth = getScaledTextWidth(countText, PROVIDER_COUNT_TEXT_SCALE);
             int maxNameWidth = providerButtonBounds.getX() + providerButtonBounds.getWidth() - PROVIDER_COUNT_RIGHT_PADDING - countWidth - 4 - nameStartX;
-            String providerName = trimToWidth(provider.displayName().getString(), Math.max(10, maxNameWidth),
-                    PROVIDER_TEXT_SCALE);
+            String providerName = trimProviderNameToWidth(provider.displayName().getString(), Math.max(10, maxNameWidth));
 
             drawScaledText(guiGraphics, providerName,
                     nameStartX,
@@ -1400,9 +1399,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                                               boolean selected, boolean hovered) {
         if (isMePatternProvider(provider)) {
             ResourceLocation texture = selected ? AE2_BUTTON_DISABLED_TEXTURE : hovered ? AE2_BUTTON_HIGHLIGHTED_TEXTURE : AE2_BUTTON_TEXTURE;
-            drawNineSlicedTexture(guiGraphics, texture, bounds,
-                    BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT,
-                    BUTTON_SLICE_BORDER, BUTTON_SLICE_BORDER, BUTTON_SLICE_BORDER, BUTTON_SLICE_BORDER);
+            drawNineSlicedTexture(guiGraphics, texture, bounds);
             return;
         }
 
@@ -1499,41 +1496,43 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return DEFAULT_PREVIEW_SCROLLBAR_X;
     }
 
-    private void drawNineSlicedTexture(GuiGraphics guiGraphics, ResourceLocation texture, Rect2i bounds,
-                                       int textureWidth, int textureHeight,
-                                       int left, int top, int right, int bottom) {
-        int centerDstWidth = Math.max(0, bounds.getWidth() - left - right);
-        int centerDstHeight = Math.max(0, bounds.getHeight() - top - bottom);
+    private void drawNineSlicedTexture(GuiGraphics guiGraphics, ResourceLocation texture, Rect2i bounds) {
+        int border = BUTTON_SLICE_BORDER;
+        int centerDstWidth = Math.max(0, bounds.getWidth() - border * 2);
+        int centerDstHeight = Math.max(0, bounds.getHeight() - border * 2);
         int x = bounds.getX();
         int y = bounds.getY();
         int width = bounds.getWidth();
         int height = bounds.getHeight();
 
-        guiGraphics.blit(texture, x, y, 0, 0, 0, left, top, textureWidth, textureHeight);
-        guiGraphics.blit(texture, x + width - right, y, 0,
-                textureWidth - right, 0, right, top, textureWidth, textureHeight);
-        guiGraphics.blit(texture, x, y + height - bottom, 0,
-                0, textureHeight - bottom, left, bottom, textureWidth, textureHeight);
-        guiGraphics.blit(texture, x + width - right, y + height - bottom, 0,
-                textureWidth - right, textureHeight - bottom, right, bottom, textureWidth, textureHeight);
+        guiGraphics.blit(texture, x, y, 0, 0, 0, border, border, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
+        guiGraphics.blit(texture, x + width - border, y, 0,
+                BUTTON_TEXTURE_WIDTH - border, 0, border, border, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
+        guiGraphics.blit(texture, x, y + height - border, 0,
+                0, BUTTON_TEXTURE_HEIGHT - border, border, border, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
+        guiGraphics.blit(texture, x + width - border, y + height - border, 0,
+                BUTTON_TEXTURE_WIDTH - border, BUTTON_TEXTURE_HEIGHT - border,
+                border, border, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
 
         if (centerDstWidth > 0) {
-            guiGraphics.blit(texture, x + left, y, 0,
-                    left, 0, centerDstWidth, top, textureWidth, textureHeight);
-            guiGraphics.blit(texture, x + left, y + height - bottom, 0,
-                    left, textureHeight - bottom, centerDstWidth, bottom, textureWidth, textureHeight);
+            guiGraphics.blit(texture, x + border, y, 0,
+                    border, 0, centerDstWidth, border, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
+            guiGraphics.blit(texture, x + border, y + height - border, 0,
+                    border, BUTTON_TEXTURE_HEIGHT - border,
+                    centerDstWidth, border, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
         }
 
         if (centerDstHeight > 0) {
-            guiGraphics.blit(texture, x, y + top, 0,
-                    0, top, left, centerDstHeight, textureWidth, textureHeight);
-            guiGraphics.blit(texture, x + width - right, y + top, 0,
-                    textureWidth - right, top, right, centerDstHeight, textureWidth, textureHeight);
+            guiGraphics.blit(texture, x, y + border, 0,
+                    0, border, border, centerDstHeight, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
+            guiGraphics.blit(texture, x + width - border, y + border, 0,
+                    BUTTON_TEXTURE_WIDTH - border, border,
+                    border, centerDstHeight, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
         }
 
         if (centerDstWidth > 0 && centerDstHeight > 0) {
-            guiGraphics.blit(texture, x + left, y + top, 0,
-                    left, top, centerDstWidth, centerDstHeight, textureWidth, textureHeight);
+            guiGraphics.blit(texture, x + border, y + border, 0,
+                    border, border, centerDstWidth, centerDstHeight, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
         }
     }
 
@@ -1563,12 +1562,12 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return remaining * 9 < total * 2 ? COLOR_PROVIDER_COUNT_WARNING : COLOR_PROVIDER_COUNT_NORMAL;
     }
 
-    private String trimToWidth(String text, int maxWidth, float scale) {
-        if (getScaledTextWidth(text, scale) <= maxWidth) {
+    private String trimProviderNameToWidth(String text, int maxWidth) {
+        if (getScaledTextWidth(text, PROVIDER_TEXT_SCALE) <= maxWidth) {
             return text;
         }
-        int ellipsisWidth = getScaledTextWidth("...", scale);
-        int rawWidthLimit = Math.max(0, (int) Math.floor((maxWidth - ellipsisWidth) / scale));
+        int ellipsisWidth = getScaledTextWidth("...", PROVIDER_TEXT_SCALE);
+        int rawWidthLimit = Math.max(0, (int) Math.floor((maxWidth - ellipsisWidth) / PROVIDER_TEXT_SCALE));
         return this.font.plainSubstrByWidth(text, rawWidthLimit) + "...";
     }
 
