@@ -5,10 +5,11 @@ import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderClickS
 
 import net.minecraft.resources.ResourceLocation;
 
+import it.unimi.dsi.fastutil.objects.ObjectCollection;
+import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.jspecify.annotations.Nullable;
 
-import java.util.Collection;
-import java.util.List;
+import java.util.Optional;
 
 /**
  * Owns the local pattern-encoding preferences and per-server provider history used by client menus.
@@ -77,6 +78,21 @@ public interface PatternEncodingClientPreferences {
     void setPreviewPanelOffset(int offsetX, int offsetY);
 
     /**
+     * Returns the optional screen-local provider-detail panel position shared by encoding terminals.
+     */
+    Optional<ProviderDetailPanelPosition> providerDetailPanelPosition();
+
+    /**
+     * Persists the provider-detail panel position without synchronizing it to the server.
+     */
+    void setProviderDetailPanelPosition(int relativeX, int relativeY);
+
+    /**
+     * Clears the provider-detail position so the next panel opens beside its parent panel.
+     */
+    void clearProviderDetailPanelPosition();
+
+    /**
      * Fills only fields that are still absent locally from one validated legacy server snapshot.
      *
      * @return a mask containing the fields that were filled
@@ -97,12 +113,14 @@ public interface PatternEncodingClientPreferences {
     /**
      * Returns statistics for the requested context and currently synchronized provider digests.
      */
-    List<PatternProviderClickStatistic> statistics(PatternEncodingRankingContext context,
-                                                   Collection<String> providerDigests);
+    ObjectList<PatternProviderClickStatistic> statistics(PatternEncodingRankingContext context,
+                                                         ObjectCollection<String> providerDigests);
 
     /**
      * Records one authoritative absolute count from the server and persists it idempotently.
      */
     void recordUpload(PatternEncodingRankingContext context, String providerDigest,
                       long absoluteCount, long successEpochMillis);
+
+    record ProviderDetailPanelPosition(int relativeX, int relativeY) {}
 }

@@ -165,12 +165,12 @@ public interface PatternEncodingPreviewMenu {
                                  int patternSlotCount,
                                  int usedPatternSlotCount,
                                  ObjectList<SyncedPatternProviderLeaf> leaves,
-                                 List<ResourceLocation> supportedRecipeTypeIds,
+                                 ObjectList<ResourceLocation> supportedRecipeTypeIds,
                                  boolean exactViewerMatch,
                                  @Nullable ResourceLocation preferredWorkstationId) {
 
         public SyncedPatternProvider {
-            leaves = ObjectLists.unmodifiable(new ObjectArrayList<>(leaves));
+            leaves = ObjectLists.unmodifiable(leaves);
             if (leaves.isEmpty()) {
                 throw new IllegalArgumentException("A synchronized pattern provider group requires at least one leaf");
             }
@@ -185,7 +185,7 @@ public interface PatternEncodingPreviewMenu {
                             "Duplicate synchronized pattern provider leaf digest: " + leaf.providerDigest());
                 }
             }
-            supportedRecipeTypeIds = List.copyOf(supportedRecipeTypeIds);
+            supportedRecipeTypeIds = ObjectLists.unmodifiable(supportedRecipeTypeIds);
         }
 
         public SyncedPatternProvider(RegistryFriendlyByteBuf data) {
@@ -245,18 +245,17 @@ public interface PatternEncodingPreviewMenu {
             return ObjectLists.unmodifiable(leaves);
         }
 
-        private static List<ResourceLocation> readSupportedRecipeTypeIds(
-                                                                         RegistryFriendlyByteBuf data) {
+        private static ObjectList<ResourceLocation> readSupportedRecipeTypeIds(RegistryFriendlyByteBuf data) {
             int size = data.readVarInt();
             if (size < 0 || size > 2048) {
                 throw new IllegalArgumentException(
                         "Pattern provider supported recipe type count is outside [0, 2048]: " + size);
             }
-            List<ResourceLocation> recipeTypeIds = new ObjectArrayList<>(size);
+            ObjectList<ResourceLocation> recipeTypeIds = new ObjectArrayList<>(size);
             for (int index = 0; index < size; index++) {
                 recipeTypeIds.add(data.readResourceLocation());
             }
-            return List.copyOf(recipeTypeIds);
+            return ObjectLists.unmodifiable(recipeTypeIds);
         }
 
         private static @Nullable ResourceLocation readNullableResourceLocation(

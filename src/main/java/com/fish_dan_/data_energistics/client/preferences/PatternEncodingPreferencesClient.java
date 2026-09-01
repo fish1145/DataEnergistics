@@ -18,10 +18,13 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 
 /**
  * Applies local JSON preferences to client menus and publishes one bounded authoritative snapshot.
@@ -152,6 +155,18 @@ public final class PatternEncodingPreferencesClient {
         sendSnapshot(menu);
     }
 
+    public static Optional<PatternEncodingClientPreferences.ProviderDetailPanelPosition> providerDetailPanelPosition() {
+        return PatternEncodingClientPreferencesAccess.get().providerDetailPanelPosition();
+    }
+
+    public static void setProviderDetailPanelPosition(int relativeX, int relativeY) {
+        PatternEncodingClientPreferencesAccess.get().setProviderDetailPanelPosition(relativeX, relativeY);
+    }
+
+    public static void clearProviderDetailPanelPosition() {
+        PatternEncodingClientPreferencesAccess.get().clearProviderDetailPanelPosition();
+    }
+
     /**
      * Sends one monotonic snapshot for the exact current menu.
      */
@@ -167,14 +182,20 @@ public final class PatternEncodingPreferencesClient {
         int offsetX = (presentMask & PatternEncodingClientPreferences.PRESENT_PREVIEW_PANEL) != 0 ? preferences.previewPanelOffsetX() : interfaces.layoutAware().data_energistics$getPreviewPanelOffsetX();
         int offsetY = (presentMask & PatternEncodingClientPreferences.PRESENT_PREVIEW_PANEL) != 0 ? preferences.previewPanelOffsetY() : interfaces.layoutAware().data_energistics$getPreviewPanelOffsetY();
 
-        Set<String> leafDigests = new LinkedHashSet<>();
+        ObjectSet<String> leafDigests = new ObjectLinkedOpenHashSet<>();
         for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : interfaces.previewMenu().data_energistics$getSyncedPatternProviders()) {
-            leafDigests.addAll(provider.leafDigests());
+            for (PatternEncodingPreviewMenu.SyncedPatternProviderLeaf leaf : provider.leaves()) {
+                leafDigests.add(leaf.providerDigest());
+            }
         }
         PatternEncodingRankingContext rankingContext = session.rankingContext();
-        List<PatternEncodingPreferencesSyncPayload.LeafStatistic> statistics = rankingContext == null ? List.of() : preferences.statistics(rankingContext, leafDigests).stream()
-                .map(PatternEncodingPreferencesClient::toPayloadStatistic)
-                .toList();
+        ObjectList<PatternEncodingPreferencesSyncPayload.LeafStatistic> statistics = ObjectLists.emptyList();
+        if (rankingContext != null) {
+            statistics = new ObjectArrayList<>();
+            for (PatternProviderClickStatistic statistic : preferences.statistics(rankingContext, leafDigests)) {
+                statistics.add(toPayloadStatistic(statistic));
+            }
+        }
 
         PacketDistributor.sendToServer(new PatternEncodingPreferencesSyncPayload(
                 menu.containerId,

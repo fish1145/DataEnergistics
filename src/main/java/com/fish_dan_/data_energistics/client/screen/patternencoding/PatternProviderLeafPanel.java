@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.screen.patternencoding;
 
+import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.client.screen.base.AETextFieldInteraction;
 import com.fish_dan_.data_energistics.client.util.PinyinUtil;
@@ -123,6 +124,11 @@ final class PatternProviderLeafPanel {
     }
 
     void init() {
+        PatternEncodingPreferencesClient.providerDetailPanelPosition().ifPresentOrElse(position -> {
+            this.relativeX = position.relativeX();
+            this.relativeY = position.relativeY();
+            this.positioned = true;
+        }, () -> this.positioned = false);
         this.searchBox = new AETextField(
                 this.host.leafPanelStyle(), this.host.leafPanelFont(), 0, 0, SEARCH_WIDTH, SEARCH_HEIGHT);
         this.searchBox.setMaxLength(64);
@@ -195,7 +201,6 @@ final class PatternProviderLeafPanel {
 
     void closeForScreenTeardown() {
         close();
-        this.positioned = false;
     }
 
     void close() {
@@ -270,7 +275,7 @@ final class PatternProviderLeafPanel {
             }
             if (button == 1) {
                 this.positioned = false;
-                placeBesideParent();
+                PatternEncodingPreferencesClient.clearProviderDetailPanelPosition();
                 updateWidgets();
                 return true;
             }
@@ -349,6 +354,7 @@ final class PatternProviderLeafPanel {
         if (this.dragging) {
             this.dragging = false;
             updateDraggedPosition(mouseX, mouseY);
+            PatternEncodingPreferencesClient.setProviderDetailPanelPosition(this.relativeX, this.relativeY);
             return true;
         }
         if (this.scrollbarDragging) {

@@ -1084,10 +1084,16 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     private void syncPreferenceSnapshotIfProvidersChanged() {
-        String leafSignature = previewBridge().data_energistics$getSyncedPatternProviders().stream()
-                .flatMap(provider -> provider.leafDigests().stream())
-                .sorted()
-                .reduce("", (left, right) -> left + '\0' + right);
+        ObjectArrayList<String> leafDigests = new ObjectArrayList<>();
+        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : previewBridge().data_energistics$getSyncedPatternProviders()) {
+            for (PatternEncodingPreviewMenu.SyncedPatternProviderLeaf leaf : provider.leaves()) {
+                leafDigests.add(leaf.providerDigest());
+            }
+        }
+        leafDigests.sort(String::compareTo);
+        StringBuilder leafSignatureBuilder = new StringBuilder();
+        leafDigests.forEach(digest -> leafSignatureBuilder.append('\0').append(digest));
+        String leafSignature = leafSignatureBuilder.toString();
         String contextSignature = this.menu instanceof PatternEncodingPreferenceMenu preferenceMenu ? Objects.toString(preferenceMenu.data_energistics$getPreferenceSession().rankingContext(), "") : "";
         String signature = contextSignature + '\1' + leafSignature;
         if (signature.equals(this.lastPreferenceLeafDigestSignature)) {

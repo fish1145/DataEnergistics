@@ -929,7 +929,7 @@ public final class PatternProviderSyncHelper {
                         .reversed())
                 .thenComparingLong(AggregatedPatternProvider::sortOrder)
                 .thenComparing(provider -> provider.displayName().getString())
-                .thenComparing(provider -> provider.leafDigests().getFirst());
+                .thenComparing(AggregatedPatternProvider::firstLeafDigest);
     }
 
     private static Comparator<PatternProviderAggregationEntry> createStableDiscoveredProviderComparator() {
@@ -1377,8 +1377,8 @@ public final class PatternProviderSyncHelper {
             return ObjectLists.unmodifiable(containers);
         }
 
-        private List<String> leafDigests() {
-            return this.leaves.stream().map(PatternProviderAggregationEntry::providerDigest).toList();
+        private String firstLeafDigest() {
+            return this.leaves.getFirst().providerDigest();
         }
 
         private ObjectList<PatternEncodingPreviewMenu.SyncedPatternProviderLeaf> syncedLeaves() {
@@ -1391,10 +1391,10 @@ public final class PatternProviderSyncHelper {
             this.leaves.sort(PROVIDER_LEAF_COMPARATOR);
         }
 
-        private List<ResourceLocation> supportedRecipeTypeIds() {
-            return this.supportedRecipeTypeIds.stream()
-                    .sorted(Comparator.comparing(ResourceLocation::toString))
-                    .toList();
+        private ObjectList<ResourceLocation> supportedRecipeTypeIds() {
+            ObjectArrayList<ResourceLocation> supported = new ObjectArrayList<>(this.supportedRecipeTypeIds);
+            supported.sort(Comparator.comparing(ResourceLocation::toString));
+            return ObjectLists.unmodifiable(supported);
         }
 
         @Nullable
