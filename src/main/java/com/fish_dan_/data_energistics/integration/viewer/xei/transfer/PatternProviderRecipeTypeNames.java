@@ -3,17 +3,20 @@ package com.fish_dan_.data_energistics.integration.viewer.xei.transfer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+
 import java.util.List;
-import java.util.Map;
 
 /**
  * Collects localized recipe-category names exposed by the active recipe viewers.
  */
 public final class PatternProviderRecipeTypeNames {
 
-    private static final Map<ResourceLocation, Source> SOURCES = new LinkedHashMap<>();
+    private static final Object2ObjectLinkedOpenHashMap<ResourceLocation, Source> SOURCES = new Object2ObjectLinkedOpenHashMap<>();
 
     private PatternProviderRecipeTypeNames() {}
 
@@ -34,13 +37,13 @@ public final class PatternProviderRecipeTypeNames {
     /**
      * Resolves every distinct localized title currently exposed for one recipe type.
      */
-    public static List<String> resolve(ResourceLocation recipeTypeId) {
-        List<Source> sources;
+    public static ObjectList<String> resolve(ResourceLocation recipeTypeId) {
+        ObjectList<Source> sources;
         synchronized (PatternProviderRecipeTypeNames.class) {
-            sources = List.copyOf(SOURCES.values());
+            sources = new ObjectArrayList<>(SOURCES.values());
         }
 
-        LinkedHashSet<String> names = new LinkedHashSet<>();
+        ObjectLinkedOpenHashSet<String> names = new ObjectLinkedOpenHashSet<>();
         for (Source source : sources) {
             for (Component name : source.resolve(recipeTypeId)) {
                 String localizedName = name.getString();
@@ -49,14 +52,14 @@ public final class PatternProviderRecipeTypeNames {
                 }
             }
         }
-        return List.copyOf(names);
+        return ObjectLists.unmodifiable(new ObjectArrayList<>(names));
     }
 
     /**
      * Resolves the first localized viewer title, falling back to the stable recipe type ID.
      */
     public static Component resolveDisplayName(ResourceLocation recipeTypeId) {
-        List<String> names = resolve(recipeTypeId);
+        ObjectList<String> names = resolve(recipeTypeId);
         return Component.literal(names.isEmpty() ? recipeTypeId.toString() : names.getFirst());
     }
 

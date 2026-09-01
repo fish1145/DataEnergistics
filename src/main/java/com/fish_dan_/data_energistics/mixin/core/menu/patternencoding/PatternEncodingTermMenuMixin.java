@@ -719,7 +719,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     private void dataEnergistics$renamePatternProviderLeaf(PatternProviderLeafActionTarget target, String name) {
         if (this.isClientSide()) {
             sendClientAction(DATA_ENERGISTICS_ACTION_RENAME_PATTERN_PROVIDER_LEAF,
-                    target.encodeRename(name == null ? "" : name));
+                    target.encodeRename(name));
             return;
         }
         dataEnergistics$syncPatternProvidersFromNetwork();

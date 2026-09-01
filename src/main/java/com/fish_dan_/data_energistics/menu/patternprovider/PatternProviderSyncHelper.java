@@ -85,7 +85,7 @@ public final class PatternProviderSyncHelper {
             syncedPatternProviderIds.clear();
             return PatternEncodingPreviewMenu.SyncedPatternProviderList.EMPTY;
         }
-        List<PatternProviderAggregationEntry> discoveredProviders = new ObjectArrayList<>();
+        ObjectList<PatternProviderAggregationEntry> discoveredProviders = new ObjectArrayList<>();
         ReferenceSet<PatternContainer> activeProviders = new ReferenceOpenHashSet<>();
         ReferenceSet<PatternContainer> discoveredProviderSet = new ReferenceOpenHashSet<>();
         ObjectSet<ResourceLocation> viewerWorkstations = new ObjectOpenHashSet<>(viewerWorkstationIds);
@@ -143,7 +143,7 @@ public final class PatternProviderSyncHelper {
         List<AggregatedPatternProvider> aggregatedProviders = aggregateDiscoveredProviders(discoveredProviders);
         aggregatedProviders.sort(createAggregatedProviderRankingComparator(leafClickCounts));
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = new ObjectArrayList<>(aggregatedProviders.size());
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = new ObjectArrayList<>(aggregatedProviders.size());
         for (var provider : aggregatedProviders) {
             syncedProviderTargetsById.put(provider.id(), provider.containers());
             providers.add(new PatternEncodingPreviewMenu.SyncedPatternProvider(

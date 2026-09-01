@@ -406,7 +406,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
     private void renamePatternProviderLeaf(PatternProviderLeafActionTarget target, String name) {
         if (this.isClientSide()) {
-            sendClientAction(ACTION_RENAME_PATTERN_PROVIDER_LEAF, target.encodeRename(name == null ? "" : name));
+            sendClientAction(ACTION_RENAME_PATTERN_PROVIDER_LEAF, target.encodeRename(name));
             return;
         }
         syncPatternProvidersFromNetwork();

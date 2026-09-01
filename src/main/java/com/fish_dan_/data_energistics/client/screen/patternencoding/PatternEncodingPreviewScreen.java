@@ -14,6 +14,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSource
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -44,16 +45,18 @@ import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
 import appeng.util.ReadableNumberConverter;
 import com.mojang.blaze3d.vertex.PoseStack;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ReferenceSet;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> extends PatternEncodingTermScreen<T>
-                                         implements Ae2NativeSlotHighlight, PreviewLayerTooltipScreen {
+                                         implements Ae2NativeSlotHighlight, PreviewLayerTooltipScreen,
+                                         PatternProviderLeafPanelHost {
 
     private static final ResourceLocation AE2_UPLOAD_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");
     private static final ResourceLocation AE2_BUTTON_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button.png");
@@ -126,7 +129,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private AETextField providerRenameBox;
     private PatternRecipeTypeToggleButton recipeTypeToggleButton;
     private PatternEncodingPreviewDragButton previewDragButton;
-    private List<PatternEncodingPreviewMenu.SyncedPatternProvider> cachedVisibleProviders = List.of();
+    private ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> cachedVisibleProviders = ObjectLists.emptyList();
     private boolean visibleProvidersCacheDirty = true;
     private boolean previewPanelDragging;
     private int previewPanelDragOffsetX;
@@ -136,9 +139,13 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private Rect2i previewPanelDragBaseBounds;
     private boolean previewLayerWidgetRenderingDeferred;
     private String lastPreferenceLeafDigestSignature = "";
+    private final PatternProviderLeafPanel leafPanel;
+    private String pendingParentSelectionLeafDigest;
+    private int pendingParentSelectionTicks;
 
     public PatternEncodingPreviewScreen(T menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
+        this.leafPanel = new PatternProviderLeafPanel(this);
         this.previewScrollbar.setCaptureMouseWheel(false);
         this.previewScrollbar.setRange(0, 0, 1);
     }
@@ -156,6 +163,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         initProviderRenameBox();
         initRecipeTypeToggleButton();
         initPreviewDragButton();
+        this.leafPanel.init();
         invalidateVisibleProvidersCache();
         updateProviderSearchBox();
         updateProviderRenameBox();
@@ -174,6 +182,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         updatePreviewDragButton();
         invalidateVisibleProvidersCache();
         syncProviderSelection();
+        this.leafPanel.updateProviderSnapshot();
         updatePreviewScrollbar();
         syncPreferenceSnapshotIfProvidersChanged();
         applyEncodeButtonHint();
@@ -186,6 +195,10 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         if (Minecraft.getInstance().options.keyPickItem.matchesMouse(button) && triggerBlankPatternAutoCraft(mouseX, mouseY)) {
+            return true;
+        }
+
+        if (this.leafPanel.mouseClicked(mouseX, mouseY, button)) {
             return true;
         }
 
@@ -229,12 +242,12 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
         if (button == 0 && isOverEncodeButton(mouseX, mouseY)) {
             if (!isUploadEnabled()) {
-                this.previewVisible = false;
+                closePreviewPanels();
                 return super.mouseClicked(mouseX, mouseY, button);
             }
 
             if (hasShiftDown()) {
-                this.previewVisible = false;
+                closePreviewPanels();
                 return true;
             }
 
@@ -245,13 +258,13 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
         if (button == 1 && isOverEncodeButton(mouseX, mouseY)) {
             if (!isUploadEnabled()) {
-                this.previewVisible = false;
+                closePreviewPanels();
                 return super.mouseClicked(mouseX, mouseY, button);
             }
 
             if (this.previewVisible) {
                 if (hasShiftDown()) {
-                    this.previewVisible = false;
+                    closePreviewPanels();
                 } else {
                     this.menu.encode();
                 }
@@ -292,7 +305,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                     cancelProviderRename();
                 }
                 this.selectedPatternProviderId = hit.provider().id();
-                previewBridge().data_energistics$openPatternProviderMenu(hit.provider().id());
+                openProviderOrLeafPanel(hit.provider());
                 return true;
             }
         }
@@ -303,6 +316,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (this.leafPanel.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
         if (isRenamingProvider()) {
             if (keyCode == 256) {
                 cancelProviderRename();
@@ -335,7 +351,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                     cancelProviderRename();
                 }
                 this.selectedPatternProviderId = hit.provider().id();
-                previewBridge().data_energistics$openPatternProviderMenu(hit.provider().id());
+                openProviderOrLeafPanel(hit.provider());
                 return true;
             }
         }
@@ -345,6 +361,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
+        if (this.leafPanel.charTyped(codePoint, modifiers)) {
+            return true;
+        }
         if (this.suppressRenameKeyChar) {
             this.suppressRenameKeyChar = false;
             return true;
@@ -358,6 +377,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (this.leafPanel.mouseReleased(mouseX, mouseY, button)) {
+            return true;
+        }
         if (this.previewPanelDragging) {
             this.previewPanelDragging = false;
             savePreviewPanelDragOffset(mouseX, mouseY);
@@ -373,6 +395,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int mouseButton, double dragX, double dragY) {
+        if (this.leafPanel.mouseDragged(mouseX, mouseY, mouseButton)) {
+            return true;
+        }
         if (this.previewVisible && this.previewPanelDragging) {
             updatePreviewPanelDragOffset(mouseX, mouseY);
             return true;
@@ -386,6 +411,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (this.leafPanel.mouseScrolled(mouseX, mouseY, scrollY)) {
+            return true;
+        }
         if (this.previewVisible && (isOverPreviewScrollbar(mouseX, mouseY) || isOverProviderList(mouseX, mouseY)) && this.previewScrollbar.onMouseWheel(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)),
                 scrollY)) {
             return true;
@@ -456,16 +484,18 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @Override
     public List<Rect2i> getExclusionZones() {
-        List<Rect2i> zones = new ArrayList<>(super.getExclusionZones());
+        ObjectArrayList<Rect2i> zones = new ObjectArrayList<>(super.getExclusionZones());
         if (this.previewVisible) {
             zones.addAll(getPreviewInteractiveBounds());
+            zones.addAll(this.leafPanel.getInteractiveBounds());
         }
         return zones;
     }
 
     @Override
     public boolean shouldSuppressUnderlyingTooltip(int mouseX, int mouseY) {
-        return this.previewVisible && !this.renderingPreviewTooltip && isOverPreviewLayer(mouseX, mouseY);
+        return this.previewVisible && !this.renderingPreviewTooltip &&
+                (isOverPreviewLayer(mouseX, mouseY) || this.leafPanel.isOver(mouseX, mouseY));
     }
 
     private boolean isOverPreviewLayer(int mouseX, int mouseY) {
@@ -477,8 +507,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                 mouseY >= this.previewDragButton.getY() && mouseY < this.previewDragButton.getY() + this.previewDragButton.getHeight();
     }
 
-    private List<Rect2i> getPreviewInteractiveBounds() {
-        List<Rect2i> zones = new ArrayList<>();
+    private ObjectList<Rect2i> getPreviewInteractiveBounds() {
+        ObjectArrayList<Rect2i> zones = new ObjectArrayList<>();
         zones.add(getPreviewPanelBounds());
         zones.add(getProviderListBounds());
         zones.add(this.previewScrollbar.getBounds());
@@ -514,6 +544,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         this.previewLayerWidgetRenderingDeferred = true;
+        this.leafPanel.setLayerWidgetsDeferred(true);
     }
 
     private void restorePreviewLayerWidgets() {
@@ -522,6 +553,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         this.previewLayerWidgetRenderingDeferred = false;
+        this.leafPanel.setLayerWidgetsDeferred(false);
         updateProviderSearchBox();
         updateProviderRenameBox();
         updatePreviewDragButton();
@@ -546,6 +578,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             renderPreviewLayerWidget(this.providerSearchBox, guiGraphics, mouseX, mouseY, partialTicks);
             renderPreviewLayerWidget(this.providerRenameBox, guiGraphics, mouseX, mouseY, partialTicks);
             renderPreviewLayerWidget(this.previewDragButton, guiGraphics, mouseX, mouseY, partialTicks);
+            this.leafPanel.render(guiGraphics, mouseX, mouseY, partialTicks);
         } finally {
             poseStack.popPose();
         }
@@ -558,7 +591,11 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         try {
             poseStack.translate(0.0F, 0.0F, PREVIEW_LAYER_Z);
             this.renderingPreviewTooltip = true;
-            renderProviderTooltips(guiGraphics, mouseX, mouseY);
+            if (this.leafPanel.isOver(mouseX, mouseY)) {
+                this.leafPanel.renderTooltips(guiGraphics, mouseX, mouseY);
+            } else {
+                renderProviderTooltips(guiGraphics, mouseX, mouseY);
+            }
             renderPreviewLayerWidgetTooltips(guiGraphics, mouseX, mouseY);
         } finally {
             this.renderingPreviewTooltip = wasRenderingPreviewTooltip;
@@ -581,11 +618,13 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     @Override
     public void onClose() {
+        this.leafPanel.closeForScreenTeardown();
         super.onClose();
     }
 
     @Override
     public void removed() {
+        this.leafPanel.closeForScreenTeardown();
         super.removed();
     }
 
@@ -593,6 +632,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     public void containerTick() {
         super.containerTick();
         PatternEncodingPreferencesClient.flushDeferredSnapshot(this.menu);
+        this.leafPanel.tick();
         this.suppressRenameKeyChar = false;
         if (this.previewVisible) {
             this.previewScrollbar.tick();
@@ -621,7 +661,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                 COLOR_PANEL_TITLE,
                 false);
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> visibleProviders = getVisibleProviders();
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> visibleProviders = getVisibleProviders();
         if (visibleProviders.isEmpty()) {
             drawScaledText(guiGraphics, EMPTY_STATE_TEXT.getString(),
                     previewBounds.getX() + getPanelContentX(),
@@ -676,7 +716,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             return;
         }
 
-        List<Component> tooltip = new ArrayList<>();
+        ObjectArrayList<Component> tooltip = new ObjectArrayList<>();
         tooltip.add(buttonHit.provider().displayName().copy());
         tooltip.add(Component.translatable("screen.data_energistics.pattern_writer_preview.provider.upload"));
         if (isProviderOpenEnabled()) {
@@ -721,15 +761,52 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     private void syncProviderSelection() {
         syncProviderLocationFromRecordedWorkstation();
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
         if (providers.isEmpty()) {
             this.selectedPatternProviderId = -1L;
+            return;
+        }
+
+        if (selectPendingRenamedProvider()) {
             return;
         }
 
         if (getPatternProvider(this.selectedPatternProviderId) == null) {
             this.selectedPatternProviderId = providers.getFirst().id();
         }
+    }
+
+    private boolean selectPendingRenamedProvider() {
+        if (this.pendingParentSelectionLeafDigest == null) {
+            return false;
+        }
+        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : previewBridge().data_energistics$getSyncedPatternProviders()) {
+            if (provider.leaves().size() == 1 && provider.leaves().getFirst().providerDigest().equals(
+                    this.pendingParentSelectionLeafDigest)) {
+                ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> visible = getVisibleProviders();
+                int index = visible.indexOf(provider);
+                if (index < 0) {
+                    this.providerSearchBox.setValue("");
+                    this.previewScrollbar.setCurrentScroll(0);
+                    invalidateVisibleProvidersCache();
+                    visible = getVisibleProviders();
+                    index = visible.indexOf(provider);
+                }
+                this.selectedPatternProviderId = provider.id();
+                this.previewScrollbar.setCurrentScroll(Math.max(0, index - getProviderVisibleRows() + 1));
+                this.pendingParentSelectionLeafDigest = null;
+                this.pendingParentSelectionTicks = 0;
+                return true;
+            }
+        }
+        this.pendingParentSelectionTicks++;
+        if (this.pendingParentSelectionTicks > 40) {
+            this.pendingParentSelectionLeafDigest = null;
+            this.pendingParentSelectionTicks = 0;
+            this.minecraft.player.displayClientMessage(Component.translatable(
+                    "message.data_energistics.pattern_provider.leaf_unavailable"), false);
+        }
+        return false;
     }
 
     private void syncProviderLocationFromRecordedWorkstation() {
@@ -799,7 +876,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             return null;
         }
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
         int start = this.previewScrollbar.getCurrentScroll();
         int end = Math.min(providers.size(), start + getProviderVisibleRows());
         for (int rowIndex = start; rowIndex < end; rowIndex++) {
@@ -822,6 +899,25 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         int width = buttonStyle.getWidth() > 0 ? buttonStyle.getWidth() : 16;
         int height = buttonStyle.getHeight() > 0 ? buttonStyle.getHeight() : 16;
         return mouseX >= position.getX() && mouseX < position.getX() + width && mouseY >= position.getY() && mouseY < position.getY() + height;
+    }
+
+    private void openProviderOrLeafPanel(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
+        if (provider.leaves().size() > 1) {
+            this.leafPanel.open(provider);
+            return;
+        }
+        PatternEncodingPreviewMenu.SyncedPatternProviderLeaf leaf = provider.leaves().getFirst();
+        if (!leaf.openable()) {
+            this.minecraft.player.displayClientMessage(Component.translatable(
+                    "message.data_energistics.pattern_provider.leaf_open_unavailable"), false);
+            return;
+        }
+        previewBridge().data_energistics$openPatternProviderLeafMenu(provider.id(), leaf.id());
+    }
+
+    private void closePreviewPanels() {
+        this.previewVisible = false;
+        this.leafPanel.close();
     }
 
     private AbstractWidget resolveEncodePatternWidget() {
@@ -1102,7 +1198,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return mouseX >= this.leftPos + slot.x && mouseX < this.leftPos + slot.x + 16 && mouseY >= this.topPos + slot.y && mouseY < this.topPos + slot.y + 16;
     }
 
-    private List<PatternEncodingPreviewMenu.SyncedPatternProvider> getVisibleProviders() {
+    private ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> getVisibleProviders() {
         if (!this.visibleProvidersCacheDirty) {
             return this.cachedVisibleProviders;
         }
@@ -1199,10 +1295,10 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return new Rect2i(clampedX, clampedY, width, height);
     }
 
-    private List<Rect2i> getOccupiedPreviewAnchorZones() {
-        List<Rect2i> zones = new ArrayList<>(super.getExclusionZones());
+    private ObjectList<Rect2i> getOccupiedPreviewAnchorZones() {
+        ObjectArrayList<Rect2i> zones = new ObjectArrayList<>(super.getExclusionZones());
         zones.add(new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight));
-        Set<AbstractWidget> seenWidgets = Collections.newSetFromMap(new IdentityHashMap<>());
+        ReferenceSet<AbstractWidget> seenWidgets = new ReferenceOpenHashSet<>();
         for (GuiEventListener child : this.children()) {
             if (child instanceof AbstractWidget widget) {
                 addOccupiedPreviewAnchorWidget(zones, seenWidgets, widget);
@@ -1214,7 +1310,10 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return zones;
     }
 
-    private void addOccupiedPreviewAnchorWidget(List<Rect2i> zones, Set<AbstractWidget> seenWidgets, AbstractWidget widget) {
+    private void addOccupiedPreviewAnchorWidget(
+                                                ObjectList<Rect2i> zones,
+                                                ReferenceSet<AbstractWidget> seenWidgets,
+                                                AbstractWidget widget) {
         if (!seenWidgets.add(widget) || !widget.visible || shouldIgnorePreviewAnchorWidget(widget)) {
             return;
         }
@@ -1222,7 +1321,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     private boolean shouldIgnorePreviewAnchorWidget(AbstractWidget widget) {
-        return widget == this.encodePatternWidget || widget == this.providerSearchBox || widget == this.providerRenameBox || widget == this.recipeTypeToggleButton || widget == this.previewDragButton;
+        return widget == this.encodePatternWidget || widget == this.providerSearchBox ||
+                widget == this.providerRenameBox || widget == this.recipeTypeToggleButton ||
+                widget == this.previewDragButton || this.leafPanel.ownsWidget(widget);
     }
 
     private Rect2i getProviderButtonBounds(int visibleRow) {
@@ -1456,6 +1557,77 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
 
     private ItemStack getProviderIconStack(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
         return new ItemStack(BuiltInRegistries.ITEM.get(provider.iconItemId()));
+    }
+
+    @Override
+    public PatternEncodingPreviewMenu leafPanelMenu() {
+        return previewBridge();
+    }
+
+    @Override
+    public Font leafPanelFont() {
+        return this.font;
+    }
+
+    @Override
+    public ScreenStyle leafPanelStyle() {
+        return this.getStyle();
+    }
+
+    @Override
+    public int leafPanelScreenWidth() {
+        return this.width;
+    }
+
+    @Override
+    public int leafPanelScreenHeight() {
+        return this.height;
+    }
+
+    @Override
+    public int leafPanelGuiLeft() {
+        return this.leftPos;
+    }
+
+    @Override
+    public int leafPanelGuiTop() {
+        return this.topPos;
+    }
+
+    @Override
+    public Rect2i leafPanelParentBounds() {
+        return getPreviewPanelBounds();
+    }
+
+    @Override
+    public ObjectList<Rect2i> leafPanelOccupiedZones() {
+        return getOccupiedPreviewAnchorZones();
+    }
+
+    @Override
+    public boolean leafPanelUploadEnabled() {
+        return isUploadEnabled();
+    }
+
+    @Override
+    public boolean leafPanelOpenEnabled() {
+        return isProviderOpenEnabled();
+    }
+
+    @Override
+    public boolean leafPanelRenameEnabled() {
+        return isProviderRenameEnabled();
+    }
+
+    @Override
+    public <W extends AbstractWidget> W registerLeafPanelWidget(W widget) {
+        return this.addRenderableWidget(widget);
+    }
+
+    @Override
+    public void selectRenamedProviderLeaf(String providerDigest) {
+        this.pendingParentSelectionLeafDigest = providerDigest;
+        this.pendingParentSelectionTicks = 0;
     }
 
     private record ProviderButtonHit(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {}

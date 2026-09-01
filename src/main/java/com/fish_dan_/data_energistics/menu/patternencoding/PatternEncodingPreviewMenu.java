@@ -35,7 +35,7 @@ public interface PatternEncodingPreviewMenu {
     /**
      * Returns the provider rows for existing preview consumers that do not need workstation resolution state.
      */
-    default List<SyncedPatternProvider> data_energistics$getSyncedPatternProviders() {
+    default ObjectList<SyncedPatternProvider> data_energistics$getSyncedPatternProviders() {
         return data_energistics$getSyncedPatternProviderState().providers();
     }
 
@@ -60,16 +60,17 @@ public interface PatternEncodingPreviewMenu {
      * Context-bound provider snapshot synchronized through the menu.
      */
     record SyncedPatternProviderList(
-                                     List<SyncedPatternProvider> providers,
+                                     ObjectList<SyncedPatternProvider> providers,
                                      @Nullable PatternEncodingRankingContext rankingContext,
                                      List<ResourceLocation> viewerWorkstationIds)
             implements PacketWritable {
 
         private static final int MAX_VIEWER_WORKSTATION_IDS = 2048;
-        public static final SyncedPatternProviderList EMPTY = new SyncedPatternProviderList(List.of(), null, List.of());
+        public static final SyncedPatternProviderList EMPTY = new SyncedPatternProviderList(
+                ObjectLists.emptyList(), null, List.of());
 
         public SyncedPatternProviderList {
-            providers = List.copyOf(providers);
+            providers = ObjectLists.unmodifiable(providers);
             viewerWorkstationIds = List.copyOf(viewerWorkstationIds);
             if (rankingContext == null && !viewerWorkstationIds.isEmpty()) {
                 throw new IllegalArgumentException("Viewer workstations require a synchronized ranking context");
@@ -93,10 +94,9 @@ public interface PatternEncodingPreviewMenu {
             }
         }
 
-        private static List<SyncedPatternProvider> readProviders(
-                                                                 RegistryFriendlyByteBuf data) {
+        private static ObjectList<SyncedPatternProvider> readProviders(RegistryFriendlyByteBuf data) {
             int size = data.readVarInt();
-            List<SyncedPatternProvider> providers = new ObjectArrayList<>(size);
+            ObjectList<SyncedPatternProvider> providers = new ObjectArrayList<>(size);
             for (int i = 0; i < size; i++) {
                 providers.add(new SyncedPatternProvider(data));
             }

@@ -5,10 +5,11 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPrevie
 
 import net.minecraft.resources.ResourceLocation;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+
 import java.util.function.Function;
 
 /**
@@ -21,25 +22,25 @@ final class PatternProviderDisplayOrder {
     /**
      * Moves search matches to the front of their server-defined match group without recalculating provider rank.
      */
-    static List<PatternEncodingPreviewMenu.SyncedPatternProvider> order(
-                                                                        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers,
-                                                                        String query,
-                                                                        Function<ResourceLocation, String> defaultNameResolver,
-                                                                        Function<ResourceLocation, List<String>> recipeTypeNameResolver) {
+    static ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> order(
+                                                                              ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> providers,
+                                                                              String query,
+                                                                              Function<ResourceLocation, String> defaultNameResolver,
+                                                                              Function<ResourceLocation, ObjectList<String>> recipeTypeNameResolver) {
         String normalizedQuery = PinyinUtil.normalizeSearch(query);
         if (normalizedQuery.isEmpty()) {
-            return List.copyOf(providers);
+            return ObjectLists.unmodifiable(new ObjectArrayList<>(providers));
         }
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> exactSearchMatches = new ArrayList<>();
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> exactRemaining = new ArrayList<>();
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> otherSearchMatches = new ArrayList<>();
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> otherRemaining = new ArrayList<>();
-        Map<ResourceLocation, String> defaultNames = new HashMap<>();
-        Map<ResourceLocation, List<String>> recipeTypeNames = new HashMap<>();
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> exactSearchMatches = new ObjectArrayList<>();
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> exactRemaining = new ObjectArrayList<>();
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> otherSearchMatches = new ObjectArrayList<>();
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> otherRemaining = new ObjectArrayList<>();
+        Object2ObjectOpenHashMap<ResourceLocation, String> defaultNames = new Object2ObjectOpenHashMap<>();
+        Object2ObjectOpenHashMap<ResourceLocation, ObjectList<String>> recipeTypeNames = new Object2ObjectOpenHashMap<>();
 
         for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : providers) {
-            List<String> searchTerms = buildSearchTerms(provider, defaultNameResolver, recipeTypeNameResolver,
+            ObjectList<String> searchTerms = buildSearchTerms(provider, defaultNameResolver, recipeTypeNameResolver,
                     defaultNames, recipeTypeNames);
             boolean searchMatches = matchesSearchTerms(searchTerms, normalizedQuery);
             if (provider.exactViewerMatch()) {
@@ -49,15 +50,15 @@ final class PatternProviderDisplayOrder {
             }
         }
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> ordered = new ArrayList<>(providers.size());
+        ObjectArrayList<PatternEncodingPreviewMenu.SyncedPatternProvider> ordered = new ObjectArrayList<>(providers.size());
         ordered.addAll(exactSearchMatches);
         ordered.addAll(exactRemaining);
         ordered.addAll(otherSearchMatches);
         ordered.addAll(otherRemaining);
-        return List.copyOf(ordered);
+        return ObjectLists.unmodifiable(ordered);
     }
 
-    private static boolean matchesSearchTerms(List<String> terms, String normalizedQuery) {
+    private static boolean matchesSearchTerms(ObjectList<String> terms, String normalizedQuery) {
         StringBuilder combined = new StringBuilder();
         for (String term : terms) {
             combined.append(PinyinUtil.normalizeSearch(term));
@@ -84,13 +85,13 @@ final class PatternProviderDisplayOrder {
         return queryIndex == query.length();
     }
 
-    private static List<String> buildSearchTerms(
-                                                 PatternEncodingPreviewMenu.SyncedPatternProvider provider,
-                                                 Function<ResourceLocation, String> defaultNameResolver,
-                                                 Function<ResourceLocation, List<String>> recipeTypeNameResolver,
-                                                 Map<ResourceLocation, String> defaultNames,
-                                                 Map<ResourceLocation, List<String>> recipeTypeNames) {
-        List<String> terms = new ArrayList<>();
+    private static ObjectList<String> buildSearchTerms(
+                                                       PatternEncodingPreviewMenu.SyncedPatternProvider provider,
+                                                       Function<ResourceLocation, String> defaultNameResolver,
+                                                       Function<ResourceLocation, ObjectList<String>> recipeTypeNameResolver,
+                                                       Object2ObjectOpenHashMap<ResourceLocation, String> defaultNames,
+                                                       Object2ObjectOpenHashMap<ResourceLocation, ObjectList<String>> recipeTypeNames) {
+        ObjectList<String> terms = new ObjectArrayList<>();
         terms.add(provider.displayName().getString());
         terms.add(defaultNames.computeIfAbsent(provider.iconItemId(), defaultNameResolver));
         terms.add(provider.iconItemId().toString());

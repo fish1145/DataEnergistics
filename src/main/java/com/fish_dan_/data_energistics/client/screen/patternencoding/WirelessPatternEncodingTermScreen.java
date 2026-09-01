@@ -13,6 +13,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSource
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -42,15 +43,18 @@ import appeng.util.ReadableNumberConverter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import de.mari_023.ae2wtlib.wet.WETMenu;
 import de.mari_023.ae2wtlib.wet.WETScreen;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ReferenceSet;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
-public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2NativeSlotHighlight, PreviewLayerTooltipScreen {
+public class WirelessPatternEncodingTermScreen extends WETScreen
+                                               implements Ae2NativeSlotHighlight, PreviewLayerTooltipScreen,
+                                               PatternProviderLeafPanelHost {
 
     private static final ResourceLocation AE2_UPLOAD_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");
     private static final ResourceLocation AE2_BUTTON_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button.png");
@@ -119,7 +123,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     private AETextField providerRenameBox;
     private PatternRecipeTypeToggleButton recipeTypeToggleButton;
     private PatternEncodingPreviewDragButton previewDragButton;
-    private List<PatternEncodingPreviewMenu.SyncedPatternProvider> cachedVisibleProviders = List.of();
+    private ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> cachedVisibleProviders = ObjectLists.emptyList();
     private boolean visibleProvidersCacheDirty = true;
     private boolean previewPanelDragging;
     private int previewPanelDragOffsetX;
@@ -128,9 +132,13 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     private int previewPanelCurrentOffsetY;
     private Rect2i previewPanelDragBaseBounds;
     private boolean previewLayerWidgetRenderingDeferred;
+    private final PatternProviderLeafPanel leafPanel;
+    private String pendingParentSelectionLeafDigest;
+    private int pendingParentSelectionTicks;
 
     public WirelessPatternEncodingTermScreen(WETMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
         super(menu, playerInventory, title, style);
+        this.leafPanel = new PatternProviderLeafPanel(this);
         this.previewScrollbar.setCaptureMouseWheel(false);
         this.previewScrollbar.setRange(0, 0, 1);
     }
@@ -148,6 +156,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         initProviderRenameBox();
         initRecipeTypeToggleButton();
         initPreviewDragButton();
+        this.leafPanel.init();
         invalidateVisibleProvidersCache();
         updateProviderSearchBox();
         updateProviderRenameBox();
@@ -165,6 +174,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         updatePreviewDragButton();
         invalidateVisibleProvidersCache();
         syncProviderSelection();
+        this.leafPanel.updateProviderSnapshot();
         updatePreviewScrollbar();
         applyEncodeButtonHint();
     }
@@ -173,6 +183,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     public void containerTick() {
         super.containerTick();
         PatternEncodingPreferencesClient.flushDeferredSnapshot(this.menu);
+        this.leafPanel.tick();
         this.suppressRenameKeyChar = false;
         if (this.previewVisible) {
             this.previewScrollbar.tick();
@@ -186,6 +197,10 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         }
 
         if (Minecraft.getInstance().options.keyPickItem.matchesMouse(button) && triggerBlankPatternAutoCraft(mouseX, mouseY)) {
+            return true;
+        }
+
+        if (this.leafPanel.mouseClicked(mouseX, mouseY, button)) {
             return true;
         }
 
@@ -229,13 +244,13 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
         if (button == 0 && isOverEncodeButton(mouseX, mouseY)) {
             if (!isUploadEnabled()) {
-                this.previewVisible = false;
+                closePreviewPanels();
                 boolean handled = super.mouseClicked(mouseX, mouseY, button);
                 return handled || isOverEncodeButton(mouseX, mouseY);
             }
 
             if (hasShiftDown()) {
-                this.previewVisible = false;
+                closePreviewPanels();
                 return true;
             }
 
@@ -246,14 +261,14 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
         if (button == 1 && isOverEncodeButton(mouseX, mouseY)) {
             if (!isUploadEnabled()) {
-                this.previewVisible = false;
+                closePreviewPanels();
                 this.menu.encode();
                 return true;
             }
 
             if (this.previewVisible) {
                 if (hasShiftDown()) {
-                    this.previewVisible = false;
+                    closePreviewPanels();
                 } else {
                     this.menu.encode();
                 }
@@ -294,7 +309,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
                     cancelProviderRename();
                 }
                 this.selectedPatternProviderId = hit.provider().id();
-                previewBridge().data_energistics$openPatternProviderMenu(hit.provider().id());
+                openProviderOrLeafPanel(hit.provider());
                 return true;
             }
         }
@@ -304,6 +319,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (this.leafPanel.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
         if (isRenamingProvider()) {
             if (keyCode == 256) {
                 cancelProviderRename();
@@ -334,7 +352,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
                     cancelProviderRename();
                 }
                 this.selectedPatternProviderId = hit.provider().id();
-                previewBridge().data_energistics$openPatternProviderMenu(hit.provider().id());
+                openProviderOrLeafPanel(hit.provider());
                 return true;
             }
         }
@@ -344,6 +362,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
+        if (this.leafPanel.charTyped(codePoint, modifiers)) {
+            return true;
+        }
         if (this.suppressRenameKeyChar) {
             this.suppressRenameKeyChar = false;
             return true;
@@ -357,6 +378,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (this.leafPanel.mouseReleased(mouseX, mouseY, button)) {
+            return true;
+        }
         if (this.previewPanelDragging) {
             this.previewPanelDragging = false;
             savePreviewPanelDragOffset(mouseX, mouseY);
@@ -372,6 +396,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int mouseButton, double dragX, double dragY) {
+        if (this.leafPanel.mouseDragged(mouseX, mouseY, mouseButton)) {
+            return true;
+        }
         if (this.previewVisible && this.previewPanelDragging) {
             updatePreviewPanelDragOffset(mouseX, mouseY);
             return true;
@@ -384,6 +411,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (this.leafPanel.mouseScrolled(mouseX, mouseY, scrollY)) {
+            return true;
+        }
         if (this.previewVisible && (isOverPreviewScrollbar(mouseX, mouseY) || isOverProviderList(mouseX, mouseY)) && this.previewScrollbar.onMouseWheel(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)), scrollY)) {
             return true;
         }
@@ -452,16 +482,18 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     @Override
     public List<Rect2i> getExclusionZones() {
-        List<Rect2i> zones = new ArrayList<>(super.getExclusionZones());
+        ObjectArrayList<Rect2i> zones = new ObjectArrayList<>(super.getExclusionZones());
         if (this.previewVisible) {
             zones.addAll(getPreviewInteractiveBounds());
+            zones.addAll(this.leafPanel.getInteractiveBounds());
         }
         return zones;
     }
 
     @Override
     public boolean shouldSuppressUnderlyingTooltip(int mouseX, int mouseY) {
-        return this.previewVisible && !this.renderingPreviewTooltip && isOverPreviewLayer(mouseX, mouseY);
+        return this.previewVisible && !this.renderingPreviewTooltip &&
+                (isOverPreviewLayer(mouseX, mouseY) || this.leafPanel.isOver(mouseX, mouseY));
     }
 
     private boolean isOverPreviewLayer(int mouseX, int mouseY) {
@@ -473,8 +505,8 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
                 mouseY >= this.previewDragButton.getY() && mouseY < this.previewDragButton.getY() + this.previewDragButton.getHeight();
     }
 
-    private List<Rect2i> getPreviewInteractiveBounds() {
-        List<Rect2i> zones = new ArrayList<>();
+    private ObjectList<Rect2i> getPreviewInteractiveBounds() {
+        ObjectArrayList<Rect2i> zones = new ObjectArrayList<>();
         zones.add(getPreviewPanelBounds());
         zones.add(getProviderListBounds());
         zones.add(this.previewScrollbar.getBounds());
@@ -510,6 +542,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         }
 
         this.previewLayerWidgetRenderingDeferred = true;
+        this.leafPanel.setLayerWidgetsDeferred(true);
     }
 
     private void restorePreviewLayerWidgets() {
@@ -518,6 +551,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         }
 
         this.previewLayerWidgetRenderingDeferred = false;
+        this.leafPanel.setLayerWidgetsDeferred(false);
         updateProviderSearchBox();
         updateProviderRenameBox();
         updatePreviewDragButton();
@@ -541,6 +575,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
             renderPreviewLayerWidget(this.providerSearchBox, guiGraphics, mouseX, mouseY, partialTicks);
             renderPreviewLayerWidget(this.providerRenameBox, guiGraphics, mouseX, mouseY, partialTicks);
             renderPreviewLayerWidget(this.previewDragButton, guiGraphics, mouseX, mouseY, partialTicks);
+            this.leafPanel.render(guiGraphics, mouseX, mouseY, partialTicks);
         } finally {
             poseStack.popPose();
         }
@@ -553,7 +588,11 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         try {
             poseStack.translate(0.0F, 0.0F, PREVIEW_LAYER_Z);
             this.renderingPreviewTooltip = true;
-            renderProviderTooltips(guiGraphics, mouseX, mouseY);
+            if (this.leafPanel.isOver(mouseX, mouseY)) {
+                this.leafPanel.renderTooltips(guiGraphics, mouseX, mouseY);
+            } else {
+                renderProviderTooltips(guiGraphics, mouseX, mouseY);
+            }
             renderPreviewLayerWidgetTooltips(guiGraphics, mouseX, mouseY);
         } finally {
             this.renderingPreviewTooltip = wasRenderingPreviewTooltip;
@@ -576,11 +615,13 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     @Override
     public void onClose() {
+        this.leafPanel.closeForScreenTeardown();
         super.onClose();
     }
 
     @Override
     public void removed() {
+        this.leafPanel.closeForScreenTeardown();
         super.removed();
     }
 
@@ -606,7 +647,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
                 PANEL_TITLE_COLOR,
                 false);
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
         if (providers.isEmpty()) {
             drawScaledText(guiGraphics, EMPTY_STATE_TEXT.getString(),
                     previewBounds.getX() + PANEL_CONTENT_X,
@@ -656,7 +697,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
             return;
         }
 
-        List<Component> tooltip = new ArrayList<>();
+        ObjectArrayList<Component> tooltip = new ObjectArrayList<>();
         tooltip.add(hit.provider().displayName().copy());
         tooltip.add(Component.translatable("screen.data_energistics.pattern_writer_preview.provider.upload"));
         tooltip.add(getProviderOpenHint());
@@ -832,6 +873,25 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         return !(this.menu instanceof PatternEncodingSourceAware sourceAware) || sourceAware.data_energistics$isUploadEnabled();
     }
 
+    private void openProviderOrLeafPanel(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {
+        if (provider.leaves().size() > 1) {
+            this.leafPanel.open(provider);
+            return;
+        }
+        PatternEncodingPreviewMenu.SyncedPatternProviderLeaf leaf = provider.leaves().getFirst();
+        if (!leaf.openable()) {
+            this.minecraft.player.displayClientMessage(Component.translatable(
+                    "message.data_energistics.pattern_provider.leaf_open_unavailable"), false);
+            return;
+        }
+        previewBridge().data_energistics$openPatternProviderLeafMenu(provider.id(), leaf.id());
+    }
+
+    private void closePreviewPanels() {
+        this.previewVisible = false;
+        this.leafPanel.close();
+    }
+
     private void updatePreviewScrollbar() {
         int hiddenRows = Math.max(0, getVisibleProviders().size() - PROVIDER_VISIBLE_ROWS);
         Rect2i scrollbarBounds = getPreviewScrollbarBounds();
@@ -845,10 +905,13 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     private void syncProviderSelection() {
         syncProviderLocationFromRecordedWorkstation();
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
         if (providers.isEmpty()) {
             this.selectedPatternProviderId = -1L;
             this.renamingProviderId = -1L;
+            return;
+        }
+        if (selectPendingRenamedProvider()) {
             return;
         }
         boolean found = false;
@@ -864,6 +927,39 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         if (isRenamingProvider() && getPatternProvider(this.renamingProviderId) == null) {
             cancelProviderRename();
         }
+    }
+
+    private boolean selectPendingRenamedProvider() {
+        if (this.pendingParentSelectionLeafDigest == null) {
+            return false;
+        }
+        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : previewBridge().data_energistics$getSyncedPatternProviders()) {
+            if (provider.leaves().size() == 1 && provider.leaves().getFirst().providerDigest().equals(
+                    this.pendingParentSelectionLeafDigest)) {
+                ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> visible = getVisibleProviders();
+                int index = visible.indexOf(provider);
+                if (index < 0) {
+                    this.providerSearchBox.setValue("");
+                    this.previewScrollbar.setCurrentScroll(0);
+                    invalidateVisibleProvidersCache();
+                    visible = getVisibleProviders();
+                    index = visible.indexOf(provider);
+                }
+                this.selectedPatternProviderId = provider.id();
+                this.previewScrollbar.setCurrentScroll(Math.max(0, index - PROVIDER_VISIBLE_ROWS + 1));
+                this.pendingParentSelectionLeafDigest = null;
+                this.pendingParentSelectionTicks = 0;
+                return true;
+            }
+        }
+        this.pendingParentSelectionTicks++;
+        if (this.pendingParentSelectionTicks > 40) {
+            this.pendingParentSelectionLeafDigest = null;
+            this.pendingParentSelectionTicks = 0;
+            this.minecraft.player.displayClientMessage(Component.translatable(
+                    "message.data_energistics.pattern_provider.leaf_unavailable"), false);
+        }
+        return false;
     }
 
     private void syncProviderLocationFromRecordedWorkstation() {
@@ -887,7 +983,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
             return null;
         }
 
-        List<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
         int start = this.previewScrollbar.getCurrentScroll();
         int end = Math.min(providers.size(), start + PROVIDER_VISIBLE_ROWS);
         for (int rowIndex = start; rowIndex < end; rowIndex++) {
@@ -900,7 +996,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         return null;
     }
 
-    private List<PatternEncodingPreviewMenu.SyncedPatternProvider> getVisibleProviders() {
+    private ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> getVisibleProviders() {
         if (!this.visibleProvidersCacheDirty) {
             return this.cachedVisibleProviders;
         }
@@ -989,10 +1085,10 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         return new Rect2i(clampedX, clampedY, width, height);
     }
 
-    private List<Rect2i> getOccupiedPreviewAnchorZones() {
-        List<Rect2i> zones = new ArrayList<>(super.getExclusionZones());
+    private ObjectList<Rect2i> getOccupiedPreviewAnchorZones() {
+        ObjectArrayList<Rect2i> zones = new ObjectArrayList<>(super.getExclusionZones());
         zones.add(new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight));
-        Set<AbstractWidget> seenWidgets = Collections.newSetFromMap(new IdentityHashMap<>());
+        ReferenceSet<AbstractWidget> seenWidgets = new ReferenceOpenHashSet<>();
         for (GuiEventListener child : this.children()) {
             if (child instanceof AbstractWidget widget) {
                 addOccupiedPreviewAnchorWidget(zones, seenWidgets, widget);
@@ -1004,7 +1100,10 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
         return zones;
     }
 
-    private void addOccupiedPreviewAnchorWidget(List<Rect2i> zones, Set<AbstractWidget> seenWidgets, AbstractWidget widget) {
+    private void addOccupiedPreviewAnchorWidget(
+                                                ObjectList<Rect2i> zones,
+                                                ReferenceSet<AbstractWidget> seenWidgets,
+                                                AbstractWidget widget) {
         if (!seenWidgets.add(widget) || !widget.visible || shouldIgnorePreviewAnchorWidget(widget)) {
             return;
         }
@@ -1012,7 +1111,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
     }
 
     private boolean shouldIgnorePreviewAnchorWidget(AbstractWidget widget) {
-        return widget == this.encodePatternWidget || widget == this.providerSearchBox || widget == this.providerRenameBox || widget == this.recipeTypeToggleButton || widget == this.previewDragButton;
+        return widget == this.encodePatternWidget || widget == this.providerSearchBox ||
+                widget == this.providerRenameBox || widget == this.recipeTypeToggleButton ||
+                widget == this.previewDragButton || this.leafPanel.ownsWidget(widget);
     }
 
     private Rect2i getProviderButtonBounds(int visibleRow) {
@@ -1321,6 +1422,77 @@ public class WirelessPatternEncodingTermScreen extends WETScreen implements Ae2N
 
     private String getDefaultProviderName(ResourceLocation iconItemId) {
         return new ItemStack(BuiltInRegistries.ITEM.get(iconItemId)).getHoverName().getString();
+    }
+
+    @Override
+    public PatternEncodingPreviewMenu leafPanelMenu() {
+        return previewBridge();
+    }
+
+    @Override
+    public Font leafPanelFont() {
+        return this.font;
+    }
+
+    @Override
+    public ScreenStyle leafPanelStyle() {
+        return this.getStyle();
+    }
+
+    @Override
+    public int leafPanelScreenWidth() {
+        return this.width;
+    }
+
+    @Override
+    public int leafPanelScreenHeight() {
+        return this.height;
+    }
+
+    @Override
+    public int leafPanelGuiLeft() {
+        return this.leftPos;
+    }
+
+    @Override
+    public int leafPanelGuiTop() {
+        return this.topPos;
+    }
+
+    @Override
+    public Rect2i leafPanelParentBounds() {
+        return getPreviewPanelBounds();
+    }
+
+    @Override
+    public ObjectList<Rect2i> leafPanelOccupiedZones() {
+        return getOccupiedPreviewAnchorZones();
+    }
+
+    @Override
+    public boolean leafPanelUploadEnabled() {
+        return isUploadEnabled();
+    }
+
+    @Override
+    public boolean leafPanelOpenEnabled() {
+        return true;
+    }
+
+    @Override
+    public boolean leafPanelRenameEnabled() {
+        return true;
+    }
+
+    @Override
+    public <W extends AbstractWidget> W registerLeafPanelWidget(W widget) {
+        return this.addRenderableWidget(widget);
+    }
+
+    @Override
+    public void selectRenamedProviderLeaf(String providerDigest) {
+        this.pendingParentSelectionLeafDigest = providerDigest;
+        this.pendingParentSelectionTicks = 0;
     }
 
     private record ProviderButtonHit(PatternEncodingPreviewMenu.SyncedPatternProvider provider) {}
