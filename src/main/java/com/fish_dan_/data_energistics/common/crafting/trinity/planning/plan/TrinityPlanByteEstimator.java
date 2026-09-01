@@ -29,10 +29,6 @@ public final class TrinityPlanByteEstimator {
      * @return conservative capacity bytes
      */
     public BigInteger estimate(TrinityPlanByteEstimateInput input) {
-        if (input == null) {
-            throw new IllegalArgumentException("A Trinity byte estimate requires accounting input");
-        }
-
         BigInteger bytes = input.patternFirings()
                 .add(input.logicalNodeCount().multiply(CRAFTING_STORAGE_MULTIPLIER));
         for (Map.Entry<AEKey, BigInteger> entry : input.stackRequestAmounts().entrySet()) {

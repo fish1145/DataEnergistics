@@ -18,9 +18,6 @@ public enum TrinityPlanQuality {
      * Combines independent plan regions without overstating the weakest proof carried by either region.
      */
     public TrinityPlanQuality combine(TrinityPlanQuality other) {
-        if (other == null) {
-            throw new IllegalArgumentException("A Trinity plan quality cannot be combined with null");
-        }
         return this == VERIFIED_FEASIBLE || other == VERIFIED_FEASIBLE ? VERIFIED_FEASIBLE : PROVED_OPTIMAL;
     }
 }
