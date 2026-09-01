@@ -335,8 +335,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         if (this.previewVisible && isProviderRenameEnabled() && DEKeyMappings.RENAME_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
-            var hit = getProviderButtonHit(this.minecraft.mouseHandler.xpos() * (double) this.width / this.minecraft.getWindow().getScreenWidth(),
-                    this.minecraft.mouseHandler.ypos() * (double) this.height / this.minecraft.getWindow().getScreenHeight());
+            var hit = getProviderButtonHitAtMouse();
             if (hit != null && hit.provider().renameable()) {
                 beginProviderRename(hit.provider());
                 this.suppressRenameKeyChar = true;
@@ -345,8 +344,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         if (this.previewVisible && isProviderOpenEnabled() && DEKeyMappings.OPEN_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
-            var hit = getProviderButtonHit(this.minecraft.mouseHandler.xpos() * (double) this.width / this.minecraft.getWindow().getScreenWidth(),
-                    this.minecraft.mouseHandler.ypos() * (double) this.height / this.minecraft.getWindow().getScreenHeight());
+            var hit = getProviderButtonHitAtMouse();
             if (hit != null) {
                 if (isRenamingProvider() && this.renamingProviderId != hit.provider().id()) {
                     cancelProviderRename();
@@ -808,7 +806,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         if (this.pendingParentSelectionTicks > 40) {
             this.pendingParentSelectionLeafDigest = null;
             this.pendingParentSelectionTicks = 0;
-            this.minecraft.player.displayClientMessage(Component.translatable(
+            this.menu.getPlayer().displayClientMessage(Component.translatable(
                     "message.data_energistics.pattern_provider.leaf_unavailable"), false);
         }
         return false;
@@ -895,6 +893,13 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return null;
     }
 
+    private @Nullable ProviderButtonHit getProviderButtonHitAtMouse() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return getProviderButtonHit(
+                minecraft.mouseHandler.xpos() * this.width / minecraft.getWindow().getScreenWidth(),
+                minecraft.mouseHandler.ypos() * this.height / minecraft.getWindow().getScreenHeight());
+    }
+
     private boolean isOverEncodeButton(double mouseX, double mouseY) {
         if (this.encodePatternWidget != null && this.encodePatternWidget.visible) {
             return this.encodePatternWidget.isMouseOver(mouseX, mouseY);
@@ -914,7 +919,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
         PatternEncodingPreviewMenu.SyncedPatternProviderLeaf leaf = provider.leaves().getFirst();
         if (!leaf.openable()) {
-            this.minecraft.player.displayClientMessage(Component.translatable(
+            this.menu.getPlayer().displayClientMessage(Component.translatable(
                     "message.data_energistics.pattern_provider.leaf_open_unavailable"), false);
             return;
         }
