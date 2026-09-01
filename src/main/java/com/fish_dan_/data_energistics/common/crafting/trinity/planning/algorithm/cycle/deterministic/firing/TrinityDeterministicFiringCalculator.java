@@ -146,6 +146,9 @@ public final class TrinityDeterministicFiringCalculator {
                                                  Map<AEKey, BigInteger> primitiveNet) {
         BigInteger repetitions = TrinityDeterministicFiringMath.ZERO;
         for (Map.Entry<AEKey, BigInteger> required : netLowerBounds.entrySet()) {
+            if (required.getValue().signum() <= 0) {
+                continue;
+            }
             BigInteger effect = primitiveNet.getOrDefault(required.getKey(), TrinityDeterministicFiringMath.ZERO);
             if (effect.signum() > 0) {
                 repetitions = repetitions.max(TrinityDeterministicFiringMath.ceilDivide(

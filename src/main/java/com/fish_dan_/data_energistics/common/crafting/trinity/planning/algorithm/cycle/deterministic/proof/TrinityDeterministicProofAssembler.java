@@ -12,8 +12,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.seed.TrinityCycleSeedRequirement;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityCompressedSchedule;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityDeterministicRepeatScheduler;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityMinimumSeedSchedule;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityMinimumSeedScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
@@ -39,21 +37,15 @@ import java.util.Set;
 public final class TrinityDeterministicProofAssembler {
 
     /**
-     * Creates the proof assembler from exact minimum-seed and repeated-cycle schedulers.
+     * Creates the proof assembler from the exact repeated-cycle scheduler.
      */
-    public static TrinityDeterministicProofAssembler create(
-                                                            TrinityMinimumSeedScheduler seedScheduler,
-                                                            TrinityDeterministicRepeatScheduler repeatScheduler) {
-        return new TrinityDeterministicProofAssembler(seedScheduler, repeatScheduler);
+    public static TrinityDeterministicProofAssembler create(TrinityDeterministicRepeatScheduler repeatScheduler) {
+        return new TrinityDeterministicProofAssembler(repeatScheduler);
     }
 
-    private final TrinityMinimumSeedScheduler seedScheduler;
     private final TrinityDeterministicRepeatScheduler repeatScheduler;
 
-    TrinityDeterministicProofAssembler(
-                                       TrinityMinimumSeedScheduler seedScheduler,
-                                       TrinityDeterministicRepeatScheduler repeatScheduler) {
-        this.seedScheduler = seedScheduler;
+    TrinityDeterministicProofAssembler(TrinityDeterministicRepeatScheduler repeatScheduler) {
         this.repeatScheduler = repeatScheduler;
     }
 
@@ -97,7 +89,7 @@ public final class TrinityDeterministicProofAssembler {
                 decomposition.prefixOrder());
         TrinityAlgorithmResult<NormalizedCycle> normalized = normalizePrimitiveCycle(
                 component,
-                basis.primitiveFirings(),
+                basis.primitiveOrder(),
                 cycleStart,
                 cycleMaximum,
                 maxStates,
@@ -115,6 +107,12 @@ public final class TrinityDeterministicProofAssembler {
             requiredCycleStart = Object2ObjectMaps.unmodifiable(repeatedStart);
         }
         mergeRequiredCycleStart(initialInputs, cycleStart, requiredCycleStart);
+        applyRequiredSuffix(
+                decomposition.suffixOrder(),
+                decomposition.prefixOrder(),
+                basis.primitiveNet(),
+                decomposition.repetitions(),
+                initialInputs);
 
         int totalStates = Math.addExact(
                 normalized.value().statesVisited(),
@@ -152,38 +150,43 @@ public final class TrinityDeterministicProofAssembler {
         return TrinityAlgorithmResult.success(plan);
     }
 
-    private TrinityAlgorithmResult<NormalizedCycle> normalizePrimitiveCycle(
-                                                                            TrinityStronglyConnectedComponent component,
-                                                                            Map<TrinityPatternVariant, BigInteger> primitiveFirings,
-                                                                            Map<AEKey, BigInteger> minimumBalances,
-                                                                            Map<AEKey, BigInteger> maximumBalances,
-                                                                            int maxStates,
-                                                                            TrinityPlanningControl control) {
+    private static TrinityAlgorithmResult<NormalizedCycle> normalizePrimitiveCycle(
+                                                                                   TrinityStronglyConnectedComponent component,
+                                                                                   List<TrinityVariantFiring> primitiveOrder,
+                                                                                   Map<AEKey, BigInteger> minimumBalances,
+                                                                                   Map<AEKey, BigInteger> maximumBalances,
+                                                                                   int maxStates,
+                                                                                   TrinityPlanningControl control) {
+        TrinityDeterministicDiagnostics.StopState stop = TrinityDeterministicDiagnostics.stopState(control);
+        if (stop != TrinityDeterministicDiagnostics.StopState.RUNNING) {
+            return TrinityDeterministicDiagnostics.stopped(stop);
+        }
+        int states = Math.addExact(primitiveOrder.size(), 1);
+        if (states > maxStates) {
+            return TrinityDeterministicDiagnostics.searchLimit(maxStates, states);
+        }
         Set<AEKey> internalKeys = Set.copyOf(component.keys());
         LinkedHashSet<AEKey> externalKeys = new LinkedHashSet<>();
-        primitiveFirings.keySet().forEach(variant -> variant.inputs().keySet().forEach(key -> {
+        primitiveOrder.forEach(firing -> firing.variant().inputs().keySet().forEach(key -> {
             if (!internalKeys.contains(key)) {
                 externalKeys.add(key);
             }
         }));
-        TrinityAlgorithmResult<TrinityMinimumSeedSchedule> seeded = this.seedScheduler.find(
-                primitiveFirings,
-                Collections.unmodifiableSet(externalKeys),
-                internalKeys,
-                schedulableInputBalances(minimumBalances, externalKeys, internalKeys),
-                maximumBalances,
-                maxStates,
-                control);
-        if (!seeded.successful()) {
-            return TrinityAlgorithmResult.failure(seeded.diagnostic());
+        LinkedHashMap<AEKey, BigInteger> requiredBalances = new LinkedHashMap<>(
+                schedulableInputBalances(minimumBalances, externalKeys, internalKeys));
+        TrinityCycleSeedRequirement.minimumInputs(primitiveOrder).forEach(
+                (key, amount) -> requiredBalances.merge(key, amount, BigInteger::max));
+        if (requiredBalances.entrySet().stream().anyMatch(entry -> entry.getValue().compareTo(
+                maximumBalances.getOrDefault(entry.getKey(), TrinityDeterministicFiringMath.ZERO)) > 0)) {
+            return TrinityDeterministicDiagnostics.failure(
+                    TrinityPlanningDiagnosticCode.NO_EXECUTABLE_ORDER,
+                    TrinityDeterministicDiagnostics.NO_EXECUTABLE_ORDER_KEY,
+                    Map.of("states", Integer.toString(states)));
         }
-        LinkedHashMap<AEKey, BigInteger> initialBalances = new LinkedHashMap<>(seeded.value().externalInputs());
-        seeded.value().minimumSeed().forEach(
-                (key, amount) -> initialBalances.merge(key, amount, BigInteger::add));
         return TrinityAlgorithmResult.success(new NormalizedCycle(
-                seeded.value().schedule().batches(),
-                Collections.unmodifiableMap(initialBalances),
-                seeded.value().schedule().statesVisited()));
+                List.copyOf(primitiveOrder),
+                Collections.unmodifiableMap(requiredBalances),
+                states));
     }
 
     private static Map<AEKey, BigInteger> schedulableInputBalances(
@@ -442,6 +445,25 @@ public final class TrinityDeterministicProofAssembler {
                     currentCycleStart.getOrDefault(key, TrinityDeterministicFiringMath.ZERO));
             if (deficit.signum() > 0) {
                 initialInputs.merge(key, deficit, BigInteger::add);
+            }
+        });
+    }
+
+    private static void applyRequiredSuffix(
+                                            List<TrinityVariantFiring> suffixOrder,
+                                            List<TrinityVariantFiring> prefixOrder,
+                                            Map<AEKey, BigInteger> primitiveNet,
+                                            BigInteger repetitions,
+                                            Map<AEKey, BigInteger> initialInputs) {
+        Map<AEKey, BigInteger> suffixMinimum = TrinityCycleSeedRequirement.minimumInputs(suffixOrder);
+        Map<AEKey, BigInteger> beforeSuffixNet = TrinityDeterministicFiringMath.addSigned(
+                TrinityDeterministicFiringMath.netChange(TrinityDeterministicFiringMath.aggregate(prefixOrder)),
+                TrinityDeterministicFiringMath.multiplySigned(primitiveNet, repetitions));
+        suffixMinimum.forEach((key, required) -> {
+            BigInteger initialRequired = required.subtract(
+                    beforeSuffixNet.getOrDefault(key, TrinityDeterministicFiringMath.ZERO));
+            if (initialRequired.signum() > 0) {
+                initialInputs.merge(key, initialRequired, BigInteger::max);
             }
         });
     }
