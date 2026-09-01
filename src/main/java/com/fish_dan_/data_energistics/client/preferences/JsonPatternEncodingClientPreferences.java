@@ -197,16 +197,6 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     }
 
     @Override
-    public void clearProviderDetailPanelPosition() {
-        ensureLoaded();
-        if (!this.providerDetailPanelPresent) {
-            return;
-        }
-        this.providerDetailPanelPresent = false;
-        save();
-    }
-
-    @Override
     public int applyMissingLegacyValues(int fieldMask, boolean legacyUploadEnabled, boolean legacyPatternSourceEnabled,
                                         @Nullable ResourceLocation legacyLastWorkstation,
                                         int legacyOffsetX, int legacyOffsetY) {

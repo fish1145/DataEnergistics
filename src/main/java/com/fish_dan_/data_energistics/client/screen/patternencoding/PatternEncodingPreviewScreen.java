@@ -595,8 +595,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                 this.leafPanel.renderTooltips(guiGraphics, mouseX, mouseY);
             } else {
                 renderProviderTooltips(guiGraphics, mouseX, mouseY);
+                renderPreviewLayerWidgetTooltips(guiGraphics, mouseX, mouseY);
             }
-            renderPreviewLayerWidgetTooltips(guiGraphics, mouseX, mouseY);
         } finally {
             this.renderingPreviewTooltip = wasRenderingPreviewTooltip;
             poseStack.popPose();

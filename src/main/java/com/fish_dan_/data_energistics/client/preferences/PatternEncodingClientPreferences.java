@@ -88,11 +88,6 @@ public interface PatternEncodingClientPreferences {
     void setProviderDetailPanelPosition(int relativeX, int relativeY);
 
     /**
-     * Clears the provider-detail position so the next panel opens beside its parent panel.
-     */
-    void clearProviderDetailPanelPosition();
-
-    /**
      * Fills only fields that are still absent locally from one validated legacy server snapshot.
      *
      * @return a mask containing the fields that were filled

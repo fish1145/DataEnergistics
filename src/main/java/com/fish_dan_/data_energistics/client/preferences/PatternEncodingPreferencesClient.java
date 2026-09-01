@@ -163,10 +163,6 @@ public final class PatternEncodingPreferencesClient {
         PatternEncodingClientPreferencesAccess.get().setProviderDetailPanelPosition(relativeX, relativeY);
     }
 
-    public static void clearProviderDetailPanelPosition() {
-        PatternEncodingClientPreferencesAccess.get().clearProviderDetailPanelPosition();
-    }
-
     /**
      * Sends one monotonic snapshot for the exact current menu.
      */
