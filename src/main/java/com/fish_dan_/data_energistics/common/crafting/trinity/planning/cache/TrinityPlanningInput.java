@@ -4,12 +4,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
-import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
-import java.util.Map;
 
 /**
  * Immutable pure-algorithm request shared by initial planning and remaining-work replanning.
@@ -29,35 +27,4 @@ public record TrinityPlanningInput(
                                    BigInteger requestedAmount,
                                    CraftingQuantityMode quantityMode,
                                    TrinityPlanningInventory inventory,
-                                   TrinityPlanningLimits limits) {
-
-    /**
-     * Compatibility constructor that captures a mutable configuration immediately.
-     */
-    public TrinityPlanningInput(
-                                long gridScope,
-                                TrinityCraftingGraphSnapshot graph,
-                                AEKey target,
-                                BigInteger requestedAmount,
-                                CraftingQuantityMode quantityMode,
-                                Map<AEKey, BigInteger> available,
-                                TrinityCraftingSchema settings) {
-        this(
-                gridScope,
-                graph,
-                target,
-                requestedAmount,
-                quantityMode,
-                TrinityPlanningInventory.finite(available),
-                TrinityPlanningLimits.capture(settings));
-    }
-
-    /**
-     * @return detached compatibility configuration that cannot mutate this input
-     * @deprecated use {@link #limits()}
-     */
-    @Deprecated(forRemoval = false)
-    public TrinityCraftingSchema settings() {
-        return this.limits.detachedSchema();
-    }
-}
+                                   TrinityPlanningLimits limits) {}
