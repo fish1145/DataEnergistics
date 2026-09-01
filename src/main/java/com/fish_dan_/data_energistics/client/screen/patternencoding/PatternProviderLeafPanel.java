@@ -108,7 +108,7 @@ final class PatternProviderLeafPanel {
     private boolean layerWidgetsDeferred;
     private boolean scrollbarDragging;
     private boolean dragging;
-    private boolean positioned;
+    private boolean customPosition;
     private boolean suppressRenameKeyChar;
     private long renamingLeafId = -1L;
     private String renamingLeafDigest;
@@ -127,8 +127,8 @@ final class PatternProviderLeafPanel {
         PatternEncodingPreferencesClient.providerDetailPanelPosition().ifPresentOrElse(position -> {
             this.relativeX = position.relativeX();
             this.relativeY = position.relativeY();
-            this.positioned = true;
-        }, () -> this.positioned = false);
+            this.customPosition = true;
+        }, () -> this.customPosition = false);
         this.searchBox = new AETextField(
                 this.host.leafPanelStyle(), this.host.leafPanelFont(), 0, 0, SEARCH_WIDTH, SEARCH_HEIGHT);
         this.searchBox.setMaxLength(64);
@@ -163,9 +163,6 @@ final class PatternProviderLeafPanel {
             cancelRename();
             this.searchBox.setValue("");
             this.scrollbar.setCurrentScroll(0);
-        }
-        if (!this.positioned) {
-            placeBesideParent();
         }
         updateWidgets();
     }
@@ -274,7 +271,7 @@ final class PatternProviderLeafPanel {
                 return true;
             }
             if (button == 1) {
-                this.positioned = false;
+                this.customPosition = false;
                 PatternEncodingPreferencesClient.clearProviderDetailPanelPosition();
                 updateWidgets();
                 return true;
@@ -494,15 +491,18 @@ final class PatternProviderLeafPanel {
 
     private boolean matchesSearch(LeafRow row, String normalizedQuery) {
         String name = row.leaf().displayName().getString();
+        String defaultName = BuiltInRegistries.ITEM.get(row.leaf().iconItemId()).getDescription().getString();
         String iconId = row.leaf().iconItemId().toString();
         String ordinal = "#" + row.ordinal();
         String location = locationSearchText(row);
-        String normalizedSource = PinyinUtil.normalizeSearch(name) + PinyinUtil.normalizeSearch(iconId) +
-                PinyinUtil.normalizeSearch(ordinal) + PinyinUtil.normalizeSearch(location);
+        String normalizedSource = PinyinUtil.normalizeSearch(name) + PinyinUtil.normalizeSearch(defaultName) +
+                PinyinUtil.normalizeSearch(iconId) + PinyinUtil.normalizeSearch(ordinal) +
+                PinyinUtil.normalizeSearch(location);
         if (normalizedSource.contains(normalizedQuery)) {
             return true;
         }
         return PinyinUtil.matchesNormalizedJech(name, normalizedQuery) ||
+                PinyinUtil.matchesNormalizedJech(defaultName, normalizedQuery) ||
                 PinyinUtil.matchesNormalizedJech(iconId, normalizedQuery) ||
                 PinyinUtil.matchesNormalizedJech(ordinal, normalizedQuery) ||
                 PinyinUtil.matchesNormalizedJech(location, normalizedQuery);
@@ -763,7 +763,7 @@ final class PatternProviderLeafPanel {
     }
 
     private Rect2i getBounds() {
-        if (!this.positioned) {
+        if (!this.customPosition) {
             return defaultBounds();
         }
         return clamp(this.host.leafPanelGuiLeft() + this.relativeX,
@@ -778,19 +778,12 @@ final class PatternProviderLeafPanel {
                 this.host.leafPanelOccupiedZones());
     }
 
-    private void placeBesideParent() {
-        Rect2i bounds = defaultBounds();
-        this.relativeX = bounds.getX() - this.host.leafPanelGuiLeft();
-        this.relativeY = bounds.getY() - this.host.leafPanelGuiTop();
-        this.positioned = true;
-    }
-
     private void updateDraggedPosition(double mouseX, double mouseY) {
         Rect2i bounds = clamp((int) Math.round(mouseX) - this.dragOffsetX,
                 (int) Math.round(mouseY) - this.dragOffsetY);
         this.relativeX = bounds.getX() - this.host.leafPanelGuiLeft();
         this.relativeY = bounds.getY() - this.host.leafPanelGuiTop();
-        this.positioned = true;
+        this.customPosition = true;
         updateWidgets();
     }
 
