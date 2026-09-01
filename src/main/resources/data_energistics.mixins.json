@@ -57,6 +57,7 @@
 		"core.menu.crafting.ResultSlotMixin",
 		"core.menu.patternencoding.PatternEncodingLogicPreviewLayoutMixin",
 		"core.menu.patternencoding.PatternEncodingTermMenuMixin",
+		"core.network.ServerGamePacketListenerImplMixin",
 		"core.patternprovider.NetworkCraftingProviderStatePublicationMixin",
 		"core.patternprovider.NetworkCraftingProvidersPatternsForKeyMixin",
 		"core.patternprovider.NetworkCraftingProvidersPublicationMixin",

@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.common.entrypoint.provider.ResolvedProvide
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 
 import appeng.helpers.patternprovider.PatternContainer;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
@@ -28,6 +29,14 @@ public final class PatternProviderMenuOpenHelper {
     /** Attempts to open the exact provider group selected by a server-side terminal row. */
     public static boolean openProviderGroup(List<PatternContainer> providers, Player player) {
         if (!(player instanceof ServerPlayer serverPlayer)) {
+            return false;
+        }
+        AbstractContainerMenu sourceMenu = serverPlayer.containerMenu;
+        PatternProviderMenuReturnTracker.ReturnDestination returnDestination = PatternProviderMenuReturnTracker.captureDestination(serverPlayer);
+        if (returnDestination == null) {
+            Data_Energistics.LOGGER.error(
+                    "Cannot open a provider menu without a return route from pattern encoding menu {}",
+                    sourceMenu.getType());
             return false;
         }
 
@@ -62,12 +71,28 @@ public final class PatternProviderMenuOpenHelper {
                             new PatternProviderMenuOpenContext(serverPlayer, providers));
                     switch (result) {
                         case OPENED -> {
-                            return true;
+                            return PatternProviderMenuReturnTracker.completeOpenAttempt(
+                                    serverPlayer, sourceMenu, returnDestination);
                         }
                         case DENIED -> {
+                            if (serverPlayer.containerMenu != sourceMenu) {
+                                Data_Energistics.LOGGER.warn(
+                                        "Pattern provider menu adapter '{}' opened a menu but returned DENIED",
+                                        registration.metadata().registrationId());
+                                return PatternProviderMenuReturnTracker.completeOpenAttempt(
+                                        serverPlayer, sourceMenu, returnDestination);
+                            }
                             return false;
                         }
-                        case PASS -> {}
+                        case PASS -> {
+                            if (serverPlayer.containerMenu != sourceMenu) {
+                                Data_Energistics.LOGGER.warn(
+                                        "Pattern provider menu adapter '{}' opened a menu but returned PASS",
+                                        registration.metadata().registrationId());
+                                return PatternProviderMenuReturnTracker.completeOpenAttempt(
+                                        serverPlayer, sourceMenu, returnDestination);
+                            }
+                        }
                     }
                 } catch (RuntimeException exception) {
                     Data_Energistics.LOGGER.error(
@@ -75,14 +100,20 @@ public final class PatternProviderMenuOpenHelper {
                             registration.metadata().registrationId(),
                             providers.size(),
                             exception);
+                    if (serverPlayer.containerMenu != sourceMenu) {
+                        return PatternProviderMenuReturnTracker.completeOpenAttempt(
+                                serverPlayer, sourceMenu, returnDestination);
+                    }
                     return false;
                 }
             }
         }
 
         for (PatternContainer provider : providers) {
-            if (openCoreProvider(provider, serverPlayer)) {
-                return true;
+            boolean handled = openCoreProvider(provider, serverPlayer);
+            if (handled || serverPlayer.containerMenu != sourceMenu) {
+                return PatternProviderMenuReturnTracker.completeOpenAttempt(
+                        serverPlayer, sourceMenu, returnDestination);
             }
         }
         return false;
@@ -104,7 +135,8 @@ public final class PatternProviderMenuOpenHelper {
         }
         if (provider instanceof MenuProvider menuProvider) {
             try {
-                return player.openMenu(menuProvider).isPresent();
+                player.openMenu(menuProvider);
+                return true;
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error("Failed to open provider MenuProvider for {}", provider, exception);
             }
