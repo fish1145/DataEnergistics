@@ -444,7 +444,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     @Override
     public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
         if (this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN ||
-                !usesNetworkBackedBlankPatternSlot()) {
+                networkBackedBlankPatternMenu() == null) {
             super.renderSlot(guiGraphics, slot);
             return;
         }
@@ -1126,7 +1126,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     private boolean triggerBlankPatternAutoCraft(double mouseX, double mouseY) {
-        if (!usesNetworkBackedBlankPatternSlot()) {
+        if (networkBackedBlankPatternMenu() == null) {
             return false;
         }
 
@@ -1134,7 +1134,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN) {
             return false;
         }
-        if (!isMouseOverSlot(slot, mouseX, mouseY)) {
+        if (isMouseOutsideSlot(slot, mouseX, mouseY)) {
             return false;
         }
 
@@ -1148,13 +1148,13 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     private boolean handleBlankPatternSlotClick(double mouseX, double mouseY, int button) {
-        if (!(this.menu instanceof BlankPatternProxyMenu blankPatternProxyMenu) ||
-                !blankPatternProxyMenu.data_energistics$usesNetworkBackedBlankPatternSlot()) {
+        BlankPatternProxyMenu blankPatternProxyMenu = networkBackedBlankPatternMenu();
+        if (blankPatternProxyMenu == null) {
             return false;
         }
 
         Slot slot = this.hoveredSlot;
-        if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN || !isMouseOverSlot(slot, mouseX, mouseY)) {
+        if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN || isMouseOutsideSlot(slot, mouseX, mouseY)) {
             return false;
         }
 
@@ -1183,9 +1183,12 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return false;
     }
 
-    private boolean usesNetworkBackedBlankPatternSlot() {
-        return this.menu instanceof BlankPatternProxyMenu blankPatternProxyMenu &&
-                blankPatternProxyMenu.data_energistics$usesNetworkBackedBlankPatternSlot();
+    private @Nullable BlankPatternProxyMenu networkBackedBlankPatternMenu() {
+        if (this.menu instanceof BlankPatternProxyMenu blankPatternProxyMenu &&
+                blankPatternProxyMenu.data_energistics$usesNetworkBackedBlankPatternSlot()) {
+            return blankPatternProxyMenu;
+        }
+        return null;
     }
 
     private @Nullable GridInventoryEntry findBlankPatternEntry() {
@@ -1210,8 +1213,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return fallback;
     }
 
-    private boolean isMouseOverSlot(Slot slot, double mouseX, double mouseY) {
-        return mouseX >= this.leftPos + slot.x && mouseX < this.leftPos + slot.x + 16 && mouseY >= this.topPos + slot.y && mouseY < this.topPos + slot.y + 16;
+    private boolean isMouseOutsideSlot(Slot slot, double mouseX, double mouseY) {
+        return mouseX < this.leftPos + slot.x || mouseX >= this.leftPos + slot.x + 16 ||
+                mouseY < this.topPos + slot.y || mouseY >= this.topPos + slot.y + 16;
     }
 
     private ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> getVisibleProviders() {
