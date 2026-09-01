@@ -546,7 +546,7 @@ final class PatternProviderLeafPanel {
         BlockPos position = location.blockPos();
         Component base = Component.translatable(
                 "screen.data_energistics.pattern_writer_preview.leaf_location.block",
-                location.dimensionId(), position.getX(), position.getY(), position.getZ());
+                location.dimensionId().toString(), position.getX(), position.getY(), position.getZ());
         return location.kind() == PatternEncodingPreviewMenu.SyncedPatternProviderLeafLocationKind.PART ?
                 Component.translatable(
                         "screen.data_energistics.pattern_writer_preview.leaf_location.part", base,
