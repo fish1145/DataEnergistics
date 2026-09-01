@@ -26,11 +26,4 @@ public record TrinityPlanningComputationResult(
                 result.successful() ? result.value().statistics().planningNanos() : 0L,
                 TrinityPlanningCacheStatistics.empty());
     }
-
-    public TrinityPlanningComputationResult(
-                                            TrinityAlgorithmResult<TrinityCraftingPlan> result,
-                                            PlanningCachePath cachePath,
-                                            long planningNanos) {
-        this(result, cachePath, planningNanos, TrinityPlanningCacheStatistics.empty());
-    }
 }

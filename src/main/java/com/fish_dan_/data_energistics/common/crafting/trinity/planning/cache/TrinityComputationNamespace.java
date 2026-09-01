@@ -6,31 +6,31 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache;
 public enum TrinityComputationNamespace {
 
     /** Caller-owned planning orchestration tracked for cancellation but never retained in the shared LRU. */
-    PLANNING_REQUEST(null),
+    PLANNING_REQUEST(RevisionDomain.SEMANTIC),
 
     /** Target-reachable graph derived from one publication revision. */
     REACHABLE_GRAPH(RevisionDomain.PLANNING),
 
     /** Complete binding expansion of one immutable pattern semantic. */
-    PATTERN_EXPANSION(null),
+    PATTERN_EXPANSION(RevisionDomain.SEMANTIC),
 
     /** Target closure topology assembled from semantic pattern expansions. */
-    TARGET_STRUCTURE(null),
+    TARGET_STRUCTURE(RevisionDomain.SEMANTIC),
 
     /** Quantity-independent producer family for one exact DAG output axis. */
-    DAG_ROUTE_PROOF(null),
+    DAG_ROUTE_PROOF(RevisionDomain.SEMANTIC),
 
     /** Previously verified quantity-free choices for one multi-producer route family. */
-    DAG_ROUTE_HINT(null),
+    DAG_ROUTE_HINT(RevisionDomain.SEMANTIC),
 
     /** Exact deterministic unit route and restart seed for one semantic cyclic component. */
-    CYCLE_UNIT_PROOF(null),
+    CYCLE_UNIT_PROOF(RevisionDomain.SEMANTIC),
 
     /** Sparse immutable conservation coefficients for one semantic cyclic component. */
-    MIP_COEFFICIENT_TEMPLATE(null),
+    MIP_COEFFICIENT_TEMPLATE(RevisionDomain.SEMANTIC),
 
     /** Legacy semantic namespace retained for lower-level cache lifecycle compatibility checks. */
-    COMPILED_GRAPH(null),
+    COMPILED_GRAPH(RevisionDomain.SEMANTIC),
 
     /** Exact quantity and inventory request shared only while its calculation remains in flight. */
     REQUEST_IN_FLIGHT(RevisionDomain.PLANNING),
@@ -57,14 +57,14 @@ public enum TrinityComputationNamespace {
      * @return whether publication revision changes invalidate entries in this namespace
      */
     public boolean revisionBound() {
-        return this.revisionDomain != null;
+        return this.revisionDomain != RevisionDomain.SEMANTIC;
     }
 
     /**
      * Keeps graph publication revisions independent from provider-capacity publication revisions while both families
      * still share the same per-Grid LRU.
      *
-     * @return revision family, or {@code null} for a fully semantic namespace
+     * @return revision family or the explicit semantic domain
      */
     RevisionDomain revisionDomain() {
         return this.revisionDomain;
@@ -72,6 +72,7 @@ public enum TrinityComputationNamespace {
 
     /** Independent monotonic revision sources represented inside one Grid partition. */
     enum RevisionDomain {
+        SEMANTIC,
         PLANNING,
         DISPATCH
     }

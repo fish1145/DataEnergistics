@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu.SyncedPatternProvider;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
@@ -50,6 +51,7 @@ import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectLists;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ReferenceSet;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;
@@ -121,14 +123,14 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private long selectedPatternProviderId = -1L;
     private long renamingProviderId = -1L;
     private boolean suppressRenameKeyChar;
-    private ResourceLocation lastLocatedWorkstationId;
+    private @Nullable ResourceLocation lastLocatedWorkstationId;
     private final Scrollbar previewScrollbar = new Scrollbar(Scrollbar.SMALL);
-    private AbstractWidget encodePatternWidget;
-    private Component originalEncodePatternMessage;
-    private AETextField providerSearchBox;
-    private AETextField providerRenameBox;
-    private PatternRecipeTypeToggleButton recipeTypeToggleButton;
-    private PatternEncodingPreviewDragButton previewDragButton;
+    private @Nullable AbstractWidget encodePatternWidget;
+    private @Nullable Component originalEncodePatternMessage;
+    private @Nullable AETextField providerSearchBox;
+    private @Nullable AETextField providerRenameBox;
+    private @Nullable PatternRecipeTypeToggleButton recipeTypeToggleButton;
+    private @Nullable PatternEncodingPreviewDragButton previewDragButton;
     private ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> cachedVisibleProviders = ObjectLists.emptyList();
     private boolean visibleProvidersCacheDirty = true;
     private boolean previewPanelDragging;
@@ -136,11 +138,11 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private int previewPanelDragOffsetY;
     private int previewPanelCurrentOffsetX;
     private int previewPanelCurrentOffsetY;
-    private Rect2i previewPanelDragBaseBounds;
+    private @Nullable Rect2i previewPanelDragBaseBounds;
     private boolean previewLayerWidgetRenderingDeferred;
     private String lastPreferenceLeafDigestSignature = "";
     private final PatternProviderLeafPanel leafPanel;
-    private String pendingParentSelectionLeafDigest;
+    private @Nullable String pendingParentSelectionLeafDigest;
     private int pendingParentSelectionTicks;
 
     public PatternEncodingPreviewScreen(T menu, Inventory playerInventory, Component title, ScreenStyle style) {
@@ -310,8 +312,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             }
         }
 
-        boolean handled = super.mouseClicked(mouseX, mouseY, button);
-        return handled;
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
@@ -334,8 +335,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         if (this.previewVisible && isProviderRenameEnabled() && DEKeyMappings.RENAME_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
-            var hit = getProviderButtonHit(this.minecraft.mouseHandler.xpos() * (double) this.width / this.minecraft.getWindow().getScreenWidth(),
-                    this.minecraft.mouseHandler.ypos() * (double) this.height / this.minecraft.getWindow().getScreenHeight());
+            var hit = getProviderButtonHitAtMouse();
             if (hit != null && hit.provider().renameable()) {
                 beginProviderRename(hit.provider());
                 this.suppressRenameKeyChar = true;
@@ -344,8 +344,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         if (this.previewVisible && isProviderOpenEnabled() && DEKeyMappings.OPEN_PATTERN_PROVIDER.matches(keyCode, scanCode)) {
-            var hit = getProviderButtonHit(this.minecraft.mouseHandler.xpos() * (double) this.width / this.minecraft.getWindow().getScreenWidth(),
-                    this.minecraft.mouseHandler.ypos() * (double) this.height / this.minecraft.getWindow().getScreenHeight());
+            var hit = getProviderButtonHitAtMouse();
             if (hit != null) {
                 if (isRenamingProvider() && this.renamingProviderId != hit.provider().id()) {
                     cancelProviderRename();
@@ -445,7 +444,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     @Override
     public void renderSlot(GuiGraphics guiGraphics, Slot slot) {
         if (this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN ||
-                !usesNetworkBackedBlankPatternSlot()) {
+                networkBackedBlankPatternMenu() == null) {
             super.renderSlot(guiGraphics, slot);
             return;
         }
@@ -603,7 +602,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
     }
 
-    private void renderPreviewLayerWidget(AbstractWidget widget, GuiGraphics guiGraphics, int mouseX, int mouseY,
+    private void renderPreviewLayerWidget(@Nullable AbstractWidget widget, GuiGraphics guiGraphics, int mouseX, int mouseY,
                                           float partialTicks) {
         if (widget != null && widget.visible) {
             widget.render(guiGraphics, mouseX, mouseY, partialTicks);
@@ -694,8 +693,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             String countText = provider.usedPatternSlotCount() + "/" + provider.patternSlotCount();
             int countWidth = getScaledTextWidth(countText, PROVIDER_COUNT_TEXT_SCALE);
             int maxNameWidth = providerButtonBounds.getX() + providerButtonBounds.getWidth() - PROVIDER_COUNT_RIGHT_PADDING - countWidth - 4 - nameStartX;
-            String providerName = trimToWidth(provider.displayName().getString(), Math.max(10, maxNameWidth),
-                    PROVIDER_TEXT_SCALE);
+            String providerName = trimProviderNameToWidth(provider.displayName().getString(), Math.max(10, maxNameWidth));
 
             drawScaledText(guiGraphics, providerName,
                     nameStartX,
@@ -780,13 +778,17 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         if (this.pendingParentSelectionLeafDigest == null) {
             return false;
         }
+        AETextField providerSearchBox = this.providerSearchBox;
+        if (providerSearchBox == null) {
+            return false;
+        }
         for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : previewBridge().data_energistics$getSyncedPatternProviders()) {
             if (provider.leaves().size() == 1 && provider.leaves().getFirst().providerDigest().equals(
                     this.pendingParentSelectionLeafDigest)) {
                 ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> visible = getVisibleProviders();
                 int index = visible.indexOf(provider);
                 if (index < 0) {
-                    this.providerSearchBox.setValue("");
+                    providerSearchBox.setValue("");
                     this.previewScrollbar.setCurrentScroll(0);
                     invalidateVisibleProvidersCache();
                     visible = getVisibleProviders();
@@ -803,7 +805,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         if (this.pendingParentSelectionTicks > 40) {
             this.pendingParentSelectionLeafDigest = null;
             this.pendingParentSelectionTicks = 0;
-            this.minecraft.player.displayClientMessage(Component.translatable(
+            this.menu.getPlayer().displayClientMessage(Component.translatable(
                     "message.data_energistics.pattern_provider.leaf_unavailable"), false);
         }
         return false;
@@ -825,7 +827,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         this.selectedPatternProviderId = -1L;
     }
 
-    private PatternEncodingPreviewMenu.SyncedPatternProvider getPatternProvider(long providerId) {
+    @Nullable
+    private SyncedPatternProvider getPatternProvider(long providerId) {
         for (var provider : getVisibleProviders()) {
             if (provider.id() == providerId) {
                 return provider;
@@ -871,7 +874,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         cancelProviderRename();
     }
 
-    private ProviderButtonHit getProviderButtonHit(double mouseX, double mouseY) {
+    private @Nullable ProviderButtonHit getProviderButtonHit(double mouseX, double mouseY) {
         if (!isOverProviderList(mouseX, mouseY)) {
             return null;
         }
@@ -887,6 +890,13 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
             }
         }
         return null;
+    }
+
+    private @Nullable ProviderButtonHit getProviderButtonHitAtMouse() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return getProviderButtonHit(
+                minecraft.mouseHandler.xpos() * this.width / minecraft.getWindow().getScreenWidth(),
+                minecraft.mouseHandler.ypos() * this.height / minecraft.getWindow().getScreenHeight());
     }
 
     private boolean isOverEncodeButton(double mouseX, double mouseY) {
@@ -908,7 +918,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
         PatternEncodingPreviewMenu.SyncedPatternProviderLeaf leaf = provider.leaves().getFirst();
         if (!leaf.openable()) {
-            this.minecraft.player.displayClientMessage(Component.translatable(
+            this.menu.getPlayer().displayClientMessage(Component.translatable(
                     "message.data_energistics.pattern_provider.leaf_open_unavailable"), false);
             return;
         }
@@ -920,7 +930,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         this.leafPanel.close();
     }
 
-    private AbstractWidget resolveEncodePatternWidget() {
+    private @Nullable AbstractWidget resolveEncodePatternWidget() {
         return this.widgets.widgets.get("encodePattern");
     }
 
@@ -1042,7 +1052,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         this.recipeTypeToggleButton.active = visible;
         WidgetStyle clearButtonStyle = this.getStyle().getWidget("processingClearPattern");
         Point clearButtonPosition = clearButtonStyle.resolve(new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight));
-        this.recipeTypeToggleButton.setX(clearButtonPosition.getX() + 0);
+        this.recipeTypeToggleButton.setX(clearButtonPosition.getX());
         this.recipeTypeToggleButton.setY(clearButtonPosition.getY() + 10);
     }
 
@@ -1116,7 +1126,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     private boolean triggerBlankPatternAutoCraft(double mouseX, double mouseY) {
-        if (!usesNetworkBackedBlankPatternSlot()) {
+        if (networkBackedBlankPatternMenu() == null) {
             return false;
         }
 
@@ -1124,7 +1134,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN) {
             return false;
         }
-        if (!isMouseOverSlot(slot, mouseX, mouseY)) {
+        if (isMouseOutsideSlot(slot, mouseX, mouseY)) {
             return false;
         }
 
@@ -1138,13 +1148,13 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     }
 
     private boolean handleBlankPatternSlotClick(double mouseX, double mouseY, int button) {
-        if (!(this.menu instanceof BlankPatternProxyMenu blankPatternProxyMenu) ||
-                !blankPatternProxyMenu.data_energistics$usesNetworkBackedBlankPatternSlot()) {
+        BlankPatternProxyMenu blankPatternProxyMenu = networkBackedBlankPatternMenu();
+        if (blankPatternProxyMenu == null) {
             return false;
         }
 
         Slot slot = this.hoveredSlot;
-        if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN || !isMouseOverSlot(slot, mouseX, mouseY)) {
+        if (slot == null || this.menu.getSlotSemantic(slot) != SlotSemantics.BLANK_PATTERN || isMouseOutsideSlot(slot, mouseX, mouseY)) {
             return false;
         }
 
@@ -1173,12 +1183,15 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return false;
     }
 
-    private boolean usesNetworkBackedBlankPatternSlot() {
-        return this.menu instanceof BlankPatternProxyMenu blankPatternProxyMenu &&
-                blankPatternProxyMenu.data_energistics$usesNetworkBackedBlankPatternSlot();
+    private @Nullable BlankPatternProxyMenu networkBackedBlankPatternMenu() {
+        if (this.menu instanceof BlankPatternProxyMenu blankPatternProxyMenu &&
+                blankPatternProxyMenu.data_energistics$usesNetworkBackedBlankPatternSlot()) {
+            return blankPatternProxyMenu;
+        }
+        return null;
     }
 
-    private GridInventoryEntry findBlankPatternEntry() {
+    private @Nullable GridInventoryEntry findBlankPatternEntry() {
         AEItemKey blankPatternKey = AEItemKey.of(AEItems.BLANK_PATTERN);
         if (blankPatternKey == null) {
             return null;
@@ -1200,8 +1213,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return fallback;
     }
 
-    private boolean isMouseOverSlot(Slot slot, double mouseX, double mouseY) {
-        return mouseX >= this.leftPos + slot.x && mouseX < this.leftPos + slot.x + 16 && mouseY >= this.topPos + slot.y && mouseY < this.topPos + slot.y + 16;
+    private boolean isMouseOutsideSlot(Slot slot, double mouseX, double mouseY) {
+        return mouseX < this.leftPos + slot.x || mouseX >= this.leftPos + slot.x + 16 ||
+                mouseY < this.topPos + slot.y || mouseY >= this.topPos + slot.y + 16;
     }
 
     private ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> getVisibleProviders() {
@@ -1389,9 +1403,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                                               boolean selected, boolean hovered) {
         if (isMePatternProvider(provider)) {
             ResourceLocation texture = selected ? AE2_BUTTON_DISABLED_TEXTURE : hovered ? AE2_BUTTON_HIGHLIGHTED_TEXTURE : AE2_BUTTON_TEXTURE;
-            drawNineSlicedTexture(guiGraphics, texture, bounds,
-                    BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT,
-                    BUTTON_SLICE_BORDER, BUTTON_SLICE_BORDER, BUTTON_SLICE_BORDER, BUTTON_SLICE_BORDER);
+            drawNineSlicedTexture(guiGraphics, texture, bounds);
             return;
         }
 
@@ -1488,41 +1500,43 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return DEFAULT_PREVIEW_SCROLLBAR_X;
     }
 
-    private void drawNineSlicedTexture(GuiGraphics guiGraphics, ResourceLocation texture, Rect2i bounds,
-                                       int textureWidth, int textureHeight,
-                                       int left, int top, int right, int bottom) {
-        int centerDstWidth = Math.max(0, bounds.getWidth() - left - right);
-        int centerDstHeight = Math.max(0, bounds.getHeight() - top - bottom);
+    private void drawNineSlicedTexture(GuiGraphics guiGraphics, ResourceLocation texture, Rect2i bounds) {
+        int border = BUTTON_SLICE_BORDER;
+        int centerDstWidth = Math.max(0, bounds.getWidth() - border * 2);
+        int centerDstHeight = Math.max(0, bounds.getHeight() - border * 2);
         int x = bounds.getX();
         int y = bounds.getY();
         int width = bounds.getWidth();
         int height = bounds.getHeight();
 
-        guiGraphics.blit(texture, x, y, 0, 0, 0, left, top, textureWidth, textureHeight);
-        guiGraphics.blit(texture, x + width - right, y, 0,
-                textureWidth - right, 0, right, top, textureWidth, textureHeight);
-        guiGraphics.blit(texture, x, y + height - bottom, 0,
-                0, textureHeight - bottom, left, bottom, textureWidth, textureHeight);
-        guiGraphics.blit(texture, x + width - right, y + height - bottom, 0,
-                textureWidth - right, textureHeight - bottom, right, bottom, textureWidth, textureHeight);
+        guiGraphics.blit(texture, x, y, 0, 0, 0, border, border, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
+        guiGraphics.blit(texture, x + width - border, y, 0,
+                BUTTON_TEXTURE_WIDTH - border, 0, border, border, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
+        guiGraphics.blit(texture, x, y + height - border, 0,
+                0, BUTTON_TEXTURE_HEIGHT - border, border, border, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
+        guiGraphics.blit(texture, x + width - border, y + height - border, 0,
+                BUTTON_TEXTURE_WIDTH - border, BUTTON_TEXTURE_HEIGHT - border,
+                border, border, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
 
         if (centerDstWidth > 0) {
-            guiGraphics.blit(texture, x + left, y, 0,
-                    left, 0, centerDstWidth, top, textureWidth, textureHeight);
-            guiGraphics.blit(texture, x + left, y + height - bottom, 0,
-                    left, textureHeight - bottom, centerDstWidth, bottom, textureWidth, textureHeight);
+            guiGraphics.blit(texture, x + border, y, 0,
+                    border, 0, centerDstWidth, border, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
+            guiGraphics.blit(texture, x + border, y + height - border, 0,
+                    border, BUTTON_TEXTURE_HEIGHT - border,
+                    centerDstWidth, border, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
         }
 
         if (centerDstHeight > 0) {
-            guiGraphics.blit(texture, x, y + top, 0,
-                    0, top, left, centerDstHeight, textureWidth, textureHeight);
-            guiGraphics.blit(texture, x + width - right, y + top, 0,
-                    textureWidth - right, top, right, centerDstHeight, textureWidth, textureHeight);
+            guiGraphics.blit(texture, x, y + border, 0,
+                    0, border, border, centerDstHeight, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
+            guiGraphics.blit(texture, x + width - border, y + border, 0,
+                    BUTTON_TEXTURE_WIDTH - border, border,
+                    border, centerDstHeight, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
         }
 
         if (centerDstWidth > 0 && centerDstHeight > 0) {
-            guiGraphics.blit(texture, x + left, y + top, 0,
-                    left, top, centerDstWidth, centerDstHeight, textureWidth, textureHeight);
+            guiGraphics.blit(texture, x + border, y + border, 0,
+                    border, border, centerDstWidth, centerDstHeight, BUTTON_TEXTURE_WIDTH, BUTTON_TEXTURE_HEIGHT);
         }
     }
 
@@ -1552,12 +1566,12 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         return remaining * 9 < total * 2 ? COLOR_PROVIDER_COUNT_WARNING : COLOR_PROVIDER_COUNT_NORMAL;
     }
 
-    private String trimToWidth(String text, int maxWidth, float scale) {
-        if (getScaledTextWidth(text, scale) <= maxWidth) {
+    private String trimProviderNameToWidth(String text, int maxWidth) {
+        if (getScaledTextWidth(text, PROVIDER_TEXT_SCALE) <= maxWidth) {
             return text;
         }
-        int ellipsisWidth = getScaledTextWidth("...", scale);
-        int rawWidthLimit = Math.max(0, (int) Math.floor((maxWidth - ellipsisWidth) / scale));
+        int ellipsisWidth = getScaledTextWidth("...", PROVIDER_TEXT_SCALE);
+        int rawWidthLimit = Math.max(0, (int) Math.floor((maxWidth - ellipsisWidth) / PROVIDER_TEXT_SCALE));
         return this.font.plainSubstrByWidth(text, rawWidthLimit) + "...";
     }
 

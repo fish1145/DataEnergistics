@@ -84,9 +84,6 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
      * Creates a repository whose thread and clock dependencies can be supplied directly by production and tests.
      */
     public JsonPatternEncodingClientPreferences(Path file, BooleanSupplier mainThreadCheck, Clock clock) {
-        if (file == null || mainThreadCheck == null || clock == null) {
-            throw new IllegalArgumentException("Pattern encoding preferences require a file, thread check, and clock");
-        }
         this.file = file;
         this.mainThreadCheck = mainThreadCheck;
         this.clock = clock;
@@ -278,10 +275,11 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
                 context, providerDigest, absoluteCount, successEpochMillis);
         ServerProfile profile = activeProfile();
         String key = incoming.stableKey();
-        PatternProviderClickStatistic existing = profile.statistics.get(key);
-        long mergedCount = existing == null ? incoming.count() : Math.max(existing.count(), incoming.count());
-        long mergedTime = existing == null ? incoming.lastUsedEpochMillis() : Math.max(existing.lastUsedEpochMillis(), incoming.lastUsedEpochMillis());
-        profile.statistics.put(key, new PatternProviderClickStatistic(context, providerDigest, mergedCount, mergedTime));
+        profile.statistics.merge(key, incoming, (existing, next) -> new PatternProviderClickStatistic(
+                next.context(),
+                next.providerDigest(),
+                Math.max(existing.count(), next.count()),
+                Math.max(existing.lastUsedEpochMillis(), next.lastUsedEpochMillis())));
         profile.lastAccessEpochMillis = Math.max(profile.lastAccessEpochMillis, this.clock.millis());
         trimStatistics();
         if (this.activeServerProfile != null) {
@@ -323,7 +321,7 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
         } catch (FutureSchemaException exception) {
             Data_Energistics.LOGGER.error("Cannot write future Data Energistics client preference schema in {}",
                     this.file, exception);
-            resetToDefaults(true);
+            resetToDefaults();
             this.writesDisabled = true;
         } catch (IOException | RuntimeException exception) {
             recoverCorruptFile(exception);
@@ -474,7 +472,7 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
             } catch (IOException backupFailure) {
                 Data_Energistics.LOGGER.error("Failed to preserve corrupt Data Energistics client preferences at {}",
                         this.file, backupFailure);
-                resetToDefaults(true);
+                resetToDefaults();
                 this.writesDisabled = true;
                 return;
             }
@@ -482,16 +480,16 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
         if (backup == null) {
             Data_Energistics.LOGGER.error("Failed to choose a unique corrupt Data Energistics client preference backup for {}",
                     this.file);
-            resetToDefaults(true);
+            resetToDefaults();
             this.writesDisabled = true;
             return;
         }
         Data_Energistics.LOGGER.warn("Moved corrupt Data Energistics client preferences to {}", backup);
-        resetToDefaults(true);
+        resetToDefaults();
         save();
     }
 
-    private void resetToDefaults(boolean markPresent) {
+    private void resetToDefaults() {
         this.uploadEnabled = true;
         this.patternSourceEnabled = true;
         this.lastWorkstation = null;
@@ -499,10 +497,10 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
         this.previewPanelOffsetY = 0;
         this.providerDetailPanelRelativeX = 0;
         this.providerDetailPanelRelativeY = 0;
-        this.uploadEnabledPresent = markPresent;
-        this.patternSourceEnabledPresent = markPresent;
-        this.lastWorkstationPresent = markPresent;
-        this.previewPanelPresent = markPresent;
+        this.uploadEnabledPresent = true;
+        this.patternSourceEnabledPresent = true;
+        this.lastWorkstationPresent = true;
+        this.previewPanelPresent = true;
         this.providerDetailPanelPresent = false;
         this.serverProfiles.clear();
         this.sessionProfile.statistics.clear();
@@ -708,7 +706,7 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     }
 
     private static void validateProfileDigest(String profileDigest) {
-        if (profileDigest == null || !PROFILE_DIGEST.matcher(profileDigest).matches()) {
+        if (!PROFILE_DIGEST.matcher(profileDigest).matches()) {
             throw new IllegalArgumentException("Invalid server profile digest: " + profileDigest);
         }
     }

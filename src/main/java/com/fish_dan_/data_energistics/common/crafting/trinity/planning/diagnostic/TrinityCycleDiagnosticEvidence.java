@@ -8,10 +8,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -54,19 +55,18 @@ public final class TrinityCycleDiagnosticEvidence {
                                            int scheduleStates,
                                            long mipNanos,
                                            TrinityPlanQuality quality) {
-        if (componentIndex < 0 || demand == null || prefixOrder == null || localOrder == null || localOrder.isEmpty() ||
-                repetitions == null || repetitions.signum() <= 0 || suffixOrder == null || minimumSeed == null ||
-                initialInputs == null || netChange == null || scheduleStates < 0 || mipNanos < 0L || quality == null) {
+        if (componentIndex < 0 || localOrder.isEmpty() || repetitions.signum() <= 0 || scheduleStates < 0 ||
+                mipNanos < 0L) {
             throw new IllegalArgumentException("A Trinity diagnostic cycle requires a complete schedule proof");
         }
-        prefixOrder = List.copyOf(prefixOrder);
-        localOrder = List.copyOf(localOrder);
-        suffixOrder = List.copyOf(suffixOrder);
-        minimumSeed = copyPositiveAmounts(minimumSeed, "minimum seed");
-        initialInputs = copyPositiveAmounts(initialInputs, "initial input");
-        netChange = copySignedAmounts(netChange);
+        prefixOrder = Collections.unmodifiableList(prefixOrder);
+        localOrder = Collections.unmodifiableList(localOrder);
+        suffixOrder = Collections.unmodifiableList(suffixOrder);
+        minimumSeed = validatePositiveAmounts(minimumSeed, "minimum seed");
+        initialInputs = validatePositiveAmounts(initialInputs, "initial input");
+        netChange = validateSignedAmounts(netChange);
 
-        LinkedHashMap<AEKey, BigInteger> calculatedNet = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> calculatedNet = new Object2ObjectLinkedOpenHashMap<>();
         mergeNet(calculatedNet, prefixOrder, BigInteger.ONE);
         mergeNet(calculatedNet, localOrder, repetitions);
         mergeNet(calculatedNet, suffixOrder, BigInteger.ONE);
@@ -74,13 +74,13 @@ public final class TrinityCycleDiagnosticEvidence {
         if (!calculatedNet.equals(netChange)) {
             throw new IllegalArgumentException("A Trinity diagnostic cycle order must match its exact net change");
         }
-        Map<AEKey, BigInteger> copiedInitialInputs = initialInputs;
-        minimumSeed.forEach((key, amount) -> {
-            if (copiedInitialInputs.getOrDefault(key, BigInteger.ZERO).compareTo(amount) < 0) {
+        for (Map.Entry<AEKey, BigInteger> seed : minimumSeed.entrySet()) {
+            if (initialInputs.getOrDefault(seed.getKey(), BigInteger.ZERO).compareTo(seed.getValue()) < 0) {
                 throw new IllegalArgumentException("A Trinity diagnostic cycle input must include its minimum seed");
             }
-        });
-        LinkedHashMap<AEKey, BigInteger> finalBalances = new LinkedHashMap<>(initialInputs);
+        }
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> finalBalances = new Object2ObjectLinkedOpenHashMap<>(
+                initialInputs);
         netChange.forEach((key, amount) -> finalBalances.merge(key, amount, BigInteger::add));
         if (finalBalances.values().stream().anyMatch(amount -> amount.signum() < 0)) {
             throw new IllegalArgumentException("A Trinity diagnostic cycle final balance cannot be negative");
@@ -106,9 +106,6 @@ public final class TrinityCycleDiagnosticEvidence {
                                                                        int componentIndex,
                                                                        TrinityCycleDemand demand,
                                                                        TrinityCyclePlan plan) {
-        if (plan == null) {
-            throw new IllegalArgumentException("A deterministic Trinity diagnostic plan cannot be null");
-        }
         return new TrinityCycleDiagnosticEvidence(
                 componentIndex,
                 demand,
@@ -131,9 +128,6 @@ public final class TrinityCycleDiagnosticEvidence {
                                                                int componentIndex,
                                                                TrinityCycleDemand demand,
                                                                TrinityJointCyclePlan plan) {
-        if (plan == null) {
-            throw new IllegalArgumentException("A joint Trinity diagnostic plan cannot be null");
-        }
         return new TrinityCycleDiagnosticEvidence(
                 componentIndex,
                 demand,
@@ -155,9 +149,6 @@ public final class TrinityCycleDiagnosticEvidence {
     public static TrinityCycleDiagnosticEvidence fromSelection(
                                                                TrinityCycleSelection selection,
                                                                TrinityCycleDemand demand) {
-        if (selection == null || demand == null) {
-            throw new IllegalArgumentException("A Trinity cycle selection cannot be null");
-        }
         return new TrinityCycleDiagnosticEvidence(
                 selection.componentIndex(),
                 demand,
@@ -181,20 +172,12 @@ public final class TrinityCycleDiagnosticEvidence {
         return this.demand;
     }
 
-    public List<TrinityVariantFiring> prefixOrder() {
-        return this.prefixOrder;
-    }
-
     public List<TrinityVariantFiring> localOrder() {
         return this.localOrder;
     }
 
     public BigInteger repetitions() {
         return this.repetitions;
-    }
-
-    public List<TrinityVariantFiring> suffixOrder() {
-        return this.suffixOrder;
     }
 
     public Map<AEKey, BigInteger> minimumSeed() {
@@ -225,11 +208,11 @@ public final class TrinityCycleDiagnosticEvidence {
      * Reconstructs every declared output produced by the validated prefix/repeat/suffix schedule.
      */
     public Map<AEKey, BigInteger> emittedItems() {
-        LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> emitted = new Object2ObjectLinkedOpenHashMap<>();
         mergeOutputs(emitted, this.prefixOrder, BigInteger.ONE);
         mergeOutputs(emitted, this.localOrder, this.repetitions);
         mergeOutputs(emitted, this.suffixOrder, BigInteger.ONE);
-        return Collections.unmodifiableMap(emitted);
+        return Object2ObjectMaps.unmodifiable(emitted);
     }
 
     private static void mergeNet(
@@ -254,27 +237,23 @@ public final class TrinityCycleDiagnosticEvidence {
                         BigInteger::add)));
     }
 
-    private static Map<AEKey, BigInteger> copyPositiveAmounts(
-                                                              Map<AEKey, BigInteger> source,
-                                                              String role) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
+    private static Map<AEKey, BigInteger> validatePositiveAmounts(
+                                                                  Map<AEKey, BigInteger> source,
+                                                                  String role) {
         source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() <= 0) {
+            if (amount.signum() <= 0) {
                 throw new IllegalArgumentException("A Trinity diagnostic cycle " + role + " must be positive");
             }
-            copied.put(key, amount);
         });
-        return Collections.unmodifiableMap(copied);
+        return Collections.unmodifiableMap(source);
     }
 
-    private static Map<AEKey, BigInteger> copySignedAmounts(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
+    private static Map<AEKey, BigInteger> validateSignedAmounts(Map<AEKey, BigInteger> source) {
         source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() == 0) {
+            if (amount.signum() == 0) {
                 throw new IllegalArgumentException("A Trinity diagnostic cycle net amount must be non-zero");
             }
-            copied.put(key, amount);
         });
-        return Collections.unmodifiableMap(copied);
+        return Collections.unmodifiableMap(source);
     }
 }

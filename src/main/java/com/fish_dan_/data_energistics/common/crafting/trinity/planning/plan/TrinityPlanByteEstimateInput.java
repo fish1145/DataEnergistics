@@ -18,12 +18,11 @@ public record TrinityPlanByteEstimateInput(
                                            BigInteger logicalNodeCount) {
 
     /**
-     * Copies all totals and rejects incomplete byte-accounting inputs.
+     * Validates the owned totals and rejects incomplete byte-accounting inputs.
      */
     public TrinityPlanByteEstimateInput {
-        stackRequestAmounts = TrinityPlanAmounts.copyPositive(stackRequestAmounts, "byte stack request");
-        if (patternFirings == null || patternFirings.signum() < 0 ||
-                logicalNodeCount == null || logicalNodeCount.signum() < 0) {
+        stackRequestAmounts = TrinityPlanAmounts.validatePositive(stackRequestAmounts, "byte stack request");
+        if (patternFirings.signum() < 0 || logicalNodeCount.signum() < 0) {
             throw new IllegalArgumentException("Trinity byte estimate counters must be non-negative");
         }
     }

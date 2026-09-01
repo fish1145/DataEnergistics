@@ -52,7 +52,7 @@ public final class PatternProviderMenuReturnTracker {
             return false;
         }
         if (childMenu == player.inventoryMenu) {
-            if (!destination.returnTo(player)) {
+            if (destination.failedToReturn(player)) {
                 Data_Energistics.LOGGER.warn(
                         "Could not restore pattern encoding menu after a provider menu failed to open for player {}",
                         player.getGameProfile().getName());
@@ -65,20 +65,20 @@ public final class PatternProviderMenuReturnTracker {
 
     /** Confirms that a client close packet targets the exact provider menu currently bound to this player. */
     public static boolean isTrackedClientClose(ServerPlayer player, int containerId) {
-        ActiveRoute route = ACTIVE_ROUTES.get(player.getUUID());
+        var route = findRoute(player.getUUID());
         return route != null && route.childMenu == player.containerMenu &&
                 route.childMenu.containerId == containerId;
     }
 
     /** Reopens the captured source only after Vanilla completed the matching player-requested container close. */
     public static void returnAfterClientClose(ServerPlayer player, int closedContainerId) {
-        ActiveRoute route = ACTIVE_ROUTES.get(player.getUUID());
+        var route = findRoute(player.getUUID());
         if (route == null || route.childMenu.containerId != closedContainerId ||
                 player.containerMenu != player.inventoryMenu) {
             return;
         }
         ACTIVE_ROUTES.remove(player.getUUID());
-        if (!route.destination.returnTo(player)) {
+        if (route.destination.failedToReturn(player)) {
             Data_Energistics.LOGGER.warn(
                     "Could not return player {} to the pattern encoding terminal after closing provider menu {}",
                     player.getGameProfile().getName(), closedContainerId);
@@ -90,7 +90,7 @@ public final class PatternProviderMenuReturnTracker {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
-        ActiveRoute route = ACTIVE_ROUTES.get(player.getUUID());
+        var route = findRoute(player.getUUID());
         if (route == null) {
             return;
         }
@@ -109,7 +109,7 @@ public final class PatternProviderMenuReturnTracker {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
-        ActiveRoute route = ACTIVE_ROUTES.get(player.getUUID());
+        var route = findRoute(player.getUUID());
         if (route == null || route.childMenu != event.getContainer()) {
             return;
         }
@@ -132,11 +132,16 @@ public final class PatternProviderMenuReturnTracker {
                                          ServerPlayer player,
                                          AbstractContainerMenu closedMenu,
                                          long closingGeneration) {
-        ActiveRoute route = ACTIVE_ROUTES.get(player.getUUID());
+        var route = findRoute(player.getUUID());
         if (route != null && route.childMenu == closedMenu && route.generation == closingGeneration &&
                 player.containerMenu == player.inventoryMenu) {
             ACTIVE_ROUTES.remove(player.getUUID());
         }
+    }
+
+    @SuppressWarnings("ConstantConditions") // fastutil returns its null default value when no route is registered.
+    private static @Nullable ActiveRoute findRoute(UUID playerId) {
+        return ACTIVE_ROUTES.get(playerId);
     }
 
     record ReturnDestination(MenuType<?> menuType, MenuHostLocator locator) {
@@ -145,8 +150,8 @@ public final class PatternProviderMenuReturnTracker {
             return menu.getType() == this.menuType;
         }
 
-        private boolean returnTo(ServerPlayer player) {
-            return MenuOpener.returnTo(this.menuType, player, this.locator);
+        private boolean failedToReturn(ServerPlayer player) {
+            return !MenuOpener.returnTo(this.menuType, player, this.locator);
         }
     }
 

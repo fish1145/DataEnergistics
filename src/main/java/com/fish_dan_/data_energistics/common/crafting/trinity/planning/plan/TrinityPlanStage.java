@@ -1,14 +1,17 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.ints.IntAVLTreeSet;
+import it.unimi.dsi.fastutil.ints.IntSortedSet;
+import it.unimi.dsi.fastutil.ints.IntSortedSets;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 /**
  * One dependency-addressable execution stage produced by DAG propagation or compressed cyclic scheduling.
@@ -29,32 +32,29 @@ public record TrinityPlanStage(
                                Map<AEKey, BigInteger> netChange) {
 
     /**
-     * Copies the execution surface and rejects ambiguous duplicate firing entries.
+     * Validates the owned execution surface and rejects ambiguous duplicate firing entries.
      */
     public TrinityPlanStage {
-        if (index < 0 || dependencies == null || firings == null || firings.isEmpty()) {
+        if (index < 0 || firings.isEmpty()) {
             throw new IllegalArgumentException("A Trinity stage requires an index, dependencies and firings");
         }
-        TreeSet<Integer> copiedDependencies = new TreeSet<>();
-        for (Integer dependency : dependencies) {
-            if (dependency == null || dependency < 0 || dependency == index) {
+        IntSortedSet sortedDependencies = new IntAVLTreeSet();
+        for (int dependency : dependencies) {
+            if (dependency < 0 || dependency == index) {
                 throw new IllegalArgumentException("A Trinity stage dependency must reference another stage");
             }
-            copiedDependencies.add(dependency);
+            sortedDependencies.add(dependency);
         }
-        dependencies = Collections.unmodifiableSet(copiedDependencies);
-        firings = List.copyOf(firings);
-        HashSet<String> bindings = new HashSet<>();
+        dependencies = IntSortedSets.unmodifiable(sortedDependencies);
+        firings = Collections.unmodifiableList(firings);
+        ObjectSet<String> bindings = new ObjectOpenHashSet<>();
         for (TrinityPlanPatternFiring firing : firings) {
-            if (firing == null) {
-                throw new IllegalArgumentException("A Trinity stage cannot contain a null firing");
-            }
             String binding = firing.patternIdentity().publicationEncoding() + '#' + firing.variantOrdinal();
             if (!bindings.add(binding)) {
                 throw new IllegalArgumentException("A Trinity stage must aggregate duplicate pattern bindings");
             }
         }
-        requiredAtStart = TrinityPlanAmounts.copyPositive(requiredAtStart, "stage start");
-        netChange = TrinityPlanAmounts.copySignedNonZero(netChange, "stage net change");
+        requiredAtStart = TrinityPlanAmounts.validatePositive(requiredAtStart, "stage start");
+        netChange = TrinityPlanAmounts.validateSignedNonZero(netChange, "stage net change");
     }
 }

@@ -77,9 +77,6 @@ public final class TrinityPlanningComputation {
                                TrinityComputationCache cache,
                                TrinityGraphPlanningPipeline pipeline,
                                LongSupplier nanoClock) {
-        if (cache == null || pipeline == null || nanoClock == null) {
-            throw new IllegalArgumentException("A Trinity planning computation requires cache and pipeline");
-        }
         this.cache = cache;
         this.pipeline = pipeline;
         this.nanoClock = nanoClock;
@@ -93,7 +90,6 @@ public final class TrinityPlanningComputation {
      * @return caller-owned future; cancellation with interruption enabled stops this request's planner thread
      */
     public Future<TrinityPlanningComputationResult> begin(TrinityPlanningInput input) {
-        validateInput(input);
         return this.cache.submit(
                 input.gridScope(),
                 () -> calculate(input));
@@ -109,7 +105,6 @@ public final class TrinityPlanningComputation {
      */
     public TrinityPlanningComputationResult calculate(TrinityPlanningInput input)
                                                                                   throws InterruptedException, ExecutionException {
-        validateInput(input);
         long startedNanos = this.nanoClock.getAsLong();
         this.cache.invalidateRevision(input.gridScope(), input.graph().revision());
         TrinityPlanningLimits limits = input.limits();
@@ -332,8 +327,7 @@ public final class TrinityPlanningComputation {
     private void publishRouteHints(
                                    long gridScope,
                                    TrinityCompiledGraph compiled,
-                                   TrinityCraftingPlan plan)
-                                                             throws InterruptedException, ExecutionException {
+                                   TrinityCraftingPlan plan) {
         for (TrinityAcyclicRouteFamily family : compiled.routeFamilies().values()) {
             if (family.provedUniqueProducer().isPresent()) {
                 continue;
@@ -498,12 +492,6 @@ public final class TrinityPlanningComputation {
 
     private long elapsedSince(long startedNanos) {
         return Math.max(0L, this.nanoClock.getAsLong() - startedNanos);
-    }
-
-    private static void validateInput(TrinityPlanningInput input) {
-        if (input == null) {
-            throw new IllegalArgumentException("A Trinity planning computation requires an input");
-        }
     }
 
     private static <V> TrinityCachedComputation<TrinityAlgorithmResult<V>> cacheSuccessful(

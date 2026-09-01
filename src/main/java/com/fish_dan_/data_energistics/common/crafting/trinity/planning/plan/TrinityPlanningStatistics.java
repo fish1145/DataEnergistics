@@ -67,64 +67,10 @@ public record TrinityPlanningStatistics(
     }
 
     /**
-     * Compatibility constructor for callers that already provide first-feasible timing and proof quality.
-     */
-    public TrinityPlanningStatistics(
-                                     int sccCount,
-                                     int variantCount,
-                                     long planningNanos,
-                                     long firstFeasibleNanos,
-                                     long mipNanos,
-                                     int scheduleStates,
-                                     TrinityPlanQuality quality) {
-        this(
-                sccCount,
-                variantCount,
-                planningNanos,
-                firstFeasibleNanos,
-                mipNanos,
-                scheduleStates,
-                0,
-                0,
-                0,
-                0,
-                quality,
-                0,
-                BigInteger.ZERO,
-                BigInteger.ZERO,
-                0);
-    }
-
-    /**
      * @return zeroed statistics for plans that did not require graph solving
      */
     public static TrinityPlanningStatistics empty() {
         return new TrinityPlanningStatistics(0, 0, 0L, 0L, 0);
-    }
-
-    /**
-     * Replaces request-local timing while retaining solver proof metadata from a cached immutable plan.
-     */
-    public TrinityPlanningStatistics withRequestTiming(
-                                                       long requestPlanningNanos,
-                                                       long requestFirstFeasibleNanos,
-                                                       long requestMipNanos) {
-        return new TrinityPlanningStatistics(
-                this.sccCount,
-                this.variantCount,
-                requestPlanningNanos,
-                requestFirstFeasibleNanos,
-                requestMipNanos,
-                this.scheduleStates,
-                this.solverPasses,
-                this.solverModels,
-                this.jointStates,
-                this.routeStates,
-                this.quality,
-                this.seedRetentionKinds,
-                this.seedRetentionRequired,
-                this.seedRetentionFinal,
-                this.seedRefinementPasses);
     }
 
     /**

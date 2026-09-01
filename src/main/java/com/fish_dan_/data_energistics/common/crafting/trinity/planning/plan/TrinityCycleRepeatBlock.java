@@ -1,9 +1,11 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.math.BigInteger;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -27,18 +29,17 @@ public record TrinityCycleRepeatBlock(
      * Ensures one compact block cannot contain an invalid or repeated stage reference.
      */
     public TrinityCycleRepeatBlock {
-        if (index < 0 || stageOrder == null || stageOrder.isEmpty() ||
-                repetitions == null || repetitions.signum() <= 0) {
+        if (index < 0 || stageOrder.isEmpty() || repetitions.signum() <= 0) {
             throw new IllegalArgumentException("A Trinity repeat block requires index, stages and repetitions");
         }
-        stageOrder = List.copyOf(stageOrder);
-        HashSet<Integer> seenStages = new HashSet<>();
-        for (Integer stage : stageOrder) {
-            if (stage == null || stage < 0 || !seenStages.add(stage)) {
+        stageOrder = Collections.unmodifiableList(stageOrder);
+        IntSet seenStages = new IntOpenHashSet();
+        for (int stage : stageOrder) {
+            if (stage < 0 || !seenStages.add(stage)) {
                 throw new IllegalArgumentException("A Trinity repeat block requires unique valid stage indexes");
             }
         }
-        minimumSeed = TrinityPlanAmounts.copyPositive(minimumSeed, "repeat minimum seed");
-        netChange = TrinityPlanAmounts.copySignedNonZero(netChange, "repeat net change");
+        minimumSeed = TrinityPlanAmounts.validatePositive(minimumSeed, "repeat minimum seed");
+        netChange = TrinityPlanAmounts.validateSignedNonZero(netChange, "repeat net change");
     }
 }

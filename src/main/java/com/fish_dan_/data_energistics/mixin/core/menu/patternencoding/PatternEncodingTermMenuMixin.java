@@ -290,9 +290,6 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Override
     public void data_energistics$requestMultiblockTransfer(MultiblockRecipeView recipe) {
-        if (recipe == null) {
-            throw new IllegalArgumentException("Multiblock pattern transfer recipe cannot be null");
-        }
         if (!this.isClientSide()) {
             throw new IllegalStateException("Multiblock pattern transfer requests must originate on the client");
         }
@@ -319,9 +316,6 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Override
     public void data_energistics$setMultiblockTransferEncodingMode(EncodingMode mode) {
-        if (mode == null) {
-            throw new IllegalArgumentException("Multiblock pattern transfer encoding mode cannot be null");
-        }
         dataEnergistics$getMultiblockTransferLogic().setMode(mode);
     }
 
@@ -348,9 +342,6 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
     @Override
     public void data_energistics$restoreMultiblockTransferState(PatternEncodingMultiblockTransferState state) {
-        if (state == null) {
-            throw new IllegalArgumentException("Multiblock transfer state cannot be null");
-        }
         if (!this.isServerSide()) {
             throw new IllegalStateException("Multiblock transfer state can only be changed on the server");
         }
@@ -648,7 +639,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     public void data_energistics$renamePatternProvider(long providerId, String name) {
         if (this.isClientSide()) {
             sendClientAction(DATA_ENERGISTICS_ACTION_RENAME_PATTERN_PROVIDER,
-                    providerId + "\n" + (name == null ? "" : name));
+                    providerId + "\n" + name);
             return;
         }
 
@@ -1070,26 +1061,26 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Unique
-    private void dataEnergistics$setPendingPatternSourceFromClient(String workstationId) {
+    private void dataEnergistics$setPendingPatternSourceFromClient(@Nullable String workstationId) {
         data_energistics$setPendingPatternSource(workstationId == null || workstationId.isEmpty() ? null : ResourceLocation.tryParse(workstationId));
     }
 
     @Unique
-    private void dataEnergistics$transferEncodedPatternToProviderFromClient(Long providerId) {
+    private void dataEnergistics$transferEncodedPatternToProviderFromClient(@Nullable Long providerId) {
         if (providerId != null) {
             data_energistics$transferEncodedPatternToProvider(providerId);
         }
     }
 
     @Unique
-    private void dataEnergistics$openPatternProviderMenuFromClient(Long providerId) {
+    private void dataEnergistics$openPatternProviderMenuFromClient(@Nullable Long providerId) {
         if (providerId != null) {
             data_energistics$openPatternProviderMenu(providerId);
         }
     }
 
     @Unique
-    private void dataEnergistics$renamePatternProviderFromClient(String payload) {
+    private void dataEnergistics$renamePatternProviderFromClient(@Nullable String payload) {
         if (payload == null) {
             return;
         }
@@ -1109,7 +1100,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Unique
-    private void dataEnergistics$transferEncodedPatternToProviderLeafFromClient(String payload) {
+    private void dataEnergistics$transferEncodedPatternToProviderLeafFromClient(@Nullable String payload) {
         PatternProviderLeafActionTarget target = PatternProviderLeafActionTarget.decode(payload);
         if (target != null) {
             dataEnergistics$transferEncodedPatternToProviderLeaf(target);
@@ -1117,7 +1108,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Unique
-    private void dataEnergistics$openPatternProviderLeafMenuFromClient(String payload) {
+    private void dataEnergistics$openPatternProviderLeafMenuFromClient(@Nullable String payload) {
         PatternProviderLeafActionTarget target = PatternProviderLeafActionTarget.decode(payload);
         if (target != null) {
             dataEnergistics$openPatternProviderLeafMenu(target);
@@ -1125,7 +1116,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Unique
-    private void dataEnergistics$renamePatternProviderLeafFromClient(String payload) {
+    private void dataEnergistics$renamePatternProviderLeafFromClient(@Nullable String payload) {
         PatternProviderLeafActionTarget.Rename rename = PatternProviderLeafActionTarget.decodeRename(payload);
         if (rename != null) {
             dataEnergistics$renamePatternProviderLeaf(rename.target(), rename.name());
@@ -1133,26 +1124,26 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Unique
-    private void dataEnergistics$setPatternSourceEnabledFromClient(Boolean enabled) {
+    private void dataEnergistics$setPatternSourceEnabledFromClient(@Nullable Boolean enabled) {
         if (enabled != null) {
             data_energistics$setPatternSourceEnabled(enabled);
         }
     }
 
     @Unique
-    private void dataEnergistics$setUploadEnabledFromClient(Boolean enabled) {
+    private void dataEnergistics$setUploadEnabledFromClient(@Nullable Boolean enabled) {
         if (enabled != null) {
             data_energistics$setUploadEnabled(enabled);
         }
     }
 
     @Unique
-    private void dataEnergistics$depositCarriedBlankPatternsFromClient(Boolean single) {
+    private void dataEnergistics$depositCarriedBlankPatternsFromClient(@Nullable Boolean single) {
         data_energistics$depositCarriedBlankPatterns(Boolean.TRUE.equals(single));
     }
 
     @Unique
-    private void dataEnergistics$pickupBlankPatternsFromClient(Boolean single) {
+    private void dataEnergistics$pickupBlankPatternsFromClient(@Nullable Boolean single) {
         data_energistics$pickupBlankPatterns(Boolean.TRUE.equals(single));
     }
 
@@ -1271,6 +1262,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Unique
+    @Nullable
     private IGrid dataEnergistics$getActiveGrid() {
         IGridNode hostNode = dataEnergistics$tryResolveGridNode();
         if (hostNode != null && hostNode.isActive()) {
