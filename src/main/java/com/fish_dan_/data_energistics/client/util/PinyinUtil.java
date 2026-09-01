@@ -35,11 +35,16 @@ public final class PinyinUtil {
             return true;
         }
 
-        String normalized = normalizeSearch(text);
         String normalizedFilter = normalizeSearch(filter);
+        return matchesNormalizedSearch(text, normalizedFilter);
+    }
+
+    /** Matches one candidate against an already normalized query. */
+    public static boolean matchesNormalizedSearch(String text, String normalizedFilter) {
         if (normalizedFilter.isEmpty()) {
             return true;
         }
+        String normalized = normalizeSearch(text);
 
         if (normalized.contains(normalizedFilter) || isSubsequenceMatch(normalizedFilter, normalized)) {
             return true;

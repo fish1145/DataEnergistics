@@ -12,7 +12,6 @@ import it.unimi.dsi.fastutil.objects.Reference2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -33,7 +32,6 @@ public final class PatternEncodingPreferenceSession {
     private long revision;
     @Nullable
     private PatternEncodingRankingContext rankingContext;
-    private List<ResourceLocation> viewerWorkstationIds = List.of();
     @Nullable
     private ResourceLocation confirmedWorkstation;
     @Nullable
@@ -116,32 +114,10 @@ public final class PatternEncodingPreferenceSession {
      * Sets the exact context used by subsequent provider-history snapshots.
      */
     public void setRankingContext(@Nullable PatternEncodingRankingContext context) {
-        setViewerRecipeScope(context, List.of());
-    }
-
-    /**
-     * Returns the ephemeral workstation item IDs advertised for the current viewer transfer.
-     */
-    public List<ResourceLocation> viewerWorkstationIds() {
-        return this.viewerWorkstationIds;
-    }
-
-    /**
-     * Atomically updates the recipe-type learning key and its non-persistent viewer workstation condition.
-     */
-    public void setViewerRecipeScope(@Nullable PatternEncodingRankingContext context,
-                                     List<ResourceLocation> workstationIds) {
-        if (context == null && !workstationIds.isEmpty()) {
-            throw new IllegalArgumentException("Viewer workstations require a pattern ranking context");
-        }
-        List<ResourceLocation> canonicalWorkstations = context == null ? List.of() :
-                new PatternEncodingViewerRecipeScope(context, workstationIds).workstationIds();
-        if (Objects.equals(this.rankingContext, context) &&
-                this.viewerWorkstationIds.equals(canonicalWorkstations)) {
+        if (Objects.equals(this.rankingContext, context)) {
             return;
         }
         this.rankingContext = context;
-        this.viewerWorkstationIds = canonicalWorkstations;
         incrementRevision();
     }
 
@@ -266,7 +242,6 @@ public final class PatternEncodingPreferenceSession {
      */
     public void clear() {
         this.rankingContext = null;
-        this.viewerWorkstationIds = List.of();
         this.confirmedWorkstation = null;
         this.deferredSnapshotMode = null;
         this.deferredSnapshotWaitsForTick = false;

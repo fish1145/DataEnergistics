@@ -125,6 +125,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private boolean suppressRenameKeyChar;
     private @Nullable ResourceLocation lastLocatedWorkstationId;
     private final Scrollbar previewScrollbar = new Scrollbar(Scrollbar.SMALL);
+    private final FractionalScrollbarWheel previewWheel = new FractionalScrollbarWheel();
     private @Nullable AbstractWidget encodePatternWidget;
     private @Nullable Component originalEncodePatternMessage;
     private @Nullable AETextField providerSearchBox;
@@ -142,6 +143,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private boolean previewLayerWidgetRenderingDeferred;
     private String lastPreferenceLeafDigestSignature = "";
     private final PatternProviderLeafPanel leafPanel;
+    private PatternProviderSearchContext providerSearchContext = PatternProviderSearchContext.resolve(null);
     private @Nullable String pendingParentSelectionLeafDigest;
     private int pendingParentSelectionTicks;
 
@@ -166,6 +168,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         initRecipeTypeToggleButton();
         initPreviewDragButton();
         this.leafPanel.init();
+        refreshProviderSearchContext(true);
         invalidateVisibleProvidersCache();
         updateProviderSearchBox();
         updateProviderRenameBox();
@@ -182,6 +185,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         updateProviderRenameBox();
         updateRecipeTypeToggleButton();
         updatePreviewDragButton();
+        refreshProviderSearchContext(false);
         invalidateVisibleProvidersCache();
         syncProviderSelection();
         this.leafPanel.updateProviderSnapshot();
@@ -253,7 +257,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                 return true;
             }
 
-            this.previewVisible = true;
+            openPreviewPanel();
             boolean handled = super.mouseClicked(mouseX, mouseY, button);
             return handled || isOverEncodeButton(mouseX, mouseY);
         }
@@ -271,7 +275,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
                     this.menu.encode();
                 }
             } else {
-                this.previewVisible = true;
+                openPreviewPanel();
                 this.menu.encode();
             }
             return true;
@@ -413,8 +417,11 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         if (this.leafPanel.mouseScrolled(mouseX, mouseY, scrollY)) {
             return true;
         }
-        if (this.previewVisible && (isOverPreviewScrollbar(mouseX, mouseY) || isOverProviderList(mouseX, mouseY)) && this.previewScrollbar.onMouseWheel(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)),
-                scrollY)) {
+        if (this.previewVisible && isOverPreviewLayer((int) mouseX, (int) mouseY)) {
+            this.previewWheel.apply(
+                    this.previewScrollbar,
+                    new Point((int) Math.round(mouseX), (int) Math.round(mouseY)),
+                    scrollY);
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -755,6 +762,9 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         this.previewScrollbar.setRange(0, hiddenRows, 1);
         this.previewScrollbar.setVisible(this.previewVisible && hiddenRows > 0);
         this.previewScrollbar.setCurrentScroll(Math.min(this.previewScrollbar.getCurrentScroll(), hiddenRows));
+        if (hiddenRows == 0) {
+            this.previewWheel.reset();
+        }
     }
 
     private void syncProviderSelection() {
@@ -928,6 +938,28 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
     private void closePreviewPanels() {
         this.previewVisible = false;
         this.leafPanel.close();
+        this.providerSearchContext = PatternProviderSearchContext.resolve(null);
+        this.previewWheel.reset();
+    }
+
+    private void openPreviewPanel() {
+        this.previewVisible = true;
+        this.previewWheel.reset();
+        refreshProviderSearchContext(true);
+    }
+
+    private void refreshProviderSearchContext(boolean force) {
+        if (!this.previewVisible) {
+            return;
+        }
+        var reference = previewBridge().data_energistics$getEncodedPatternRecipeReference();
+        if (!force && this.providerSearchContext.current(reference)) {
+            return;
+        }
+        this.providerSearchContext = PatternProviderSearchContext.resolve(reference);
+        this.previewScrollbar.setCurrentScroll(0);
+        this.previewWheel.reset();
+        invalidateVisibleProvidersCache();
     }
 
     private @Nullable AbstractWidget resolveEncodePatternWidget() {
@@ -958,6 +990,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         this.providerSearchBox.setPlaceholder(SEARCH_BOX_HINT);
         this.providerSearchBox.setResponder(value -> {
             this.previewScrollbar.setCurrentScroll(0);
+            this.previewWheel.reset();
             invalidateVisibleProvidersCache();
         });
         this.providerSearchBox.setValue(currentText);
@@ -1038,11 +1071,11 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         this.recipeTypeToggleButton.setState(sourceAware.data_energistics$isPatternSourceEnabled());
-        var rankingContext = previewBridge().data_energistics$getSyncedPatternProviderState().rankingContext();
-        if (rankingContext != null) {
+        var recipeReference = previewBridge().data_energistics$getEncodedPatternRecipeReference();
+        if (recipeReference != null) {
             this.recipeTypeToggleButton.setDetailLine(Component.translatable(
                     "button.data_energistics.pattern_encoding_recipe_type_toggle.detail",
-                    PatternProviderRecipeTypeNames.resolveDisplayName(rankingContext.recipeTypeId())));
+                    PatternProviderRecipeTypeNames.resolveDisplayName(recipeReference.recipeTypeId())));
         } else {
             this.recipeTypeToggleButton.setDetailLine(Component.translatable(
                     "button.data_energistics.pattern_encoding_recipe_type_toggle.detail.none"));
@@ -1228,6 +1261,7 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         this.cachedVisibleProviders = PatternProviderDisplayOrder.order(
                 providerState.providers(),
                 query,
+                this.providerSearchContext,
                 this::getDefaultProviderName,
                 PatternProviderRecipeTypeNames::resolve);
         this.visibleProvidersCacheDirty = false;

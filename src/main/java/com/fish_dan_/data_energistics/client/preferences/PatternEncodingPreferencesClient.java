@@ -7,7 +7,6 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPrevie
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
-import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderClickStatistic;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesSyncPayload;
@@ -83,12 +82,11 @@ public final class PatternEncodingPreferencesClient {
      * Persists a successful processing transfer with its exact recipe-type context.
      */
     public static void captureTransferredProcessingRecipe(AbstractContainerMenu menu,
-                                                          PatternEncodingViewerRecipeScope transferredScope) {
+                                                          PatternEncodingRankingContext rankingContext) {
         Interfaces interfaces = Interfaces.require(menu);
         PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
         if (interfaces.sourceAware().data_energistics$isPatternSourceEnabled()) {
-            session.setViewerRecipeScope(
-                    transferredScope.rankingContext(), transferredScope.workstationIds());
+            session.setRankingContext(rankingContext);
         } else {
             session.setRankingContext(null);
         }
@@ -203,7 +201,6 @@ public final class PatternEncodingPreferencesClient {
                 offsetX,
                 offsetY,
                 rankingContext,
-                session.viewerWorkstationIds(),
                 statistics));
     }
 

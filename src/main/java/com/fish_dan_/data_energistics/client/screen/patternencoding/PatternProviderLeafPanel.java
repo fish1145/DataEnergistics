@@ -28,6 +28,8 @@ import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectLists;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 /** Shared physical-provider drill-down panel for native, universal and wireless pattern encoding screens. */
 final class PatternProviderLeafPanel {
 
@@ -93,6 +95,7 @@ final class PatternProviderLeafPanel {
 
     private final PatternProviderLeafPanelHost host;
     private final Scrollbar scrollbar = new Scrollbar(Scrollbar.SMALL);
+    private final FractionalScrollbarWheel wheel = new FractionalScrollbarWheel();
     private ObjectList<LeafRow> allRows = ObjectLists.emptyList();
     private ObjectList<LeafRow> visibleRows = ObjectLists.emptyList();
     private PatternEncodingPreviewMenu.SyncedPatternProvider openedGroup;
@@ -133,6 +136,7 @@ final class PatternProviderLeafPanel {
         this.searchBox.setPlaceholder(SEARCH_HINT);
         this.searchBox.setResponder(ignored -> {
             this.scrollbar.setCurrentScroll(0);
+            this.wheel.reset();
             this.rowsDirty = true;
         });
         this.host.registerLeafPanelWidget(this.searchBox);
@@ -202,6 +206,7 @@ final class PatternProviderLeafPanel {
         this.visibleRows = ObjectLists.emptyList();
         this.dragging = false;
         this.scrollbarDragging = false;
+        this.wheel.reset();
         cancelRename();
     }
 
@@ -364,11 +369,14 @@ final class PatternProviderLeafPanel {
     }
 
     boolean mouseScrolled(double mouseX, double mouseY, double scrollY) {
-        if (!this.visible || !getListBounds().contains((int) mouseX, (int) mouseY)) {
+        if (!isOver(mouseX, mouseY)) {
             return false;
         }
-        return this.scrollbar.onMouseWheel(
-                new Point((int) Math.round(mouseX), (int) Math.round(mouseY)), scrollY);
+        this.wheel.apply(
+                this.scrollbar,
+                new Point((int) Math.round(mouseX), (int) Math.round(mouseY)),
+                scrollY);
+        return true;
     }
 
     void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
@@ -496,17 +504,9 @@ final class PatternProviderLeafPanel {
         String iconId = row.leaf().iconItemId().toString();
         String ordinal = "#" + row.ordinal();
         String location = locationSearchText(row);
-        String normalizedSource = PinyinUtil.normalizeSearch(name) + PinyinUtil.normalizeSearch(defaultName) +
-                PinyinUtil.normalizeSearch(iconId) + PinyinUtil.normalizeSearch(ordinal) +
-                PinyinUtil.normalizeSearch(location);
-        if (normalizedSource.contains(normalizedQuery)) {
-            return true;
-        }
-        return PinyinUtil.matchesNormalizedJech(name, normalizedQuery) ||
-                PinyinUtil.matchesNormalizedJech(defaultName, normalizedQuery) ||
-                PinyinUtil.matchesNormalizedJech(iconId, normalizedQuery) ||
-                PinyinUtil.matchesNormalizedJech(ordinal, normalizedQuery) ||
-                PinyinUtil.matchesNormalizedJech(location, normalizedQuery);
+        return PatternProviderSearchMatcher.matches(
+                List.of(name, defaultName, iconId, ordinal, location),
+                normalizedQuery);
     }
 
     private String locationSearchText(LeafRow row) {
@@ -690,6 +690,9 @@ final class PatternProviderLeafPanel {
         this.scrollbar.setRange(0, hidden, 1);
         this.scrollbar.setCurrentScroll(Math.min(this.scrollbar.getCurrentScroll(), hidden));
         this.scrollbar.setVisible(this.visible && !this.layerWidgetsDeferred && hidden > 0);
+        if (hidden == 0) {
+            this.wheel.reset();
+        }
     }
 
     private int hiddenRows() {

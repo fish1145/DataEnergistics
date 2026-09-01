@@ -1255,7 +1255,6 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 this.dataEnergistics$syncedPatternProvidersById,
                 () -> this.dataEnergistics$nextSyncedPatternProviderId++,
                 rankingContext,
-                data_energistics$getPreferenceSession().viewerWorkstationIds(),
                 data_energistics$getPreferenceSession().leafCounts());
         this.dataEnergistics$patternProviderSyncTracker.refreshed(
                 publication,

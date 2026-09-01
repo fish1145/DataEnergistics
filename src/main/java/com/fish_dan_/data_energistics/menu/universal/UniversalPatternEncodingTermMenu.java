@@ -649,7 +649,6 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 this.syncedPatternProvidersById,
                 () -> this.nextSyncedPatternProviderId++,
                 rankingContext,
-                data_energistics$getPreferenceSession().viewerWorkstationIds(),
                 data_energistics$getPreferenceSession().leafCounts());
         this.patternProviderSyncTracker.refreshed(
                 publication,

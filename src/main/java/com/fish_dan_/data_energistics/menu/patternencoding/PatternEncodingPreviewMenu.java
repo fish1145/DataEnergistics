@@ -18,8 +18,6 @@ import it.unimi.dsi.fastutil.objects.ObjectLists;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
-import java.util.List;
-
 /**
  * Exposes the server-authoritative pattern-provider preview and transfer operations of an encoding menu.
  */
@@ -67,24 +65,23 @@ public interface PatternEncodingPreviewMenu {
      */
     record SyncedPatternProviderList(
                                      ObjectList<SyncedPatternProvider> providers,
-                                     @Nullable PatternEncodingRankingContext rankingContext,
-                                     List<ResourceLocation> viewerWorkstationIds)
+                                     @Nullable PatternEncodingRankingContext rankingContext)
             implements PacketWritable {
 
         private static final int MAX_VIEWER_WORKSTATION_IDS = 2048;
         public static final SyncedPatternProviderList EMPTY = new SyncedPatternProviderList(
-                ObjectLists.emptyList(), null, List.of());
+                ObjectLists.emptyList(), null);
 
         public SyncedPatternProviderList {
             providers = ObjectLists.unmodifiable(providers);
-            viewerWorkstationIds = List.copyOf(viewerWorkstationIds);
-            if (rankingContext == null && !viewerWorkstationIds.isEmpty()) {
-                throw new IllegalArgumentException("Viewer workstations require a synchronized ranking context");
-            }
         }
 
         public SyncedPatternProviderList(RegistryFriendlyByteBuf data) {
-            this(readProviders(data), readRankingContext(data), readViewerWorkstationIds(data));
+            this(readFromPacket(data));
+        }
+
+        private SyncedPatternProviderList(DecodedProviderList decoded) {
+            this(decoded.providers, decoded.rankingContext);
         }
 
         @Override
@@ -94,10 +91,7 @@ public interface PatternEncodingPreviewMenu {
                 provider.writeToPacket(data);
             }
             writeRankingContext(data, this.rankingContext);
-            data.writeVarInt(this.viewerWorkstationIds.size());
-            for (ResourceLocation workstationId : this.viewerWorkstationIds) {
-                writeBoundedResourceLocation(data, workstationId);
-            }
+            data.writeVarInt(0);
         }
 
         private static ObjectList<SyncedPatternProvider> readProviders(RegistryFriendlyByteBuf data) {
@@ -127,17 +121,22 @@ public interface PatternEncodingPreviewMenu {
             return new PatternEncodingRankingContext(readBoundedResourceLocation(data, "recipe type id"));
         }
 
-        private static List<ResourceLocation> readViewerWorkstationIds(RegistryFriendlyByteBuf data) {
+        private static void skipLegacyViewerWorkstationIds(RegistryFriendlyByteBuf data) {
             int size = data.readVarInt();
             if (size < 0 || size > MAX_VIEWER_WORKSTATION_IDS) {
                 throw new IllegalArgumentException(
                         "Pattern viewer workstation count is outside [0, " + MAX_VIEWER_WORKSTATION_IDS + "]: " + size);
             }
-            List<ResourceLocation> workstationIds = new ObjectArrayList<>(size);
             for (int index = 0; index < size; index++) {
-                workstationIds.add(readBoundedResourceLocation(data, "workstation id"));
+                readBoundedResourceLocation(data, "legacy workstation id");
             }
-            return List.copyOf(workstationIds);
+        }
+
+        private static DecodedProviderList readFromPacket(RegistryFriendlyByteBuf data) {
+            ObjectList<SyncedPatternProvider> providers = readProviders(data);
+            PatternEncodingRankingContext rankingContext = readRankingContext(data);
+            skipLegacyViewerWorkstationIds(data);
+            return new DecodedProviderList(providers, rankingContext);
         }
 
         private static void writeBoundedResourceLocation(
@@ -156,6 +155,10 @@ public interface PatternEncodingPreviewMenu {
             }
             return id;
         }
+
+        private record DecodedProviderList(
+                                           ObjectList<SyncedPatternProvider> providers,
+                                           @Nullable PatternEncodingRankingContext rankingContext) {}
     }
 
     /**

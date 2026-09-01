@@ -13,6 +13,11 @@ import org.jspecify.annotations.Nullable;
  */
 public record EncodedPatternRecipeReference(Kind kind, ResourceLocation id) {
 
+    private static final ResourceLocation CRAFTING_RECIPE_TYPE = ResourceLocation.withDefaultNamespace("crafting");
+    private static final ResourceLocation SMITHING_RECIPE_TYPE = ResourceLocation.withDefaultNamespace("smithing");
+    private static final ResourceLocation STONECUTTING_RECIPE_TYPE = ResourceLocation.withDefaultNamespace(
+            "stonecutting");
+
     /** Writes or removes the processing recipe type beside the pattern's output-match metadata. */
     public static void applyProcessingRecipeType(
                                                  ItemStack encodedPattern,
@@ -36,22 +41,35 @@ public record EncodedPatternRecipeReference(Kind kind, ResourceLocation id) {
         }
         var crafting = encodedPattern.get(AEComponents.ENCODED_CRAFTING_PATTERN);
         if (crafting != null) {
-            return new EncodedPatternRecipeReference(Kind.RECIPE, crafting.recipeId());
+            return new EncodedPatternRecipeReference(Kind.CRAFTING_RECIPE, crafting.recipeId());
         }
         var smithing = encodedPattern.get(AEComponents.ENCODED_SMITHING_TABLE_PATTERN);
         if (smithing != null) {
-            return new EncodedPatternRecipeReference(Kind.RECIPE, smithing.recipeId());
+            return new EncodedPatternRecipeReference(Kind.SMITHING_RECIPE, smithing.recipeId());
         }
         var stonecutting = encodedPattern.get(AEComponents.ENCODED_STONECUTTING_PATTERN);
         if (stonecutting != null) {
-            return new EncodedPatternRecipeReference(Kind.RECIPE, stonecutting.recipeId());
+            return new EncodedPatternRecipeReference(Kind.STONECUTTING_RECIPE, stonecutting.recipeId());
         }
         ResourceLocation recipeTypeId = encodedPattern.get(DEDataComponents.PROCESSING_PATTERN_RECIPE_TYPE);
-        return recipeTypeId == null ? null : new EncodedPatternRecipeReference(Kind.RECIPE_TYPE, recipeTypeId);
+        return recipeTypeId == null ? null :
+                new EncodedPatternRecipeReference(Kind.PROCESSING_RECIPE_TYPE, recipeTypeId);
+    }
+
+    /** Returns the recipe-viewer type/category used to resolve names and workstations lazily. */
+    public ResourceLocation recipeTypeId() {
+        return switch (this.kind) {
+            case CRAFTING_RECIPE -> CRAFTING_RECIPE_TYPE;
+            case SMITHING_RECIPE -> SMITHING_RECIPE_TYPE;
+            case STONECUTTING_RECIPE -> STONECUTTING_RECIPE_TYPE;
+            case PROCESSING_RECIPE_TYPE -> this.id;
+        };
     }
 
     public enum Kind {
-        RECIPE,
-        RECIPE_TYPE
+        CRAFTING_RECIPE,
+        SMITHING_RECIPE,
+        STONECUTTING_RECIPE,
+        PROCESSING_RECIPE_TYPE
     }
 }
