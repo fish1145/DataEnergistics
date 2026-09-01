@@ -12,6 +12,14 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectCollection;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -25,14 +33,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 
@@ -41,7 +43,7 @@ import java.util.regex.Pattern;
  */
 public final class JsonPatternEncodingClientPreferences implements PatternEncodingClientPreferences {
 
-    public static final int SCHEMA_VERSION = 3;
+    public static final int SCHEMA_VERSION = 4;
     public static final int MAX_STATISTICS_PER_PROFILE = 2048;
     public static final int MAX_STATISTICS_TOTAL = 8192;
     public static final int MAX_SERVER_PROFILES = 32;
@@ -58,7 +60,7 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     private final Path file;
     private final BooleanSupplier mainThreadCheck;
     private final Clock clock;
-    private final Map<String, ServerProfile> serverProfiles = new LinkedHashMap<>();
+    private final Object2ObjectLinkedOpenHashMap<String, ServerProfile> serverProfiles = new Object2ObjectLinkedOpenHashMap<>();
     private final ServerProfile sessionProfile = new ServerProfile(0L);
     private boolean loaded;
     private boolean writesDisabled;
@@ -72,6 +74,9 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     private boolean previewPanelPresent;
     private int previewPanelOffsetX;
     private int previewPanelOffsetY;
+    private boolean providerDetailPanelPresent;
+    private int providerDetailPanelRelativeX;
+    private int providerDetailPanelRelativeY;
     @Nullable
     private String activeServerProfile;
 
@@ -171,6 +176,27 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     }
 
     @Override
+    public Optional<ProviderDetailPanelPosition> providerDetailPanelPosition() {
+        ensureLoaded();
+        return this.providerDetailPanelPresent ? Optional.of(new ProviderDetailPanelPosition(
+                this.providerDetailPanelRelativeX, this.providerDetailPanelRelativeY)) : Optional.empty();
+    }
+
+    @Override
+    public void setProviderDetailPanelPosition(int relativeX, int relativeY) {
+        ensureLoaded();
+        validatePanelOffset(relativeX, relativeY);
+        if (this.providerDetailPanelPresent && this.providerDetailPanelRelativeX == relativeX &&
+                this.providerDetailPanelRelativeY == relativeY) {
+            return;
+        }
+        this.providerDetailPanelRelativeX = relativeX;
+        this.providerDetailPanelRelativeY = relativeY;
+        this.providerDetailPanelPresent = true;
+        save();
+    }
+
+    @Override
     public int applyMissingLegacyValues(int fieldMask, boolean legacyUploadEnabled, boolean legacyPatternSourceEnabled,
                                         @Nullable ResourceLocation legacyLastWorkstation,
                                         int legacyOffsetX, int legacyOffsetY) {
@@ -230,25 +256,18 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     }
 
     @Override
-    public List<PatternProviderClickStatistic> statistics(PatternEncodingRankingContext context,
-                                                          Collection<String> providerDigests) {
+    public ObjectList<PatternProviderClickStatistic> statistics(PatternEncodingRankingContext context,
+                                                                ObjectCollection<String> providerDigests) {
         ensureLoaded();
-        if (context == null || providerDigests == null) {
-            throw new IllegalArgumentException("Pattern ranking context and provider digests must not be null");
-        }
-        Set<String> requested = new HashSet<>(providerDigests.size());
-        for (String providerDigest : providerDigests) {
-            PatternProviderClickStatistic validated = new PatternProviderClickStatistic(context, providerDigest, 0L, 0L);
-            requested.add(validated.providerDigest());
-        }
-        List<PatternProviderClickStatistic> result = new ArrayList<>();
+        ObjectSet<String> requested = new ObjectOpenHashSet<>(providerDigests);
+        ObjectList<PatternProviderClickStatistic> result = new ObjectArrayList<>();
         for (PatternProviderClickStatistic statistic : activeProfile().statistics.values()) {
             if (statistic.context().equals(context) && requested.contains(statistic.providerDigest())) {
                 result.add(statistic);
             }
         }
         result.sort(Comparator.comparing(PatternProviderClickStatistic::stableKey));
-        return List.copyOf(result);
+        return ObjectLists.unmodifiable(result);
     }
 
     @Override
@@ -346,6 +365,13 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
                 validatePanelOffset(this.previewPanelOffsetX, this.previewPanelOffsetY);
                 this.previewPanelPresent = true;
             }
+            if (preferences.has("providerDetailPanel")) {
+                JsonObject providerDetailPanel = readRequiredObject(preferences, "providerDetailPanel");
+                this.providerDetailPanelRelativeX = readRequiredInt(providerDetailPanel, "relativeX");
+                this.providerDetailPanelRelativeY = readRequiredInt(providerDetailPanel, "relativeY");
+                validatePanelOffset(this.providerDetailPanelRelativeX, this.providerDetailPanelRelativeY);
+                this.providerDetailPanelPresent = true;
+            }
         }
         JsonObject profiles = readOptionalObject(root, "serverProfiles");
         if (profiles == null) {
@@ -355,7 +381,7 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
             throw new IllegalArgumentException("Client preference server profiles exceed " + MAX_SERVER_PROFILES);
         }
         int totalStatistics = 0;
-        for (Map.Entry<String, JsonElement> entry : profiles.entrySet()) {
+        for (var entry : profiles.entrySet()) {
             validateProfileDigest(entry.getKey());
             if (!entry.getValue().isJsonObject()) {
                 throw new IllegalArgumentException("Server profile must be a JSON object: " + entry.getKey());
@@ -471,10 +497,13 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
         this.lastWorkstation = null;
         this.previewPanelOffsetX = 0;
         this.previewPanelOffsetY = 0;
+        this.providerDetailPanelRelativeX = 0;
+        this.providerDetailPanelRelativeY = 0;
         this.uploadEnabledPresent = markPresent;
         this.patternSourceEnabledPresent = markPresent;
         this.lastWorkstationPresent = markPresent;
         this.previewPanelPresent = markPresent;
+        this.providerDetailPanelPresent = false;
         this.serverProfiles.clear();
         this.sessionProfile.statistics.clear();
         this.activeServerProfile = null;
@@ -491,7 +520,7 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
             throw new IllegalStateException("Client preference file must have a parent directory: " + this.file);
         }
         Path temporary = parent.resolve(this.file.getFileName() + ".tmp");
-        Map<String, ServerProfile> persistedProfiles = copyProfiles();
+        Object2ObjectMap<String, ServerProfile> persistedProfiles = copyProfiles();
         try {
             Files.createDirectories(parent);
             Files.writeString(temporary, serializeWithinFileLimit(persistedProfiles), StandardCharsets.UTF_8,
@@ -511,7 +540,7 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
         }
     }
 
-    private String serializeWithinFileLimit(Map<String, ServerProfile> persistedProfiles) {
+    private String serializeWithinFileLimit(Object2ObjectMap<String, ServerProfile> persistedProfiles) {
         String json = GSON.toJson(writeRoot(persistedProfiles));
         while (json.getBytes(StandardCharsets.UTF_8).length > MAX_FILE_BYTES) {
             ProfileStatistic lowest = findLowestPersistedStatistic(persistedProfiles);
@@ -525,7 +554,7 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
         return json;
     }
 
-    private JsonObject writeRoot(Map<String, ServerProfile> profilesToWrite) {
+    private JsonObject writeRoot(Object2ObjectMap<String, ServerProfile> profilesToWrite) {
         JsonObject root = new JsonObject();
         root.addProperty("schemaVersion", SCHEMA_VERSION);
         JsonObject preferences = new JsonObject();
@@ -548,11 +577,17 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
             previewPanel.addProperty("offsetY", this.previewPanelOffsetY);
             preferences.add("previewPanel", previewPanel);
         }
+        if (this.providerDetailPanelPresent) {
+            JsonObject providerDetailPanel = new JsonObject();
+            providerDetailPanel.addProperty("relativeX", this.providerDetailPanelRelativeX);
+            providerDetailPanel.addProperty("relativeY", this.providerDetailPanelRelativeY);
+            preferences.add("providerDetailPanel", providerDetailPanel);
+        }
         root.add("preferences", preferences);
 
         JsonObject profiles = new JsonObject();
-        profilesToWrite.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
+        profilesToWrite.object2ObjectEntrySet().stream()
+                .sorted(Comparator.comparing(Object2ObjectMap.Entry::getKey))
                 .forEach(entry -> profiles.add(entry.getKey(), writeProfile(entry.getValue())));
         root.add("serverProfiles", profiles);
         return root;
@@ -584,9 +619,9 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
                 this.activeServerProfile, ignored -> new ServerProfile(this.clock.millis()));
     }
 
-    private Map<String, ServerProfile> copyProfiles() {
-        Map<String, ServerProfile> copy = new LinkedHashMap<>();
-        for (Map.Entry<String, ServerProfile> entry : this.serverProfiles.entrySet()) {
+    private Object2ObjectMap<String, ServerProfile> copyProfiles() {
+        Object2ObjectMap<String, ServerProfile> copy = new Object2ObjectLinkedOpenHashMap<>();
+        for (Object2ObjectMap.Entry<String, ServerProfile> entry : this.serverProfiles.object2ObjectEntrySet()) {
             ServerProfile profileCopy = new ServerProfile(entry.getValue().lastAccessEpochMillis);
             profileCopy.statistics.putAll(entry.getValue().statistics);
             copy.put(entry.getKey(), profileCopy);
@@ -596,11 +631,12 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
 
     private void trimProfiles() {
         while (this.serverProfiles.size() > MAX_SERVER_PROFILES) {
-            String removable = this.serverProfiles.entrySet().stream()
+            String removable = this.serverProfiles.object2ObjectEntrySet().stream()
                     .filter(entry -> !entry.getKey().equals(this.activeServerProfile))
-                    .min(Comparator.<Map.Entry<String, ServerProfile>>comparingLong(entry -> entry.getValue().lastAccessEpochMillis)
-                            .thenComparing(Map.Entry::getKey))
-                    .map(Map.Entry::getKey)
+                    .min(Comparator.<Object2ObjectMap.Entry<String, ServerProfile>>comparingLong(
+                            entry -> entry.getValue().lastAccessEpochMillis)
+                            .thenComparing(Object2ObjectMap.Entry::getKey))
+                    .map(Object2ObjectMap.Entry::getKey)
                     .orElseThrow(() -> new IllegalStateException("Cannot evict the only active server profile"));
             this.serverProfiles.remove(removable);
         }
@@ -630,9 +666,9 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     }
 
     @Nullable
-    private static ProfileStatistic findLowestPersistedStatistic(Map<String, ServerProfile> profiles) {
+    private static ProfileStatistic findLowestPersistedStatistic(Object2ObjectMap<String, ServerProfile> profiles) {
         ProfileStatistic lowest = null;
-        for (Map.Entry<String, ServerProfile> profileEntry : profiles.entrySet()) {
+        for (Object2ObjectMap.Entry<String, ServerProfile> profileEntry : profiles.object2ObjectEntrySet()) {
             for (PatternProviderClickStatistic statistic : profileEntry.getValue().statistics.values()) {
                 ProfileStatistic candidate = new ProfileStatistic(
                         profileEntry.getKey(), profileEntry.getValue(), statistic);
@@ -766,7 +802,7 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     private static final class ServerProfile {
 
         private long lastAccessEpochMillis;
-        private final Map<String, PatternProviderClickStatistic> statistics = new LinkedHashMap<>();
+        private final Object2ObjectMap<String, PatternProviderClickStatistic> statistics = new Object2ObjectLinkedOpenHashMap<>();
 
         private ServerProfile(long lastAccessEpochMillis) {
             this.lastAccessEpochMillis = lastAccessEpochMillis;

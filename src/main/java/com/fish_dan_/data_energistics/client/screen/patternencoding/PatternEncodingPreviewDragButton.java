@@ -8,8 +8,12 @@ import appeng.client.gui.widgets.IconButton;
 final class PatternEncodingPreviewDragButton extends IconButton {
 
     PatternEncodingPreviewDragButton() {
+        this(Component.translatable("screen.data_energistics.pattern_writer_preview.drag_handle"));
+    }
+
+    PatternEncodingPreviewDragButton(Component message) {
         super(button -> {});
-        setMessage(Component.translatable("screen.data_energistics.pattern_writer_preview.drag_handle"));
+        setMessage(message);
     }
 
     @Override

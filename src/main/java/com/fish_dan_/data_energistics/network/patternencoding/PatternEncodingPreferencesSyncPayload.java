@@ -23,14 +23,17 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * C2S snapshot of client preferences and the provider history visible in one pattern menu.
@@ -85,7 +88,7 @@ public record PatternEncodingPreferencesSyncPayload(
         if (rankingContext == null && !viewerWorkstationIds.isEmpty()) {
             throw new IllegalArgumentException("Pattern preference viewer workstations require a ranking context");
         }
-        Set<ResourceLocation> seenWorkstations = new HashSet<>();
+        ObjectSet<ResourceLocation> seenWorkstations = new ObjectOpenHashSet<>();
         for (ResourceLocation workstationId : viewerWorkstationIds) {
             if (BuiltInRegistries.ITEM.get(workstationId) == Items.AIR) {
                 throw new IllegalArgumentException(
@@ -100,7 +103,7 @@ public record PatternEncodingPreferencesSyncPayload(
         if (statistics.size() > MAX_STATISTICS) {
             throw new IllegalArgumentException("Pattern preference statistics exceed " + MAX_STATISTICS);
         }
-        Set<String> seen = new HashSet<>();
+        ObjectSet<String> seen = new ObjectOpenHashSet<>();
         for (LeafStatistic statistic : statistics) {
             if (!seen.add(statistic.providerDigest())) {
                 throw new IllegalArgumentException("Duplicate pattern provider statistic: " + statistic.providerDigest());
@@ -204,9 +207,11 @@ public record PatternEncodingPreferencesSyncPayload(
         session.setViewerRecipeScope(payload.rankingContext, payload.viewerWorkstationIds);
         previewMenu.data_energistics$refreshSyncedPatternProviders();
 
-        Set<String> visibleLeafDigests = new HashSet<>();
+        ObjectSet<String> visibleLeafDigests = new ObjectOpenHashSet<>();
         for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : previewMenu.data_energistics$getSyncedPatternProviders()) {
-            visibleLeafDigests.addAll(provider.leafDigests());
+            for (PatternEncodingPreviewMenu.SyncedPatternProviderLeaf leaf : provider.leaves()) {
+                visibleLeafDigests.add(leaf.providerDigest());
+            }
         }
         for (LeafStatistic statistic : payload.statistics) {
             if (!visibleLeafDigests.contains(statistic.providerDigest())) {
@@ -231,8 +236,11 @@ public record PatternEncodingPreferencesSyncPayload(
         if ((payload.presentMask & PatternEncodingClientPreferenceMask.PREVIEW_PANEL) != 0) {
             layoutAware.data_energistics$setPreviewPanelOffset(payload.previewPanelOffsetX, payload.previewPanelOffsetY);
         }
-        session.replaceLeafCounts(payload.statistics.stream()
-                .collect(Collectors.toMap(LeafStatistic::providerDigest, LeafStatistic::count)));
+        Object2LongMap<String> leafCounts = new Object2LongOpenHashMap<>(payload.statistics.size());
+        for (LeafStatistic statistic : payload.statistics) {
+            leafCounts.put(statistic.providerDigest(), statistic.count());
+        }
+        session.replaceLeafCounts(leafCounts);
         previewMenu.data_energistics$refreshSyncedPatternProviders();
         if (previewMenu.data_energistics$getEncodingMode() == EncodingMode.PROCESSING) {
             PatternEncodingSourceHelper.applyPatternSource(sourceAware, null);
@@ -291,13 +299,13 @@ public record PatternEncodingPreferencesSyncPayload(
             throw new IllegalArgumentException(
                     "Pattern preference viewer workstation count is outside [0, " + MAX_VIEWER_WORKSTATIONS + "]: " + size);
         }
-        List<ResourceLocation> workstationIds = new ArrayList<>(size);
+        ObjectList<ResourceLocation> workstationIds = new ObjectArrayList<>(size);
         for (int index = 0; index < size; index++) {
             workstationIds.add(PatternEncodingRankingContextCodec.readResourceLocation(
                     buffer,
                     "viewer workstation id"));
         }
-        return List.copyOf(workstationIds);
+        return ObjectLists.unmodifiable(workstationIds);
     }
 
     private static List<LeafStatistic> readStatistics(RegistryFriendlyByteBuf buffer) {
@@ -305,11 +313,11 @@ public record PatternEncodingPreferencesSyncPayload(
         if (size < 0 || size > MAX_STATISTICS) {
             throw new IllegalArgumentException("Pattern preference statistics exceed " + MAX_STATISTICS);
         }
-        List<LeafStatistic> result = new ArrayList<>(size);
+        ObjectList<LeafStatistic> result = new ObjectArrayList<>(size);
         for (int index = 0; index < size; index++) {
             result.add(new LeafStatistic(buffer.readUtf(MAX_DIGEST_LENGTH), buffer.readVarLong()));
         }
-        return List.copyOf(result);
+        return ObjectLists.unmodifiable(result);
     }
 
     private static void requireFullyConsumed(RegistryFriendlyByteBuf buffer) {
