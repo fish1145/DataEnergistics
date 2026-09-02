@@ -103,18 +103,28 @@ final class CraftingPlanGraphCapture implements AutoCloseable {
         for (int y = 0; y < image.getHeight(); y++) {
             for (int x = 0; x < image.getWidth(); x++) {
                 int pixel = image.getPixelRGBA(x, y);
-                int alpha = ABGR32.alpha(pixel);
-                if (alpha == 255) continue;
-                if (alpha == 0) {
-                    image.setPixelRGBA(x, y, 0);
-                } else {
-                    image.setPixelRGBA(x, y, ABGR32.color(alpha,
-                            unpremultiplyChannel(ABGR32.blue(pixel), alpha),
-                            unpremultiplyChannel(ABGR32.green(pixel), alpha),
-                            unpremultiplyChannel(ABGR32.red(pixel), alpha)));
-                }
+                if (ABGR32.alpha(pixel) != 255) image.setPixelRGBA(x, y, straightAlpha(pixel));
             }
         }
+    }
+
+    /** Converts one tile row directly into the encoder's reusable RGBA buffer, without a second image copy. */
+    static void copyStraightRgbaRow(NativeImage image, int x, int y, int width, byte[] destination) {
+        for (int pixelIndex = 0, offset = 0; pixelIndex < width; pixelIndex++, offset += 4) {
+            int pixel = straightAlpha(image.getPixelRGBA(x + pixelIndex, y));
+            destination[offset] = (byte) ABGR32.red(pixel);
+            destination[offset + 1] = (byte) ABGR32.green(pixel);
+            destination[offset + 2] = (byte) ABGR32.blue(pixel);
+            destination[offset + 3] = (byte) ABGR32.alpha(pixel);
+        }
+    }
+
+    private static int straightAlpha(int pixel) {
+        int alpha = ABGR32.alpha(pixel);
+        if (alpha == 255) return pixel;
+        if (alpha == 0) return 0;
+        return ABGR32.color(alpha, unpremultiplyChannel(ABGR32.blue(pixel), alpha),
+                unpremultiplyChannel(ABGR32.green(pixel), alpha), unpremultiplyChannel(ABGR32.red(pixel), alpha));
     }
 
     private static int unpremultiplyChannel(int channel, int alpha) {
