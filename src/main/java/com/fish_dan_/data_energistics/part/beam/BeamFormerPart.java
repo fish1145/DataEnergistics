@@ -11,6 +11,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -35,10 +36,12 @@ import appeng.parts.PartModel;
 import appeng.parts.automation.UpgradeablePart;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
+
 public final class BeamFormerPart extends UpgradeablePart implements IGridTickable, BeamEndpoint {
 
     @PartModels
-    private static final IPartModel MODEL = new PartModel(Data_Energistics.id("part/me_beam_former"));
+    private static final IPartModel MODEL = new PartModel(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/me_beam_former"));
     private static final TickingRequest TICKING = new TickingRequest(5, 20, false);
     private final BeamEndpointState beam = new BeamEndpointState(this, BeamDeviceKind.PART);
 
@@ -72,6 +75,10 @@ public final class BeamFormerPart extends UpgradeablePart implements IGridTickab
     @Override
     public void onNeighborChanged(BlockGetter level, BlockPos pos, BlockPos neighbor) {
         this.beam.requestCheck();
+        IGridNode node = getGridNode();
+        if (node != null) {
+            node.getGrid().getTickManager().alertDevice(node);
+        }
     }
 
     @Override
@@ -106,6 +113,11 @@ public final class BeamFormerPart extends UpgradeablePart implements IGridTickab
     @Override
     public IPartModel getStaticModels() {
         return MODEL;
+    }
+
+    @Override
+    public boolean requireDynamicRender() {
+        return true;
     }
 
     @Override
@@ -162,7 +174,7 @@ public final class BeamFormerPart extends UpgradeablePart implements IGridTickab
 
     @Override
     public Direction beamFacing() {
-        return getSide();
+        return Objects.requireNonNull(getSide(), "Beam part is not attached to a mounting face");
     }
 
     @Override
