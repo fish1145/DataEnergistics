@@ -17,11 +17,7 @@
 		},
 		"status": { "position": { "left": 8, "top": 22 } },
 		"range": { "position": { "left": 8, "top": 32 } },
-		"cards": { "position": { "left": 8, "top": 42 } },
-		"power": { "position": { "left": 8, "top": 52 } },
-		"connections": { "position": { "left": 8, "top": 62 } },
-		"bindings": { "position": { "left": 8, "top": 72 } },
-		"visibility": { "position": { "left": 8, "top": 82 } }
+		"visibility": { "position": { "left": 8, "top": 42 } }
 	},
 	"widgets": {
 		"upgrades": { "left": 174, "top": 0 }
