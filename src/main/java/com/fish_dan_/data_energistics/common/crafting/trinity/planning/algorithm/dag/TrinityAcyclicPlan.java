@@ -54,24 +54,6 @@ public record TrinityAcyclicPlan(
     }
 
     /**
-     * Compatibility constructor for exact propagation paths.
-     */
-    public TrinityAcyclicPlan(
-                              List<TrinityVariantFiring> executionOrder,
-                              Map<TrinityPatternVariant, BigInteger> firings,
-                              Map<AEKey, BigInteger> externalInputs,
-                              Map<AEKey, BigInteger> netChange,
-                              int statesVisited) {
-        this(
-                executionOrder,
-                firings,
-                externalInputs,
-                netChange,
-                statesVisited,
-                TrinityPlanQuality.PROVED_OPTIMAL);
-    }
-
-    /**
      * Returns the same validated execution accounting with a weaker, explicit proof quality.
      */
     public TrinityAcyclicPlan withQuality(TrinityPlanQuality value) {

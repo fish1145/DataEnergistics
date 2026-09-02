@@ -79,32 +79,6 @@ public record TrinityJointCyclePlan(
         }
     }
 
-    /**
-     * Compatibility constructor for complete joint-search proofs.
-     */
-    public TrinityJointCyclePlan(
-                                 Map<TrinityPatternVariant, BigInteger> firings,
-                                 Map<AEKey, BigInteger> externalInputs,
-                                 Map<AEKey, BigInteger> minimumSeed,
-                                 Map<AEKey, BigInteger> initialInputs,
-                                 Map<AEKey, BigInteger> netChange,
-                                 TrinityCompressedSchedule schedule,
-                                 int searchStates,
-                                 int solverPasses,
-                                 long solverNanos) {
-        this(
-                firings,
-                externalInputs,
-                minimumSeed,
-                initialInputs,
-                netChange,
-                schedule,
-                searchStates,
-                solverPasses,
-                solverNanos,
-                TrinityPlanQuality.PROVED_OPTIMAL);
-    }
-
     private static void requireIncluded(Map<AEKey, BigInteger> initialInputs,
                                         AEKey key,
                                         BigInteger amount,

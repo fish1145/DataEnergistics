@@ -31,38 +31,6 @@ public final class TrinityExactConservationVerifier {
     }
 
     /**
-     * Adapts the legacy single-target net constraint to the generalized map contract.
-     *
-     * @param variants          complete model transition set
-     * @param firings           exact non-zero firing values
-     * @param initialInputs     exact seed and external values
-     * @param upperBounds       finite input upper bounds
-     * @param finalLowerBounds  required final balance per key
-     * @param target            requested productive key
-     * @param requiredTargetNet required net target effect independent of seed
-     * @return recomputed signed net change or {@code MIP_INEXACT_RESULT}
-     */
-    public TrinityAlgorithmResult<Map<AEKey, BigInteger>> verify(
-                                                                 List<TrinityPatternVariant> variants,
-                                                                 Map<TrinityPatternVariant, BigInteger> firings,
-                                                                 Map<AEKey, BigInteger> initialInputs,
-                                                                 Map<AEKey, BigInteger> upperBounds,
-                                                                 Map<AEKey, BigInteger> finalLowerBounds,
-                                                                 AEKey target,
-                                                                 BigInteger requiredTargetNet) {
-        if (target == null || requiredTargetNet == null || requiredTargetNet.signum() <= 0) {
-            throw new IllegalArgumentException("A Trinity conservation target net must be positive");
-        }
-        return verify(
-                variants,
-                firings,
-                initialInputs,
-                upperBounds,
-                finalLowerBounds,
-                Map.of(target, requiredTargetNet));
-    }
-
-    /**
      * @param variants                     complete model transition set
      * @param firings                      exact non-zero firing values
      * @param initialInputs                exact seed and external values

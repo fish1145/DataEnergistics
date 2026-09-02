@@ -132,28 +132,6 @@ public final class TrinityGraphDemandAggregator {
     }
 
     /**
-     * Compatibility entry point that retains complete optimisation.
-     */
-    public TrinityAlgorithmResult<TrinityGraphDemandSolution> aggregate(
-                                                                        TrinityCraftingTopology topology,
-                                                                        AEKey target,
-                                                                        BigInteger requestedAmount,
-                                                                        CraftingQuantityMode quantityMode,
-                                                                        TrinityPlanningInventory inventory,
-                                                                        TrinityPlanningLimits limits,
-                                                                        TrinityPlanningControl control) {
-        return aggregate(
-                topology,
-                target,
-                requestedAmount,
-                quantityMode,
-                inventory,
-                limits,
-                TrinityPlanningMode.FIRST_FEASIBLE,
-                control);
-    }
-
-    /**
      * Owns the single thread-confined demand state traversed by explicit cursors and reversible producer choices.
      */
     private final class PlanningAccumulator {

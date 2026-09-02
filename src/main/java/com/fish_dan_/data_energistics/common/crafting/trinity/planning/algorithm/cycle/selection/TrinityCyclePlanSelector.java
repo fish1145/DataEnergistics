@@ -342,24 +342,6 @@ public final class TrinityCyclePlanSelector {
         };
     }
 
-    /** Compatibility entry point that returns the first fully verified executable cycle. */
-    public TrinityAlgorithmResult<TrinityCycleSelection> select(
-                                                                TrinityStronglyConnectedComponent component,
-                                                                TrinityCycleDemand demand,
-                                                                Map<AEKey, BigInteger> available,
-                                                                Set<AEKey> producibleInputs,
-                                                                int maxStates,
-                                                                TrinityPlanningControl control) {
-        return select(
-                component,
-                demand,
-                available,
-                producibleInputs,
-                maxStates,
-                TrinityPlanningMode.FIRST_FEASIBLE,
-                control);
-    }
-
     private TrinityAlgorithmResult<TrinityCycleSelection> planJointCycle(
                                                                          TrinityStronglyConnectedComponent component,
                                                                          TrinityCycleDemand demand,
@@ -395,7 +377,9 @@ public final class TrinityCyclePlanSelector {
                 settledExports(component, demand, plan.netChange()),
                 plan.searchStates(),
                 Math.addExact(componentNanos, plan.solverNanos()),
-                plan.quality()));
+                plan.quality(),
+                Map.of(),
+                0));
     }
 
     private static TrinityCycleSelection fromScalar(
@@ -413,7 +397,9 @@ public final class TrinityCyclePlanSelector {
                 positiveAmounts(plan.netChange()),
                 plan.schedule().statesVisited(),
                 0L,
-                TrinityPlanQuality.VERIFIED_FEASIBLE);
+                TrinityPlanQuality.VERIFIED_FEASIBLE,
+                Map.of(),
+                0);
     }
 
     private static TrinityCycleSelection fromDeterministic(
@@ -436,7 +422,9 @@ public final class TrinityCyclePlanSelector {
                 settledExports(component, demand, plan.netChange()),
                 plan.schedule().statesVisited(),
                 componentNanos,
-                quality);
+                quality,
+                Map.of(),
+                0);
     }
 
     private static Optional<ScalarDemand> scalarDemand(

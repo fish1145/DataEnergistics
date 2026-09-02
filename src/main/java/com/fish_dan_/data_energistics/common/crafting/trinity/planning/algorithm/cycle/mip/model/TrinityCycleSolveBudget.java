@@ -21,7 +21,7 @@ public final class TrinityCycleSolveBudget {
     }
 
     /**
-     * Creates the compatibility budget used by executable paths whose states are owned by branch search.
+     * Creates the solver budget used by executable paths whose states are already bounded by branch search.
      */
     public static TrinityCycleSolveBudget unbounded() {
         return new TrinityCycleSolveBudget(Integer.MAX_VALUE);

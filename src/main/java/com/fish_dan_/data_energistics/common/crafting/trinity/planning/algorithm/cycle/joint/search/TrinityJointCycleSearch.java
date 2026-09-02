@@ -99,7 +99,7 @@ public final class TrinityJointCycleSearch {
     }
 
     /**
-     * Returns the first exactly verified executable candidate in production mode. The retained compatibility mode
+     * Returns the first exactly verified executable candidate in production mode. The explicit optimization mode
      * may continue through improving boxes until a shared bound terminates the search.
      */
     public TrinityAlgorithmResult<TrinityJointCyclePlan> search(
@@ -149,26 +149,6 @@ public final class TrinityJointCycleSearch {
                 mode,
                 control,
                 coefficientTemplate).search();
-    }
-
-    /**
-     * Compatibility entry point that retains complete optimisation.
-     */
-    public TrinityAlgorithmResult<TrinityJointCyclePlan> search(
-                                                                TrinityStronglyConnectedComponent component,
-                                                                TrinityCycleDemand demand,
-                                                                Map<AEKey, BigInteger> available,
-                                                                Set<AEKey> producibleInputs,
-                                                                int maxSearchStates,
-                                                                TrinityPlanningControl control) {
-        return search(
-                component,
-                demand,
-                available,
-                producibleInputs,
-                maxSearchStates,
-                TrinityPlanningMode.FIRST_FEASIBLE,
-                control);
     }
 
     private final class SearchSession {

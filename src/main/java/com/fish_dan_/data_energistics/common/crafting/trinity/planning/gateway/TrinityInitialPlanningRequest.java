@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
-import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import appeng.api.stacks.AEKey;
 
@@ -92,15 +91,6 @@ public final class TrinityInitialPlanningRequest {
         return this.limits;
     }
 
-    /**
-     * @return detached compatibility configuration that cannot mutate this request
-     * @deprecated use {@link #limits()}
-     */
-    @Deprecated(forRemoval = false)
-    public TrinityCraftingSchema settings() {
-        return this.limits.detachedSchema();
-    }
-
     public TrinityCpuStorageCapacity maxTrinityCapacity() {
         return this.maxTrinityCapacity;
     }
@@ -154,11 +144,6 @@ public final class TrinityInitialPlanningRequest {
 
         public Builder inventory(TrinityPlanningInventory inventory) {
             this.inventory = inventory;
-            return this;
-        }
-
-        public Builder settings(TrinityCraftingSchema settings) {
-            this.limits = TrinityPlanningLimits.capture(settings);
             return this;
         }
 

@@ -53,53 +53,6 @@ public record TrinityCycleFeasibilitySolution(
     }
 
     /**
-     * Compatibility constructor for ordinary executable feasibility results.
-     */
-    public TrinityCycleFeasibilitySolution(
-                                           Map<TrinityPatternVariant, BigInteger> firings,
-                                           Map<AEKey, BigInteger> modelSeed,
-                                           Map<AEKey, BigInteger> externalInputs,
-                                           int solverPasses,
-                                           long solverNanos,
-                                           boolean radix,
-                                           TrinityPlanQuality quality) {
-        this(
-                firings,
-                modelSeed,
-                externalInputs,
-                solverPasses,
-                solverNanos,
-                radix,
-                quality,
-                Map.of(),
-                Map.of(),
-                0);
-    }
-
-    /**
-     * Compatibility constructor for complete lexicographic proofs.
-     */
-    public TrinityCycleFeasibilitySolution(
-                                           Map<TrinityPatternVariant, BigInteger> firings,
-                                           Map<AEKey, BigInteger> modelSeed,
-                                           Map<AEKey, BigInteger> externalInputs,
-                                           int solverPasses,
-                                           long solverNanos,
-                                           boolean radix) {
-        this(
-                firings,
-                modelSeed,
-                externalInputs,
-                solverPasses,
-                solverNanos,
-                radix,
-                TrinityPlanQuality.PROVED_OPTIMAL,
-                Map.of(),
-                Map.of(),
-                0);
-    }
-
-    /**
      * @return exact positive reserve required by the diagnostic firing vector
      */
     public Map<AEKey, BigInteger> requiredInputs() {

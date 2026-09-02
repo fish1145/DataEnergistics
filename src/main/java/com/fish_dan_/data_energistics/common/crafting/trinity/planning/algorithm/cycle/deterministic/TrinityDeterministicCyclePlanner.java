@@ -51,39 +51,6 @@ public final class TrinityDeterministicCyclePlanner {
     }
 
     /**
-     * @param oneCycleOrder     ordered compact firings in one complete production cycle
-     * @param target            requested productive key
-     * @param requestedAmount   positive requested delivery
-     * @param quantityMode      net-new or final-total semantics
-     * @param available         non-negative immutable inventory snapshot
-     * @param producibleInputs  inputs that earlier graph components can supply after this cycle is selected
-     * @param maxScheduleStates compressed scheduling state bound
-     * @param control           cancellation and deadline boundary
-     * @return exact compact cycle or stable rejection
-     */
-    public TrinityAlgorithmResult<TrinityCyclePlan> plan(
-                                                         List<TrinityVariantFiring> oneCycleOrder,
-                                                         AEKey target,
-                                                         BigInteger requestedAmount,
-                                                         CraftingQuantityMode quantityMode,
-                                                         Map<AEKey, BigInteger> available,
-                                                         Set<AEKey> producibleInputs,
-                                                         int maxScheduleStates,
-                                                         TrinityPlanningControl control) {
-        return plan(
-                -1,
-                TrinityCycleDemand.forTarget(target, requestedAmount, quantityMode, available),
-                oneCycleOrder,
-                target,
-                requestedAmount,
-                quantityMode,
-                available,
-                producibleInputs,
-                maxScheduleStates,
-                control);
-    }
-
-    /**
      * Retains the component identity so a conclusive shortage can carry a non-executable schedule proof.
      */
     public TrinityAlgorithmResult<TrinityCyclePlan> plan(
@@ -97,8 +64,8 @@ public final class TrinityDeterministicCyclePlanner {
                                                          Set<AEKey> producibleInputs,
                                                          int maxScheduleStates,
                                                          TrinityPlanningControl control) {
-        if (componentIndex < -1) {
-            throw new IllegalArgumentException("A Trinity deterministic cycle component index cannot be below -1");
+        if (componentIndex < 0) {
+            throw new IllegalArgumentException("A Trinity deterministic cycle component index cannot be negative");
         }
         if (oneCycleOrder.isEmpty() || requestedAmount.signum() <= 0 || maxScheduleStates <= 0) {
             throw new IllegalArgumentException("A Trinity deterministic cycle request is incomplete");
@@ -173,7 +140,7 @@ public final class TrinityDeterministicCyclePlanner {
                 return TrinityAlgorithmResult.failure(schedule.diagnostic());
             }
             Optional<TrinityCycleDiagnosticOutcome> diagnosticOutcome = Optional.empty();
-            if (schedule.successful() && componentIndex >= 0) {
+            if (schedule.successful()) {
                 TrinityCyclePlan provedPlan = new TrinityCyclePlan(
                         oneCycleOrder,
                         repetitions,
@@ -313,7 +280,8 @@ public final class TrinityDeterministicCyclePlanner {
                         usedInputs,
                         emitted,
                         missingInputs,
-                        shortages));
+                        shortages,
+                        List.of()));
         TrinityPlanningDiagnostic.Detail detail = diagnosticOutcome.<TrinityPlanningDiagnostic.Detail>map(outcome -> new TrinityPlanningDiagnostic.CompositeEvidence(
                 materials,
                 List.of(outcome.evidence())))

@@ -57,7 +57,8 @@ public final class TrinityDiagnosticMaterialAccumulator {
                 used,
                 Map.of(),
                 missing,
-                requirements);
+                requirements,
+                List.of());
     }
 
     /**

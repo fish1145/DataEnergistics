@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
-
 import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
@@ -26,21 +24,7 @@ public record TrinityCycleDemand(
                                  Set<AEKey> netNewKeys,
                                  Map<AEKey, BigInteger> finalBalanceLowerBounds) {
 
-    /**
-     * Computes the immutable effective final bound once instead of rebuilding it in every solver pass.
-     */
-    public TrinityCycleDemand(
-                              Map<AEKey, BigInteger> settledWithdrawals,
-                              Map<AEKey, BigInteger> terminalBalanceLowerBounds,
-                              Map<AEKey, BigInteger> requiredNetChangeLowerBounds) {
-        this(
-                settledWithdrawals,
-                terminalBalanceLowerBounds,
-                requiredNetChangeLowerBounds,
-                Set.of(),
-                combineFinalBalances(settledWithdrawals, terminalBalanceLowerBounds));
-    }
-
+    /** Computes the effective final bound while retaining explicit net-new target semantics. */
     public TrinityCycleDemand(
                               Map<AEKey, BigInteger> settledWithdrawals,
                               Map<AEKey, BigInteger> terminalBalanceLowerBounds,
@@ -52,15 +36,6 @@ public record TrinityCycleDemand(
                 requiredNetChangeLowerBounds,
                 netNewKeys,
                 combineFinalBalances(settledWithdrawals, terminalBalanceLowerBounds));
-    }
-
-    /**
-     * Compatibility constructor for callers whose lower bounds are already terminal balances.
-     */
-    public TrinityCycleDemand(
-                              Map<AEKey, BigInteger> finalBalanceLowerBounds,
-                              Map<AEKey, BigInteger> requiredNetChangeLowerBounds) {
-        this(Map.of(), finalBalanceLowerBounds, requiredNetChangeLowerBounds);
     }
 
     private static Map<AEKey, BigInteger> combineFinalBalances(
@@ -82,37 +57,5 @@ public record TrinityCycleDemand(
                 terminal,
                 requiredNetChangeLowerBounds,
                 netNewKeys);
-    }
-
-    /**
-     * Adapts the legacy single-target quantity semantics to component-wide lower-bound maps.
-     *
-     * @param target          requested output, which may be an SCC key or a boundary output
-     * @param requestedAmount positive requested amount
-     * @param quantityMode    net-new or final-total delivery semantics
-     * @param available       current non-negative inventory snapshot
-     * @return immutable generalized cycle demand
-     */
-    public static TrinityCycleDemand forTarget(
-                                               AEKey target,
-                                               BigInteger requestedAmount,
-                                               CraftingQuantityMode quantityMode,
-                                               Map<AEKey, BigInteger> available) {
-        BigInteger availableTarget = available.getOrDefault(target, BigInteger.ZERO);
-        if (quantityMode == CraftingQuantityMode.NET_NEW) {
-            return new TrinityCycleDemand(
-                    Map.of(),
-                    Map.of(),
-                    Map.of(target, requestedAmount),
-                    Set.of(target));
-        }
-        BigInteger requiredNet = requestedAmount
-                .subtract(availableTarget)
-                .max(BigInteger.ZERO)
-                .max(BigInteger.ONE);
-        return new TrinityCycleDemand(
-                Map.of(),
-                Map.of(target, requestedAmount),
-                Map.of(target, requiredNet));
     }
 }

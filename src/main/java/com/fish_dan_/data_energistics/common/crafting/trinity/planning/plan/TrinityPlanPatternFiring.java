@@ -27,13 +27,6 @@ public record TrinityPlanPatternFiring(
                                        Map<AEKey, BigInteger> outputs,
                                        Map<AEKey, BigInteger> remainingOutputs) {
 
-    /** Compatibility constructor for firings whose outputs have no returned input containers. */
-    public TrinityPlanPatternFiring(TrinityPatternIdentity patternIdentity, AEKey primaryOutput,
-                                    int variantOrdinal, BigInteger count, Map<AEKey, BigInteger> inputs,
-                                    Map<AEKey, BigInteger> outputs) {
-        this(patternIdentity, primaryOutput, variantOrdinal, count, inputs, outputs, Map.of());
-    }
-
     /**
      * Rejects unbound or non-productive scheduling entries.
      */

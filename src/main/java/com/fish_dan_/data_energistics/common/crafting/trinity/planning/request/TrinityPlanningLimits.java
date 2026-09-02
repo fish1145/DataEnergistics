@@ -41,19 +41,4 @@ public record TrinityPlanningLimits(
                 settings.maxScheduleStates,
                 settings.planningBudgetMs);
     }
-
-    /**
-     * Reconstructs a detached compatibility value for callers of the former configuration-based API.
-     * Mutating the returned object cannot alter this request.
-     *
-     * @return independent configuration value containing these planning limits
-     */
-    public TrinityCraftingSchema detachedSchema() {
-        TrinityCraftingSchema settings = new TrinityCraftingSchema();
-        settings.maxSccKeys = this.maxSccKeys;
-        settings.maxBindingVariants = this.maxBindingVariants;
-        settings.maxScheduleStates = this.maxScheduleStates;
-        settings.planningBudgetMs = this.planningBudgetMs;
-        return settings;
-    }
 }

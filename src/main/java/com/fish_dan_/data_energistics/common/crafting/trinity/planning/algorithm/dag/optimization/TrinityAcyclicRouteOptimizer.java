@@ -337,30 +337,6 @@ public final class TrinityAcyclicRouteOptimizer {
     }
 
     /**
-     * Compatibility entry point that retains complete optimisation.
-     */
-    public TrinityAlgorithmResult<TrinityAcyclicPlan> optimize(
-                                                               TrinityCraftingTopology topology,
-                                                               List<TrinityPatternVariant> variants,
-                                                               AEKey target,
-                                                               BigInteger requestedAmount,
-                                                               CraftingQuantityMode quantityMode,
-                                                               TrinityPlanningInventory available,
-                                                               int maxSearchStates,
-                                                               TrinityPlanningControl control) {
-        return optimize(
-                topology,
-                variants,
-                target,
-                requestedAmount,
-                quantityMode,
-                available,
-                maxSearchStates,
-                TrinityPlanningMode.FIRST_FEASIBLE,
-                control);
-    }
-
-    /**
      * Selects one non-executable target route by allowing virtual reserve only for true external source keys.
      * The returned evidence is diagnostic-only: virtual reserve is separated from every actual inventory reserve and
      * must never be copied into an executable plan.
@@ -756,8 +732,7 @@ public final class TrinityAcyclicRouteOptimizer {
                 diagnosticReserves,
                 upperBounds,
                 Map.of(request.target(), request.requestedAmount()),
-                request.target(),
-                request.requiredTargetNet());
+                Map.of(request.target(), request.requiredTargetNet()));
         if (!exact.successful()) {
             return TrinityAlgorithmResult.failure(exact.diagnostic());
         }
@@ -794,8 +769,7 @@ public final class TrinityAcyclicRouteOptimizer {
                 solved.reserves(),
                 upperBounds,
                 Map.of(request.target(), request.requestedAmount()),
-                request.target(),
-                request.requiredTargetNet());
+                Map.of(request.target(), request.requiredTargetNet()));
         if (!exact.successful()) {
             return exact;
         }
@@ -1016,7 +990,8 @@ public final class TrinityAcyclicRouteOptimizer {
                 orderedFirings,
                 solved.reserves(),
                 solved.netChange(),
-                states));
+                states,
+                TrinityPlanQuality.PROVED_OPTIMAL));
     }
 
     private static Set<AEKey> touchedKeys(List<TrinityPatternVariant> variants, AEKey target) {

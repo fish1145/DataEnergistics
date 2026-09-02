@@ -40,37 +40,12 @@ public record TrinityPlanningStatistics(
                                         int seedRefinementPasses) {
 
     /**
-     * Compatibility constructor for existing exact planning paths while richer counters are introduced.
-     */
-    public TrinityPlanningStatistics(
-                                     int sccCount,
-                                     int variantCount,
-                                     long planningNanos,
-                                     long mipNanos,
-                                     int scheduleStates) {
-        this(
-                sccCount,
-                variantCount,
-                planningNanos,
-                planningNanos,
-                mipNanos,
-                scheduleStates,
-                0,
-                0,
-                0,
-                0,
-                TrinityPlanQuality.PROVED_OPTIMAL,
-                0,
-                BigInteger.ZERO,
-                BigInteger.ZERO,
-                0);
-    }
-
-    /**
      * @return zeroed statistics for plans that did not require graph solving
      */
     public static TrinityPlanningStatistics empty() {
-        return new TrinityPlanningStatistics(0, 0, 0L, 0L, 0);
+        return new TrinityPlanningStatistics(
+                0, 0, 0L, 0L, 0L, 0, 0, 0, 0, 0,
+                TrinityPlanQuality.PROVED_OPTIMAL, 0, BigInteger.ZERO, BigInteger.ZERO, 0);
     }
 
     /**

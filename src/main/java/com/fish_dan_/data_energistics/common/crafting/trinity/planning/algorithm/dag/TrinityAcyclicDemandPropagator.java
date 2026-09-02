@@ -20,6 +20,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import net.minecraft.network.chat.Component;
 
@@ -291,7 +292,8 @@ public final class TrinityAcyclicDemandPropagator {
                 orderedFirings,
                 reservedInputs,
                 net,
-                states));
+                states,
+                TrinityPlanQuality.PROVED_OPTIMAL));
     }
 
     private TrinityAlgorithmResult<TrinityAcyclicPlan> optimizeWholeGraph(
@@ -359,7 +361,9 @@ public final class TrinityAcyclicDemandPropagator {
                     new TrinityPlanningDiagnostic.PartialPlan(
                             Map.of(),
                             Map.of(),
-                            Map.of(target, requestedAmount))));
+                            Map.of(target, requestedAmount),
+                            Map.of(),
+                            List.of())));
         }
         if (optimized.diagnostic().inputShortage().isPresent() ||
                 optimized.diagnostic().partialPlan().isPresent()) {
@@ -369,31 +373,9 @@ public final class TrinityAcyclicDemandPropagator {
                 new TrinityPlanningDiagnostic.PartialPlan(
                         Map.of(),
                         Map.of(),
-                        Map.of(target, requestedAmount))));
-    }
-
-    /**
-     * Compatibility entry point that retains full optimisation.
-     */
-    public TrinityAlgorithmResult<TrinityAcyclicPlan> propagate(
-                                                                TrinityCraftingTopology topology,
-                                                                List<TrinityPatternVariant> variants,
-                                                                AEKey target,
-                                                                BigInteger requestedAmount,
-                                                                CraftingQuantityMode quantityMode,
-                                                                Map<AEKey, BigInteger> available,
-                                                                int maxSearchStates,
-                                                                TrinityPlanningControl control) {
-        return propagate(
-                topology,
-                variants,
-                target,
-                requestedAmount,
-                quantityMode,
-                TrinityPlanningInventory.finite(available),
-                maxSearchStates,
-                TrinityPlanningMode.FIRST_FEASIBLE,
-                control);
+                        Map.of(target, requestedAmount),
+                        Map.of(),
+                        List.of())));
     }
 
     private static Map<AEKey, List<TrinityPatternVariant>> indexProducers(

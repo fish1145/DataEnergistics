@@ -6,7 +6,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 
 import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.math.BigInteger;
@@ -44,34 +43,6 @@ public record TrinityCycleFeasibilityRequest(
                                              boolean shortageDiagnostic,
                                              int shortageStateLimit,
                                              TrinityMipCoefficientTemplate coefficientTemplate) {
-
-    /**
-     * Compatibility constructor for executable feasibility requests without virtual diagnostic input.
-     */
-    public TrinityCycleFeasibilityRequest(
-                                          List<TrinityPatternVariant> variants,
-                                          Set<AEKey> internalKeys,
-                                          TrinityCycleDemand demand,
-                                          Map<AEKey, BigInteger> available,
-                                          Set<AEKey> producibleInputs,
-                                          Map<TrinityPatternVariant, TrinityFiringBounds> firingBounds,
-                                          Optional<BigInteger> fixedExternalTotal,
-                                          BigInteger seedLowerBound,
-                                          BigInteger firingLowerBound) {
-        this(
-                variants,
-                internalKeys,
-                demand,
-                available,
-                producibleInputs,
-                firingBounds,
-                fixedExternalTotal,
-                seedLowerBound,
-                firingLowerBound,
-                false,
-                0,
-                TrinityMipCoefficientTemplate.create(variants, new ObjectArrayList<>(internalKeys)));
-    }
 
     /** Uses the already normalized structural axes owned by the shared immutable template. */
     public TrinityCycleFeasibilityRequest {
