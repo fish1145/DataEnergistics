@@ -1,7 +1,7 @@
 {
-	"block.data_energistics.me_beam_former": "ME 直线光束成型器",
-	"block.data_energistics.me_omni_beam_former": "ME 全向光束成型器",
-	"item.data_energistics.me_beam_former_part": "ME 光束成型面板",
+	"block.data_energistics.me_beam_former": "巨型ME 光束成型器",
+	"block.data_energistics.me_omni_beam_former": "全向ME 光束成型器",
+	"item.data_energistics.me_beam_former_part": "ME 光束成型器",
 	"item.data_energistics.beam_binding_tool": "光束绑定器",
 	"screen.data_energistics.beam.title": "ME 光束成型器",
 	"screen.data_energistics.beam.status.online": "状态：在线",

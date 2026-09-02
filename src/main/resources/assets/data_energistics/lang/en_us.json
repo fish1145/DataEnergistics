@@ -1,8 +1,8 @@
 {
-	"block.data_energistics.me_beam_former": "ME Directional Beam Former",
-	"block.data_energistics.me_omni_beam_former": "ME Omni Beam Former",
-	"item.data_energistics.me_beam_former_part": "ME Beam Former Part",
-	"item.data_energistics.beam_binding_tool": "Beam Binding Tool",
+	"block.data_energistics.me_beam_former": "Mega ME Beam Former",
+	"block.data_energistics.me_omni_beam_former": "Omni ME Beam Former",
+	"item.data_energistics.me_beam_former_part": "ME Beam Former",
+	"item.data_energistics.beam_binding_tool": "Laser Binding Tool",
 	"screen.data_energistics.beam.title": "ME Beam Former",
 	"screen.data_energistics.beam.status.online": "Status: online",
 	"screen.data_energistics.beam.status.offline": "Status: offline",
