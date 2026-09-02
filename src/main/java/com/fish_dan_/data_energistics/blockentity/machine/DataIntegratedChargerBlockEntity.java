@@ -113,7 +113,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String FLUID_TAG = "fluid";
     private static final String CONFIG_TAG = "config";
     private static final String OUTPUT_SIDES_TAG = "output_sides";
-    private static final String LEGACY_ITEM_OUTPUT_SIDES_TAG = "item_output_sides";
     private static final String PROGRESS_TAG = "progress";
     private static final String PROCESSING_MODE_TAG = "processing_mode";
     private static final ResourceLocation AE2_INSCRIBER = ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
@@ -352,7 +351,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
         this.storage.readFromNBT(data, STORAGE_TAG, registries);
-        moveRetiredInputStacks();
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
         this.fluidTank.readFromNBT(registries, data.getCompound(FLUID_TAG));
         if (data.contains(CONFIG_TAG)) {
@@ -361,8 +359,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         this.outputSides.clear();
         if (data.contains(OUTPUT_SIDES_TAG)) {
             readOutputSides(data, OUTPUT_SIDES_TAG, this.outputSides);
-        } else if (data.contains(LEGACY_ITEM_OUTPUT_SIDES_TAG)) {
-            readOutputSides(data, LEGACY_ITEM_OUTPUT_SIDES_TAG, this.outputSides);
         } else {
             this.outputSides.addAll(EnumSet.allOf(Direction.class));
         }
@@ -977,24 +973,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             ItemStack updated = current.copy();
             updated.grow(stack.getCount());
             this.storage.setItemDirect(slot, updated);
-        }
-    }
-
-    /**
-     * Input slots 6 and 7 are no longer exposed. Move their legacy contents into the six visible input slots
-     * whenever possible; any remainder stays stored safely and is still returned when the block is broken.
-     */
-    private void moveRetiredInputStacks() {
-        for (int slot = ITEM_INPUT_SLOT_COUNT; slot < ITEM_OUTPUT_START_SLOT; slot++) {
-            ItemStack remaining = this.storage.getStackInSlot(slot);
-            if (remaining.isEmpty()) {
-                continue;
-            }
-
-            for (int target = 0; target < ITEM_INPUT_SLOT_COUNT && !remaining.isEmpty(); target++) {
-                remaining = this.storage.insertItem(target, remaining, false);
-            }
-            this.storage.setItemDirect(slot, remaining);
         }
     }
 

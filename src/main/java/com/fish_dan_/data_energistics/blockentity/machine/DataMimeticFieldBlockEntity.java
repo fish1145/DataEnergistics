@@ -120,7 +120,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     public static final int SLOT_COUNT = BASE_ACTIVE_SLOTS + EXTRA_SLOTS_PER_CAPACITY_CARD * MAX_CAPACITY_CARDS;
     public static final double ENERGY_CACHE_CAPACITY = 1600.0;
     public static final long KEY_INPUT_CAPACITY = 640_000L;
-    private static final int LEGACY_HIDDEN_BUFFER_SLOTS = SLOT_COUNT * 64;
     private static final double POWER_PER_ACTIVE_CARRIER = 500.0;
     private static final long DATA_FLOW_PER_WORK_CYCLE = 3_200L;
     private static final int BASE_WORK_INTERVAL_TICKS = 200;
@@ -150,7 +149,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
     private static final String OUTPUT_SIDES_TAG = "output_sides";
     private static final String KEY_INPUT_TAG = "key_input";
     private static final String WORK_TICKS_TAG = "work_ticks";
-    private static final String HIDDEN_BUFFER_TAG = "hidden_buffer";
     private static final String PENDING_OUTPUTS_TAG = "pending_outputs";
     private static final ResourceLocation GOAT_ENTITY_ID = ResourceLocation.parse("minecraft:goat");
     private static final ResourceLocation ARMADILLO_ENTITY_ID = ResourceLocation.parse("minecraft:armadillo");
@@ -276,7 +274,6 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         this.adjacentInsertionCursors.clear();
         this.adjacentContainerTargets.clear();
         this.pendingOutput.readFromNbt(registries, data.getList(PENDING_OUTPUTS_TAG, Tag.TAG_COMPOUND));
-        migrateLegacyHiddenBuffer(data, registries);
         this.keyInputStack = data.contains(KEY_INPUT_TAG) ? GenericStack.readTag(registries, data.getCompound(KEY_INPUT_TAG)) : null;
         this.redstoneControlled = data.getBoolean(REDSTONE_CONTROLLED_TAG);
         this.autoPullKeyInput = data.getBoolean(AUTO_PULL_KEY_INPUT_TAG);
@@ -301,29 +298,10 @@ public class DataMimeticFieldBlockEntity extends AENetworkedPoweredBlockEntity
         syncKeyMenuFromStack();
     }
 
-    private void migrateLegacyHiddenBuffer(CompoundTag data, HolderLookup.Provider registries) {
-        if (!data.contains(HIDDEN_BUFFER_TAG, Tag.TAG_LIST)) {
-            return;
-        }
-
-        AppEngInternalInventory legacyBuffer = new AppEngInternalInventory(null, LEGACY_HIDDEN_BUFFER_SLOTS);
-        legacyBuffer.readFromNBT(data, HIDDEN_BUFFER_TAG, registries);
-        List<ItemStack> legacyPending = new ArrayList<>();
-        for (ItemStack stack : legacyBuffer) {
-            if (!stack.isEmpty()) {
-                legacyPending.add(stack.copy());
-            }
-        }
-        if (!legacyPending.isEmpty()) {
-            this.pendingOutput.append(legacyPending);
-        }
-    }
-
     @Override
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
-        data.remove(HIDDEN_BUFFER_TAG);
         data.put(PENDING_OUTPUTS_TAG, this.pendingOutput.writeToNbt(registries));
         if (this.keyInputStack != null && this.keyInputStack.amount() > 0) {
             data.put(KEY_INPUT_TAG, GenericStack.writeTag(registries, this.keyInputStack));

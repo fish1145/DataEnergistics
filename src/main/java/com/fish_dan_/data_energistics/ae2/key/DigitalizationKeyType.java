@@ -9,12 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import com.mojang.serialization.DataResult;
-import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.MapLike;
-import com.mojang.serialization.RecordBuilder;
-
-import java.util.stream.Stream;
 
 /**
  * AE key type shared by Data Flow and Echo so AE2 exposes one Digitalization visibility toggle.
@@ -27,34 +22,9 @@ public final class DigitalizationKeyType extends AEKeyType {
 
     public static final DigitalizationKeyType TYPE = new DigitalizationKeyType();
 
-    private static final MapCodec<DigitalizationKey> CURRENT_CODEC = ResourceLocation.CODEC
+    private static final MapCodec<DigitalizationKey> CODEC = ResourceLocation.CODEC
             .fieldOf(RESOURCE_FIELD)
             .flatXmap(DigitalizationKeyType::resolveResource, key -> DataResult.success(key.getId()));
-    private static final MapCodec<DigitalizationKey> CODEC = new MapCodec<>() {
-
-        @Override
-        public <T> DataResult<DigitalizationKey> decode(DynamicOps<T> ops, MapLike<T> input) {
-            if (input.get(RESOURCE_FIELD) != null) {
-                return CURRENT_CODEC.decode(ops, input);
-            }
-
-            T legacyType = input.get(AEKey.TYPE_FIELD);
-            if (legacyType == null) {
-                return DataResult.error(() -> "Digitalization key is missing both resource and legacy type fields");
-            }
-            return ResourceLocation.CODEC.parse(ops, legacyType).flatMap(DigitalizationKeyType::resolveResource);
-        }
-
-        @Override
-        public <T> RecordBuilder<T> encode(DigitalizationKey input, DynamicOps<T> ops, RecordBuilder<T> prefix) {
-            return CURRENT_CODEC.encode(input, ops, prefix);
-        }
-
-        @Override
-        public <T> Stream<T> keys(DynamicOps<T> ops) {
-            return CURRENT_CODEC.keys(ops);
-        }
-    };
 
     private DigitalizationKeyType() {
         super(

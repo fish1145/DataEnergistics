@@ -182,8 +182,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             List.of());
     @Nullable
     private TowerNetworkDomain registeredTowerDomain;
-    @Nullable
-    private CompoundTag pendingLegacyBindingData;
     private long lastClusterCacheTick = Long.MIN_VALUE;
     private List<BlockPos> cachedEndpoints = List.of();
     private List<BlockPos> cachedAeDisplayTargets = List.of();
@@ -260,7 +258,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         if (!(this.level instanceof ServerLevel)) {
             return;
         }
-        completePendingLegacyBindingMigration();
         registerLoadedTower();
         registerInChunkIndex();
         invalidateEndpointCache();
@@ -321,7 +318,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
         this.linkGraph.clear();
         this.towerBindings.clear();
         this.nextBindingFifoSequence = 0;
-        this.pendingLegacyBindingData = null;
         this.targetTransferModes.clear();
 
         Tag targetTransferModesTag = data.get(TARGET_TRANSFER_MODES_TAG);
@@ -338,26 +334,16 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
             }
         }
 
-        if (this.level == null && !data.contains(VersionedTowerBindingCodec.VERSION_TAG)) {
-            this.pendingLegacyBindingData = data.copy();
-        } else {
-            readTowerBindings(data);
-        }
+        readTowerBindings(data);
 
         clearRuntimeCaches();
     }
 
     /**
-     * Reads bindings after their legacy dimension context is known.
+     * Restores versioned bindings without requiring a loaded level.
      */
     private void readTowerBindings(CompoundTag data) {
-        ResourceLocation towerDimensionId = this.level == null ? null : this.level.dimension().location();
-        Map<BlockPos, Boolean> legacyDisabledStates = new HashMap<>();
-        for (Map.Entry<BlockPos, TargetTransferMode> entry : this.targetTransferModes.entrySet()) {
-            legacyDisabledStates.put(entry.getKey(), entry.getValue() == TargetTransferMode.DISABLED);
-        }
-        for (TowerBinding binding : TOWER_BINDING_PERSISTENCE.read(
-                data, towerDimensionId, legacyDisabledStates)) {
+        for (TowerBinding binding : TOWER_BINDING_PERSISTENCE.read(data)) {
             this.towerBindings.put(binding.anchor(), binding);
             this.linkGraph.addLinked(binding.anchor());
             if (!binding.enabled()) {
@@ -367,18 +353,6 @@ public class DataDistributionTowerBlockEntity extends AENetworkedBlockEntity imp
                     this.nextBindingFifoSequence,
                     Math.incrementExact(binding.fifoSequence()));
         }
-    }
-
-    /**
-     * Completes deferred legacy migration during the first level-aware lifecycle callback.
-     */
-    private void completePendingLegacyBindingMigration() {
-        CompoundTag pendingData = this.pendingLegacyBindingData;
-        if (pendingData == null) {
-            return;
-        }
-        this.pendingLegacyBindingData = null;
-        readTowerBindings(pendingData);
     }
 
     @Override
