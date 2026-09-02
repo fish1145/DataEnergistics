@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.integration.viewer.emi.transfer;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
-import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
@@ -75,12 +75,12 @@ public final class EmiMultiblockPatternTransferHandler<T extends PatternEncoding
         if (!check.canTransfer()) {
             return false;
         }
-        PatternEncodingViewerRecipeScope recipeScope;
+        PatternEncodingRankingContext rankingContext;
         try {
-            recipeScope = EmiPatternTransferContextBridge.resolve(recipe);
+            rankingContext = EmiPatternTransferContextBridge.resolve(recipe);
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
-                    "Rejected EMI multiblock pattern transfer because its category/workstation context could not be resolved",
+                    "Rejected EMI multiblock pattern transfer because its recipe-type context could not be resolved",
                     exception);
             PatternEncodingPreferencesClient.clearTransferredRecipeContext(context.getScreenHandler());
             return false;
@@ -89,7 +89,7 @@ public final class EmiMultiblockPatternTransferHandler<T extends PatternEncoding
             return false;
         }
         PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(
-                context.getScreenHandler(), recipeScope);
+                context.getScreenHandler(), rankingContext);
         return true;
     }
 

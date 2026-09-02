@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.menu.universal;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
+import com.fish_dan_.data_energistics.common.crafting.pattern.EncodedPatternRecipeReference;
 import com.fish_dan_.data_energistics.integration.ae.extendedaeplus.EaepPatternEncodingHandoff;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.LegacyPatternEncodingPreferences;
@@ -157,9 +158,11 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         if (this.isServerSide()) {
             syncTerminalState();
             syncBlankPatternCountFromNetwork();
-            syncPatternProvidersIfNeeded(false);
         }
         super.broadcastChanges();
+        if (this.isServerSide()) {
+            syncPatternProvidersIfNeeded(false);
+        }
     }
 
     @Override
@@ -182,6 +185,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
         boolean encodedSuccessfully = false;
         try {
+            data_energistics$getPreferenceSession().restoreEncodedPattern(this, this.getPlayer().level());
             syncPatternProvidersIfNeeded(true);
             PatternEncodingSourceHelper.applyPatternSource(this,
                     PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
@@ -206,6 +210,12 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                     encodedPattern,
                     this.mode == EncodingMode.PROCESSING &&
                             ((PatternOutputMatchMenu) this).data_energistics$isProcessingOutputSameItem());
+            EncodedPatternRecipeReference.applyProcessingRecipeType(
+                    encodedPattern,
+                    PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
+                            this,
+                            data_energistics$getPreferenceSession(),
+                            this));
             encodedPatternInv.setItemDirect(0, encodedPattern);
             encodedSuccessfully = true;
         } finally {
@@ -261,6 +271,16 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     @Override
     public EncodingMode data_energistics$getEncodingMode() {
         return this.getMode();
+    }
+
+    @Override
+    public @Nullable AEItemKey data_energistics$getEncodedPatternDefinition() {
+        for (var slot : this.slots) {
+            if (this.getSlotSemantic(slot) == SlotSemantics.ENCODED_PATTERN) {
+                return AEItemKey.of(slot.getItem());
+            }
+        }
+        return null;
     }
 
     @Override
@@ -632,7 +652,6 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 this.syncedPatternProvidersById,
                 () -> this.nextSyncedPatternProviderId++,
                 rankingContext,
-                data_energistics$getPreferenceSession().viewerWorkstationIds(),
                 data_energistics$getPreferenceSession().leafCounts());
         this.patternProviderSyncTracker.refreshed(
                 publication,

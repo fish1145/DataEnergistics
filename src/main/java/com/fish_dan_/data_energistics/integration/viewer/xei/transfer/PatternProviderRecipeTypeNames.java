@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.integration.viewer.xei.transfer;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
@@ -17,6 +19,7 @@ import java.util.List;
 public final class PatternProviderRecipeTypeNames {
 
     private static final Object2ObjectLinkedOpenHashMap<ResourceLocation, Source> SOURCES = new Object2ObjectLinkedOpenHashMap<>();
+    private static long revision;
 
     private PatternProviderRecipeTypeNames() {}
 
@@ -25,13 +28,17 @@ public final class PatternProviderRecipeTypeNames {
      */
     public static synchronized void register(ResourceLocation sourceId, Source source) {
         SOURCES.put(sourceId, source);
+        incrementRevision();
     }
 
     /**
      * Removes a viewer-backed source when its runtime becomes unavailable.
      */
     public static synchronized void unregister(ResourceLocation sourceId) {
-        SOURCES.remove(sourceId);
+        if (SOURCES.containsKey(sourceId)) {
+            SOURCES.remove(sourceId);
+            incrementRevision();
+        }
     }
 
     /**
@@ -45,11 +52,18 @@ public final class PatternProviderRecipeTypeNames {
 
         ObjectLinkedOpenHashSet<String> names = new ObjectLinkedOpenHashSet<>();
         for (Source source : sources) {
-            for (Component name : source.resolve(recipeTypeId)) {
-                String localizedName = name.getString();
-                if (!localizedName.isBlank()) {
-                    names.add(localizedName);
+            try {
+                for (Component name : source.resolve(recipeTypeId)) {
+                    String localizedName = name.getString();
+                    if (!localizedName.isBlank()) {
+                        names.add(localizedName);
+                    }
                 }
+            } catch (RuntimeException exception) {
+                Data_Energistics.LOGGER.error(
+                        "Failed to resolve pattern-viewer name for recipe type {}",
+                        recipeTypeId,
+                        exception);
             }
         }
         return ObjectLists.unmodifiable(new ObjectArrayList<>(names));
@@ -61,6 +75,16 @@ public final class PatternProviderRecipeTypeNames {
     public static Component resolveDisplayName(ResourceLocation recipeTypeId) {
         ObjectList<String> names = resolve(recipeTypeId);
         return Component.literal(names.isEmpty() ? recipeTypeId.toString() : names.getFirst());
+    }
+
+    public static synchronized long revision() {
+        return revision;
+    }
+
+    private static void incrementRevision() {
+        if (revision != Long.MAX_VALUE) {
+            revision++;
+        }
     }
 
     /**

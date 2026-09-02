@@ -8,7 +8,6 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPrevie
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingTransferKeyAware;
-import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSessionState.DataRipperTransferMetadata;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;
@@ -157,7 +156,7 @@ public final class PatternEncodingSourceHelper {
 
     public static void rememberTransferSource(PatternEncodingTermMenu menu,
                                               EncodingMode transferMode,
-                                              PatternEncodingViewerRecipeScope recipeScope) {
+                                              PatternEncodingRankingContext rankingContext) {
         if (menu instanceof PatternEncodingSourceAware sourceAware) {
             if (transferMode != EncodingMode.PROCESSING) {
                 sourceAware.data_energistics$setPendingPatternSource(null);
@@ -180,31 +179,10 @@ public final class PatternEncodingSourceHelper {
                 return;
             }
             if (preferenceSession != null) {
-                preferenceSession.setViewerRecipeScope(
-                        recipeScope.rankingContext(), recipeScope.workstationIds());
+                preferenceSession.setRankingContext(rankingContext);
             }
-            PatternEncodingPreviewMenu previewMenu = menu instanceof PatternEncodingPreviewMenu value ? value : null;
-            sourceAware.data_energistics$setPendingPatternSource(
-                    resolveTransferredWorkstation(recipeScope, previewMenu));
+            sourceAware.data_energistics$setPendingPatternSource(null);
         }
-    }
-
-    @Nullable
-    private static ResourceLocation resolveTransferredWorkstation(
-                                                                  PatternEncodingViewerRecipeScope recipeScope,
-                                                                  @Nullable PatternEncodingPreviewMenu previewMenu) {
-        if (previewMenu == null) {
-            return null;
-        }
-        PatternEncodingPreviewMenu.SyncedPatternProviderList providerState = previewMenu.data_energistics$getSyncedPatternProviderState();
-        if (!recipeScope.rankingContext().equals(providerState.rankingContext()) ||
-                !recipeScope.workstationIds().equals(providerState.viewerWorkstationIds())) {
-            return null;
-        }
-        if (providerState.providers().isEmpty()) {
-            return null;
-        }
-        return providerState.providers().getFirst().preferredWorkstationId();
     }
 
     /**
@@ -223,6 +201,25 @@ public final class PatternEncodingSourceHelper {
             case PROCESSING -> null;
         };
         return recipeTypeId == null ? null : PatternEncodingRankingContext.of(recipeTypeId);
+    }
+
+    /**
+     * Resolves the recipe type that should be persisted on the next encoded pattern.
+     */
+    @Nullable
+    public static ResourceLocation resolveProcessingPatternRecipeType(
+                                                                      PatternEncodingPreviewMenu previewMenu,
+                                                                      PatternEncodingPreferenceSession session,
+                                                                      PatternEncodingSourceAware sourceAware) {
+        if (!sourceAware.data_energistics$isPatternSourceEnabled()) {
+            return null;
+        }
+        EncodingMode mode = previewMenu.data_energistics$getEncodingMode();
+        if (mode != EncodingMode.PROCESSING) {
+            return null;
+        }
+        PatternEncodingRankingContext context = session.rankingContext();
+        return context == null ? null : context.recipeTypeId();
     }
 
     /**
@@ -551,16 +548,6 @@ public final class PatternEncodingSourceHelper {
 
         if (shouldIgnoreWorkstationMemory(sourceAware)) {
             return null;
-        }
-
-        if (sourceAware instanceof PatternEncodingPreviewMenu previewMenu &&
-                sourceAware instanceof PatternEncodingPreferenceMenu preferenceMenu &&
-                previewMenu.data_energistics$getEncodingMode() == EncodingMode.PROCESSING) {
-            PatternEncodingPreferenceSession session = preferenceMenu.data_energistics$getPreferenceSession();
-            PatternEncodingRankingContext rankingContext = session.rankingContext();
-            return rankingContext == null ? null : resolveTransferredWorkstation(
-                    new PatternEncodingViewerRecipeScope(rankingContext, session.viewerWorkstationIds()),
-                    previewMenu);
         }
 
         ResourceLocation workstationId = sourceAware.data_energistics$getPendingPatternSource();

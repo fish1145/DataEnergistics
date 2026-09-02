@@ -8,9 +8,8 @@ import java.nio.charset.StandardCharsets;
  * Identifies the exact viewer recipe type used for provider matching and ranking.
  *
  * <p>
- * The snapshot contains only the canonical recipe-type identifier used as the learning key. A viewer transfer supplies
- * ephemeral workstation candidates separately; the server matches them against registered provider metadata or AE2
- * terminal groups exposed by the current grid.
+ * The snapshot contains only the canonical recipe-type identifier used as the learning key. Localized category names
+ * and workstation candidates are resolved lazily by the client upload screen and never enter the server snapshot.
  * </p>
  */
 public record PatternEncodingRankingContext(ResourceLocation recipeTypeId) {

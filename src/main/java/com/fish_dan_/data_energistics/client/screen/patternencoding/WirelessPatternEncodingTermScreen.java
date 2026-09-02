@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.client.screen.base.AETextFieldInteraction;
 import com.fish_dan_.data_energistics.client.widget.PatternRecipeTypeToggleButton;
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternProviderRecipeTypeNames;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
@@ -110,6 +111,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
     private static final float PROVIDER_COUNT_TEXT_SCALE = 0.68F;
 
     private final Scrollbar previewScrollbar = new Scrollbar(Scrollbar.SMALL);
+    private final FractionalScrollbarWheel previewWheel = new FractionalScrollbarWheel();
     private boolean previewVisible;
     private boolean renderingPreviewTooltip;
     private boolean previewScrollbarDragging;
@@ -133,6 +135,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
     private Rect2i previewPanelDragBaseBounds;
     private boolean previewLayerWidgetRenderingDeferred;
     private final PatternProviderLeafPanel leafPanel;
+    private PatternProviderSearchContext providerSearchContext = PatternProviderSearchContext.resolve(null);
     private String pendingParentSelectionLeafDigest;
     private int pendingParentSelectionTicks;
 
@@ -157,6 +160,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         initRecipeTypeToggleButton();
         initPreviewDragButton();
         this.leafPanel.init();
+        refreshProviderSearchContext(true);
         invalidateVisibleProvidersCache();
         updateProviderSearchBox();
         updateProviderRenameBox();
@@ -172,6 +176,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         updateProviderRenameBox();
         updateRecipeTypeToggleButton();
         updatePreviewDragButton();
+        refreshProviderSearchContext(false);
         invalidateVisibleProvidersCache();
         syncProviderSelection();
         this.leafPanel.updateProviderSnapshot();
@@ -254,7 +259,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
                 return true;
             }
 
-            this.previewVisible = true;
+            openPreviewPanel();
             boolean handled = super.mouseClicked(mouseX, mouseY, button);
             return handled || isOverEncodeButton(mouseX, mouseY);
         }
@@ -273,7 +278,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
                     this.menu.encode();
                 }
             } else {
-                this.previewVisible = true;
+                openPreviewPanel();
                 this.menu.encode();
             }
             return true;
@@ -414,7 +419,11 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         if (this.leafPanel.mouseScrolled(mouseX, mouseY, scrollY)) {
             return true;
         }
-        if (this.previewVisible && (isOverPreviewScrollbar(mouseX, mouseY) || isOverProviderList(mouseX, mouseY)) && this.previewScrollbar.onMouseWheel(new Point((int) Math.round(mouseX), (int) Math.round(mouseY)), scrollY)) {
+        if (this.previewVisible && isOverPreviewLayer((int) mouseX, (int) mouseY)) {
+            this.previewWheel.apply(
+                    this.previewScrollbar,
+                    new Point((int) Math.round(mouseX), (int) Math.round(mouseY)),
+                    scrollY);
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -736,6 +745,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
                 Component.translatable("screen.data_energistics.pattern_writer_preview.search_hint"));
         this.providerSearchBox.setResponder(value -> {
             this.previewScrollbar.setCurrentScroll(0);
+            this.previewWheel.reset();
             invalidateVisibleProvidersCache();
         });
         this.addRenderableWidget(this.providerSearchBox);
@@ -828,11 +838,11 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         }
 
         this.recipeTypeToggleButton.setState(sourceAware.data_energistics$isPatternSourceEnabled());
-        var rankingContext = previewBridge().data_energistics$getSyncedPatternProviderState().rankingContext();
-        if (rankingContext != null) {
+        var recipeContext = ((PatternEncodingPreferenceMenu) this.menu).data_energistics$getPreferenceSession().rankingContext();
+        if (recipeContext != null) {
             this.recipeTypeToggleButton.setDetailLine(Component.translatable(
                     "button.data_energistics.pattern_encoding_recipe_type_toggle.detail",
-                    PatternProviderRecipeTypeNames.resolveDisplayName(rankingContext.recipeTypeId())));
+                    PatternProviderRecipeTypeNames.resolveDisplayName(recipeContext.recipeTypeId())));
         } else {
             this.recipeTypeToggleButton.setDetailLine(Component.translatable(
                     "button.data_energistics.pattern_encoding_recipe_type_toggle.detail.none"));
@@ -890,6 +900,28 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
     private void closePreviewPanels() {
         this.previewVisible = false;
         this.leafPanel.close();
+        this.providerSearchContext = PatternProviderSearchContext.resolve(null);
+        this.previewWheel.reset();
+    }
+
+    private void openPreviewPanel() {
+        this.previewVisible = true;
+        this.previewWheel.reset();
+        refreshProviderSearchContext(true);
+    }
+
+    private void refreshProviderSearchContext(boolean force) {
+        if (!this.previewVisible) {
+            return;
+        }
+        var reference = previewBridge().data_energistics$getEncodedPatternRecipeReference();
+        if (!force && this.providerSearchContext.current(reference)) {
+            return;
+        }
+        this.providerSearchContext = PatternProviderSearchContext.resolve(reference);
+        this.previewScrollbar.setCurrentScroll(0);
+        this.previewWheel.reset();
+        invalidateVisibleProvidersCache();
     }
 
     private void updatePreviewScrollbar() {
@@ -901,6 +933,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         this.previewScrollbar.setRange(0, hiddenRows, 1);
         this.previewScrollbar.setVisible(this.previewVisible && hiddenRows > 0);
         this.previewScrollbar.setCurrentScroll(Math.min(this.previewScrollbar.getCurrentScroll(), hiddenRows));
+        if (hiddenRows == 0) {
+            this.previewWheel.reset();
+        }
     }
 
     private void syncProviderSelection() {
@@ -1004,8 +1039,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         PatternEncodingPreviewMenu.SyncedPatternProviderList providerState = previewBridge().data_energistics$getSyncedPatternProviderState();
         String query = this.providerSearchBox != null ? this.providerSearchBox.getValue() : "";
         this.cachedVisibleProviders = PatternProviderDisplayOrder.order(
-                providerState.providers(),
+                providerState,
                 query,
+                this.providerSearchContext,
                 this::getDefaultProviderName,
                 PatternProviderRecipeTypeNames::resolve);
         this.visibleProvidersCacheDirty = false;

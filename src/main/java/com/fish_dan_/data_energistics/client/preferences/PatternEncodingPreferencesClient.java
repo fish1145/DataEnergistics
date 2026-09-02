@@ -7,7 +7,6 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPrevie
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
-import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderClickStatistic;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesSyncPayload;
@@ -54,7 +53,8 @@ public final class PatternEncodingPreferencesClient {
                     preferences.previewPanelOffsetX(), preferences.previewPanelOffsetY());
         }
         PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
-        if (session.rankingContext() == null) {
+        restoreEncodedPattern(menu, interfaces);
+        if (session.rankingContext() == null && !session.hasDeferredSnapshot()) {
             ResourceLocation fixedWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(
                     interfaces.previewMenu().data_energistics$getEncodingMode());
             session.setRankingContext(PatternEncodingSourceHelper.resolveFixedModeRankingContext(
@@ -73,22 +73,24 @@ public final class PatternEncodingPreferencesClient {
         if (fixedWorkstation == null) {
             throw new IllegalStateException("Processing transfers require an exact viewer context");
         }
-        interfaces.preferenceMenu().data_energistics$getPreferenceSession().setRankingContext(
+        PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
+        session.rememberEncodedPattern(interfaces.previewMenu());
+        session.setRankingContext(
                 PatternEncodingSourceHelper.resolveFixedModeRankingContext(
                         transferMode, fixedWorkstation));
-        interfaces.preferenceMenu().data_energistics$getPreferenceSession().deferSnapshotUntil(transferMode);
+        session.deferSnapshotUntil(transferMode);
     }
 
     /**
      * Persists a successful processing transfer with its exact recipe-type context.
      */
     public static void captureTransferredProcessingRecipe(AbstractContainerMenu menu,
-                                                          PatternEncodingViewerRecipeScope transferredScope) {
+                                                          PatternEncodingRankingContext rankingContext) {
         Interfaces interfaces = Interfaces.require(menu);
         PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
+        session.rememberEncodedPattern(interfaces.previewMenu());
         if (interfaces.sourceAware().data_energistics$isPatternSourceEnabled()) {
-            session.setViewerRecipeScope(
-                    transferredScope.rankingContext(), transferredScope.workstationIds());
+            session.setRankingContext(rankingContext);
         } else {
             session.setRankingContext(null);
         }
@@ -100,6 +102,7 @@ public final class PatternEncodingPreferencesClient {
      */
     public static void flushDeferredSnapshot(AbstractContainerMenu menu) {
         Interfaces interfaces = Interfaces.require(menu);
+        restoreEncodedPattern(menu, interfaces);
         PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
         if (session.consumeDeferredSnapshotIfReady(interfaces.previewMenu().data_energistics$getEncodingMode())) {
             sendSnapshot(menu);
@@ -111,7 +114,9 @@ public final class PatternEncodingPreferencesClient {
      */
     public static void clearTransferredRecipeContext(PatternEncodingTermMenu menu) {
         try {
-            Interfaces.require(menu);
+            Interfaces interfaces = Interfaces.require(menu);
+            interfaces.preferenceMenu().data_energistics$getPreferenceSession().rememberEncodedPattern(
+                    interfaces.previewMenu());
             PatternEncodingSourceHelper.clearViewerTransferContext(menu);
             sendSnapshot(menu);
         } catch (RuntimeException exception) {
@@ -136,6 +141,7 @@ public final class PatternEncodingPreferencesClient {
      */
     public static void setPatternSourceEnabled(AbstractContainerMenu menu, boolean enabled) {
         Interfaces interfaces = Interfaces.require(menu);
+        restoreEncodedPattern(menu, interfaces);
         PatternEncodingClientPreferencesAccess.get().setPatternSourceEnabled(enabled);
         interfaces.sourceAware().data_energistics$setPatternSourceEnabled(enabled);
         if (!enabled) {
@@ -168,8 +174,12 @@ public final class PatternEncodingPreferencesClient {
      */
     public static void sendSnapshot(AbstractContainerMenu menu) {
         Interfaces interfaces = Interfaces.require(menu);
+        restoreEncodedPattern(menu, interfaces);
         PatternEncodingClientPreferences preferences = PatternEncodingClientPreferencesAccess.get();
         PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
+        if (session.hasDeferredSnapshot()) {
+            return;
+        }
         int presentMask = preferences.presentMask();
 
         boolean uploadEnabled = (presentMask & PatternEncodingClientPreferences.PRESENT_UPLOAD_ENABLED) != 0 ? preferences.uploadEnabled() : interfaces.sourceAware().data_energistics$isUploadEnabled();
@@ -203,8 +213,16 @@ public final class PatternEncodingPreferencesClient {
                 offsetX,
                 offsetY,
                 rankingContext,
-                session.viewerWorkstationIds(),
                 statistics));
+    }
+
+    private static void restoreEncodedPattern(AbstractContainerMenu menu, Interfaces interfaces) {
+        PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
+        EncodingMode restoredMode = session.restoreEncodedPattern(
+                interfaces.previewMenu(), ((PatternEncodingTermMenu) menu).getPlayer().level());
+        if (restoredMode != null) {
+            session.deferSnapshotUntil(restoredMode);
+        }
     }
 
     private static PatternEncodingPreferencesSyncPayload.LeafStatistic toPayloadStatistic(

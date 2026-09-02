@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.integration.viewer.emi.transfer.EmiPatternTransferContextBridge;
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternEncodingViewerContext;
-import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
 import net.minecraft.network.chat.Component;
@@ -41,9 +41,9 @@ public abstract class EmiEncodePatternHandlerMixin {
         if (!doTransfer) {
             return original.call(menu, holder, emiRecipe, false);
         }
-        PatternEncodingViewerRecipeScope recipeScope;
+        PatternEncodingRankingContext rankingContext;
         try {
-            recipeScope = EmiPatternTransferContextBridge.resolve(emiRecipe);
+            rankingContext = EmiPatternTransferContextBridge.resolve(emiRecipe);
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Rejected EMI pattern transfer because its recipe-type context could not be resolved",
@@ -52,7 +52,7 @@ public abstract class EmiEncodePatternHandlerMixin {
             return AbstractRecipeHandler.Result.createFailed(
                     Component.translatable("data_energistics.pattern_transfer.context_unavailable"));
         }
-        EmiPatternTransferContextBridge.begin(menu, recipeScope);
+        EmiPatternTransferContextBridge.begin(menu, rankingContext);
         try {
             return original.call(menu, holder, emiRecipe, true);
         } finally {
@@ -79,11 +79,11 @@ public abstract class EmiEncodePatternHandlerMixin {
         EncodingMode transferMode = PatternEncodingViewerContext.resolveEncodingMode(
                 holder == null ? null : holder.value(),
                 emiRecipe.getCategory().equals(VanillaEmiRecipeCategories.CRAFTING));
-        PatternEncodingViewerRecipeScope recipeScope = EmiPatternTransferContextBridge.requireCurrent(menu);
-        PatternEncodingSourceHelper.rememberTransferSource(menu, transferMode, recipeScope);
+        PatternEncodingRankingContext rankingContext = EmiPatternTransferContextBridge.requireCurrent(menu);
+        PatternEncodingSourceHelper.rememberTransferSource(menu, transferMode, rankingContext);
         PatternEncodingSourceHelper.rememberDataRipperTransferMetadata(menu, transferMode, holder, emiRecipe);
         if (transferMode == EncodingMode.PROCESSING) {
-            PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, recipeScope);
+            PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, rankingContext);
         } else {
             PatternEncodingPreferencesClient.captureTransferredRecipe(menu, transferMode);
         }
