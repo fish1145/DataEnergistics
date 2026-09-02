@@ -3,21 +3,27 @@
 	"inputs": {
 		"items": [
 			{
+				"tag": "data_energistics:me_emitters"
+			},
+			{
 				"item": "data_energistics:me_beam_former_part"
 			},
 			{
-				"item": "ae2:fluix_pearl"
+				"item": "ae2:quartz_vibrant_glass",
+				"count": 2
 			},
 			{
-				"item": "ae2:energy_acceptor"
+				"item": "ae2:charged_staff"
 			},
 			{
-				"item": "ae2:fluix_smart_dense_cable",
-				"count": 6
+				"tag": "ae2:covered_dense_cable"
 			},
 			{
-				"tag": "c:gems/data_crystal",
-				"count": 16
+				"item": "data_energistics:card_saber_energy"
+			},
+			{
+				"item": "minecraft:amethyst_shard",
+				"count": 4
 			}
 		],
 		"resource": {
