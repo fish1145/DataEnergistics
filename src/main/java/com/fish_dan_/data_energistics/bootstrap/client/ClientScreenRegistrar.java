@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
+import com.fish_dan_.data_energistics.client.screen.beam.BeamFormerScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.AdaptivePatternProviderScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataAsynchronousProcessingFactoryScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataDistributionTowerScreen;
@@ -50,6 +51,7 @@ final class ClientScreenRegistrar {
         event.register(DEMenus.TRINITY_DATA_CORE.get(), TrinityDataCoreScreen::new);
         InitScreens.register(event, DEMenus.DATA_MIMETIC_FIELD.get(), DataMimeticFieldScreen::new, "/screens/data_mimetic_field.json");
         InitScreens.register(event, DEMenus.DATA_SOLAR_PANEL.get(), DataSolarPanelScreen::new, "/screens/me_solar_panel.json");
+        InitScreens.register(event, DEMenus.BEAM_FORMER.get(), BeamFormerScreen::new, "/screens/beam_former.json");
         InitScreens.register(event, DEMenus.DIGITAL_STORAGE_DEPOT.get(), DigitalStorageDepotScreen::new, "/screens/digital_storage_depot.json");
         InitScreens.register(event, DEMenus.COMPOSITE_WAREHOUSE.get(), CompositeWarehouseScreen::new, "/screens/composite_warehouse.json");
         InitScreens.register(event, DEMenus.ME_COMPOSITE_INPUT_WAREHOUSE.get(), MeCompositeInputWarehouseScreen::new, "/screens/me_composite_input_warehouse.json");

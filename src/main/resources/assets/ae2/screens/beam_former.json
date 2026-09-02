@@ -1,0 +1,29 @@
+{
+	"$schema": "schema.json",
+	"includes": [
+		"common/common.json",
+		"common/player_inventory.json",
+		"common/toolbox.json"
+	],
+	"background": {
+		"texture": "guis/me_solar_panel.png",
+		"srcRect": [0, 0, 176, 183]
+	},
+	"text": {
+		"dialog_title": {
+			"text": { "translate": "screen.data_energistics.beam.title" },
+			"position": { "left": 88, "top": 6 },
+			"align": "CENTER"
+		},
+		"status": { "position": { "left": 8, "top": 22 } },
+		"range": { "position": { "left": 8, "top": 32 } },
+		"cards": { "position": { "left": 8, "top": 42 } },
+		"power": { "position": { "left": 8, "top": 52 } },
+		"connections": { "position": { "left": 8, "top": 62 } },
+		"bindings": { "position": { "left": 8, "top": 72 } },
+		"visibility": { "position": { "left": 8, "top": 82 } }
+	},
+	"widgets": {
+		"upgrades": { "left": 174, "top": 0 }
+	}
+}

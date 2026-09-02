@@ -17,8 +17,10 @@ import com.fish_dan_.data_energistics.blockentity.storage.MeCompositeOutputWareh
 import com.fish_dan_.data_energistics.blockentity.storage.MePatternBufferBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.common.beam.BeamEndpoint;
 import com.fish_dan_.data_energistics.item.order.OrderPackageMenuHost;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumMenuHost;
+import com.fish_dan_.data_energistics.menu.beam.BeamFormerMenu;
 import com.fish_dan_.data_energistics.menu.machine.DataAsynchronousProcessingFactoryMenu;
 import com.fish_dan_.data_energistics.menu.machine.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.menu.machine.DataExtractorMenu;
@@ -124,6 +126,10 @@ public final class DEMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<DataSolarPanelMenu>> DATA_SOLAR_PANEL = MENUS.register("me_solar_panel", () -> MenuTypeBuilder
             .create(DataSolarPanelMenu::new, DataSolarPanelMenuHost.class)
             .buildUnregistered(ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "me_solar_panel")));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<BeamFormerMenu>> BEAM_FORMER = MENUS.register("beam_former", () -> MenuTypeBuilder
+            .create(BeamFormerMenu::new, BeamEndpoint.class)
+            .buildUnregistered(Data_Energistics.id("beam_former")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DigitalStorageDepotMenu>> DIGITAL_STORAGE_DEPOT = MENUS.register("digital_storage_depot", () -> MenuTypeBuilder
             .create(DigitalStorageDepotMenu::new, DigitalStorageDepotBlockEntity.class)
