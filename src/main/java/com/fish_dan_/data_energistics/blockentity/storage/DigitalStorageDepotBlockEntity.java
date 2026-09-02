@@ -97,7 +97,6 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private static final String KEY_TAG_PREFIX = "stored_key_";
     private static final String PRIORITY_TAG = "priority";
     private static final String AUTO_EXPORT_MODE_TAG = "auto_export_mode";
-    private static final String OUTPUT_SIDES_TAG = "output_sides";
     private static final String ITEM_OUTPUT_SIDES_TAG = "item_output_sides";
     private static final String FLUID_OUTPUT_SIDES_TAG = "fluid_output_sides";
     private static final String KEY_OUTPUT_SIDES_TAG = "key_output_sides";
@@ -131,7 +130,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private boolean suppressConfigSync;
     private boolean syncingFluidMenu;
     private boolean syncingKeyMenu;
-    private final GenericStack[] keyStacks = new GenericStack[KEY_SLOTS];
+    private final @Nullable GenericStack[] keyStacks = new GenericStack[KEY_SLOTS];
     private final MEStorage networkStorage = new DepotStorage();
     private final IStorageProvider storageProvider = new DepotStorageProvider();
     private boolean exportingToNetwork;
@@ -141,9 +140,9 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     private final Set<Direction> itemOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> fluidOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> keyOutputSides = EnumSet.allOf(Direction.class);
-    private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
-    private AdjacentBlockCapabilityCache<IFluidHandler> adjacentFluidHandlers;
-    private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentKeyInventories;
+    private @Nullable AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
+    private @Nullable AdjacentBlockCapabilityCache<IFluidHandler> adjacentFluidHandlers;
+    private @Nullable AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentKeyInventories;
 
     public DigitalStorageDepotBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(DEBlockEntities.DIGITAL_STORAGE_DEPOT_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -243,12 +242,11 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     public DataExtractorAutoExportMode setAutoExportMode(DataExtractorAutoExportMode mode) {
-        DataExtractorAutoExportMode resolvedMode = mode == null ? DataExtractorAutoExportMode.OFF : mode;
-        if (this.autoExportMode == resolvedMode) {
+        if (this.autoExportMode == mode) {
             return this.autoExportMode;
         }
 
-        this.configManager.putSetting(DigitalStorageDepotSettings.AUTO_EXPORT_MODE, resolvedMode);
+        this.configManager.putSetting(DigitalStorageDepotSettings.AUTO_EXPORT_MODE, mode);
         return this.autoExportMode;
     }
 
@@ -352,7 +350,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
     }
 
     @Override
-    public InternalInventory getSubInventory(ResourceLocation id) {
+    public @Nullable InternalInventory getSubInventory(ResourceLocation id) {
         if (ISegmentedInventory.STORAGE.equals(id)) {
             return this.storage;
         }
@@ -391,10 +389,6 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
                 readOutputSides(data, ITEM_OUTPUT_SIDES_TAG, this.itemOutputSides);
                 readOutputSides(data, FLUID_OUTPUT_SIDES_TAG, this.fluidOutputSides);
                 readOutputSides(data, KEY_OUTPUT_SIDES_TAG, this.keyOutputSides);
-            } else if (data.contains(OUTPUT_SIDES_TAG)) {
-                Set<Direction> legacySides = EnumSet.noneOf(Direction.class);
-                readOutputSides(data, OUTPUT_SIDES_TAG, legacySides);
-                copyOutputSidesToAllTypes(legacySides.isEmpty() ? EnumSet.allOf(Direction.class) : legacySides);
             } else {
                 copyOutputSidesToAllTypes(EnumSet.allOf(Direction.class));
             }
@@ -422,7 +416,6 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         data.put(ITEM_OUTPUT_SIDES_TAG, createOutputSidesTag(this.itemOutputSides));
         data.put(FLUID_OUTPUT_SIDES_TAG, createOutputSidesTag(this.fluidOutputSides));
         data.put(KEY_OUTPUT_SIDES_TAG, createOutputSidesTag(this.keyOutputSides));
-        data.put(OUTPUT_SIDES_TAG, createOutputSidesTag(this.itemOutputSides));
         for (int i = 0; i < FLUID_SLOTS; i++) {
             data.put(FLUID_TAG_PREFIX + i, this.fluidTanks[i].writeToNBT(registries, new CompoundTag()));
         }
@@ -1121,7 +1114,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         return false;
     }
 
-    public static boolean hasConflictingKey(GenericStack[] keys, int slotIndex, AEKey candidate) {
+    public static boolean hasConflictingKey(@Nullable GenericStack[] keys, int slotIndex, @Nullable AEKey candidate) {
         if (candidate == null) {
             return false;
         }
@@ -1142,7 +1135,7 @@ public class DigitalStorageDepotBlockEntity extends AENetworkedBlockEntity imple
         return hasConflictingFluid(this.fluidTanksAsStacks(), slotIndex, candidate);
     }
 
-    private boolean conflictsWithOtherKeys(int slotIndex, AEKey candidate) {
+    private boolean conflictsWithOtherKeys(int slotIndex, @Nullable AEKey candidate) {
         return hasConflictingKey(this.keyStacks, slotIndex, candidate);
     }
 
