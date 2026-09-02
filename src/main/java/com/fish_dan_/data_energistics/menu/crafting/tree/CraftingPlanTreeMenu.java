@@ -159,6 +159,8 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
                 case REPLAN -> { if (!session.isPlanning()) replan(grid); }
                 case START -> start(grid);
                 case NEXT_CPU, PREVIOUS_CPU -> {
+                    CraftingPlanTreeResult current = session.result();
+                    if (session.isPlanning() || current == null || current.plan().simulation()) return;
                     refreshCpuSelection(grid);
                     this.cpuSelection.cycle(payload.action() == Action.NEXT_CPU);
                     session.selectCpu(this, this.cpuSelection.selected());

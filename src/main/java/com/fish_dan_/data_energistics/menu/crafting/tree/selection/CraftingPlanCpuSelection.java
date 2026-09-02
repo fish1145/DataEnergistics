@@ -29,7 +29,9 @@ public final class CraftingPlanCpuSelection {
                 .thenComparing(Comparator.comparingLong(ICraftingCPU::getAvailableStorage).reversed())
                 .thenComparing(cpu -> cpu.getName() == null ? "" : cpu.getName().getString()));
         this.candidates = List.copyOf(next);
-        if (this.selected != null && next.stream().noneMatch(cpu -> cpu == this.selected)) this.selected = null;
+        // A missing/simulated plan cannot establish that a previously chosen CPU is unsuitable.
+        if (plan != null && !plan.simulation() && this.selected != null
+                && next.stream().noneMatch(cpu -> cpu == this.selected)) this.selected = null;
     }
 
     public static boolean accepts(ICraftingCPU cpu, ICraftingPlan plan) {
