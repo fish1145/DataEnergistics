@@ -108,6 +108,8 @@ public final class CraftingPlanGraphRenderer {
             if (lod == GraphViewLod.BLOCK) continue;
             AEKey key = key(node);
             // The middle LOD keeps actual ingredient identity and the same icon hit box as the full view.
+            // AEKey handlers may blit immediately; submit the queued card first so it cannot cover their sprites.
+            graphics.flush();
             AEKeyRendering.drawInGui(Minecraft.getInstance(), graphics, x + 6, y + 7, key);
             smallText(graphics, key.getDisplayName().getString(), x + 27, y + 5, w - 32, CraftingPlanGraphPalette.TEXT);
             if (lod == GraphViewLod.FULL) {
