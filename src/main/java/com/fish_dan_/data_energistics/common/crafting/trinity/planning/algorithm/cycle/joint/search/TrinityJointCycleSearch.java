@@ -18,6 +18,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilitySolution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityLexicographicObjective;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticEvidence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticOutcome;
@@ -658,9 +659,12 @@ public final class TrinityJointCycleSearch {
             });
 
             Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> emitted = new Object2ObjectLinkedOpenHashMap<>();
+            List<TrinityVariantFiring> selectedFirings = new ObjectArrayList<>(this.incumbent.firings().size());
             this.incumbent.firings().forEach((variant, count) -> variant.outputs().forEach(
                     (key, amount) -> emitted.merge(key, amount.multiply(count), BigInteger::add)));
-            return new TrinityPlanningDiagnostic.PartialPlan(used, emitted, missing);
+            this.incumbent.firings().forEach((variant, count) -> selectedFirings.add(new TrinityVariantFiring(variant, count)));
+            selectedFirings.sort(Comparator.comparing(TrinityVariantFiring::variant));
+            return new TrinityPlanningDiagnostic.PartialPlan(used, emitted, missing, Map.of(), selectedFirings);
         }
     }
 

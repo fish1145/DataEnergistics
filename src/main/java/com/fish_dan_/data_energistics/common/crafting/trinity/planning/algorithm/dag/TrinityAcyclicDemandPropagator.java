@@ -529,7 +529,9 @@ public final class TrinityAcyclicDemandPropagator {
         return diagnostic.withDetail(new TrinityPlanningDiagnostic.PartialPlan(
                 reservedInputs,
                 aggregateOutputs(firings),
-                unresolved));
+                unresolved,
+                Map.of(),
+                selectedFirings(firings)));
     }
 
     private static <T> TrinityAlgorithmResult<T> insufficient(
@@ -553,7 +555,8 @@ public final class TrinityAcyclicDemandPropagator {
                         reservedInputs,
                         aggregateOutputs(firings),
                         missingAmounts(shortages),
-                        shortages));
+                        shortages,
+                        selectedFirings(firings)));
         return TrinityAlgorithmResult.failure(diagnostic);
     }
 
@@ -571,6 +574,13 @@ public final class TrinityAcyclicDemandPropagator {
             throw new IllegalArgumentException("A Trinity shortage diagnosis must contain a positive missing input");
         }
         return insufficient(evidence.actualReserves(), evidence.firings(), shortages);
+    }
+
+    private static List<TrinityVariantFiring> selectedFirings(Map<TrinityPatternVariant, BigInteger> firings) {
+        List<TrinityVariantFiring> selected = new ObjectArrayList<>(firings.size());
+        firings.forEach((variant, count) -> selected.add(new TrinityVariantFiring(variant, count)));
+        selected.sort(Comparator.comparing(TrinityVariantFiring::variant));
+        return selected;
     }
 
     private static LinkedHashMap<AEKey, BigInteger> aggregateOutputs(

@@ -10,158 +10,85 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.client.GlStateBackup;
 
 import com.lowdragmc.lowdraglib2.gui.ui.elements.GraphViewLod;
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
-import com.mojang.blaze3d.vertex.VertexSorting;
-import it.unimi.dsi.fastutil.ints.Int2IntMap;
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntSets;
-import org.joml.Matrix4f;
-import org.jspecify.annotations.Nullable;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL13;
-import org.lwjgl.opengl.GL20;
-import org.lwjgl.opengl.GL21;
-import org.lwjgl.opengl.GL30;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 
-/** Full-layout capture on the render thread, with PNG encoding and filesystem work on Minecraft's IO pool. */
+/** Fixed-density tiled capture with bounded working memory, independent of the complete PNG's dimensions. */
 public final class CraftingPlanGraphPngExport {
 
-    private static final int MAX_SIDE = 8192;
-    private static final long MAX_PIXELS = 16L * 1024 * 1024;
-    private static final double PREFERRED_SCALE = 2;
+    private static final int PIXEL_SCALE = 4;
+    private static final int TILE_SIDE = 2048;
+    private static final int TILE_GUARD = 2;
+    private static final int TILES_PER_CAPTURE = 8;
+    private static final long STRIP_PIXELS = 16L * 1024 * 1024;
 
     private CraftingPlanGraphPngExport() {}
 
     /**
-     * Captures every node and route in the supplied layout, without viewport clipping or selection highlights.
-     * Must be called on the render thread; feedback is delivered on the client main thread, including IO failures.
-     * The immutable graph/layout may be retained until this asynchronous export completes.
+     * Captures the exact supplied layout at four pixels per layout unit, never scaled down to a texture budget.
+     * Call on the render thread. The IO worker requests bounded capture batches on that thread and streams rows
+     * into the PNG; neither thread allocates an image or byte array covering the full result. Feedback returns to
+     * the client thread. The immutable graph/layout are retained until completion, even if their screen closes.
      */
     public static void export(CraftingPlanGraph graph, Layout layout, boolean showAmounts, Consumer<Component> feedback) {
         RenderSystem.assertOnRenderThread();
         Minecraft client = Minecraft.getInstance();
-        NativeImage captured = null;
         try {
             PixelDimensions dimensions = dimensions(layout.bounds());
-            captured = capture(client, graph, layout, dimensions, showAmounts);
-            NativeImage output = captured;
-            Util.ioPool().execute(() -> save(client, output, dimensions, feedback));
-            // The IO task now owns the image; rejected submissions leave ownership here for cleanup.
-            captured = null;
+            int tileSide = Math.min(TILE_SIDE, RenderSystem.maxSupportedTextureSize() - TILE_GUARD * 2);
+            if (tileSide <= 0) throw new IllegalStateException("The GPU cannot allocate a guarded export tile");
+            CraftingPlanGraphRenderer renderer = new CraftingPlanGraphRenderer(graph);
+            Util.ioPool().execute(() -> save(client, renderer, layout, dimensions, tileSide, showAmounts, feedback));
+            feedback.accept(Component.translatable("gui.data_energistics.plan_tree.export_png_started",
+                    dimensions.width(), dimensions.height(), PIXEL_SCALE));
         } catch (Exception failure) {
             reportFailure(client, feedback, failure);
-        } finally {
-            if (captured != null) {
-                captured.close();
-            }
         }
     }
 
     private static PixelDimensions dimensions(Bounds bounds) {
-        double width = bounds.width();
-        double height = bounds.height();
-        if (!Double.isFinite(width) || !Double.isFinite(height) || !Double.isFinite(bounds.x()) || !Double.isFinite(bounds.y()) || width <= 0 || height <= 0) {
-            throw new IllegalArgumentException("The crafting graph must have finite, positive export bounds");
+        double width = Math.ceil(bounds.width() * PIXEL_SCALE);
+        double height = Math.ceil(bounds.height() * PIXEL_SCALE);
+        if (!Double.isFinite(width) || !Double.isFinite(height) || !Double.isFinite(bounds.x()) || !Double.isFinite(bounds.y()) || width < 1 || height < 1 || width > Integer.MAX_VALUE || height > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("The full-resolution graph dimensions must fit PNG's positive 31-bit width and height");
         }
-        int maximum = Math.min(MAX_SIDE, RenderSystem.maxSupportedTextureSize());
-        double scale = Math.min(PREFERRED_SCALE, Math.min(maximum / width, maximum / height));
-        scale = Math.min(scale, Math.sqrt(MAX_PIXELS / width / height));
-        int pixelsWide = Math.max(1, (int) Math.floor(width * scale));
-        int pixelsHigh = Math.max(1, (int) Math.floor(height * scale));
-        // Recompute one uniform scale after integer rounding so neither dimension is cropped.
-        scale = Math.min(pixelsWide / width, pixelsHigh / height);
-        return new PixelDimensions(pixelsWide, pixelsHigh, scale);
+        return new PixelDimensions((int) width, (int) height);
     }
 
-    private static NativeImage capture(Minecraft client, CraftingPlanGraph graph, Layout layout,
-                                       PixelDimensions dimensions, boolean showAmounts) {
-        NativeImage image = new NativeImage(dimensions.width(), dimensions.height(), false);
-        boolean complete = false;
-        try {
-            RenderState previous = new RenderState();
-            RenderTarget target = new PngRenderTarget();
-            try (ByteBufferBuilder vertexMemory = new ByteBufferBuilder(786432)) {
-                RenderSystem.disableScissor();
-                GL11.glDisable(GL11.GL_STENCIL_TEST);
-                RenderSystem.colorMask(true, true, true, true);
-                RenderSystem.depthMask(true);
-                RenderSystem.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0);
-                target.resize(dimensions.width(), dimensions.height(), Minecraft.ON_OSX);
-                target.setClearColor(0, 0, 0, 0);
-                target.clear(Minecraft.ON_OSX);
-                target.bindWrite(true);
-                RenderSystem.setProjectionMatrix(new Matrix4f().setOrtho(0, dimensions.width(), dimensions.height(),
-                        0, -10000, 10000), VertexSorting.ORTHOGRAPHIC_Z);
-                RenderSystem.getModelViewStack().identity();
-                RenderSystem.applyModelViewMatrix();
-                RenderSystem.setShaderColor(1, 1, 1, 1);
-                RenderSystem.enableBlend();
-                RenderSystem.defaultBlendFunc();
-                GuiGraphics graphics = new GuiGraphics(client, MultiBufferSource.immediate(vertexMemory));
-                graphics.pose().scale((float) dimensions.scale(), (float) dimensions.scale(), 1);
-                graphics.pose().translate(-layout.bounds().x(), -layout.bounds().y(), 0);
-                new CraftingPlanGraphRenderer(graph).draw(graphics, layout, GraphViewLod.FULL, showAmounts,
-                        -1, IntSets.emptySet(), null);
-                graphics.flush();
-                RenderSystem.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, 0);
-                GlStateManager._pixelStore(GL11.GL_PACK_ROW_LENGTH, 0);
-                GlStateManager._pixelStore(GL11.GL_PACK_SKIP_ROWS, 0);
-                GlStateManager._pixelStore(GL11.GL_PACK_SKIP_PIXELS, 0);
-                RenderSystem.bindTexture(target.getColorTextureId());
-                image.downloadTexture(0, false);
-                image.flipY();
-            } finally {
-                try {
-                    target.destroyBuffers();
-                } finally {
-                    previous.restore();
-                }
-            }
-            complete = true;
-            return image;
-        } finally {
-            if (!complete) {
-                image.close();
-            }
-        }
-    }
-
-    private static void save(Minecraft client, NativeImage image, PixelDimensions dimensions, Consumer<Component> feedback) {
+    private static void save(Minecraft client, CraftingPlanGraphRenderer renderer, Layout layout,
+                             PixelDimensions dimensions, int tileSide, boolean showAmounts, Consumer<Component> feedback) {
         Path destination = null;
-        try (image) {
+        try {
             Path screenshots = client.gameDirectory.toPath().resolve("screenshots");
             Files.createDirectories(screenshots);
-            // Atomic reservation prevents simultaneous exports from overwriting one another.
             destination = Files.createTempFile(screenshots,
                     "DataEnergistics_CraftingPlan_" + Util.getFilenameFormattedDateTime() + "_", ".png");
-            image.writeToFile(destination);
+            try (var output = new BufferedOutputStream(Files.newOutputStream(destination), 65536);
+                    var png = new CraftingPlanPngWriter(output, dimensions.width(), dimensions.height())) {
+                writeTiles(client, renderer, layout, dimensions, tileSide, showAmounts, png);
+                png.finish();
+            }
             Path savedDestination = destination;
             Component link = Component.literal(destination.getFileName().toString()).withStyle(ChatFormatting.UNDERLINE)
                     .withStyle(style -> style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE,
                             savedDestination.toAbsolutePath().toString())));
-            Component message = Component.translatable("screenshot.success", link);
-            if (dimensions.scale() < PREFERRED_SCALE - 0.000001) {
-                message = message.copy().append(" ").append(Component.translatable(
-                        "gui.data_energistics.plan_tree.export_scaled", dimensions.width(), dimensions.height()));
-            }
-            Component result = message;
-            client.execute(() -> feedback.accept(result));
+            Component message = Component.translatable("screenshot.success", link).append(" ")
+                    .append(Component.translatable("gui.data_energistics.plan_tree.export_png_resolution",
+                            dimensions.width(), dimensions.height(), PIXEL_SCALE));
+            client.execute(() -> feedback.accept(message));
         } catch (Exception failure) {
             if (destination != null) {
                 try {
@@ -174,99 +101,87 @@ public final class CraftingPlanGraphPngExport {
         }
     }
 
+    private static void writeTiles(Minecraft client, CraftingPlanGraphRenderer renderer, Layout layout,
+                                   PixelDimensions dimensions, int maximumTileSide, boolean showAmounts,
+                                   CraftingPlanPngWriter png) throws IOException {
+        int tileWidth = Math.min(maximumTileSide, dimensions.width());
+        int columns = (dimensions.width() - 1) / tileWidth + 1;
+        long paddedWidth = (long) columns * (tileWidth + TILE_GUARD * 2);
+        int stripRows = Math.clamp(STRIP_PIXELS / paddedWidth - TILE_GUARD * 2, 1, maximumTileSide);
+        byte[] row = new byte[tileWidth * 4];
+        ObjectArrayList<NativeImage> strip = new ObjectArrayList<>();
+        for (int y = 0; y < dimensions.height();) {
+            int rows = Math.min(stripRows, dimensions.height() - y);
+            int stripY = y;
+            try {
+                for (int first = 0; first < columns; first += TILES_PER_CAPTURE) {
+                    int start = first;
+                    int count = Math.min(TILES_PER_CAPTURE, columns - first);
+                    ObjectArrayList<NativeImage> batch = client.submit(() -> capture(client, renderer, layout,
+                            tileWidth, rows, stripY, start, count, showAmounts)).join();
+                    if (rows == 1) {
+                        // Even a single row can exceed the strip budget: feed tile segments without retaining it.
+                        try {
+                            writeRow(png, dimensions.width(), tileWidth, batch, start, 0, row);
+                        } finally {
+                            batch.forEach(NativeImage::close);
+                        }
+                    } else {
+                        strip.addAll(batch);
+                    }
+                }
+                if (rows > 1) {
+                    for (int line = 0; line < rows; line++) writeRow(png, dimensions.width(), tileWidth, strip, 0, line, row);
+                }
+            } finally {
+                strip.forEach(NativeImage::close);
+                strip.clear();
+            }
+            y += rows;
+        }
+    }
+
+    private static void writeRow(CraftingPlanPngWriter png, int imageWidth, int tileWidth,
+                                 ObjectArrayList<NativeImage> tiles, int firstColumn, int y, byte[] row) throws IOException {
+        for (int index = 0; index < tiles.size(); index++) {
+            int x = (firstColumn + index) * tileWidth;
+            int width = Math.min(tileWidth, imageWidth - x);
+            CraftingPlanGraphCapture.copyStraightRgbaRow(tiles.get(index), TILE_GUARD, y + TILE_GUARD, width, row);
+            png.writeRowSegment(row, 0, width);
+        }
+    }
+
+    private static ObjectArrayList<NativeImage> capture(Minecraft client, CraftingPlanGraphRenderer renderer,
+                                                        Layout layout, int tileWidth, int rows, int y,
+                                                        int firstColumn, int count, boolean showAmounts) {
+        RenderSystem.assertOnRenderThread();
+        ObjectArrayList<NativeImage> images = new ObjectArrayList<>(count);
+        try (CraftingPlanGraphCapture capture = new CraftingPlanGraphCapture(tileWidth + TILE_GUARD * 2, rows + TILE_GUARD * 2)) {
+            for (int index = 0; index < count; index++) {
+                int x = (firstColumn + index) * tileWidth;
+                double originX = layout.bounds().x() + (x - TILE_GUARD) / (double) PIXEL_SCALE;
+                double originY = layout.bounds().y() + (y - TILE_GUARD) / (double) PIXEL_SCALE;
+                GuiGraphics graphics = capture.begin(client, PIXEL_SCALE, -originX, -originY);
+                // This is only tile-local clipping; every tile keeps the identical full-layout coordinate system.
+                Bounds tile = new Bounds(originX, originY, (tileWidth + TILE_GUARD * 2) / (double) PIXEL_SCALE,
+                        (rows + TILE_GUARD * 2) / (double) PIXEL_SCALE);
+                renderer.draw(graphics, layout, GraphViewLod.FULL, showAmounts, -1, IntSets.emptySet(), tile, PIXEL_SCALE);
+                graphics.flush();
+                images.add(capture.download());
+            }
+        } catch (Throwable failure) {
+            images.forEach(NativeImage::close);
+            throw failure;
+        }
+        return images;
+    }
+
     private static void reportFailure(Minecraft client, Consumer<Component> feedback, Exception failure) {
-        Data_Energistics.LOGGER.error("Could not export the crafting plan graph as PNG", failure);
-        String detail = failure.getMessage() == null ? failure.getClass().getSimpleName() : failure.getMessage();
+        Data_Energistics.LOGGER.error("Could not export the full-resolution crafting plan graph as PNG", failure);
+        Throwable cause = failure instanceof CompletionException && failure.getCause() != null ? failure.getCause() : failure;
+        String detail = cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
         client.execute(() -> feedback.accept(Component.translatable("gui.data_energistics.plan_tree.export_failed", detail)));
     }
 
-    private record PixelDimensions(int width, int height, double scale) {}
-
-    /** Allocation is deliberately deferred to resize(), so partially allocated buffers can always be destroyed. */
-    private static final class PngRenderTarget extends RenderTarget {
-
-        private PngRenderTarget() {
-            super(true);
-        }
-    }
-
-    /** Export is nested inside an existing frame; restoring the main target would be wrong for an offscreen caller. */
-    private static final class RenderState {
-
-        private final GlStateBackup flags = new GlStateBackup();
-        private final Matrix4f projection = new Matrix4f(RenderSystem.getProjectionMatrix());
-        private final VertexSorting sorting = RenderSystem.getVertexSorting();
-        private final Matrix4f modelView = new Matrix4f(RenderSystem.getModelViewStack());
-        private final Matrix4f textureMatrix = new Matrix4f(RenderSystem.getTextureMatrix());
-        private final @Nullable ShaderInstance shader = RenderSystem.getShader();
-        private final int shaderProgram = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
-        private final float[] shaderColor = RenderSystem.getShaderColor().clone();
-        private final float[] clearColor = new float[4];
-        private final double clearDepth = GL11.glGetDouble(GL11.GL_DEPTH_CLEAR_VALUE);
-        private final int drawFramebuffer = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
-        private final int readFramebuffer = GL11.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
-        private final int[] viewport = new int[4];
-        private final int[] scissor = new int[4];
-        private final int activeTexture = GlStateManager._getActiveTexture();
-        private final int packAlignment = GL11.glGetInteger(GL11.GL_PACK_ALIGNMENT);
-        private final int packRowLength = GL11.glGetInteger(GL11.GL_PACK_ROW_LENGTH);
-        private final int packSkipRows = GL11.glGetInteger(GL11.GL_PACK_SKIP_ROWS);
-        private final int packSkipPixels = GL11.glGetInteger(GL11.GL_PACK_SKIP_PIXELS);
-        private final int pixelPackBuffer = GL11.glGetInteger(GL21.GL_PIXEL_PACK_BUFFER_BINDING);
-        private final int pixelUnpackBuffer = GL11.glGetInteger(GL21.GL_PIXEL_UNPACK_BUFFER_BINDING);
-        private final boolean stencilEnabled = GL11.glIsEnabled(GL11.GL_STENCIL_TEST);
-        private final Int2IntMap shaderTextures = new Int2IntOpenHashMap();
-        private final Int2IntMap textureBindings = new Int2IntOpenHashMap();
-
-        private RenderState() {
-            RenderSystem.backupGlState(flags);
-            GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
-            GL11.glGetIntegerv(GL11.GL_SCISSOR_BOX, scissor);
-            GL11.glGetFloatv(GL11.GL_COLOR_CLEAR_VALUE, clearColor);
-            try {
-                // RenderSystem in this Minecraft version owns twelve shader texture slots.
-                for (int slot = 0; slot < 12; slot++) {
-                    shaderTextures.put(slot, RenderSystem.getShaderTexture(slot));
-                    RenderSystem.activeTexture(GL13.GL_TEXTURE0 + slot);
-                    textureBindings.put(slot, GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D));
-                }
-            } finally {
-                RenderSystem.activeTexture(activeTexture);
-            }
-        }
-
-        private void restore() {
-            RenderSystem.setProjectionMatrix(projection, sorting);
-            RenderSystem.getModelViewStack().set(modelView);
-            RenderSystem.applyModelViewMatrix();
-            RenderSystem.setTextureMatrix(textureMatrix);
-            RenderSystem.setShader(() -> shader);
-            GlStateManager._glUseProgram(shaderProgram);
-            RenderSystem.setShaderColor(shaderColor[0], shaderColor[1], shaderColor[2], shaderColor[3]);
-            for (int slot = 0; slot < 12; slot++) {
-                RenderSystem.setShaderTexture(slot, shaderTextures.get(slot));
-                RenderSystem.activeTexture(GL13.GL_TEXTURE0 + slot);
-                RenderSystem.bindTexture(textureBindings.get(slot));
-            }
-            RenderSystem.activeTexture(activeTexture);
-            GlStateManager._pixelStore(GL11.GL_PACK_ALIGNMENT, packAlignment);
-            GlStateManager._pixelStore(GL11.GL_PACK_ROW_LENGTH, packRowLength);
-            GlStateManager._pixelStore(GL11.GL_PACK_SKIP_ROWS, packSkipRows);
-            GlStateManager._pixelStore(GL11.GL_PACK_SKIP_PIXELS, packSkipPixels);
-            RenderSystem.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, pixelPackBuffer);
-            RenderSystem.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, pixelUnpackBuffer);
-            RenderSystem.clearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
-            RenderSystem.clearDepth(clearDepth);
-            GlStateManager._scissorBox(scissor[0], scissor[1], scissor[2], scissor[3]);
-            RenderSystem.restoreGlState(flags);
-            if (stencilEnabled) {
-                GL11.glEnable(GL11.GL_STENCIL_TEST);
-            } else {
-                GL11.glDisable(GL11.GL_STENCIL_TEST);
-            }
-            GlStateManager._glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, drawFramebuffer);
-            GlStateManager._glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, readFramebuffer);
-            RenderSystem.viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-        }
-    }
+    private record PixelDimensions(int width, int height) {}
 }

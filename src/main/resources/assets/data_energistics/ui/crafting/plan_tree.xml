@@ -19,6 +19,8 @@
         <button id="start"/>
         <button id="export_visible" class="plan-tree-popup"/>
         <button id="export_full" class="plan-tree-popup"/>
+        <button id="export_svg_visible" class="plan-tree-popup"/>
+        <button id="export_svg_full" class="plan-tree-popup"/>
         <button id="pref_missing" class="plan-tree-popup"/>
         <button id="pref_amounts" class="plan-tree-popup"/>
         <button id="pref_budget" class="plan-tree-popup"/>

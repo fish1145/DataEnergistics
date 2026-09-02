@@ -17,11 +17,12 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntSets;
 import org.joml.Vector2f;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
-import java.util.Set;
 
 /** A read-only LDLib2 pan/zoom canvas. A single drawn surface avoids thousands of live widget/layout nodes. */
 public final class CraftingPlanGraphCanvas extends GraphView {
@@ -31,11 +32,12 @@ public final class CraftingPlanGraphCanvas extends GraphView {
     private @Nullable CraftingPlanGraphRenderer renderer;
     private @Nullable Layout graphLayout;
     private int selectedNode = -1;
-    private Set<Integer> highlighted = Set.of();
+    private IntSet highlighted = IntSets.emptySet();
     private int highlightedNode = -1;
 
     public CraftingPlanGraphCanvas() {
         graphViewStyle(style -> style.allowPan(true).allowZoom(true).minScale(0.1F).maxScale(10F).lodEnabled(true)
+                .lodSimplifiedPixelScale(1.5F).lodBlockPixelScale(0.6F)
                 .gridLineColor(CraftingPlanGraphPalette.GRID).gridAccentColor(CraftingPlanGraphPalette.GRID_ACCENT).gridLineWidth(0.5F));
         style(style -> style.backgroundTexture(GuiTextureGroup.of(new ColorRectTexture(CraftingPlanGraphPalette.CANVAS),
                 new ColorBorderTexture(-1, CraftingPlanGraphPalette.FRAME))));
@@ -53,7 +55,7 @@ public final class CraftingPlanGraphCanvas extends GraphView {
         this.graphLayout = null;
         this.selectedNode = -1;
         this.highlightedNode = -1;
-        this.highlighted = Set.of();
+        this.highlighted = IntSets.emptySet();
     }
 
     public void show(CraftingPlanGraph graph, Layout layout) {
@@ -112,7 +114,7 @@ public final class CraftingPlanGraphCanvas extends GraphView {
         if ((node == null ? -1 : node.id()) == this.highlightedNode) return;
         this.highlightedNode = node == null ? -1 : node.id();
         if (node == null || this.graph == null) {
-            this.highlighted = Set.of();
+            this.highlighted = IntSets.emptySet();
             return;
         }
         IntOpenHashSet ids = new IntOpenHashSet();
@@ -153,7 +155,8 @@ public final class CraftingPlanGraphCanvas extends GraphView {
             context.graphics.pose().pushPose();
             context.graphics.pose().translate(getPositionX(), getPositionY(), 0);
             renderer.draw(context.graphics, graphLayout, getLod(), true, selectedNode, highlighted,
-                    new Bounds(getOffsetX(), getOffsetY(), CraftingPlanGraphCanvas.this.getContentWidth() / getScale(), CraftingPlanGraphCanvas.this.getContentHeight() / getScale()));
+                    new Bounds(getOffsetX(), getOffsetY(), CraftingPlanGraphCanvas.this.getContentWidth() / getScale(), CraftingPlanGraphCanvas.this.getContentHeight() / getScale()),
+                    getPixelScale());
             context.graphics.pose().popPose();
         }
 

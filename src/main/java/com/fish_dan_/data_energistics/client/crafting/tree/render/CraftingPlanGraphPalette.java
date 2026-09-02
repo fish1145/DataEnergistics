@@ -21,6 +21,7 @@ public final class CraftingPlanGraphPalette {
     public static final int MUTED_TEXT = 0xFF555568;
     public static final int ACCENT = 0xFF246082;
     public static final int EDGE = 0xFF4D4D67;
+    public static final int DIAGNOSTIC = 0x99555568;
     public static final int MISSING = 0xFFB01F1F;
     public static final int STORED = 0xFF267A15;
 

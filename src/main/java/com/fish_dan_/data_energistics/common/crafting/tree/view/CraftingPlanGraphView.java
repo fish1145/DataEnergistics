@@ -17,6 +17,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntComparators;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntLists;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.ints.IntSets;
@@ -26,7 +27,6 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /** Immutable, server-safe projection. Folding never mutates the authoritative plan or duplicates a material. */
 public final class CraftingPlanGraphView {
@@ -37,9 +37,9 @@ public final class CraftingPlanGraphView {
     private final Int2IntMap embedded = new Int2IntOpenHashMap();
     private final Int2ObjectMap<IntList> outgoing = new Int2ObjectAVLTreeMap<>();
     private final Int2ObjectMap<IntList> reverse = new Int2ObjectAVLTreeMap<>();
-    private final Int2ObjectMap<IntList> displayChildren = new Int2ObjectAVLTreeMap<>();
     private final List<ViewEdge> edges;
     private final GraphComponents components;
+    private final IntList[] componentChildren;
     private final int root;
 
     public CraftingPlanGraphView(CraftingPlanGraph graph) {
@@ -48,6 +48,7 @@ public final class CraftingPlanGraphView {
         Int2ObjectMap<List<Edge>> incomingEdges = new Int2ObjectOpenHashMap<>();
         Int2ObjectMap<List<Edge>> outgoingEdges = new Int2ObjectOpenHashMap<>();
         Int2ObjectMap<IntList> sourceOutgoing = new Int2ObjectAVLTreeMap<>();
+        Int2ObjectMap<IntList> displayChildren = new Int2ObjectAVLTreeMap<>();
         for (int id : sourceNodes.keySet()) {
             sourceOutgoing.put(id, new IntArrayList());
         }
@@ -101,6 +102,19 @@ public final class CraftingPlanGraphView {
         reverse.values().forEach(list -> list.sort(IntComparators.NATURAL_COMPARATOR));
         displayChildren.values().forEach(list -> list.sort(IntComparators.NATURAL_COMPARATOR));
         components = GraphComponents.find(outgoing.keySet(), outgoing);
+        componentChildren = new IntList[components.members().size()];
+        for (int component = 0; component < componentChildren.length; component++) {
+            IntSet children = new IntAVLTreeSet();
+            for (int id : components.members().get(component)) {
+                for (int child : displayChildren.get(id)) {
+                    int target = components.componentByNode().get(child);
+                    if (target != component) {
+                        children.add(target);
+                    }
+                }
+            }
+            componentChildren[component] = IntLists.unmodifiable(new IntArrayList(children));
+        }
         List<ViewEdge> projectedEdges = new ObjectArrayList<>();
         edgeGroups.forEach((connection, ids) -> {
             ids.sort(IntComparators.NATURAL_COMPARATOR);
@@ -121,60 +135,77 @@ public final class CraftingPlanGraphView {
         return aliases.getOrDefault(originalId, originalId);
     }
 
-    /** Breadth-first soft budget: complete components are admitted, and remaining frontiers are folded. */
-    public Set<Integer> initialCollapsed(int budget) {
+    /** Admits a stable breadth-first prefix, including the whole component that first reaches the soft budget. */
+    public Expansion initialExpansion(int budget) {
         if (budget < 1) {
             throw new IllegalArgumentException("The visible-node budget must be positive");
         }
-        IntSet reached = new IntOpenHashSet();
-        IntSet collapsed = new IntAVLTreeSet();
+        IntSet queued = new IntOpenHashSet();
+        IntSet admitted = new IntOpenHashSet();
         IntArrayFIFOQueue queue = new IntArrayFIFOQueue();
         int rootComponent = components.componentByNode().get(root);
-        reached.add(rootComponent);
+        queued.add(rootComponent);
         queue.enqueue(rootComponent);
-        int count = components.members().get(rootComponent).size();
-        while (!queue.isEmpty()) {
+        int count = 0;
+        while (!queue.isEmpty() && count < budget) {
             int current = queue.dequeueInt();
-            IntSet children = childrenOfComponent(current);
-            children.removeAll(reached);
-            int added = 0;
-            for (int child : children) {
-                added += components.members().get(child).size();
-            }
-            if (count + added > budget && !children.isEmpty()) {
-                collapsed.addAll(components.members().get(current));
-                continue;
-            }
-            count += added;
-            for (int child : children) {
-                reached.add(child);
-                queue.enqueue(child);
+            admitted.add(current);
+            count += components.members().get(current).size();
+            for (int child : childrenOfComponent(current)) {
+                if (queued.add(child)) {
+                    queue.enqueue(child);
+                }
             }
         }
-        return orderedSet(collapsed);
+        IntSet collapsed = new IntAVLTreeSet();
+        IntSet initiallyHidden = new IntAVLTreeSet();
+        for (int component = 0; component < components.members().size(); component++) {
+            List<Integer> members = components.members().get(component);
+            if (!admitted.contains(component)) {
+                initiallyHidden.addAll(members);
+            }
+            IntList children = childrenOfComponent(component);
+            if (children.isEmpty()) {
+                continue;
+            }
+            boolean admittedChild = false;
+            for (int child : children) {
+                if (admitted.contains(child)) {
+                    admittedChild = true;
+                    break;
+                }
+            }
+            // Partial frontiers keep their admitted edges; newly revealed non-leaves still expand one level at a time.
+            if (!admitted.contains(component) || !admittedChild) {
+                collapsed.addAll(members);
+            }
+        }
+        return new Expansion(IntSets.unmodifiable(collapsed), IntSets.unmodifiable(initiallyHidden));
     }
 
-    public Set<Integer> setCollapsed(Set<Integer> collapsed, int nodeId, boolean fold) {
-        IntSet result = normalizeCollapsed(collapsed);
+    /** Changes one complete component; manual expansion reveals all direct display children without a budget. */
+    public Expansion setCollapsed(Expansion expansion, int nodeId, boolean fold) {
+        IntSet result = new IntAVLTreeSet(expansion.collapsed());
         int component = components.componentByNode().get(projectedId(nodeId));
         if (fold) {
             result.addAll(components.members().get(component));
-        } else {
-            for (int member : components.members().get(component)) {
-                result.remove(member);
-            }
+            return new Expansion(IntSets.unmodifiable(result), expansion.initiallyHidden());
         }
-        return orderedSet(result);
+        for (int member : components.members().get(component)) result.remove(member);
+        IntSet initiallyHidden = new IntAVLTreeSet(expansion.initiallyHidden());
+        revealComponent(initiallyHidden, component);
+        return new Expansion(IntSets.unmodifiable(result), IntSets.unmodifiable(initiallyHidden));
     }
 
     /** Iterative recursive folding terminates on cycles and keeps independent expanded paths meaningful. */
-    public Set<Integer> recursiveCollapsed(Set<Integer> collapsed, int nodeId, boolean fold) {
-        IntSet result = normalizeCollapsed(collapsed);
+    public Expansion recursiveCollapsed(Expansion expansion, int nodeId, boolean fold) {
+        IntSet result = new IntAVLTreeSet(expansion.collapsed());
+        IntSet initiallyHidden = fold ? expansion.initiallyHidden() : new IntAVLTreeSet(expansion.initiallyHidden());
         IntSet reached = new IntOpenHashSet();
         int start = components.componentByNode().get(projectedId(nodeId));
         IntSet protectedComponents = new IntOpenHashSet();
         if (fold) {
-            visible(setCollapsed(collapsed, nodeId, true), false).nodes()
+            visible(setCollapsed(expansion, nodeId, true), false).nodes()
                     .forEach(node -> protectedComponents.add(node.componentId()));
             protectedComponents.remove(start);
         }
@@ -188,9 +219,8 @@ public final class CraftingPlanGraphView {
             if (fold) {
                 result.addAll(components.members().get(component));
             } else {
-                for (int member : components.members().get(component)) {
-                    result.remove(member);
-                }
+                for (int member : components.members().get(component)) result.remove(member);
+                revealComponent(initiallyHidden, component);
             }
             // Follow dependency arrows, not the reverse display attachment to co-products.
             for (int member : components.members().get(component)) {
@@ -199,18 +229,19 @@ public final class CraftingPlanGraphView {
                 }
             }
         }
-        return orderedSet(result);
+        return new Expansion(IntSets.unmodifiable(result), fold ? initiallyHidden : IntSets.unmodifiable(initiallyHidden));
     }
 
-    public ViewGraph visible(Set<Integer> collapsed, boolean missingOnly) {
-        IntSet normalized = normalizeCollapsed(collapsed);
+    /** Projects the requested expansion state; the initial budget is never reapplied during visibility or layout. */
+    public ViewGraph visible(Expansion expansion, boolean missingOnly) {
         IntSet collapsedComponents = new IntOpenHashSet();
-        for (int id : normalized) {
+        for (int id : expansion.collapsed()) {
             collapsedComponents.add(components.componentByNode().get(id).intValue());
         }
         IntSet allowed = missingOnly ? missingExplanation() : outgoing.keySet();
         IntSet visible = new IntAVLTreeSet();
         IntSet reached = new IntOpenHashSet();
+        IntSet partialFrontiers = new IntOpenHashSet();
         IntArrayFIFOQueue queue = new IntArrayFIFOQueue();
         queue.enqueue(components.componentByNode().get(root).intValue());
         while (!queue.isEmpty()) {
@@ -219,6 +250,9 @@ public final class CraftingPlanGraphView {
                 continue;
             }
             List<Integer> members = components.members().get(component);
+            if (expansion.initiallyHidden().contains(members.getFirst().intValue())) {
+                continue;
+            }
             boolean allowedMember = false;
             for (int member : members) {
                 if (allowed.contains(member)) {
@@ -234,15 +268,19 @@ public final class CraftingPlanGraphView {
                 continue;
             }
             for (int child : childrenOfComponent(component)) {
-                queue.enqueue(child);
+                if (expansion.initiallyHidden().contains(components.members().get(child).getFirst().intValue())) {
+                    partialFrontiers.add(component);
+                } else {
+                    queue.enqueue(child);
+                }
             }
         }
         List<ViewNode> nodes = new ObjectArrayList<>();
         for (int id : visible) {
             int component = components.componentByNode().get(id);
-            boolean folded = collapsedComponents.contains(component);
+            boolean folded = collapsedComponents.contains(component) || partialFrontiers.contains(component);
             nodes.add(new ViewNode(id, sourceNodes.get(id), embedded.containsKey(id) ? embedded.get(id) : null, component,
-                    components.cyclicComponents().contains(component), folded));
+                    components.cyclicComponents().contains(component), folded, !childrenOfComponent(component).isEmpty()));
         }
         List<ViewEdge> visibleEdges = edges.stream().filter(edge -> visible.contains(edge.source()) && visible.contains(edge.target()) && (edge.cyclic() || !collapsedComponents.contains(components.componentByNode().get(edge.source()).intValue())))
                 .toList();
@@ -251,25 +289,15 @@ public final class CraftingPlanGraphView {
         return new ViewGraph(graph, root, nodes, visibleEdges, visibleComponents);
     }
 
-    private IntSet normalizeCollapsed(Set<Integer> collapsed) {
-        IntSet result = new IntAVLTreeSet();
-        for (int id : collapsed) {
-            result.add(projectedId(id));
+    private void revealComponent(IntSet initiallyHidden, int component) {
+        for (int member : components.members().get(component)) initiallyHidden.remove(member);
+        for (int child : childrenOfComponent(component)) {
+            for (int member : components.members().get(child)) initiallyHidden.remove(member);
         }
-        return result;
     }
 
-    private IntSet childrenOfComponent(int component) {
-        IntSet result = new IntAVLTreeSet();
-        for (int id : components.members().get(component)) {
-            for (int child : displayChildren.get(id)) {
-                int target = components.componentByNode().get(child);
-                if (target != component) {
-                    result.add(target);
-                }
-            }
-        }
-        return result;
+    private IntList childrenOfComponent(int component) {
+        return componentChildren[component];
     }
 
     private IntSet missingExplanation() {
@@ -304,8 +332,38 @@ public final class CraftingPlanGraphView {
         return reachesMissing;
     }
 
-    private static Set<Integer> orderedSet(Set<Integer> values) {
-        return IntSets.unmodifiable(new IntAVLTreeSet(values));
+    /**
+     * Immutable presentation state owned by this projection. Both sets contain projected IDs in complete components;
+     * initial hiding is separate from ordinary folding so a partially admitted parent can retain its visible children.
+     * Instances can be shared between the UI and layout worker; edits return a new state and never mutate earlier ones.
+     */
+    public static final class Expansion {
+
+        private static final Expansion EMPTY = new Expansion(IntSets.emptySet(), IntSets.emptySet());
+
+        private final IntSet collapsed;
+        private final IntSet initiallyHidden;
+
+        // Only already frozen, privately owned sets enter here; unchanged state is reused without another wrapper.
+        private Expansion(IntSet collapsed, IntSet initiallyHidden) {
+            this.collapsed = collapsed;
+            this.initiallyHidden = initiallyHidden;
+        }
+
+        /** Fully expanded state with no initialization frontier or manual node limit. */
+        public static Expansion empty() {
+            return EMPTY;
+        }
+
+        /** Read-only projected IDs whose outgoing traversal is explicitly folded. */
+        public IntSet collapsed() {
+            return collapsed;
+        }
+
+        /** Read-only projected IDs not yet admitted by initialization or a manual expansion. */
+        public IntSet initiallyHidden() {
+            return initiallyHidden;
+        }
     }
 
     public record ViewGraph(CraftingPlanGraph source, int rootId, List<ViewNode> nodes,
@@ -319,7 +377,7 @@ public final class CraftingPlanGraphView {
     }
 
     public record ViewNode(int id, Node sourceNode, @Nullable Integer embeddedProcessId,
-                           int componentId, boolean cyclic, boolean collapsed) {}
+                           int componentId, boolean cyclic, boolean collapsed, boolean expandable) {}
 
     public record ViewEdge(int source, int target, List<Integer> originalEdgeIds, boolean cyclic) {
 

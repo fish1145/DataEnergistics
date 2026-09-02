@@ -28,9 +28,12 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntLists;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -174,8 +177,12 @@ public final class CraftingPlanGraphProjection {
                     material.unresolved = BigInteger.ZERO;
                 });
             });
-            // Proven local cycle schedules may be displayed as evidence, never as an executable complete route.
             int stage = 0;
+            for (TrinityVariantFiring firing : diagnostic.partialPlan()
+                    .map(TrinityPlanningDiagnostic.PartialPlan::selectedFirings).orElse(List.of())) {
+                evidenceFiring(stage++, firing, BigInteger.ONE, List.of());
+            }
+            // Proven local cycle schedules may be displayed as evidence, never as an executable complete route.
             for (var evidence : diagnostic.cycleEvidence()) {
                 for (TrinityVariantFiring firing : evidence.prefixOrder()) {
                     evidenceFiring(stage++, firing, BigInteger.ONE, List.of());
@@ -249,11 +256,42 @@ public final class CraftingPlanGraphProjection {
 
         private void evidenceEdges() {
             int root = material(this.header.target()).id;
-            for (Amounts material : this.materials.values()) {
-                if (material.id == root) continue;
-                BigInteger evidence = material.required.max(material.stored.add(material.missing).add(material.unresolved));
-                if (evidence.signum() == 0) evidence = material.crafting;
-                if (evidence.signum() > 0) this.edges.add(new Edge(this.edges.size(), root, material.id, Role.DIAGNOSTIC, evidence));
+            Int2ObjectMap<IntList> children = new Int2ObjectOpenHashMap<>();
+            IntSet consumed = new IntOpenHashSet();
+            for (Edge edge : this.edges) {
+                children.computeIfAbsent(edge.source(), unused -> new IntArrayList()).add(edge.target());
+                if (edge.role() == Role.INPUT) consumed.add(edge.target());
+                if (edge.role() == Role.OUTPUT || edge.role() == Role.REMAINDER) {
+                    // A selected process also displays its co-products and returns, not just the demanded output.
+                    children.computeIfAbsent(edge.target(), unused -> new IntArrayList()).add(edge.source());
+                }
+            }
+            IntSet reachable = new IntOpenHashSet();
+            IntArrayFIFOQueue queue = new IntArrayFIFOQueue();
+            includeEvidence(root, children, reachable, queue);
+            // Prefer detached final outputs before their inputs, then attach any isolated cycle/material evidence.
+            // Never add root shortcuts to materials already connected by the retained recipe topology.
+            for (int pass = 0; pass < 2; pass++) {
+                for (Amounts material : this.materials.values()) {
+                    if (reachable.contains(material.id) || pass == 0 && consumed.contains(material.id)) continue;
+                    BigInteger evidence = material.required.max(material.input)
+                            .max(material.stored.add(material.missing).add(material.unresolved)).max(material.crafting);
+                    if (evidence.signum() > 0) {
+                        this.edges.add(new Edge(this.edges.size(), root, material.id, Role.DIAGNOSTIC, evidence));
+                        includeEvidence(material.id, children, reachable, queue);
+                    }
+                }
+            }
+        }
+
+        private static void includeEvidence(int start, Int2ObjectMap<IntList> children,
+                                            IntSet reachable, IntArrayFIFOQueue queue) {
+            reachable.add(start);
+            queue.enqueue(start);
+            while (!queue.isEmpty()) {
+                for (int child : children.getOrDefault(queue.dequeueInt(), IntLists.emptyList())) {
+                    if (reachable.add(child)) queue.enqueue(child);
+                }
             }
         }
 
