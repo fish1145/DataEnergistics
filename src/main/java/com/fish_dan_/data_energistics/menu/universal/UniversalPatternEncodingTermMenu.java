@@ -158,9 +158,11 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         if (this.isServerSide()) {
             syncTerminalState();
             syncBlankPatternCountFromNetwork();
-            syncPatternProvidersIfNeeded(false);
         }
         super.broadcastChanges();
+        if (this.isServerSide()) {
+            syncPatternProvidersIfNeeded(false);
+        }
     }
 
     @Override
@@ -183,6 +185,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
         boolean encodedSuccessfully = false;
         try {
+            data_energistics$getPreferenceSession().restoreEncodedPattern(this, this.getPlayer().level());
             syncPatternProvidersIfNeeded(true);
             PatternEncodingSourceHelper.applyPatternSource(this,
                     PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
@@ -271,10 +274,10 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     }
 
     @Override
-    public @Nullable EncodedPatternRecipeReference data_energistics$getEncodedPatternRecipeReference() {
+    public @Nullable AEItemKey data_energistics$getEncodedPatternDefinition() {
         for (var slot : this.slots) {
             if (this.getSlotSemantic(slot) == SlotSemantics.ENCODED_PATTERN) {
-                return EncodedPatternRecipeReference.get(slot.getItem());
+                return AEItemKey.of(slot.getItem());
             }
         }
         return null;

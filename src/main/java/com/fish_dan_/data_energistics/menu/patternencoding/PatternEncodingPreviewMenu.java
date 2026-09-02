@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.resources.ResourceLocation;
 
+import appeng.api.stacks.AEItemKey;
 import appeng.menu.guisync.PacketWritable;
 import appeng.parts.encoding.EncodingMode;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -27,9 +28,15 @@ public interface PatternEncodingPreviewMenu {
 
     EncodingMode data_energistics$getEncodingMode();
 
-    /** Returns the persistent recipe or recipe-type reference carried by the displayed encoded pattern. */
+    /** Returns the completed slot's exact item and components, or null when empty, on the menu thread. */
     @Nullable
-    EncodedPatternRecipeReference data_energistics$getEncodedPatternRecipeReference();
+    AEItemKey data_energistics$getEncodedPatternDefinition();
+
+    /** Returns the persistent recipe or recipe-type reference carried by the displayed encoded pattern. */
+    default @Nullable EncodedPatternRecipeReference data_energistics$getEncodedPatternRecipeReference() {
+        AEItemKey definition = data_energistics$getEncodedPatternDefinition();
+        return definition == null ? null : EncodedPatternRecipeReference.get(definition.getReadOnlyStack());
+    }
 
     /**
      * Returns provider rows together with the exact ranking context used to resolve their workstation metadata.

@@ -204,6 +204,7 @@ public record PatternEncodingPreferencesSyncPayload(
         if (!session.acceptIncomingSequence(payload.sequence)) {
             throw new IllegalStateException("Pattern preference sequence changed during main-thread validation");
         }
+        session.rememberEncodedPattern(previewMenu);
 
         int migratedMask = PatternEncodingClientPreferenceMask.missingMask(payload.presentMask);
         if ((payload.presentMask & PatternEncodingClientPreferenceMask.UPLOAD_ENABLED) != 0) {

@@ -1071,11 +1071,11 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         }
 
         this.recipeTypeToggleButton.setState(sourceAware.data_energistics$isPatternSourceEnabled());
-        var recipeReference = previewBridge().data_energistics$getEncodedPatternRecipeReference();
-        if (recipeReference != null) {
+        var recipeContext = ((PatternEncodingPreferenceMenu) this.menu).data_energistics$getPreferenceSession().rankingContext();
+        if (recipeContext != null) {
             this.recipeTypeToggleButton.setDetailLine(Component.translatable(
                     "button.data_energistics.pattern_encoding_recipe_type_toggle.detail",
-                    PatternProviderRecipeTypeNames.resolveDisplayName(recipeReference.recipeTypeId())));
+                    PatternProviderRecipeTypeNames.resolveDisplayName(recipeContext.recipeTypeId())));
         } else {
             this.recipeTypeToggleButton.setDetailLine(Component.translatable(
                     "button.data_energistics.pattern_encoding_recipe_type_toggle.detail.none"));

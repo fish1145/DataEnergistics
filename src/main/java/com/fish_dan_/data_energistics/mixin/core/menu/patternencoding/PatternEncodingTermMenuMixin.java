@@ -35,6 +35,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -290,8 +291,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Override
-    public @Nullable EncodedPatternRecipeReference data_energistics$getEncodedPatternRecipeReference() {
-        return EncodedPatternRecipeReference.get(this.encodedPatternSlot.getItem());
+    public @Nullable AEItemKey data_energistics$getEncodedPatternDefinition() {
+        return AEItemKey.of(this.encodedPatternSlot.getItem());
     }
 
     @Override
@@ -497,6 +498,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         }
         boolean encodedSuccessfully = false;
         try {
+            data_energistics$getPreferenceSession().restoreEncodedPattern(this, this.getPlayer().level());
             dataEnergistics$forceSyncPatternProviders();
             PatternEncodingSourceHelper.applyPatternSource(this,
                     PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(this.mode));
@@ -1041,14 +1043,36 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             if (data_energistics$usesNetworkBackedBlankPatternSlot()) {
                 dataEnergistics$flushBlankPatternSlotToNetwork();
             }
-            dataEnergistics$syncPatternProvidersIfNeeded();
             dataEnergistics$refreshProcessingOutputMatchFromEncodedPattern();
+        }
+    }
+
+    @Inject(method = "broadcastChanges", at = @At("TAIL"))
+    private void dataEnergistics$restoreRecipeContextAfterModeSync(CallbackInfo ci) {
+        if (this.isServerSide()) {
+            data_energistics$getPreferenceSession().restoreEncodedPattern(this, this.getPlayer().level());
+            dataEnergistics$syncPatternProvidersIfNeeded();
+        }
+    }
+
+    @Inject(method = "onSlotChange", at = @At("TAIL"))
+    private void dataEnergistics$restoreClientRecipeContext(Slot slot, CallbackInfo ci) {
+        if (this.isClientSide() && slot == this.encodedPatternSlot) {
+            var session = data_energistics$getPreferenceSession();
+            EncodingMode restoredMode = session.restoreEncodedPattern(this, this.getPlayer().level());
+            if (restoredMode != null) {
+                session.deferSnapshotUntil(restoredMode);
+            }
         }
     }
 
     @Inject(method = "setMode", at = @At("HEAD"))
     private void dataEnergistics$updatePendingPatternSourceOnModeChange(EncodingMode mode,
                                                                         CallbackInfo ci) {
+        if (this.isClientSide()) {
+            data_energistics$getPreferenceSession().rememberEncodedPattern(this);
+            data_energistics$getPreferenceSession().deferSnapshotUntil(mode);
+        }
         var fallbackWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(mode);
         if (mode != EncodingMode.PROCESSING) {
             this.dataEnergistics$processingOutputSameItem = false;

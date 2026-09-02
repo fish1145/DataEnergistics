@@ -1,7 +1,13 @@
 package com.fish_dan_.data_energistics.menu.patternencoding;
 
-import net.minecraft.resources.ResourceLocation;
+import com.fish_dan_.data_energistics.common.crafting.pattern.EncodedPatternRecipeReference;
 
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+
+import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.stacks.AEItemKey;
+import appeng.core.definitions.AEItems;
 import appeng.parts.encoding.EncodingMode;
 import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
@@ -32,6 +38,8 @@ public final class PatternEncodingPreferenceSession {
     private long revision;
     @Nullable
     private PatternEncodingRankingContext rankingContext;
+    @Nullable
+    private AEItemKey observedEncodedPattern;
     @Nullable
     private ResourceLocation confirmedWorkstation;
     @Nullable
@@ -119,6 +127,50 @@ public final class PatternEncodingPreferenceSession {
         }
         this.rankingContext = context;
         incrementRevision();
+    }
+
+    /**
+     * Restores a newly inserted pattern's recipe context and returns its expected editor mode.
+     * Empty slots retain the editor context, just as AE2 retains its ghost inputs on removal.
+     * Invalid saved patterns leave the editor unchanged, matching AE2's load behavior.
+     * Call on the menu thread, after the server has synchronized the encoding mode.
+     */
+    public @Nullable EncodingMode restoreEncodedPattern(PatternEncodingPreviewMenu menu, Level level) {
+        AEItemKey definition = menu.data_energistics$getEncodedPatternDefinition();
+        if (Objects.equals(definition, this.observedEncodedPattern)) {
+            return null;
+        }
+        this.observedEncodedPattern = definition;
+        if (definition == null) {
+            return null;
+        }
+        if (PatternDetailsHelper.decodePattern(definition, level) == null) {
+            return null;
+        }
+        var stack = definition.getReadOnlyStack();
+        var reference = EncodedPatternRecipeReference.get(stack);
+        if (reference != null) {
+            setRankingContext(PatternEncodingRankingContext.of(reference.recipeTypeId()));
+            return reference.encodingMode();
+        }
+        if (AEItems.PROCESSING_PATTERN.is(stack)) {
+            setRankingContext(null);
+            return EncodingMode.PROCESSING;
+        }
+        return null;
+    }
+
+    /**
+     * Anchors the existing completed slot before an explicit editor-context change or an accepted client snapshot.
+     * The unchanged old output must not replace a newly transferred recipe on the next observation.
+     */
+    public void rememberEncodedPattern(PatternEncodingPreviewMenu menu) {
+        this.observedEncodedPattern = menu.data_energistics$getEncodedPatternDefinition();
+    }
+
+    /** Returns whether a recipe or mode change is still waiting to publish its client snapshot. */
+    public boolean hasDeferredSnapshot() {
+        return this.deferredSnapshotMode != null;
     }
 
     /**
@@ -242,6 +294,7 @@ public final class PatternEncodingPreferenceSession {
      */
     public void clear() {
         this.rankingContext = null;
+        this.observedEncodedPattern = null;
         this.confirmedWorkstation = null;
         this.deferredSnapshotMode = null;
         this.deferredSnapshotWaitsForTick = false;

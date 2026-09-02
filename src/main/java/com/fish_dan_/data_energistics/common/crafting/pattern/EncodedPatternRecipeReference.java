@@ -6,6 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.ids.AEComponents;
+import appeng.parts.encoding.EncodingMode;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -63,6 +64,16 @@ public record EncodedPatternRecipeReference(Kind kind, ResourceLocation id) {
             case SMITHING_RECIPE -> SMITHING_RECIPE_TYPE;
             case STONECUTTING_RECIPE -> STONECUTTING_RECIPE_TYPE;
             case PROCESSING_RECIPE_TYPE -> this.id;
+        };
+    }
+
+    /** Returns the editor mode restored by AE2 when this pattern is loaded. */
+    public EncodingMode encodingMode() {
+        return switch (this.kind) {
+            case CRAFTING_RECIPE -> EncodingMode.CRAFTING;
+            case SMITHING_RECIPE -> EncodingMode.SMITHING_TABLE;
+            case STONECUTTING_RECIPE -> EncodingMode.STONECUTTING;
+            case PROCESSING_RECIPE_TYPE -> EncodingMode.PROCESSING;
         };
     }
 
