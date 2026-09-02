@@ -1,0 +1,28 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": [" A ", "BCB", "DEF"],
+	"key": {
+		"A": {
+			"item": "data_energistics:fluix_aggregate_crystal_processor"
+		},
+		"B": {
+			"tag": "c:glass_blocks"
+		},
+		"C": {
+			"tag": "ae2:glass_cable"
+		},
+		"D": {
+			"item": "ae2:me_p2p_tunnel"
+		},
+		"E": {
+			"tag": "c:gems/quartz"
+		},
+		"F": {
+			"item": "ae2:light_p2p_tunnel"
+		}
+	},
+	"result": {
+		"id": "data_energistics:me_beam_former_part",
+		"count": 1
+	}
+}
