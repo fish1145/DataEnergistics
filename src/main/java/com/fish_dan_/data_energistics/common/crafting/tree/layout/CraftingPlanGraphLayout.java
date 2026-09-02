@@ -31,6 +31,7 @@ public final class CraftingPlanGraphLayout {
     private static final double CELL_GAP = 24;
     private static final double GROUP_GAP = 32;
     private static final double LAYER_GAP = 48;
+    private static final double ROUTE_GAP = 4;
 
     private CraftingPlanGraphLayout() {}
 
@@ -53,6 +54,9 @@ public final class CraftingPlanGraphLayout {
             outgoing.get(edge.source()).add(edge.target());
             int source = nodeById.get(edge.source()).componentId();
             int target = nodeById.get(edge.target()).componentId();
+            if (edge.cyclic()) {
+                groups.get(source).internalEdges.add(edge);
+            }
             // A co-product's other producer can consume the target; keep that edge as an exterior back edge.
             if (source != target && target != rootComponent) {
                 groups.get(source).children.add(target);
@@ -68,6 +72,22 @@ public final class CraftingPlanGraphLayout {
                 orderCycle(group, nodeById, outgoing);
             }
             configureSlots(group, cellWidth, cellHeight);
+            if (group.cyclic) {
+                placeNodes(group, compact, cellWidth, cellHeight);
+                int perimeterEdges = 0;
+                for (ViewEdge edge : group.internalEdges) {
+                    if (edge.source() != edge.target()
+                            && directCycleRoute(group.placed.get(edge.source()), group.placed.get(edge.target()), group)
+                                    .isEmpty()) {
+                        perimeterEdges++;
+                    }
+                }
+                // Only edges that cannot cross an empty local corridor need a separate perimeter lane.
+                double extra = perimeterEdges * ROUTE_GAP;
+                group.padding += extra;
+                group.width += 2 * extra;
+                group.height += 2 * extra;
+            }
         }
         IntHeapPriorityQueue ready = new IntHeapPriorityQueue();
         for (Group group : groups.values()) {
@@ -127,15 +147,11 @@ public final class CraftingPlanGraphLayout {
         Int2ObjectMap<PlacedNode> placed = new Int2ObjectAVLTreeMap<>();
         Int2ObjectMap<Side> outward = new Int2ObjectOpenHashMap<>();
         for (Group group : groups.values()) {
+            placeNodes(group, compact, cellWidth, cellHeight);
+            placed.putAll(group.placed);
             for (int index = 0; index < group.nodes.size(); index++) {
                 ViewNode node = group.nodes.get(index);
                 Slot slot = group.slots.get(index);
-                double width = node.sourceNode() instanceof Process ? cellWidth : compact ? 76 : 80;
-                double height = node.sourceNode() instanceof Process ? compact ? 38 : 40
-                        : node.embeddedProcessId() != null ? cellHeight : compact ? 30 : 32;
-                double nodeX = group.x + PADDING + slot.column() * (cellWidth + CELL_GAP) + (cellWidth - width) / 2;
-                double nodeY = group.y + PADDING + slot.row() * (cellHeight + CELL_GAP);
-                placed.put(node.id(), new PlacedNode(node, nodeX, nodeY, width, height));
                 outward.put(node.id(), slot.side());
             }
         }
@@ -150,39 +166,41 @@ public final class CraftingPlanGraphLayout {
             Group targetGroup = groups.get(target.viewNode().componentId());
             List<Point> points = new ObjectArrayList<>();
             if (edge.cyclic()) {
-                Bounds perimeter = perimeter(sourceGroup, 4 + channel % 3 * 3);
-                Gate from = gate(source, outward.get(source.id()), perimeter);
-                Gate to = gate(target, outward.get(target.id()), perimeter);
-                points.add(from.port());
-                appendBoundary(points, perimeter, from, to, source.id() == target.id());
-                points.add(to.port());
-            } else if (targetGroup.rank == sourceGroup.rank + 1 && !sourceGroup.cyclic && !targetGroup.cyclic) {
-                double sourceX = source.x() + source.width() / 2;
-                double targetX = target.x() + target.width() / 2;
-                double bandY = rankBottom.get(sourceGroup.rank) + 12 + channel % 9 * 3;
-                points.add(new Point(sourceX, source.y() + source.height()));
-                points.add(new Point(sourceX, bandY));
-                points.add(new Point(targetX, bandY));
-                points.add(new Point(targetX, target.y()));
+                if (source.id() == target.id()) {
+                    points.addAll(selfLoop(source, outward.get(source.id())));
+                } else {
+                    points.addAll(directCycleRoute(source, target, sourceGroup));
+                    if (points.isEmpty()) {
+                        Bounds perimeter = perimeter(sourceGroup, 8 + sourceGroup.nextPerimeterLane++ * ROUTE_GAP);
+                        Gate from = gate(source, outward.get(source.id()), perimeter);
+                        Gate to = gate(target, outward.get(target.id()), perimeter);
+                        points.add(from.port());
+                        appendBoundary(points, perimeter, from, to);
+                        points.add(to.port());
+                    }
+                }
             } else {
                 Bounds sourceBoundary = perimeter(sourceGroup, 4);
                 Bounds targetBoundary = perimeter(targetGroup, 4);
                 Gate from = gate(source, sourceGroup.cyclic ? outward.get(source.id()) : Side.BOTTOM, sourceBoundary);
                 Gate to = gate(target, targetGroup.cyclic ? outward.get(target.id()) : Side.TOP, targetBoundary);
-                Point bottom = new Point(sourceGroup.x + sourceGroup.width / 2,
-                        sourceBoundary.y() + sourceBoundary.height());
-                Point top = new Point(targetGroup.x + targetGroup.width / 2, targetBoundary.y());
+                Gate bottom = layerGate(sourceBoundary, from, Side.BOTTOM);
+                Gate top = layerGate(targetBoundary, to, Side.TOP);
                 points.add(from.port());
-                appendBoundary(points, sourceBoundary, from, new Gate(bottom, bottom, Side.BOTTOM), false);
+                appendBoundary(points, sourceBoundary, from, bottom);
                 double sourceBand = rankBottom.get(sourceGroup.rank) + 12 + channel % 9 * 3;
-                double targetBand = targetGroup.y - 12;
-                double channelX = totalWidth + 2 * PADDING + 20 + channel % 32 * 6;
                 // Exit through the group's own empty margin before crossing a layer-wide empty band.
-                points.add(new Point(bottom.x(), sourceBand));
-                points.add(new Point(channelX, sourceBand));
-                points.add(new Point(channelX, targetBand));
-                points.add(new Point(top.x(), targetBand));
-                appendBoundary(points, targetBoundary, new Gate(top, top, Side.TOP), to, false);
+                points.add(new Point(bottom.lane().x(), sourceBand));
+                if (targetGroup.rank == sourceGroup.rank + 1) {
+                    points.add(new Point(top.lane().x(), sourceBand));
+                } else {
+                    double targetBand = targetGroup.y - 12;
+                    double channelX = totalWidth + 2 * PADDING + 20 + channel % 32 * 6;
+                    points.add(new Point(channelX, sourceBand));
+                    points.add(new Point(channelX, targetBand));
+                    points.add(new Point(top.lane().x(), targetBand));
+                }
+                appendBoundary(points, targetBoundary, top, to);
                 points.add(to.port());
             }
             for (Point point : points) {
@@ -247,6 +265,100 @@ public final class CraftingPlanGraphLayout {
         group.height = 2 * PADDING + rows * cellHeight + (rows - 1) * CELL_GAP;
     }
 
+    private static void placeNodes(Group group, boolean compact, double cellWidth, double cellHeight) {
+        for (int index = 0; index < group.nodes.size(); index++) {
+            ViewNode node = group.nodes.get(index);
+            Slot slot = group.slots.get(index);
+            double width = node.sourceNode() instanceof Process ? cellWidth : compact ? 76 : 80;
+            double height = node.sourceNode() instanceof Process ? compact ? 38 : 40
+                    : node.embeddedProcessId() != null ? cellHeight : compact ? 30 : 32;
+            double nodeX = group.x + group.padding + slot.column() * (cellWidth + CELL_GAP) + (cellWidth - width) / 2;
+            double nodeY = group.y + group.padding + slot.row() * (cellHeight + CELL_GAP);
+            group.placed.put(node.id(), new PlacedNode(node, nodeX, nodeY, width, height));
+        }
+    }
+
+    private static List<Point> directCycleRoute(PlacedNode source, PlacedNode target, Group group) {
+        List<Point> result = List.of();
+        // Opposite directed edges use distinct ports, so a two-node cycle remains readable.
+        double offset = source.id() < target.id() ? -3 : 3;
+        if (source.x() + source.width() < target.x() || target.x() + target.width() < source.x()) {
+            double fromX = source.x() < target.x() ? source.x() + source.width() : source.x();
+            double toX = source.x() < target.x() ? target.x() : target.x() + target.width();
+            double fromY = source.y() + source.height() / 2 + offset;
+            double toY = target.y() + target.height() / 2 + offset;
+            double laneX = (fromX + toX) / 2 + offset;
+            List<Point> candidate = List.of(new Point(fromX, fromY), new Point(laneX, fromY),
+                    new Point(laneX, toY), new Point(toX, toY));
+            if (clearOfNodes(candidate, group)) {
+                result = candidate;
+            }
+        }
+        if (source.y() + source.height() < target.y() || target.y() + target.height() < source.y()) {
+            double fromY = source.y() < target.y() ? source.y() + source.height() : source.y();
+            double toY = source.y() < target.y() ? target.y() : target.y() + target.height();
+            double fromX = source.x() + source.width() / 2 + offset;
+            double toX = target.x() + target.width() / 2 + offset;
+            double laneY = (fromY + toY) / 2 + offset;
+            List<Point> candidate = List.of(new Point(fromX, fromY), new Point(fromX, laneY),
+                    new Point(toX, laneY), new Point(toX, toY));
+            if ((result.isEmpty() || pathLength(candidate) < pathLength(result)) && clearOfNodes(candidate, group)) {
+                result = candidate;
+            }
+        }
+        return result;
+    }
+
+    private static boolean clearOfNodes(List<Point> points, Group group) {
+        for (PlacedNode node : group.placed.values()) {
+            for (int index = 1; index < points.size(); index++) {
+                Point from = points.get(index - 1);
+                Point to = points.get(index);
+                if (from.y() == to.y()) {
+                    if (from.y() > node.y() && from.y() < node.y() + node.height()
+                            && Math.max(from.x(), to.x()) > node.x()
+                            && Math.min(from.x(), to.x()) < node.x() + node.width()) {
+                        return false;
+                    }
+                } else if (from.x() > node.x() && from.x() < node.x() + node.width()
+                        && Math.max(from.y(), to.y()) > node.y()
+                        && Math.min(from.y(), to.y()) < node.y() + node.height()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static double pathLength(List<Point> points) {
+        double length = 0;
+        for (int index = 1; index < points.size(); index++) {
+            Point from = points.get(index - 1);
+            Point to = points.get(index);
+            length += Math.abs(to.x() - from.x()) + Math.abs(to.y() - from.y());
+        }
+        return length;
+    }
+
+    private static List<Point> selfLoop(PlacedNode node, Side side) {
+        double centerX = node.x() + node.width() / 2;
+        double centerY = node.y() + node.height() / 2;
+        return switch (side) {
+            case TOP, BOTTOM -> {
+                double portY = side == Side.TOP ? node.y() : node.y() + node.height();
+                double laneY = portY + (side == Side.TOP ? -8 : 8);
+                yield List.of(new Point(centerX - 6, portY), new Point(centerX - 6, laneY),
+                        new Point(centerX + 6, laneY), new Point(centerX + 6, portY));
+            }
+            case LEFT, RIGHT -> {
+                double portX = side == Side.LEFT ? node.x() : node.x() + node.width();
+                double laneX = portX + (side == Side.LEFT ? -8 : 8);
+                yield List.of(new Point(portX, centerY - 6), new Point(laneX, centerY - 6),
+                        new Point(laneX, centerY + 6), new Point(portX, centerY + 6));
+            }
+        };
+    }
+
     private static Bounds perimeter(Group group, double inset) {
         return new Bounds(group.x + inset, group.y + inset, group.width - 2 * inset, group.height - 2 * inset);
     }
@@ -264,16 +376,35 @@ public final class CraftingPlanGraphLayout {
         };
     }
 
-    private static void appendBoundary(List<Point> points, Bounds boundary, Gate from, Gate to, boolean fullLoop) {
-        points.add(from.lane());
+    private static Gate layerGate(Bounds boundary, Gate nodeGate, Side side) {
+        double x = nodeGate.lane().x();
+        if ((nodeGate.side() == Side.TOP || nodeGate.side() == Side.BOTTOM) && nodeGate.side() != side) {
+            x = x - boundary.x() <= boundary.width() / 2 ? boundary.x() : boundary.x() + boundary.width();
+        }
+        Point point = new Point(x, side == Side.TOP ? boundary.y() : boundary.y() + boundary.height());
+        return new Gate(point, point, side);
+    }
+
+    private static void appendBoundary(List<Point> points, Bounds boundary, Gate from, Gate to) {
         double width = boundary.width();
         double height = boundary.height();
         double length = 2 * (width + height);
         double start = perimeterPosition(boundary, from);
         double finish = perimeterPosition(boundary, to);
-        if (finish < start || fullLoop) {
+        double clockwiseLength = (finish - start + length) % length;
+        boolean clockwise = clockwiseLength <= length / 2;
+        if (!clockwise) {
+            Gate swap = from;
+            from = to;
+            to = swap;
+            start = perimeterPosition(boundary, from);
+            finish = perimeterPosition(boundary, to);
+        }
+        if (finish < start) {
             finish += length;
         }
+        List<Point> segment = new ObjectArrayList<>();
+        segment.add(from.lane());
         double[] corners = { width, width + height, 2 * width + height, length };
         Point[] locations = {
                 new Point(boundary.x() + width, boundary.y()),
@@ -285,11 +416,12 @@ public final class CraftingPlanGraphLayout {
             for (int corner = 0; corner < corners.length; corner++) {
                 double position = corners[corner] + lap * length;
                 if (position > start && position < finish) {
-                    points.add(locations[corner]);
+                    segment.add(locations[corner]);
                 }
             }
         }
-        points.add(to.lane());
+        segment.add(to.lane());
+        points.addAll(clockwise ? segment : segment.reversed());
     }
 
     private static double perimeterPosition(Bounds boundary, Gate gate) {
@@ -375,11 +507,15 @@ public final class CraftingPlanGraphLayout {
         private final int id;
         private final List<ViewNode> nodes = new ObjectArrayList<>();
         private final List<Slot> slots = new ObjectArrayList<>();
+        private final List<ViewEdge> internalEdges = new ObjectArrayList<>();
+        private final Int2ObjectMap<PlacedNode> placed = new Int2ObjectAVLTreeMap<>();
         private final IntSet parents = new IntAVLTreeSet();
         private final IntSet children = new IntAVLTreeSet();
         private int remainingParents;
         private int rank;
         private boolean cyclic;
+        private int nextPerimeterLane;
+        private double padding = PADDING;
         private double width;
         private double height;
         private double x;
