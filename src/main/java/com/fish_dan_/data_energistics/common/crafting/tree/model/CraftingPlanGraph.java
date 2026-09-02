@@ -18,7 +18,6 @@ import it.unimi.dsi.fastutil.objects.ObjectSet;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /** Immutable dependency graph; edges point from requested outputs towards their production inputs. */
 public final class CraftingPlanGraph {
@@ -31,7 +30,7 @@ public final class CraftingPlanGraph {
     private final Int2ObjectMap<Node> byId;
 
     public CraftingPlanGraph(Header header, int rootId, List<Node> nodes, List<Edge> edges, List<Cycle> cycles) {
-        this.header = Objects.requireNonNull(header);
+        this.header = header;
         this.rootId = rootId;
         this.nodes = List.copyOf(nodes);
         this.edges = List.copyOf(edges);
@@ -70,7 +69,6 @@ public final class CraftingPlanGraph {
         }
         Int2ObjectMap<Cycle> cycleById = new Int2ObjectOpenHashMap<>();
         Int2ObjectMap<IntSet> cycleMembers = new Int2ObjectOpenHashMap<>();
-        Int2ObjectMap<IntSet> cycleStages = new Int2ObjectOpenHashMap<>();
         IntSet cycleOrdinals = new IntOpenHashSet();
         for (Cycle cycle : this.cycles) {
             if (cycleById.putIfAbsent(cycle.id(), cycle) != null || !cycleOrdinals.add(cycle.ordinal())) {
@@ -80,7 +78,6 @@ public final class CraftingPlanGraph {
             IntSet stages = new IntOpenHashSet(cycle.stageOrder());
             IntSet memberStages = new IntOpenHashSet();
             cycleMembers.put(cycle.id(), members);
-            cycleStages.put(cycle.id(), stages);
             for (int nodeId : cycle.nodeIds()) {
                 Node member = indexed.get(nodeId);
                 if (member == null) {
@@ -102,7 +99,7 @@ public final class CraftingPlanGraph {
                 }
                 for (int cycleId : process.cycleIds()) {
                     Cycle cycle = cycleById.get(cycleId);
-                    if (cycle == null || !cycleMembers.get(cycleId).contains(process.id()) || !cycleStages.get(cycleId).contains(process.stageIndex())) {
+                    if (cycle == null || !cycleMembers.get(cycleId).contains(process.id())) {
                         throw new IllegalArgumentException("Process cycle membership is inconsistent");
                     }
                 }
@@ -156,11 +153,8 @@ public final class CraftingPlanGraph {
                          CraftingQuantityMode quantityMode, long planningNanos, Component diagnostic) {
 
         public Header {
-            Objects.requireNonNull(target);
             positive(requested);
             nonnegative(bytes);
-            Objects.requireNonNull(kind);
-            Objects.requireNonNull(quantityMode);
             if (planningNanos < 0) throw new IllegalArgumentException("Negative planning time");
             diagnostic = diagnostic.copy();
         }
@@ -187,7 +181,6 @@ public final class CraftingPlanGraph {
 
         public Material {
             checkId(id);
-            Objects.requireNonNull(key);
             nonnegative(required);
             nonnegative(stored);
             nonnegative(crafting);
@@ -208,7 +201,6 @@ public final class CraftingPlanGraph {
             checkId(stageIndex);
             checkId(variantOrdinal);
             if (patternIdentity.isBlank()) throw new IllegalArgumentException("Empty pattern identity");
-            Objects.requireNonNull(primaryOutput);
             positive(executions);
             cycleIds = uniqueIds(cycleIds);
         }
@@ -220,7 +212,6 @@ public final class CraftingPlanGraph {
             checkId(id);
             checkId(source);
             checkId(target);
-            Objects.requireNonNull(role);
             positive(amount);
         }
     }

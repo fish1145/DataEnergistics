@@ -196,10 +196,10 @@ public record TrinityCycleFeasibilityRequest(
     }
 
     /**
-     * Creates a diagnostic-only request whose finite reserve can be split into actual and virtual missing input.
-     * The returned request must never enter executable candidate search or scheduling. Its exactly verified solution
-     * may
-     * be scheduled only against a local synthetic inventory to produce non-executable diagnostic evidence.
+     * Creates a diagnostic request with a bounded solver-call budget and virtual reserve for finite inputs.
+     * Its candidate is not executable: scheduling must first validate it against a local synthetic inventory,
+     * then compare the chosen order's exact inputs with real stock. Only a fully verified zero-shortage result
+     * may return to executable planning; otherwise it remains diagnostic evidence.
      */
     public TrinityCycleFeasibilityRequest forShortageDiagnosis(int stateLimit) {
         return new TrinityCycleFeasibilityRequest(
