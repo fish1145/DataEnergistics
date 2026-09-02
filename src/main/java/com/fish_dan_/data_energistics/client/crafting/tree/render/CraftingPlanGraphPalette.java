@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.crafting.tree.render;
 
-import net.minecraft.util.Mth;
+import com.fish_dan_.data_energistics.client.crafting.confirm.presentation.TrinityCraftConfirmCyclePalette;
 
 /** Colors shared by the tree window, graph and PNG export, taken from the existing Trinity UI. */
 public final class CraftingPlanGraphPalette {
@@ -23,10 +23,9 @@ public final class CraftingPlanGraphPalette {
     public static final int MISSING = 0xFFB01F1F;
     public static final int STORED = 0xFF267A15;
 
-    /** Stable, separated cycle accents using the saturation/value range of Trinity's purple progress accent. */
+    /** The tree and native confirmation list use the same metadata ordinal colors. */
     static int cycle(int ordinal) {
-        double hue = 0.70 + ordinal * 0.3819660112501051;
-        return 0xFF000000 | Mth.hsvToRgb((float) (hue - Math.floor(hue)), 0.58F, 0.56F);
+        return TrinityCraftConfirmCyclePalette.argb(ordinal);
     }
 
     private CraftingPlanGraphPalette() {}

@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.client.crafting.tree.preferences.CraftingP
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphCanvas;
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphPalette;
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphRenderer;
+import com.fish_dan_.data_energistics.client.crafting.tree.tooltip.CraftingPlanNodeTooltip;
 import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewers;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsModularTexture;
 import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
@@ -16,7 +17,6 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Material;
-import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Process;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView;
 import com.fish_dan_.data_energistics.gui.ldlib2.crafting.tree.CraftingPlanTreeUi;
 import com.fish_dan_.data_energistics.menu.crafting.tree.CraftingPlanTreeMenu;
@@ -28,7 +28,6 @@ import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
-import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.StackWithBounds;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
@@ -42,16 +41,13 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.joml.Vector2f;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.math.BigInteger;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -73,6 +69,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
     private @Nullable ExecutorService layoutExecutor;
     private @Nullable CompletableFuture<Prepared> pending;
     private @Nullable CraftingPlanGraph graph;
+    private @Nullable CraftingPlanNodeTooltip nodeTooltip;
     private @Nullable Prepared prepared;
     private @Nullable Layout exportLayout;
     private Component localStatus = Component.empty();
@@ -257,6 +254,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         if (this.observedRevision != this.menu.planRevision) {
             this.observedRevision = this.menu.planRevision;
             this.graph = null;
+            this.nodeTooltip = null;
             this.prepared = null;
             if (this.canvas != null) this.canvas.clearGraph();
             this.savedViewport = false;
@@ -270,6 +268,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         CraftingPlanGraph received = this.menu.graph();
         if (received != null && received != this.graph) {
             this.graph = received;
+            this.nodeTooltip = new CraftingPlanNodeTooltip(received);
             this.graphHasMissing = received.nodes().stream().anyMatch(node -> node instanceof Material material
                     && (material.missing().signum() > 0 || material.unresolved().signum() > 0));
             this.fitPending = true;
@@ -316,9 +315,11 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
             this.canvas.highlight(this.canvas.nodeAt(mouseX, mouseY));
         }
         super.render(graphics, mouseX, mouseY, partialTick);
-        if (this.canvas != null && !this.preferencesOpen && !this.screenshotOpen && !this.middleDown) {
-            PlacedNode node = this.canvas.nodeAt(mouseX, mouseY);
-            if (node != null) graphics.renderComponentTooltip(this.font, tooltips(node), mouseX, mouseY);
+        if (this.nodeTooltip != null) {
+            PlacedNode hovered = this.canvas != null && !this.preferencesOpen && !this.screenshotOpen && !this.middleDown
+                    && (this.modularUI == null || !this.modularUI.getDragHandler().isDragging()) ? this.canvas.nodeAt(mouseX, mouseY) : null;
+            if (hovered == null) this.nodeTooltip.hide();
+            else this.nodeTooltip.render(graphics, this.font, hovered, mouseX, mouseY);
         }
         Layout export = this.exportLayout;
         if (export != null && this.graph != null) {
@@ -358,34 +359,6 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         this.buttons.get("pref_missing").setText(Component.translatable("gui.data_energistics.plan_tree.pref_missing_value", text(this.preferences.missingOnly() ? "enabled" : "disabled")));
         this.buttons.get("pref_amounts").setText(Component.translatable("gui.data_energistics.plan_tree.pref_amounts_value", text(this.preferences.screenshotAmounts() ? "enabled" : "disabled")));
         this.buttons.get("pref_budget").setText(Component.translatable("gui.data_energistics.plan_tree.pref_budget_value", this.preferences.autoExpandBudget()));
-    }
-
-    private List<Component> tooltips(PlacedNode node) {
-        ObjectArrayList<Component> lines = new ObjectArrayList<>(AEKeyRendering.getTooltip(CraftingPlanGraphRenderer.key(node)));
-        if (node.viewNode().sourceNode() instanceof Material material) {
-            lines.add(Component.translatable("gui.data_energistics.plan_tree.material_amounts", material.required(), material.stored(), material.crafting(), material.missing(), material.unresolved()));
-            lines.add(Component.translatable("gui.data_energistics.plan_tree.inventory_usage", material.inventoryUsageBasisPoints() / 100.0));
-        }
-        if (this.graph != null) {
-            Process process = node.viewNode().sourceNode() instanceof Process value ? value
-                    : node.embeddedProcessId() == null ? null : (Process) this.graph.node(node.embeddedProcessId());
-            if (process != null) {
-                lines.add(Component.translatable("gui.data_energistics.plan_tree.process_details", process.stageIndex(), process.variantOrdinal(), process.executions()));
-                for (var edge : this.graph.edges()) if (edge.source() == process.id() || edge.target() == process.id()) {
-                    int materialId = edge.source() == process.id() ? edge.target() : edge.source();
-                    Material material = (Material) this.graph.node(materialId);
-                    lines.add(Component.translatable("gui.data_energistics.plan_tree.edge_details", text("role." + edge.role().name().toLowerCase(Locale.ROOT)), material.key().getDisplayName(), edge.amount()));
-                }
-            }
-            for (var cycle : this.graph.cycles()) if (cycle.nodeIds().contains(node.id())) {
-                lines.add(Component.translatable("gui.data_energistics.plan_tree.cycle_details", cycle.ordinal(), cycle.repetitions(), cycle.stageOrder().size()));
-                var key = CraftingPlanGraphRenderer.key(node);
-                lines.add(Component.translatable("gui.data_energistics.plan_tree.cycle_amounts",
-                        cycle.minimumSeed().getOrDefault(key, BigInteger.ZERO), cycle.netChange().getOrDefault(key, BigInteger.ZERO)));
-            }
-        }
-        lines.add(text("fold_help"));
-        return lines;
     }
 
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
@@ -446,6 +419,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
     }
 
     @Override public boolean keyPressed(int key, int scan, int modifiers) {
+        if (this.nodeTooltip != null && this.nodeTooltip.keyPressed(key, scan)) return true;
         if (key == GLFW.GLFW_KEY_ESCAPE || this.minecraft != null && this.minecraft.options.keyInventory.matches(key, scan)) {
             if (this.preferencesOpen || this.screenshotOpen) { this.preferencesOpen = false; this.screenshotOpen = false; updatePopups(); }
             else this.menu.request(Action.CANCEL);
