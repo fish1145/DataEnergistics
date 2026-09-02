@@ -83,7 +83,7 @@ public final class CraftingPlanGraphRenderer {
                     smallText(graphics, (materialNode ? "" : "× ") + TrinityAmountFormatter.format(amount),
                             x + 27, y + 15, w - 32, missing ? 0xFFFFA5AE : 0xFFC4DCE8);
                 }
-                if (node.embeddedProcessId() != null) {
+                if (showAmounts && node.embeddedProcessId() != null) {
                     Process process = (Process) graph.node(node.embeddedProcessId());
                     smallText(graphics, "× " + TrinityAmountFormatter.format(process.executions()), x + 6, y + h - 9, w - 20, 0xFFBECDD8);
                 }
