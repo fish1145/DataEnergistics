@@ -1,11 +1,14 @@
 package com.fish_dan_.data_energistics.integration.viewer.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewers;
+import com.fish_dan_.data_energistics.client.screen.crafting.CraftingPlanTreeScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataRipperReassemblerScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.viewer.jei.entrypoint.DataEnergisticsJeiEntrypointLoader;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.Ae2JeiIngredientRegistration;
+import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.CraftingPlanJeiIngredientViewer;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataResourceJeiIngredientHelper;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataResourceJeiIngredientRenderer;
@@ -160,6 +163,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
             return;
         }
         registration.addGuiContainerHandler(
+                CraftingPlanTreeScreen.class,
+                new PatternEncodingGenericStackJeiHandler<>());
+        registration.addGuiContainerHandler(
                 DataRipperReassemblerScreen.class,
                 new PatternEncodingGenericStackJeiHandler<>());
         registration.addGuiContainerHandler(
@@ -310,6 +316,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
             return;
         }
         this.jeiRuntime = jeiRuntime;
+        CraftingPlanIngredientViewers.register("jei", new CraftingPlanJeiIngredientViewer(() -> this.jeiRuntime));
         PatternProviderRecipeTypeNames.register(
                 RECIPE_TYPE_NAME_SOURCE_ID,
                 recipeTypeId -> resolveRecipeTypeName(jeiRuntime.getRecipeManager(), recipeTypeId));
