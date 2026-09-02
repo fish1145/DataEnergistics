@@ -411,9 +411,21 @@ public final class TrinityGraphPlanAssembler {
                         variant.ordinal(),
                         count,
                         variant.inputs(),
-                        variant.declaredOutputs())),
+                        variant.declaredOutputs(),
+                        remainingOutputs(variant))),
                 required,
                 multiplySigned(variant.netChange(), count));
+    }
+
+    private static Map<AEKey, BigInteger> remainingOutputs(TrinityPatternVariant variant) {
+        LinkedHashMap<AEKey, BigInteger> remaining = new LinkedHashMap<>();
+        variant.outputs().forEach((key, amount) -> {
+            BigInteger difference = amount.subtract(variant.declaredOutputs().getOrDefault(key, BigInteger.ZERO));
+            if (difference.signum() > 0) {
+                remaining.put(key, difference);
+            }
+        });
+        return remaining;
     }
 
     private static Map<AEKey, BigInteger> requiredAtStart(
