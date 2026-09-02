@@ -8,10 +8,10 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -47,9 +47,6 @@ public final class TrinityBorrowingLedgerNbtCodec {
      */
     public static CompoundTag encode(Map<AEKey, TrinityBorrowingLedger.Balances> entries,
                                      HolderLookup.Provider registries) {
-        if (registries == null) {
-            throw new IllegalArgumentException("Trinity borrowing persistence requires registries");
-        }
         CompoundTag root = new CompoundTag();
         root.putInt(SCHEMA_TAG, SCHEMA);
         ListTag encodedEntries = new ListTag();
@@ -88,7 +85,7 @@ public final class TrinityBorrowingLedgerNbtCodec {
             throw new IllegalArgumentException("A Trinity borrowing ledger must contain compound entries");
         }
 
-        LinkedHashMap<AEKey, TrinityBorrowingLedger.Balances> restored = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, TrinityBorrowingLedger.Balances> restored = new Object2ObjectLinkedOpenHashMap<>();
         for (Tag encoded : encodedEntries) {
             CompoundTag entry = (CompoundTag) encoded;
             requireFields(entry, ENTRY_FIELDS, "borrowing ledger entry");
@@ -132,7 +129,7 @@ public final class TrinityBorrowingLedgerNbtCodec {
     }
 
     private static void requireFields(CompoundTag tag, Set<String> fields, String role) {
-        if (tag == null || !tag.getAllKeys().equals(fields)) {
+        if (!tag.getAllKeys().equals(fields)) {
             throw new IllegalArgumentException("Unexpected or missing fields in Trinity " + role);
         }
     }

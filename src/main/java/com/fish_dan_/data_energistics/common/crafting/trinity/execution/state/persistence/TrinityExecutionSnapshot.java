@@ -6,13 +6,14 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,7 +58,7 @@ public record TrinityExecutionSnapshot(
                                        Map<AEKey, BigInteger> seedReserve,
                                        boolean completionSealed,
                                        long completionBuffer,
-                                       Map<AEKey, Long> actualFinalOutputs,
+                                       Object2LongMap<AEKey> actualFinalOutputs,
                                        long deliveryRemaining,
                                        Map<AEKey, TrinityBorrowingLedger.Balances> borrowingEntries,
                                        long savedAtTick,
@@ -71,7 +72,7 @@ public record TrinityExecutionSnapshot(
         stageOrder = List.copyOf(stageOrder);
         repeatBlocks = List.copyOf(repeatBlocks);
         seedReserve = immutableBigAmounts(seedReserve, false, "seed reserve");
-        actualFinalOutputs = immutableLongAmounts(actualFinalOutputs, false, "actual final output");
+        actualFinalOutputs = immutableLongAmounts(actualFinalOutputs, "actual final output");
         borrowingEntries = immutableMap(borrowingEntries);
         if (savedAtTick < 0L) {
             throw new IllegalArgumentException("A Trinity execution save tick cannot be negative");
@@ -217,13 +218,13 @@ public record TrinityExecutionSnapshot(
     }
 
     private static <K, V> Map<K, V> immutableMap(Map<K, V> source) {
-        return Collections.unmodifiableMap(new LinkedHashMap<>(source));
+        return Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(source));
     }
 
     private static Map<AEKey, BigInteger> immutableBigAmounts(Map<AEKey, BigInteger> source,
                                                               boolean signed,
                                                               String role) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> copied = new Object2ObjectLinkedOpenHashMap<>();
         source.forEach((key, amount) -> {
             if (signed ? amount.signum() == 0 : amount.signum() <= 0) {
                 throw new IllegalArgumentException("A Trinity " + role + " contains an invalid amount");
@@ -233,27 +234,25 @@ public record TrinityExecutionSnapshot(
         return Collections.unmodifiableMap(copied);
     }
 
-    private static Map<AEKey, Long> immutableLongAmounts(Map<AEKey, Long> source,
-                                                         boolean signed,
-                                                         String role) {
-        LinkedHashMap<AEKey, Long> copied = new LinkedHashMap<>();
-        source.forEach((key, amount) -> {
-            if (signed ? amount == 0L : amount <= 0L) {
+    private static Object2LongMap<AEKey> immutableLongAmounts(Object2LongMap<AEKey> source,
+                                                              String role) {
+        Object2LongMap<AEKey> copied = TrinityLongAmountSnapshot.copyOf(source);
+        for (Object2LongMap.Entry<AEKey> entry : copied.object2LongEntrySet()) {
+            if (entry.getLongValue() <= 0L) {
                 throw new IllegalArgumentException("A Trinity " + role + " contains an invalid amount");
             }
-            copied.put(key, amount);
-        });
-        return Collections.unmodifiableMap(copied);
+        }
+        return copied;
     }
 
     private static <E> Set<E> immutableSet(Set<E> source) {
-        return Collections.unmodifiableSet(new LinkedHashSet<>(source));
+        return Collections.unmodifiableSet(new ObjectLinkedOpenHashSet<>(source));
     }
 
     private static List<Integer> immutableIndexes(List<Integer> source, String role) {
-        ArrayList<Integer> copied = new ArrayList<>(source.size());
-        HashSet<Integer> seen = new HashSet<>();
-        for (Integer index : source) {
+        IntArrayList copied = new IntArrayList(source.size());
+        IntOpenHashSet seen = new IntOpenHashSet();
+        for (int index : source) {
             if (index < 0 || !seen.add(index)) {
                 throw new IllegalArgumentException("A Trinity " + role + " requires unique non-negative indexes");
             }

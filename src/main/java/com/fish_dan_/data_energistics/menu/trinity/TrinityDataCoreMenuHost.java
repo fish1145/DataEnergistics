@@ -206,36 +206,6 @@ public interface TrinityDataCoreMenuHost {
     TrinityCpuListStatus getCpuListStatus();
 
     /**
-     * Legacy UI bridge retained until the LDLib2 storage accessor replaces the old menu fields.
-     */
-    default int getStoredTypeCount() {
-        return getStorageStatus().typeCount();
-    }
-
-    /**
-     * Legacy UI bridge retained until the LDLib2 storage accessor replaces the old menu fields.
-     */
-    default String getStoredAmountText() {
-        return getStorageStatus().totalAmount().toString();
-    }
-
-    /**
-     * Legacy UI bridge retained until the LDLib2 storage accessor replaces the old menu fields.
-     */
-    default String getStoredTypeCapacityText() {
-        TrinityDataCoreStorageStatus status = getStorageStatus();
-        return status.unlimited() ? UNLIMITED_STORAGE_CAPACITY : Integer.toString(status.typeCapacity());
-    }
-
-    /**
-     * Legacy UI bridge retained until the LDLib2 storage accessor replaces the old menu fields.
-     */
-    default String getStoredAmountCapacityText() {
-        TrinityDataCoreStorageStatus status = getStorageStatus();
-        return status.unlimited() ? UNLIMITED_STORAGE_CAPACITY : status.amountCapacity().toString();
-    }
-
-    /**
      * Returns active virtual CPU partitions contributed by the formed trinity structure.
      */
     int getCpuPartitionCount();
