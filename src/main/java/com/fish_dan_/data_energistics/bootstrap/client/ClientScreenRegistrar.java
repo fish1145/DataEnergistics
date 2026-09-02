@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
-import com.fish_dan_.data_energistics.client.screen.machine.AdaptivePatternProviderScreen;
 import com.fish_dan_.data_energistics.client.screen.crafting.CraftingPlanTreeScreen;
+import com.fish_dan_.data_energistics.client.screen.machine.AdaptivePatternProviderScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataAsynchronousProcessingFactoryScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataDistributionTowerScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataExtractorScreen;

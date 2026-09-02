@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.common.crafting.tree.layout;
 
-import java.util.List;
-
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Point;
 
 import it.unimi.dsi.fastutil.doubles.Double2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
+import java.util.List;
 
 /** Component-local occupancy: perpendicular crossings are allowed, shared positive-length segments are not. */
 final class OrthogonalSegmentReservations {

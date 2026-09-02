@@ -10,12 +10,12 @@ import java.util.Map;
 /**
  * One compact pattern firing vector entry inside a stage.
  *
- * @param patternIdentity stable published pattern semantics
- * @param primaryOutput   primary output used for server-thread provider lookup
- * @param variantOrdinal  deterministic legal input-binding ordinal
- * @param count           logical firing count without per-request expansion
- * @param inputs          exact selected pattern inputs per logical firing
- * @param outputs         exact pattern-declared outputs per logical firing
+ * @param patternIdentity  stable published pattern semantics
+ * @param primaryOutput    primary output used for server-thread provider lookup
+ * @param variantOrdinal   deterministic legal input-binding ordinal
+ * @param count            logical firing count without per-request expansion
+ * @param inputs           exact selected pattern inputs per logical firing
+ * @param outputs          exact pattern-declared outputs per logical firing
  * @param remainingOutputs exact returned input containers per logical firing, separate from declared outputs
  */
 public record TrinityPlanPatternFiring(
@@ -29,8 +29,8 @@ public record TrinityPlanPatternFiring(
 
     /** Compatibility constructor for firings whose outputs have no returned input containers. */
     public TrinityPlanPatternFiring(TrinityPatternIdentity patternIdentity, AEKey primaryOutput,
-                                   int variantOrdinal, BigInteger count, Map<AEKey, BigInteger> inputs,
-                                   Map<AEKey, BigInteger> outputs) {
+                                    int variantOrdinal, BigInteger count, Map<AEKey, BigInteger> inputs,
+                                    Map<AEKey, BigInteger> outputs) {
         this(patternIdentity, primaryOutput, variantOrdinal, count, inputs, outputs, Map.of());
     }
 

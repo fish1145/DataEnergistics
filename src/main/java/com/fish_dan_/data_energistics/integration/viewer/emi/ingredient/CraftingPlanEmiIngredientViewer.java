@@ -14,18 +14,22 @@ import java.util.function.Supplier;
 
 /** Native EMI graph navigation; instances do not retain a menu, graph, or reload-specific recipe manager. */
 public final class CraftingPlanEmiIngredientViewer implements CraftingPlanIngredientViewer {
-    @Override
-    public int priority() { return 20; }
 
     @Override
-    public boolean available() { return EmiReloadManager.isLoaded(); }
+    public int priority() {
+        return 20;
+    }
+
+    @Override
+    public boolean available() {
+        return EmiReloadManager.isLoaded();
+    }
 
     @Override
     public void bind(UIElement canvas, Supplier<@Nullable GenericStack> hovered) {
         canvas.addEventListener(EMIUIEvents.STACK_PROVIDER, event -> {
             GenericStack stack = available() ? hovered.get() : null;
-            event.customData = stack == null ? EmiStackInteraction.EMPTY
-                    : new EmiStackInteraction(EmiGenericStackIngredientResolver.resolve(stack), null, true);
+            event.customData = stack == null ? EmiStackInteraction.EMPTY : new EmiStackInteraction(EmiGenericStackIngredientResolver.resolve(stack), null, true);
         });
     }
 

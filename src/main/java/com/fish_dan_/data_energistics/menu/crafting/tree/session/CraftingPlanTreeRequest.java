@@ -16,6 +16,7 @@ public record CraftingPlanTreeRequest(UUID playerId, AEKey target, long amount,
                                       CraftingQuantityMode quantityMode, MenuHostLocator locator,
                                       ISubMenuHost host, @Nullable List<AutoCraftEntry> queue,
                                       @Nullable List<Integer> requestedSlots) {
+
     public CraftingPlanTreeRequest {
         if (amount <= 0) {
             throw new IllegalArgumentException("A plan-tree request requires a positive amount");

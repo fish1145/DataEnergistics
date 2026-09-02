@@ -1,10 +1,5 @@
 package com.fish_dan_.data_energistics.common.crafting.tree.layout;
 
-import java.util.Comparator;
-import java.util.List;
-
-import org.jspecify.annotations.Nullable;
-
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanEdgeRouter.Component;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Process;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewEdge;
@@ -24,6 +19,10 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.jspecify.annotations.Nullable;
+
+import java.util.Comparator;
+import java.util.List;
 
 /** Deterministic SCC-DAG layering; cyclic components have a local perimeter instead of an unrolled stage chain. */
 public final class CraftingPlanGraphLayout {
@@ -158,8 +157,7 @@ public final class CraftingPlanGraphLayout {
             rows = 1;
         } else {
             // Allocate perimeter slots dynamically, balancing physical width/height rather than assuming a cycle size.
-            columns = Math.max(2, (int) Math.ceil((count + 4) * (cellHeight + CELL_GAP)
-                    / (2 * (cellWidth + cellHeight + 2 * CELL_GAP))));
+            columns = Math.max(2, (int) Math.ceil((count + 4) * (cellHeight + CELL_GAP) / (2 * (cellWidth + cellHeight + 2 * CELL_GAP))));
             rows = Math.max(2, (count - 2 * columns + 5) / 2);
         }
         for (int column = 0; column < columns && group.slots.size() < count; column++) {
@@ -183,8 +181,7 @@ public final class CraftingPlanGraphLayout {
             ViewNode node = group.nodes.get(index);
             Slot slot = group.slots.get(index);
             double width = node.sourceNode() instanceof Process ? cellWidth : compact ? 76 : 80;
-            double height = node.sourceNode() instanceof Process ? compact ? 38 : 40
-                    : node.embeddedProcessId() != null ? cellHeight : compact ? 30 : 32;
+            double height = node.sourceNode() instanceof Process ? compact ? 38 : 40 : node.embeddedProcessId() != null ? cellHeight : compact ? 30 : 32;
             double nodeX = PADDING + slot.column() * (cellWidth + CELL_GAP) + (cellWidth - width) / 2;
             double nodeY = PADDING + slot.row() * (cellHeight + CELL_GAP);
             group.placed.put(node.id(), new PlacedNode(node, nodeX, nodeY, width, height));
@@ -250,7 +247,12 @@ public final class CraftingPlanGraphLayout {
         }
     }
 
-    enum Side { TOP, RIGHT, BOTTOM, LEFT }
+    enum Side {
+        TOP,
+        RIGHT,
+        BOTTOM,
+        LEFT
+    }
 
     private record Slot(int row, int column, Side side) {}
 

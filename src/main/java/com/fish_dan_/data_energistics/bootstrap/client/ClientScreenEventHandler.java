@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
-import com.fish_dan_.data_energistics.client.screen.patternencoding.PatternEncodingScreenRouter;
 import com.fish_dan_.data_energistics.client.crafting.tree.CraftingPlanTreeEntry;
+import com.fish_dan_.data_energistics.client.screen.patternencoding.PatternEncodingScreenRouter;
 import com.fish_dan_.data_energistics.client.screen.terminal.Ae2TerminalKeyOverlay;
 import com.fish_dan_.data_energistics.client.screen.terminal.UniversalTerminalScreenHook;
 

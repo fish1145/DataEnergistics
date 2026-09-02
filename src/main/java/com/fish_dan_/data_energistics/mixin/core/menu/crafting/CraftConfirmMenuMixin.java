@@ -13,14 +13,14 @@ import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalHostAcces
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
+import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPlanSummaryProjection;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.TrinityCraftingCycleSummaryProjection;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 import com.fish_dan_.data_energistics.menu.crafting.tree.CraftingPlanTreeMenu;
 import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanSessionTransfer;
 import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanTreeRequest;
 import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanTreeResult;
 import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanTreeSession;
-import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPlanSummaryProjection;
-import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.TrinityCraftingCycleSummaryProjection;
-import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 
@@ -60,8 +60,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.concurrent.Future;
 import java.util.List;
+import java.util.concurrent.Future;
 
 /**
  * Owns confirmation-page quantity context, diagnostics, and CPU-family filtering.
@@ -87,14 +87,26 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Nullable
     private Future<ICraftingPlan> job;
 
-    @Shadow @Nullable private ICraftingCPU selectedCpu;
-    @Shadow @Nullable private List<AutoCraftEntry> autoCraftingQueue;
-    @Shadow @Nullable private List<Integer> requestedSlots;
+    @Shadow
+    @Nullable
+    private ICraftingCPU selectedCpu;
+    @Shadow
+    @Nullable
+    private List<AutoCraftEntry> autoCraftingQueue;
+    @Shadow
+    @Nullable
+    private List<Integer> requestedSlots;
 
-    @GuiSync(800) @Unique public boolean dataEnergistics$hasTrinityCpu;
-    @GuiSync(801) @Unique public boolean dataEnergistics$treeReady;
-    @Unique private @Nullable CraftingPlanTreeSession dataEnergistics$treeSession;
-    @Unique private @Nullable ICraftingCPU dataEnergistics$restoreTreeCpu;
+    @GuiSync(800)
+    @Unique
+    public boolean dataEnergistics$hasTrinityCpu;
+    @GuiSync(801)
+    @Unique
+    public boolean dataEnergistics$treeReady;
+    @Unique
+    private @Nullable CraftingPlanTreeSession dataEnergistics$treeSession;
+    @Unique
+    private @Nullable ICraftingCPU dataEnergistics$restoreTreeCpu;
 
     @Shadow
     private IGrid getGrid() {
@@ -525,13 +537,11 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             }
             this.dataEnergistics$restoreTreeCpu = null;
         }
-        if (!this.dataEnergistics$hasTrinityCpu || this.result == null || this.job != null || grid == null
-                || self.getPlan() == null || getLocator() == null) {
+        if (!this.dataEnergistics$hasTrinityCpu || this.result == null || this.job != null || grid == null || self.getPlan() == null || getLocator() == null) {
             this.dataEnergistics$treeReady = false;
             return;
         }
-        if (this.dataEnergistics$treeSession == null || this.dataEnergistics$treeSession.result() == null
-                || this.dataEnergistics$treeSession.result().plan() != this.result) {
+        if (this.dataEnergistics$treeSession == null || this.dataEnergistics$treeSession.result() == null || this.dataEnergistics$treeSession.result().plan() != this.result) {
             if (this.dataEnergistics$treeSession != null) this.dataEnergistics$treeSession.closeIfOwnedBy(this);
             var request = new CraftingPlanTreeRequest(getPlayer().getUUID(),
                     this.whatToCraft == null ? this.result.finalOutput().what() : this.whatToCraft,
@@ -544,20 +554,31 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         this.dataEnergistics$treeReady = true;
     }
 
-    @Override public boolean data_energistics$hasTrinityCpu() { return this.dataEnergistics$hasTrinityCpu; }
-    @Override public boolean data_energistics$isTreeReady() { return this.dataEnergistics$treeReady; }
+    @Override
+    public boolean data_energistics$hasTrinityCpu() {
+        return this.dataEnergistics$hasTrinityCpu;
+    }
 
-    @Override public void data_energistics$openPlanTree() {
-        if (isClientSide()) { sendClientAction("dataEnergisticsPlanTree", this.dataEnergistics$planRevision); return; }
-        if (!this.dataEnergistics$treeReady || !this.dataEnergistics$hasTrinityCpu || this.dataEnergistics$treeSession == null
-                || getPlayer().containerMenu != (Object) this || !isValidMenu()) return;
+    @Override
+    public boolean data_energistics$isTreeReady() {
+        return this.dataEnergistics$treeReady;
+    }
+
+    @Override
+    public void data_energistics$openPlanTree() {
+        if (isClientSide()) {
+            sendClientAction("dataEnergisticsPlanTree", this.dataEnergistics$planRevision);
+            return;
+        }
+        if (!this.dataEnergistics$treeReady || !this.dataEnergistics$hasTrinityCpu || this.dataEnergistics$treeSession == null || getPlayer().containerMenu != (Object) this || !isValidMenu()) return;
         IGrid grid = getGrid();
         if (grid == null || grid.getCraftingService().getCpus().stream().noneMatch(cpu -> cpu instanceof TrinityDataCoreVirtualCpu)) return;
         this.dataEnergistics$treeSession.selectCpu(this, this.selectedCpu);
         CraftingPlanTreeMenu.open((ServerPlayer) getPlayer(), this.dataEnergistics$treeSession, this);
     }
 
-    @Override public void data_energistics$adoptPlanTreeSession(CraftingPlanTreeSession session, Object handoffOwner) {
+    @Override
+    public void data_energistics$adoptPlanTreeSession(CraftingPlanTreeSession session, Object handoffOwner) {
         if (!isServerSide() || !session.request().playerId().equals(getPlayer().getUUID()) || session.isPlanning()) {
             throw new IllegalArgumentException("Invalid restored plan-tree session");
         }

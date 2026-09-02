@@ -51,6 +51,7 @@ import java.util.concurrent.ExecutionException;
 
 /** Independent server menu for the graph confirmation page; no AE2 screen or AE2CT state is retained. */
 public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, CraftingPlanGraphReceiver {
+
     private final UUID sessionId;
     private final ISubMenuHost host;
     private final @Nullable CraftingPlanTreeSession session;
@@ -61,17 +62,28 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
     private long graphRevision = -1;
     private long sentRevision = -1;
 
-    @GuiSync(0) public long planRevision;
-    @GuiSync(1) public boolean planning;
-    @GuiSync(2) public boolean startable;
-    @GuiSync(3) public Component cpuName = Component.empty();
-    @GuiSync(4) public Component status = Component.empty();
-    @GuiSync(5) public Component graphError = Component.empty();
-    @GuiSync(6) public long cpuBytes;
-    @GuiSync(7) public int cpuCoProcessors;
-    @GuiSync(8) public long planningNanos;
-    @GuiSync(9) public SyncableSubmitResult submitError = new SyncableSubmitResult((ICraftingSubmitResult) null);
-    @GuiSync(10) public boolean resultReady;
+    @GuiSync(0)
+    public long planRevision;
+    @GuiSync(1)
+    public boolean planning;
+    @GuiSync(2)
+    public boolean startable;
+    @GuiSync(3)
+    public Component cpuName = Component.empty();
+    @GuiSync(4)
+    public Component status = Component.empty();
+    @GuiSync(5)
+    public Component graphError = Component.empty();
+    @GuiSync(6)
+    public long cpuBytes;
+    @GuiSync(7)
+    public int cpuCoProcessors;
+    @GuiSync(8)
+    public long planningNanos;
+    @GuiSync(9)
+    public SyncableSubmitResult submitError = new SyncableSubmitResult((ICraftingSubmitResult) null);
+    @GuiSync(10)
+    public boolean resultReady;
 
     private CraftingPlanTreeMenu(int id, Inventory inventory, ISubMenuHost host, MenuHostLocator locator,
                                  UUID sessionId, long revision, @Nullable CraftingPlanTreeSession session,
@@ -105,17 +117,28 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
         CraftingPlanTreeRequest request = session.request();
         Object handoff = new Object();
         session.transfer(previousOwner, handoff);
-        @Nullable CraftingPlanTreeMenu[] created = new CraftingPlanTreeMenu[1];
+        @Nullable
+        CraftingPlanTreeMenu[] created = new CraftingPlanTreeMenu[1];
         try {
             boolean opened = player.openMenu(new MenuProvider() {
-                @Override public Component getDisplayName() { return Component.translatable("gui.data_energistics.plan_tree.title"); }
-                @Override public AbstractContainerMenu createMenu(int id, Inventory inventory, Player owner) {
+
+                @Override
+                public Component getDisplayName() {
+                    return Component.translatable("gui.data_energistics.plan_tree.title");
+                }
+
+                @Override
+                public AbstractContainerMenu createMenu(int id, Inventory inventory, Player owner) {
                     CraftingPlanTreeMenu menu = new CraftingPlanTreeMenu(id, inventory, request.host(), request.locator(), session.id(),
                             session.revision(), session, handoff);
                     created[0] = menu;
                     return menu;
                 }
-                @Override public boolean shouldTriggerClientSideContainerClosingOnOpen() { return false; }
+
+                @Override
+                public boolean shouldTriggerClientSideContainerClosingOnOpen() {
+                    return false;
+                }
             }, buffer -> {
                 MenuLocators.writeToPacket(buffer, request.locator());
                 buffer.writeUUID(session.id());
@@ -137,8 +160,13 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
         }
     }
 
-    public UUID sessionId() { return this.sessionId; }
-    public @Nullable CraftingPlanGraph graph() { return this.graphRevision == this.planRevision ? this.graph : null; }
+    public UUID sessionId() {
+        return this.sessionId;
+    }
+
+    public @Nullable CraftingPlanGraph graph() {
+        return this.graphRevision == this.planRevision ? this.graph : null;
+    }
 
     public void request(Action action) {
         if (!isClientSide()) throw new IllegalStateException("Plan-tree request called on server");
@@ -147,16 +175,18 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
 
     public void handleAction(CraftingPlanTreeActionPayload payload) {
         CraftingPlanTreeSession session = this.session;
-        if (session == null || payload.containerId() != this.containerId || !payload.sessionId().equals(this.sessionId)
-                || payload.revision() != session.revision() || getPlayer().containerMenu != this
-                || !session.isOwnedBy(this) || !session.request().playerId().equals(getPlayer().getUUID())) return;
+        if (session == null || payload.containerId() != this.containerId || !payload.sessionId().equals(this.sessionId) || payload.revision() != session.revision() || getPlayer().containerMenu != this || !session.isOwnedBy(this) || !session.request().playerId().equals(getPlayer().getUUID())) return;
         IGrid grid = accessibleGrid();
         if (grid == null) return;
         try {
             switch (payload.action()) {
                 case CANCEL -> cancel();
-                case RETURN_LIST -> { if (!session.isPlanning() && session.result() != null) returnToList(); }
-                case REPLAN -> { if (!session.isPlanning()) replan(grid); }
+                case RETURN_LIST -> {
+                    if (!session.isPlanning() && session.result() != null) returnToList();
+                }
+                case REPLAN -> {
+                    if (!session.isPlanning()) replan(grid);
+                }
                 case START -> start(grid);
                 case NEXT_CPU, PREVIOUS_CPU -> {
                     CraftingPlanTreeResult current = session.result();
@@ -172,10 +202,14 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
         }
     }
 
-    @Override public void broadcastChanges() {
+    @Override
+    public void broadcastChanges() {
         if (isClientSide()) return;
         IGrid grid = accessibleGrid();
-        if (grid == null || this.session == null) { setValidMenu(false); return; }
+        if (grid == null || this.session == null) {
+            setValidMenu(false);
+            return;
+        }
         try {
             ICraftingPlan completed = this.session.takeCompletedPlan(this);
             if (completed != null) this.session.publish(this,
@@ -218,9 +252,7 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
         this.cpuSelection.refresh(grid.getCraftingService().getCpus(), result == null ? null : result.plan());
         var cpu = this.cpuSelection.selected();
         this.session.selectCpu(this, cpu);
-        this.cpuName = !this.cpuSelection.available() ? Component.translatable("gui.data_energistics.plan_tree.no_cpu")
-                : cpu == null ? Component.translatable("gui.data_energistics.plan_tree.automatic")
-                : cpu.getName() == null ? Component.translatable("gui.data_energistics.plan_tree.unnamed_cpu") : cpu.getName();
+        this.cpuName = !this.cpuSelection.available() ? Component.translatable("gui.data_energistics.plan_tree.no_cpu") : cpu == null ? Component.translatable("gui.data_energistics.plan_tree.automatic") : cpu.getName() == null ? Component.translatable("gui.data_energistics.plan_tree.unnamed_cpu") : cpu.getName();
         this.cpuBytes = cpu == null ? 0 : cpu.getAvailableStorage();
         this.cpuCoProcessors = cpu == null ? 0 : cpu.getCoProcessors();
         this.startable = result != null && !result.plan().simulation() && this.cpuSelection.available() && !this.session.isPlanning();
@@ -275,7 +307,10 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
     private void cancel() {
         if (this.session == null) return;
         var request = this.session.request();
-        if (request.queue() != null && !request.queue().isEmpty()) { finishOrQueue(); return; }
+        if (request.queue() != null && !request.queue().isEmpty()) {
+            finishOrQueue();
+            return;
+        }
         CraftAmountMenu.open((ServerPlayer) getPlayer(), request.locator(), request.target(),
                 (int) Math.min(Integer.MAX_VALUE, request.amount()));
         if (getPlayer().containerMenu instanceof TrinityCraftAmountMenuState amountMenu) {
@@ -322,11 +357,14 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
         return located != null && located.getActionableNode() != null && located.getActionableNode().getGrid() == current ? current : null;
     }
 
-    @Override public ISubMenuHost getHost() { return this.host; }
+    @Override
+    public ISubMenuHost getHost() {
+        return this.host;
+    }
 
-    @Override public void receiveCraftingPlanGraph(CraftingPlanGraphPayload payload) {
-        if (!isClientSide() || payload.containerId() != this.containerId || !payload.sessionId().equals(this.sessionId)
-                || payload.revision() < this.planRevision) return;
+    @Override
+    public void receiveCraftingPlanGraph(CraftingPlanGraphPayload payload) {
+        if (!isClientSide() || payload.containerId() != this.containerId || !payload.sessionId().equals(this.sessionId) || payload.revision() < this.planRevision) return;
         try {
             this.assembler.accept(payload).ifPresent(snapshot -> {
                 this.graph = snapshot;
@@ -338,7 +376,8 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
         }
     }
 
-    @Override public void removed(Player player) {
+    @Override
+    public void removed(Player player) {
         super.removed(player);
         this.assembler.clear();
         this.graph = null;

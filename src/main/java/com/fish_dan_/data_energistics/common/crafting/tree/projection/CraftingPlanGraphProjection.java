@@ -41,10 +41,11 @@ import java.util.Map;
 
 /** Projects only retained planning facts; native AE2 pattern/input binding remains explicitly estimated. */
 public final class CraftingPlanGraphProjection {
+
     private CraftingPlanGraphProjection() {}
 
     public static CraftingPlanGraph create(ICraftingPlan plan, CraftingQuantityMode quantityMode,
-                                          KeyCounter available, long planningNanos) {
+                                           KeyCounter available, long planningNanos) {
         Kind kind = plan instanceof TrinityCraftingPlan ? Kind.EXACT : Kind.ESTIMATE;
         Component diagnostic = Component.empty();
         if (plan instanceof TrinityDiagnosedCraftingPlan diagnosed) {
@@ -73,6 +74,7 @@ public final class CraftingPlanGraphProjection {
     }
 
     private static final class Projection {
+
         private final Header header;
         private final KeyCounter available;
         private final Map<AEKey, Amounts> materials = new Object2ObjectLinkedOpenHashMap<>();
@@ -271,6 +273,7 @@ public final class CraftingPlanGraphProjection {
     }
 
     private static final class Amounts {
+
         private final int id;
         private BigInteger required = BigInteger.ZERO;
         private BigInteger input = BigInteger.ZERO;
@@ -278,6 +281,9 @@ public final class CraftingPlanGraphProjection {
         private BigInteger crafting = BigInteger.ZERO;
         private BigInteger missing = BigInteger.ZERO;
         private BigInteger unresolved = BigInteger.ZERO;
-        private Amounts(int id) { this.id = id; }
+
+        private Amounts(int id) {
+            this.id = id;
+        }
     }
 }

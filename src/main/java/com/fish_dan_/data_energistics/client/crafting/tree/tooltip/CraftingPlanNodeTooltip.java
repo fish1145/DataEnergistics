@@ -32,6 +32,7 @@ import java.util.Locale;
 
 /** Native confirmation-style hover details, scoped to the hovered node and its selected related cycle. */
 public final class CraftingPlanNodeTooltip {
+
     private static final String CYCLE_TEXT = "gui.data_energistics.trinity_planning.cycle.";
     private final CraftingPlanGraph graph;
     private @Nullable PlacedNode hovered;
@@ -90,8 +91,7 @@ public final class CraftingPlanNodeTooltip {
             if (material.missing().signum() > 0) lines.add(GuiText.Missing.text(TrinityAmountFormatter.format(material.missing())));
             if (material.crafting().signum() > 0) lines.add(GuiText.ToCraft.text(TrinityAmountFormatter.format(material.crafting())));
             if (material.stored().signum() > 0) {
-                String percentage = material.inventoryUsageBasisPoints() == 0 ? "<0.01%"
-                        : BigDecimal.valueOf(material.inventoryUsageBasisPoints(), 2).stripTrailingZeros().toPlainString() + "%";
+                String percentage = material.inventoryUsageBasisPoints() == 0 ? "<0.01%" : BigDecimal.valueOf(material.inventoryUsageBasisPoints(), 2).stripTrailingZeros().toPlainString() + "%";
                 lines.add(cycleText("inventory_usage", percentage).withStyle(ChatFormatting.GRAY));
             }
             if (material.missing().signum() > 0) {
@@ -103,8 +103,8 @@ public final class CraftingPlanNodeTooltip {
                 lines.add(cycleText("unresolved_demand", TrinityAmountFormatter.format(material.unresolved())).withStyle(ChatFormatting.YELLOW));
             }
         }
-        @Nullable Process process = node.viewNode().sourceNode() instanceof Process value ? value
-                : node.embeddedProcessId() == null ? null : (Process) this.graph.node(node.embeddedProcessId());
+        @Nullable
+        Process process = node.viewNode().sourceNode() instanceof Process value ? value : node.embeddedProcessId() == null ? null : (Process) this.graph.node(node.embeddedProcessId());
         if (process != null) {
             lines.add(text("process_details", process.stageIndex(), process.variantOrdinal()).withStyle(ChatFormatting.GRAY));
             lines.add(text("executions", TrinityAmountFormatter.format(process.executions())).withStyle(ChatFormatting.GRAY));
@@ -134,8 +134,7 @@ public final class CraftingPlanNodeTooltip {
             if (edge.role() == Role.DIAGNOSTIC) continue;
             int materialId = edge.role() == Role.INPUT ? edge.target() : edge.source();
             int processId = edge.role() == Role.INPUT ? edge.source() : edge.target();
-            if (((Material) this.graph.node(materialId)).key().equals(key)
-                    && ((Process) this.graph.node(processId)).cycleIds().contains(cycle.id())) {
+            if (((Material) this.graph.node(materialId)).key().equals(key) && ((Process) this.graph.node(processId)).cycleIds().contains(cycle.id())) {
                 if (edge.role() == Role.INPUT) input = true;
                 else output = true;
             }

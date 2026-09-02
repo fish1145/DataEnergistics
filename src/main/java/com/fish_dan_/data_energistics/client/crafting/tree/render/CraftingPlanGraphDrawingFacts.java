@@ -13,6 +13,7 @@ import java.util.StringJoiner;
 
 /** Per-snapshot rendering facts; cycle membership comes from plan metadata, never visual SCC membership. */
 final class CraftingPlanGraphDrawingFacts {
+
     private final Int2ObjectMap<List<CycleMark>> nodes = new Int2ObjectOpenHashMap<>();
     private final Int2ObjectMap<String> labels = new Int2ObjectOpenHashMap<>();
     private final Int2ObjectMap<RouteStyle> edges = new Int2ObjectOpenHashMap<>();
@@ -47,8 +48,13 @@ final class CraftingPlanGraphDrawingFacts {
         }
     }
 
-    List<CycleMark> node(int id) { return this.nodes.getOrDefault(id, List.of()); }
-    String label(int id) { return this.labels.get(id); }
+    List<CycleMark> node(int id) {
+        return this.nodes.getOrDefault(id, List.of());
+    }
+
+    String label(int id) {
+        return this.labels.get(id);
+    }
 
     RouteStyle route(List<Integer> originalEdgeIds) {
         if (originalEdgeIds.size() == 1) return this.edges.get(originalEdgeIds.getFirst().intValue());
@@ -71,7 +77,11 @@ final class CraftingPlanGraphDrawingFacts {
     }
 
     record CycleMark(int id, int ordinal, int color) {}
+
     record RouteStyle(List<CycleMark> cycles, boolean materialFlow) {
-        int color(int band) { return this.cycles.isEmpty() ? CraftingPlanGraphPalette.EDGE : this.cycles.get(band % this.cycles.size()).color(); }
+
+        int color(int band) {
+            return this.cycles.isEmpty() ? CraftingPlanGraphPalette.EDGE : this.cycles.get(band % this.cycles.size()).color();
+        }
     }
 }

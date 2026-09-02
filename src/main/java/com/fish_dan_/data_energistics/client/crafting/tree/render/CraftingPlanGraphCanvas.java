@@ -25,6 +25,7 @@ import java.util.Set;
 
 /** A read-only LDLib2 pan/zoom canvas. A single drawn surface avoids thousands of live widget/layout nodes. */
 public final class CraftingPlanGraphCanvas extends GraphView {
+
     private final Surface surface = new Surface();
     private @Nullable CraftingPlanGraph graph;
     private @Nullable CraftingPlanGraphRenderer renderer;
@@ -42,7 +43,9 @@ public final class CraftingPlanGraphCanvas extends GraphView {
         addContentChild(this.surface);
     }
 
-    public UIElement surface() { return this.surface; }
+    public UIElement surface() {
+        return this.surface;
+    }
 
     public void clearGraph() {
         this.graph = null;
@@ -101,24 +104,31 @@ public final class CraftingPlanGraphCanvas extends GraphView {
                 (float) (node.y() + node.height() / 2 - getContentHeight() / getScale() / 2), getScale());
     }
 
-    public void select(int nodeId) { this.selectedNode = nodeId; }
+    public void select(int nodeId) {
+        this.selectedNode = nodeId;
+    }
 
     public void highlight(@Nullable PlacedNode node) {
         if ((node == null ? -1 : node.id()) == this.highlightedNode) return;
         this.highlightedNode = node == null ? -1 : node.id();
-        if (node == null || this.graph == null) { this.highlighted = Set.of(); return; }
+        if (node == null || this.graph == null) {
+            this.highlighted = Set.of();
+            return;
+        }
         IntOpenHashSet ids = new IntOpenHashSet();
         this.graph.cycles().stream().filter(cycle -> cycle.nodeIds().contains(node.id())).forEach(cycle -> ids.addAll(cycle.nodeIds()));
         this.highlighted = ids;
     }
 
-    @Override protected void onMouseDown(UIEvent event) {
+    @Override
+    protected void onMouseDown(UIEvent event) {
         if (isMouseOverContent(event.x, event.y) && (event.button == 2 || event.button == 0 && nodeAt(event.x, event.y) == null)) {
             startDrag(new DragOffset(getOffsetX(), getOffsetY()), null);
         }
     }
 
-    @Override protected void onMouseWheel(UIEvent event) {
+    @Override
+    protected void onMouseWheel(UIEvent event) {
         if (!isMouseOverContent(event.x, event.y)) return;
         float oldScale = getScale();
         float scale = Mth.clamp(oldScale + event.deltaY * 0.1F, 0.1F, 10F);
@@ -130,12 +140,15 @@ public final class CraftingPlanGraphCanvas extends GraphView {
     }
 
     /** Only the viewport is an exclusion area; offscreen graph bounds must not consume EMI sidebar space. */
-    @Override public void appendExtraAreas(List<Rect2i> areas) {
+    @Override
+    public void appendExtraAreas(List<Rect2i> areas) {
         areas.add(new Rect2i((int) getPositionX(), (int) getPositionY(), (int) getSizeWidth(), (int) getSizeHeight()));
     }
 
     private final class Surface extends UIElement {
-        @Override public void drawBackgroundAdditional(GUIContext context) {
+
+        @Override
+        public void drawBackgroundAdditional(GUIContext context) {
             if (renderer == null || graphLayout == null) return;
             context.graphics.pose().pushPose();
             context.graphics.pose().translate(getPositionX(), getPositionY(), 0);
@@ -143,7 +156,9 @@ public final class CraftingPlanGraphCanvas extends GraphView {
                     new Bounds(getOffsetX(), getOffsetY(), CraftingPlanGraphCanvas.this.getContentWidth() / getScale(), CraftingPlanGraphCanvas.this.getContentHeight() / getScale()));
             context.graphics.pose().popPose();
         }
-        @Override public void appendExtraAreas(List<Rect2i> areas) {
+
+        @Override
+        public void appendExtraAreas(List<Rect2i> areas) {
             // This logical surface can be much larger than the screen; its parent owns the exclusion viewport.
         }
     }

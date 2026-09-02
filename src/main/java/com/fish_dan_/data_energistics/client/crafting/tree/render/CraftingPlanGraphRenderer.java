@@ -28,6 +28,7 @@ import java.util.Set;
 
 /** Shared screen/export renderer. Coordinates are immutable layout coordinates, independent of UI transforms. */
 public final class CraftingPlanGraphRenderer {
+
     private final CraftingPlanGraph graph;
     private final CraftingPlanGraphDrawingFacts facts;
     private @Nullable Layout styledLayout;
@@ -39,13 +40,12 @@ public final class CraftingPlanGraphRenderer {
     }
 
     public static AEKey key(PlacedNode node) {
-        return node.viewNode().sourceNode() instanceof Material material ? material.key()
-                : ((Process) node.viewNode().sourceNode()).primaryOutput();
+        return node.viewNode().sourceNode() instanceof Material material ? material.key() : ((Process) node.viewNode().sourceNode()).primaryOutput();
     }
 
     public void draw(GuiGraphics graphics, Layout layout, GraphViewLod lod,
-                            boolean showAmounts, int selectedNodeId, Set<Integer> highlighted,
-                            @Nullable Bounds viewport) {
+                     boolean showAmounts, int selectedNodeId, Set<Integer> highlighted,
+                     @Nullable Bounds viewport) {
         if (this.styledLayout != layout) {
             this.routeStyles = layout.edges().stream().map(edge -> this.facts.route(edge.originalEdgeIds())).toList();
             this.styledLayout = layout;
@@ -85,21 +85,16 @@ public final class CraftingPlanGraphRenderer {
             int w = (int) node.width();
             int h = (int) node.height();
             boolean materialNode = node.viewNode().sourceNode() instanceof Material;
-            boolean missing = materialNode && (((Material) node.viewNode().sourceNode()).missing().signum() > 0
-                    || ((Material) node.viewNode().sourceNode()).unresolved().signum() > 0);
+            boolean missing = materialNode && (((Material) node.viewNode().sourceNode()).missing().signum() > 0 || ((Material) node.viewNode().sourceNode()).unresolved().signum() > 0);
             boolean selected = selectedNodeId == node.id() || highlighted.contains(node.id());
             List<CycleMark> cycles = this.facts.node(node.id());
             int cycleColor = cycles.isEmpty() ? CraftingPlanGraphPalette.FRAME : cycles.getFirst().color();
-            int border = selected ? CraftingPlanGraphPalette.ACCENT : missing ? CraftingPlanGraphPalette.MISSING
-                    : cycleColor;
-            int surface = selected ? CraftingPlanGraphPalette.SELECTED
-                    : materialNode ? CraftingPlanGraphPalette.MATERIAL : CraftingPlanGraphPalette.PROCESS;
+            int border = selected ? CraftingPlanGraphPalette.ACCENT : missing ? CraftingPlanGraphPalette.MISSING : cycleColor;
+            int surface = selected ? CraftingPlanGraphPalette.SELECTED : materialNode ? CraftingPlanGraphPalette.MATERIAL : CraftingPlanGraphPalette.PROCESS;
             float inset = Math.min(outline, Math.min(w, h) / 3F);
             fill(graphics, x, y, x + w, y + h, border);
             fill(graphics, x + inset, y + inset, x + w - inset, y + h - inset, surface);
-            int stateColor = missing ? CraftingPlanGraphPalette.MISSING : materialNode
-                    && ((Material) node.viewNode().sourceNode()).stored().signum() > 0 ? CraftingPlanGraphPalette.STORED
-                    : cycles.isEmpty() ? CraftingPlanGraphPalette.ACCENT : cycleColor;
+            int stateColor = missing ? CraftingPlanGraphPalette.MISSING : materialNode && ((Material) node.viewNode().sourceNode()).stored().signum() > 0 ? CraftingPlanGraphPalette.STORED : cycles.isEmpty() ? CraftingPlanGraphPalette.ACCENT : cycleColor;
             fill(graphics, x, y, x + Math.min(4F, outline * 2), y + h, stateColor);
             for (int i = 0; i < cycles.size(); i++) {
                 fill(graphics, x + w * i / (float) cycles.size(), y + h - inset * 2,
@@ -116,9 +111,7 @@ public final class CraftingPlanGraphRenderer {
                 boolean embeddedCount = showAmounts && node.embeddedProcessId() != null;
                 int badgeWidth = embeddedCount ? (w - 18) / 2 : w - 12;
                 if (showAmounts) {
-                    BigInteger amount = node.id() == graph.rootId() ? graph.header().requested()
-                            : node.viewNode().sourceNode() instanceof Material material ? material.required().signum() > 0 ? material.required() : material.crafting()
-                            : ((Process) node.viewNode().sourceNode()).executions();
+                    BigInteger amount = node.id() == graph.rootId() ? graph.header().requested() : node.viewNode().sourceNode() instanceof Material material ? material.required().signum() > 0 ? material.required() : material.crafting() : ((Process) node.viewNode().sourceNode()).executions();
                     smallText(graphics, (materialNode ? "" : "× ") + TrinityAmountFormatter.format(amount),
                             x + 27, y + 15, w - 32, missing ? CraftingPlanGraphPalette.MISSING : CraftingPlanGraphPalette.ACCENT);
                 }
@@ -140,9 +133,7 @@ public final class CraftingPlanGraphRenderer {
     private static void segment(GuiGraphics graphics, Point a, Point b, float width, float scale, RouteStyle style) {
         double length = Math.hypot(b.x() - a.x(), b.y() - a.y());
         if (length == 0) return;
-        int bands = style.materialFlow() ? style.cycles().size() > 1
-                ? Math.max(style.cycles().size(), Math.min(48, (int) Math.ceil(length / Math.max(24, 18 / scale)))) : 1
-                : Math.min(128, Math.max(2, (int) Math.ceil(length / Math.max(8, 5 / scale))));
+        int bands = style.materialFlow() ? style.cycles().size() > 1 ? Math.max(style.cycles().size(), Math.min(48, (int) Math.ceil(length / Math.max(24, 18 / scale)))) : 1 : Math.min(128, Math.max(2, (int) Math.ceil(length / Math.max(8, 5 / scale))));
         for (int band = 0; band < bands; band++) {
             if (!style.materialFlow() && (band & 1) != 0) continue;
             line(graphics, interpolate(a, b, band / (double) bands),
@@ -199,8 +190,7 @@ public final class CraftingPlanGraphRenderer {
     }
 
     private static boolean visible(double x, double y, double width, double height, @Nullable Bounds viewport) {
-        return viewport == null || x + width >= viewport.x() && y + height >= viewport.y()
-                && x <= viewport.x() + viewport.width() && y <= viewport.y() + viewport.height();
+        return viewport == null || x + width >= viewport.x() && y + height >= viewport.y() && x <= viewport.x() + viewport.width() && y <= viewport.y() + viewport.height();
     }
 
     private static void smallText(GuiGraphics graphics, String text, int x, int y, int maxWidth, int color) {

@@ -22,6 +22,7 @@ import java.util.UUID;
 
 /** Game-thread, menu-owned assembler. Only complete validated revisions are published. */
 public final class CraftingPlanGraphAssembler {
+
     private @Nullable UUID session;
     private int container = -1;
     private long revision = -1;
@@ -48,8 +49,7 @@ public final class CraftingPlanGraphAssembler {
         try {
             if (this.terminal) throw new IllegalArgumentException("Graph revision already completed or rejected");
             CraftingPlanGraphPayload expected = this.metadata;
-            if (expected == null || expected.batchCount() != payload.batchCount()
-                    || expected.totalBytes() != payload.totalBytes() || expected.totalRecords() != payload.totalRecords()) {
+            if (expected == null || expected.batchCount() != payload.batchCount() || expected.totalBytes() != payload.totalBytes() || expected.totalRecords() != payload.totalRecords()) {
                 throw new IllegalArgumentException("Conflicting graph batch metadata");
             }
             if (this.batches.putIfAbsent(payload.batchIndex(), payload.records()) != null) {

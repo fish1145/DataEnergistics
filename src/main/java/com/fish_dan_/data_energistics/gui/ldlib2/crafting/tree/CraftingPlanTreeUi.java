@@ -11,6 +11,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 /** Loads this page's own declarative layout, independent of AE2 screen styles and optional tree mods. */
 public final class CraftingPlanTreeUi {
+
     private CraftingPlanTreeUi() {}
 
     public static UI load() {

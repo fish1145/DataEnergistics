@@ -11,6 +11,7 @@ import appeng.client.gui.me.crafting.CraftConfirmScreen;
 
 /** Adds one independently positioned action between the native cancel/start controls. */
 public final class CraftingPlanTreeEntry {
+
     private CraftingPlanTreeEntry() {}
 
     public static void onInit(ScreenEvent.Init.Post event) {
@@ -22,7 +23,9 @@ public final class CraftingPlanTreeEntry {
     }
 
     private static final class EntryButton extends Button {
+
         private final CraftConfirmScreen screen;
+
         private EntryButton(CraftConfirmScreen screen) {
             super(screen.getGuiLeft() + (screen.getXSize() - 80) / 2, screen.getGuiTop() + screen.getYSize() - 25,
                     80, 20, Component.translatable("gui.data_energistics.plan_tree.open"),
@@ -30,6 +33,7 @@ public final class CraftingPlanTreeEntry {
             this.screen = screen;
             refresh();
         }
+
         private void refresh() {
             CraftingPlanSessionTransfer state = (CraftingPlanSessionTransfer) this.screen.getMenu();
             this.visible = state.data_energistics$hasTrinityCpu();

@@ -28,6 +28,7 @@ import java.util.Map;
 
 /** Bounded typed graph record codec; collection lengths are checked before allocation or iteration. */
 final class CraftingPlanGraphRecordCodec {
+
     private CraftingPlanGraphRecordCodec() {}
 
     static void write(RegistryFriendlyByteBuf buffer, CraftingPlanGraphRecord record) {
@@ -120,9 +121,11 @@ final class CraftingPlanGraphRecordCodec {
     private static void amount(RegistryFriendlyByteBuf buffer, BigInteger amount) {
         buffer.writeByteArray(TrinityBigIntegerEncoding.encode(amount, "plan graph amount"));
     }
+
     private static BigInteger amount(RegistryFriendlyByteBuf buffer) {
         return TrinityBigIntegerEncoding.decode(buffer.readByteArray(TrinityBigIntegerEncoding.MAX_BYTES), "plan graph amount");
     }
+
     private static int count(RegistryFriendlyByteBuf buffer) {
         int count = buffer.readVarInt();
         if (count < 0 || count > CraftingPlanGraphPayload.MAX_RECORDS || count > buffer.readableBytes()) {
@@ -130,16 +133,19 @@ final class CraftingPlanGraphRecordCodec {
         }
         return count;
     }
+
     private static void ids(RegistryFriendlyByteBuf buffer, List<Integer> ids) {
         buffer.writeVarInt(ids.size());
         ids.forEach(buffer::writeVarInt);
     }
+
     private static List<Integer> ids(RegistryFriendlyByteBuf buffer) {
         int count = count(buffer);
         IntList ids = new IntArrayList(count);
         for (int index = 0; index < count; index++) ids.add(buffer.readVarInt());
         return ids;
     }
+
     private static void amounts(RegistryFriendlyByteBuf buffer, Map<AEKey, BigInteger> amounts) {
         buffer.writeVarInt(amounts.size());
         amounts.forEach((key, value) -> {
@@ -147,6 +153,7 @@ final class CraftingPlanGraphRecordCodec {
             amount(buffer, value);
         });
     }
+
     private static Map<AEKey, BigInteger> amounts(RegistryFriendlyByteBuf buffer) {
         int count = count(buffer);
         Map<AEKey, BigInteger> values = new Object2ObjectLinkedOpenHashMap<>();

@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.client.crafting.confirm.presentation.Trini
 
 /** Colors shared by the tree window, graph and PNG export, taken from the existing Trinity UI. */
 public final class CraftingPlanGraphPalette {
+
     // Trinity home/status-panel borders and CPU-entry surfaces.
     public static final int CANVAS = 0xFF9A9FB4;
     public static final int FRAME = 0xFF696D88;

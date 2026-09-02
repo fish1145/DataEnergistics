@@ -58,6 +58,7 @@ import java.util.function.UnaryOperator;
 
 /** New Minecraft container screen with a private LDLib2 root; it neither extends nor wraps an AE2 screen. */
 public final class CraftingPlanTreeScreen extends AbstractContainerScreen<CraftingPlanTreeMenu> implements GenericStackLookupScreen {
+
     private CraftingPlanTreePreferences preferences = CraftingPlanTreePreferences.load();
     private boolean missingOnly = this.preferences.missingOnly();
     private boolean compact = this.preferences.compact();
@@ -91,9 +92,12 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
     private float savedScale = 1;
     private boolean graphHasMissing;
 
-    public CraftingPlanTreeScreen(CraftingPlanTreeMenu menu, Inventory inventory, Component title) { super(menu, inventory, title); }
+    public CraftingPlanTreeScreen(CraftingPlanTreeMenu menu, Inventory inventory, Component title) {
+        super(menu, inventory, title);
+    }
 
-    @Override protected void init() {
+    @Override
+    protected void init() {
         saveViewport();
         if (this.modularUI != null) this.modularUI.onRemoved();
         this.imageWidth = this.width >= 420 ? Math.min(720, this.width - 160) : Math.max(180, this.width - 20);
@@ -101,10 +105,10 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         super.init();
         if (this.layoutExecutor == null || this.layoutExecutor.isShutdown()) this.layoutExecutor = new ThreadPoolExecutor(1, 1, 0L,
                 TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1), task -> {
-            Thread thread = new Thread(task, "data-energistics-plan-tree-layout");
-            thread.setDaemon(true);
-            return thread;
-        }, new ThreadPoolExecutor.DiscardOldestPolicy());
+                    Thread thread = new Thread(task, "data-energistics-plan-tree-layout");
+                    thread.setDaemon(true);
+                    return thread;
+                }, new ThreadPoolExecutor.DiscardOldestPolicy());
         try {
             mountUi();
         } catch (RuntimeException failure) {
@@ -163,7 +167,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         button.setText(text(id));
         button.style(style -> style.tooltips(text(id + ".tooltip")));
         button.buttonStyle(style -> style.baseTexture(GuiTextureGroup.of(
-                        new ColorRectTexture(CraftingPlanGraphPalette.BUTTON), new ColorBorderTexture(-1, CraftingPlanGraphPalette.FRAME)))
+                new ColorRectTexture(CraftingPlanGraphPalette.BUTTON), new ColorBorderTexture(-1, CraftingPlanGraphPalette.FRAME)))
                 .hoverTexture(GuiTextureGroup.of(new ColorRectTexture(CraftingPlanGraphPalette.BUTTON_HOVER),
                         new ColorBorderTexture(-1, CraftingPlanGraphPalette.ACCENT)))
                 .pressedTexture(GuiTextureGroup.of(new ColorRectTexture(CraftingPlanGraphPalette.SELECTED),
@@ -183,7 +187,10 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         this.buttons.get("list").setOnClick(event -> this.menu.request(Action.RETURN_LIST));
         this.buttons.get("cpu").setOnClick(event -> this.menu.request(Action.NEXT_CPU));
         this.buttons.get("cpu").addEventListener(UIEvents.MOUSE_DOWN, event -> { if (event.button == 1) this.menu.request(Action.PREVIOUS_CPU); });
-        this.buttons.get("missing").setOnClick(event -> { this.missingOnly = !this.missingOnly; schedule(UnaryOperator.identity(), false); });
+        this.buttons.get("missing").setOnClick(event -> {
+            this.missingOnly = !this.missingOnly;
+            schedule(UnaryOperator.identity(), false);
+        });
         this.buttons.get("density").setOnClick(event -> {
             this.compact = !this.compact;
             savePreferences();
@@ -195,8 +202,16 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
             if (current != null) schedule(ignored -> current.projection().recursiveCollapsed(Set.of(), current.projection().graph().rootId(), true), false);
         });
         this.buttons.get("fit").setOnClick(event -> { if (this.canvas != null) this.canvas.fitGraph(); });
-        this.buttons.get("preferences").setOnClick(event -> { this.preferencesOpen = !this.preferencesOpen; this.screenshotOpen = false; updatePopups(); });
-        this.buttons.get("screenshot").setOnClick(event -> { this.screenshotOpen = !this.screenshotOpen; this.preferencesOpen = false; updatePopups(); });
+        this.buttons.get("preferences").setOnClick(event -> {
+            this.preferencesOpen = !this.preferencesOpen;
+            this.screenshotOpen = false;
+            updatePopups();
+        });
+        this.buttons.get("screenshot").setOnClick(event -> {
+            this.screenshotOpen = !this.screenshotOpen;
+            this.preferencesOpen = false;
+            updatePopups();
+        });
         this.buttons.get("export_visible").setOnClick(event -> export(false));
         this.buttons.get("export_full").setOnClick(event -> export(true));
         this.buttons.get("pref_missing").setOnClick(event -> {
@@ -269,8 +284,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         if (received != null && received != this.graph) {
             this.graph = received;
             this.nodeTooltip = new CraftingPlanNodeTooltip(received);
-            this.graphHasMissing = received.nodes().stream().anyMatch(node -> node instanceof Material material
-                    && (material.missing().signum() > 0 || material.unresolved().signum() > 0));
+            this.graphHasMissing = received.nodes().stream().anyMatch(node -> node instanceof Material material && (material.missing().signum() > 0 || material.unresolved().signum() > 0));
             this.fitPending = true;
             schedule(UnaryOperator.identity(), true);
         }
@@ -307,17 +321,20 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         }
     }
 
-    @Override public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         refreshGraph();
         updateLabels();
         if (this.canvas != null) {
-            if (this.fitPending && this.prepared != null && this.canvas.getContentWidth() > 0) { this.canvas.fitGraph(); this.fitPending = false; }
+            if (this.fitPending && this.prepared != null && this.canvas.getContentWidth() > 0) {
+                this.canvas.fitGraph();
+                this.fitPending = false;
+            }
             this.canvas.highlight(this.canvas.nodeAt(mouseX, mouseY));
         }
         super.render(graphics, mouseX, mouseY, partialTick);
         if (this.nodeTooltip != null) {
-            PlacedNode hovered = this.canvas != null && !this.preferencesOpen && !this.screenshotOpen && !this.middleDown
-                    && (this.modularUI == null || !this.modularUI.getDragHandler().isDragging()) ? this.canvas.nodeAt(mouseX, mouseY) : null;
+            PlacedNode hovered = this.canvas != null && !this.preferencesOpen && !this.screenshotOpen && !this.middleDown && (this.modularUI == null || !this.modularUI.getDragHandler().isDragging()) ? this.canvas.nodeAt(mouseX, mouseY) : null;
             if (hovered == null) this.nodeTooltip.hide();
             else this.nodeTooltip.render(graphics, this.font, hovered, mouseX, mouseY);
         }
@@ -361,7 +378,8 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         this.buttons.get("pref_budget").setText(Component.translatable("gui.data_energistics.plan_tree.pref_budget_value", this.preferences.autoExpandBudget()));
     }
 
-    @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (this.canvas != null && !this.preferencesOpen && !this.screenshotOpen) {
             if (button == 2 && this.canvas.isMouseOverContent((float) mouseX, (float) mouseY)) {
                 this.middleDown = true;
@@ -379,8 +397,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
                         this.anchorPosition = this.canvas.screenPosition(node);
                         Prepared current = this.prepared;
                         boolean recursive = hasControlDown();
-                        schedule(folded -> recursive ? current.projection().recursiveCollapsed(folded, node.id(), button == 1)
-                                : current.projection().setCollapsed(folded, node.id(), button == 1), false);
+                        schedule(folded -> recursive ? current.projection().recursiveCollapsed(folded, node.id(), button == 1) : current.projection().setCollapsed(folded, node.id(), button == 1), false);
                     }
                     return true;
                 }
@@ -393,14 +410,16 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         if (button == 2 && this.middleDown && Math.hypot(mouseX - this.middleStartX, mouseY - this.middleStartY) > 3) this.middleDragged = true;
         // This screen owns its UI, so LDLib2's menu-holder drag forwarding does not apply.
         if (this.modularUI != null && this.modularUI.getWidget().mouseDragged(mouseX, mouseY, button, dragX, dragY)) return true;
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
-    @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
         boolean handled;
         if (this.modularUI != null && this.modularUI.getDragHandler().isDragging()) {
             // A captured drag must end even when the pointer has left the UI window.
@@ -418,14 +437,21 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         return handled;
     }
 
-    @Override public boolean keyPressed(int key, int scan, int modifiers) {
+    @Override
+    public boolean keyPressed(int key, int scan, int modifiers) {
         if (this.nodeTooltip != null && this.nodeTooltip.keyPressed(key, scan)) return true;
         if (key == GLFW.GLFW_KEY_ESCAPE || this.minecraft != null && this.minecraft.options.keyInventory.matches(key, scan)) {
-            if (this.preferencesOpen || this.screenshotOpen) { this.preferencesOpen = false; this.screenshotOpen = false; updatePopups(); }
-            else this.menu.request(Action.CANCEL);
+            if (this.preferencesOpen || this.screenshotOpen) {
+                this.preferencesOpen = false;
+                this.screenshotOpen = false;
+                updatePopups();
+            } else this.menu.request(Action.CANCEL);
             return true;
         }
-        if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) { if (this.menu.startable) this.menu.request(Action.START); return true; }
+        if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
+            if (this.menu.startable) this.menu.request(Action.START);
+            return true;
+        }
         if (key >= GLFW.GLFW_KEY_RIGHT && key <= GLFW.GLFW_KEY_UP && this.prepared != null && this.canvas != null) {
             navigate(key);
             return true;
@@ -443,9 +469,17 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         for (PlacedNode candidate : nodes) {
             double dx = candidate.x() - current.x();
             double dy = candidate.y() - current.y();
-            boolean direction = switch (key) { case GLFW.GLFW_KEY_LEFT -> dx < 0; case GLFW.GLFW_KEY_RIGHT -> dx > 0; case GLFW.GLFW_KEY_UP -> dy < 0; default -> dy > 0; };
+            boolean direction = switch (key) {
+                case GLFW.GLFW_KEY_LEFT -> dx < 0;
+                case GLFW.GLFW_KEY_RIGHT -> dx > 0;
+                case GLFW.GLFW_KEY_UP -> dy < 0;
+                default -> dy > 0;
+            };
             double distance = dx * dx + dy * dy;
-            if (direction && distance < score) { score = distance; best = candidate; }
+            if (direction && distance < score) {
+                score = distance;
+                best = candidate;
+            }
         }
         this.selected = best.id();
         this.canvas.select(this.selected);
@@ -456,7 +490,10 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         this.screenshotOpen = false;
         updatePopups();
         if (this.graph == null || this.prepared == null || this.pending != null || this.layoutExecutor == null) return;
-        if (!full) { this.exportLayout = this.prepared.layout(); return; }
+        if (!full) {
+            this.exportLayout = this.prepared.layout();
+            return;
+        }
         Prepared prepared = this.prepared;
         boolean dense = this.compact;
         this.exportingFull = true;
@@ -465,7 +502,9 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
                 CraftingPlanGraphLayout.layout(prepared.projection().visible(Set.of(), false), dense)), this.layoutExecutor);
     }
 
-    public Rect2i panelBounds() { return new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight); }
+    public Rect2i panelBounds() {
+        return new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight);
+    }
 
     public @Nullable GenericStack hoveredIngredient() {
         if (this.minecraft == null) return null;
@@ -476,7 +515,8 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         return stack == null ? null : stack.stack();
     }
 
-    @Override public @Nullable StackWithBounds dataEnergistics$getGenericStackUnderMouse(double mouseX, double mouseY) {
+    @Override
+    public @Nullable StackWithBounds dataEnergistics$getGenericStackUnderMouse(double mouseX, double mouseY) {
         if (this.canvas == null || hasShiftDown() || this.preferencesOpen || this.screenshotOpen) return null;
         PlacedNode node = this.canvas.nodeAt(mouseX, mouseY);
         if (node == null) return null;
@@ -489,12 +529,24 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         if (this.minecraft != null && this.minecraft.player != null) this.minecraft.player.sendSystemMessage(message);
     }
 
-    @Override public void onClose() { this.menu.request(Action.CANCEL); }
-    @Override public boolean isPauseScreen() { return false; }
-    @Override protected void renderBg(GuiGraphics graphics, float tick, int x, int y) {}
-    @Override protected void renderLabels(GuiGraphics graphics, int x, int y) {}
+    @Override
+    public void onClose() {
+        this.menu.request(Action.CANCEL);
+    }
 
-    @Override public void removed() {
+    @Override
+    public boolean isPauseScreen() {
+        return false;
+    }
+
+    @Override
+    protected void renderBg(GuiGraphics graphics, float tick, int x, int y) {}
+
+    @Override
+    protected void renderLabels(GuiGraphics graphics, int x, int y) {}
+
+    @Override
+    public void removed() {
         saveViewport();
         if (this.pending != null) this.pending.cancel(true);
         this.pending = null;
@@ -512,8 +564,14 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         }
     }
 
-    private static Component text(String suffix) { return Component.translatable("gui.data_energistics.plan_tree." + suffix); }
+    private static Component text(String suffix) {
+        return Component.translatable("gui.data_energistics.plan_tree." + suffix);
+    }
+
     private record Prepared(CraftingPlanGraphView projection, Set<Integer> collapsed, Layout layout) {
-        private Prepared { collapsed = Set.copyOf(collapsed); }
+
+        private Prepared {
+            collapsed = Set.copyOf(collapsed);
+        }
     }
 }

@@ -24,28 +24,28 @@ import java.util.UUID;
 
 /** One bounded revision-scoped typed batch. No batch independently changes crafting or CPU state. */
 public record CraftingPlanGraphPayload(int containerId, UUID sessionId, long revision, int batchIndex,
-                                      int batchCount, int totalRecords, int totalBytes, int encodedBytes,
-                                      List<CraftingPlanGraphRecord> records) implements CustomPacketPayload {
+                                       int batchCount, int totalRecords, int totalBytes, int encodedBytes,
+                                       List<CraftingPlanGraphRecord> records)
+        implements CustomPacketPayload {
+
     public static final int RECORDS_PER_BATCH = 64;
     public static final int MAX_RECORDS = 262144;
     public static final int MAX_BYTES = 16 * 1024 * 1024;
     public static final int MAX_BATCH_BYTES = 512 * 1024;
     public static final Type<CraftingPlanGraphPayload> TYPE = new Type<>(Data_Energistics.id("crafting_plan_graph"));
-    public static final StreamCodec<RegistryFriendlyByteBuf, CraftingPlanGraphPayload> STREAM_CODEC =
-            CustomPacketPayload.codec(CraftingPlanGraphPayload::write, CraftingPlanGraphPayload::read);
+    public static final StreamCodec<RegistryFriendlyByteBuf, CraftingPlanGraphPayload> STREAM_CODEC = CustomPacketPayload.codec(CraftingPlanGraphPayload::write, CraftingPlanGraphPayload::read);
 
     public CraftingPlanGraphPayload {
         Objects.requireNonNull(sessionId);
         validateMetadata(containerId, revision, batchIndex, batchCount, totalRecords, totalBytes);
         records = List.copyOf(records);
-        if (records.isEmpty() || records.size() > RECORDS_PER_BATCH || records.size() > totalRecords
-                || encodedBytes <= 0 || encodedBytes > MAX_BATCH_BYTES || encodedBytes > totalBytes) {
+        if (records.isEmpty() || records.size() > RECORDS_PER_BATCH || records.size() > totalRecords || encodedBytes <= 0 || encodedBytes > MAX_BATCH_BYTES || encodedBytes > totalBytes) {
             throw new IllegalArgumentException("Invalid graph batch size");
         }
     }
 
     public static List<CraftingPlanGraphPayload> batches(int containerId, UUID sessionId, long revision,
-                                                        CraftingPlanGraph graph, RegistryAccess registries) {
+                                                         CraftingPlanGraph graph, RegistryAccess registries) {
         long count = 1L + graph.nodes().size() + graph.edges().size() + graph.cycles().size();
         if (count > MAX_RECORDS) throw new IllegalArgumentException("Crafting graph exceeds record limit");
         List<CraftingPlanGraphRecord> all = new ObjectArrayList<>((int) count);
@@ -91,9 +91,7 @@ public record CraftingPlanGraphPayload(int containerId, UUID sessionId, long rev
     }
 
     private static void validateMetadata(int container, long revision, int index, int batches, int records, int bytes) {
-        if (container < 0 || revision < 0 || records < 2 || records > MAX_RECORDS || bytes <= 0 || bytes > MAX_BYTES
-                || batches <= 0 || batches > records || (long) batches * RECORDS_PER_BATCH < records
-                || index < 0 || index >= batches || bytes < records) {
+        if (container < 0 || revision < 0 || records < 2 || records > MAX_RECORDS || bytes <= 0 || bytes > MAX_BYTES || batches <= 0 || batches > records || (long) batches * RECORDS_PER_BATCH < records || index < 0 || index >= batches || bytes < records) {
             throw new IllegalArgumentException("Invalid graph transfer metadata");
         }
     }
@@ -126,8 +124,7 @@ public record CraftingPlanGraphPayload(int containerId, UUID sessionId, long rev
         validateMetadata(container, revision, index, batches, totalRecords, totalBytes);
         int count = buffer.readVarInt();
         int bytes = buffer.readVarInt();
-        if (count <= 0 || count > RECORDS_PER_BATCH || count > totalRecords || bytes < count
-                || bytes > MAX_BATCH_BYTES || bytes > totalBytes || bytes > buffer.readableBytes()) {
+        if (count <= 0 || count > RECORDS_PER_BATCH || count > totalRecords || bytes < count || bytes > MAX_BATCH_BYTES || bytes > totalBytes || bytes > buffer.readableBytes()) {
             throw new IllegalArgumentException("Invalid graph batch body length");
         }
         RegistryFriendlyByteBuf body = new RegistryFriendlyByteBuf(buffer.readSlice(bytes), buffer.registryAccess());
@@ -138,7 +135,9 @@ public record CraftingPlanGraphPayload(int containerId, UUID sessionId, long rev
     }
 
     @Override
-    public Type<CraftingPlanGraphPayload> type() { return TYPE; }
+    public Type<CraftingPlanGraphPayload> type() {
+        return TYPE;
+    }
 
     public static void handle(CraftingPlanGraphPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {

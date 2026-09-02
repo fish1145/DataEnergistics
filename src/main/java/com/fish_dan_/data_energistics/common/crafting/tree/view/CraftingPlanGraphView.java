@@ -1,11 +1,5 @@
 package com.fish_dan_.data_energistics.common.crafting.tree.view;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.jspecify.annotations.Nullable;
-
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Edge;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Material;
@@ -28,6 +22,11 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.ints.IntSets;
 import it.unimi.dsi.fastutil.objects.Object2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.jspecify.annotations.Nullable;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /** Immutable, server-safe projection. Folding never mutates the authoritative plan or duplicates a material. */
 public final class CraftingPlanGraphView {
@@ -59,22 +58,17 @@ public final class CraftingPlanGraphView {
         }
         GraphComponents sourceComponents = GraphComponents.find(sourceNodes.keySet(), sourceOutgoing);
         for (Node node : sourceNodes.values()) {
-            if (!(node instanceof Process process) || !process.cycleIds().isEmpty()
-                    || sourceComponents.cyclicComponents().contains(sourceComponents.componentByNode().get(node.id()))) {
+            if (!(node instanceof Process process) || !process.cycleIds().isEmpty() || sourceComponents.cyclicComponents().contains(sourceComponents.componentByNode().get(node.id()))) {
                 continue;
             }
             List<Edge> parents = incomingEdges.getOrDefault(node.id(), List.of());
             List<Edge> children = outgoingEdges.getOrDefault(node.id(), List.of());
-            if (parents.size() != 1 || parents.getFirst().role() != Role.OUTPUT
-                    || children.stream().anyMatch(edge -> edge.role() != Role.INPUT)) {
+            if (parents.size() != 1 || parents.getFirst().role() != Role.OUTPUT || children.stream().anyMatch(edge -> edge.role() != Role.INPUT)) {
                 continue;
             }
             int materialId = parents.getFirst().source();
             Material material = (Material) sourceNodes.get(materialId);
-            if (!material.key().equals(process.primaryOutput())
-                    || outgoingEdges.getOrDefault(materialId, List.of()).size() != 1
-                    || incomingEdges.getOrDefault(materialId, List.of()).size() > 1
-                    || children.stream().anyMatch(edge -> incomingEdges.getOrDefault(edge.target(), List.of()).size() > 1)) {
+            if (!material.key().equals(process.primaryOutput()) || outgoingEdges.getOrDefault(materialId, List.of()).size() != 1 || incomingEdges.getOrDefault(materialId, List.of()).size() > 1 || children.stream().anyMatch(edge -> incomingEdges.getOrDefault(edge.target(), List.of()).size() > 1)) {
                 continue;
             }
             aliases.put(node.id(), materialId);
@@ -111,8 +105,7 @@ public final class CraftingPlanGraphView {
         edgeGroups.forEach((connection, ids) -> {
             ids.sort(IntComparators.NATURAL_COMPARATOR);
             int component = components.componentByNode().get(connection.source());
-            boolean cyclic = component == components.componentByNode().get(connection.target())
-                    && components.cyclicComponents().contains(component);
+            boolean cyclic = component == components.componentByNode().get(connection.target()) && components.cyclicComponents().contains(component);
             projectedEdges.add(new ViewEdge(connection.source(), connection.target(), ids, cyclic));
         });
         edges = List.copyOf(projectedEdges);
@@ -251,9 +244,7 @@ public final class CraftingPlanGraphView {
             nodes.add(new ViewNode(id, sourceNodes.get(id), embedded.containsKey(id) ? embedded.get(id) : null, component,
                     components.cyclicComponents().contains(component), folded));
         }
-        List<ViewEdge> visibleEdges = edges.stream().filter(edge -> visible.contains(edge.source())
-                && visible.contains(edge.target())
-                && (edge.cyclic() || !collapsedComponents.contains(components.componentByNode().get(edge.source()).intValue())))
+        List<ViewEdge> visibleEdges = edges.stream().filter(edge -> visible.contains(edge.source()) && visible.contains(edge.target()) && (edge.cyclic() || !collapsedComponents.contains(components.componentByNode().get(edge.source()).intValue())))
                 .toList();
         List<List<Integer>> visibleComponents = components.members().stream()
                 .filter(group -> visible.contains(group.getFirst().intValue())).toList();
@@ -285,8 +276,7 @@ public final class CraftingPlanGraphView {
         IntSet reachesMissing = new IntOpenHashSet();
         IntArrayFIFOQueue queue = new IntArrayFIFOQueue();
         for (Node node : sourceNodes.values()) {
-            if (node instanceof Material material
-                    && (material.missing().signum() > 0 || material.unresolved().signum() > 0)) {
+            if (node instanceof Material material && (material.missing().signum() > 0 || material.unresolved().signum() > 0)) {
                 queue.enqueue(projectedId(node.id()));
             }
         }
@@ -319,7 +309,7 @@ public final class CraftingPlanGraphView {
     }
 
     public record ViewGraph(CraftingPlanGraph source, int rootId, List<ViewNode> nodes,
-            List<ViewEdge> edges, List<List<Integer>> components) {
+                            List<ViewEdge> edges, List<List<Integer>> components) {
 
         public ViewGraph {
             nodes = List.copyOf(nodes);
@@ -329,7 +319,7 @@ public final class CraftingPlanGraphView {
     }
 
     public record ViewNode(int id, Node sourceNode, @Nullable Integer embeddedProcessId,
-            int componentId, boolean cyclic, boolean collapsed) {}
+                           int componentId, boolean cyclic, boolean collapsed) {}
 
     public record ViewEdge(int source, int target, List<Integer> originalEdgeIds, boolean cyclic) {
 

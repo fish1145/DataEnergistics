@@ -13,11 +13,18 @@ import java.util.UUID;
 /** No plan or CPU handle crosses this client-to-server action boundary. */
 public record CraftingPlanTreeActionPayload(int containerId, UUID sessionId, long revision, Action action)
         implements CustomPacketPayload {
-    public static final Type<CraftingPlanTreeActionPayload> TYPE = new Type<>(Data_Energistics.id("plan_tree_action"));
-    public static final StreamCodec<RegistryFriendlyByteBuf, CraftingPlanTreeActionPayload> STREAM_CODEC =
-            CustomPacketPayload.codec(CraftingPlanTreeActionPayload::write, CraftingPlanTreeActionPayload::new);
 
-    public enum Action { START, CANCEL, REPLAN, RETURN_LIST, NEXT_CPU, PREVIOUS_CPU }
+    public static final Type<CraftingPlanTreeActionPayload> TYPE = new Type<>(Data_Energistics.id("plan_tree_action"));
+    public static final StreamCodec<RegistryFriendlyByteBuf, CraftingPlanTreeActionPayload> STREAM_CODEC = CustomPacketPayload.codec(CraftingPlanTreeActionPayload::write, CraftingPlanTreeActionPayload::new);
+
+    public enum Action {
+        START,
+        CANCEL,
+        REPLAN,
+        RETURN_LIST,
+        NEXT_CPU,
+        PREVIOUS_CPU
+    }
 
     public CraftingPlanTreeActionPayload {
         if (containerId < 0 || revision < 0) throw new IllegalArgumentException("Invalid plan-tree action envelope");
@@ -34,7 +41,10 @@ public record CraftingPlanTreeActionPayload(int containerId, UUID sessionId, lon
         buffer.writeEnum(this.action);
     }
 
-    @Override public Type<CraftingPlanTreeActionPayload> type() { return TYPE; }
+    @Override
+    public Type<CraftingPlanTreeActionPayload> type() {
+        return TYPE;
+    }
 
     public static void handle(CraftingPlanTreeActionPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {

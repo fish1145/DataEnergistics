@@ -1,11 +1,5 @@
 package com.fish_dan_.data_energistics.common.crafting.tree.view;
 
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import it.unimi.dsi.fastutil.ints.Int2IntAVLTreeMap;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntMaps;
@@ -21,9 +15,15 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.ints.IntSets;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 /** Iterative Kosaraju decomposition; even a very deep dependency chain does not use the Java stack. */
 public record GraphComponents(Map<Integer, Integer> componentByNode, List<List<Integer>> members,
-        Set<Integer> cyclicComponents) {
+                              Set<Integer> cyclicComponents) {
 
     public GraphComponents {
         componentByNode = Int2IntMaps.unmodifiable(new Int2IntAVLTreeMap(componentByNode));

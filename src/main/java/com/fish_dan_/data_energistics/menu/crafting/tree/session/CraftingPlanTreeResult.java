@@ -22,6 +22,7 @@ import org.jspecify.annotations.Nullable;
 public record CraftingPlanTreeResult(ICraftingPlan plan, CraftingPlanSummary summary,
                                      @Nullable TrinityCraftingCycleSummary cycles, long planningNanos,
                                      @Nullable CraftingPlanGraph graph, Component graphError) {
+
     /** Projects exactly once on the server thread. A drawing failure must not destroy a valid crafting plan. */
     public static CraftingPlanTreeResult create(ICraftingPlan plan, CraftingPlanTreeRequest request,
                                                 IGrid grid, IActionSource source) {

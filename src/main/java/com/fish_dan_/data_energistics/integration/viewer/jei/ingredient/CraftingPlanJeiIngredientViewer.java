@@ -20,6 +20,7 @@ import java.util.function.Supplier;
 
 /** Native JEI graph navigation using the plugin's current runtime, never a stale retained runtime instance. */
 public final class CraftingPlanJeiIngredientViewer implements CraftingPlanIngredientViewer {
+
     private final Supplier<@Nullable IJeiRuntime> runtime;
 
     public CraftingPlanJeiIngredientViewer(Supplier<@Nullable IJeiRuntime> runtime) {
@@ -27,10 +28,14 @@ public final class CraftingPlanJeiIngredientViewer implements CraftingPlanIngred
     }
 
     @Override
-    public int priority() { return 10; }
+    public int priority() {
+        return 10;
+    }
 
     @Override
-    public boolean available() { return this.runtime.get() != null; }
+    public boolean available() {
+        return this.runtime.get() != null;
+    }
 
     @Override
     public void bind(UIElement canvas, Supplier<@Nullable GenericStack> hovered) {
@@ -42,8 +47,7 @@ public final class CraftingPlanJeiIngredientViewer implements CraftingPlanIngred
                 return;
             }
             var bounds = screen.dataEnergistics$getGenericStackUnderMouse(event.x, event.y);
-            event.customData = bounds == null ? Optional.empty()
-                    : clickable(factory, JeiGenericStackIngredientResolver.resolve(stack), bounds.bounds());
+            event.customData = bounds == null ? Optional.empty() : clickable(factory, JeiGenericStackIngredientResolver.resolve(stack), bounds.bounds());
         });
     }
 
@@ -56,7 +60,7 @@ public final class CraftingPlanJeiIngredientViewer implements CraftingPlanIngred
     }
 
     private static <T> Optional<? extends IClickableIngredient<?>> clickable(IClickableIngredientFactory factory,
-            JeiGenericStackIngredientResolver.ResolvedIngredient<T> ingredient, Rect2i bounds) {
+                                                                             JeiGenericStackIngredientResolver.ResolvedIngredient<T> ingredient, Rect2i bounds) {
         return factory.createBuilder(ingredient.type(), ingredient.ingredient()).buildWithArea(bounds);
     }
 

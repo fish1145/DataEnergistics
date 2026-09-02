@@ -22,6 +22,7 @@ import java.util.Objects;
 
 /** Immutable dependency graph; edges point from requested outputs towards their production inputs. */
 public final class CraftingPlanGraph {
+
     private final Header header;
     private final int rootId;
     private final List<Node> nodes;
@@ -61,8 +62,7 @@ public final class CraftingPlanGraph {
             boolean validRole = switch (edge.role()) {
                 case INPUT -> source instanceof Process && target instanceof Material;
                 case OUTPUT, REMAINDER -> source instanceof Material && target instanceof Process;
-                case DIAGNOSTIC -> source instanceof Material && target instanceof Material
-                        && edge.source() == rootId && header.kind() != Kind.EXACT;
+                case DIAGNOSTIC -> source instanceof Material && target instanceof Material && edge.source() == rootId && header.kind() != Kind.EXACT;
             };
             if (!edgeIds.add(edge.id()) || !validRole) {
                 throw new IllegalArgumentException("Invalid graph edge id, endpoints or role");
@@ -102,8 +102,7 @@ public final class CraftingPlanGraph {
                 }
                 for (int cycleId : process.cycleIds()) {
                     Cycle cycle = cycleById.get(cycleId);
-                    if (cycle == null || !cycleMembers.get(cycleId).contains(process.id())
-                            || !cycleStages.get(cycleId).contains(process.stageIndex())) {
+                    if (cycle == null || !cycleMembers.get(cycleId).contains(process.id()) || !cycleStages.get(cycleId).contains(process.stageIndex())) {
                         throw new IllegalArgumentException("Process cycle membership is inconsistent");
                     }
                 }
@@ -111,11 +110,25 @@ public final class CraftingPlanGraph {
         }
     }
 
-    public Header header() { return this.header; }
-    public int rootId() { return this.rootId; }
-    public List<Node> nodes() { return this.nodes; }
-    public List<Edge> edges() { return this.edges; }
-    public List<Cycle> cycles() { return this.cycles; }
+    public Header header() {
+        return this.header;
+    }
+
+    public int rootId() {
+        return this.rootId;
+    }
+
+    public List<Node> nodes() {
+        return this.nodes;
+    }
+
+    public List<Edge> edges() {
+        return this.edges;
+    }
+
+    public List<Cycle> cycles() {
+        return this.cycles;
+    }
 
     /** Resolves a validated graph id; absent ids indicate caller misuse. */
     public Node node(int id) {
@@ -126,11 +139,22 @@ public final class CraftingPlanGraph {
         return node;
     }
 
-    public enum Kind { EXACT, DIAGNOSTIC, ESTIMATE }
-    public enum Role { INPUT, OUTPUT, REMAINDER, DIAGNOSTIC }
+    public enum Kind {
+        EXACT,
+        DIAGNOSTIC,
+        ESTIMATE
+    }
+
+    public enum Role {
+        INPUT,
+        OUTPUT,
+        REMAINDER,
+        DIAGNOSTIC
+    }
 
     public record Header(AEKey target, BigInteger requested, BigInteger bytes, Kind kind,
                          CraftingQuantityMode quantityMode, long planningNanos, Component diagnostic) {
+
         public Header {
             Objects.requireNonNull(target);
             positive(requested);
@@ -142,7 +166,9 @@ public final class CraftingPlanGraph {
         }
 
         @Override
-        public Component diagnostic() { return this.diagnostic.copy(); }
+        public Component diagnostic() {
+            return this.diagnostic.copy();
+        }
     }
 
     /**
@@ -150,12 +176,15 @@ public final class CraftingPlanGraph {
      * Instances are safe to retain across threads; ids are nonnegative and unique within their owning graph.
      */
     public sealed interface Node permits Material, Process {
+
         /** Stable local graph identifier; never null, never mutates and performs no external lookup. */
         int id();
     }
 
     public record Material(int id, AEKey key, BigInteger required, BigInteger stored, BigInteger crafting,
-                           BigInteger missing, BigInteger unresolved, int inventoryUsageBasisPoints) implements Node {
+                           BigInteger missing, BigInteger unresolved, int inventoryUsageBasisPoints)
+            implements Node {
+
         public Material {
             checkId(id);
             Objects.requireNonNull(key);
@@ -171,7 +200,9 @@ public final class CraftingPlanGraph {
     }
 
     public record Process(int id, int stageIndex, String patternIdentity, int variantOrdinal, AEKey primaryOutput,
-                          BigInteger executions, boolean estimated, List<Integer> cycleIds) implements Node {
+                          BigInteger executions, boolean estimated, List<Integer> cycleIds)
+            implements Node {
+
         public Process {
             checkId(id);
             checkId(stageIndex);
@@ -184,6 +215,7 @@ public final class CraftingPlanGraph {
     }
 
     public record Edge(int id, int source, int target, Role role, BigInteger amount) {
+
         public Edge {
             checkId(id);
             checkId(source);
@@ -195,6 +227,7 @@ public final class CraftingPlanGraph {
 
     public record Cycle(int id, int ordinal, List<Integer> nodeIds, List<Integer> stageOrder,
                         BigInteger repetitions, Map<AEKey, BigInteger> minimumSeed, Map<AEKey, BigInteger> netChange) {
+
         public Cycle {
             checkId(id);
             checkId(ordinal);
@@ -223,9 +256,11 @@ public final class CraftingPlanGraph {
     private static void checkId(int value) {
         if (value < 0) throw new IllegalArgumentException("Negative graph id");
     }
+
     private static void nonnegative(BigInteger value) {
         if (value.signum() < 0) throw new IllegalArgumentException("Negative graph amount");
     }
+
     private static void positive(BigInteger value) {
         if (value.signum() <= 0) throw new IllegalArgumentException("Nonpositive graph amount");
     }

@@ -1,8 +1,5 @@
 package com.fish_dan_.data_energistics.common.crafting.tree.layout;
 
-import java.util.Comparator;
-import java.util.List;
-
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Bounds;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Layout;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
@@ -20,6 +17,9 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
+import java.util.Comparator;
+import java.util.List;
 
 /** Orthogonal routing within components, through layer gaps, and across interval-packed inter-layer tracks. */
 final class CraftingPlanEdgeRouter {
@@ -126,8 +126,7 @@ final class CraftingPlanEdgeRouter {
             List<Point> horizontal = directRoute(component, source, target, edge, true);
             List<Point> vertical = directRoute(component, source, target, edge, false);
             if (!horizontal.isEmpty() || !vertical.isEmpty()) {
-                return horizontal.isEmpty() || (!vertical.isEmpty() && length(vertical) < length(horizontal))
-                        ? vertical : horizontal;
+                return horizontal.isEmpty() || (!vertical.isEmpty() && length(vertical) < length(horizontal)) ? vertical : horizontal;
             }
         }
         Side fromSide = component.input.outward().get(source.id());
@@ -149,12 +148,11 @@ final class CraftingPlanEdgeRouter {
                 return candidate;
             }
         }
-        throw new IllegalStateException("Cannot reserve a component route for " + edge.view().source()
-                + " -> " + edge.view().target());
+        throw new IllegalStateException("Cannot reserve a component route for " + edge.view().source() + " -> " + edge.view().target());
     }
 
     private List<Point> directRoute(RoutingComponent component, PlacedNode source, PlacedNode target,
-            EdgePorts edge, boolean horizontal) {
+                                    EdgePorts edge, boolean horizontal) {
         double sourceStart = horizontal ? source.x() : source.y();
         double targetStart = horizontal ? target.x() : target.y();
         double sourceEnd = sourceStart + (horizontal ? source.width() : source.height());
@@ -176,9 +174,7 @@ final class CraftingPlanEdgeRouter {
             if (lane < start || lane > end) {
                 continue;
             }
-            List<Point> candidate = horizontal
-                    ? List.of(from, new Point(lane, from.y()), new Point(lane, to.y()), to)
-                    : List.of(from, new Point(from.x(), lane), new Point(to.x(), lane), to);
+            List<Point> candidate = horizontal ? List.of(from, new Point(lane, from.y()), new Point(lane, to.y()), to) : List.of(from, new Point(from.x(), lane), new Point(to.x(), lane), to);
             if (component.occupied.available(candidate) && clearOfNodes(candidate, component.nodes.values())) {
                 return candidate;
             }
@@ -197,8 +193,7 @@ final class CraftingPlanEdgeRouter {
             Point fromLane = project(from, nodeSide, boundary);
             double exitX = fromLane.x();
             if ((nodeSide == Side.TOP || nodeSide == Side.BOTTOM) && nodeSide != exitSide) {
-                exitX = exitX - boundary.x() <= boundary.width() / 2
-                        ? boundary.x() : boundary.x() + boundary.width();
+                exitX = exitX - boundary.x() <= boundary.width() / 2 ? boundary.x() : boundary.x() + boundary.width();
             }
             Point exit = new Point(exitX, bottom ? boundary.y() + boundary.height() : boundary.y());
             List<Point> candidate = boundaryRoute(boundary, from, nodeSide, exit, exitSide);
@@ -355,8 +350,7 @@ final class CraftingPlanEdgeRouter {
             if (result.size() >= 2) {
                 Point before = result.get(result.size() - 2);
                 Point last = result.getLast();
-                if ((before.x() == last.x() && last.x() == point.x())
-                        || (before.y() == last.y() && last.y() == point.y())) {
+                if ((before.x() == last.x() && last.x() == point.x()) || (before.y() == last.y() && last.y() == point.y())) {
                     result.removeLast();
                 }
             }
@@ -371,14 +365,10 @@ final class CraftingPlanEdgeRouter {
                 Point from = points.get(index - 1);
                 Point to = points.get(index);
                 if (from.y() == to.y()) {
-                    if (from.y() > node.y() && from.y() < node.y() + node.height()
-                            && Math.max(from.x(), to.x()) > node.x()
-                            && Math.min(from.x(), to.x()) < node.x() + node.width()) {
+                    if (from.y() > node.y() && from.y() < node.y() + node.height() && Math.max(from.x(), to.x()) > node.x() && Math.min(from.x(), to.x()) < node.x() + node.width()) {
                         return false;
                     }
-                } else if (from.x() > node.x() && from.x() < node.x() + node.width()
-                        && Math.max(from.y(), to.y()) > node.y()
-                        && Math.min(from.y(), to.y()) < node.y() + node.height()) {
+                } else if (from.x() > node.x() && from.x() < node.x() + node.width() && Math.max(from.y(), to.y()) > node.y() && Math.min(from.y(), to.y()) < node.y() + node.height()) {
                     return false;
                 }
             }
@@ -477,12 +467,14 @@ final class CraftingPlanEdgeRouter {
     private record Anchor(double x, boolean top) {}
 
     private record Terminal(RoutingComponent component, List<Point> points, boolean bottom) {
+
         private double x() {
             return component.global(points.getLast()).x();
         }
     }
 
     private static final class RoutingComponent {
+
         private final Component input;
         private final int rank;
         private final Int2ObjectMap<PlacedNode> nodes = new Int2ObjectAVLTreeMap<>();
@@ -531,6 +523,7 @@ final class CraftingPlanEdgeRouter {
     }
 
     private static final class Layer {
+
         private final List<RoutingComponent> groups;
         private final int[] used;
         private final double[] centers;
@@ -555,6 +548,7 @@ final class CraftingPlanEdgeRouter {
     }
 
     private static final class ExternalRoute {
+
         private final EdgePorts edge;
         private final Terminal source;
         private final Terminal target;
@@ -569,6 +563,7 @@ final class CraftingPlanEdgeRouter {
     }
 
     private static final class BandEndpoint {
+
         private final Anchor anchor;
         private double column;
         private int header = -1;
@@ -579,6 +574,7 @@ final class CraftingPlanEdgeRouter {
     }
 
     private static final class BandVisit {
+
         private final Band band;
         private final BandEndpoint from;
         private final BandEndpoint to;
@@ -604,8 +600,7 @@ final class CraftingPlanEdgeRouter {
             double boundaryY = band.y + (endpoint.anchor.top() ? 0 : band.height);
             points.add(new Point(endpoint.anchor.x(), boundaryY));
             if (endpoint.header >= 0) {
-                double headerY = endpoint.anchor.top() ? band.y + PADDING + endpoint.header * GAP
-                        : band.y + band.height - PADDING - endpoint.header * GAP;
+                double headerY = endpoint.anchor.top() ? band.y + PADDING + endpoint.header * GAP : band.y + band.height - PADDING - endpoint.header * GAP;
                 points.add(new Point(endpoint.anchor.x(), headerY));
                 points.add(new Point(endpoint.column, headerY));
             }
@@ -614,6 +609,7 @@ final class CraftingPlanEdgeRouter {
     }
 
     private static final class Band {
+
         private final List<BandVisit> visits = new ObjectArrayList<>();
         private final Double2ObjectAVLTreeMap<List<BandEndpoint>> originals = new Double2ObjectAVLTreeMap<>();
         private final Double2ObjectAVLTreeMap<BandVisit> columns = new Double2ObjectAVLTreeMap<>();
@@ -674,15 +670,13 @@ final class CraftingPlanEdgeRouter {
             // A moved trunk must also avoid the original short entry stems in the top/bottom fan-out regions.
             for (List<BandEndpoint> endpoints : originals.subMap(column - GAP + EPSILON, column + GAP).values()) {
                 for (BandEndpoint existing : endpoints) {
-                    if (existing != endpoint && !(existing == other
-                            && Math.abs(other.anchor.x() - endpoint.anchor.x()) < EPSILON)) {
+                    if (existing != endpoint && !(existing == other && Math.abs(other.anchor.x() - endpoint.anchor.x()) < EPSILON)) {
                         return false;
                     }
                 }
             }
             for (var occupied : columns.subMap(column - GAP + EPSILON, column + GAP).double2ObjectEntrySet()) {
-                if (occupied.getValue() != visit || Math.abs(occupied.getDoubleKey() - column) > EPSILON
-                        || Math.abs(other.anchor.x() - endpoint.anchor.x()) > EPSILON) {
+                if (occupied.getValue() != visit || Math.abs(occupied.getDoubleKey() - column) > EPSILON || Math.abs(other.anchor.x() - endpoint.anchor.x()) > EPSILON) {
                     return false;
                 }
             }

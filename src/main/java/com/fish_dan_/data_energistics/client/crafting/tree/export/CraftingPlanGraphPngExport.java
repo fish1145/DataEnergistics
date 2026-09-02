@@ -1,30 +1,10 @@
 package com.fish_dan_.data_energistics.client.crafting.tree.export;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.function.Consumer;
-
-import org.joml.Matrix4f;
-import org.jspecify.annotations.Nullable;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL13;
-import org.lwjgl.opengl.GL20;
-import org.lwjgl.opengl.GL21;
-import org.lwjgl.opengl.GL30;
-
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphRenderer;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Bounds;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Layout;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.GraphViewLod;
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
-import com.mojang.blaze3d.vertex.VertexSorting;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
@@ -36,9 +16,28 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.client.GlStateBackup;
 
+import com.lowdragmc.lowdraglib2.gui.ui.elements.GraphViewLod;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.ByteBufferBuilder;
+import com.mojang.blaze3d.vertex.VertexSorting;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntSets;
+import org.joml.Matrix4f;
+import org.jspecify.annotations.Nullable;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL21;
+import org.lwjgl.opengl.GL30;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.function.Consumer;
 
 /** Full-layout capture on the render thread, with PNG encoding and filesystem work on Minecraft's IO pool. */
 public final class CraftingPlanGraphPngExport {
@@ -77,8 +76,7 @@ public final class CraftingPlanGraphPngExport {
     private static PixelDimensions dimensions(Bounds bounds) {
         double width = bounds.width();
         double height = bounds.height();
-        if (!Double.isFinite(width) || !Double.isFinite(height) || !Double.isFinite(bounds.x())
-                || !Double.isFinite(bounds.y()) || width <= 0 || height <= 0) {
+        if (!Double.isFinite(width) || !Double.isFinite(height) || !Double.isFinite(bounds.x()) || !Double.isFinite(bounds.y()) || width <= 0 || height <= 0) {
             throw new IllegalArgumentException("The crafting graph must have finite, positive export bounds");
         }
         int maximum = Math.min(MAX_SIDE, RenderSystem.maxSupportedTextureSize());
@@ -92,7 +90,7 @@ public final class CraftingPlanGraphPngExport {
     }
 
     private static NativeImage capture(Minecraft client, CraftingPlanGraph graph, Layout layout,
-            PixelDimensions dimensions, boolean showAmounts) {
+                                       PixelDimensions dimensions, boolean showAmounts) {
         NativeImage image = new NativeImage(dimensions.width(), dimensions.height(), false);
         boolean complete = false;
         try {

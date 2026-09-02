@@ -14,6 +14,7 @@ import java.util.concurrent.Future;
  * No inventory is reserved and no job is submitted by transferring this session.
  */
 public final class CraftingPlanTreeSession {
+
     private final UUID id = UUID.randomUUID();
     private final CraftingPlanTreeRequest request;
     private @Nullable Object owner;
@@ -32,13 +33,33 @@ public final class CraftingPlanTreeSession {
         this.selectedCpu = selectedCpu;
     }
 
-    public UUID id() { return this.id; }
-    public CraftingPlanTreeRequest request() { return this.request; }
-    public long revision() { return this.revision; }
-    public @Nullable CraftingPlanTreeResult result() { return this.result; }
-    public @Nullable ICraftingCPU selectedCpu() { return this.selectedCpu; }
-    public boolean isPlanning() { return this.calculation != null; }
-    public boolean isOwnedBy(Object candidate) { return this.owner == candidate; }
+    public UUID id() {
+        return this.id;
+    }
+
+    public CraftingPlanTreeRequest request() {
+        return this.request;
+    }
+
+    public long revision() {
+        return this.revision;
+    }
+
+    public @Nullable CraftingPlanTreeResult result() {
+        return this.result;
+    }
+
+    public @Nullable ICraftingCPU selectedCpu() {
+        return this.selectedCpu;
+    }
+
+    public boolean isPlanning() {
+        return this.calculation != null;
+    }
+
+    public boolean isOwnedBy(Object candidate) {
+        return this.owner == candidate;
+    }
 
     /** Fails before changing either owner if a stale menu attempts a second transfer. */
     public void transfer(Object expectedOwner, Object nextOwner) {

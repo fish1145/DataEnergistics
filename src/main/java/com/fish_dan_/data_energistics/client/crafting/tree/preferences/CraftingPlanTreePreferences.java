@@ -18,13 +18,16 @@ import java.nio.file.StandardCopyOption;
 /** Client-local presentation preferences, never synchronized to or persisted by a server. */
 public record CraftingPlanTreePreferences(int autoExpandBudget, boolean compact, boolean missingOnly,
                                           boolean screenshotAmounts) {
+
     public static final CraftingPlanTreePreferences DEFAULT = new CraftingPlanTreePreferences(256, false, false, false);
 
     public CraftingPlanTreePreferences {
         if (autoExpandBudget < 64 || autoExpandBudget > 4096) throw new IllegalArgumentException("Plan-tree budget outside [64, 4096]");
     }
 
-    private static Path path() { return FMLPaths.CONFIGDIR.get().resolve("data_energistics").resolve("crafting_plan_tree.json"); }
+    private static Path path() {
+        return FMLPaths.CONFIGDIR.get().resolve("data_energistics").resolve("crafting_plan_tree.json");
+    }
 
     public static CraftingPlanTreePreferences load() {
         Path path = path();
@@ -62,8 +65,11 @@ public record CraftingPlanTreePreferences(int autoExpandBudget, boolean compact,
             Data_Energistics.LOGGER.error("Cannot save plan-tree preferences at {}", target, failure);
         } finally {
             if (temporary != null) {
-                try { Files.deleteIfExists(temporary); }
-                catch (IOException failure) { Data_Energistics.LOGGER.warn("Cannot remove plan-tree temporary file {}", temporary, failure); }
+                try {
+                    Files.deleteIfExists(temporary);
+                } catch (IOException failure) {
+                    Data_Energistics.LOGGER.warn("Cannot remove plan-tree temporary file {}", temporary, failure);
+                }
             }
         }
     }
