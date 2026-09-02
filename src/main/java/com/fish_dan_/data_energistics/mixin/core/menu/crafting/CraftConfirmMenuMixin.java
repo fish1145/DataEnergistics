@@ -519,7 +519,10 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         if (restore != null && grid != null) {
             // Use the cycler's public action instead of reflecting into its private index/list.
             int remaining = grid.getCraftingService().getCpus().size() + 1;
-            while (this.selectedCpu != restore && remaining-- > 0) self.cycleSelectedCPU(true);
+            while (this.selectedCpu != restore && remaining-- > 0) {
+                self.cycleSelectedCPU(true);
+                if (this.selectedCpu == null) break;
+            }
             this.dataEnergistics$restoreTreeCpu = null;
         }
         if (!this.dataEnergistics$hasTrinityCpu || this.result == null || this.job != null || grid == null

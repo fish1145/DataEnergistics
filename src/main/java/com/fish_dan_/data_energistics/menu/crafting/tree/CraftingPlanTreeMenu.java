@@ -105,7 +105,7 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
         CraftingPlanTreeRequest request = session.request();
         Object handoff = new Object();
         session.transfer(previousOwner, handoff);
-        CraftingPlanTreeMenu[] created = new CraftingPlanTreeMenu[1];
+        @Nullable CraftingPlanTreeMenu[] created = new CraftingPlanTreeMenu[1];
         try {
             boolean opened = player.openMenu(new MenuProvider() {
                 @Override public Component getDisplayName() { return Component.translatable("gui.data_energistics.plan_tree.title"); }
@@ -261,7 +261,11 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
             target.data_energistics$adoptPlanTreeSession(this.session, handoff);
         } catch (RuntimeException failure) {
             if (getPlayer().containerMenu == this && this.session.isOwnedBy(handoff)) this.session.transfer(handoff, this);
-            else this.session.closeIfOwnedBy(handoff);
+            else {
+                this.session.closeIfOwnedBy(handoff);
+                this.session.closeIfOwnedBy(getPlayer().containerMenu);
+                if (getPlayer().containerMenu instanceof AEBaseMenu opened) opened.setValidMenu(false);
+            }
             throw failure;
         }
     }

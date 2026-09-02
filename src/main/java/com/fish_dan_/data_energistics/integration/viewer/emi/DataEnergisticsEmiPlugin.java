@@ -1,8 +1,11 @@
 package com.fish_dan_.data_energistics.integration.viewer.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewers;
+import com.fish_dan_.data_energistics.client.screen.crafting.CraftingPlanTreeScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.integration.viewer.emi.entrypoint.DataEnergisticsEmiEntrypointLoader;
+import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.CraftingPlanEmiIngredientViewer;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStack;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStackConverter;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStackSerializer;
@@ -53,6 +56,7 @@ import dev.emi.emi.api.recipe.EmiInfoRecipe;
 import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiStack;
+import dev.emi.emi.api.widget.Bounds;
 import dev.emi.emi.recipe.special.EmiAnvilEnchantRecipe;
 import dev.emi.emi.registry.EmiRecipes;
 import org.apache.logging.log4j.Logger;
@@ -98,6 +102,11 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA_FLOW, 1L));
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.ECHO, 1L));
         registry.addGenericStackProvider(new PatternEncodingGenericStackEmiProvider());
+        CraftingPlanIngredientViewers.register("emi", new CraftingPlanEmiIngredientViewer());
+        registry.addScreenBoundsProvider(CraftingPlanTreeScreen.class, screen -> {
+            var panel = screen.panelBounds();
+            return new Bounds(panel.getX(), panel.getY(), panel.getWidth(), panel.getHeight());
+        });
         registry.addDragDropHandler(OrderPackageScreen.class, new OrderPackageEmiDragDropHandler());
         registry.addGenericExclusionArea(new UniversalTerminalEmiExclusionArea());
         registry.removeRecipes(PoweredRepairRecipeFilter::shouldHideEmiRepairRecipe);
