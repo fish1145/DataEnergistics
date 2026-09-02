@@ -13,39 +13,42 @@ import it.unimi.dsi.fastutil.objects.ObjectLists;
 import java.util.function.Function;
 
 /**
- * Builds a client-only filtered view while preserving the server provider order.
+ * Prioritizes providers associated with the encoded recipe, preserving server order within each group.
  */
 final class PatternProviderDisplayOrder {
 
     private PatternProviderDisplayOrder() {}
 
     /**
-     * Retains only search matches without recalculating or changing their server-defined order.
+     * Applies text filtering and a stable recipe-match partition using the open panel's lazy XEI context.
      */
     static ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> order(
-                                                                              ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> providers,
+                                                                              PatternEncodingPreviewMenu.SyncedPatternProviderList providerState,
                                                                               String query,
                                                                               PatternProviderSearchContext searchContext,
                                                                               Function<ResourceLocation, String> defaultNameResolver,
                                                                               Function<ResourceLocation, ObjectList<String>> recipeTypeNameResolver) {
         String normalizedQuery = PinyinUtil.normalizeSearch(query);
-        if (normalizedQuery.isEmpty()) {
-            return ObjectLists.unmodifiable(new ObjectArrayList<>(providers));
+        if (normalizedQuery.isEmpty() && !searchContext.hasRecipeReference()) {
+            return providerState.providers();
         }
 
-        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> filtered = new ObjectArrayList<>();
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> matching = new ObjectArrayList<>();
+        ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> remaining = new ObjectArrayList<>();
         Object2ObjectOpenHashMap<ResourceLocation, String> defaultNames = new Object2ObjectOpenHashMap<>();
         Object2ObjectOpenHashMap<ResourceLocation, ObjectList<String>> recipeTypeNames = new Object2ObjectOpenHashMap<>();
 
-        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : providers) {
-            ObjectList<String> searchTerms = buildSearchTerms(provider, defaultNameResolver, recipeTypeNameResolver,
-                    defaultNames, recipeTypeNames);
-            searchContext.addTerms(provider, searchTerms);
-            if (PatternProviderSearchMatcher.matches(searchTerms, normalizedQuery)) {
-                filtered.add(provider);
+        for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : providerState.providers()) {
+            ObjectList<String> searchTerms = normalizedQuery.isEmpty() ? null :
+                    buildSearchTerms(provider, defaultNameResolver, recipeTypeNameResolver, defaultNames, recipeTypeNames);
+            boolean recipeMatch = searchContext.matchRecipe(provider, providerState.rankingContext(), searchTerms);
+            if (searchTerms != null && !PatternProviderSearchMatcher.matches(searchTerms, normalizedQuery)) {
+                continue;
             }
+            (recipeMatch ? matching : remaining).add(provider);
         }
-        return ObjectLists.unmodifiable(filtered);
+        matching.addAll(remaining);
+        return ObjectLists.unmodifiable(matching);
     }
 
     private static ObjectList<String> buildSearchTerms(

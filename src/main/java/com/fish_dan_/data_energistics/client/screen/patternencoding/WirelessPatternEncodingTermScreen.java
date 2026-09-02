@@ -1039,7 +1039,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         PatternEncodingPreviewMenu.SyncedPatternProviderList providerState = previewBridge().data_energistics$getSyncedPatternProviderState();
         String query = this.providerSearchBox != null ? this.providerSearchBox.getValue() : "";
         this.cachedVisibleProviders = PatternProviderDisplayOrder.order(
-                providerState.providers(),
+                providerState,
                 query,
                 this.providerSearchContext,
                 this::getDefaultProviderName,

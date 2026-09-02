@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.pattern.EncodedPatternReci
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternProviderRecipeTypeNames;
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternProviderViewerWorkstations;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -18,7 +19,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
-/** Client-only XEI search metadata resolved lazily for the encoded pattern shown by an open upload panel. */
+/** Client-only XEI matching metadata resolved lazily for the encoded pattern shown by an open upload panel. */
 final class PatternProviderSearchContext {
 
     private static final PatternProviderSearchContext EMPTY = new PatternProviderSearchContext(
@@ -83,29 +84,42 @@ final class PatternProviderSearchContext {
                 this.workstationRevision == PatternProviderViewerWorkstations.revision();
     }
 
-    void addTerms(
-                  PatternEncodingPreviewMenu.SyncedPatternProvider provider,
-                  ObjectList<String> terms) {
+    boolean hasRecipeReference() {
+        return this.recipeReference != null;
+    }
+
+    /** Matches the current pattern and optionally appends its associated terms when text filtering is active. */
+    boolean matchRecipe(
+                        PatternEncodingPreviewMenu.SyncedPatternProvider provider,
+                        @Nullable PatternEncodingRankingContext snapshotContext,
+                        @Nullable ObjectList<String> terms) {
         EncodedPatternRecipeReference reference = this.recipeReference;
         if (reference == null) {
-            return;
+            return false;
         }
         ResourceLocation recipeTypeId = reference.recipeTypeId();
-        boolean recipeTypeMatch = provider.supportedRecipeTypeIds().contains(recipeTypeId);
-        boolean iconWorkstationMatch = this.workstationIds.contains(provider.iconItemId());
-        boolean leafWorkstationMatch = false;
+        ResourceLocation preferredWorkstationId = provider.preferredWorkstationId();
+        boolean preferredWorkstationMatch = snapshotContext != null &&
+                recipeTypeId.equals(snapshotContext.recipeTypeId()) && preferredWorkstationId != null &&
+                this.workstationIds.contains(preferredWorkstationId);
+        boolean matched = provider.supportedRecipeTypeIds().contains(recipeTypeId) ||
+                this.workstationIds.contains(provider.iconItemId()) || preferredWorkstationMatch;
+        if (!matched) {
+            for (PatternEncodingPreviewMenu.SyncedPatternProviderLeaf leaf : provider.leaves()) {
+                if (this.workstationIds.contains(leaf.iconItemId())) {
+                    matched = true;
+                    break;
+                }
+            }
+        }
+        if (!matched || terms == null) {
+            return matched;
+        }
         for (PatternEncodingPreviewMenu.SyncedPatternProviderLeaf leaf : provider.leaves()) {
             if (this.workstationIds.contains(leaf.iconItemId())) {
-                leafWorkstationMatch = true;
                 terms.add(leaf.iconItemId().toString());
                 terms.add(this.workstationNames.get(leaf.iconItemId()));
             }
-        }
-        ResourceLocation preferredWorkstationId = provider.preferredWorkstationId();
-        boolean preferredWorkstationMatch = preferredWorkstationId != null &&
-                this.workstationIds.contains(preferredWorkstationId);
-        if (!recipeTypeMatch && !iconWorkstationMatch && !leafWorkstationMatch && !preferredWorkstationMatch) {
-            return;
         }
         terms.add(reference.id().toString());
         terms.add(recipeTypeId.toString());
@@ -114,5 +128,6 @@ final class PatternProviderSearchContext {
             terms.add(preferredWorkstationId.toString());
             terms.add(this.workstationNames.get(preferredWorkstationId));
         }
+        return true;
     }
 }
