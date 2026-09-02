@@ -20,6 +20,7 @@ import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEn
 import com.fish_dan_.data_energistics.item.order.OrderPackageMenuHost;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumMenuHost;
 import com.fish_dan_.data_energistics.menu.machine.DataAsynchronousProcessingFactoryMenu;
+import com.fish_dan_.data_energistics.menu.crafting.tree.CraftingPlanTreeMenu;
 import com.fish_dan_.data_energistics.menu.machine.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.menu.machine.DataExtractorMenu;
 import com.fish_dan_.data_energistics.menu.machine.DataIntegratedChargerMenu;
@@ -66,6 +67,9 @@ import appeng.menu.implementations.MenuTypeBuilder;
 public final class DEMenus {
 
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, Data_Energistics.MODID);
+
+    public static final DeferredHolder<MenuType<?>, MenuType<CraftingPlanTreeMenu>> CRAFTING_PLAN_TREE =
+            MENUS.register("crafting_plan_tree", () -> IMenuTypeExtension.create(CraftingPlanTreeMenu::fromNetwork));
 
     public static final DeferredHolder<MenuType<?>, MenuType<DataRipperMenu>> DATA_RIPPER = MENUS.register("data_ripper", () -> MenuTypeBuilder
             .create(DataRipperMenu::new, DataRipperPart.class)
