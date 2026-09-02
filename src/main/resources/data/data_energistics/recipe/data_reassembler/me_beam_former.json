@@ -19,7 +19,8 @@
 				"tag": "ae2:covered_dense_cable"
 			},
 			{
-				"item": "data_energistics:card_saber_energy"
+				"item": "data_energistics:fluix_aggregate_crystal_processor",
+				"count": 8
 			},
 			{
 				"item": "minecraft:amethyst_shard",
