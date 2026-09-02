@@ -19,6 +19,7 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Material;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView;
+import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.Expansion;
 import com.fish_dan_.data_energistics.gui.ldlib2.crafting.tree.CraftingPlanTreeUi;
 import com.fish_dan_.data_energistics.menu.crafting.tree.CraftingPlanTreeMenu;
 import com.fish_dan_.data_energistics.network.crafting.tree.action.CraftingPlanTreeActionPayload.Action;
@@ -48,11 +49,10 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.UnaryOperator;
@@ -70,6 +70,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
     private @Nullable Label statusLabel;
     private @Nullable ExecutorService layoutExecutor;
     private @Nullable CompletableFuture<Prepared> pending;
+    private @Nullable CompletableFuture<Selection> requestedSelection;
     private @Nullable CraftingPlanGraph graph;
     private @Nullable CraftingPlanNodeTooltip nodeTooltip;
     private @Nullable Prepared prepared;
@@ -106,11 +107,11 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         this.imageHeight = Math.clamp(this.height - 20, 180, 560);
         super.init();
         if (this.layoutExecutor == null || this.layoutExecutor.isShutdown()) this.layoutExecutor = new ThreadPoolExecutor(1, 1, 0L,
-                TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1), task -> {
+                TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), task -> {
                     Thread thread = new Thread(task, "data-energistics-plan-tree-layout");
                     thread.setDaemon(true);
                     return thread;
-                }, new ThreadPoolExecutor.DiscardOldestPolicy());
+                });
         try {
             mountUi();
         } catch (RuntimeException failure) {
@@ -198,11 +199,9 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
             savePreferences();
             schedule(UnaryOperator.identity(), false);
         });
-        this.buttons.get("expand").setOnClick(event -> schedule(ignored -> Set.of(), false));
-        this.buttons.get("collapse").setOnClick(event -> {
-            Prepared current = this.prepared;
-            if (current != null) schedule(ignored -> current.projection().recursiveCollapsed(Set.of(), current.projection().graph().rootId(), true), false);
-        });
+        this.buttons.get("expand").setOnClick(event -> schedule(selection -> new Selection(selection.projection(), Expansion.empty()), false));
+        this.buttons.get("collapse").setOnClick(event -> schedule(selection -> new Selection(selection.projection(), selection.projection().recursiveCollapsed(
+                selection.expansion(), selection.projection().graph().rootId(), true)), false));
         this.buttons.get("fit").setOnClick(event -> { if (this.canvas != null) this.canvas.fitGraph(); });
         this.buttons.get("preferences").setOnClick(event -> {
             this.preferencesOpen = !this.preferencesOpen;
@@ -254,21 +253,29 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         this.buttons.get("pref_budget").setDisplay(this.preferencesOpen);
     }
 
-    private void schedule(UnaryOperator<Set<Integer>> fold, boolean reset) {
+    private void schedule(UnaryOperator<Selection> fold, boolean reset) {
         if (this.graph == null || this.layoutExecutor == null) return;
         if (this.pending != null) this.pending.cancel(true);
         this.exportingFull = false;
         CraftingPlanGraph graph = this.graph;
-        Prepared previous = this.prepared;
         boolean missing = this.missingOnly;
         boolean dense = this.compact;
         int budget = this.preferences.autoExpandBudget();
         this.localStatus = text("layout_loading");
-        this.pending = CompletableFuture.supplyAsync(() -> {
-            CraftingPlanGraphView view = reset || previous == null ? new CraftingPlanGraphView(graph) : previous.projection();
-            Set<Integer> collapsed = reset || previous == null ? view.initialCollapsed(budget) : fold.apply(previous.collapsed());
-            return new Prepared(view, collapsed, CraftingPlanGraphLayout.layout(view.visible(collapsed, missing), dense));
-        }, this.layoutExecutor);
+        if (reset || this.requestedSelection == null) {
+            if (this.requestedSelection != null) this.requestedSelection.cancel(true);
+            this.requestedSelection = CompletableFuture.supplyAsync(() -> {
+                CraftingPlanGraphView view = new CraftingPlanGraphView(graph);
+                return new Selection(view, view.initialExpansion(budget));
+            }, this.layoutExecutor);
+        }
+        // User intent is sequenced independently of the last displayed layout. Cancelling an obsolete layout
+        // must not discard a preceding expand action, even while the initial projection is still being built.
+        this.requestedSelection = this.requestedSelection.thenApplyAsync(fold, this.layoutExecutor);
+        this.pending = this.requestedSelection.thenApplyAsync(selection -> new Prepared(selection.projection(),
+                CraftingPlanGraphLayout.layout(
+                        selection.projection().visible(selection.expansion(), missing), dense)),
+                this.layoutExecutor);
     }
 
     private void refreshGraph() {
@@ -283,6 +290,8 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
             this.exportingFull = false;
             if (this.pending != null) this.pending.cancel(true);
             this.pending = null;
+            if (this.requestedSelection != null) this.requestedSelection.cancel(true);
+            this.requestedSelection = null;
             this.anchorId = -1;
             this.selected = -1;
         }
@@ -399,12 +408,11 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
                 this.selected = node.id();
                 this.canvas.select(this.selected);
                 if (hasShiftDown()) {
-                    if (this.pending == null && this.prepared != null) {
+                    if (this.prepared != null) {
                         this.anchorId = node.id();
                         this.anchorPosition = this.canvas.screenPosition(node);
-                        Prepared current = this.prepared;
                         boolean recursive = hasControlDown();
-                        schedule(folded -> recursive ? current.projection().recursiveCollapsed(folded, node.id(), button == 1) : current.projection().setCollapsed(folded, node.id(), button == 1), false);
+                        schedule(selection -> new Selection(selection.projection(), recursive ? selection.projection().recursiveCollapsed(selection.expansion(), node.id(), button == 1) : selection.projection().setCollapsed(selection.expansion(), node.id(), button == 1)), false);
                     }
                     return true;
                 }
@@ -506,8 +514,8 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         boolean dense = this.compact;
         this.exportingFull = true;
         this.localStatus = text("export_loading");
-        this.pending = CompletableFuture.supplyAsync(() -> new Prepared(prepared.projection(), Set.of(),
-                CraftingPlanGraphLayout.layout(prepared.projection().visible(Set.of(), false), dense)), this.layoutExecutor);
+        this.pending = CompletableFuture.supplyAsync(() -> new Prepared(prepared.projection(),
+                CraftingPlanGraphLayout.layout(prepared.projection().visible(Expansion.empty(), false), dense)), this.layoutExecutor);
     }
 
     public Rect2i panelBounds() {
@@ -558,6 +566,8 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         saveViewport();
         if (this.pending != null) this.pending.cancel(true);
         this.pending = null;
+        if (this.requestedSelection != null) this.requestedSelection.cancel(true);
+        this.requestedSelection = null;
         if (this.layoutExecutor != null) this.layoutExecutor.shutdownNow();
         this.exportingFull = false;
         super.removed();
@@ -576,10 +586,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         return Component.translatable("gui.data_energistics.plan_tree." + suffix);
     }
 
-    private record Prepared(CraftingPlanGraphView projection, Set<Integer> collapsed, Layout layout) {
+    private record Selection(CraftingPlanGraphView projection, Expansion expansion) {}
 
-        private Prepared {
-            collapsed = Set.copyOf(collapsed);
-        }
-    }
+    private record Prepared(CraftingPlanGraphView projection, Layout layout) {}
 }

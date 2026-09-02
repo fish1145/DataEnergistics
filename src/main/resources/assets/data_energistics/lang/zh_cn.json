@@ -995,10 +995,10 @@
 	"gui.data_energistics.plan_tree.export_png_resolution": "分辨率 %s × %s 像素（%s 倍，未缩小）。",
 	"gui.data_energistics.plan_tree.pref_missing": "默认缺失过滤",
 	"gui.data_energistics.plan_tree.pref_amounts": "截图显示数量",
-	"gui.data_energistics.plan_tree.pref_budget": "初始展开预算",
+	"gui.data_energistics.plan_tree.pref_budget": "首次自动展开",
 	"gui.data_energistics.plan_tree.pref_missing_value": "默认缺失过滤：%s",
 	"gui.data_energistics.plan_tree.pref_amounts_value": "截图显示数量：%s",
-	"gui.data_energistics.plan_tree.pref_budget_value": "初始展开预算：%s",
+	"gui.data_energistics.plan_tree.pref_budget_value": "首次自动展开：%s 节点",
 	"gui.data_energistics.plan_tree.enabled": "开",
 	"gui.data_energistics.plan_tree.disabled": "关",
 	"gui.data_energistics.plan_tree.missing.tooltip": "保留缺失/未解析材料及其全部解释路径。",
@@ -1019,5 +1019,5 @@
 	"gui.data_energistics.plan_tree.export_svg_full.tooltip": "完整计划矢量导出，不受像素预算缩小，也不改变屏幕视图；背景透明。",
 	"gui.data_energistics.plan_tree.pref_missing.tooltip": "切换新打开计划是否默认只看缺失。",
 	"gui.data_energistics.plan_tree.pref_amounts.tooltip": "切换导出图是否显示数量标签。",
-	"gui.data_energistics.plan_tree.pref_budget.tooltip": "在 64 到 4096 之间循环初始可见节点预算。"
+	"gui.data_energistics.plan_tree.pref_budget.tooltip": "仅决定新计划首次自动显示的节点数，范围 64 到 4096；完整环允许略微超出。后续手动、递归和全部展开不受此值限制。"
 }
