@@ -32,9 +32,6 @@ public record TrinityPlanningLimits(
      * @return immutable limits for one planning request
      */
     public static TrinityPlanningLimits capture(TrinityCraftingSchema settings) {
-        if (settings == null) {
-            throw new IllegalArgumentException("Trinity planning limits require a configuration source");
-        }
         return new TrinityPlanningLimits(
                 settings.maxSccKeys,
                 settings.maxBindingVariants,

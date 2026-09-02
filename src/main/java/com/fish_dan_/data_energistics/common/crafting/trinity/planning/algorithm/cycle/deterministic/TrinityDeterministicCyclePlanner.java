@@ -24,7 +24,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -91,7 +90,7 @@ public final class TrinityDeterministicCyclePlanner {
                 oneCycleOrder,
                 repetitions);
         Map<AEKey, BigInteger> netChange = multiply(oneCycleNet, repetitions);
-        LinkedHashMap<AEKey, BigInteger> initialInputs = new LinkedHashMap<>(minimumSeed);
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> initialInputs = new Object2ObjectLinkedOpenHashMap<>(minimumSeed);
         if (quantityMode == CraftingQuantityMode.FINAL_TOTAL) {
             BigInteger targetContribution = requestedAmount
                     .subtract(netChange.getOrDefault(target, BigInteger.ZERO))
@@ -100,16 +99,16 @@ public final class TrinityDeterministicCyclePlanner {
                 initialInputs.merge(target, targetContribution, BigInteger::max);
             }
         }
-        LinkedHashMap<TrinityPatternVariant, BigInteger> aggregateFirings = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> aggregateFirings = new Object2ObjectLinkedOpenHashMap<>();
         for (TrinityVariantFiring firing : oneCycleOrder) {
             aggregateFirings.merge(
                     firing.variant(),
                     firing.count().multiply(repetitions),
                     BigInteger::add);
         }
-        LinkedHashMap<AEKey, BigInteger> usedInputs = new LinkedHashMap<>();
-        LinkedHashMap<AEKey, BigInteger> missingInputs = new LinkedHashMap<>();
-        LinkedHashMap<AEKey, InputRequirement> shortages = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> usedInputs = new Object2ObjectLinkedOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> missingInputs = new Object2ObjectLinkedOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, InputRequirement> shortages = new Object2ObjectLinkedOpenHashMap<>();
         for (Map.Entry<AEKey, BigInteger> input : initialInputs.entrySet()) {
             BigInteger required = input.getValue();
             BigInteger allocated = required.min(inventory.getOrDefault(input.getKey(), BigInteger.ZERO));
@@ -194,7 +193,7 @@ public final class TrinityDeterministicCyclePlanner {
 
     private static Map<AEKey, BigInteger> multiply(Map<AEKey, BigInteger> amounts,
                                                    BigInteger multiplier) {
-        LinkedHashMap<AEKey, BigInteger> multiplied = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> multiplied = new Object2ObjectLinkedOpenHashMap<>();
         amounts.forEach((key, amount) -> {
             BigInteger result = amount.multiply(multiplier);
             if (result.signum() != 0) {
@@ -205,7 +204,7 @@ public final class TrinityDeterministicCyclePlanner {
     }
 
     private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> copied = new Object2ObjectLinkedOpenHashMap<>();
         source.forEach((key, amount) -> {
             if (amount.signum() < 0) {
                 throw new IllegalArgumentException("Trinity cycle inventory cannot be negative");
@@ -235,7 +234,7 @@ public final class TrinityDeterministicCyclePlanner {
                                                                     Map<AEKey, InputRequirement> shortages,
                                                                     Optional<TrinityCycleDiagnosticOutcome> diagnosticOutcome,
                                                                     Optional<TrinityPlanningDiagnostic> proofFailure) {
-        LinkedHashMap<String, String> metadata = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<String, String> metadata = new Object2ObjectLinkedOpenHashMap<>();
         metadata.put("shortageKinds", Integer.toString(shortages.size()));
         metadata.put("diagnosticProvedCycles", diagnosticOutcome.isPresent() ? "1" : "0");
         proofFailure.ifPresent(diagnostic -> {
@@ -271,7 +270,7 @@ public final class TrinityDeterministicCyclePlanner {
             metadata.put("missing", requirement.missing().toString());
             metadata.put("net_consumed", netConsumed.toString());
         }
-        LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> emitted = new Object2ObjectLinkedOpenHashMap<>();
         aggregateFirings.forEach((variant, count) -> variant.outputs().forEach(
                 (key, amount) -> emitted.merge(key, amount.multiply(count), BigInteger::add)));
         TrinityPlanningDiagnostic.PartialPlan materials = diagnosticOutcome

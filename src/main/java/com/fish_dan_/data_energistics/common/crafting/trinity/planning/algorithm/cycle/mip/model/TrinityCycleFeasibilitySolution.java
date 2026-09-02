@@ -4,10 +4,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -40,9 +40,7 @@ public record TrinityCycleFeasibilitySolution(
      * Copies decoded values before exact conservation and scheduling consume them.
      */
     public TrinityCycleFeasibilitySolution {
-        if (firings == null || firings.isEmpty() || modelSeed == null || externalInputs == null ||
-                solverPasses <= 0 || solverNanos < 0L || quality == null || actualInputs == null ||
-                missingInputs == null || diagnosticStates < 0) {
+        if (firings.isEmpty() || solverPasses <= 0 || solverNanos < 0L || diagnosticStates < 0) {
             throw new IllegalArgumentException("A Trinity feasibility solution requires complete exact accounting");
         }
         firings = copyPositiveFirings(firings);
@@ -56,7 +54,7 @@ public record TrinityCycleFeasibilitySolution(
      * @return exact positive reserve required by the diagnostic firing vector
      */
     public Map<AEKey, BigInteger> requiredInputs() {
-        LinkedHashMap<AEKey, BigInteger> required = new LinkedHashMap<>(externalInputs);
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> required = new Object2ObjectLinkedOpenHashMap<>(externalInputs);
         modelSeed.forEach((key, amount) -> required.merge(key, amount, BigInteger::add));
         return Collections.unmodifiableMap(required);
     }
@@ -84,9 +82,9 @@ public record TrinityCycleFeasibilitySolution(
 
     private static Map<TrinityPatternVariant, BigInteger> copyPositiveFirings(
                                                                               Map<TrinityPatternVariant, BigInteger> source) {
-        LinkedHashMap<TrinityPatternVariant, BigInteger> copied = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> copied = new Object2ObjectLinkedOpenHashMap<>();
         source.forEach((variant, amount) -> {
-            if (variant == null || amount == null || amount.signum() <= 0) {
+            if (amount.signum() <= 0) {
                 throw new IllegalArgumentException("A Trinity feasibility firing count must be positive");
             }
             copied.put(variant, amount);
@@ -95,9 +93,9 @@ public record TrinityCycleFeasibilitySolution(
     }
 
     private static Map<AEKey, BigInteger> copyPositiveAmounts(Map<AEKey, BigInteger> source, String role) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> copied = new Object2ObjectLinkedOpenHashMap<>();
         source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() <= 0) {
+            if (amount.signum() <= 0) {
                 throw new IllegalArgumentException("A Trinity feasibility " + role + " must be positive");
             }
             copied.put(key, amount);

@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -41,7 +41,7 @@ public record TrinityCycleDemand(
     private static Map<AEKey, BigInteger> combineFinalBalances(
                                                                Map<AEKey, BigInteger> settledWithdrawals,
                                                                Map<AEKey, BigInteger> terminalBalanceLowerBounds) {
-        LinkedHashMap<AEKey, BigInteger> combined = new LinkedHashMap<>(settledWithdrawals);
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> combined = new Object2ObjectLinkedOpenHashMap<>(settledWithdrawals);
         terminalBalanceLowerBounds.forEach((key, amount) -> combined.merge(key, amount, BigInteger::add));
         return Collections.unmodifiableMap(combined);
     }
@@ -50,7 +50,7 @@ public record TrinityCycleDemand(
      * Adds internal restart reserves without changing delivery or net-new semantics.
      */
     public TrinityCycleDemand withRetainedSeed(Map<AEKey, BigInteger> retainedSeed) {
-        LinkedHashMap<AEKey, BigInteger> terminal = new LinkedHashMap<>(terminalBalanceLowerBounds);
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> terminal = new Object2ObjectLinkedOpenHashMap<>(terminalBalanceLowerBounds);
         retainedSeed.forEach((key, amount) -> terminal.merge(key, amount, BigInteger::max));
         return new TrinityCycleDemand(
                 settledWithdrawals,

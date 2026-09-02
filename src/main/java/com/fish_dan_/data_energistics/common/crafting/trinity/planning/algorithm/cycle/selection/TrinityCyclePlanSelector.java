@@ -26,12 +26,12 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -143,7 +143,7 @@ public final class TrinityCyclePlanSelector {
                                                                               @Nullable TrinityCycleUnitProof unitProof,
                                                                               TrinityMipCoefficientTemplate coefficientTemplate) {
         TrinityCycleDemand refinedDemand = demand;
-        LinkedHashMap<AEKey, BigInteger> retainedSeed = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> retainedSeed = new Object2ObjectLinkedOpenHashMap<>();
         if (unitProof != null) {
             retainedSeed.putAll(unitProof.internalSeed());
         }
@@ -231,7 +231,7 @@ public final class TrinityCyclePlanSelector {
     private static boolean satisfiesFinalBounds(
                                                 TrinityCycleSelection selection,
                                                 TrinityCycleDemand demand) {
-        LinkedHashMap<AEKey, BigInteger> finalBalances = new LinkedHashMap<>(selection.initialInputs());
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> finalBalances = new Object2ObjectLinkedOpenHashMap<>(selection.initialInputs());
         selection.netChange().forEach((key, amount) -> finalBalances.merge(key, amount, BigInteger::add));
         return demand.finalBalanceLowerBounds().entrySet().stream().allMatch(
                 entry -> finalBalances.getOrDefault(entry.getKey(), BigInteger.ZERO)
@@ -247,7 +247,7 @@ public final class TrinityCyclePlanSelector {
                                 .compareTo(entry.getValue()) < 0)) {
             return false;
         }
-        LinkedHashMap<AEKey, BigInteger> finalBalances = new LinkedHashMap<>(selection.initialInputs());
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> finalBalances = new Object2ObjectLinkedOpenHashMap<>(selection.initialInputs());
         selection.netChange().forEach((key, amount) -> finalBalances.merge(key, amount, BigInteger::add));
         return finalBalances.values().stream().noneMatch(amount -> amount.signum() < 0) &&
                 demand.finalBalanceLowerBounds().entrySet().stream().allMatch(
@@ -469,10 +469,10 @@ public final class TrinityCyclePlanSelector {
                 .count() == 1L);
     }
 
-    private static LinkedHashMap<AEKey, BigInteger> maximumAmounts(
-                                                                   Map<AEKey, BigInteger> first,
-                                                                   Map<AEKey, BigInteger> second) {
-        LinkedHashMap<AEKey, BigInteger> maximum = new LinkedHashMap<>(first);
+    private static Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> maximumAmounts(
+                                                                                    Map<AEKey, BigInteger> first,
+                                                                                    Map<AEKey, BigInteger> second) {
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> maximum = new Object2ObjectLinkedOpenHashMap<>(first);
         second.forEach((key, amount) -> maximum.merge(key, amount, BigInteger::max));
         return maximum;
     }
@@ -482,7 +482,7 @@ public final class TrinityCyclePlanSelector {
                                                          TrinityCycleDemand demand,
                                                          Map<AEKey, BigInteger> netChange) {
         Set<AEKey> internalKeys = new ObjectOpenHashSet<>(component.keys());
-        LinkedHashMap<AEKey, BigInteger> exports = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> exports = new Object2ObjectLinkedOpenHashMap<>();
         netChange.forEach((key, amount) -> {
             if (amount.signum() > 0 &&
                     (!internalKeys.contains(key) ||
@@ -494,7 +494,7 @@ public final class TrinityCyclePlanSelector {
     }
 
     private static Map<AEKey, BigInteger> positiveAmounts(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> positive = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> positive = new Object2ObjectLinkedOpenHashMap<>();
         source.forEach((key, amount) -> {
             if (amount.signum() > 0) {
                 positive.put(key, amount);

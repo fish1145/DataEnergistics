@@ -30,6 +30,7 @@ import net.minecraft.network.chat.Component;
 import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
@@ -39,7 +40,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.PriorityQueue;
 import java.util.Set;
 
 /**
@@ -215,16 +215,16 @@ public final class TrinityJointCycleSearch {
             }
             this.metrics.add(rootSolved.value());
 
-            PriorityQueue<SearchNode> pending = new PriorityQueue<>(Comparator
+            ObjectHeapPriorityQueue<SearchNode> pending = new ObjectHeapPriorityQueue<>(Comparator
                     .comparing(SearchNode::lowerBound)
                     .thenComparingLong(SearchNode::sequence));
-            pending.add(node(rootBox, rootSolved.value(), Optional.empty()));
+            pending.enqueue(node(rootBox, rootSolved.value(), Optional.empty()));
             while (!pending.isEmpty()) {
                 TrinityAlgorithmResult<TrinityJointCyclePlan> interrupted = interruption();
                 if (interrupted != null) {
                     return interrupted;
                 }
-                SearchNode current = pending.remove();
+                SearchNode current = pending.dequeue();
                 if (!current.lowerBound().canImprove(this.incumbentObjective)) {
                     continue;
                 }
@@ -305,7 +305,7 @@ public final class TrinityJointCycleSearch {
                     }
                     childSolved.value()
                             .filter(next -> next.lowerBound().canImprove(this.incumbentObjective))
-                            .ifPresent(pending::add);
+                            .ifPresent(pending::enqueue);
                 }
             }
             if (this.incumbent == null) {
@@ -323,7 +323,7 @@ public final class TrinityJointCycleSearch {
 
         private TrinityAlgorithmResult<Boolean> applyExternalCut(
                                                                  SearchNode current,
-                                                                 PriorityQueue<SearchNode> pending) {
+                                                                 ObjectHeapPriorityQueue<SearchNode> pending) {
             if (this.incumbentObjective == null || this.incumbentObjective.externalInput().signum() == 0 ||
                     current.lowerBound().externalInput()
                             .compareTo(this.incumbentObjective.externalInput()) >= 0) {
@@ -348,7 +348,7 @@ public final class TrinityJointCycleSearch {
                 }
                 within.value()
                         .filter(next -> next.lowerBound().canImprove(this.incumbentObjective))
-                        .ifPresent(pending::add);
+                        .ifPresent(pending::enqueue);
             }
             for (TrinityFiringBox aboveCap : cut.aboveCap()) {
                 TrinityAlgorithmResult<Optional<SearchNode>> above = solveChild(
@@ -359,7 +359,7 @@ public final class TrinityJointCycleSearch {
                 }
                 above.value()
                         .filter(next -> next.lowerBound().canImprove(this.incumbentObjective))
-                        .ifPresent(pending::add);
+                        .ifPresent(pending::enqueue);
             }
             return TrinityAlgorithmResult.success(true);
         }
