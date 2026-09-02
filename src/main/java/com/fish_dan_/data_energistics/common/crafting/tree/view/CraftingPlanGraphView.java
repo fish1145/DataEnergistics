@@ -252,7 +252,9 @@ public final class CraftingPlanGraphView {
                     components.cyclicComponents().contains(component), folded));
         }
         List<ViewEdge> visibleEdges = edges.stream().filter(edge -> visible.contains(edge.source())
-                && visible.contains(edge.target())).toList();
+                && visible.contains(edge.target())
+                && (edge.cyclic() || !collapsedComponents.contains(components.componentByNode().get(edge.source()).intValue())))
+                .toList();
         List<List<Integer>> visibleComponents = components.members().stream()
                 .filter(group -> visible.contains(group.getFirst().intValue())).toList();
         return new ViewGraph(graph, root, nodes, visibleEdges, visibleComponents);
