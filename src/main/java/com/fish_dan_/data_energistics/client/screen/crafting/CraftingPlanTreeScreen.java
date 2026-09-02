@@ -4,8 +4,10 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.crafting.tree.export.CraftingPlanGraphPngExport;
 import com.fish_dan_.data_energistics.client.crafting.tree.preferences.CraftingPlanTreePreferences;
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphCanvas;
+import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphPalette;
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphRenderer;
 import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewers;
+import com.fish_dan_.data_energistics.client.gui.DataEnergisticsModularTexture;
 import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.client.util.TrinityDurationFormatter;
@@ -29,7 +31,9 @@ import net.minecraft.world.entity.player.Inventory;
 import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.StackWithBounds;
+import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
@@ -117,7 +121,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         this.buttons.clear();
         UI ui = CraftingPlanTreeUi.load();
         ui.rootElement.layout(layout -> layout.width(this.imageWidth).height(this.imageHeight));
-        ui.rootElement.style(style -> style.backgroundTexture(new ColorRectTexture(0xF4101B29)));
+        ui.rootElement.style(style -> style.backgroundTexture(new DataEnergisticsModularTexture()));
         this.titleLabel = CraftingPlanTreeUi.element(ui, "title", Label.class);
         this.statusLabel = CraftingPlanTreeUi.element(ui, "status", Label.class);
         place(this.titleLabel, 7, 6, this.imageWidth - 14, 14);
@@ -161,8 +165,12 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         Button button = CraftingPlanTreeUi.element(ui, id, Button.class);
         button.setText(text(id));
         button.style(style -> style.tooltips(text(id + ".tooltip")));
-        button.buttonStyle(style -> style.baseTexture(new ColorRectTexture(0xFF263C50))
-                .hoverTexture(new ColorRectTexture(0xFF385C72)).pressedTexture(new ColorRectTexture(0xFF1A3042)));
+        button.buttonStyle(style -> style.baseTexture(GuiTextureGroup.of(
+                        new ColorRectTexture(CraftingPlanGraphPalette.BUTTON), new ColorBorderTexture(-1, CraftingPlanGraphPalette.FRAME)))
+                .hoverTexture(GuiTextureGroup.of(new ColorRectTexture(CraftingPlanGraphPalette.BUTTON_HOVER),
+                        new ColorBorderTexture(-1, CraftingPlanGraphPalette.ACCENT)))
+                .pressedTexture(GuiTextureGroup.of(new ColorRectTexture(CraftingPlanGraphPalette.SELECTED),
+                        new ColorBorderTexture(-1, CraftingPlanGraphPalette.ACCENT))));
         this.buttons.put(id, button);
         return button;
     }

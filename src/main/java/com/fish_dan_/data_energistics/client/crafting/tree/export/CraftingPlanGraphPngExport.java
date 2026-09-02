@@ -105,7 +105,7 @@ public final class CraftingPlanGraphPngExport {
                 RenderSystem.depthMask(true);
                 RenderSystem.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0);
                 target.resize(dimensions.width(), dimensions.height(), Minecraft.ON_OSX);
-                target.setClearColor(0.035F, 0.045F, 0.07F, 1);
+                target.setClearColor(0, 0, 0, 0);
                 target.clear(Minecraft.ON_OSX);
                 target.bindWrite(true);
                 RenderSystem.setProjectionMatrix(new Matrix4f().setOrtho(0, dimensions.width(), dimensions.height(),
@@ -118,7 +118,7 @@ public final class CraftingPlanGraphPngExport {
                 GuiGraphics graphics = new GuiGraphics(client, MultiBufferSource.immediate(vertexMemory));
                 graphics.pose().scale((float) dimensions.scale(), (float) dimensions.scale(), 1);
                 graphics.pose().translate(-layout.bounds().x(), -layout.bounds().y(), 0);
-                CraftingPlanGraphRenderer.draw(graphics, graph, layout, GraphViewLod.FULL, showAmounts,
+                new CraftingPlanGraphRenderer(graph).draw(graphics, layout, GraphViewLod.FULL, showAmounts,
                         -1, IntSets.emptySet(), null);
                 graphics.flush();
                 RenderSystem.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, 0);
@@ -126,7 +126,7 @@ public final class CraftingPlanGraphPngExport {
                 GlStateManager._pixelStore(GL11.GL_PACK_SKIP_ROWS, 0);
                 GlStateManager._pixelStore(GL11.GL_PACK_SKIP_PIXELS, 0);
                 RenderSystem.bindTexture(target.getColorTextureId());
-                image.downloadTexture(0, true);
+                image.downloadTexture(0, false);
                 image.flipY();
             } finally {
                 try {

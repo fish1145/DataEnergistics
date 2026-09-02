@@ -8,6 +8,9 @@ import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGra
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.util.Mth;
 
+import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
+import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.GraphView;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
@@ -24,13 +27,17 @@ import java.util.Set;
 public final class CraftingPlanGraphCanvas extends GraphView {
     private final Surface surface = new Surface();
     private @Nullable CraftingPlanGraph graph;
+    private @Nullable CraftingPlanGraphRenderer renderer;
     private @Nullable Layout graphLayout;
     private int selectedNode = -1;
     private Set<Integer> highlighted = Set.of();
     private int highlightedNode = -1;
 
     public CraftingPlanGraphCanvas() {
-        graphViewStyle(style -> style.allowPan(true).allowZoom(true).minScale(0.1F).maxScale(10F).lodEnabled(true));
+        graphViewStyle(style -> style.allowPan(true).allowZoom(true).minScale(0.1F).maxScale(10F).lodEnabled(true)
+                .gridLineColor(CraftingPlanGraphPalette.GRID).gridAccentColor(CraftingPlanGraphPalette.GRID_ACCENT).gridLineWidth(0.5F));
+        style(style -> style.backgroundTexture(GuiTextureGroup.of(new ColorRectTexture(CraftingPlanGraphPalette.CANVAS),
+                new ColorBorderTexture(-1, CraftingPlanGraphPalette.FRAME))));
         this.surface.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE).left(0).top(0));
         addContentChild(this.surface);
     }
@@ -39,6 +46,7 @@ public final class CraftingPlanGraphCanvas extends GraphView {
 
     public void clearGraph() {
         this.graph = null;
+        this.renderer = null;
         this.graphLayout = null;
         this.selectedNode = -1;
         this.highlightedNode = -1;
@@ -46,6 +54,7 @@ public final class CraftingPlanGraphCanvas extends GraphView {
     }
 
     public void show(CraftingPlanGraph graph, Layout layout) {
+        if (this.graph != graph) this.renderer = new CraftingPlanGraphRenderer(graph);
         this.graph = graph;
         this.graphLayout = layout;
         this.surface.layout(style -> style.width((float) layout.bounds().width()).height((float) layout.bounds().height()));
@@ -127,10 +136,10 @@ public final class CraftingPlanGraphCanvas extends GraphView {
 
     private final class Surface extends UIElement {
         @Override public void drawBackgroundAdditional(GUIContext context) {
-            if (graph == null || graphLayout == null) return;
+            if (renderer == null || graphLayout == null) return;
             context.graphics.pose().pushPose();
             context.graphics.pose().translate(getPositionX(), getPositionY(), 0);
-            CraftingPlanGraphRenderer.draw(context.graphics, graph, graphLayout, getLod(), true, selectedNode, highlighted,
+            renderer.draw(context.graphics, graphLayout, getLod(), true, selectedNode, highlighted,
                     new Bounds(getOffsetX(), getOffsetY(), CraftingPlanGraphCanvas.this.getContentWidth() / getScale(), CraftingPlanGraphCanvas.this.getContentHeight() / getScale()));
             context.graphics.pose().popPose();
         }
