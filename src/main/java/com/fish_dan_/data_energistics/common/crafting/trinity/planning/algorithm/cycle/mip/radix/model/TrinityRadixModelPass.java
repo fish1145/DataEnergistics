@@ -2,11 +2,10 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
-import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -60,74 +59,14 @@ public sealed interface TrinityRadixModelPass {
             implements TrinityRadixModelPass {
 
         public Identity {
-            fixedCounts = Collections.unmodifiableMap(new LinkedHashMap<>(fixedCounts));
+            fixedCounts = Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(fixedCounts));
         }
     }
 
     /**
-     * Selects the minimum diagnostic-only virtual input required by finite reserve axes.
+     * Builds a finite feasibility domain without running any sequential objective search.
      */
-    enum ShortageMissing implements TrinityRadixModelPass {
+    enum Feasibility implements TrinityRadixModelPass {
         INSTANCE
-    }
-
-    /**
-     * Fixes minimum missing input and selects minimum total external reserve.
-     */
-    record ShortageExternal(BigInteger fixedMissing) implements TrinityRadixModelPass {}
-
-    /**
-     * Fixes missing and external objectives before selecting minimum SCC seed.
-     */
-    record ShortageSeed(
-                        BigInteger fixedMissing,
-                        BigInteger fixedExternal,
-                        BigInteger seedLowerBound)
-            implements TrinityRadixModelPass {}
-
-    /**
-     * Fixes diagnostic input objectives before selecting minimum logical firings.
-     */
-    record ShortageFiring(
-                          BigInteger fixedMissing,
-                          BigInteger fixedExternal,
-                          BigInteger fixedSeed,
-                          BigInteger firingLowerBound)
-            implements TrinityRadixModelPass {}
-
-    /**
-     * Fixes every preceding diagnostic objective and selects one stable firing axis.
-     */
-    record ShortageIdentity(
-                            BigInteger fixedMissing,
-                            BigInteger fixedExternal,
-                            BigInteger fixedSeed,
-                            BigInteger fixedFirings,
-                            Map<TrinityPatternVariant, BigInteger> fixedCounts,
-                            TrinityPatternVariant variant)
-            implements TrinityRadixModelPass {
-
-        public ShortageIdentity {
-            fixedCounts = Collections.unmodifiableMap(new LinkedHashMap<>(fixedCounts));
-        }
-    }
-
-    /**
-     * Canonically fixes one stable reserve axis after every firing objective is already fixed.
-     */
-    record ShortageReserve(
-                           BigInteger fixedMissing,
-                           BigInteger fixedExternal,
-                           BigInteger fixedSeed,
-                           BigInteger fixedFirings,
-                           Map<TrinityPatternVariant, BigInteger> fixedCounts,
-                           Map<AEKey, BigInteger> fixedReserves,
-                           AEKey key)
-            implements TrinityRadixModelPass {
-
-        public ShortageReserve {
-            fixedCounts = Collections.unmodifiableMap(new LinkedHashMap<>(fixedCounts));
-            fixedReserves = Collections.unmodifiableMap(new LinkedHashMap<>(fixedReserves));
-        }
     }
 }

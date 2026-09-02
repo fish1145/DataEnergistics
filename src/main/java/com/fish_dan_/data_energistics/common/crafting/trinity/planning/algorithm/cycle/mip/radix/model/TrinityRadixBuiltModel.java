@@ -5,11 +5,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import org.ojalgo.optimisation.Variable;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -19,8 +19,6 @@ import java.util.Map;
  * @param firingVariables     stable firing axes
  * @param seedVariables       internal reserve axes
  * @param externalVariables   boundary reserve axes
- * @param actualVariables     diagnostic-only captured inventory axes
- * @param missingVariables    diagnostic-only virtual reserve axes
  * @param objective           logical objective for the current pass
  * @param minimize            whether the objective is minimised rather than maximised
  * @param objectiveLowerBound exact certified lower bound
@@ -31,8 +29,6 @@ public record TrinityRadixBuiltModel(
                                      Map<TrinityPatternVariant, TrinityRadixVariable> firingVariables,
                                      Map<AEKey, TrinityRadixVariable> seedVariables,
                                      Map<AEKey, TrinityRadixVariable> externalVariables,
-                                     Map<AEKey, TrinityRadixVariable> actualVariables,
-                                     Map<AEKey, TrinityRadixVariable> missingVariables,
                                      TrinityRadixVariable objective,
                                      boolean minimize,
                                      BigInteger objectiveLowerBound,
@@ -42,20 +38,18 @@ public record TrinityRadixBuiltModel(
      * Reconstructs all published logical values from solver digits using exact {@link BigInteger} arithmetic.
      */
     public TrinityRadixSolvedModel decode(Map<Variable, BigInteger> values) {
-        LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> firings = new Object2ObjectLinkedOpenHashMap<>();
         firingVariables.forEach((variant, variable) -> putPositive(firings, variant, variable.decode(values)));
         return new TrinityRadixSolvedModel(
                 Collections.unmodifiableMap(firings),
                 decodePositive(seedVariables, values),
-                decodePositive(externalVariables, values),
-                decodePositive(actualVariables, values),
-                decodePositive(missingVariables, values));
+                decodePositive(externalVariables, values));
     }
 
     private static Map<AEKey, BigInteger> decodePositive(
                                                          Map<AEKey, TrinityRadixVariable> variables,
                                                          Map<Variable, BigInteger> values) {
-        LinkedHashMap<AEKey, BigInteger> decoded = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> decoded = new Object2ObjectLinkedOpenHashMap<>();
         variables.forEach((key, variable) -> putPositive(decoded, key, variable.decode(values)));
         return Collections.unmodifiableMap(decoded);
     }

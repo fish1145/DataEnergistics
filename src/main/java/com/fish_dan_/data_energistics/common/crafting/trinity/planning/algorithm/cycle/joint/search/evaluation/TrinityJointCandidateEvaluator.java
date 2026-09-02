@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.joint.TrinityJointCyclePlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilitySolution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.seed.TrinityCycleSeedRequirement;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityExactConservationVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityFiringVector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityLexicographicObjective;
@@ -15,15 +16,16 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityMinimumSeedSchedule;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityMinimumSeedScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -58,9 +60,6 @@ public final class TrinityJointCandidateEvaluator {
                                    TrinityExactConservationVerifier conservationVerifier,
                                    TrinityCompressedScheduler compressedScheduler,
                                    TrinityMinimumSeedScheduler seedScheduler) {
-        if (conservationVerifier == null || compressedScheduler == null || seedScheduler == null) {
-            throw new IllegalArgumentException("A Trinity joint candidate evaluator requires exact planning components");
-        }
         this.conservationVerifier = conservationVerifier;
         this.compressedScheduler = compressedScheduler;
         this.seedScheduler = seedScheduler;
@@ -81,9 +80,7 @@ public final class TrinityJointCandidateEvaluator {
                                                                             int solverPasses,
                                                                             long solverNanos,
                                                                             TrinityPlanningControl control) {
-        if (variants == null || variants.isEmpty() || internalKeys == null || internalKeys.isEmpty() ||
-                demand == null || available == null || producibleInputs == null || solution == null ||
-                maxScheduleStates <= 0 || solverPasses <= 0 || solverNanos < 0L || control == null) {
+        if (variants.isEmpty() || internalKeys.isEmpty() || maxScheduleStates <= 0 || solverPasses <= 0 || solverNanos < 0L) {
             throw new IllegalArgumentException("A Trinity joint candidate evaluation request is incomplete");
         }
         List<TrinityPatternVariant> orderedVariants = variants.stream().sorted().toList();
@@ -103,25 +100,28 @@ public final class TrinityJointCandidateEvaluator {
                 accounting,
                 available,
                 producibleInputs);
-        LinkedHashMap<AEKey, BigInteger> minimumInputs = new LinkedHashMap<>(accounting.externalInputs());
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> minimumInputs = new Object2ObjectLinkedOpenHashMap<>(accounting.externalInputs());
         accounting.requiredModelSeed().forEach(
                 (key, amount) -> minimumInputs.merge(key, amount, BigInteger::add));
-        TrinityAlgorithmResult<TrinityMinimumSeedSchedule> scheduledResult = findExecutableInputs(
-                solution.firings(),
-                externalKeys,
-                internalKeys,
-                minimumInputs,
-                maximumInputs,
-                solution.seedTotal(),
-                maxScheduleStates,
-                control);
+        TrinityAlgorithmResult<TrinityMinimumSeedSchedule> scheduledResult = solution.quality() == TrinityPlanQuality.VERIFIED_FEASIBLE ?
+                findFirstExecutableInputs(solution.firings(), externalKeys, internalKeys, minimumInputs,
+                        maximumInputs, maxScheduleStates, control) :
+                findExecutableInputs(
+                        solution.firings(),
+                        externalKeys,
+                        internalKeys,
+                        minimumInputs,
+                        maximumInputs,
+                        solution.seedTotal(),
+                        maxScheduleStates,
+                        control);
         if (!scheduledResult.successful()) {
             return TrinityAlgorithmResult.failure(scheduledResult.diagnostic());
         }
         TrinityMinimumSeedSchedule scheduled = scheduledResult.value();
         requireExternalInputs(scheduled.externalInputs(), accounting.externalInputs());
 
-        LinkedHashMap<AEKey, BigInteger> initialInputs = new LinkedHashMap<>(scheduled.externalInputs());
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> initialInputs = new Object2ObjectLinkedOpenHashMap<>(scheduled.externalInputs());
         scheduled.minimumSeed().forEach((key, amount) -> initialInputs.merge(key, amount, BigInteger::add));
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = this.conservationVerifier.verify(
                 orderedVariants,
@@ -132,7 +132,7 @@ public final class TrinityJointCandidateEvaluator {
                 demand.requiredNetChangeLowerBounds());
         if (!exact.successful()) {
             TrinityPlanningDiagnostic diagnostic = exact.diagnostic();
-            LinkedHashMap<String, String> metadata = new LinkedHashMap<>(diagnostic.metadata());
+            Object2ObjectLinkedOpenHashMap<String, String> metadata = new Object2ObjectLinkedOpenHashMap<>(diagnostic.metadata());
             metadata.put("states", Integer.toString(scheduled.schedule().statesVisited()));
             return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                     diagnostic.code(),
@@ -155,7 +155,8 @@ public final class TrinityJointCandidateEvaluator {
                 adjustedSchedule,
                 adjustedSchedule.statesVisited(),
                 solverPasses,
-                solverNanos);
+                solverNanos,
+                solution.quality());
         TrinityLexicographicObjective objective = new TrinityLexicographicObjective(
                 sum(plan.externalInputs()),
                 sum(plan.minimumSeed()),
@@ -167,6 +168,42 @@ public final class TrinityJointCandidateEvaluator {
                 adjustedSchedule.statesVisited()));
     }
 
+    private TrinityAlgorithmResult<TrinityMinimumSeedSchedule> findFirstExecutableInputs(
+                                                                                         Map<TrinityPatternVariant, BigInteger> firings, Set<AEKey> externalKeys, Set<AEKey> internalKeys,
+                                                                                         Map<AEKey, BigInteger> minimumInputs, Map<AEKey, BigInteger> maximumInputs,
+                                                                                         int maxStates, TrinityPlanningControl control) {
+        TrinityAlgorithmResult<TrinityCompressedSchedule> direct = this.compressedScheduler.schedule(
+                firings, minimumInputs, maxStates, control);
+        if (direct.successful()) {
+            return TrinityAlgorithmResult.success(new TrinityMinimumSeedSchedule(
+                    amountsFor(minimumInputs, externalKeys), amountsFor(minimumInputs, internalKeys), direct.value()));
+        }
+        int directStates = diagnosticStates(direct.diagnostic());
+        if (direct.diagnostic().code() != TrinityPlanningDiagnosticCode.NO_EXECUTABLE_ORDER || maximumInputs.equals(minimumInputs)) {
+            return TrinityAlgorithmResult.failure(normalizeFailure(direct.diagnostic(), directStates, maxStates));
+        }
+        int remaining = maxStates - directStates;
+        if (remaining <= 0) return searchLimit(maxStates, directStates);
+        TrinityAlgorithmResult<TrinityCompressedSchedule> searched = this.compressedScheduler.schedule(
+                firings, maximumInputs, remaining, control);
+        if (!searched.successful()) {
+            return TrinityAlgorithmResult.failure(normalizeFailure(searched.diagnostic(),
+                    Math.addExact(directStates, diagnosticStates(searched.diagnostic())), maxStates));
+        }
+        TrinityCompressedSchedule schedule = searched.value();
+        // This scheduler returns flat batches. Tighten the chosen order's inputs, not the best inputs over all orders.
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> required = new Object2ObjectLinkedOpenHashMap<>(TrinityCycleSeedRequirement.minimumInputs(schedule.batches()));
+        minimumInputs.forEach((key, amount) -> required.merge(key, amount, BigInteger::max));
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> finalBalances = new Object2ObjectLinkedOpenHashMap<>(schedule.finalBalances());
+        maximumInputs.forEach((key, amount) -> finalBalances.merge(
+                key, required.getOrDefault(key, BigInteger.ZERO).subtract(amount), BigInteger::add));
+        finalBalances.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
+        int states = Math.addExact(directStates, schedule.statesVisited());
+        return TrinityAlgorithmResult.success(new TrinityMinimumSeedSchedule(
+                amountsFor(required, externalKeys), amountsFor(required, internalKeys),
+                new TrinityCompressedSchedule(schedule.batches(), finalBalances, states)));
+    }
+
     private TrinityAlgorithmResult<TrinityMinimumSeedSchedule> findExecutableInputs(
                                                                                     Map<TrinityPatternVariant, BigInteger> firings,
                                                                                     Set<AEKey> externalKeys,
@@ -176,8 +213,8 @@ public final class TrinityJointCandidateEvaluator {
                                                                                     BigInteger seedLowerBound,
                                                                                     int maxStates,
                                                                                     TrinityPlanningControl control) {
-        if (seedLowerBound == null || seedLowerBound.signum() < 0) {
-            throw new IllegalArgumentException("A Trinity seed lower bound cannot be negative or null");
+        if (seedLowerBound.signum() < 0) {
+            throw new IllegalArgumentException("A Trinity seed lower bound cannot be negative");
         }
         int directStates = 0;
         // Conservation already proves a smaller total seed cannot execute, without constraining its key distribution.
@@ -246,7 +283,9 @@ public final class TrinityJointCandidateEvaluator {
                     Component.translatable(SEARCH_LIMIT_KEY),
                     Map.of("limit", Integer.toString(limit), "states", Integer.toString(states)));
         }
-        return diagnostic;
+        Object2ObjectLinkedOpenHashMap<String, String> metadata = new Object2ObjectLinkedOpenHashMap<>(diagnostic.metadata());
+        metadata.put("states", Integer.toString(states));
+        return new TrinityPlanningDiagnostic(diagnostic.code(), diagnostic.message(), metadata, diagnostic.detail());
     }
 
     private static TrinityAlgorithmResult<TrinityMinimumSeedSchedule> searchLimit(int limit, int states) {
@@ -260,10 +299,7 @@ public final class TrinityJointCandidateEvaluator {
                                                                   Map<TrinityPatternVariant, BigInteger> firings,
                                                                   Set<AEKey> internalKeys,
                                                                   TrinityCycleDemand demand) {
-        if (firings.isEmpty()) {
-            return Optional.empty();
-        }
-        LinkedHashMap<AEKey, BigInteger> net = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> net = new Object2ObjectLinkedOpenHashMap<>();
         firings.forEach((variant, count) -> variant.netChange().forEach(
                 (key, amount) -> net.merge(key, amount.multiply(count), BigInteger::add)));
         net.entrySet().removeIf(entry -> entry.getValue().signum() == 0);
@@ -284,11 +320,11 @@ public final class TrinityJointCandidateEvaluator {
                 return Optional.empty();
             }
         }
-        LinkedHashSet<AEKey> keys = new LinkedHashSet<>(net.keySet());
+        ObjectLinkedOpenHashSet<AEKey> keys = new ObjectLinkedOpenHashSet<>(net.keySet());
         keys.addAll(internalKeys);
         keys.addAll(demand.finalBalanceLowerBounds().keySet());
-        LinkedHashMap<AEKey, BigInteger> external = new LinkedHashMap<>();
-        LinkedHashMap<AEKey, BigInteger> modelSeed = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> external = new Object2ObjectLinkedOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> modelSeed = new Object2ObjectLinkedOpenHashMap<>();
         for (AEKey key : keys) {
             BigInteger finalLower = demand.finalBalanceLowerBounds().getOrDefault(key, BigInteger.ZERO);
             BigInteger required = finalLower.subtract(net.getOrDefault(key, BigInteger.ZERO)).max(BigInteger.ZERO);
@@ -313,16 +349,16 @@ public final class TrinityJointCandidateEvaluator {
                                                                CandidateAccounting accounting,
                                                                Map<AEKey, BigInteger> available,
                                                                Set<AEKey> producibleInputs) {
-        LinkedHashSet<AEKey> injectableKeys = new LinkedHashSet<>(externalKeys);
+        ObjectLinkedOpenHashSet<AEKey> injectableKeys = new ObjectLinkedOpenHashSet<>(externalKeys);
         firings.keySet().forEach(variant -> variant.inputs().keySet().stream()
                 .filter(internalKeys::contains)
                 .forEach(injectableKeys::add));
         injectableKeys.addAll(accounting.requiredModelSeed().keySet());
 
-        LinkedHashMap<AEKey, BigInteger> totalConsumption = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> totalConsumption = new Object2ObjectLinkedOpenHashMap<>();
         firings.forEach((variant, count) -> variant.inputs().forEach(
                 (key, amount) -> totalConsumption.merge(key, amount.multiply(count), BigInteger::add)));
-        LinkedHashMap<AEKey, BigInteger> bounds = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> bounds = new Object2ObjectLinkedOpenHashMap<>();
         for (AEKey key : injectableKeys) {
             BigInteger bound = available.getOrDefault(key, BigInteger.ZERO);
             if (producibleInputs.contains(key)) {
@@ -341,10 +377,10 @@ public final class TrinityJointCandidateEvaluator {
                                                                  TrinityCycleDemand demand,
                                                                  Map<AEKey, BigInteger> available,
                                                                  Set<AEKey> producibleInputs) {
-        LinkedHashSet<AEKey> inputKeys = new LinkedHashSet<>(internalKeys);
+        ObjectLinkedOpenHashSet<AEKey> inputKeys = new ObjectLinkedOpenHashSet<>(internalKeys);
         variants.forEach(variant -> inputKeys.addAll(variant.inputs().keySet()));
         inputKeys.addAll(demand.finalBalanceLowerBounds().keySet());
-        LinkedHashMap<AEKey, BigInteger> bounds = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> bounds = new Object2ObjectLinkedOpenHashMap<>();
         inputKeys.stream()
                 .filter(key -> !producibleInputs.contains(key))
                 .forEach(key -> bounds.put(key, available.getOrDefault(key, BigInteger.ZERO)));
@@ -355,7 +391,7 @@ public final class TrinityJointCandidateEvaluator {
                                                   List<TrinityPatternVariant> variants,
                                                   Set<AEKey> internalKeys,
                                                   TrinityCycleDemand demand) {
-        LinkedHashSet<AEKey> externalKeys = new LinkedHashSet<>();
+        ObjectLinkedOpenHashSet<AEKey> externalKeys = new ObjectLinkedOpenHashSet<>();
         variants.forEach(variant -> variant.inputs().keySet().stream()
                 .filter(key -> !internalKeys.contains(key))
                 .forEach(externalKeys::add));
@@ -368,7 +404,7 @@ public final class TrinityJointCandidateEvaluator {
     private static Map<AEKey, BigInteger> amountsFor(
                                                      Map<AEKey, BigInteger> amounts,
                                                      Set<AEKey> keys) {
-        LinkedHashMap<AEKey, BigInteger> selected = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> selected = new Object2ObjectLinkedOpenHashMap<>();
         keys.forEach(key -> {
             BigInteger amount = amounts.getOrDefault(key, BigInteger.ZERO);
             if (amount.signum() > 0) {
@@ -397,7 +433,7 @@ public final class TrinityJointCandidateEvaluator {
     private static Map<AEKey, BigInteger> addSigned(
                                                     Map<AEKey, BigInteger> initial,
                                                     Map<AEKey, BigInteger> change) {
-        LinkedHashMap<AEKey, BigInteger> result = new LinkedHashMap<>(initial);
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> result = new Object2ObjectLinkedOpenHashMap<>(initial);
         change.forEach((key, amount) -> result.merge(key, amount, BigInteger::add));
         if (result.values().stream().anyMatch(amount -> amount.signum() < 0)) {
             throw new IllegalStateException("An exact Trinity joint cycle candidate has a negative final balance");
