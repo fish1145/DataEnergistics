@@ -33,25 +33,16 @@ public final class PatternEncodingPreferencesClient {
     private PatternEncodingPreferencesClient() {}
 
     /**
-     * Applies only already-present local fields, preserving server legacy values for first-run migration.
+     * Initializes menu preferences from the local JSON values or their defaults.
      */
     public static void initializeMenu(AbstractContainerMenu menu) {
         Interfaces interfaces = Interfaces.require(menu);
         PatternEncodingClientPreferences preferences = PatternEncodingClientPreferencesAccess.get();
-        int presentMask = preferences.presentMask();
-        if ((presentMask & PatternEncodingClientPreferences.PRESENT_UPLOAD_ENABLED) != 0) {
-            interfaces.sourceAware().data_energistics$setUploadEnabled(preferences.uploadEnabled());
-        }
-        if ((presentMask & PatternEncodingClientPreferences.PRESENT_PATTERN_SOURCE_ENABLED) != 0) {
-            interfaces.sourceAware().data_energistics$setPatternSourceEnabled(preferences.patternSourceEnabled());
-        }
-        if ((presentMask & PatternEncodingClientPreferences.PRESENT_LAST_WORKSTATION) != 0) {
-            interfaces.sourceAware().data_energistics$setLastEncodedPatternSource(preferences.lastWorkstation());
-        }
-        if ((presentMask & PatternEncodingClientPreferences.PRESENT_PREVIEW_PANEL) != 0) {
-            interfaces.layoutAware().data_energistics$setPreviewPanelOffset(
-                    preferences.previewPanelOffsetX(), preferences.previewPanelOffsetY());
-        }
+        interfaces.sourceAware().data_energistics$setUploadEnabled(preferences.uploadEnabled());
+        interfaces.sourceAware().data_energistics$setPatternSourceEnabled(preferences.patternSourceEnabled());
+        interfaces.sourceAware().data_energistics$setLastEncodedPatternSource(preferences.lastWorkstation());
+        interfaces.layoutAware().data_energistics$setPreviewPanelOffset(
+                preferences.previewPanelOffsetX(), preferences.previewPanelOffsetY());
         PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
         restoreEncodedPattern(menu, interfaces);
         if (session.rankingContext() == null && !session.hasDeferredSnapshot()) {
@@ -180,14 +171,6 @@ public final class PatternEncodingPreferencesClient {
         if (session.hasDeferredSnapshot()) {
             return;
         }
-        int presentMask = preferences.presentMask();
-
-        boolean uploadEnabled = (presentMask & PatternEncodingClientPreferences.PRESENT_UPLOAD_ENABLED) != 0 ? preferences.uploadEnabled() : interfaces.sourceAware().data_energistics$isUploadEnabled();
-        boolean patternSourceEnabled = (presentMask & PatternEncodingClientPreferences.PRESENT_PATTERN_SOURCE_ENABLED) != 0 ? preferences.patternSourceEnabled() : interfaces.sourceAware().data_energistics$isPatternSourceEnabled();
-        ResourceLocation lastWorkstation = (presentMask & PatternEncodingClientPreferences.PRESENT_LAST_WORKSTATION) != 0 ? preferences.lastWorkstation() : interfaces.sourceAware().data_energistics$getLastEncodedPatternSource();
-        int offsetX = (presentMask & PatternEncodingClientPreferences.PRESENT_PREVIEW_PANEL) != 0 ? preferences.previewPanelOffsetX() : interfaces.layoutAware().data_energistics$getPreviewPanelOffsetX();
-        int offsetY = (presentMask & PatternEncodingClientPreferences.PRESENT_PREVIEW_PANEL) != 0 ? preferences.previewPanelOffsetY() : interfaces.layoutAware().data_energistics$getPreviewPanelOffsetY();
-
         ObjectSet<String> leafDigests = new ObjectLinkedOpenHashSet<>();
         for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : interfaces.previewMenu().data_energistics$getSyncedPatternProviders()) {
             for (PatternEncodingPreviewMenu.SyncedPatternProviderLeaf leaf : provider.leaves()) {
@@ -206,12 +189,10 @@ public final class PatternEncodingPreferencesClient {
         PacketDistributor.sendToServer(new PatternEncodingPreferencesSyncPayload(
                 menu.containerId,
                 session.nextOutgoingSequence(),
-                presentMask,
-                uploadEnabled,
-                patternSourceEnabled,
-                lastWorkstation,
-                offsetX,
-                offsetY,
+                preferences.uploadEnabled(),
+                preferences.patternSourceEnabled(),
+                preferences.previewPanelOffsetX(),
+                preferences.previewPanelOffsetY(),
                 rankingContext,
                 statistics));
     }

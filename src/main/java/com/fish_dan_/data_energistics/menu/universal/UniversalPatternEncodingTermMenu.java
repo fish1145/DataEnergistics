@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDyna
 import com.fish_dan_.data_energistics.common.crafting.pattern.EncodedPatternRecipeReference;
 import com.fish_dan_.data_energistics.integration.ae.extendedaeplus.EaepPatternEncodingHandoff;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
-import com.fish_dan_.data_energistics.menu.patternencoding.LegacyPatternEncodingPreferences;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingInheritedState;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
@@ -129,20 +128,9 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         registerClientAction(ACTION_RENAME_PATTERN_PROVIDER_LEAF, String.class,
                 this::renamePatternProviderLeafFromClient);
         if (this.isServerSide()) {
-            LegacyPatternEncodingPreferences legacyPreferences = LegacyPatternEncodingPreferences.capture(
-                    this.getPlayer(),
-                    true,
-                    this.host.isPersistentPatternSourceEnabled(),
-                    this.host.getPersistentLastEncodedPatternSource(),
-                    this.host.getPersistentPreviewPanelOffsetX(),
-                    this.host.getPersistentPreviewPanelOffsetY());
-            this.patternSourceEnabled = legacyPreferences.patternSourceEnabled();
-            this.uploadEnabled = legacyPreferences.uploadEnabled();
-            this.lastEncodedPatternSource = legacyPreferences.lastWorkstation();
+            this.lastEncodedPatternSource = PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
             data_energistics$getPreferenceSession().initializeConfirmedWorkstation(
                     this.lastEncodedPatternSource);
-            this.previewPanelOffsetX = legacyPreferences.previewPanelOffsetX();
-            this.previewPanelOffsetY = legacyPreferences.previewPanelOffsetY();
         }
         writeFallbackPatternSourceEnabled(this.patternSourceEnabled);
         writeFallbackUploadEnabled(this.uploadEnabled);
@@ -578,9 +566,6 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
         this.previewPanelOffsetX = offsetX;
         this.previewPanelOffsetY = offsetY;
-        if (this.isServerSide()) {
-            this.host.setSessionPreviewPanelOffset(offsetX, offsetY);
-        }
     }
 
     @Override
@@ -590,9 +575,6 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         }
         this.previewPanelOffsetX = 0;
         this.previewPanelOffsetY = 0;
-        if (this.isServerSide()) {
-            this.host.resetSessionPreviewPanelOffset();
-        }
     }
 
     @Override

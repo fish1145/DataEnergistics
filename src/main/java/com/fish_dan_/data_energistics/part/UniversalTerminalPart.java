@@ -10,7 +10,6 @@ import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -44,15 +43,15 @@ import appeng.parts.reporting.CraftingTerminalPart;
 import appeng.util.InteractionUtil;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 public class UniversalTerminalPart extends AbstractTerminalPart implements IPatternTerminalLogicHost, IPatternTerminalMenuHost, IPatternAccessTermMenuHost, ISubMenuHost {
 
@@ -64,11 +63,6 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     private static final String TAG_TERMINAL_NAME = "name";
     private static final String TAG_APPLIEDE_SHIFT_TO_TRANSMUTE = "appliede_shift_to_transmute";
     private static final String TAG_PATTERN_SOURCE_PENDING = "pattern_source_pending";
-    private static final String TAG_PATTERN_SOURCE_LAST = "pattern_source_last";
-    private static final String TAG_PATTERN_SOURCE_ENABLED = "pattern_source_enabled";
-    private static final String TAG_PREVIEW_PANEL_LAYOUT = "pattern_encoding_preview_layout";
-    private static final String TAG_PREVIEW_PANEL_OFFSET_X = "offset_x";
-    private static final String TAG_PREVIEW_PANEL_OFFSET_Y = "offset_y";
     @PartModels
     public static final ResourceLocation MODEL_OFF = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "part/universal_terminal_off");
     @PartModels
@@ -79,13 +73,10 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
 
     private final AppEngInternalInventory craftingGrid = new AppEngInternalInventory(this, 9);
     private final PatternEncodingLogic logic = new PatternEncodingLogic(this);
-    private final Map<String, IConfigManager> adapterConfigManagers = new HashMap<>();
-    private final Set<String> missingAdapterConfigManagers = new HashSet<>();
+    private final Object2ObjectMap<String, IConfigManager> adapterConfigManagers = new Object2ObjectOpenHashMap<>();
+    private final ObjectSet<String> missingAdapterConfigManagers = new ObjectOpenHashSet<>();
     private String activeTerminal = UniversalTerminalData.TERMINAL_ITEM;
     private CompoundTag terminalData = new CompoundTag();
-    private boolean hasSessionPreviewPanelOffset;
-    private int sessionPreviewPanelOffsetX;
-    private int sessionPreviewPanelOffsetY;
 
     public UniversalTerminalPart(IPartItem<?> partItem) {
         super(partItem);
@@ -157,7 +148,6 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
         this.craftingGrid.readFromNBT(data, TAG_CRAFTING_GRID, registries);
         this.logic.readFromNBT(data, registries);
         this.terminalData = data.contains(TAG_TERMINAL_DATA, CompoundTag.TAG_COMPOUND) ? data.getCompound(TAG_TERMINAL_DATA).copy() : new CompoundTag();
-        this.hasSessionPreviewPanelOffset = false;
         readAdapterConfigManagers(data, registries);
         setActiveTerminal(data.getString(TAG_ACTIVE_TERMINAL));
     }
@@ -260,7 +250,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     }
 
     public boolean switchToTerminal(String terminalName, @Nullable Player player, boolean announceChange) {
-        if (this.getLevel() == null || terminalName == null || terminalName.isEmpty()) {
+        if (this.getLevel() == null || terminalName.isEmpty()) {
             LOGGER.debug("UniversalTerminalPart.switchToTerminal aborted: invalid input terminal={}", terminalName);
             return false;
         }
@@ -347,80 +337,6 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
         persistTerminalDataChange();
     }
 
-    public @Nullable ResourceLocation getPersistentLastEncodedPatternSource() {
-        String value = this.terminalData.getString(TAG_PATTERN_SOURCE_LAST);
-        return value.isEmpty() ? null : ResourceLocation.tryParse(value);
-    }
-
-    public void setPersistentLastEncodedPatternSource(@Nullable ResourceLocation workstationId) {
-        if (workstationId == null) {
-            this.terminalData.remove(TAG_PATTERN_SOURCE_LAST);
-        } else {
-            this.terminalData.putString(TAG_PATTERN_SOURCE_LAST, workstationId.toString());
-        }
-        persistTerminalDataChange();
-    }
-
-    public boolean isPersistentPatternSourceEnabled() {
-        return !this.terminalData.contains(TAG_PATTERN_SOURCE_ENABLED) || this.terminalData.getBoolean(TAG_PATTERN_SOURCE_ENABLED);
-    }
-
-    public void setPersistentPatternSourceEnabled(boolean enabled) {
-        this.terminalData.putBoolean(TAG_PATTERN_SOURCE_ENABLED, enabled);
-        if (!enabled) {
-            this.terminalData.remove(TAG_PATTERN_SOURCE_LAST);
-        }
-        persistTerminalDataChange();
-    }
-
-    public int getPersistentPreviewPanelOffsetX() {
-        if (this.hasSessionPreviewPanelOffset) {
-            return this.sessionPreviewPanelOffsetX;
-        }
-        return this.terminalData.getCompound(TAG_PREVIEW_PANEL_LAYOUT).getInt(TAG_PREVIEW_PANEL_OFFSET_X);
-    }
-
-    public int getPersistentPreviewPanelOffsetY() {
-        if (this.hasSessionPreviewPanelOffset) {
-            return this.sessionPreviewPanelOffsetY;
-        }
-        return this.terminalData.getCompound(TAG_PREVIEW_PANEL_LAYOUT).getInt(TAG_PREVIEW_PANEL_OFFSET_Y);
-    }
-
-    /**
-     * Mirrors the open menu's client-owned layout without modifying the legacy part NBT.
-     */
-    public void setSessionPreviewPanelOffset(int offsetX, int offsetY) {
-        this.hasSessionPreviewPanelOffset = true;
-        this.sessionPreviewPanelOffsetX = offsetX;
-        this.sessionPreviewPanelOffsetY = offsetY;
-    }
-
-    /**
-     * Mirrors a client layout reset without removing the retained legacy part NBT.
-     */
-    public void resetSessionPreviewPanelOffset() {
-        setSessionPreviewPanelOffset(0, 0);
-    }
-
-    public void setPersistentPreviewPanelOffset(int offsetX, int offsetY) {
-        if (offsetX == 0 && offsetY == 0) {
-            resetPersistentPreviewPanelOffset();
-            return;
-        }
-
-        CompoundTag layout = this.terminalData.getCompound(TAG_PREVIEW_PANEL_LAYOUT);
-        layout.putInt(TAG_PREVIEW_PANEL_OFFSET_X, offsetX);
-        layout.putInt(TAG_PREVIEW_PANEL_OFFSET_Y, offsetY);
-        this.terminalData.put(TAG_PREVIEW_PANEL_LAYOUT, layout);
-        persistTerminalDataChange();
-    }
-
-    public void resetPersistentPreviewPanelOffset() {
-        this.terminalData.remove(TAG_PREVIEW_PANEL_LAYOUT);
-        persistTerminalDataChange();
-    }
-
     @Override
     protected AEColor getColor() {
         return super.getColor();
@@ -432,14 +348,8 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
         if (mode == SettingsFrom.DISMANTLE_ITEM) {
             UniversalTerminalItemData data = input.get(DEDataComponents.UNIVERSAL_TERMINAL.get());
             HolderLookup.Provider registries = player != null ? player.level().registryAccess() : this.getLevel() != null ? this.getLevel().registryAccess() : null;
-            if (data == null && registries != null) {
-                var customData = input.get(DataComponents.CUSTOM_DATA);
-                if (customData != null) {
-                    data = UniversalTerminalItemData.fromLegacyTag(customData.copyTag(), registries);
-                }
-            }
             if (data != null && registries != null) {
-                CompoundTag tag = data.toLegacyTag(registries);
+                CompoundTag tag = data.toPartTag(registries);
                 this.terminalData = tag.copy();
                 readAdapterConfigManagers(tag, registries);
                 String importedActive = data.activeTerminal();
@@ -470,7 +380,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
                 if (registries != null) {
                     writeAdapterConfigManagers(tag, registries);
                 }
-                List<UniversalTerminalItemData.TerminalEntryData> entries = registries == null ? List.of() : UniversalTerminalItemData.fromLegacyTag(tag, registries).terminals();
+                List<UniversalTerminalItemData.TerminalEntryData> entries = registries == null ? List.of() : UniversalTerminalItemData.fromPartTag(tag, registries).terminals();
                 stack.set(DEDataComponents.UNIVERSAL_TERMINAL.get(), new UniversalTerminalItemData(this.activeTerminal, entries, tag));
             }
             UniversalTerminalItemData data = stack.get(DEDataComponents.UNIVERSAL_TERMINAL.get());
@@ -556,7 +466,7 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
             return List.of();
         }
 
-        List<String> installed = new ArrayList<>();
+        List<String> installed = new ObjectArrayList<>();
         var terminalList = this.terminalData.getList(TAG_INSTALLED_TERMINALS, CompoundTag.TAG_COMPOUND);
         for (int i = 0; i < terminalList.size(); i++) {
             String name = terminalList.getCompound(i).getString(TAG_TERMINAL_NAME);
@@ -570,14 +480,14 @@ public class UniversalTerminalPart extends AbstractTerminalPart implements IPatt
     private ItemStack buildDataStack() {
         ItemStack stack = new ItemStack(this.getPartItem().asItem());
         if (!this.terminalData.isEmpty() || this.getLevel() != null) {
-            List<UniversalTerminalItemData.TerminalEntryData> entries = this.getLevel() == null ? List.of() : UniversalTerminalItemData.fromLegacyTag(this.terminalData, this.getLevel().registryAccess()).terminals();
+            List<UniversalTerminalItemData.TerminalEntryData> entries = this.getLevel() == null ? List.of() : UniversalTerminalItemData.fromPartTag(this.terminalData, this.getLevel().registryAccess()).terminals();
             stack.set(DEDataComponents.UNIVERSAL_TERMINAL.get(), new UniversalTerminalItemData(this.activeTerminal, entries, this.terminalData.copy()));
         }
         return stack;
     }
 
     private void setActiveTerminal(String terminalName) {
-        this.activeTerminal = terminalName == null || terminalName.isEmpty() ? UniversalTerminalData.TERMINAL_ITEM : terminalName;
+        this.activeTerminal = terminalName.isEmpty() ? UniversalTerminalData.TERMINAL_ITEM : terminalName;
         this.terminalData.putString("active_terminal", this.activeTerminal);
     }
 

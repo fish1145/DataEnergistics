@@ -74,7 +74,7 @@ public interface DataEnergisticsClientBridge {
     /**
      * Applies a pattern-encoding preference acknowledgement to the current client menu.
      *
-     * @param payload acknowledged preference values and migration mask.
+     * @param payload accepted snapshot sequence and server-confirmed workstation.
      * @param player  client player that owns the current menu.
      */
     void handlePatternEncodingPreferencesAck(PatternEncodingPreferencesAckPayload payload, Player player);

@@ -6,7 +6,6 @@ import com.fish_dan_.data_energistics.common.crafting.pattern.EncodedPatternReci
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.integration.ae.extendedaeplus.EaepPatternEncodingHandoff;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
-import com.fish_dan_.data_energistics.menu.patternencoding.LegacyPatternEncodingPreferences;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingInheritedState;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferState;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
@@ -1013,22 +1012,10 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             this.blankPatternSlot.setHideAmount(true);
         }
         if (this.isServerSide()) {
-            PatternEncodingPreviewLayoutAware legacyLayout = dataEnergistics$getLogicLayout();
-            LegacyPatternEncodingPreferences legacyPreferences = LegacyPatternEncodingPreferences.capture(
-                    this.getPlayer(),
-                    true,
-                    true,
-                    null,
-                    legacyLayout.data_energistics$getPreviewPanelOffsetX(),
-                    legacyLayout.data_energistics$getPreviewPanelOffsetY());
-            this.dataEnergistics$patternSourceEnabled = legacyPreferences.patternSourceEnabled();
-            this.dataEnergistics$uploadEnabled = legacyPreferences.uploadEnabled();
             this.dataEnergistics$pendingPatternSource = PatternEncodingSourceHelper.readPendingPatternSource(this.getPlayer());
-            this.dataEnergistics$lastEncodedPatternSource = legacyPreferences.lastWorkstation();
+            this.dataEnergistics$lastEncodedPatternSource = PatternEncodingSourceHelper.readLastEncodedPatternSource(this.getPlayer());
             data_energistics$getPreferenceSession().initializeConfirmedWorkstation(
                     this.dataEnergistics$lastEncodedPatternSource);
-            this.dataEnergistics$previewPanelOffsetX = legacyPreferences.previewPanelOffsetX();
-            this.dataEnergistics$previewPanelOffsetY = legacyPreferences.previewPanelOffsetY();
             if (data_energistics$usesNetworkBackedBlankPatternSlot()) {
                 dataEnergistics$flushBlankPatternSlotToNetwork();
             }
@@ -1181,15 +1168,6 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     @Unique
     private void dataEnergistics$pickupBlankPatternsFromClient(@Nullable Boolean single) {
         data_energistics$pickupBlankPatterns(Boolean.TRUE.equals(single));
-    }
-
-    @Unique
-    private PatternEncodingPreviewLayoutAware dataEnergistics$getLogicLayout() {
-        var logic = PatternEncodingPreviewLayoutHelper.getLogic((PatternEncodingTermMenu) (Object) this);
-        if (logic instanceof PatternEncodingPreviewLayoutAware layoutAware) {
-            return layoutAware;
-        }
-        throw new IllegalStateException("Pattern encoding logic does not implement preview layout storage: " + logic.getClass().getName());
     }
 
     @Unique
