@@ -25,11 +25,7 @@
 				"item": "minecraft:amethyst_shard",
 				"count": 4
 			}
-		],
-		"resource": {
-			"key_type": "data_energistics:manifest_binary",
-			"amount": 32
-		}
+		]
 	},
 	"outputs": {
 		"items": [
