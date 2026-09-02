@@ -80,6 +80,8 @@
 		"extendedaeplus.EaepPlayerListMixin"
 	],
 	"client": [
+		"client.render.BeamFormerPartRenderMixin",
+		"client.render.BeamCableBusRenderBoundsMixin",
 		"advancedae.AdvancedAePatternProviderScreenMixin",
 		"advancedae.AdvancedAeSmallPatternProviderScreenMixin",
 		"ae2cs.Ae2CsUpgradeablePatternProviderGuiMixin",
