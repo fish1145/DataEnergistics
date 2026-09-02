@@ -382,7 +382,12 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
 
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (this.canvas != null && !this.preferencesOpen && !this.screenshotOpen) {
-            if (button == 2) { this.middleDown = true; this.middleDragged = false; this.middleStartX = mouseX; this.middleStartY = mouseY; }
+            if (button == 2 && this.canvas.isMouseOverContent((float) mouseX, (float) mouseY)) {
+                this.middleDown = true;
+                this.middleDragged = false;
+                this.middleStartX = mouseX;
+                this.middleStartY = mouseY;
+            }
             PlacedNode node = this.canvas.nodeAt(mouseX, mouseY);
             if (node != null && (button == 0 || button == 1)) {
                 this.selected = node.id();
@@ -409,11 +414,21 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
 
     @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
         if (button == 2 && this.middleDown && Math.hypot(mouseX - this.middleStartX, mouseY - this.middleStartY) > 3) this.middleDragged = true;
+        // This screen owns its UI, so LDLib2's menu-holder drag forwarding does not apply.
+        if (this.modularUI != null && this.modularUI.getWidget().mouseDragged(mouseX, mouseY, button, dragX, dragY)) return true;
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        boolean handled = super.mouseReleased(mouseX, mouseY, button);
+        boolean handled;
+        if (this.modularUI != null && this.modularUI.getDragHandler().isDragging()) {
+            // A captured drag must end even when the pointer has left the UI window.
+            this.modularUI.getWidget().mouseReleased(mouseX, mouseY, button);
+            setDragging(false);
+            handled = true;
+        } else {
+            handled = super.mouseReleased(mouseX, mouseY, button);
+        }
         if (button == 2 && this.middleDown) {
             if (!this.middleDragged && this.canvas != null && this.canvas.isMouseOverElement((float) mouseX, (float) mouseY)) this.canvas.fitGraph();
             this.middleDown = false;
