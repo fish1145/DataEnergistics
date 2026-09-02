@@ -84,7 +84,7 @@ final class CraftingPlanGraphSvgWriter {
             if (!cycles.isEmpty()) {
                 text(labels, font, this.facts.label(node.id()), node.x() + node.width() - badgeWidth - 6,
                         node.y() + node.height() - 9, badgeWidth, CraftingPlanGraphPalette.TEXT);
-            } else {
+            } else if (node.viewNode().expandable()) {
                 text(labels, font, node.viewNode().collapsed() ? "+" : "−", node.x() + node.width() - 9,
                         node.y() + node.height() - 9, 8, border);
             }

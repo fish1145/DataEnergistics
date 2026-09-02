@@ -27,6 +27,9 @@ import net.minecraft.network.chat.Component;
 import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
@@ -34,6 +37,7 @@ import java.math.BigInteger;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -968,14 +972,28 @@ public final class TrinityGraphDemandAggregator {
 
         private TrinityPlanningDiagnostic.PartialPlan partialPlan() {
             LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
+            List<TrinityVariantFiring> selectedFirings = new ObjectArrayList<>();
+            this.acyclicFirings.entrySet().stream()
+                    .sorted(Comparator.<Map.Entry<TrinityPatternVariant, TrinityRankedPatternFiring>>comparingInt(
+                            entry -> entry.getValue().rank()).thenComparing(Map.Entry::getKey))
+                    .forEach(entry -> selectedFirings.add(new TrinityVariantFiring(
+                            entry.getKey(), entry.getValue().count())));
             this.acyclicFirings.forEach((variant, firing) -> mergeScaled(
                     emitted,
                     variant.outputs(),
                     firing.count()));
+            IntSet diagnosticComponents = new IntOpenHashSet();
+            this.diagnosticCycles.forEach(cycle -> diagnosticComponents.add(cycle.componentIndex()));
             for (TrinityCycleSelection cycle : this.cycleSolutions) {
                 mergeFiringOutputs(emitted, cycle.prefixOrder(), BigInteger.ONE);
                 mergeFiringOutputs(emitted, cycle.localOrder(), cycle.repetitions());
                 mergeFiringOutputs(emitted, cycle.suffixOrder(), BigInteger.ONE);
+                if (!diagnosticComponents.contains(cycle.componentIndex())) {
+                    selectedFirings.addAll(cycle.prefixOrder());
+                    cycle.localOrder().forEach(firing -> selectedFirings.add(new TrinityVariantFiring(
+                            firing.variant(), firing.count().multiply(cycle.repetitions()))));
+                    selectedFirings.addAll(cycle.suffixOrder());
+                }
             }
             this.diagnosticCycles.forEach(cycle -> cycle.emittedItems().forEach(
                     (key, amount) -> emitted.merge(key, amount, BigInteger::add)));
@@ -1003,7 +1021,8 @@ public final class TrinityGraphDemandAggregator {
                     this.initialInputs,
                     emitted,
                     unresolved,
-                    exactRequirements);
+                    exactRequirements,
+                    selectedFirings);
             TrinityDiagnosticMaterialAccumulator accumulator = TrinityDiagnosticMaterialAccumulator.create(base);
             this.diagnosticMaterials.forEach(accumulator::add);
             return accumulator.snapshot();
@@ -1068,7 +1087,8 @@ public final class TrinityGraphDemandAggregator {
                     Map.of(),
                     partial.emittedItems(),
                     partial.missingItems(),
-                    partial.inputRequirements()));
+                    partial.inputRequirements(),
+                    partial.selectedFirings()));
         }
 
         private void recordUnresolvedMaximum(AEKey key, BigInteger amount) {

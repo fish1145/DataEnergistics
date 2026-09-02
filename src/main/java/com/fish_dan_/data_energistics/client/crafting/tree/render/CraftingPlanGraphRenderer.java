@@ -113,7 +113,7 @@ public final class CraftingPlanGraphRenderer {
                 if (!cycles.isEmpty()) {
                     smallText(graphics, this.facts.label(node.id()), node.width() - badgeWidth - 6, node.height() - 9,
                             badgeWidth, CraftingPlanGraphPalette.TEXT);
-                } else {
+                } else if (node.viewNode().expandable()) {
                     smallText(graphics, node.viewNode().collapsed() ? "+" : "−", node.width() - 9, node.height() - 9, 8, CraftingPlanGraphPalette.FRAME);
                 }
             }

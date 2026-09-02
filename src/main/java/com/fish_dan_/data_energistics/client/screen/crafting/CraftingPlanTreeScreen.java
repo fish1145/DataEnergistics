@@ -408,7 +408,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
                 this.selected = node.id();
                 this.canvas.select(this.selected);
                 if (hasShiftDown()) {
-                    if (this.prepared != null) {
+                    if (this.prepared != null && node.viewNode().expandable()) {
                         this.anchorId = node.id();
                         this.anchorPosition = this.canvas.screenPosition(node);
                         boolean recursive = hasControlDown();

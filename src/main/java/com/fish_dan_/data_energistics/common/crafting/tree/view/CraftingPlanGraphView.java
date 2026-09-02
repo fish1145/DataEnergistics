@@ -280,7 +280,7 @@ public final class CraftingPlanGraphView {
             int component = components.componentByNode().get(id);
             boolean folded = collapsedComponents.contains(component) || partialFrontiers.contains(component);
             nodes.add(new ViewNode(id, sourceNodes.get(id), embedded.containsKey(id) ? embedded.get(id) : null, component,
-                    components.cyclicComponents().contains(component), folded));
+                    components.cyclicComponents().contains(component), folded, !childrenOfComponent(component).isEmpty()));
         }
         List<ViewEdge> visibleEdges = edges.stream().filter(edge -> visible.contains(edge.source()) && visible.contains(edge.target()) && (edge.cyclic() || !collapsedComponents.contains(components.componentByNode().get(edge.source()).intValue())))
                 .toList();
@@ -377,7 +377,7 @@ public final class CraftingPlanGraphView {
     }
 
     public record ViewNode(int id, Node sourceNode, @Nullable Integer embeddedProcessId,
-                           int componentId, boolean cyclic, boolean collapsed) {}
+                           int componentId, boolean cyclic, boolean collapsed, boolean expandable) {}
 
     public record ViewEdge(int source, int target, List<Integer> originalEdgeIds, boolean cyclic) {
 
