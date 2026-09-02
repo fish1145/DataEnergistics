@@ -180,18 +180,18 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
         if (grid == null) return;
         try {
             switch (payload.action()) {
-                case CANCEL -> cancel();
+                case CANCEL -> cancel(session);
                 case RETURN_LIST -> {
-                    if (!session.isPlanning() && session.result() != null) returnToList();
+                    if (!session.isPlanning() && session.result() != null) returnToList(session);
                 }
                 case REPLAN -> {
-                    if (!session.isPlanning()) replan(grid);
+                    if (!session.isPlanning()) replan(session, grid);
                 }
-                case START -> start(grid);
+                case START -> start(session, grid);
                 case NEXT_CPU, PREVIOUS_CPU -> {
                     CraftingPlanTreeResult current = session.result();
                     if (session.isPlanning() || current == null || current.plan().simulation()) return;
-                    refreshCpuSelection(grid);
+                    refreshCpuSelection(session, grid);
                     this.cpuSelection.cycle(payload.action() == Action.NEXT_CPU);
                     session.selectCpu(this, this.cpuSelection.selected());
                 }
@@ -224,7 +224,7 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
         this.planning = this.session.isPlanning();
         CraftingPlanTreeResult result = this.session.result();
         this.resultReady = result != null;
-        refreshCpuSelection(grid);
+        refreshCpuSelection(this.session, grid);
         if (result != null) {
             this.planningNanos = result.planningNanos();
             if (this.sentRevision != this.planRevision) {
@@ -246,69 +246,64 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
         super.broadcastChanges();
     }
 
-    private void refreshCpuSelection(IGrid grid) {
-        if (this.session == null) return;
-        CraftingPlanTreeResult result = this.session.result();
+    private @Nullable CraftingPlanTreeResult refreshCpuSelection(CraftingPlanTreeSession session, IGrid grid) {
+        CraftingPlanTreeResult result = session.result();
         this.cpuSelection.refresh(grid.getCraftingService().getCpus(), result == null ? null : result.plan());
         var cpu = this.cpuSelection.selected();
-        this.session.selectCpu(this, cpu);
+        session.selectCpu(this, cpu);
         this.cpuName = !this.cpuSelection.available() ? Component.translatable("gui.data_energistics.plan_tree.no_cpu") : cpu == null ? Component.translatable("gui.data_energistics.plan_tree.automatic") : cpu.getName() == null ? Component.translatable("gui.data_energistics.plan_tree.unnamed_cpu") : cpu.getName();
         this.cpuBytes = cpu == null ? 0 : cpu.getAvailableStorage();
         this.cpuCoProcessors = cpu == null ? 0 : cpu.getCoProcessors();
-        this.startable = result != null && !result.plan().simulation() && this.cpuSelection.available() && !this.session.isPlanning();
+        this.startable = result != null && !result.plan().simulation() && this.cpuSelection.available() && !session.isPlanning();
+        return this.startable ? result : null;
     }
 
-    private void start(IGrid grid) {
-        refreshCpuSelection(grid);
-        if (!this.startable || this.session == null) return;
-        CraftingPlanTreeResult result = this.session.result();
+    private void start(CraftingPlanTreeSession session, IGrid grid) {
+        CraftingPlanTreeResult result = refreshCpuSelection(session, grid);
         if (result == null) return;
         var submitted = grid.getCraftingService().submitJob(result.plan(), null, this.cpuSelection.selected(), true, actionSource());
         this.submitError = new SyncableSubmitResult(submitted);
-        if (submitted.successful()) finishOrQueue();
+        if (submitted.successful()) finishOrQueue(session);
     }
 
-    private void replan(IGrid grid) {
-        if (this.session == null) return;
-        var request = this.session.request();
+    private void replan(CraftingPlanTreeSession session, IGrid grid) {
+        var request = session.request();
         var future = grid.getCraftingService().beginCraftingCalculation(getPlayer().level(), this::actionSource,
                 request.target(), request.amount(), CalculationStrategy.CRAFT_LESS);
-        this.session.beginPlanning(this, future);
+        session.beginPlanning(this, future);
         this.planning = true;
         this.startable = false;
         this.resultReady = false;
-        this.planRevision = this.session.revision();
+        this.planRevision = session.revision();
         this.graphError = Component.empty();
         this.status = Component.empty();
         this.submitError = new SyncableSubmitResult((ICraftingSubmitResult) null);
     }
 
-    private void returnToList() {
-        if (this.session == null) return;
+    private void returnToList(CraftingPlanTreeSession session) {
         Object handoff = new Object();
-        this.session.transfer(this, handoff);
+        session.transfer(this, handoff);
         try {
-            boolean opened = MenuOpener.returnTo(CraftConfirmMenu.TYPE, getPlayer(), this.session.request().locator());
+            boolean opened = MenuOpener.returnTo(CraftConfirmMenu.TYPE, getPlayer(), session.request().locator());
             if (!opened || !(getPlayer().containerMenu instanceof CraftingPlanSessionTransfer target)) {
                 throw new IllegalStateException("AE2 confirmation menu did not open for plan-tree return");
             }
-            target.data_energistics$adoptPlanTreeSession(this.session, handoff);
+            target.data_energistics$adoptPlanTreeSession(session, handoff);
         } catch (RuntimeException failure) {
-            if (getPlayer().containerMenu == this && this.session.isOwnedBy(handoff)) this.session.transfer(handoff, this);
+            if (getPlayer().containerMenu == this && session.isOwnedBy(handoff)) session.transfer(handoff, this);
             else {
-                this.session.closeIfOwnedBy(handoff);
-                this.session.closeIfOwnedBy(getPlayer().containerMenu);
+                session.closeIfOwnedBy(handoff);
+                session.closeIfOwnedBy(getPlayer().containerMenu);
                 if (getPlayer().containerMenu instanceof AEBaseMenu opened) opened.setValidMenu(false);
             }
             throw failure;
         }
     }
 
-    private void cancel() {
-        if (this.session == null) return;
-        var request = this.session.request();
+    private void cancel(CraftingPlanTreeSession session) {
+        var request = session.request();
         if (request.queue() != null && !request.queue().isEmpty()) {
-            finishOrQueue();
+            finishOrQueue(session);
             return;
         }
         CraftAmountMenu.open((ServerPlayer) getPlayer(), request.locator(), request.target(),
@@ -319,9 +314,8 @@ public final class CraftingPlanTreeMenu extends AEBaseMenu implements ISubMenu, 
         }
     }
 
-    private void finishOrQueue() {
-        if (this.session == null) return;
-        var request = this.session.request();
+    private void finishOrQueue(CraftingPlanTreeSession session) {
+        var request = session.request();
         if (request.queue() != null && !request.queue().isEmpty()) {
             CraftConfirmMenu.openWithCraftingList(getActionHost(), (ServerPlayer) getPlayer(), request.locator(), request.queue());
         } else if (getTarget() instanceof UniversalTerminalPart part) {

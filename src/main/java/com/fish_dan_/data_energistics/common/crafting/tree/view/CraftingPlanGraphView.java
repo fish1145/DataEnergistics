@@ -63,7 +63,7 @@ public final class CraftingPlanGraphView {
             }
             List<Edge> parents = incomingEdges.getOrDefault(node.id(), List.of());
             List<Edge> children = outgoingEdges.getOrDefault(node.id(), List.of());
-            if (parents.size() != 1 || parents.getFirst().role() != Role.OUTPUT || children.stream().anyMatch(edge -> edge.role() != Role.INPUT)) {
+            if (parents.size() != 1 || parents.getFirst().role() != Role.OUTPUT) {
                 continue;
             }
             int materialId = parents.getFirst().source();

@@ -95,21 +95,28 @@ final class CraftingPlanGraphRecordCodec {
         return switch (buffer.readUnsignedByte()) {
             case 0 -> {
                 int root = buffer.readVarInt();
-                Header header = new Header(AEKey.STREAM_CODEC.decode(buffer), amount(buffer), amount(buffer),
+                Header header = new Header(readKey(buffer), amount(buffer), amount(buffer),
                         enumeration(buffer, Kind.values()), CraftingQuantityMode.fromOrdinal(buffer.readVarInt()),
                         buffer.readVarLong(), ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer));
                 yield new GraphHeader(header, root);
             }
-            case 1 -> new GraphNode(new Material(buffer.readVarInt(), AEKey.STREAM_CODEC.decode(buffer),
+            case 1 -> new GraphNode(new Material(buffer.readVarInt(), readKey(buffer),
                     amount(buffer), amount(buffer), amount(buffer), amount(buffer), amount(buffer), buffer.readVarInt()));
             case 2 -> new GraphNode(new Process(buffer.readVarInt(), buffer.readVarInt(), buffer.readUtf(),
-                    buffer.readVarInt(), AEKey.STREAM_CODEC.decode(buffer), amount(buffer), buffer.readBoolean(), ids(buffer)));
+                    buffer.readVarInt(), readKey(buffer), amount(buffer), buffer.readBoolean(), ids(buffer)));
             case 3 -> new GraphEdge(new Edge(buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt(),
                     enumeration(buffer, Role.values()), amount(buffer)));
             case 4 -> new GraphCycle(new Cycle(buffer.readVarInt(), buffer.readVarInt(), ids(buffer), ids(buffer),
                     amount(buffer), amounts(buffer), amounts(buffer)));
             default -> throw new IllegalArgumentException("Unknown graph record type");
         };
+    }
+
+    private static AEKey readKey(RegistryFriendlyByteBuf buffer) {
+        // AE2 can return null for unknown key spaces even through its mandatory STREAM_CODEC.
+        AEKey key = AEKey.readKey(buffer);
+        if (key == null) throw new IllegalArgumentException("Unknown material key in crafting graph");
+        return key;
     }
 
     private static <T> T enumeration(RegistryFriendlyByteBuf buffer, T[] values) {
@@ -158,7 +165,7 @@ final class CraftingPlanGraphRecordCodec {
         int count = count(buffer);
         Map<AEKey, BigInteger> values = new Object2ObjectLinkedOpenHashMap<>();
         for (int index = 0; index < count; index++) {
-            AEKey key = AEKey.STREAM_CODEC.decode(buffer);
+            AEKey key = readKey(buffer);
             if (values.putIfAbsent(key, amount(buffer)) != null) {
                 throw new IllegalArgumentException("Duplicate cycle amount key");
             }
