@@ -1,16 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.tree.view;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 
 import org.jspecify.annotations.Nullable;
 
@@ -21,16 +13,32 @@ import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGra
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Process;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Role;
 
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntAVLTreeSet;
+import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntComparators;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntSets;
+import it.unimi.dsi.fastutil.objects.Object2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 /** Immutable, server-safe projection. Folding never mutates the authoritative plan or duplicates a material. */
 public final class CraftingPlanGraphView {
 
     private final CraftingPlanGraph graph;
-    private final Map<Integer, Node> sourceNodes = new TreeMap<>();
-    private final Map<Integer, Integer> aliases = new HashMap<>();
-    private final Map<Integer, Integer> embedded = new HashMap<>();
-    private final Map<Integer, List<Integer>> outgoing = new TreeMap<>();
-    private final Map<Integer, List<Integer>> reverse = new TreeMap<>();
-    private final Map<Integer, List<Integer>> displayChildren = new TreeMap<>();
+    private final Int2ObjectMap<Node> sourceNodes = new Int2ObjectAVLTreeMap<>();
+    private final Int2IntMap aliases = new Int2IntOpenHashMap();
+    private final Int2IntMap embedded = new Int2IntOpenHashMap();
+    private final Int2ObjectMap<IntList> outgoing = new Int2ObjectAVLTreeMap<>();
+    private final Int2ObjectMap<IntList> reverse = new Int2ObjectAVLTreeMap<>();
+    private final Int2ObjectMap<IntList> displayChildren = new Int2ObjectAVLTreeMap<>();
     private final List<ViewEdge> edges;
     private final GraphComponents components;
     private final int root;
@@ -38,14 +46,16 @@ public final class CraftingPlanGraphView {
     public CraftingPlanGraphView(CraftingPlanGraph graph) {
         this.graph = graph;
         graph.nodes().forEach(node -> sourceNodes.put(node.id(), node));
-        Map<Integer, List<Edge>> incomingEdges = new HashMap<>();
-        Map<Integer, List<Edge>> outgoingEdges = new HashMap<>();
-        Map<Integer, List<Integer>> sourceOutgoing = new TreeMap<>();
-        sourceNodes.keySet().forEach(id -> sourceOutgoing.put(id, new ArrayList<>()));
+        Int2ObjectMap<List<Edge>> incomingEdges = new Int2ObjectOpenHashMap<>();
+        Int2ObjectMap<List<Edge>> outgoingEdges = new Int2ObjectOpenHashMap<>();
+        Int2ObjectMap<IntList> sourceOutgoing = new Int2ObjectAVLTreeMap<>();
+        for (int id : sourceNodes.keySet()) {
+            sourceOutgoing.put(id, new IntArrayList());
+        }
         for (Edge edge : graph.edges()) {
             sourceOutgoing.get(edge.source()).add(edge.target());
-            incomingEdges.computeIfAbsent(edge.target(), unused -> new ArrayList<>()).add(edge);
-            outgoingEdges.computeIfAbsent(edge.source(), unused -> new ArrayList<>()).add(edge);
+            incomingEdges.computeIfAbsent(edge.target(), unused -> new ObjectArrayList<>()).add(edge);
+            outgoingEdges.computeIfAbsent(edge.source(), unused -> new ObjectArrayList<>()).add(edge);
         }
         GraphComponents sourceComponents = GraphComponents.find(sourceNodes.keySet(), sourceOutgoing);
         for (Node node : sourceNodes.values()) {
@@ -60,8 +70,8 @@ public final class CraftingPlanGraphView {
                 continue;
             }
             int materialId = parents.getFirst().source();
-            if (!(sourceNodes.get(materialId) instanceof Material material)
-                    || !material.key().equals(process.primaryOutput())
+            Material material = (Material) sourceNodes.get(materialId);
+            if (!material.key().equals(process.primaryOutput())
                     || outgoingEdges.getOrDefault(materialId, List.of()).size() != 1
                     || incomingEdges.getOrDefault(materialId, List.of()).size() > 1
                     || children.stream().anyMatch(edge -> incomingEdges.getOrDefault(edge.target(), List.of()).size() > 1)) {
@@ -72,19 +82,19 @@ public final class CraftingPlanGraphView {
         }
         for (int id : sourceNodes.keySet()) {
             if (!aliases.containsKey(id)) {
-                outgoing.put(id, new ArrayList<>());
-                reverse.put(id, new ArrayList<>());
-                displayChildren.put(id, new ArrayList<>());
+                outgoing.put(id, new IntArrayList());
+                reverse.put(id, new IntArrayList());
+                displayChildren.put(id, new IntArrayList());
             }
         }
-        Map<Connection, List<Integer>> edgeGroups = new TreeMap<>();
+        Map<Connection, IntList> edgeGroups = new Object2ObjectAVLTreeMap<>();
         for (Edge edge : graph.edges()) {
             int source = projectedId(edge.source());
             int target = projectedId(edge.target());
             if (source == target && edge.source() != edge.target() && aliases.containsKey(edge.target())) {
                 continue;
             }
-            edgeGroups.computeIfAbsent(new Connection(source, target), unused -> new ArrayList<>()).add(edge.id());
+            edgeGroups.computeIfAbsent(new Connection(source, target), unused -> new IntArrayList()).add(edge.id());
             outgoing.get(source).add(target);
             reverse.get(target).add(source);
             displayChildren.get(source).add(target);
@@ -93,13 +103,13 @@ public final class CraftingPlanGraphView {
                 displayChildren.get(target).add(source);
             }
         }
-        outgoing.values().forEach(list -> list.sort(Integer::compare));
-        reverse.values().forEach(list -> list.sort(Integer::compare));
-        displayChildren.values().forEach(list -> list.sort(Integer::compare));
+        outgoing.values().forEach(list -> list.sort(IntComparators.NATURAL_COMPARATOR));
+        reverse.values().forEach(list -> list.sort(IntComparators.NATURAL_COMPARATOR));
+        displayChildren.values().forEach(list -> list.sort(IntComparators.NATURAL_COMPARATOR));
         components = GraphComponents.find(outgoing.keySet(), outgoing);
-        List<ViewEdge> projectedEdges = new ArrayList<>();
+        List<ViewEdge> projectedEdges = new ObjectArrayList<>();
         edgeGroups.forEach((connection, ids) -> {
-            ids.sort(Integer::compare);
+            ids.sort(IntComparators.NATURAL_COMPARATOR);
             int component = components.componentByNode().get(connection.source());
             boolean cyclic = component == components.componentByNode().get(connection.target())
                     && components.cyclicComponents().contains(component);
@@ -115,9 +125,6 @@ public final class CraftingPlanGraphView {
 
     /** Maps an original process id to its material card when that process is safely embedded. */
     public int projectedId(int originalId) {
-        if (!sourceNodes.containsKey(originalId)) {
-            throw new IllegalArgumentException("Unknown plan node " + originalId);
-        }
         return aliases.getOrDefault(originalId, originalId);
     }
 
@@ -126,18 +133,21 @@ public final class CraftingPlanGraphView {
         if (budget < 1) {
             throw new IllegalArgumentException("The visible-node budget must be positive");
         }
-        Set<Integer> reached = new HashSet<>();
-        Set<Integer> collapsed = new TreeSet<>();
-        ArrayDeque<Integer> queue = new ArrayDeque<>();
+        IntSet reached = new IntOpenHashSet();
+        IntSet collapsed = new IntAVLTreeSet();
+        IntArrayFIFOQueue queue = new IntArrayFIFOQueue();
         int rootComponent = components.componentByNode().get(root);
         reached.add(rootComponent);
-        queue.add(rootComponent);
+        queue.enqueue(rootComponent);
         int count = components.members().get(rootComponent).size();
         while (!queue.isEmpty()) {
-            int current = queue.removeFirst();
-            Set<Integer> children = childrenOfComponent(current);
+            int current = queue.dequeueInt();
+            IntSet children = childrenOfComponent(current);
             children.removeAll(reached);
-            int added = children.stream().mapToInt(child -> components.members().get(child).size()).sum();
+            int added = 0;
+            for (int child : children) {
+                added += components.members().get(child).size();
+            }
             if (count + added > budget && !children.isEmpty()) {
                 collapsed.addAll(components.members().get(current));
                 continue;
@@ -145,102 +155,119 @@ public final class CraftingPlanGraphView {
             count += added;
             for (int child : children) {
                 reached.add(child);
-                queue.addLast(child);
+                queue.enqueue(child);
             }
         }
         return orderedSet(collapsed);
     }
 
     public Set<Integer> setCollapsed(Set<Integer> collapsed, int nodeId, boolean fold) {
-        Set<Integer> result = normalizeCollapsed(collapsed);
+        IntSet result = normalizeCollapsed(collapsed);
         int component = components.componentByNode().get(projectedId(nodeId));
         if (fold) {
             result.addAll(components.members().get(component));
         } else {
-            components.members().get(component).forEach(result::remove);
+            for (int member : components.members().get(component)) {
+                result.remove(member);
+            }
         }
         return orderedSet(result);
     }
 
     /** Iterative recursive folding terminates on cycles and keeps independent expanded paths meaningful. */
     public Set<Integer> recursiveCollapsed(Set<Integer> collapsed, int nodeId, boolean fold) {
-        Set<Integer> result = normalizeCollapsed(collapsed);
-        Set<Integer> reached = new HashSet<>();
+        IntSet result = normalizeCollapsed(collapsed);
+        IntSet reached = new IntOpenHashSet();
         int start = components.componentByNode().get(projectedId(nodeId));
-        Set<Integer> protectedComponents = new HashSet<>();
+        IntSet protectedComponents = new IntOpenHashSet();
         if (fold) {
             visible(setCollapsed(collapsed, nodeId, true), false).nodes()
                     .forEach(node -> protectedComponents.add(node.componentId()));
             protectedComponents.remove(start);
         }
-        ArrayDeque<Integer> queue = new ArrayDeque<>();
-        queue.add(start);
+        IntArrayFIFOQueue queue = new IntArrayFIFOQueue();
+        queue.enqueue(start);
         while (!queue.isEmpty()) {
-            int component = queue.removeFirst();
+            int component = queue.dequeueInt();
             if (!reached.add(component) || protectedComponents.contains(component)) {
                 continue;
             }
             if (fold) {
                 result.addAll(components.members().get(component));
             } else {
-                components.members().get(component).forEach(result::remove);
+                for (int member : components.members().get(component)) {
+                    result.remove(member);
+                }
             }
             // Follow dependency arrows, not the reverse display attachment to co-products.
             for (int member : components.members().get(component)) {
-                outgoing.get(member).forEach(target -> queue.addLast(components.componentByNode().get(target)));
+                for (int target : outgoing.get(member)) {
+                    queue.enqueue(components.componentByNode().get(target).intValue());
+                }
             }
         }
         return orderedSet(result);
     }
 
     public ViewGraph visible(Set<Integer> collapsed, boolean missingOnly) {
-        Set<Integer> normalized = normalizeCollapsed(collapsed);
-        Set<Integer> collapsedComponents = new HashSet<>();
-        normalized.forEach(id -> collapsedComponents.add(components.componentByNode().get(id)));
-        Set<Integer> allowed = missingOnly ? missingExplanation() : outgoing.keySet();
-        Set<Integer> visible = new TreeSet<>();
-        Set<Integer> reached = new HashSet<>();
-        ArrayDeque<Integer> queue = new ArrayDeque<>();
-        queue.add(components.componentByNode().get(root));
+        IntSet normalized = normalizeCollapsed(collapsed);
+        IntSet collapsedComponents = new IntOpenHashSet();
+        for (int id : normalized) {
+            collapsedComponents.add(components.componentByNode().get(id).intValue());
+        }
+        IntSet allowed = missingOnly ? missingExplanation() : outgoing.keySet();
+        IntSet visible = new IntAVLTreeSet();
+        IntSet reached = new IntOpenHashSet();
+        IntArrayFIFOQueue queue = new IntArrayFIFOQueue();
+        queue.enqueue(components.componentByNode().get(root).intValue());
         while (!queue.isEmpty()) {
-            int component = queue.removeFirst();
+            int component = queue.dequeueInt();
             if (!reached.add(component)) {
                 continue;
             }
             List<Integer> members = components.members().get(component);
-            if (members.stream().noneMatch(allowed::contains)) {
+            boolean allowedMember = false;
+            for (int member : members) {
+                if (allowed.contains(member)) {
+                    allowedMember = true;
+                    break;
+                }
+            }
+            if (!allowedMember) {
                 continue;
             }
             visible.addAll(members);
             if (collapsedComponents.contains(component)) {
                 continue;
             }
-            queue.addAll(childrenOfComponent(component));
+            for (int child : childrenOfComponent(component)) {
+                queue.enqueue(child);
+            }
         }
-        List<ViewNode> nodes = new ArrayList<>();
+        List<ViewNode> nodes = new ObjectArrayList<>();
         for (int id : visible) {
             int component = components.componentByNode().get(id);
             boolean folded = collapsedComponents.contains(component);
-            nodes.add(new ViewNode(id, sourceNodes.get(id), embedded.get(id), component,
+            nodes.add(new ViewNode(id, sourceNodes.get(id), embedded.containsKey(id) ? embedded.get(id) : null, component,
                     components.cyclicComponents().contains(component), folded));
         }
         List<ViewEdge> visibleEdges = edges.stream().filter(edge -> visible.contains(edge.source())
                 && visible.contains(edge.target())).toList();
         List<List<Integer>> visibleComponents = components.members().stream()
-                .filter(group -> visible.contains(group.getFirst())).toList();
+                .filter(group -> visible.contains(group.getFirst().intValue())).toList();
         return new ViewGraph(graph, root, nodes, visibleEdges, visibleComponents);
     }
 
-    private Set<Integer> normalizeCollapsed(Set<Integer> collapsed) {
-        Set<Integer> result = new TreeSet<>();
+    private IntSet normalizeCollapsed(Set<Integer> collapsed) {
+        IntSet result = new IntAVLTreeSet();
         for (int id : collapsed) {
             result.add(projectedId(id));
         }
         return result;
     }
 
-    private Set<Integer> childrenOfComponent(int component) {
-        Set<Integer> result = new TreeSet<>();
+    private IntSet childrenOfComponent(int component) {
+        IntSet result = new IntAVLTreeSet();
         for (int id : components.members().get(component)) {
             for (int child : displayChildren.get(id)) {
                 int target = components.componentByNode().get(child);
@@ -252,29 +279,33 @@ public final class CraftingPlanGraphView {
         return result;
     }
 
-    private Set<Integer> missingExplanation() {
-        Set<Integer> reachesMissing = new HashSet<>();
-        ArrayDeque<Integer> queue = new ArrayDeque<>();
+    private IntSet missingExplanation() {
+        IntSet reachesMissing = new IntOpenHashSet();
+        IntArrayFIFOQueue queue = new IntArrayFIFOQueue();
         for (Node node : sourceNodes.values()) {
             if (node instanceof Material material
                     && (material.missing().signum() > 0 || material.unresolved().signum() > 0)) {
-                queue.add(projectedId(node.id()));
+                queue.enqueue(projectedId(node.id()));
             }
         }
         while (!queue.isEmpty()) {
-            int id = queue.removeFirst();
+            int id = queue.dequeueInt();
             if (reachesMissing.add(id)) {
-                queue.addAll(reverse.get(id));
+                for (int parent : reverse.get(id)) {
+                    queue.enqueue(parent);
+                }
             }
         }
         // A successful complete plan still has a meaningful target card.
         reachesMissing.add(root);
-        Set<Integer> reachable = new HashSet<>();
-        queue.add(root);
+        IntSet reachable = new IntOpenHashSet();
+        queue.enqueue(root);
         while (!queue.isEmpty()) {
-            int id = queue.removeFirst();
+            int id = queue.dequeueInt();
             if (reachable.add(id)) {
-                queue.addAll(outgoing.get(id));
+                for (int child : outgoing.get(id)) {
+                    queue.enqueue(child);
+                }
             }
         }
         reachesMissing.retainAll(reachable);
@@ -282,7 +313,7 @@ public final class CraftingPlanGraphView {
     }
 
     private static Set<Integer> orderedSet(Set<Integer> values) {
-        return Collections.unmodifiableSet(new LinkedHashSet<>(new TreeSet<>(values)));
+        return IntSets.unmodifiable(new IntAVLTreeSet(values));
     }
 
     public record ViewGraph(CraftingPlanGraph source, int rootId, List<ViewNode> nodes,

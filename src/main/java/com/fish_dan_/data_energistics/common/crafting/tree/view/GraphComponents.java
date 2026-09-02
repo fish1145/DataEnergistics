@@ -1,94 +1,105 @@
 package com.fish_dan_.data_energistics.common.crafting.tree.view;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
+
+import it.unimi.dsi.fastutil.ints.Int2IntAVLTreeMap;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntMaps;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntComparators;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntLists;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntSets;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 /** Iterative Kosaraju decomposition; even a very deep dependency chain does not use the Java stack. */
 public record GraphComponents(Map<Integer, Integer> componentByNode, List<List<Integer>> members,
         Set<Integer> cyclicComponents) {
 
     public GraphComponents {
-        componentByNode = Collections.unmodifiableMap(new TreeMap<>(componentByNode));
-        members = members.stream().map(List::copyOf).toList();
-        cyclicComponents = Set.copyOf(cyclicComponents);
+        componentByNode = Int2IntMaps.unmodifiable(new Int2IntAVLTreeMap(componentByNode));
+        members = members.stream().map(group -> (List<Integer>) IntLists.unmodifiable(new IntArrayList(group))).toList();
+        cyclicComponents = IntSets.unmodifiable(new IntOpenHashSet(cyclicComponents));
     }
 
-    public static GraphComponents find(Collection<Integer> nodes, Map<Integer, List<Integer>> outgoing) {
-        List<Integer> ordered = nodes.stream().sorted().toList();
-        Map<Integer, List<Integer>> reverse = new HashMap<>();
-        ordered.forEach(id -> reverse.put(id, new ArrayList<>()));
+    public static GraphComponents find(Collection<Integer> nodes, Map<Integer, ? extends List<Integer>> outgoing) {
+        IntList ordered = new IntArrayList(nodes);
+        ordered.sort(IntComparators.NATURAL_COMPARATOR);
+        Int2ObjectMap<IntList> reverse = new Int2ObjectOpenHashMap<>();
+        for (int id : ordered) {
+            reverse.put(id, new IntArrayList());
+        }
         for (int source : ordered) {
-            for (int target : outgoing.getOrDefault(source, List.of())) {
-                if (!reverse.containsKey(target)) {
-                    throw new IllegalArgumentException("Unknown dependency node " + target);
-                }
+            for (int target : outgoing.get(source)) {
                 reverse.get(target).add(source);
             }
         }
-        reverse.values().forEach(list -> list.sort(Integer::compare));
-        Set<Integer> visited = new HashSet<>();
-        List<Integer> finished = new ArrayList<>();
-        ArrayDeque<Visit> stack = new ArrayDeque<>();
+        reverse.values().forEach(list -> list.sort(IntComparators.NATURAL_COMPARATOR));
+        IntSet visited = new IntOpenHashSet();
+        IntList finished = new IntArrayList();
+        IntArrayList stack = new IntArrayList();
         for (int start : ordered) {
-            stack.push(new Visit(start, false));
+            stack.push(start);
             while (!stack.isEmpty()) {
-                Visit visit = stack.pop();
-                if (visit.finish()) {
-                    finished.add(visit.id());
-                } else if (visited.add(visit.id())) {
-                    stack.push(new Visit(visit.id(), true));
-                    List<Integer> targets = outgoing.getOrDefault(visit.id(), List.of());
+                int visit = stack.popInt();
+                // Validated graph IDs are nonnegative, so complemented IDs encode the finish phase without objects.
+                if (visit < 0) {
+                    finished.add(~visit);
+                } else if (visited.add(visit)) {
+                    stack.push(~visit);
+                    List<Integer> targets = outgoing.get(visit);
                     for (int index = targets.size() - 1; index >= 0; index--) {
-                        if (!visited.contains(targets.get(index))) {
-                            stack.push(new Visit(targets.get(index), false));
+                        int target = targets.get(index);
+                        if (!visited.contains(target)) {
+                            stack.push(target);
                         }
                     }
                 }
             }
         }
         visited.clear();
-        List<List<Integer>> groups = new ArrayList<>();
-        ArrayDeque<Integer> pending = new ArrayDeque<>();
+        List<List<Integer>> groups = new ObjectArrayList<>();
+        IntArrayList pending = new IntArrayList();
         for (int index = finished.size() - 1; index >= 0; index--) {
-            int start = finished.get(index);
+            int start = finished.getInt(index);
             if (visited.contains(start)) {
                 continue;
             }
-            List<Integer> group = new ArrayList<>();
+            IntList group = new IntArrayList();
             pending.push(start);
             while (!pending.isEmpty()) {
-                int node = pending.pop();
+                int node = pending.popInt();
                 if (visited.add(node)) {
                     group.add(node);
-                    reverse.get(node).forEach(pending::push);
+                    for (int predecessor : reverse.get(node)) {
+                        pending.push(predecessor);
+                    }
                 }
             }
-            group.sort(Integer::compare);
+            group.sort(IntComparators.NATURAL_COMPARATOR);
             groups.add(group);
         }
         groups.sort(Comparator.comparingInt(List::getFirst));
-        Map<Integer, Integer> byNode = new HashMap<>();
-        Set<Integer> cyclic = new HashSet<>();
+        Int2IntMap byNode = new Int2IntOpenHashMap();
+        IntSet cyclic = new IntOpenHashSet();
         for (int index = 0; index < groups.size(); index++) {
             List<Integer> group = groups.get(index);
             for (int id : group) {
                 byNode.put(id, index);
             }
-            if (group.size() > 1 || outgoing.getOrDefault(group.getFirst(), List.of()).contains(group.getFirst())) {
+            if (group.size() > 1 || outgoing.get(group.getFirst()).contains(group.getFirst())) {
                 cyclic.add(index);
             }
         }
         return new GraphComponents(byNode, groups, cyclic);
     }
-
-    private record Visit(int id, boolean finish) {}
 }
