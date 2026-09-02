@@ -123,7 +123,7 @@ final class TrinityDataCoreCpuLogic {
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
     private static final int SCHEMA_VERSION = 3;
-    private static final int MINIMUM_SCHEMA_VERSION = 1;
+    private static final int LONG_INVENTORY_SCHEMA_VERSION = 2;
     private static final String INVENTORY_TAG = "inventory";
     private static final String EXACT_INVENTORY_TAG = "exact_inventory";
     private static final String VIRTUAL_COMPLETIONS_TAG = "virtual_completions";
@@ -913,11 +913,7 @@ final class TrinityDataCoreCpuLogic {
         Map<AEKey, BigInteger> previousPendingOutputs = execution.pendingOutputs();
         HashSet<AEKey> changedOutputKeys = new HashSet<>(previousPendingOutputs.keySet());
         execution.replaceRemainingPlan(ready.plan(), currentTick);
-        if (currentJob.timeTracker.hasPlanBaseline()) {
-            currentJob.timeTracker.replacePendingPlan(previousPendingOutputs, ready.plan().plannedOutputs());
-        } else {
-            currentJob.timeTracker.installReplacementAfterLegacyRestore(ready.plan().plannedOutputs());
-        }
+        currentJob.timeTracker.replacePendingPlan(previousPendingOutputs, ready.plan().plannedOutputs());
         changedOutputKeys.addAll(execution.pendingOutputs().keySet());
         this.remainingPlanCalculation.acceptRevision(ready.revision());
         this.cpu.markDirty();
@@ -2464,11 +2460,6 @@ final class TrinityDataCoreCpuLogic {
         addWaiting(currentJob, commit.expectedContainerItems());
         currentJob.dynamicOutputs.register(commit.dynamicOutputs());
         execution.recordAccepted(work, commit.count(), logicalOffer);
-        if (!currentJob.timeTracker.hasPlanBaseline()) {
-            for (GenericStack output : commit.expectedOutputs()) {
-                currentJob.timeTracker.addMaxItems(output.amount(), output.what().getType());
-            }
-        }
         for (GenericStack containerItem : commit.expectedContainerItems()) {
             currentJob.timeTracker.addMaxItems(containerItem.amount(), containerItem.what().getType());
         }
@@ -3351,11 +3342,11 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion < MINIMUM_SCHEMA_VERSION || schemaVersion > SCHEMA_VERSION) {
+        if (schemaVersion != LONG_INVENTORY_SCHEMA_VERSION && schemaVersion != SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
-                    "Ignoring Trinity Data Core CPU logic schema version {}; supported range is {} through {}",
+                    "Ignoring Trinity Data Core CPU logic schema version {}; expected {} or {}",
                     schemaVersion,
-                    MINIMUM_SCHEMA_VERSION,
+                    LONG_INVENTORY_SCHEMA_VERSION,
                     SCHEMA_VERSION);
             return;
         }
@@ -3367,7 +3358,7 @@ final class TrinityDataCoreCpuLogic {
         }
 
         this.inventory.readFromNBT(inventoryTag, registries);
-        if (schemaVersion >= 3 && data.contains(EXACT_INVENTORY_TAG)) {
+        if (schemaVersion == SCHEMA_VERSION && data.contains(EXACT_INVENTORY_TAG)) {
             if (!data.contains(EXACT_INVENTORY_TAG, Tag.TAG_COMPOUND)) {
                 Data_Energistics.LOGGER.error("Ignoring Trinity Data Core CPU logic with invalid exact inventory");
                 discardPersistedState();
@@ -3383,54 +3374,50 @@ final class TrinityDataCoreCpuLogic {
                 return;
             }
         }
-        if (schemaVersion >= 2) {
-            Tag rawVirtualCompletions = data.get(VIRTUAL_COMPLETIONS_TAG);
-            if (!(rawVirtualCompletions instanceof ListTag virtualCompletionsTag) ||
-                    (!virtualCompletionsTag.isEmpty() &&
-                            virtualCompletionsTag.getElementType() != Tag.TAG_COMPOUND)) {
-                Data_Energistics.LOGGER.error(
-                        "Ignoring Trinity Data Core CPU logic without a virtual completion ledger");
-                this.inventory.clear();
-                return;
-            }
-            try {
-                this.pendingVirtualCompletions.readFromNBT(virtualCompletionsTag, registries);
-                for (var entry : this.pendingVirtualCompletions.list) {
-                    if (entry.getLongValue() <= 0L) {
-                        throw new IllegalArgumentException("Virtual completion amount must be positive");
-                    }
-                }
-            } catch (RuntimeException exception) {
-                Data_Energistics.LOGGER.error(
-                        "Ignoring Trinity Data Core CPU logic with a damaged virtual completion ledger",
-                        exception);
-                discardPersistedState();
-                return;
-            }
-            if (data.contains(NO_OUTPUT_VIRTUAL_COMPLETIONS_TAG)) {
-                Tag rawNoOutputCompletions = data.get(NO_OUTPUT_VIRTUAL_COMPLETIONS_TAG);
-                if (!(rawNoOutputCompletions instanceof ListTag noOutputTag) ||
-                        (!noOutputTag.isEmpty() && noOutputTag.getElementType() != Tag.TAG_COMPOUND)) {
-                    Data_Energistics.LOGGER.error(
-                            "Ignoring Trinity Data Core CPU logic without a valid no-output virtual completion ledger");
-                    discardPersistedState();
-                    return;
-                }
-                try {
-                    this.pendingNoOutputCompletions.readFromNBT(noOutputTag, registries);
-                    for (var entry : this.pendingNoOutputCompletions.list) {
-                        if (entry.getLongValue() <= 0L) {
-                            throw new IllegalArgumentException("No-output virtual completion amount must be positive");
-                        }
-                    }
-                } catch (RuntimeException exception) {
-                    Data_Energistics.LOGGER.error(
-                            "Ignoring Trinity Data Core CPU logic with a damaged no-output virtual completion ledger",
-                            exception);
-                    discardPersistedState();
-                    return;
+        Tag rawVirtualCompletions = data.get(VIRTUAL_COMPLETIONS_TAG);
+        if (!(rawVirtualCompletions instanceof ListTag virtualCompletionsTag) ||
+                (!virtualCompletionsTag.isEmpty() &&
+                        virtualCompletionsTag.getElementType() != Tag.TAG_COMPOUND)) {
+            Data_Energistics.LOGGER.error(
+                    "Ignoring Trinity Data Core CPU logic without a virtual completion ledger");
+            discardPersistedState();
+            return;
+        }
+        try {
+            this.pendingVirtualCompletions.readFromNBT(virtualCompletionsTag, registries);
+            for (var entry : this.pendingVirtualCompletions.list) {
+                if (entry.getLongValue() <= 0L) {
+                    throw new IllegalArgumentException("Virtual completion amount must be positive");
                 }
             }
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Ignoring Trinity Data Core CPU logic with a damaged virtual completion ledger",
+                    exception);
+            discardPersistedState();
+            return;
+        }
+        Tag rawNoOutputCompletions = data.get(NO_OUTPUT_VIRTUAL_COMPLETIONS_TAG);
+        if (!(rawNoOutputCompletions instanceof ListTag noOutputTag) ||
+                (!noOutputTag.isEmpty() && noOutputTag.getElementType() != Tag.TAG_COMPOUND)) {
+            Data_Energistics.LOGGER.error(
+                    "Ignoring Trinity Data Core CPU logic without a valid no-output virtual completion ledger");
+            discardPersistedState();
+            return;
+        }
+        try {
+            this.pendingNoOutputCompletions.readFromNBT(noOutputTag, registries);
+            for (var entry : this.pendingNoOutputCompletions.list) {
+                if (entry.getLongValue() <= 0L) {
+                    throw new IllegalArgumentException("No-output virtual completion amount must be positive");
+                }
+            }
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Ignoring Trinity Data Core CPU logic with a damaged no-output virtual completion ledger",
+                    exception);
+            discardPersistedState();
+            return;
         }
         if (!data.contains(JOB_TAG)) {
             return;

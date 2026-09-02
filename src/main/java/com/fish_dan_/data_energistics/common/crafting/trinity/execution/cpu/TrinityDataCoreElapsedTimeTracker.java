@@ -76,7 +76,7 @@ final class TrinityDataCoreElapsedTimeTracker {
     }
 
     /**
-     * Migrates a pre-baseline active save. Its existing started work is the already-dispatched prefix, while the
+     * Migrates a 3.1.3 active save. Its existing started work is the already-dispatched prefix, while the
      * execution cursor supplies the exact undispatched suffix.
      *
      * @param pendingOutputs exact undispatched outputs restored with the execution cursor
@@ -87,26 +87,6 @@ final class TrinityDataCoreElapsedTimeTracker {
         }
         mergeBigIntegerWork(pendingOutputs, this.startedWorkByType);
         this.planBaseline = true;
-    }
-
-    /**
-     * Completes the dispatched prefix of a legacy tracker with a newly planned exact remaining suffix.
-     *
-     * @param replacement complete outputs of the replacement remaining plan
-     */
-    void installReplacementAfterLegacyRestore(Map<AEKey, BigInteger> replacement) {
-        if (this.planBaseline) {
-            throw new IllegalStateException("An established Trinity progress baseline cannot be installed twice");
-        }
-        mergeBigIntegerWork(replacement, this.startedWorkByType);
-        this.planBaseline = true;
-    }
-
-    /**
-     * @return whether this tracker has a complete, stable plan baseline
-     */
-    boolean hasPlanBaseline() {
-        return this.planBaseline;
     }
 
     /**

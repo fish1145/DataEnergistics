@@ -56,7 +56,7 @@ public final class TrinityDataCoreCraftingRuntime {
     private static final AtomicLong RUNTIME_GENERATION_SEQUENCE = new AtomicLong();
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int LEGACY_SCHEMA_VERSION = 1;
+    private static final int LONG_CAPACITY_SCHEMA_VERSION = 2;
     private static final int SCHEMA_VERSION = 3;
     private static final String CONTRIBUTIONS_TAG = "contributions";
     private static final String CONTRIBUTION_NAME_TAG = "name";
@@ -629,11 +629,11 @@ public final class TrinityDataCoreCraftingRuntime {
             return;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion < LEGACY_SCHEMA_VERSION || schemaVersion > SCHEMA_VERSION) {
+        if (schemaVersion != LONG_CAPACITY_SCHEMA_VERSION && schemaVersion != SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
-                    "Ignoring Trinity Data Core CPU runtime schema version {}; supported range is {} through {}",
+                    "Ignoring Trinity Data Core CPU runtime schema version {}; expected {} or {}",
                     schemaVersion,
-                    LEGACY_SCHEMA_VERSION,
+                    LONG_CAPACITY_SCHEMA_VERSION,
                     SCHEMA_VERSION);
             return;
         }
@@ -1159,21 +1159,12 @@ public final class TrinityDataCoreCraftingRuntime {
 
         int persistedIndex = data.getInt(PARTITION_INDEX_TAG);
         int workerCapacity = data.getInt(PARTITION_COUNT_TAG);
-        int workerNumber;
-        if (schemaVersion == LEGACY_SCHEMA_VERSION) {
-            if (persistedIndex < 0 || persistedIndex >= workerCapacity) {
-                throw new IllegalArgumentException("Legacy Trinity CPU partition index is out of range: " + persistedIndex);
-            }
-            workerNumber = Math.addExact(persistedIndex, 1);
-        } else {
-            if (persistedIndex <= 0 || persistedIndex > workerCapacity) {
-                throw new IllegalArgumentException("Trinity CPU worker number is out of range: " + persistedIndex);
-            }
-            workerNumber = persistedIndex;
+        if (persistedIndex <= 0 || persistedIndex > workerCapacity) {
+            throw new IllegalArgumentException("Trinity CPU worker number is out of range: " + persistedIndex);
         }
 
         return new TrinityDataCoreCpuPartitionProfile(
-                workerNumber,
+                persistedIndex,
                 workerCapacity,
                 readStorageCapacity(data, schemaVersion),
                 data.getInt(CO_PROCESSORS_TAG),
@@ -1247,11 +1238,11 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     private static TrinityCpuStorageCapacity readStorageCapacity(CompoundTag data, int schemaVersion) {
-        if (schemaVersion < 3) {
+        if (schemaVersion == LONG_CAPACITY_SCHEMA_VERSION) {
             if (!data.contains(STORAGE_BYTES_TAG, Tag.TAG_LONG)) {
-                throw new IllegalArgumentException("Persisted legacy Trinity CPU storage capacity is missing");
+                throw new IllegalArgumentException("Persisted 3.1.3 Trinity CPU storage capacity is missing");
             }
-            return TrinityCpuStorageCapacity.fromLegacyLong(data.getLong(STORAGE_BYTES_TAG));
+            return TrinityCpuStorageCapacity.fromEncodedLong(data.getLong(STORAGE_BYTES_TAG));
         }
         if (!data.contains(STORAGE_UNLIMITED_TAG, Tag.TAG_BYTE)) {
             throw new IllegalArgumentException("Persisted Trinity CPU storage kind is missing");

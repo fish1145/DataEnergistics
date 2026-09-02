@@ -21,7 +21,7 @@ import java.util.Set;
 public final class TrinityBorrowingLedgerNbtCodec {
 
     private static final String SCHEMA_TAG = "schema_version";
-    private static final int LEGACY_SCHEMA = 1;
+    private static final int LONG_AMOUNT_SCHEMA = 1;
     private static final int SCHEMA = 2;
     private static final int MAX_BIG_INTEGER_BYTES = 512;
     private static final String ENTRIES_TAG = "entries";
@@ -78,7 +78,7 @@ public final class TrinityBorrowingLedgerNbtCodec {
         requireFields(tag, ROOT_FIELDS, "borrowing ledger");
         requireType(tag, SCHEMA_TAG, Tag.TAG_INT, "borrowing ledger schema");
         int schema = tag.getInt(SCHEMA_TAG);
-        if (schema != LEGACY_SCHEMA && schema != SCHEMA) {
+        if (schema != LONG_AMOUNT_SCHEMA && schema != SCHEMA) {
             throw new IllegalArgumentException("Unsupported Trinity borrowing ledger schema");
         }
         requireType(tag, ENTRIES_TAG, Tag.TAG_LIST, "borrowing ledger entries");
@@ -121,7 +121,7 @@ public final class TrinityBorrowingLedgerNbtCodec {
     }
 
     private static BigInteger readBigInteger(CompoundTag tag, String field, int schema) {
-        if (schema == LEGACY_SCHEMA) {
+        if (schema == LONG_AMOUNT_SCHEMA) {
             return BigInteger.valueOf(tag.getLong(field));
         }
         byte[] encoded = tag.getByteArray(field);

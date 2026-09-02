@@ -40,8 +40,7 @@ import java.util.Set;
  * @param actualFinalOutputs actual item variants isolated from working inventory
  * @param deliveryRemaining  total target amount still owed to the requester
  * @param borrowingEntries   ownership-preserving dynamic borrowing history
- * @param savedAtTick        server tick used to convert retry deadlines across a restart, or {@code -1} for legacy
- *                           saves
+ * @param savedAtTick        non-negative server tick used to convert retry deadlines across a restart
  * @param budgetRetryAt      next tick after a physical budget exhaustion, or {@code -1}
  */
 public record TrinityExecutionSnapshot(
@@ -74,8 +73,8 @@ public record TrinityExecutionSnapshot(
         seedReserve = immutableBigAmounts(seedReserve, false, "seed reserve");
         actualFinalOutputs = immutableLongAmounts(actualFinalOutputs, false, "actual final output");
         borrowingEntries = immutableMap(borrowingEntries);
-        if (savedAtTick < -1L) {
-            throw new IllegalArgumentException("A Trinity execution save tick cannot be less than the legacy sentinel");
+        if (savedAtTick < 0L) {
+            throw new IllegalArgumentException("A Trinity execution save tick cannot be negative");
         }
     }
 
@@ -104,7 +103,7 @@ public record TrinityExecutionSnapshot(
      * @param primaryOutput   output used to resolve a concrete pattern
      * @param variantOrdinal  bound input variant
      * @param plannedCount    logical firings per plan unit or cycle wave
-     * @param outputs         exact pattern-declared outputs per logical firing; empty only for schema 2/3 migration
+     * @param outputs         exact pattern-declared outputs per logical firing, including the primary output
      * @param remainingCount  logical firings left in the active unit or wave
      * @param initialized     whether remaining work has been initialized
      */
@@ -122,6 +121,9 @@ public record TrinityExecutionSnapshot(
          */
         public Firing {
             outputs = immutableBigAmounts(outputs, false, "firing output");
+            if (!outputs.containsKey(primaryOutput)) {
+                throw new IllegalArgumentException("A Trinity firing state must retain its primary output");
+            }
             if (variantOrdinal < 0 || plannedCount.signum() <= 0 || remainingCount.signum() < 0 ||
                     (!initialized && remainingCount.signum() != 0)) {
                 throw new IllegalArgumentException("A Trinity firing state contains an invalid signature or cursor");

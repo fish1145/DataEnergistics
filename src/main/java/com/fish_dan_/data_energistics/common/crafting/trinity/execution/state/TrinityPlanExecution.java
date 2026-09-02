@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.state;
 
-import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionNbtCodec;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.Firing;
@@ -257,16 +256,6 @@ public final class TrinityPlanExecution {
             }
         }
         restored.seedReserve.putAll(snapshot.seedReserve());
-        boolean missingOutputProjection = restored.stages.values().stream()
-                .flatMap(stage -> stage.firings.stream())
-                .anyMatch(firing -> firing.outputs.isEmpty());
-        if (missingOutputProjection) {
-            Data_Energistics.LOGGER.warn(
-                    "Restored legacy Trinity execution without exact pending-output metadata; " +
-                            "CPU status omits unknown pending rows until replanning or completion: target={}, revision={}",
-                    restored.targetKey,
-                    restored.catalogRevision);
-        }
         restored.validateInstalledPlan();
         restored.validateRestoredCursors();
         restored.validateCompletionState();
@@ -817,7 +806,6 @@ public final class TrinityPlanExecution {
 
     /**
      * Reconstructs the exact pattern-declared outputs of every undispatched firing without expanding cycle repeats.
-     * Legacy schema 2/3 firings that predate output metadata are omitted instead of reporting invented values.
      *
      * @return immutable pending-output projection for AE2's crafting CPU status table
      */
@@ -832,18 +820,6 @@ public final class TrinityPlanExecution {
             addCyclePendingOutputs(outputs, repeat);
         }
         return Collections.unmodifiableMap(outputs);
-    }
-
-    /**
-     * Reports whether every retained firing has the output metadata required to reconstruct a complete pending
-     * projection. Legacy schema 2/3 snapshots may not have this metadata.
-     *
-     * @return true when {@link #pendingOutputs()} is complete
-     */
-    public boolean hasExactPendingOutputProjection() {
-        return this.stages.values().stream()
-                .flatMap(stage -> stage.firings.stream())
-                .noneMatch(firing -> firing.outputs.isEmpty());
     }
 
     private static void addDagPendingOutputs(Map<AEKey, BigInteger> outputs, StageState stage) {
@@ -896,7 +872,7 @@ public final class TrinityPlanExecution {
     private static void mergePendingOutputs(Map<AEKey, BigInteger> outputs,
                                             FiringState firing,
                                             BigInteger firingCount) {
-        if (firingCount.signum() == 0 || firing.outputs.isEmpty()) {
+        if (firingCount.signum() == 0) {
             return;
         }
         firing.outputs.forEach((key, perFiring) -> outputs.merge(
@@ -1447,8 +1423,7 @@ public final class TrinityPlanExecution {
      * cycle, shared-output, reverse-flow and same-pattern barriers. A shared input remains ordered because an older
      * snapshot lacks quantity provenance: a later permanent consumer must not steal a scarce seed before an earlier
      * cycle returns it. Positive net production consumed by a later stage also remains ordered. Repeat cursors
-     * serialize one cycle internally. Legacy snapshots without complete output metadata retain their original
-     * conservative dependencies because their data flow cannot be reconstructed safely.
+     * serialize one cycle internally.
      * </p>
      *
      * @return whether at least one persisted dependency set changed
@@ -1464,10 +1439,6 @@ public final class TrinityPlanExecution {
                             ExecutionFootprint.fromStage(stage) :
                             ExecutionFootprint.fromRepeat(repeat, this.stages));
         }
-        if (footprints.values().stream().anyMatch(footprint -> !footprint.outputComplete())) {
-            return false;
-        }
-
         boolean changed = false;
         for (Integer stageIndex : this.stageOrder) {
             StageState stage = requireStage(stageIndex);
@@ -1740,7 +1711,7 @@ public final class TrinityPlanExecution {
         if (retryAt < 0L) {
             return -1L;
         }
-        if (savedAtTick < 0L || retryAt <= savedAtTick) {
+        if (retryAt <= savedAtTick) {
             return currentTick;
         }
         return Math.addExact(currentTick, Math.subtractExact(retryAt, savedAtTick));
@@ -1813,8 +1784,7 @@ public final class TrinityPlanExecution {
 
     private record ExecutionFootprint(
                                       Set<AEKey> inputs,
-                                      Set<AEKey> positiveNetOutputs,
-                                      boolean outputComplete) {
+                                      Set<AEKey> positiveNetOutputs) {
 
         private static ExecutionFootprint fromStage(StageState stage) {
             LinkedHashSet<AEKey> inputs = new LinkedHashSet<>(stage.requiredAtStart.keySet());
@@ -1825,14 +1795,9 @@ public final class TrinityPlanExecution {
                     positiveNetOutputs.add(key);
                 }
             });
-            boolean outputComplete = true;
-            for (FiringState firing : stage.firings) {
-                outputComplete &= !firing.outputs.isEmpty();
-            }
             return new ExecutionFootprint(
                     Set.copyOf(inputs),
-                    Set.copyOf(positiveNetOutputs),
-                    outputComplete);
+                    Set.copyOf(positiveNetOutputs));
         }
 
         private static ExecutionFootprint fromRepeat(
@@ -1840,7 +1805,6 @@ public final class TrinityPlanExecution {
                                                      Map<Integer, StageState> stages) {
             LinkedHashSet<AEKey> inputs = new LinkedHashSet<>(repeat.minimumSeed.keySet());
             LinkedHashMap<AEKey, BigInteger> blockNetChange = new LinkedHashMap<>();
-            boolean outputComplete = true;
             for (Integer memberIndex : repeat.stageOrder) {
                 StageState member = stages.get(memberIndex);
                 if (member == null) {
@@ -1848,9 +1812,6 @@ public final class TrinityPlanExecution {
                 }
                 inputs.addAll(member.inputKeys);
                 member.netChange.forEach((key, amount) -> blockNetChange.merge(key, amount, BigInteger::add));
-                for (FiringState firing : member.firings) {
-                    outputComplete &= !firing.outputs.isEmpty();
-                }
             }
             LinkedHashSet<AEKey> positiveNetOutputs = new LinkedHashSet<>();
             blockNetChange.forEach((key, amount) -> {
@@ -1862,14 +1823,10 @@ public final class TrinityPlanExecution {
             });
             return new ExecutionFootprint(
                     Set.copyOf(inputs),
-                    Set.copyOf(positiveNetOutputs),
-                    outputComplete);
+                    Set.copyOf(positiveNetOutputs));
         }
 
         private boolean requiresOrderingBefore(ExecutionFootprint stage) {
-            if (!this.outputComplete || !stage.outputComplete) {
-                return true;
-            }
             return intersects(this.inputs, stage.inputs) ||
                     intersects(this.positiveNetOutputs, stage.inputs);
         }
