@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.screen.crafting;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.crafting.tree.export.CraftingPlanGraphPngExport;
+import com.fish_dan_.data_energistics.client.crafting.tree.export.CraftingPlanGraphSvgExport;
 import com.fish_dan_.data_energistics.client.crafting.tree.preferences.CraftingPlanTreePreferences;
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphCanvas;
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphPalette;
@@ -79,6 +80,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
     private @Nullable Vector2f anchorPosition;
     private boolean fitPending;
     private boolean exportingFull;
+    private boolean exportingSvg;
     private boolean preferencesOpen;
     private boolean screenshotOpen;
     private double middleStartX;
@@ -138,10 +140,10 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         place(button(ui, "replan"), (this.imageWidth - 80) / 2F, this.imageHeight - 27, 80, 20);
         place(button(ui, "start"), this.imageWidth - 86, this.imageHeight - 27, 80, 20);
         int popupX = Math.max(6, this.imageWidth - 190);
-        String[] popup = { "export_visible", "export_full", "pref_missing", "pref_amounts", "pref_budget" };
+        String[] popup = { "export_visible", "export_full", "export_svg_visible", "export_svg_full", "pref_missing", "pref_amounts", "pref_budget" };
         for (int i = 0; i < popup.length; i++) {
             Button button = button(ui, popup[i]);
-            place(button, popupX, 44 + (i < 2 ? i : i - 2) * 22, 180, 20);
+            place(button, popupX, 44 + (i < 4 ? i : i - 4) * 22, 180, 20);
             button.setDisplay(false);
         }
         this.canvas = new CraftingPlanGraphCanvas();
@@ -212,8 +214,10 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
             this.preferencesOpen = false;
             updatePopups();
         });
-        this.buttons.get("export_visible").setOnClick(event -> export(false));
-        this.buttons.get("export_full").setOnClick(event -> export(true));
+        this.buttons.get("export_visible").setOnClick(event -> export(false, false));
+        this.buttons.get("export_full").setOnClick(event -> export(true, false));
+        this.buttons.get("export_svg_visible").setOnClick(event -> export(false, true));
+        this.buttons.get("export_svg_full").setOnClick(event -> export(true, true));
         this.buttons.get("pref_missing").setOnClick(event -> {
             this.preferences = new CraftingPlanTreePreferences(this.preferences.autoExpandBudget(), this.compact,
                     !this.preferences.missingOnly(), this.preferences.screenshotAmounts());
@@ -243,6 +247,8 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
     private void updatePopups() {
         this.buttons.get("export_visible").setDisplay(this.screenshotOpen);
         this.buttons.get("export_full").setDisplay(this.screenshotOpen);
+        this.buttons.get("export_svg_visible").setDisplay(this.screenshotOpen);
+        this.buttons.get("export_svg_full").setDisplay(this.screenshotOpen);
         this.buttons.get("pref_missing").setDisplay(this.preferencesOpen);
         this.buttons.get("pref_amounts").setDisplay(this.preferencesOpen);
         this.buttons.get("pref_budget").setDisplay(this.preferencesOpen);
@@ -341,7 +347,8 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         Layout export = this.exportLayout;
         if (export != null && this.graph != null) {
             this.exportLayout = null;
-            CraftingPlanGraphPngExport.export(this.graph, export, this.preferences.screenshotAmounts(), this::feedback);
+            if (this.exportingSvg) CraftingPlanGraphSvgExport.export(this.graph, export, this.preferences.screenshotAmounts(), this::feedback);
+            else CraftingPlanGraphPngExport.export(this.graph, export, this.preferences.screenshotAmounts(), this::feedback);
         }
     }
 
@@ -486,10 +493,11 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         this.canvas.center(best);
     }
 
-    private void export(boolean full) {
+    private void export(boolean full, boolean svg) {
         this.screenshotOpen = false;
         updatePopups();
         if (this.graph == null || this.prepared == null || this.pending != null || this.layoutExecutor == null) return;
+        this.exportingSvg = svg;
         if (!full) {
             this.exportLayout = this.prepared.layout();
             return;
