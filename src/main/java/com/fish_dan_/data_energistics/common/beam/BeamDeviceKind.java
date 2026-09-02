@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.common.beam;
 
-/** Fixed beam range and idle demand; concentrating cards affect only their own device. */
+/** Fixed beam range and idle demand; each concentrating card adds eight blocks to its own device range. */
 public enum BeamDeviceKind {
 
     PART(64, 1, 0.15F),
@@ -8,6 +8,7 @@ public enum BeamDeviceKind {
     OMNI(128, 4, 0.08F);
 
     public static final int UPGRADE_SLOTS = 3;
+    public static final int RANGE_PER_CARD = 8;
     private final int baseRange;
     private final int basePower;
     private final float width;
@@ -19,7 +20,7 @@ public enum BeamDeviceKind {
     }
 
     public int range(int cards) {
-        return this.baseRange << cards;
+        return this.baseRange + cards * RANGE_PER_CARD;
     }
 
     public int idlePower(int cards, int connections) {

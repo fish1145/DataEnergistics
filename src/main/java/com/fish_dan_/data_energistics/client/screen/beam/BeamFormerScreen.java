@@ -20,11 +20,6 @@ public final class BeamFormerScreen extends UpgradeableScreen<BeamFormerMenu> {
         String status = this.menu.faulted ? "faulted" : this.menu.online ? "online" : "offline";
         setTextContent("status", Component.translatable("screen.data_energistics.beam.status." + status));
         setTextContent("range", Component.translatable("screen.data_energistics.beam.range", this.menu.range));
-        setTextContent("cards", Component.translatable("screen.data_energistics.beam.cards", this.menu.cards));
-        setTextContent("power", Component.translatable("screen.data_energistics.beam.power", this.menu.power));
-        setTextContent("connections", Component.translatable("screen.data_energistics.beam.connections", this.menu.connections));
-        setTextContent("bindings", this.menu.omni ?
-                Component.translatable("screen.data_energistics.beam.bindings", this.menu.bindings) : Component.empty());
         setTextContent("visibility", Component.translatable("screen.data_energistics.beam.visibility." +
                 (this.menu.hidden ? "hidden" : "visible")));
     }
