@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotItemData;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotMemoryCardData;
 import com.fish_dan_.data_energistics.item.terminal.UniversalTerminalItemData;
 
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
@@ -29,6 +30,10 @@ public final class DEDataComponents {
     public static final DeferredRegister<DataComponentType<?>> DATA_COMPONENT_TYPES = DeferredRegister.create(
             Registries.DATA_COMPONENT_TYPE,
             Data_Energistics.MODID);
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> BEAM_BINDING_SOURCE = DATA_COMPONENT_TYPES.register(
+            "beam_binding_source", () -> DataComponentType.<GlobalPos>builder()
+                    .persistent(GlobalPos.CODEC).networkSynchronized(GlobalPos.STREAM_CODEC).build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<DigitalStorageDepotItemData>> DIGITAL_STORAGE_DEPOT = DATA_COMPONENT_TYPES.register(
             "digital_storage_depot",
