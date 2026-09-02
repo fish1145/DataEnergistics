@@ -1,0 +1,19 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["IRI", " G ", " I "],
+	"key": {
+		"I": {
+			"item": "minecraft:iron_ingot"
+		},
+		"R": {
+			"item": "ae2:fluix_pearl"
+		},
+		"G": {
+			"item": "minecraft:glass"
+		}
+	},
+	"result": {
+		"id": "data_energistics:beam_binding_tool",
+		"count": 1
+	}
+}

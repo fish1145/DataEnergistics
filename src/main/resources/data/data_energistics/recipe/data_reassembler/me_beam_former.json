@@ -1,0 +1,36 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:me_beam_former_part"
+			},
+			{
+				"item": "ae2:fluix_pearl"
+			},
+			{
+				"item": "ae2:energy_acceptor"
+			},
+			{
+				"item": "ae2:fluix_smart_dense_cable",
+				"count": 6
+			},
+			{
+				"tag": "c:gems/data_crystal",
+				"count": 16
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:manifest_binary",
+			"amount": 32
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:me_beam_former",
+				"count": 1
+			}
+		]
+	}
+}

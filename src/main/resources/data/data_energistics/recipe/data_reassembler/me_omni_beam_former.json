@@ -1,0 +1,34 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:me_beam_former"
+			},
+			{
+				"item": "data_energistics:me_beam_former_part",
+				"count": 8
+			},
+			{
+				"item": "ae2:engineering_processor",
+				"count": 2
+			},
+			{
+				"item": "data_energistics:resonance_crystal",
+				"count": 8
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:manifest_binary",
+			"amount": 64
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:me_omni_beam_former",
+				"count": 1
+			}
+		]
+	}
+}
