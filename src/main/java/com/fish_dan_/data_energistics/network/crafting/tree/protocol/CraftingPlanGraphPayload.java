@@ -14,8 +14,10 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import io.netty.buffer.Unpooled;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -46,14 +48,14 @@ public record CraftingPlanGraphPayload(int containerId, UUID sessionId, long rev
                                                         CraftingPlanGraph graph, RegistryAccess registries) {
         long count = 1L + graph.nodes().size() + graph.edges().size() + graph.cycles().size();
         if (count > MAX_RECORDS) throw new IllegalArgumentException("Crafting graph exceeds record limit");
-        List<CraftingPlanGraphRecord> all = new ArrayList<>((int) count);
+        List<CraftingPlanGraphRecord> all = new ObjectArrayList<>((int) count);
         all.add(new GraphHeader(graph.header(), graph.rootId()));
         graph.nodes().forEach(node -> all.add(new GraphNode(node)));
         graph.edges().forEach(edge -> all.add(new GraphEdge(edge)));
         graph.cycles().forEach(cycle -> all.add(new GraphCycle(cycle)));
-        List<List<CraftingPlanGraphRecord>> groups = new ArrayList<>();
-        List<Integer> sizes = new ArrayList<>();
-        List<CraftingPlanGraphRecord> group = new ArrayList<>();
+        List<List<CraftingPlanGraphRecord>> groups = new ObjectArrayList<>();
+        IntList sizes = new IntArrayList();
+        List<CraftingPlanGraphRecord> group = new ObjectArrayList<>();
         int size = 0;
         int total = 0;
         RegistryFriendlyByteBuf scratch = new RegistryFriendlyByteBuf(Unpooled.buffer(256, MAX_BATCH_BYTES), registries);
@@ -80,10 +82,10 @@ public record CraftingPlanGraphPayload(int containerId, UUID sessionId, long rev
             groups.add(List.copyOf(group));
             sizes.add(size);
         }
-        List<CraftingPlanGraphPayload> batches = new ArrayList<>(groups.size());
+        List<CraftingPlanGraphPayload> batches = new ObjectArrayList<>(groups.size());
         for (int index = 0; index < groups.size(); index++) {
             batches.add(new CraftingPlanGraphPayload(containerId, sessionId, revision, index, groups.size(),
-                    (int) count, total, sizes.get(index), groups.get(index)));
+                    (int) count, total, sizes.getInt(index), groups.get(index)));
         }
         return List.copyOf(batches);
     }
@@ -129,7 +131,7 @@ public record CraftingPlanGraphPayload(int containerId, UUID sessionId, long rev
             throw new IllegalArgumentException("Invalid graph batch body length");
         }
         RegistryFriendlyByteBuf body = new RegistryFriendlyByteBuf(buffer.readSlice(bytes), buffer.registryAccess());
-        List<CraftingPlanGraphRecord> records = new ArrayList<>(count);
+        List<CraftingPlanGraphRecord> records = new ObjectArrayList<>(count);
         for (int record = 0; record < count; record++) records.add(CraftingPlanGraphRecordCodec.read(body));
         if (body.isReadable()) throw new IllegalArgumentException("Trailing graph record bytes");
         return new CraftingPlanGraphPayload(container, session, revision, index, batches, totalRecords, totalBytes, bytes, records);

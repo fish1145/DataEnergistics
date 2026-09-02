@@ -18,10 +18,11 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.ComponentSerialization;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -135,7 +136,7 @@ final class CraftingPlanGraphRecordCodec {
     }
     private static List<Integer> ids(RegistryFriendlyByteBuf buffer) {
         int count = count(buffer);
-        List<Integer> ids = new ArrayList<>(count);
+        IntList ids = new IntArrayList(count);
         for (int index = 0; index < count; index++) ids.add(buffer.readVarInt());
         return ids;
     }
@@ -148,7 +149,7 @@ final class CraftingPlanGraphRecordCodec {
     }
     private static Map<AEKey, BigInteger> amounts(RegistryFriendlyByteBuf buffer) {
         int count = count(buffer);
-        Map<AEKey, BigInteger> values = new LinkedHashMap<>();
+        Map<AEKey, BigInteger> values = new Object2ObjectLinkedOpenHashMap<>();
         for (int index = 0; index < count; index++) {
             AEKey key = AEKey.STREAM_CODEC.decode(buffer);
             if (values.putIfAbsent(key, amount(buffer)) != null) {

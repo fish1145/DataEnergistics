@@ -5,14 +5,20 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 
 import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /** Immutable dependency graph; edges point from requested outputs towards their production inputs. */
 public final class CraftingPlanGraph {
@@ -21,7 +27,7 @@ public final class CraftingPlanGraph {
     private final List<Node> nodes;
     private final List<Edge> edges;
     private final List<Cycle> cycles;
-    private final Map<Integer, Node> byId;
+    private final Int2ObjectMap<Node> byId;
 
     public CraftingPlanGraph(Header header, int rootId, List<Node> nodes, List<Edge> edges, List<Cycle> cycles) {
         this.header = Objects.requireNonNull(header);
@@ -29,9 +35,9 @@ public final class CraftingPlanGraph {
         this.nodes = List.copyOf(nodes);
         this.edges = List.copyOf(edges);
         this.cycles = List.copyOf(cycles);
-        Map<Integer, Node> indexed = new HashMap<>();
-        HashSet<AEKey> keys = new HashSet<>();
-        HashSet<ProcessIdentity> processes = new HashSet<>();
+        Int2ObjectMap<Node> indexed = new Int2ObjectOpenHashMap<>();
+        ObjectSet<AEKey> keys = new ObjectOpenHashSet<>();
+        ObjectSet<ProcessIdentity> processes = new ObjectOpenHashSet<>();
         for (Node node : this.nodes) {
             if (indexed.putIfAbsent(node.id(), node) != null) {
                 throw new IllegalArgumentException("Duplicate graph node id");
@@ -44,11 +50,11 @@ public final class CraftingPlanGraph {
                 throw new IllegalArgumentException("Duplicate stage pattern binding");
             }
         }
-        this.byId = Map.copyOf(indexed);
+        this.byId = Int2ObjectMaps.unmodifiable(indexed);
         if (!(indexed.get(rootId) instanceof Material root) || !root.key().equals(header.target())) {
             throw new IllegalArgumentException("Graph root must be the requested material");
         }
-        HashSet<Integer> edgeIds = new HashSet<>();
+        IntSet edgeIds = new IntOpenHashSet();
         for (Edge edge : this.edges) {
             Node source = indexed.get(edge.source());
             Node target = indexed.get(edge.target());
@@ -62,17 +68,17 @@ public final class CraftingPlanGraph {
                 throw new IllegalArgumentException("Invalid graph edge id, endpoints or role");
             }
         }
-        Map<Integer, Cycle> cycleById = new HashMap<>();
-        Map<Integer, Set<Integer>> cycleMembers = new HashMap<>();
-        Map<Integer, Set<Integer>> cycleStages = new HashMap<>();
-        Set<Integer> cycleOrdinals = new HashSet<>();
+        Int2ObjectMap<Cycle> cycleById = new Int2ObjectOpenHashMap<>();
+        Int2ObjectMap<IntSet> cycleMembers = new Int2ObjectOpenHashMap<>();
+        Int2ObjectMap<IntSet> cycleStages = new Int2ObjectOpenHashMap<>();
+        IntSet cycleOrdinals = new IntOpenHashSet();
         for (Cycle cycle : this.cycles) {
             if (cycleById.putIfAbsent(cycle.id(), cycle) != null || !cycleOrdinals.add(cycle.ordinal())) {
                 throw new IllegalArgumentException("Duplicate graph cycle id or display ordinal");
             }
-            Set<Integer> members = Set.copyOf(cycle.nodeIds());
-            Set<Integer> stages = Set.copyOf(cycle.stageOrder());
-            Set<Integer> memberStages = new HashSet<>();
+            IntSet members = new IntOpenHashSet(cycle.nodeIds());
+            IntSet stages = new IntOpenHashSet(cycle.stageOrder());
+            IntSet memberStages = new IntOpenHashSet();
             cycleMembers.put(cycle.id(), members);
             cycleStages.put(cycle.id(), stages);
             for (int nodeId : cycle.nodeIds()) {
@@ -196,9 +202,9 @@ public final class CraftingPlanGraph {
             stageOrder = uniqueIds(stageOrder);
             if (nodeIds.isEmpty() || stageOrder.isEmpty()) throw new IllegalArgumentException("Empty cycle");
             positive(repetitions);
-            minimumSeed = Map.copyOf(minimumSeed);
+            minimumSeed = Object2ObjectMaps.unmodifiable(new Object2ObjectLinkedOpenHashMap<>(minimumSeed));
             minimumSeed.values().forEach(CraftingPlanGraph::positive);
-            netChange = Map.copyOf(netChange);
+            netChange = Object2ObjectMaps.unmodifiable(new Object2ObjectLinkedOpenHashMap<>(netChange));
             if (netChange.values().stream().anyMatch(amount -> amount.signum() == 0)) {
                 throw new IllegalArgumentException("Zero cycle net change entry");
             }
@@ -210,7 +216,7 @@ public final class CraftingPlanGraph {
     private static List<Integer> uniqueIds(List<Integer> values) {
         List<Integer> result = List.copyOf(values);
         result.forEach(CraftingPlanGraph::checkId);
-        if (new HashSet<>(result).size() != result.size()) throw new IllegalArgumentException("Duplicate id");
+        if (new IntOpenHashSet(result).size() != result.size()) throw new IllegalArgumentException("Duplicate id");
         return result;
     }
 

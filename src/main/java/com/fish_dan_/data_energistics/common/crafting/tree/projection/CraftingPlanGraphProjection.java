@@ -26,12 +26,16 @@ import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -71,10 +75,10 @@ public final class CraftingPlanGraphProjection {
     private static final class Projection {
         private final Header header;
         private final KeyCounter available;
-        private final Map<AEKey, Amounts> materials = new LinkedHashMap<>();
-        private final List<Process> processes = new ArrayList<>();
-        private final List<Edge> edges = new ArrayList<>();
-        private final List<Cycle> cycles = new ArrayList<>();
+        private final Map<AEKey, Amounts> materials = new Object2ObjectLinkedOpenHashMap<>();
+        private final List<Process> processes = new ObjectArrayList<>();
+        private final List<Edge> edges = new ObjectArrayList<>();
+        private final List<Cycle> cycles = new ObjectArrayList<>();
         private int nextId;
 
         private Projection(Header header, KeyCounter available) {
@@ -89,8 +93,8 @@ public final class CraftingPlanGraphProjection {
 
         private void exact(TrinityCraftingPlan plan) {
             plan.initialExpectedInputs().forEach((key, amount) -> material(key).stored = amount);
-            Map<Integer, TrinityCycleRepeatBlock> blocks = new HashMap<>();
-            plan.cycleRepeatBlocks().forEach(block -> block.stageOrder().forEach(stage -> blocks.put(stage, block)));
+            Int2ObjectMap<TrinityCycleRepeatBlock> blocks = new Int2ObjectOpenHashMap<>();
+            plan.cycleRepeatBlocks().forEach(block -> block.stageOrder().forEach(stage -> blocks.put(stage.intValue(), block)));
             for (TrinityPlanStage stage : plan.stages()) {
                 TrinityCycleRepeatBlock block = blocks.get(stage.index());
                 BigInteger repetitions = block == null ? BigInteger.ONE : block.repetitions();
@@ -133,8 +137,8 @@ public final class CraftingPlanGraphProjection {
 
         private void cycle(int id, int ordinal, List<Integer> stages, BigInteger repetitions,
                            Map<AEKey, BigInteger> seed, Map<AEKey, BigInteger> net) {
-            LinkedHashSet<Integer> ids = new LinkedHashSet<>();
-            LinkedHashSet<Integer> processIds = new LinkedHashSet<>();
+            IntSet ids = new IntLinkedOpenHashSet();
+            IntSet processIds = new IntLinkedOpenHashSet();
             for (Process process : this.processes) {
                 if (process.cycleIds().contains(id)) processIds.add(process.id());
             }
@@ -174,7 +178,7 @@ public final class CraftingPlanGraphProjection {
                 for (TrinityVariantFiring firing : evidence.prefixOrder()) {
                     evidenceFiring(stage++, firing, BigInteger.ONE, List.of());
                 }
-                List<Integer> stages = new ArrayList<>();
+                IntList stages = new IntArrayList();
                 for (TrinityVariantFiring firing : evidence.localOrder()) {
                     int index = stage++;
                     stages.add(index);
@@ -198,7 +202,7 @@ public final class CraftingPlanGraphProjection {
 
         private void evidenceFiring(int stage, TrinityVariantFiring firing, BigInteger repetitions, List<Integer> memberships) {
             var variant = firing.variant();
-            Map<AEKey, BigInteger> remainders = new LinkedHashMap<>(variant.outputs());
+            Map<AEKey, BigInteger> remainders = new Object2ObjectLinkedOpenHashMap<>(variant.outputs());
             variant.declaredOutputs().forEach((key, amount) -> remainders.merge(key, amount.negate(), BigInteger::add));
             remainders.values().removeIf(amount -> amount.signum() == 0);
             firing(stage, variant.patternIdentity().publicationEncoding(), variant.ordinal(), variant.primaryOutput(),
@@ -213,9 +217,9 @@ public final class CraftingPlanGraphProjection {
             for (Map.Entry<IPatternDetails, Long> entry : plan.patternTimes().entrySet()) {
                 IPatternDetails pattern = entry.getKey();
                 BigInteger count = BigInteger.valueOf(entry.getValue());
-                Map<AEKey, BigInteger> outputs = new LinkedHashMap<>();
+                Map<AEKey, BigInteger> outputs = new Object2ObjectLinkedOpenHashMap<>();
                 pattern.getOutputs().forEach(output -> outputs.merge(output.what(), BigInteger.valueOf(output.amount()), BigInteger::add));
-                Map<AEKey, BigInteger> inputs = new LinkedHashMap<>();
+                Map<AEKey, BigInteger> inputs = new Object2ObjectLinkedOpenHashMap<>();
                 for (var input : pattern.getInputs()) {
                     GenericStack[] candidates = input.getPossibleInputs();
                     if (candidates.length == 1) {
@@ -252,7 +256,7 @@ public final class CraftingPlanGraphProjection {
         }
 
         private CraftingPlanGraph build() {
-            List<Node> nodes = new ArrayList<>();
+            List<Node> nodes = new ObjectArrayList<>();
             this.materials.forEach((key, amounts) -> {
                 BigInteger required = amounts.required.max(amounts.input).max(amounts.stored.add(amounts.missing).add(amounts.unresolved));
                 long stock = this.available.get(key);

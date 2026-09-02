@@ -11,12 +11,12 @@ import com.fish_dan_.data_energistics.network.crafting.tree.protocol.CraftingPla
 import com.fish_dan_.data_energistics.network.crafting.tree.protocol.CraftingPlanGraphRecord.GraphHeader;
 import com.fish_dan_.data_energistics.network.crafting.tree.protocol.CraftingPlanGraphRecord.GraphNode;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,7 +26,7 @@ public final class CraftingPlanGraphAssembler {
     private int container = -1;
     private long revision = -1;
     private @Nullable CraftingPlanGraphPayload metadata;
-    private final Map<Integer, List<CraftingPlanGraphRecord>> batches = new HashMap<>();
+    private final Int2ObjectMap<List<CraftingPlanGraphRecord>> batches = new Int2ObjectOpenHashMap<>();
     private int records;
     private int bytes;
     private boolean terminal;
@@ -64,9 +64,9 @@ public final class CraftingPlanGraphAssembler {
             if (this.records != expected.totalRecords() || this.bytes != expected.totalBytes()) {
                 throw new IllegalArgumentException("Graph assembly totals do not match metadata");
             }
-            List<Node> nodes = new ArrayList<>();
-            List<Edge> edges = new ArrayList<>();
-            List<Cycle> cycles = new ArrayList<>();
+            List<Node> nodes = new ObjectArrayList<>();
+            List<Edge> edges = new ObjectArrayList<>();
+            List<Cycle> cycles = new ObjectArrayList<>();
             GraphHeader header = null;
             for (int index = 0; index < expected.batchCount(); index++) {
                 for (CraftingPlanGraphRecord record : this.batches.get(index)) {

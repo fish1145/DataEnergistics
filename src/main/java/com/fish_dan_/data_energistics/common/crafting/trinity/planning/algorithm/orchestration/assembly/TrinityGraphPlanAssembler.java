@@ -418,7 +418,7 @@ public final class TrinityGraphPlanAssembler {
     }
 
     private static Map<AEKey, BigInteger> remainingOutputs(TrinityPatternVariant variant) {
-        LinkedHashMap<AEKey, BigInteger> remaining = new LinkedHashMap<>();
+        Map<AEKey, BigInteger> remaining = new Object2ObjectLinkedOpenHashMap<>();
         variant.outputs().forEach((key, amount) -> {
             BigInteger difference = amount.subtract(variant.declaredOutputs().getOrDefault(key, BigInteger.ZERO));
             if (difference.signum() > 0) {
