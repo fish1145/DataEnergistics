@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Point;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Side;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Spacing;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Path;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewEdge;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewGraph;
@@ -32,9 +33,9 @@ import java.util.function.ToIntFunction;
 final class CraftingPlanEdgeRouter {
 
     private static final double GAP = 4;
-    private static final double PADDING = 16;
     private static final double EPSILON = OrthogonalSegmentReservations.EPSILON;
 
+    private final double padding;
     private final Int2ObjectMap<RoutingComponent> components = new Int2ObjectAVLTreeMap<>();
     private final Int2ObjectMap<RoutingComponent> componentByNode = new Int2ObjectOpenHashMap<>();
     private final Int2IntOpenHashMap degree = new Int2IntOpenHashMap();
@@ -43,17 +44,18 @@ final class CraftingPlanEdgeRouter {
     private final List<ExternalRoute> external = new ObjectArrayList<>();
     private final Int2ObjectMap<Band> bands = new Int2ObjectAVLTreeMap<>();
 
-    private CraftingPlanEdgeRouter(ViewGraph graph, List<List<Component>> rows) {
+    private CraftingPlanEdgeRouter(ViewGraph graph, List<List<Component>> rows, Spacing spacing) {
+        padding = spacing.routingPadding();
         for (int rank = 0; rank < rows.size(); rank++) {
             List<RoutingComponent> row = new ObjectArrayList<>();
             for (Component input : rows.get(rank)) {
-                RoutingComponent component = new RoutingComponent(input, rank);
+                RoutingComponent component = new RoutingComponent(input, rank, spacing.boundaryPadding());
                 components.put(input.id(), component);
                 input.nodes().forEach(node -> componentByNode.put(node.id(), component));
                 row.add(component);
             }
-            layers.add(new Layer(row));
-            bands.put(rank, new Band());
+            layers.add(new Layer(row, padding));
+            bands.put(rank, new Band(padding));
         }
         var groups = CraftingPlanRouteGroup.index(graph.source());
         Object2IntMap<PortKey> ports = new Object2IntLinkedOpenHashMap<>();
@@ -72,8 +74,8 @@ final class CraftingPlanEdgeRouter {
         }
     }
 
-    static Layout route(ViewGraph graph, List<List<Component>> rows) {
-        return new CraftingPlanEdgeRouter(graph, rows).route();
+    static Layout route(ViewGraph graph, List<List<Component>> rows, Spacing spacing) {
+        return new CraftingPlanEdgeRouter(graph, rows, spacing).route();
     }
 
     private Layout route() {
@@ -113,7 +115,7 @@ final class CraftingPlanEdgeRouter {
             connectBands(route);
         }
         bands.values().forEach(Band::allocate);
-        double y = PADDING;
+        double y = padding;
         if (bands.containsKey(-1)) {
             bands.get(-1).y = y;
             y += bands.get(-1).height;
@@ -152,7 +154,7 @@ final class CraftingPlanEdgeRouter {
         for (int lane = 0; lane < attempts; lane++) {
             List<Point> candidate;
             if (source.id() == target.id()) {
-                double distance = 8 + lane * GAP;
+                double distance = component.boundaryPadding + lane * GAP;
                 Point fromLane = outward(from, fromSide, distance);
                 Point toLane = outward(to, toSide, distance);
                 candidate = List.of(from, fromLane, toLane, to);
@@ -265,7 +267,7 @@ final class CraftingPlanEdgeRouter {
     private void placeColumns() {
         double width = layers.stream().mapToDouble(Layer::width).max().orElseThrow();
         for (Layer layer : layers) {
-            double x = PADDING + (width - layer.width()) / 2;
+            double x = padding + (width - layer.width()) / 2;
             for (int gap = 0; gap <= layer.groups.size(); gap++) {
                 double gapWidth = layer.gapWidth(gap);
                 layer.centers[gap] = x + gapWidth / 2;
@@ -329,7 +331,7 @@ final class CraftingPlanEdgeRouter {
     }
 
     private void addVisit(ExternalRoute route, int rank, Anchor source, Anchor target) {
-        Band band = bands.computeIfAbsent(rank, unused -> new Band());
+        Band band = bands.computeIfAbsent(rank, unused -> new Band(padding));
         BandVisit visit = new BandVisit(band, source, target, route.edge.group());
         band.visits.add(visit);
         route.visits.add(visit);
@@ -341,7 +343,7 @@ final class CraftingPlanEdgeRouter {
         for (RoutingComponent component : components.values()) {
             for (PlacedNode node : component.nodes.values()) {
                 Point location = component.global(new Point(node.x(), node.y()));
-                nodes.put(node.id(), new PlacedNode(node.viewNode(), location.x(), location.y(), node.width(), node.height()));
+                nodes.put(node.id(), new PlacedNode(node.viewNode(), location.y(), location.x(), node.height(), node.width()));
             }
             for (LocalRoute route : component.internal) {
                 List<Point> points = route.points().stream().map(component::global).toList();
@@ -360,6 +362,7 @@ final class CraftingPlanEdgeRouter {
             routed.put(route.edge.ordinal(), routed(route.edge, points));
         }
         double minX = 0;
+        double minY = 0;
         double maxX = 0;
         double maxY = 0;
         for (PlacedNode node : nodes.values()) {
@@ -369,21 +372,28 @@ final class CraftingPlanEdgeRouter {
         for (Path edge : routed.values()) {
             for (Point point : edge.points()) {
                 minX = Math.min(minX, point.x());
+                minY = Math.min(minY, point.y());
                 maxX = Math.max(maxX, point.x());
                 maxY = Math.max(maxY, point.y());
             }
         }
-        double shift = minX < 0 ? PADDING - minX : 0;
+        double shiftX = minX < 0 ? padding - minX : 0;
+        double shiftY = minY < 0 ? padding - minY : 0;
         List<PlacedNode> shiftedNodes = nodes.values().stream()
-                .map(node -> new PlacedNode(node.viewNode(), node.x() + shift, node.y(), node.width(), node.height())).toList();
+                .map(node -> new PlacedNode(node.viewNode(), node.x() + shiftX, node.y() + shiftY, node.width(), node.height())).toList();
         List<Path> shiftedEdges = routed.values().stream().map(edge -> new Path(edge.source(), edge.target(),
-                shift == 0 ? edge.points() : edge.points().stream().map(point -> new Point(point.x() + shift, point.y())).toList(),
+                shiftX == 0 && shiftY == 0 ? edge.points() : edge.points().stream().map(point -> new Point(point.x() + shiftX, point.y() + shiftY)).toList(),
                 edge.cyclic(), edge.originalEdgeIds(), edge.group())).toList();
-        return CraftingPlanRouteGeometry.assemble(shiftedNodes, shiftedEdges, new Bounds(0, 0, maxX + shift + PADDING, maxY + PADDING));
+        return CraftingPlanRouteGeometry.assemble(shiftedNodes, shiftedEdges, new Bounds(0, 0, maxX + shiftX + padding, maxY + shiftY + padding));
     }
 
     private static Path routed(EdgePorts edge, List<Point> points) {
-        return new Path(edge.view().source(), edge.view().target(), simplify(points), edge.view().cyclic(),
+        List<Point> horizontal = simplify(points);
+        for (int index = 0; index < horizontal.size(); index++) {
+            Point point = horizontal.get(index);
+            horizontal.set(index, new Point(point.y(), point.x()));
+        }
+        return new Path(edge.view().source(), edge.view().target(), horizontal, edge.view().cyclic(),
                 edge.originalEdgeIds(), edge.group());
     }
 
@@ -531,6 +541,7 @@ final class CraftingPlanEdgeRouter {
 
         private final Component input;
         private final int rank;
+        private final double boundaryPadding;
         private final Int2ObjectMap<PlacedNode> nodes = new Int2ObjectAVLTreeMap<>();
         private final OrthogonalSegmentReservations occupied = new OrthogonalSegmentReservations();
         private final Object2ObjectMap<TerminalKey, Terminal> terminals = new Object2ObjectOpenHashMap<>();
@@ -542,16 +553,17 @@ final class CraftingPlanEdgeRouter {
         private double x;
         private double y;
 
-        private RoutingComponent(Component input, int rank) {
+        private RoutingComponent(Component input, int rank, double boundaryPadding) {
             this.input = input;
             this.rank = rank;
+            this.boundaryPadding = boundaryPadding;
             right = input.width();
             bottom = input.height();
             input.nodes().forEach(node -> nodes.put(node.id(), node));
         }
 
         private Bounds boundary(int lane) {
-            double inset = -8 - lane * GAP;
+            double inset = -boundaryPadding - lane * GAP;
             return new Bounds(inset, inset, input.width() - 2 * inset, input.height() - 2 * inset);
         }
 
@@ -580,19 +592,21 @@ final class CraftingPlanEdgeRouter {
     private static final class Layer {
 
         private final List<RoutingComponent> groups;
+        private final double padding;
         private final int[] used;
         private final double[] centers;
         private final List<Object2IntMap<LaneKey>> lanes = new ObjectArrayList<>();
 
-        private Layer(List<RoutingComponent> groups) {
+        private Layer(List<RoutingComponent> groups, double padding) {
             this.groups = groups;
+            this.padding = padding;
             used = new int[groups.size() + 1];
             centers = new double[used.length];
             for (int gap = 0; gap < used.length; gap++) lanes.add(new Object2IntLinkedOpenHashMap<>());
         }
 
         private double gapWidth(int index) {
-            return Math.max(index == 0 || index == groups.size() ? PADDING : 2 * PADDING, (used[index] + 2) * GAP);
+            return Math.max(index == 0 || index == groups.size() ? padding : 2 * padding, (used[index] + 2) * GAP);
         }
 
         private double width() {
@@ -648,7 +662,7 @@ final class CraftingPlanEdgeRouter {
         }
 
         private List<Point> points() {
-            double laneY = band.y + PADDING + (band.topHeaders + 1 + track) * GAP;
+            double laneY = band.y + band.padding + (band.topHeaders + 1 + track) * GAP;
             List<Point> points = new ObjectArrayList<>();
             appendEndpoint(points, from, laneY);
             List<Point> end = new ObjectArrayList<>();
@@ -661,7 +675,7 @@ final class CraftingPlanEdgeRouter {
             double boundaryY = band.y + (endpoint.anchor.top() ? 0 : band.height);
             points.add(new Point(endpoint.anchor.x(), boundaryY));
             if (endpoint.header >= 0) {
-                double headerY = endpoint.anchor.top() ? band.y + PADDING + endpoint.header * GAP : band.y + band.height - PADDING - endpoint.header * GAP;
+                double headerY = endpoint.anchor.top() ? band.y + band.padding + endpoint.header * GAP : band.y + band.height - band.padding - endpoint.header * GAP;
                 points.add(new Point(endpoint.anchor.x(), headerY));
                 points.add(new Point(endpoint.column, headerY));
             }
@@ -677,8 +691,14 @@ final class CraftingPlanEdgeRouter {
         private final Double2ObjectAVLTreeMap<LaneKey> columns = new Double2ObjectAVLTreeMap<>();
         private int topHeaders;
         private int bottomHeaders;
+        private final double padding;
         private double y;
-        private double height = 3 * PADDING;
+        private double height;
+
+        private Band(double padding) {
+            this.padding = padding;
+            height = 3 * padding;
+        }
 
         private BandEndpoint endpoint(Anchor anchor, LaneKey lane) {
             return endpoints.computeIfAbsent(new EndpointKey(anchor, lane), unused -> new BandEndpoint(anchor, lane));
@@ -710,13 +730,13 @@ final class CraftingPlanEdgeRouter {
                 tracks.get(track).reserve(interval, visit.group, false);
                 visit.track = track;
             }
-            height = Math.max(height, 2 * PADDING + (topHeaders + bottomHeaders + Math.max(1, tracks.size()) + 2) * GAP);
+            height = Math.max(height, 2 * padding + (topHeaders + bottomHeaders + Math.max(1, tracks.size()) + 2) * GAP);
         }
 
         private void allocateEndpoint(BandEndpoint endpoint) {
             double reused = Double.NaN;
             double distance = Double.POSITIVE_INFINITY;
-            for (var existing : columns.subMap(endpoint.anchor.x() - 2 * PADDING, endpoint.anchor.x() + 2 * PADDING).double2ObjectEntrySet()) {
+            for (var existing : columns.subMap(endpoint.anchor.x() - 2 * padding, endpoint.anchor.x() + 2 * padding).double2ObjectEntrySet()) {
                 double offset = Math.abs(existing.getDoubleKey() - endpoint.anchor.x());
                 if (existing.getValue().equals(endpoint.lane) && offset < distance && columnAvailable(existing.getDoubleKey(), endpoint)) {
                     reused = existing.getDoubleKey();

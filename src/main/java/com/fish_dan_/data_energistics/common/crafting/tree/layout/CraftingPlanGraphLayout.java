@@ -25,12 +25,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Comparator;
 import java.util.List;
 
-/** Deterministic SCC-DAG layering; cyclic components have a local perimeter instead of an unrolled stage chain. */
+/** Left-to-right SCC-DAG layering; cyclic components retain a local perimeter instead of an unrolled stage chain. */
 public final class CraftingPlanGraphLayout {
-
-    private static final double PADDING = 16;
-    private static final double CELL_GAP = 24;
-    private static final double GROUP_GAP = 32;
 
     private CraftingPlanGraphLayout() {}
 
@@ -38,8 +34,11 @@ public final class CraftingPlanGraphLayout {
         if (graph.nodes().isEmpty()) {
             return new Layout(List.of(), List.of(), new Bounds(0, 0, 0, 0), CraftingPlanRouteGeometry.EMPTY);
         }
-        double cellWidth = compact ? 88 : 92;
-        double cellHeight = compact ? 42 : 46;
+        Spacing spacing = compact ? Spacing.COMPACT : Spacing.RELAXED;
+        // The router works in layer coordinates. Transpose card footprints now, then publish upright cards
+        // horizontally.
+        double cellWidth = compact ? 40 : 46;
+        double cellHeight = compact ? 84 : 92;
         Int2ObjectMap<Group> groups = new Int2ObjectAVLTreeMap<>();
         Int2ObjectMap<ViewNode> nodeById = new Int2ObjectOpenHashMap<>();
         Int2ObjectMap<IntList> outgoing = new Int2ObjectOpenHashMap<>();
@@ -67,7 +66,7 @@ public final class CraftingPlanGraphLayout {
             if (group.cyclic) {
                 orderCycle(group, nodeById, outgoing);
             }
-            configureSlots(group, cellWidth, cellHeight);
+            configureSlots(group, cellWidth, cellHeight, spacing);
         }
         IntHeapPriorityQueue ready = new IntHeapPriorityQueue();
         for (Group group : groups.values()) {
@@ -92,7 +91,7 @@ public final class CraftingPlanGraphLayout {
         }
         IntList ranks = new IntArrayList(layers.keySet());
         for (int sweep = 0; sweep < 4; sweep++) {
-            Int2DoubleMap positions = positions(layers);
+            Int2DoubleMap positions = positions(layers, spacing.groupGap());
             boolean downward = sweep % 2 == 0;
             for (int step = 0; step < ranks.size(); step++) {
                 int rank = ranks.getInt(downward ? step : ranks.size() - step - 1);
@@ -105,7 +104,7 @@ public final class CraftingPlanGraphLayout {
                 double nextX = 0;
                 for (Group group : layers.get(rank)) {
                     positions.put(group.id, nextX + group.width / 2);
-                    nextX += group.width + GROUP_GAP;
+                    nextX += group.width + spacing.groupGap();
                 }
             }
         }
@@ -113,7 +112,7 @@ public final class CraftingPlanGraphLayout {
         for (List<Group> layer : layers.values()) {
             List<Component> row = new ObjectArrayList<>();
             for (Group group : layer) {
-                placeNodes(group, compact, cellWidth, cellHeight);
+                placeNodes(group, compact, cellWidth, cellHeight, spacing);
                 Int2ObjectMap<Side> outward = new Int2ObjectOpenHashMap<>();
                 for (int index = 0; index < group.nodes.size(); index++) {
                     outward.put(group.nodes.get(index).id(), group.slots.get(index).side());
@@ -123,7 +122,7 @@ public final class CraftingPlanGraphLayout {
             }
             components.add(row);
         }
-        return CraftingPlanEdgeRouter.route(graph, components);
+        return CraftingPlanEdgeRouter.route(graph, components, spacing);
     }
 
     private static void orderCycle(Group group, Int2ObjectMap<ViewNode> nodes, Int2ObjectMap<IntList> outgoing) {
@@ -149,7 +148,7 @@ public final class CraftingPlanGraphLayout {
         group.nodes.addAll(ordered);
     }
 
-    private static void configureSlots(Group group, double cellWidth, double cellHeight) {
+    private static void configureSlots(Group group, double cellWidth, double cellHeight, Spacing spacing) {
         int count = group.nodes.size();
         int columns;
         int rows;
@@ -158,7 +157,7 @@ public final class CraftingPlanGraphLayout {
             rows = 1;
         } else {
             // Allocate perimeter slots dynamically, balancing physical width/height rather than assuming a cycle size.
-            columns = Math.max(2, (int) Math.ceil((count + 4) * (cellHeight + CELL_GAP) / (2 * (cellWidth + cellHeight + 2 * CELL_GAP))));
+            columns = Math.max(2, (int) Math.ceil((count + 4) * (cellHeight + spacing.cellGap()) / (2 * (cellWidth + cellHeight + 2 * spacing.cellGap()))));
             rows = Math.max(2, (count - 2 * columns + 5) / 2);
         }
         for (int column = 0; column < columns && group.slots.size() < count; column++) {
@@ -173,29 +172,29 @@ public final class CraftingPlanGraphLayout {
         for (int row = rows - 2; row > 0 && group.slots.size() < count; row--) {
             group.slots.add(new Slot(row, 0, Side.LEFT));
         }
-        group.width = 2 * PADDING + columns * cellWidth + (columns - 1) * CELL_GAP;
-        group.height = 2 * PADDING + rows * cellHeight + (rows - 1) * CELL_GAP;
+        group.width = 2 * spacing.componentPadding() + columns * cellWidth + (columns - 1) * spacing.cellGap();
+        group.height = 2 * spacing.componentPadding() + rows * cellHeight + (rows - 1) * spacing.cellGap();
     }
 
-    private static void placeNodes(Group group, boolean compact, double cellWidth, double cellHeight) {
+    private static void placeNodes(Group group, boolean compact, double cellWidth, double cellHeight, Spacing spacing) {
         for (int index = 0; index < group.nodes.size(); index++) {
             ViewNode node = group.nodes.get(index);
             Slot slot = group.slots.get(index);
-            double width = node.sourceNode() instanceof Process ? cellWidth : compact ? 76 : 80;
-            double height = node.sourceNode() instanceof Process ? compact ? 38 : 40 : node.embeddedProcessId() != null ? cellHeight : compact ? 30 : 32;
-            double nodeX = PADDING + slot.column() * (cellWidth + CELL_GAP) + (cellWidth - width) / 2;
-            double nodeY = PADDING + slot.row() * (cellHeight + CELL_GAP);
+            double width = node.sourceNode() instanceof Process ? compact ? 36 : 40 : node.embeddedProcessId() != null ? cellWidth : compact ? 30 : 32;
+            double height = node.sourceNode() instanceof Process ? cellHeight : compact ? 72 : 80;
+            double nodeX = spacing.componentPadding() + slot.column() * (cellWidth + spacing.cellGap()) + (cellWidth - width) / 2;
+            double nodeY = spacing.componentPadding() + slot.row() * (cellHeight + spacing.cellGap());
             group.placed.put(node.id(), new PlacedNode(node, nodeX, nodeY, width, height));
         }
     }
 
-    private static Int2DoubleMap positions(Int2ObjectMap<List<Group>> layers) {
+    private static Int2DoubleMap positions(Int2ObjectMap<List<Group>> layers, double groupGap) {
         Int2DoubleMap result = new Int2DoubleOpenHashMap();
         for (List<Group> layer : layers.values()) {
             double x = 0;
             for (Group group : layer) {
                 result.put(group.id, x + group.width / 2);
-                x += group.width + GROUP_GAP;
+                x += group.width + groupGap;
             }
         }
         return result;
@@ -248,6 +247,12 @@ public final class CraftingPlanGraphLayout {
         RIGHT,
         BOTTOM,
         LEFT
+    }
+
+    record Spacing(double componentPadding, double cellGap, double groupGap, double routingPadding, double boundaryPadding) {
+
+        private static final Spacing COMPACT = new Spacing(6, 10, 12, 8, 6);
+        private static final Spacing RELAXED = new Spacing(16, 24, 32, 16, 8);
     }
 
     private record Slot(int row, int column, Side side) {}
