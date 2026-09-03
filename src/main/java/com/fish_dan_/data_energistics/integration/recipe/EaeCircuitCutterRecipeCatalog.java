@@ -107,21 +107,21 @@ public final class EaeCircuitCutterRecipeCatalog {
         }
 
         JsonElement rawInput = serialized.get("input");
-        if (!(rawInput instanceof JsonObject input)) {
+        if (!(rawInput instanceof JsonObject inputObject)) {
             Data_Energistics.LOGGER.warn("Skipped EAE circuit-cutter recipe {} because it has no input object", recipeId);
             return null;
         }
-        JsonElement rawIngredient = input.get("ingredient");
+        JsonElement rawIngredient = inputObject.get("ingredient");
         if (rawIngredient == null) {
             Data_Energistics.LOGGER.warn("Skipped EAE circuit-cutter recipe {} because its input has no ingredient", recipeId);
             return null;
         }
 
-        Ingredient input = Ingredient.CODEC_NONEMPTY.parse(JsonOps.INSTANCE, rawIngredient)
+        Ingredient ingredient = Ingredient.CODEC_NONEMPTY.parse(JsonOps.INSTANCE, rawIngredient)
                 .resultOrPartial(error -> Data_Energistics.LOGGER.warn(
                         "Skipped EAE circuit-cutter recipe {} because its input ingredient is invalid: {}", recipeId, error))
                 .orElse(null);
-        if (input == null) {
+        if (ingredient == null) {
             return null;
         }
 
@@ -138,7 +138,7 @@ public final class EaeCircuitCutterRecipeCatalog {
             Data_Energistics.LOGGER.warn("Skipped EAE circuit-cutter recipe {} because its output is empty", recipeId);
             return null;
         }
-        return new CutterRecipe(input, output.copy());
+        return new CutterRecipe(ingredient, output.copy());
     }
 
     // Optional recipe serializers expose their codec through erased generic types.
