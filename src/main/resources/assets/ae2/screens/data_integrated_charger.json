@@ -38,7 +38,7 @@
 			"top": 58
 		},
 		"MACHINE_OUTPUT": {
-			"left": 115,
+			"left": 117,
 			"top": 22,
 			"grid": "BREAK_AFTER_2COLS"
 		},
@@ -86,7 +86,7 @@
 	},
 	"widgets": {
 		"progressBar": {
-			"left": 154,
+			"left": 156,
 			"top": 39
 		},
 		"toolbox": {
