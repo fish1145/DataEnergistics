@@ -19,7 +19,7 @@ import java.util.List;
 final class CraftingPlanLayoutOrderScore {
 
     private static final double EPSILON = 0.000001;
-    private static final int MAXIMUM_PROBES = 262144;
+    private static final int MAXIMUM_PROBES = 32768;
 
     private final List<ViewEdge> edges;
     private final Int2ObjectMap<PlacedNode> nodes;
@@ -89,7 +89,7 @@ final class CraftingPlanLayoutOrderScore {
     private @Nullable Score score(IntSet affected) {
         long crossings = 0;
         double length = 0;
-        var probes = new ProbeBudget((int) Math.min(MAXIMUM_PROBES, 1024L + 64L * affected.size()));
+        var probes = new ProbeBudget((int) Math.min(MAXIMUM_PROBES, 512L + 16L * affected.size()));
         for (int edge : affected) {
             Chord chord = chords[edge];
             length += Math.abs(chord.x2() - chord.x1()) + Math.abs(chord.y2() - chord.y1());

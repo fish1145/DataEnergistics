@@ -6,14 +6,11 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 
 import it.unimi.dsi.fastutil.doubles.DoubleAVLTreeSet;
 import it.unimi.dsi.fastutil.doubles.DoubleSortedSet;
-import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntComparators;
 import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.longs.Long2IntMap;
-import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -38,7 +35,7 @@ final class OrthogonalRoutingGraph {
     private final Int2ObjectMap<int[]> rows = new Int2ObjectOpenHashMap<>();
     private final Int2ObjectMap<int[]> columns = new Int2ObjectOpenHashMap<>();
 
-    OrthogonalRoutingGraph(List<PlacedNode> nodes, List<Port> ports, Int2IntMap degrees) {
+    OrthogonalRoutingGraph(List<PlacedNode> nodes, List<Port> ports) {
         obstacles = new OrthogonalNodeIndex(nodes, CLEARANCE);
         Set<Point> seeds = new ObjectOpenHashSet<>();
         DoubleSortedSet xs = new DoubleAVLTreeSet();
@@ -49,8 +46,9 @@ final class OrthogonalRoutingGraph {
             double right = clean(node.x() + node.width() + CLEARANCE);
             double top = clean(node.y() - CLEARANCE);
             double bottom = clean(node.y() + node.height() + CLEARANCE);
-            // Parallel lanes are local to actual fan-in/fan-out, not allocated once per edge across the whole layer.
-            for (int lane = 0; lane <= degrees.get(node.id()) + 1; lane++) {
+            // Port projections already provide one track per fan-in/fan-out. Two local rings are enough to
+            // turn around the card; growing rings with degree made guide construction quadratic on hubs.
+            for (int lane = 0; lane < 2; lane++) {
                 double offset = lane * LANE;
                 for (double px : new double[] { left - offset, right + offset }) {
                     for (double py : new double[] { top - offset, bottom + offset }) add(seeds, px, py);
@@ -135,7 +133,8 @@ final class OrthogonalRoutingGraph {
     }
 
     /** Bounded-degree visibility expansion; projections stop at the first obstacle face. */
-    Long2IntMap neighbors(long key, List<Port> goals, OrthogonalSegmentReservations reservations, CraftingPlanRouteGroup group) {
+    LongSet neighbors(long key, List<Port> goals, OrthogonalSegmentReservations reservations,
+                      CraftingPlanRouteGroup group) {
         int px = OrthogonalRoutingAxis.x(key);
         int py = OrthogonalRoutingAxis.y(key);
         LongSet candidates = new LongOpenHashSet(16);
@@ -146,7 +145,7 @@ final class OrthogonalRoutingGraph {
             candidates.add(OrthogonalRoutingAxis.point(px, y.index(goal.stub().y())));
         }
         Point from = point(key);
-        Long2IntMap result = new Long2IntOpenHashMap(16);
+        LongSet result = new LongOpenHashSet(16);
         boolean conflict = false;
         for (long next : candidates) {
             if (key == next) continue;
@@ -158,9 +157,7 @@ final class OrthogonalRoutingGraph {
             }
             if (next == key) continue;
             if (reservations.available(from, to, group)) {
-                int crossings = reservations.crossings(from, to, group);
-                result.put(next, crossings);
-                conflict |= crossings != 0;
+                result.add(next);
             } else {
                 conflict = true;
             }
@@ -173,8 +170,8 @@ final class OrthogonalRoutingGraph {
                     OrthogonalRoutingAxis.point(px, y.floor(from.y() - LANE)),
                     OrthogonalRoutingAxis.point(px, y.ceiling(from.y() + LANE)) }) {
                 Point to = point(next);
-                if (next != key && !result.containsKey(next) && clear(from, to) && reservations.available(from, to, group)) {
-                    result.put(next, reservations.crossings(from, to, group));
+                if (next != key && !result.contains(next) && clear(from, to) && reservations.available(from, to, group)) {
+                    result.add(next);
                 }
             }
         }

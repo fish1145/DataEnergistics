@@ -13,8 +13,6 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.OrthogonalRout
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewEdge;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewGraph;
 
-import it.unimi.dsi.fastutil.ints.Int2IntMap;
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -31,6 +29,8 @@ import java.util.concurrent.CancellationException;
 /** Ports follow final card positions; only chosen finite paths occupy the shared routing scene. */
 final class CraftingPlanEdgeRouter {
 
+    private static final int MAXIMUM_REFINEMENTS = 32;
+
     private CraftingPlanEdgeRouter() {}
 
     static Layout route(ViewGraph graph, List<PlacedNode> nodes, Spacing spacing) {
@@ -38,10 +38,9 @@ final class CraftingPlanEdgeRouter {
         for (PlacedNode node : nodes) nodeById.put(node.id(), node);
         Object2ObjectMap<PortKey, PortIntent> intents = new Object2ObjectLinkedOpenHashMap<>();
         List<Request> requests = requests(graph, nodeById, intents);
-        Int2IntMap degrees = new Int2IntOpenHashMap();
-        List<Port> ports = ports(intents, degrees);
+        List<Port> ports = ports(intents);
         if (requests.isEmpty()) return assemble(nodes, List.of(), spacing.boundaryPadding());
-        var scene = new OrthogonalRoutingGraph(nodes, ports, degrees);
+        var scene = new OrthogonalRoutingGraph(nodes, ports);
         var reservations = new OrthogonalSegmentReservations(scene.x, scene.y);
         var search = new OrthogonalRouteSearch(scene, reservations, spacing.cellGap());
         List<Request> localFirst = new ObjectArrayList<>(requests);
@@ -49,13 +48,22 @@ final class CraftingPlanEdgeRouter {
         Choice[] choices = new Choice[requests.size()];
         for (Request request : localFirst) {
             if (Thread.currentThread().isInterrupted()) throw new CancellationException();
-            Choice choice = search.route(request.source().ports, request.target().ports, request.group(), null);
+            Choice choice = search.route(request.source().ports, request.target().ports, request.group(), null, false);
             choices[request.id()] = choice;
             reservations.reserve(choice.points(), request.group());
         }
-        for (int pass = 0; pass < 2; pass++) {
+        int remainingRefinements = MAXIMUM_REFINEMENTS;
+        for (int pass = 0; pass < 2 && remainingRefinements > 0; pass++) {
             boolean changed = false;
+            List<Request> refinements = new ObjectArrayList<>();
             for (Request request : localFirst) {
+                if (choices[request.id()].metrics().crossings() > 0) refinements.add(request);
+            }
+            refinements.sort(Comparator.comparingInt((Request request) -> choices[request.id()].metrics().crossings()).reversed()
+                    .thenComparingDouble(Request::distance).thenComparingInt(Request::id));
+            int count = Math.min(refinements.size(), remainingRefinements);
+            for (int index = 0; index < count; index++) {
+                Request request = refinements.get(index);
                 if (Thread.currentThread().isInterrupted()) throw new CancellationException();
                 Choice previous = choices[request.id()];
                 // Recompute against current neighbours: later short routes may have introduced a crossing.
@@ -68,7 +76,7 @@ final class CraftingPlanEdgeRouter {
                     continue;
                 }
                 Choice candidate = search.route(request.source().ports, request.target().ports, request.group(),
-                        new Choice(previous.points(), previousMetrics, previous.baselineLength()));
+                        new Choice(previous.points(), previousMetrics, previous.baselineLength()), true);
                 double limit = candidate.baselineLength() + Math.min(candidate.baselineLength() * 0.25, 2 * spacing.cellGap());
                 if (previousMetrics.length() > limit + OrthogonalSegmentReservations.EPSILON || OrthogonalRouteSearch.compare(candidate.metrics(), previousMetrics) < 0) {
                     choices[request.id()] = candidate;
@@ -76,6 +84,7 @@ final class CraftingPlanEdgeRouter {
                 }
                 reservations.reserve(choices[request.id()].points(), request.group());
             }
+            remainingRefinements -= count;
             if (!changed) break;
         }
         List<Path> paths = new ObjectArrayList<>(requests.size());
@@ -121,7 +130,7 @@ final class CraftingPlanEdgeRouter {
         return intent;
     }
 
-    private static List<Port> ports(Object2ObjectMap<PortKey, PortIntent> intents, Int2IntMap degrees) {
+    private static List<Port> ports(Object2ObjectMap<PortKey, PortIntent> intents) {
         Int2ObjectMap<List<PortIntent>> byNode = new Int2ObjectOpenHashMap<>();
         for (PortIntent intent : intents.values()) {
             byNode.computeIfAbsent(intent.node.id(), unused -> new ObjectArrayList<>()).add(intent);
@@ -129,7 +138,6 @@ final class CraftingPlanEdgeRouter {
         List<Port> result = new ObjectArrayList<>(intents.size() * 4);
         for (var entry : byNode.int2ObjectEntrySet()) {
             List<PortIntent> nodePorts = entry.getValue();
-            degrees.put(entry.getIntKey(), nodePorts.size());
             for (Side side : OrthogonalRoutingGraph.sides()) {
                 boolean horizontal = side == Side.TOP || side == Side.BOTTOM;
                 nodePorts.sort(Comparator.comparingDouble((PortIntent intent) -> (horizontal ? intent.x : intent.y) / intent.count)

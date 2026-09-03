@@ -28,6 +28,8 @@ final class OrthogonalSegmentReservations {
     private final Orientation vertical;
     private final Long2IntOpenHashMap terminals = new Long2IntOpenHashMap();
     private final Long2ObjectOpenHashMap<@Nullable Object2ObjectOpenHashMap<CraftingPlanRouteGroup, @Nullable Turns>> turns = new Long2ObjectOpenHashMap<>();
+    private final IntSet coordinateScratch = new IntOpenHashSet();
+    private final LongSet intersectionScratch = new LongOpenHashSet();
 
     OrthogonalSegmentReservations(OrthogonalRoutingAxis x, OrthogonalRoutingAxis y) {
         this.x = x;
@@ -44,7 +46,7 @@ final class OrthogonalSegmentReservations {
         double length = 0;
         double shared = 0;
         int bends = 0;
-        LongSet intersections = new LongOpenHashSet();
+        intersectionScratch.clear();
         for (int index = 0; index < legs.size(); index++) {
             Leg leg = legs.get(index);
             double covered = orientation(leg).shared(leg, new Owner(group, leg.direction()));
@@ -53,8 +55,9 @@ final class OrthogonalSegmentReservations {
             shared += covered;
             if (index > 0 && legs.get(index - 1).code() != leg.code()) bends++;
             Orientation perpendicular = leg.alongX() ? vertical : horizontal;
-            IntSet coordinates = perpendicular.closed.collect(leg.fixed(), leg.low(), leg.high() + 1);
-            for (int coordinate : coordinates) {
+            coordinateScratch.clear();
+            perpendicular.closed.collect(leg.fixed(), leg.low(), leg.high() + 1, coordinateScratch);
+            for (int coordinate : coordinateScratch) {
                 long point = leg.point(coordinate);
                 boolean endpoint = coordinate == leg.low() || coordinate == leg.high();
                 if (hasTurn(point, group, leg.code())) continue;
@@ -65,26 +68,15 @@ final class OrthogonalSegmentReservations {
                     // Two finite ends touching is not a transverse crossing.
                     if (!perpendicular.interior.contains(leg.fixed(), coordinate)) continue;
                 }
-                intersections.add(point);
+                intersectionScratch.add(point);
             }
         }
-        return new Metrics(length, intersections.size(), bends, shared);
+        return new Metrics(length, intersectionScratch.size(), bends, shared);
     }
 
     boolean available(Point from, Point to, CraftingPlanRouteGroup group) {
         Leg leg = leg(from, to);
         return leg.low() == leg.high() || orientation(leg).shared(leg, new Owner(group, leg.direction())) >= 0;
-    }
-
-    /** Strictly interior crossings are a lower bound before the search knows the next turn. */
-    int crossings(Point from, Point to, CraftingPlanRouteGroup group) {
-        Leg leg = leg(from, to);
-        if (leg.high() - leg.low() <= 1) return 0;
-        Orientation perpendicular = leg.alongX() ? vertical : horizontal;
-        IntSet coordinates = perpendicular.interior.collect(leg.fixed(), leg.low() + 1, leg.high());
-        int count = 0;
-        for (int coordinate : coordinates) if (!hasTurn(leg.point(coordinate), group, leg.code())) count++;
-        return count;
     }
 
     void reserve(List<Point> points, CraftingPlanRouteGroup group) {
@@ -397,14 +389,12 @@ final class OrthogonalSegmentReservations {
             if (counts.isEmpty()) members.remove(node);
         }
 
-        private IntSet collect(int coordinate, int start, int end) {
-            IntSet result = new IntOpenHashSet();
-            if (start >= end) return result;
+        private void collect(int coordinate, int start, int end, IntSet result) {
+            if (start >= end) return;
             for (int node = coordinate + base; node > 0; node >>= 1) {
                 Int2IntAVLTreeMap counts = members.get(node);
                 if (counts != null) result.addAll(counts.subMap(start, end).keySet());
             }
-            return result;
         }
 
         private boolean contains(int coordinate, int fixed) {

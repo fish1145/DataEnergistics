@@ -14,10 +14,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 
-/** Shortest feasible baseline followed by bounded local crossing avoidance on sparse visibility guides. */
+/** Fast orthogonal routing: cheap shapes first, sparse A* only when every cheap shape is blocked. */
 final class OrthogonalRouteSearch {
 
     private static final double EPSILON = OrthogonalSegmentReservations.EPSILON;
+    private static final int MAXIMUM_MEASURED_QUICK_PATHS = 24;
     private final OrthogonalRoutingGraph graph;
     private final OrthogonalSegmentReservations reservations;
     private final double maximumDetour;
@@ -29,40 +30,40 @@ final class OrthogonalRouteSearch {
     }
 
     Choice route(List<Port> sourcePorts, List<Port> targetPorts, CraftingPlanRouteGroup group,
-                 @Nullable Choice previous) {
+                 @Nullable Choice previous, boolean improveCrossings) {
         List<Port> sources = terminals(sourcePorts, group, true);
         List<Port> targets = terminals(targetPorts, group, false);
         if (sources.isEmpty() || targets.isEmpty()) throw new IllegalStateException("No safe crafting-tree node port");
-        // A reroute retains its already feasible path as an incumbent, not as an error fallback.
         Candidate shortest = previous == null ? null : new Candidate(previous.points(), previous.metrics());
-        List<Candidate> quick = new ObjectArrayList<>();
-        double lowerBound = Double.POSITIVE_INFINITY;
+        List<RawCandidate> quick = improveCrossings ? new ObjectArrayList<>() : List.of();
+        RawCandidate shortestRaw = null;
         for (Port source : sources) {
             for (Port target : targets) {
-                lowerBound = Math.min(lowerBound, distance(source.stub(), target.stub()) + 2 * OrthogonalRoutingGraph.CLEARANCE);
                 for (List<Point> core : graph.quickPaths(source, target)) {
-                    Candidate candidate = candidate(source, target, core, group);
-                    if (candidate != null) {
-                        quick.add(candidate);
-                        if (shortest == null || compareShortest(candidate, shortest) < 0) shortest = candidate;
-                    }
+                    RawCandidate candidate = rawCandidate(source, target, core, group, true);
+                    if (candidate == null) continue;
+                    if (improveCrossings) quick.add(candidate);
+                    if (shortestRaw == null || compareRaw(candidate, shortestRaw) < 0) shortestRaw = candidate;
                 }
             }
         }
-        if (shortest == null || shortest.metrics().length() > lowerBound + EPSILON) {
-            shortest = search(sources, targets, group, shortest, Double.POSITIVE_INFINITY, false);
+        if (shortestRaw != null && (shortest == null || compareRaw(shortestRaw, shortest) < 0)) {
+            shortest = measure(shortestRaw, group);
         }
+        if (shortest == null) shortest = search(sources, targets, group);
         if (shortest == null) throw new IllegalStateException("No obstacle-free crafting-tree connection for " + group);
         double baseline = shortest.metrics().length();
+        if (!improveCrossings || shortest.metrics().crossings() == 0) {
+            return new Choice(shortest.points(), shortest.metrics(), baseline);
+        }
         double limit = baseline + Math.min(baseline * 0.25, maximumDetour);
         Candidate best = shortest;
-        if (shortest.metrics().crossings() > 0) {
-            // Re-evaluate the cheap alternatives under the same complete-route objective as A* results.
-            for (Candidate candidate : quick) {
-                if (candidate.metrics().length() <= limit + EPSILON && compare(candidate.metrics(), best.metrics()) < 0) best = candidate;
-            }
-            Candidate alternative = search(sources, targets, group, best, limit, true);
-            if (alternative != null) best = alternative;
+        quick.sort(OrthogonalRouteSearch::compareRaw);
+        int measuredPaths = 0;
+        for (RawCandidate candidate : quick) {
+            if (candidate.length() > limit + EPSILON || measuredPaths++ == MAXIMUM_MEASURED_QUICK_PATHS) break;
+            Candidate measured = measure(candidate, group);
+            if (measured != null && compare(measured.metrics(), best.metrics()) < 0) best = measured;
         }
         return new Choice(best.points(), best.metrics(), baseline);
     }
@@ -77,79 +78,49 @@ final class OrthogonalRouteSearch {
         return result;
     }
 
-    private @Nullable Candidate search(List<Port> sources, List<Port> targets, CraftingPlanRouteGroup group,
-                                       @Nullable Candidate initial, double limit, boolean avoidCrossings) {
-        Candidate best = initial;
-        List<Long2ObjectMap<List<Label>>> labels = new ObjectArrayList<>(4);
+    private @Nullable Candidate search(List<Port> sources, List<Port> targets, CraftingPlanRouteGroup group) {
+        List<Long2ObjectMap<Label>> labels = new ObjectArrayList<>(4);
         for (int heading = 0; heading < 4; heading++) labels.add(new Long2ObjectOpenHashMap<>());
-        Comparator<Label> order = Comparator.comparingInt((Label label) -> avoidCrossings ? label.crossings : 0)
-                .thenComparingDouble(label -> label.estimate).thenComparingInt(label -> label.bends)
-                .thenComparingLong(label -> label.point).thenComparingInt(label -> label.heading)
-                .thenComparingLong(label -> label.ordinal);
+        Comparator<Label> order = Comparator.comparingDouble((Label label) -> label.estimate)
+                .thenComparingInt(label -> label.bends).thenComparingLong(label -> label.point)
+                .thenComparingInt(label -> label.heading).thenComparingLong(label -> label.ordinal);
         var pending = new ObjectHeapPriorityQueue<>(order);
         long ordinal = 0;
         for (Port source : sources) {
             double length = distance(source.anchor(), source.stub());
             Label label = new Label(graph.key(source.stub()), heading(source.anchor(), source.stub()), source,
-                    null, length, length + heuristic(source.stub(), targets), 0, 0, ordinal++);
-            retain(label, labels, avoidCrossings);
-            pending.enqueue(label);
+                    null, length, length + heuristic(source.stub(), targets), 0, ordinal++);
+            if (retain(label, labels)) pending.enqueue(label);
         }
-        int completed = 0;
         while (!pending.isEmpty()) {
             if (Thread.currentThread().isInterrupted()) throw new CancellationException();
             Label label = pending.dequeue();
             if (!label.active) continue;
-            double bound = avoidCrossings ? limit : best == null ? limit : Math.min(limit, best.metrics().length());
-            if (label.estimate > bound + EPSILON) {
-                if (!avoidCrossings) break;
-                continue;
-            }
             Point current = graph.point(label.point);
             for (Port target : targets) {
                 if (label.point != graph.key(target.stub())) continue;
-                List<Point> core = reconstruct(label);
-                Candidate candidate = candidate(label.source, target, core, group);
-                if (candidate != null && candidate.metrics().length() <= bound + EPSILON && (best == null || (avoidCrossings ? compare(candidate.metrics(), best.metrics()) : compareShortest(candidate, best)) < 0)) best = candidate;
-                // This is a local heuristic, not a global crossing optimiser. Always retain the feasible baseline.
-                if (avoidCrossings && ++completed >= 12) return best;
+                RawCandidate candidate = rawCandidate(label.source, target, reconstruct(label), group, false);
+                if (candidate != null) return measure(candidate, group);
             }
-            for (var neighbor : graph.neighbors(label.point, targets, reservations, group).long2IntEntrySet()) {
-                long next = neighbor.getLongKey();
+            for (long next : graph.neighbors(label.point, targets, reservations, group)) {
                 Point to = graph.point(next);
                 int direction = heading(current, to);
                 if (direction == (label.heading + 2) % 4) continue;
                 double length = label.length + distance(current, to);
-                double estimate = length + heuristic(to, targets);
-                if (estimate > bound + EPSILON) continue;
-                int crossings = label.crossings + neighbor.getIntValue();
-                Label candidate = new Label(next, direction, label.source, label, length, estimate, crossings,
-                        label.bends + (direction == label.heading ? 0 : 1), ordinal++);
-                if (retain(candidate, labels, avoidCrossings)) pending.enqueue(candidate);
+                Label candidate = new Label(next, direction, label.source, label, length,
+                        length + heuristic(to, targets), label.bends + (direction == label.heading ? 0 : 1), ordinal++);
+                if (retain(candidate, labels)) pending.enqueue(candidate);
             }
         }
-        return best;
+        return null;
     }
 
-    private static boolean retain(Label candidate, List<Long2ObjectMap<List<Label>>> index, boolean avoidCrossings) {
-        List<Label> labels = index.get(candidate.heading).computeIfAbsent(candidate.point, unused -> new ObjectArrayList<>(4));
-        for (Label existing : labels) {
-            if (existing.length <= candidate.length + EPSILON && (!avoidCrossings || existing.crossings <= candidate.crossings) && (existing.length < candidate.length - EPSILON || existing.crossings < candidate.crossings || existing.bends <= candidate.bends)) return false;
-        }
-        for (int i = labels.size() - 1; i >= 0; i--) {
-            Label existing = labels.get(i);
-            if (candidate.length <= existing.length + EPSILON && (!avoidCrossings || candidate.crossings <= existing.crossings) && (candidate.length < existing.length - EPSILON || candidate.crossings < existing.crossings || candidate.bends <= existing.bends)) {
-                existing.active = false;
-                labels.remove(i);
-            }
-        }
-        if (labels.size() == 4) {
-            int worst = 0;
-            for (int i = 1; i < labels.size(); i++) if (labels.get(i).length > labels.get(worst).length) worst = i;
-            if (candidate.length >= labels.get(worst).length) return false;
-            labels.remove(worst).active = false;
-        }
-        labels.add(candidate);
+    private static boolean retain(Label candidate, List<Long2ObjectMap<Label>> index) {
+        Long2ObjectMap<Label> labels = index.get(candidate.heading);
+        Label existing = labels.get(candidate.point);
+        if (existing != null && (existing.length < candidate.length - EPSILON || Math.abs(existing.length - candidate.length) <= EPSILON && existing.bends <= candidate.bends)) return false;
+        if (existing != null) existing.active = false;
+        labels.put(candidate.point, candidate);
         return true;
     }
 
@@ -157,22 +128,41 @@ final class OrthogonalRouteSearch {
         List<Point> reversed = new ObjectArrayList<>();
         for (Label step = label; step != null; step = step.previous) reversed.add(graph.point(step.point));
         List<Point> result = new ObjectArrayList<>(reversed.size());
-        for (int i = reversed.size() - 1; i >= 0; i--) result.add(reversed.get(i));
+        for (int index = reversed.size() - 1; index >= 0; index--) result.add(reversed.get(index));
         return result;
     }
 
-    private @Nullable Candidate candidate(Port source, Port target, List<Point> core, CraftingPlanRouteGroup group) {
-        for (int index = 1; index < core.size(); index++) {
-            Point from = core.get(index - 1);
-            Point to = core.get(index);
-            if (!from.equals(to) && !graph.clear(from, to)) return null;
+    private @Nullable RawCandidate rawCandidate(Port source, Port target, List<Point> core,
+                                                CraftingPlanRouteGroup group, boolean validateCore) {
+        if (validateCore) {
+            for (int index = 1; index < core.size(); index++) {
+                Point from = core.get(index - 1);
+                Point to = core.get(index);
+                if (!from.equals(to) && !graph.clear(from, to)) return null;
+            }
         }
         List<Point> points = new ObjectArrayList<>(core.size() + 2);
         points.add(source.anchor());
         for (Point point : core) if (!append(points, point)) return null;
         if (!append(points, target.anchor())) return null;
-        Metrics metrics = reservations.measure(points, group);
-        return metrics == null ? null : new Candidate(points, metrics);
+        double length = 0;
+        int bends = 0;
+        int previousHeading = -1;
+        for (int index = 1; index < points.size(); index++) {
+            Point from = points.get(index - 1);
+            Point to = points.get(index);
+            if (validateCore && !reservations.available(from, to, group)) return null;
+            int direction = heading(from, to);
+            if (previousHeading >= 0 && direction != previousHeading) bends++;
+            previousHeading = direction;
+            length += distance(from, to);
+        }
+        return new RawCandidate(points, length, bends);
+    }
+
+    private @Nullable Candidate measure(RawCandidate candidate, CraftingPlanRouteGroup group) {
+        Metrics metrics = reservations.measure(candidate.points(), group);
+        return metrics == null ? null : new Candidate(candidate.points(), metrics);
     }
 
     private static boolean append(List<Point> points, Point point) {
@@ -211,14 +201,21 @@ final class OrthogonalRouteSearch {
         return value;
     }
 
-    private static int compareShortest(Candidate left, Candidate right) {
-        int length = Double.compare(left.metrics().length(), right.metrics().length());
-        return length == 0 ? compare(left.metrics(), right.metrics()) : length;
+    private static int compareRaw(RawCandidate left, RawCandidate right) {
+        int length = Double.compare(left.length(), right.length());
+        return length == 0 ? Integer.compare(left.bends(), right.bends()) : length;
+    }
+
+    private static int compareRaw(RawCandidate left, Candidate right) {
+        int length = Double.compare(left.length(), right.metrics().length());
+        return length == 0 ? Integer.compare(left.bends(), right.metrics().bends()) : length;
     }
 
     record Choice(List<Point> points, Metrics metrics, double baselineLength) {}
 
     private record Candidate(List<Point> points, Metrics metrics) {}
+
+    private record RawCandidate(List<Point> points, double length, int bends) {}
 
     private static final class Label {
 
@@ -228,20 +225,18 @@ final class OrthogonalRouteSearch {
         private final @Nullable Label previous;
         private final double length;
         private final double estimate;
-        private final int crossings;
         private final int bends;
         private final long ordinal;
         private boolean active = true;
 
         private Label(long point, int heading, Port source, @Nullable Label previous, double length,
-                      double estimate, int crossings, int bends, long ordinal) {
+                      double estimate, int bends, long ordinal) {
             this.point = point;
             this.heading = heading;
             this.source = source;
             this.previous = previous;
             this.length = length;
             this.estimate = estimate;
-            this.crossings = crossings;
             this.bends = bends;
             this.ordinal = ordinal;
         }
