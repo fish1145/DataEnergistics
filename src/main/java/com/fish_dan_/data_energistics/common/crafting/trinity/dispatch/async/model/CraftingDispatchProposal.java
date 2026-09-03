@@ -32,23 +32,11 @@ public record CraftingDispatchProposal(
     }
 
     public CraftingDispatchProposal {
-        if (lease == null) {
-            throw new IllegalArgumentException("Crafting dispatch proposal lease must not be null");
-        }
-        if (target == null) {
-            throw new IllegalArgumentException("Crafting dispatch proposal target must not be null");
-        }
         if (target.providerId().publicationScope() != lease.gridGeneration()) {
             throw new IllegalArgumentException("Crafting dispatch proposal target belongs to another grid generation");
         }
         if (logicalCrafts <= 0L) {
             throw new IllegalArgumentException("Crafting dispatch proposal count must be positive");
-        }
-        if (nextCursor == null) {
-            throw new IllegalArgumentException("Crafting dispatch proposal cursor must not be null");
-        }
-        if (exclusions == null || exclusions.contains(null)) {
-            throw new IllegalArgumentException("Crafting dispatch proposal exclusions must not contain null");
         }
         exclusions = Set.copyOf(exclusions);
         if (exclusions.stream().anyMatch(exclusion -> exclusion.excludes(target))) {
