@@ -87,7 +87,9 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                 session = ordinary.openSession(request);
                 this.ordinarySession = session;
             }
-            return session.solve(request, mode, control);
+            TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solved = session.solve(request, mode, control);
+            return !solved.successful() && solved.diagnostic().code() == TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT ?
+                    radix.solve(request, mode, control) : solved;
         }
 
         private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solveShortage(
@@ -108,7 +110,8 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                 TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solved = session.solve(
                         bounded, TrinityPlanningMode.FIRST_FEASIBLE, control);
                 accounting.include(solved);
-                if (solved.successful() || solved.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
+                if (solved.successful() || (solved.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION &&
+                        solved.diagnostic().code() != TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT)) {
                     return accounting.finish(solved);
                 }
                 firingUpper = firingUpper.shiftLeft(1);
@@ -144,10 +147,11 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                         TrinityPlanningMode.FIRST_FEASIBLE,
                         control);
                 if (solved.successful() ||
-                        solved.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
+                        (solved.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION &&
+                                solved.diagnostic().code() != TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT)) {
                     return solved;
                 }
-                firingUpper = firingUpper.multiply(firingUpper).max(BigInteger.TWO);
+                firingUpper = firingUpper.shiftLeft(1);
             }
             return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
