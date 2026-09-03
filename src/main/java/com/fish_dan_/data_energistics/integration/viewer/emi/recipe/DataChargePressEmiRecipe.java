@@ -52,8 +52,8 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private static final int FLUID_Y = 7;
     private static final int OUTPUT_X = 111;
     private static final int OUTPUT_Y = 6;
-    private static final int MODE_ICON_X = OUTPUT_X - 22;
-    private static final int MODE_ICON_Y = OUTPUT_Y + 28;
+    private static final int MODE_ICON_X = OUTPUT_X - 24;
+    private static final int MODE_ICON_Y = OUTPUT_Y + 30;
     private static final int PROGRESS_X = 151;
     private static final int FIRST_INPUT_Y = 6;
     private static final int SECOND_INPUT_Y = 24;
