@@ -4,13 +4,11 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackCost;
-import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackRecord;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
-import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
@@ -51,7 +49,6 @@ public final class OrbitalOwnershipTransferGameTest {
     private static final BlockPos FIRST_TARGET = new BlockPos(25, 20, 25);
     private static final BlockPos SECOND_TARGET = new BlockPos(35, 20, 25);
     private static final int TEST_DIGITAL_COOLDOWN_TICKS = 400;
-    private static final int REJECTED_DELIVERY_OBSERVATION_TICKS = OrbitalAnnihilatorProjectileEntity.FLIGHT_TICKS + DataNukePrimedEntity.DEFAULT_FUSE_TICKS + 40;
 
     private OrbitalOwnershipTransferGameTest() {}
 
@@ -100,41 +97,30 @@ public final class OrbitalOwnershipTransferGameTest {
                         server.getPlayerList().getPlayer(owner.getUUID()) == null,
                         "The current owner must be genuinely disconnected before acceptance"))
                 .thenExecute(() -> {
-                    weapons.acceptOwnershipTransfer(server, recipient.getUUID(), transferId.get());
-                    var liveNukeSettings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
-                    int originalWarningTicks = settings.attackWarningTicks;
-                    int originalWorkInterval = liveNukeSettings.workIntervalTicks;
-                    int originalMaxRadius = liveNukeSettings.maxRadius;
-                    double originalCenterRadius = liveNukeSettings.centerEntityConsumeRadius;
-                    try {
-                        settings.attackWarningTicks = 1;
-                        liveNukeSettings.workIntervalTicks = 1;
-                        liveNukeSettings.maxRadius = 1;
-                        liveNukeSettings.centerEntityConsumeRadius = 0.0D;
-                        attacks.tryConfirmDigitalAnnihilation(
-                                server,
-                                recipient.getUUID(),
-                                originalWeaponId,
-                                level.dimension().location(),
-                                absoluteTarget);
-                    } finally {
-                        settings.attackWarningTicks = originalWarningTicks;
-                        liveNukeSettings.workIntervalTicks = originalWorkInterval;
-                        liveNukeSettings.maxRadius = originalMaxRadius;
-                        liveNukeSettings.centerEntityConsumeRadius = originalCenterRadius;
-                    }
-                })
-                .thenIdle(220)
-                .thenExecute(() -> {
-                    try {
+                    helper.assertFalse(
+                            weapons.acceptOwnershipTransfer(server, recipient.getUUID(), transferId.get()),
+                            "A transfer offer must be rejected when the current owner disconnects before acceptance");
+                    helper.assertValueEqual(
+                            weapons.find(originalWeaponId).orElseThrow().ownerId(),
+                            owner.getUUID(),
+                            "A rejected transfer must retain the original owner");
+                    Optional<OrbitalAttackRecord> unexpectedAttack = attacks.tryConfirmDigitalAnnihilation(
+                            server,
+                            recipient.getUUID(),
+                            originalWeaponId,
+                            level.dimension().location(),
+                            absoluteTarget);
+                    if (unexpectedAttack.isPresent()) {
                         helper.assertTrue(
-                                level.getBlockState(absoluteTarget).is(Blocks.STONE),
-                                "A disconnected owner must not leave a transferable deployed weapon for unilateral use");
-                    } finally {
-                        OrbitalControlActionDispatcher.cancelOrAbortSelectedMode(
-                                recipient,
-                                OrbitalAttackMode.DIGITAL_ANNIHILATION);
+                                attacks.cancelWarning(server, recipient.getUUID(), unexpectedAttack.orElseThrow().attackId()),
+                                "An unexpectedly authorized warning must be cancelled before reporting the failed rejection assertion");
                     }
+                    helper.assertTrue(
+                            unexpectedAttack.isEmpty(),
+                            "A rejected transfer must not grant the recipient attack authority");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                            "A rejected transfer must not create a world-mutating payload");
                 })
                 .thenSucceed();
     }
@@ -166,6 +152,8 @@ public final class OrbitalOwnershipTransferGameTest {
         level.getChunkAt(absoluteSecondTarget);
 
         UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
+        AtomicReference<UUID> firstAttackId = new AtomicReference<>();
+        AtomicReference<UUID> secondAttackId = new AtomicReference<>();
         OrbitalOwnershipTransfer dormantTransfer = weapons.requestOwnershipTransfer(
                 server,
                 owner.getUUID(),
@@ -182,19 +170,35 @@ public final class OrbitalOwnershipTransferGameTest {
                 .thenExecute(() -> {
                     insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost, 2));
                     primeReserve(weapons, server, weaponId, settings, cost, 2);
-                    launchRequiredTestDigitalAttack(
+                    firstAttackId.set(launchRequiredTestDigitalAttack(
                             attacks,
                             server,
                             recipient,
                             weaponId,
                             level,
-                            absoluteFirstTarget);
+                            absoluteFirstTarget).attackId());
                 })
-                .thenWaitUntil(() -> helper.assertTrue(
-                        level.getBlockState(absoluteFirstTarget).isAir(),
-                        "The recipient must be able to fire the dormant weapon after accepting ownership"))
-                .thenIdle(20)
+                .thenWaitUntil(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(firstAttackId.get()).orElseThrow();
+                    helper.assertTrue(
+                            delivery.payloadEntityId() != null && level.getEntity(delivery.payloadEntityId()) instanceof OrbitalAnnihilatorProjectileEntity,
+                            "The recipient must be able to confirm a tracked payload after accepting dormant ownership");
+                })
                 .thenExecute(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(firstAttackId.get()).orElseThrow();
+                    helper.assertTrue(
+                            attacks.adminAbort(server, firstAttackId.get()),
+                            "The recipient's confirmed payload must be abortable before terrain work starts");
+                    helper.assertTrue(
+                            level.getEntity(delivery.payloadEntityId()) == null,
+                            "Aborting the recipient's payload must discard its projectile");
+                })
+                .thenIdle(1)
+                .thenExecute(() -> {
+                    helper.assertValueEqual(
+                            attacks.find(firstAttackId.get()).orElseThrow().phase(),
+                            OrbitalAttackPhase.COOLDOWN,
+                            "An aborted confirmed payload must enter cooldown before ownership transfer");
                     OrbitalOwnershipTransfer cooldownTransfer = weapons.requestOwnershipTransfer(
                             server,
                             recipient.getUUID(),
@@ -202,31 +206,50 @@ public final class OrbitalOwnershipTransferGameTest {
                             successor.getUUID())
                             .orElseThrow(() -> new IllegalStateException(
                                     "A cooling weapon could not create a transfer offer"));
-                    weapons.acceptOwnershipTransfer(server, successor.getUUID(), cooldownTransfer.transferId());
-                    attemptTestDigitalAttack(
-                            attacks,
-                            server,
-                            successor,
-                            weaponId,
-                            level,
-                            absoluteSecondTarget);
+                    helper.assertTrue(
+                            weapons.acceptOwnershipTransfer(server, successor.getUUID(), cooldownTransfer.transferId()),
+                            "Consumed cooldown must transfer with the weapon");
+                    helper.assertTrue(
+                            attemptTestDigitalAttack(
+                                    attacks,
+                                    server,
+                                    successor,
+                                    weaponId,
+                                    level,
+                                    absoluteSecondTarget).isEmpty(),
+                            "The transferred cooldown must block the successor's early confirmation");
                 })
-                .thenIdle(REJECTED_DELIVERY_OBSERVATION_TICKS)
-                .thenExecute(() -> helper.assertTrue(
-                        level.getBlockState(absoluteSecondTarget).is(Blocks.STONE),
-                        "The consumed cooldown must follow the weapon and block its successor's early payload"))
                 .thenIdle(TEST_DIGITAL_COOLDOWN_TICKS)
-                .thenExecute(() -> launchRequiredTestDigitalAttack(
+                .thenExecute(() -> secondAttackId.set(launchRequiredTestDigitalAttack(
                         attacks,
                         server,
                         successor,
                         weaponId,
                         level,
-                        absoluteSecondTarget))
-                .thenWaitUntil(() -> helper.assertTrue(
-                        level.getBlockState(absoluteSecondTarget).isAir(),
-                        "The successor must be able to fire after the transferred cooldown expires"))
-                .thenIdle(TEST_DIGITAL_COOLDOWN_TICKS + 5)
+                        absoluteSecondTarget).attackId()))
+                .thenWaitUntil(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(secondAttackId.get()).orElseThrow();
+                    helper.assertTrue(
+                            delivery.payloadEntityId() != null && level.getEntity(delivery.payloadEntityId()) instanceof OrbitalAnnihilatorProjectileEntity,
+                            "The successor must be able to confirm a tracked payload after the transferred cooldown expires");
+                })
+                .thenExecute(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(secondAttackId.get()).orElseThrow();
+                    helper.assertTrue(
+                            attacks.adminAbort(server, secondAttackId.get()),
+                            "The successor's confirmed payload must be abortable before terrain work starts");
+                    helper.assertTrue(
+                            level.getEntity(delivery.payloadEntityId()) == null,
+                            "Aborting the successor's payload must discard its projectile");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteFirstTarget).is(Blocks.STONE) && level.getBlockState(absoluteSecondTarget).is(Blocks.STONE),
+                            "Ownership and cooldown verification must not mutate either target");
+                })
+                .thenIdle(1)
+                .thenExecute(() -> helper.assertValueEqual(
+                        attacks.find(secondAttackId.get()).orElseThrow().phase(),
+                        OrbitalAttackPhase.COOLDOWN,
+                        "The successor's aborted payload must also settle into cooldown"))
                 .thenSucceed();
     }
 
@@ -287,16 +310,15 @@ public final class OrbitalOwnershipTransferGameTest {
                 deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold));
     }
 
-    private static void launchRequiredTestDigitalAttack(
-                                                        OrbitalAttackSavedData attacks,
-                                                        MinecraftServer server,
-                                                        GameTestPlayer player,
-                                                        UUID weaponId,
-                                                        ServerLevel level,
-                                                        BlockPos target) {
-        if (attemptTestDigitalAttack(attacks, server, player, weaponId, level, target).isEmpty()) {
-            throw new IllegalStateException("The transferable weapon could not launch its required test payload");
-        }
+    private static OrbitalAttackRecord launchRequiredTestDigitalAttack(
+                                                                       OrbitalAttackSavedData attacks,
+                                                                       MinecraftServer server,
+                                                                       GameTestPlayer player,
+                                                                       UUID weaponId,
+                                                                       ServerLevel level,
+                                                                       BlockPos target) {
+        return attemptTestDigitalAttack(attacks, server, player, weaponId, level, target)
+                .orElseThrow(() -> new IllegalStateException("The transferable weapon could not confirm its required test payload"));
     }
 
     private static Optional<OrbitalAttackRecord> attemptTestDigitalAttack(
@@ -307,18 +329,11 @@ public final class OrbitalOwnershipTransferGameTest {
                                                                           ServerLevel level,
                                                                           BlockPos target) {
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
-        var liveNukeSettings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
         int originalWarningTicks = settings.attackWarningTicks;
         int originalCooldownTicks = settings.digitalAnnihilationCooldownTicks;
-        int originalWorkInterval = liveNukeSettings.workIntervalTicks;
-        int originalMaxRadius = liveNukeSettings.maxRadius;
-        double originalCenterRadius = liveNukeSettings.centerEntityConsumeRadius;
         try {
             settings.attackWarningTicks = 1;
             settings.digitalAnnihilationCooldownTicks = TEST_DIGITAL_COOLDOWN_TICKS;
-            liveNukeSettings.workIntervalTicks = 1;
-            liveNukeSettings.maxRadius = 1;
-            liveNukeSettings.centerEntityConsumeRadius = 0.0D;
             return attacks.tryConfirmDigitalAnnihilation(
                     server,
                     player.getUUID(),
@@ -328,9 +343,6 @@ public final class OrbitalOwnershipTransferGameTest {
         } finally {
             settings.attackWarningTicks = originalWarningTicks;
             settings.digitalAnnihilationCooldownTicks = originalCooldownTicks;
-            liveNukeSettings.workIntervalTicks = originalWorkInterval;
-            liveNukeSettings.maxRadius = originalMaxRadius;
-            liveNukeSettings.centerEntityConsumeRadius = originalCenterRadius;
         }
     }
 

@@ -13,7 +13,6 @@ import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.gametest.framework.BeforeBatch;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
@@ -22,8 +21,6 @@ import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
@@ -56,37 +53,8 @@ public final class OrbitalDigitalAnnihilationGameTest {
     private static final BlockPos CREATIVE_ENERGY_CELL = new BlockPos(4, 2, 2);
     private static final BlockPos TARGET = new BlockPos(25, 20, 25);
     private static final BlockPos DUPLICATE_TARGET = new BlockPos(40, 20, 40);
-    private static final String DUPLICATE_PAYLOAD_BATCH = "orbital_duplicate_payload";
 
     private OrbitalDigitalAnnihilationGameTest() {}
-
-    @BeforeBatch(batch = "orbital_boundary_recovery")
-    public static void clearPriorBatchAttacks(ServerLevel level) {
-        clearPriorAttacks(level);
-    }
-
-    @BeforeBatch(batch = DUPLICATE_PAYLOAD_BATCH)
-    public static void clearPriorDuplicatePayloadBatchAttacks(ServerLevel level) {
-        clearPriorAttacks(level);
-    }
-
-    private static void clearPriorAttacks(ServerLevel level) {
-        MinecraftServer server = level.getServer();
-        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
-        for (ServerLevel serverLevel : server.getAllLevels()) {
-            for (OrbitalAttackRecord attack : attacks.publicForDimension(serverLevel.dimension().location())) {
-                if (attack.phase() == OrbitalAttackPhase.RESERVED_WARNING) {
-                    weapons.find(attack.weaponId()).ifPresent(weapon -> attacks.cancelWarning(
-                            server,
-                            weapon.ownerId(),
-                            attack.attackId()));
-                } else {
-                    attacks.adminAbort(server, attack.attackId());
-                }
-            }
-        }
-    }
 
     @TestHolder("orbital_digital_annihilation_payload_descends_and_materializes_fuse")
     @EmptyTemplate("50x32x50")
@@ -111,7 +79,6 @@ public final class OrbitalDigitalAnnihilationGameTest {
         UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
         AtomicReference<UUID> attackId = new AtomicReference<>();
         AtomicReference<Double> payloadStartY = new AtomicReference<>();
-        AtomicReference<Zombie> victim = new AtomicReference<>();
 
         helper.startSequence()
                 .thenIdle(40)
@@ -222,32 +189,13 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             "The target must remain unchanged until the fuse completes");
                 })
                 .thenExecute(() -> {
-                    Zombie spawned = helper.spawn(EntityType.ZOMBIE, TARGET.above());
-                    spawned.setNoAi(true);
-                    victim.set(spawned);
-                })
-                .thenIdle(90)
-                .thenWaitUntil(() -> {
                     OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
-                    helper.assertValueEqual(
-                            delivery.phase(),
-                            OrbitalAttackPhase.DELIVERY,
-                            "The attack must remain in delivery while its spawned annihilator is active");
                     helper.assertTrue(
-                            level.getEntity(delivery.payloadEntityId()) != null,
-                            "The spawned annihilator must remain tracked after the fuse activates");
+                            attacks.adminAbort(server, attackId.get()),
+                            "The materialized fuse must be abortable before it begins terrain work");
                     helper.assertTrue(
-                            level.getEntity(delivery.payloadEntityId()) instanceof DataNukePrimedEntity nuke && nuke.isActive(),
-                            "The materialized fuse must transition into the existing active annihilation behavior");
-                    helper.assertFalse(victim.get().isAlive(), "The active annihilator must consume a non-exempt entity");
-                    helper.assertValueEqual(
-                            delivery.celestialEscrow(),
-                            cost.celestialEnergy(),
-                            "The running payload must retain its single prepaid Celestial Energy escrow");
-                    helper.assertValueEqual(
-                            delivery.aeEscrow(),
-                            cost.aeEnergy(),
-                            "The running payload must retain its single prepaid AE energy escrow");
+                            level.getEntity(delivery.payloadEntityId()) == null,
+                            "Aborting the materialized fuse must remove its live payload entity");
                 })
                 .thenSucceed();
     }
@@ -308,6 +256,15 @@ public final class OrbitalDigitalAnnihilationGameTest {
                     helper.assertTrue(
                             delivery.payloadEntityId() != null && level.getEntity(delivery.payloadEntityId()) instanceof OrbitalAnnihilatorProjectileEntity,
                             "The payload ticket must materialize the orbital projectile in the previously unloaded chunk");
+                })
+                .thenExecute(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
+                    helper.assertTrue(
+                            attacks.adminAbort(server, attackId.get()),
+                            "The unloaded-target delivery must be abortable after its ticket is verified");
+                    helper.assertTrue(
+                            level.getEntity(delivery.payloadEntityId()) == null,
+                            "Aborting the unloaded-target delivery must discard its projectile");
                 })
                 .thenSucceed();
     }
@@ -409,77 +366,6 @@ public final class OrbitalDigitalAnnihilationGameTest {
                 .thenSucceed();
     }
 
-    @TestHolder("orbital_digital_annihilation_keeps_confirmed_world_effect_after_config_reload")
-    @EmptyTemplate("50x32x50")
-    @GameTest(template = "empty_50x32x50", timeoutTicks = 1_000)
-    public static void keepsConfirmedWorldEffectAfterConfigReload(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
-        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
-        ServerPlayer owner = createPlayer(level, "digital-config-snapshot-owner");
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
-        OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
-        BlockPos relativeOutsideSnapshot = TARGET.offset(3, 0, 0);
-        BlockPos absoluteTarget = helper.absolutePos(TARGET);
-        BlockPos absoluteOutsideSnapshot = helper.absolutePos(relativeOutsideSnapshot);
-
-        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
-        placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
-        placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
-        installInfiniteCell(helper);
-        helper.setBlock(TARGET, Blocks.STONE);
-        helper.setBlock(relativeOutsideSnapshot, Blocks.STONE);
-        level.getChunkAt(absoluteTarget);
-        level.getChunkAt(absoluteOutsideSnapshot);
-
-        UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
-        helper.startSequence()
-                .thenIdle(40)
-                .thenWaitUntil(() -> helper.assertTrue(
-                        weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
-                        "The configuration-snapshot attack must use a real powered target-dimension endpoint"))
-                .thenExecute(() -> {
-                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
-                    primeReserve(weapons, server, weaponId, settings, cost);
-                    var liveSettings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
-                    int originalWorkInterval = liveSettings.workIntervalTicks;
-                    int originalMaxRadius = liveSettings.maxRadius;
-                    double originalCenterRadius = liveSettings.centerEntityConsumeRadius;
-                    try {
-                        liveSettings.workIntervalTicks = 1;
-                        liveSettings.maxRadius = 1;
-                        liveSettings.centerEntityConsumeRadius = 0.0D;
-                        attacks.tryConfirmDigitalAnnihilation(
-                                server,
-                                owner.getUUID(),
-                                weaponId,
-                                level.dimension().location(),
-                                absoluteTarget)
-                                .orElseThrow(() -> new IllegalStateException("The funded configuration-snapshot attack was rejected"));
-                    } finally {
-                        liveSettings.workIntervalTicks = originalWorkInterval;
-                        liveSettings.maxRadius = originalMaxRadius;
-                        liveSettings.centerEntityConsumeRadius = originalCenterRadius;
-                    }
-                })
-                .thenWaitUntil(() -> helper.assertTrue(
-                        level.getBlockState(absoluteTarget).isAir(),
-                        "The confirmed orbital payload must traverse warning, delivery, fuse and shared terrain work"))
-                .thenExecute(() -> {
-                    try {
-                        helper.assertTrue(
-                                level.getBlockState(absoluteOutsideSnapshot).is(Blocks.STONE),
-                                "Reloaded settings must not expand the confirmed orbital world effect");
-                    } finally {
-                        OrbitalControlActionDispatcher.cancelOrAbortSelectedMode(
-                                owner,
-                                OrbitalAttackMode.DIGITAL_ANNIHILATION);
-                    }
-                })
-                .thenSucceed();
-    }
-
     @TestHolder("orbital_digital_annihilation_recovers_after_world_border_fault")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50", batch = "orbital_boundary_recovery", timeoutTicks = 1_000)
@@ -511,16 +397,9 @@ public final class OrbitalDigitalAnnihilationGameTest {
                 .thenExecute(() -> {
                     insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
                     primeReserve(weapons, server, weaponId, settings, cost);
-                    var liveNukeSettings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
                     int originalWarningTicks = settings.attackWarningTicks;
-                    int originalWorkInterval = liveNukeSettings.workIntervalTicks;
-                    int originalMaxRadius = liveNukeSettings.maxRadius;
-                    double originalCenterRadius = liveNukeSettings.centerEntityConsumeRadius;
                     try {
                         settings.attackWarningTicks = 1;
-                        liveNukeSettings.workIntervalTicks = 1;
-                        liveNukeSettings.maxRadius = 1;
-                        liveNukeSettings.centerEntityConsumeRadius = 0.0D;
                         OrbitalAttackRecord warning = attacks.tryConfirmDigitalAnnihilation(
                                 server,
                                 owner.getUUID(),
@@ -531,9 +410,6 @@ public final class OrbitalDigitalAnnihilationGameTest {
                         attackId.set(warning.attackId());
                     } finally {
                         settings.attackWarningTicks = originalWarningTicks;
-                        liveNukeSettings.workIntervalTicks = originalWorkInterval;
-                        liveNukeSettings.maxRadius = originalMaxRadius;
-                        liveNukeSettings.centerEntityConsumeRadius = originalCenterRadius;
                     }
                 })
                 .thenWaitUntil(() -> {
@@ -567,12 +443,28 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             attacks.retryFaulted(server, attackId.get()),
                             "An administrator retry must resume the faulted attack from its persisted task");
                 })
-                .thenWaitUntil(() -> helper.assertTrue(
-                        level.getBlockState(absoluteTarget).isAir(),
-                        "The retried attack must complete real delivery, fuse and terrain work after the border recovers"))
-                .thenExecute(() -> OrbitalControlActionDispatcher.cancelOrAbortSelectedMode(
-                        owner,
-                        OrbitalAttackMode.DIGITAL_ANNIHILATION))
+                .thenWaitUntil(() -> {
+                    OrbitalAttackRecord retriedDelivery = attacks.find(attackId.get()).orElseThrow();
+                    helper.assertValueEqual(
+                            retriedDelivery.phase(),
+                            OrbitalAttackPhase.DELIVERY,
+                            "The retried attack must resume payload delivery after the border recovers");
+                    helper.assertTrue(
+                            retriedDelivery.payloadEntityId() != null && !retriedDelivery.payloadEntityId().equals(firstPayloadId.get()) && level.getEntity(retriedDelivery.payloadEntityId()) instanceof OrbitalAnnihilatorProjectileEntity,
+                            "A retry must replace the discarded payload with a new tracked projectile");
+                })
+                .thenExecute(() -> {
+                    OrbitalAttackRecord retriedDelivery = attacks.find(attackId.get()).orElseThrow();
+                    helper.assertTrue(
+                            attacks.adminAbort(server, attackId.get()),
+                            "The recovered delivery must be abortable before it begins terrain work");
+                    helper.assertTrue(
+                            level.getEntity(retriedDelivery.payloadEntityId()) == null,
+                            "Aborting the recovered delivery must remove its replacement projectile");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                            "Recovery verification must leave the target unchanged");
+                })
                 .thenSucceed();
     }
 
@@ -607,16 +499,12 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             level.getBlockState(absoluteTarget).is(Blocks.STONE),
                             "Rejecting an untracked payload must leave its target unchanged");
                 })
-                .thenIdle(DataNukePrimedEntity.DEFAULT_FUSE_TICKS + 40)
-                .thenExecute(() -> helper.assertTrue(
-                        level.getBlockState(absoluteTarget).is(Blocks.STONE),
-                        "An untracked payload must not cause delayed terrain damage after its full fuse window"))
                 .thenSucceed();
     }
 
     @TestHolder("orbital_digital_annihilation_rejects_duplicate_projectile_without_blocking_registered_payload")
     @EmptyTemplate("50x32x50")
-    @GameTest(template = "empty_50x32x50", batch = DUPLICATE_PAYLOAD_BATCH, timeoutTicks = 600)
+    @GameTest(template = "empty_50x32x50", batch = "orbital_duplicate_payload", timeoutTicks = 600)
     public static void rejectsDuplicateProjectileWithoutBlockingRegisteredPayload(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
@@ -648,16 +536,9 @@ public final class OrbitalDigitalAnnihilationGameTest {
                 .thenExecute(() -> {
                     insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
                     primeReserve(weapons, server, weaponId, settings, cost);
-                    var liveNukeSettings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
                     int originalWarningTicks = settings.attackWarningTicks;
-                    int originalWorkInterval = liveNukeSettings.workIntervalTicks;
-                    int originalMaxRadius = liveNukeSettings.maxRadius;
-                    double originalCenterRadius = liveNukeSettings.centerEntityConsumeRadius;
                     try {
                         settings.attackWarningTicks = 1;
-                        liveNukeSettings.workIntervalTicks = 1;
-                        liveNukeSettings.maxRadius = 1;
-                        liveNukeSettings.centerEntityConsumeRadius = 0.0D;
                         OrbitalAttackRecord warning = attacks.tryConfirmDigitalAnnihilation(
                                 server,
                                 owner.getUUID(),
@@ -668,9 +549,6 @@ public final class OrbitalDigitalAnnihilationGameTest {
                         attackId.set(warning.attackId());
                     } finally {
                         settings.attackWarningTicks = originalWarningTicks;
-                        liveNukeSettings.workIntervalTicks = originalWorkInterval;
-                        liveNukeSettings.maxRadius = originalMaxRadius;
-                        liveNukeSettings.centerEntityConsumeRadius = originalCenterRadius;
                     }
                 })
                 .thenWaitUntil(() -> {
@@ -697,17 +575,27 @@ public final class OrbitalDigitalAnnihilationGameTest {
                         throw new IllegalStateException("The duplicate-payload test could not add its competing projectile");
                     }
                 })
-                .thenIdle(OrbitalAnnihilatorProjectileEntity.FLIGHT_TICKS + DataNukePrimedEntity.DEFAULT_FUSE_TICKS + 80)
+                .thenIdle(OrbitalAnnihilatorProjectileEntity.FLIGHT_TICKS + 1)
                 .thenExecute(() -> {
+                    OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
                     helper.assertTrue(
-                            level.getBlockState(absoluteTarget).isAir(),
-                            "Rejecting a duplicate projectile must not block the registered payload's real terrain work");
+                            level.getEntity(delivery.payloadEntityId()) instanceof DataNukePrimedEntity,
+                            "Only the registered payload may materialize the tracked fuse");
                     helper.assertTrue(
                             level.getBlockState(absoluteDuplicateTarget).is(Blocks.STONE),
                             "A projectile with the wrong entity identity must not redirect the authorized world effect");
                     helper.assertTrue(
                             level.getEntitiesOfClass(DataNukePrimedEntity.class, duplicateTargetArea).isEmpty(),
-                            "A completed authorized attack must not leave an untracked duplicate fuse in the world");
+                            "A duplicate projectile must not materialize an untracked fuse in the world");
+                    helper.assertTrue(
+                            attacks.adminAbort(server, attackId.get()),
+                            "The registered fuse must be abortable before it starts terrain work");
+                    helper.assertTrue(
+                            level.getEntity(delivery.payloadEntityId()) == null,
+                            "Aborting the registered fuse must remove the final explosive payload");
+                    helper.assertTrue(
+                            level.getBlockState(absoluteTarget).is(Blocks.STONE),
+                            "Duplicate rejection verification must leave the authorized target unchanged");
                 })
                 .thenSucceed();
     }

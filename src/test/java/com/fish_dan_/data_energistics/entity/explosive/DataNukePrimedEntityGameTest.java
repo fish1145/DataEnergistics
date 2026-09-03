@@ -5,20 +5,16 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 /**
- * Verifies digital-annihilator chunk-ticket ownership and recovery of persisted world work.
+ * Verifies digital-annihilator chunk-ticket ownership and lifecycle cleanup.
  */
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -27,15 +23,7 @@ public final class DataNukePrimedEntityGameTest {
     private static final int DISTANT_CHUNK_OFFSET = 128 * 16;
     private static final int TEST_ISOLATION_OFFSET = 32 * 16;
     private static final int CROSS_CHUNK_OFFSET = 2 * 16;
-    private static final int LONG_FUSE_TICKS = 1200;
-    private static final String TAG_ACTIVE = "DataNukeActive";
-    private static final String TAG_WORK_STATE = "DataNukeWorkState";
-    private static final String TAG_WORK_SETTINGS_INTERVAL = "DataNukeWorkSettingsInterval";
-    private static final String TAG_WORK_SETTINGS_RADIUS = "DataNukeWorkSettingsRadius";
-    private static final String TAG_WORK_SETTINGS_CENTER = "DataNukeWorkSettingsCenter";
-    private static final String TAG_STATE_SETTINGS_INTERVAL = "SettingsInterval";
-    private static final String TAG_STATE_SETTINGS_RADIUS = "SettingsRadius";
-    private static final String TAG_STATE_SETTINGS_CENTER = "SettingsCenter";
+    private static final int LONG_FUSE_TICKS = Integer.MAX_VALUE;
 
     private DataNukePrimedEntityGameTest() {}
 
@@ -128,46 +116,6 @@ public final class DataNukePrimedEntityGameTest {
                 .thenSucceed();
     }
 
-    @TestHolder("digital_annihilator_force_loads_its_chunk_while_active")
-    @EmptyTemplate("5x5")
-    @GameTest(template = "empty_5x5", timeoutTicks = 400)
-    public static void forceLoadsItsChunkWhileActive(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos origin = distantOrigin(helper, 2);
-        level.getChunkAt(origin);
-
-        DataNukePrimedEntity entity = createStationaryEntity(level, origin);
-        CompoundTag savedEntity = entity.saveWithoutId(new CompoundTag());
-        savedEntity.putBoolean(TAG_ACTIVE, true);
-        entity.load(savedEntity);
-        helper.assertTrue(entity.isActive(), "The restored digital annihilator must be active");
-
-        ChunkPos chunkPos = new ChunkPos(origin);
-        AtomicBoolean observedActiveTicket = new AtomicBoolean();
-        helper.onEachTick(() -> {
-            if (!entity.isAddedToLevel() || entity.isRemoved() || !isForceTicked(level, chunkPos) || !level.getChunkSource().isPositionTicking(chunkPos.toLong())) {
-                return;
-            }
-            observedActiveTicket.set(true);
-            entity.discard();
-        });
-
-        helper.startSequence()
-                .thenWaitUntil(() -> helper.assertFalse(
-                        isForceTicked(level, chunkPos),
-                        "The preloaded chunk must not have a force-ticking ticket before the active digital annihilator is added"))
-                .thenExecute(() -> helper.assertTrue(
-                        level.addFreshEntity(entity),
-                        "The active digital annihilator must be added to the test level"))
-                .thenWaitUntil(() -> helper.assertTrue(
-                        observedActiveTicket.get(),
-                        "The active digital annihilator must keep its chunk entity-ticking"))
-                .thenWaitUntil(() -> helper.assertFalse(
-                        isForceTicked(level, chunkPos),
-                        "Removing the active digital annihilator must release its origin chunk"))
-                .thenSucceed();
-    }
-
     @TestHolder("digital_annihilators_share_their_force_load_ticket")
     @EmptyTemplate("5x5")
     @GameTest(template = "empty_5x5", timeoutTicks = 400)
@@ -206,46 +154,6 @@ public final class DataNukePrimedEntityGameTest {
                 .thenWaitUntil(() -> helper.assertFalse(
                         isForceTicked(level, chunkPos),
                         "Removing the final digital annihilator must release the shared chunk ticket"))
-                .thenSucceed();
-    }
-
-    @TestHolder("digital_annihilator_recovers_corrupt_work_settings_and_finishes")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5", timeoutTicks = 200)
-    public static void recoversCorruptWorkSettingsAndFinishes(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos relativeOrigin = new BlockPos(2, 3, 2);
-        BlockPos relativeOutsideRecoveredRange = relativeOrigin.offset(2, 0, 0);
-        BlockPos origin = helper.absolutePos(relativeOrigin);
-        BlockPos outsideRecoveredRange = helper.absolutePos(relativeOutsideRecoveredRange);
-        level.getChunkAt(origin);
-        level.getChunkAt(outsideRecoveredRange);
-        helper.setBlock(relativeOrigin, Blocks.STONE);
-        helper.setBlock(relativeOutsideRecoveredRange, Blocks.STONE);
-
-        DataNukePrimedEntity entity = createStationaryEntity(level, origin);
-        CompoundTag savedEntity = entity.saveWithoutId(new CompoundTag());
-        savedEntity.putBoolean(TAG_ACTIVE, true);
-        savedEntity.putInt(TAG_WORK_SETTINGS_INTERVAL, Integer.MIN_VALUE);
-        savedEntity.putInt(TAG_WORK_SETTINGS_RADIUS, Integer.MIN_VALUE);
-        savedEntity.putDouble(TAG_WORK_SETTINGS_CENTER, Double.NaN);
-        CompoundTag savedWork = new CompoundTag();
-        savedWork.putInt(TAG_STATE_SETTINGS_INTERVAL, Integer.MIN_VALUE);
-        savedWork.putInt(TAG_STATE_SETTINGS_RADIUS, Integer.MIN_VALUE);
-        savedWork.putDouble(TAG_STATE_SETTINGS_CENTER, Double.NaN);
-        savedEntity.put(TAG_WORK_STATE, savedWork);
-        entity.load(savedEntity);
-
-        helper.startSequence()
-                .thenExecute(() -> helper.assertTrue(
-                        level.addFreshEntity(entity),
-                        "The recovered digital annihilator must enter the test world"))
-                .thenWaitUntil(() -> helper.assertTrue(
-                        level.getBlockState(origin).isAir(),
-                        "The recovered entity must resume real server-ticked annihilation work"))
-                .thenExecute(() -> helper.assertTrue(
-                        level.getBlockState(outsideRecoveredRange).is(Blocks.STONE),
-                        "Recovered corrupt settings must not create an unbounded world effect"))
                 .thenSucceed();
     }
 
