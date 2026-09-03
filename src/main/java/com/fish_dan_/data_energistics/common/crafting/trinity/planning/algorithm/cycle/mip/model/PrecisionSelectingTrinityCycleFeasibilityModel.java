@@ -69,6 +69,22 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                                                                              TrinityPlanningMode mode,
                                                                              TrinityPlanningControl control) {
             if (request.shortageDiagnostic()) return solveShortage(request, control);
+            if (control.cancellationRequested()) {
+                return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                        TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                        Component.translatable("gui.data_energistics.trinity_planning.diagnostic.cancelled"),
+                        Map.of()));
+            }
+            if (control.deadlineExceeded()) {
+                return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                        TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
+                        Component.translatable("gui.data_energistics.trinity_planning.mip.timeout"),
+                        Map.of("phase", "settled_seed")));
+            }
+            TrinityPlanningDiagnostic settledSeedFailure = settledSeedFailure(request);
+            if (settledSeedFailure != null) {
+                return TrinityAlgorithmResult.failure(settledSeedFailure);
+            }
             if (requiresRadix(request)) {
                 if (mode == TrinityPlanningMode.FIRST_FEASIBLE) {
                     TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> bounded = solveBoundedOrdinary(
@@ -97,7 +113,7 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
             ShortageAccounting accounting = new ShortageAccounting(request.shortageStateLimit());
             BigInteger firingUpper = OBJECTIVE_BOUNDS.compactFiringUpper(request);
             for (int domain = 0; domain < MAX_BOUNDED_ORDINARY_DOMAINS; domain++) {
-                if (accounting.remaining() == 0) return accounting.stopped("shortage_state_limit");
+                if (accounting.remaining() == 0) return accounting.stopped();
                 TrinityCycleFeasibilityRequest bounded = request.withOpenFiringUpper(firingUpper)
                         .forShortageDiagnosis(accounting.remaining());
                 if (requiresRadix(bounded)) break;
@@ -116,7 +132,7 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                 }
                 firingUpper = firingUpper.shiftLeft(1);
             }
-            if (accounting.remaining() == 0) return accounting.stopped("shortage_state_limit");
+            if (accounting.remaining() == 0) return accounting.stopped();
             TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solved = radix.solveShortage(
                     request.forShortageDiagnosis(accounting.remaining()), control, firingUpper);
             accounting.include(solved);
@@ -161,6 +177,34 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                             "phase", "bounded_ordinary_expansion",
                             "states", Integer.toString(MAX_BOUNDED_ORDINARY_DOMAINS))));
         }
+    }
+
+    /**
+     * A non-exported internal key must have zero net change when another internal key is exported. Its final
+     * reserve therefore cannot exceed real stock unless a predecessor may supply it. This contradiction holds
+     * for every firing domain; virtual diagnostic reserves deliberately bypass this executable-only check.
+     */
+    private static @Nullable TrinityPlanningDiagnostic settledSeedFailure(TrinityCycleFeasibilityRequest request) {
+        Set<AEKey> exportedKeys = request.demand().requiredNetChangeLowerBounds().keySet();
+        if (request.internalKeys().stream().noneMatch(exportedKeys::contains)) {
+            return null;
+        }
+        for (Map.Entry<AEKey, BigInteger> bound : request.demand().finalBalanceLowerBounds().entrySet()) {
+            AEKey key = bound.getKey();
+            if (!request.internalKeys().contains(key) || exportedKeys.contains(key) ||
+                    request.producibleInputs().contains(key)) {
+                continue;
+            }
+            BigInteger available = request.available().getOrDefault(key, BigInteger.ZERO);
+            if (bound.getValue().compareTo(available) > 0) {
+                return new TrinityPlanningDiagnostic(
+                        TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION,
+                        Component.translatable("gui.data_energistics.trinity_planning.diagnostic.no_integer_solution"),
+                        Map.of("constraint", "settled_seed", "key", key.toString(),
+                                "required", bound.getValue().toString(), "available", available.toString()));
+            }
+        }
+        return null;
     }
 
     private static boolean requiresRadix(TrinityCycleFeasibilityRequest request) {
@@ -208,11 +252,8 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
         BigInteger externalObjectiveEnvelope = externalKeys.stream()
                 .map(key -> OBJECTIVE_BOUNDS.reserveUpperBound(request, key, logicalUpper))
                 .reduce(BigInteger.ZERO, BigInteger::add);
-        if (exceedsWindow(firingObjectiveEnvelope) || exceedsWindow(seedObjectiveEnvelope) ||
-                exceedsWindow(externalObjectiveEnvelope)) {
-            return true;
-        }
-        return false;
+        return exceedsWindow(firingObjectiveEnvelope) || exceedsWindow(seedObjectiveEnvelope) ||
+                exceedsWindow(externalObjectiveEnvelope);
     }
 
     /**
@@ -277,11 +318,11 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                     diagnostic.code(), diagnostic.message(), metadata, diagnostic.detail()));
         }
 
-        private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> stopped(String phase) {
+        private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> stopped() {
             return finish(TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
                     Component.translatable("gui.data_energistics.trinity_planning.mip.schedule_search_limit"),
-                    Map.of("phase", phase))));
+                    Map.of("phase", "shortage_state_limit"))));
         }
     }
 
