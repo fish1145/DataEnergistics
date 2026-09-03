@@ -19,6 +19,7 @@ import appeng.client.gui.Icon;
 import appeng.recipes.handlers.InscriberProcessType;
 import appeng.recipes.handlers.InscriberRecipe;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
+import mezz.jei.api.gui.builder.ITooltipBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.drawable.IDrawableAnimated;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
@@ -50,8 +51,8 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
     private static final int FLUID_Y = 7;
     private static final int OUTPUT_X = 111;
     private static final int OUTPUT_Y = 6;
-    private static final int MODE_ICON_X = OUTPUT_X - 18;
-    private static final int MODE_ICON_Y = OUTPUT_Y + 18;
+    private static final int MODE_ICON_X = OUTPUT_X - 22;
+    private static final int MODE_ICON_Y = OUTPUT_Y + 28;
     private static final int PROGRESS_X = 151;
     private static final int FIRST_INPUT_Y = 6;
     private static final int SECOND_INPUT_Y = 24;
@@ -97,6 +98,17 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         this.background.draw(guiGraphics);
         this.progress.draw(guiGraphics, PROGRESS_X, PROGRESS_Y);
         getModeIcon(recipe).draw(guiGraphics, MODE_ICON_X, MODE_ICON_Y);
+    }
+
+    @Override
+    public void getTooltip(ITooltipBuilder tooltip, DataChargePressRecipeView recipe,
+                           IRecipeSlotsView recipeSlotsView, double mouseX, double mouseY) {
+        if (mouseX >= MODE_ICON_X && mouseX < MODE_ICON_X + 16 &&
+                mouseY >= MODE_ICON_Y && mouseY < MODE_ICON_Y + 16) {
+            tooltip.add(Component.translatable("button.data_energistics.data_integrated_charger.machine_mode"));
+            tooltip.add(Component.translatable("button.data_energistics.data_integrated_charger.machine_mode." +
+                    getModeTranslationKey(recipe)));
+        }
     }
 
     @Override
@@ -214,6 +226,20 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
             return this.inscriberModeIcon;
         }
         return this.chargerModeIcon;
+    }
+
+    private static String getModeTranslationKey(DataChargePressRecipeView recipe) {
+        if (recipe instanceof DataChargePressRecipeView.PowderView) {
+            return "powder";
+        }
+        if (recipe instanceof DataChargePressRecipeView.CustomView) {
+            return "crystal_growth";
+        }
+        if (recipe instanceof DataChargePressRecipeView.InscriberView ||
+                recipe instanceof DataChargePressRecipeView.CircuitBoardView) {
+            return "inscriber";
+        }
+        return "charger";
     }
 
 }

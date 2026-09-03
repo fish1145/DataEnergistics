@@ -52,8 +52,8 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private static final int FLUID_Y = 7;
     private static final int OUTPUT_X = 111;
     private static final int OUTPUT_Y = 6;
-    private static final int MODE_ICON_X = OUTPUT_X - 18;
-    private static final int MODE_ICON_Y = OUTPUT_Y + 18;
+    private static final int MODE_ICON_X = OUTPUT_X - 22;
+    private static final int MODE_ICON_Y = OUTPUT_Y + 28;
     private static final int PROGRESS_X = 151;
     private static final int FIRST_INPUT_Y = 6;
     private static final int SECOND_INPUT_Y = 24;
@@ -261,23 +261,33 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         widgets.addTexture(indicator.texture(), MODE_ICON_X, MODE_ICON_Y, 16, 16,
                 indicator.sourceX(), indicator.sourceY(), 16, 16,
                 indicator.textureSize(), indicator.textureSize());
+        widgets.addTooltipText(
+                List.of(
+                        Component.translatable("button.data_energistics.data_integrated_charger.machine_mode"),
+                        Component.translatable("button.data_energistics.data_integrated_charger.machine_mode." +
+                                indicator.translationKey())),
+                MODE_ICON_X,
+                MODE_ICON_Y,
+                16,
+                16);
     }
 
     private static ModeIndicator getModeIndicator(DataChargePressRecipeView view) {
         if (view instanceof DataChargePressRecipeView.PowderView) {
-            return new ModeIndicator(STATES_TEXTURE, 16, 224, 256);
+            return new ModeIndicator(STATES_TEXTURE, 16, 224, 256, "powder");
         }
         if (view instanceof DataChargePressRecipeView.CustomView) {
-            return new ModeIndicator(DATA_STATES_TEXTURE, 80, 80, 128);
+            return new ModeIndicator(DATA_STATES_TEXTURE, 80, 80, 128, "crystal_growth");
         }
         if (view instanceof DataChargePressRecipeView.InscriberView ||
                 view instanceof DataChargePressRecipeView.CircuitBoardView) {
-            return new ModeIndicator(DATA_STATES_TEXTURE, 96, 80, 128);
+            return new ModeIndicator(DATA_STATES_TEXTURE, 96, 80, 128, "inscriber");
         }
-        return new ModeIndicator(DATA_STATES_TEXTURE, 112, 80, 128);
+        return new ModeIndicator(DATA_STATES_TEXTURE, 112, 80, 128, "charger");
     }
 
-    private record ModeIndicator(ResourceLocation texture, int sourceX, int sourceY, int textureSize) {}
+    private record ModeIndicator(ResourceLocation texture, int sourceX, int sourceY, int textureSize,
+                                 String translationKey) {}
 
     private static final class FluidAmountTankWidget extends TankWidget {
 
