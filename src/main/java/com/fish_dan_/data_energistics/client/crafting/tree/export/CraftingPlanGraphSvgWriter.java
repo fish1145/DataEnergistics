@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Layout;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Point;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteCrossing;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Run;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Segment;
@@ -23,14 +24,17 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
 
 import java.io.IOException;
 import java.io.Writer;
 import java.math.BigInteger;
+import java.util.Comparator;
 import java.util.List;
 
 /** Snapshots client font measurements once; all geometry and XML streaming thereafter run on the IO worker. */
@@ -111,12 +115,27 @@ final class CraftingPlanGraphSvgWriter {
     void finish(Writer output) throws IOException {
         output.write("</defs>\n<g fill=\"none\" stroke-width=\"" + CraftingPlanGraphRouteDrawing.STROKE_WIDTH + "\" stroke-linecap=\"butt\" stroke-linejoin=\"round\">\n");
         CraftingPlanRouteGeometry geometry = this.layout.geometry();
+        var bridges = new Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>>();
+        var underpasses = new Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>>();
+        for (CraftingPlanRouteCrossing crossing : geometry.crossings()) {
+            bridges.computeIfAbsent(crossing.bridgeSegmentId(), unused -> new ObjectArrayList<>()).add(crossing);
+            underpasses.computeIfAbsent(crossing.underSegmentId(), unused -> new ObjectArrayList<>()).add(crossing);
+        }
+        bridges.values().forEach(crossings -> crossings.sort(Comparator.comparingDouble(CraftingPlanRouteCrossing::y)));
+        underpasses.values().forEach(crossings -> crossings.sort(Comparator.comparingDouble(crossing -> crossing.x() + crossing.bend())));
         for (Run run : geometry.runs()) {
-            run(output, run, style(run.group()));
+            boolean crossed = false;
+            for (int segmentId : run.segmentIds()) if (bridges.containsKey(segmentId) || underpasses.containsKey(segmentId)) {
+                crossed = true;
+                break;
+            }
+            if (crossed) crossedRun(output, geometry, run, style(run.group()), bridges, underpasses);
+            else run(output, run, style(run.group()));
         }
         for (int segmentId : geometry.terminalSegments()) {
             Segment segment = geometry.segments().get(segmentId);
             RouteStyle style = style(segment.group());
+            if (blockedArrow(segmentId, bridges, underpasses, segment.from().x(), segment.from().y(), CraftingPlanGraphRouteDrawing.ARROW_SIZE)) continue;
             // Dependency routes point towards inputs, so physical material arrows run in reverse.
             arrow(output, segment.to(), segment.from(), style.color(0));
         }
@@ -171,6 +190,131 @@ final class CraftingPlanGraphSvgWriter {
             arrow(output, interpolate(run.from(), run.to(), Math.min(1, fraction + CraftingPlanGraphRouteDrawing.ARROW_SIZE / length)),
                     interpolate(run.from(), run.to(), fraction), style.color(Math.min(bands - 1, (int) (fraction * bands))));
         }
+    }
+
+    private static void crossedRun(Writer output, CraftingPlanRouteGeometry geometry, Run run, RouteStyle style,
+                                   Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>> bridges,
+                                   Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>> underpasses) throws IOException {
+        double length = Math.hypot(run.to().x() - run.from().x(), run.to().y() - run.from().y());
+        int bands = CraftingPlanGraphRouteDrawing.bandCount(style, length, CraftingPlanGraphRouteDrawing.EXPORT_PIXEL_SCALE);
+        for (int segmentId : run.segmentIds()) {
+            Segment segment = geometry.segments().get(segmentId);
+            ObjectList<CraftingPlanRouteCrossing> bridge = bridges.get(segmentId);
+            ObjectList<CraftingPlanRouteCrossing> underpass = underpasses.get(segmentId);
+            if (bridge != null) {
+                bridges(output, segment, bridge, run, style, length, bands);
+            } else if (underpass != null) {
+                underpasses(output, segment, underpass, run, style, length, bands);
+            } else {
+                straightPiece(output, segment.from(), segment.to(), run, style, length, bands);
+            }
+        }
+        if (!CraftingPlanGraphRouteDrawing.hasInteriorArrows(style, length, CraftingPlanGraphRouteDrawing.EXPORT_PIXEL_SCALE)) return;
+        int arrows = CraftingPlanGraphRouteDrawing.interiorArrowCount(length, CraftingPlanGraphRouteDrawing.EXPORT_PIXEL_SCALE);
+        double dx = run.to().x() - run.from().x();
+        double dy = run.to().y() - run.from().y();
+        for (int index = 0; index < arrows; index++) {
+            double fraction = (index + 1D) / (arrows + 1);
+            double x = run.from().x() + dx * fraction;
+            double y = run.from().y() + dy * fraction;
+            double depth = Math.min(CraftingPlanGraphRouteDrawing.ARROW_SIZE, length * (1 - fraction));
+            if (CraftingPlanGraphRouteDrawing.blocksArrow(run, geometry, fraction * length, depth, bridges, underpasses)) continue;
+            arrow(output, new Point(x + dx / length * depth,
+                    y + dy / length * depth), new Point(x, y),
+                    style.color(Math.min(bands - 1, (int) (fraction * bands))));
+        }
+    }
+
+    private static boolean blockedArrow(int segmentId,
+                                        Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>> bridges,
+                                        Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>> underpasses,
+                                        double x, double y, double size) {
+        ObjectList<CraftingPlanRouteCrossing> bridge = bridges.get(segmentId);
+        if (bridge != null) for (CraftingPlanRouteCrossing crossing : bridge) if (Math.abs(y - crossing.y()) <= crossing.radius() + size) return true;
+        ObjectList<CraftingPlanRouteCrossing> underpass = underpasses.get(segmentId);
+        if (underpass != null) for (CraftingPlanRouteCrossing crossing : underpass) if (Math.abs(x - (crossing.x() + crossing.bend())) <= crossing.gapHalfWidth() + size) return true;
+        return false;
+    }
+
+    private static void underpasses(Writer output, Segment segment, ObjectList<CraftingPlanRouteCrossing> crossings,
+                                    Run run, RouteStyle style, double length, int bands) throws IOException {
+        boolean forward = segment.to().x() > segment.from().x();
+        Point cursor = segment.from();
+        for (int index = forward ? 0 : crossings.size() - 1; index >= 0 && index < crossings.size(); index += forward ? 1 : -1) {
+            CraftingPlanRouteCrossing crossing = crossings.get(index);
+            double center = crossing.x() + crossing.bend();
+            Point entry = new Point(center + (forward ? -crossing.gapHalfWidth() : crossing.gapHalfWidth()), cursor.y());
+            Point exit = new Point(center + (forward ? crossing.gapHalfWidth() : -crossing.gapHalfWidth()), cursor.y());
+            straightPiece(output, cursor, entry, run, style, length, bands);
+            cursor = exit;
+        }
+        straightPiece(output, cursor, segment.to(), run, style, length, bands);
+    }
+
+    private static void bridges(Writer output, Segment segment, ObjectList<CraftingPlanRouteCrossing> crossings,
+                                Run run, RouteStyle style, double length, int bands) throws IOException {
+        boolean downward = segment.to().y() > segment.from().y();
+        Point cursor = segment.from();
+        for (int index = downward ? 0 : crossings.size() - 1; index >= 0 && index < crossings.size(); index += downward ? 1 : -1) {
+            CraftingPlanRouteCrossing crossing = crossings.get(index);
+            Point entry = new Point(crossing.x(), crossing.y() + (downward ? -crossing.radius() : crossing.radius()));
+            Point exit = new Point(crossing.x(), crossing.y() + (downward ? crossing.radius() : -crossing.radius()));
+            straightPiece(output, cursor, entry, run, style, length, bands);
+            Point middle = new Point(crossing.x() + crossing.bend(), crossing.y());
+            curvePiece(output, entry, new Point(middle.x(), entry.y()), middle, run, style, length, bands);
+            curvePiece(output, middle, new Point(middle.x(), exit.y()), exit, run, style, length, bands);
+            cursor = exit;
+        }
+        straightPiece(output, cursor, segment.to(), run, style, length, bands);
+    }
+
+    private static void straightPiece(Writer output, Point from, Point to, Run run, RouteStyle style,
+                                      double length, int bands) throws IOException {
+        line(output, from, to, style.lineColor(), style.lineOpacity());
+        if (bands == 1) return;
+        double start = distance(run, from);
+        double end = distance(run, to);
+        double bandLength = length / bands;
+        for (int band = Math.max(0, (int) Math.floor(start / bandLength)); band < Math.min(bands, (int) Math.ceil(end / bandLength)); band++) {
+            double fromFraction = (Math.max(start, band * bandLength) - start) / (end - start);
+            double toFraction = (Math.min(end, (band + 1D) * bandLength) - start) / (end - start);
+            line(output, interpolate(from, to, fromFraction), interpolate(from, to, toFraction), style.color(band), 1);
+        }
+    }
+
+    /** Split the actual quadratic curve at color boundaries, retaining the straight run's metadata phase. */
+    private static void curvePiece(Writer output, Point from, Point control, Point to, Run run, RouteStyle style,
+                                   double length, int bands) throws IOException {
+        quadratic(output, from, control, to, style.lineColor(), style.lineOpacity());
+        if (bands == 1) return;
+        double start = distance(run, from);
+        double end = distance(run, to);
+        double bandLength = length / bands;
+        for (int band = Math.max(0, (int) Math.floor(start / bandLength)); band < Math.min(bands, (int) Math.ceil(end / bandLength)); band++) {
+            double fromFraction = (Math.max(start, band * bandLength) - start) / (end - start);
+            double toFraction = (Math.min(end, (band + 1D) * bandLength) - start) / (end - start);
+            double t0 = control.y() == from.y() ? Math.sqrt(fromFraction) : 1 - Math.sqrt(1 - fromFraction);
+            double t1 = control.y() == from.y() ? Math.sqrt(toFraction) : 1 - Math.sqrt(1 - toFraction);
+            Point a = quadraticPoint(from, control, to, t0);
+            Point b = quadraticPoint(from, control, to, t1);
+            Point c = new Point(a.x() + (t1 - t0) * ((1 - t0) * (control.x() - from.x()) + t0 * (to.x() - control.x())),
+                    a.y() + (t1 - t0) * ((1 - t0) * (control.y() - from.y()) + t0 * (to.y() - control.y())));
+            quadratic(output, a, c, b, style.color(band), 1);
+        }
+    }
+
+    private static double distance(Run run, Point point) {
+        return run.from().y() == run.to().y() ? Math.abs(point.x() - run.from().x()) : Math.abs(point.y() - run.from().y());
+    }
+
+    private static Point quadraticPoint(Point from, Point control, Point to, double t) {
+        double inverse = 1 - t;
+        return new Point(inverse * inverse * from.x() + 2 * inverse * t * control.x() + t * t * to.x(),
+                inverse * inverse * from.y() + 2 * inverse * t * control.y() + t * t * to.y());
+    }
+
+    private static void quadratic(Writer output, Point from, Point control, Point to, int color, double opacity) throws IOException {
+        output.write("<path d=\"M " + from.x() + " " + from.y() + " Q " + control.x() + " " + control.y() + " " + to.x() + " " + to.y() + "\" stroke=\"" + color(color) + "\" stroke-opacity=\"" + opacity + "\"/>\n");
     }
 
     private static void arrow(Writer output, Point from, Point tip, int color) throws IOException {

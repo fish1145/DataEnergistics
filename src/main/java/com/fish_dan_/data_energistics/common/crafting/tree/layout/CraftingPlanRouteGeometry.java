@@ -28,14 +28,16 @@ import java.util.NoSuchElementException;
 import java.util.RandomAccess;
 
 /** Shared directed geometry built once by the layout worker, not by render frames or export tiles. */
-public record CraftingPlanRouteGeometry(List<Segment> segments, List<Run> runs, IntSet terminalSegments) {
+public record CraftingPlanRouteGeometry(List<Segment> segments, List<Run> runs, IntSet terminalSegments,
+                                        List<CraftingPlanRouteCrossing> crossings) {
 
-    public static final CraftingPlanRouteGeometry EMPTY = new CraftingPlanRouteGeometry(List.of(), List.of(), IntSets.emptySet());
+    public static final CraftingPlanRouteGeometry EMPTY = new CraftingPlanRouteGeometry(List.of(), List.of(), IntSets.emptySet(), List.of());
 
     public CraftingPlanRouteGeometry {
         segments = List.copyOf(segments);
         runs = List.copyOf(runs);
         terminalSegments = IntSets.unmodifiable(terminalSegments);
+        crossings = List.copyOf(crossings);
     }
 
     /** Endpoints follow demand-route traversal; material arrows run from {@code to} toward {@code from}. */
@@ -118,7 +120,8 @@ public record CraftingPlanRouteGeometry(List<Segment> segments, List<Run> runs, 
             routes.add(new RoutedEdge(path.source(), path.target(), path.cyclic(), path.originalEdgeIds(),
                     path.group(), List.copyOf(ranges)));
         }
-        return new Layout(nodes, routes, bounds, new CraftingPlanRouteGeometry(segments, runs, terminals));
+        return new Layout(nodes, routes, bounds, new CraftingPlanRouteGeometry(segments, runs, terminals,
+                CraftingPlanRouteCrossing.find(nodes, routes, segments, runs)));
     }
 
     private static double normalize(double coordinate) {
