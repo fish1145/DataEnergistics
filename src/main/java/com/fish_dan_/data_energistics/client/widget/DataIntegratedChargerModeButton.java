@@ -72,8 +72,8 @@ public final class DataIntegratedChargerModeButton extends Button implements ITo
         return switch (this.mode) {
             case POWDER -> Icon.PLACEMENT_ITEM.getBlitter();
             case CRYSTAL_GROWTH -> DataEnergisticsIcon.getBlitter("DATA_INTEGRATED_CHARGER_1");
-            case CHARGER -> DataEnergisticsIcon.getBlitter("DATA_INTEGRATED_CHARGER_2");
-            case INSCRIBER -> DataEnergisticsIcon.getBlitter("DATA_INTEGRATED_CHARGER_3");
+            case CHARGER -> DataEnergisticsIcon.getBlitter("DATA_INTEGRATED_CHARGER_3");
+            case INSCRIBER -> DataEnergisticsIcon.getBlitter("DATA_INTEGRATED_CHARGER_2");
         };
     }
 
