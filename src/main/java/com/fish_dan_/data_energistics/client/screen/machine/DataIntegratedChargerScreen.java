@@ -41,12 +41,12 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
     public DataIntegratedChargerScreen(DataIntegratedChargerMenu menu, Inventory playerInventory, Component title,
                                        ScreenStyle style) {
         super(menu, playerInventory, title, style);
+        this.modeButton = new DataIntegratedChargerModeButton(this.menu::sendSetMachineMode);
+        this.addToLeftToolbar(this.modeButton);
         this.autoExportButton = new ServerSettingToggleButton<>(Settings.AUTO_EXPORT, YesNo.NO);
         this.addToLeftToolbar(this.autoExportButton);
         this.outputSidesButton = new OutputSideActionButton(button -> openOutputConfig());
         this.addToLeftToolbar(this.outputSidesButton);
-        this.modeButton = new DataIntegratedChargerModeButton(this.menu::sendSetMachineMode);
-        this.addToLeftToolbar(this.modeButton);
         this.progressBar = new ProgressBar(this.menu, style.getImage("progressBar"), ProgressBar.Direction.VERTICAL);
         this.widgets.add("progressBar", this.progressBar);
     }
