@@ -39,16 +39,18 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
 
     private static final int LEFT_CROP = 0;
     private static final int TOP_CROP = 15;
-    private static final int WIDTH = 160;
+    private static final int UI_OFFSET_X = 5;
+    private static final int BACKGROUND_WIDTH = 160;
+    private static final int WIDTH = UI_OFFSET_X + BACKGROUND_WIDTH + 2;
     private static final int HEIGHT = 64;
     // Map top/middle/bottom recipe inputs to the first vertical column of the machine's 3x3 input grid.
-    private static final int FIRST_INPUT_X = 17;
-    private static final int SECOND_INPUT_X = 17;
-    private static final int THIRD_INPUT_X = 17;
-    private static final int FLUID_X = 71;
+    private static final int FIRST_INPUT_X = 22;
+    private static final int SECOND_INPUT_X = 22;
+    private static final int THIRD_INPUT_X = 22;
+    private static final int FLUID_X = 76;
     private static final int FLUID_Y = 7;
-    private static final int OUTPUT_X = 117;
-    private static final int PROGRESS_X = 156;
+    private static final int OUTPUT_X = 122;
+    private static final int PROGRESS_X = 161;
     private static final int FIRST_INPUT_Y = 7;
     private static final int SECOND_INPUT_Y = 25;
     private static final int THIRD_INPUT_Y = 43;
@@ -241,7 +243,7 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     }
 
     private static void addMachineBackground(WidgetHolder widgets) {
-        widgets.addTexture(TEXTURE, 0, 0, WIDTH, HEIGHT, LEFT_CROP, TOP_CROP);
+        widgets.addTexture(TEXTURE, UI_OFFSET_X, 0, BACKGROUND_WIDTH, HEIGHT, LEFT_CROP, TOP_CROP);
         widgets.addAnimatedTexture(TEXTURE, PROGRESS_X, PROGRESS_Y, 6, 18, 176, 0,
                 2_000, false, true, false);
     }
