@@ -789,7 +789,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             case INSCRIBER -> canProcessInscriberOperation();
             case CRYSTAL_GROWTH -> canProcessCrystalGrowthOperation();
             case POWDER -> canProcessPowderOperation();
-            case NONE -> false;
         };
     }
 
