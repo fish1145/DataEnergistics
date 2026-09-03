@@ -1,13 +1,19 @@
 package com.fish_dan_.data_energistics.blockentity.machine;
 
+import com.fish_dan_.data_energistics.integration.recipe.ExternalFactoryRecipeCatalog;
+import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import org.jspecify.annotations.Nullable;
 
 public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipperReassemblerBlockEntity {
 
@@ -20,6 +26,7 @@ public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipp
     public static final int KEY_OUTPUT_SLOT_COUNT = 2;
     private static final String STORAGE_LAYOUT_VERSION_TAG = "storage_layout_version";
     private static final int STORAGE_LAYOUT_VERSION = 3;
+    private final ExternalFactoryRecipeCatalog externalRecipeCatalog = new ExternalFactoryRecipeCatalog();
 
     public DataAsynchronousProcessingFactoryBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(DEBlockEntities.DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY.get(),
@@ -34,6 +41,18 @@ public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipp
     @Override
     protected boolean usesPatternInputColors() {
         return true;
+    }
+
+    @Override
+    protected Iterable<RecipeHolder<DataRipperReassemblerRecipe>> getAdditionalProcessingRecipes(Level level) {
+        return this.externalRecipeCatalog.recipes(level);
+    }
+
+    @Nullable
+    @Override
+    protected RecipeHolder<DataRipperReassemblerRecipe> getAdditionalProcessingRecipeById(Level level,
+                                                                                            ResourceLocation recipeId) {
+        return this.externalRecipeCatalog.recipeById(level, recipeId);
     }
 
     @Override

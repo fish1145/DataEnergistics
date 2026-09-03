@@ -1171,6 +1171,36 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 }
             }
         }
+        for (RecipeHolder<DataRipperReassemblerRecipe> holder : getAdditionalProcessingRecipes(level)) {
+            if (excludedRecipeIds.contains(holder.id())) {
+                continue;
+            }
+            for (int color : colors) {
+                if (holder.value().matches(createRecipeInput(channel, color), level)) {
+                    return new ColorMatchedRecipe(holder, color);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Supplies machine-specific recipes that have been normalized to the data reassembler contract.
+     *
+     * <p>The base machine only returns its native data reassembler recipes. Specializations may add
+     * recipes from compatible external machines without duplicating processing, reservation, or output logic.</p>
+     */
+    protected Iterable<RecipeHolder<DataRipperReassemblerRecipe>> getAdditionalProcessingRecipes(Level level) {
+        return List.of();
+    }
+
+    /**
+     * Resolves an active machine-specific recipe after its normalized identifier was persisted.
+     *
+     * <p>Returning {@code null} means that the active recipe is no longer available after a reload.</p>
+     */
+    protected @Nullable RecipeHolder<DataRipperReassemblerRecipe> getAdditionalProcessingRecipeById(Level level,
+                                                                                                       ResourceLocation recipeId) {
         return null;
     }
 
@@ -1241,11 +1271,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return new RecipeStackIdentity(stack.what(), stack.amount(), patternColor);
     }
 
-    private static @Nullable RecipeHolder<DataRipperReassemblerRecipe> getRecipeById(
-                                                                                     Level level, ResourceLocation recipeId) {
+    private @Nullable RecipeHolder<DataRipperReassemblerRecipe> getRecipeById(Level level, ResourceLocation recipeId) {
         RecipeHolder<?> holder = level.getRecipeManager().byKey(recipeId).orElse(null);
         if (holder == null || !(holder.value() instanceof DataRipperReassemblerRecipe)) {
-            return null;
+            return getAdditionalProcessingRecipeById(level, recipeId);
         }
 
         @SuppressWarnings("unchecked")
