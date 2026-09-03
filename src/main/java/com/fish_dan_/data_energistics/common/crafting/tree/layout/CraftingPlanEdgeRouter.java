@@ -4,22 +4,29 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Layout;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Point;
-import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.RoutedEdge;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Side;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Path;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewEdge;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewGraph;
 
-import it.unimi.dsi.fastutil.doubles.Double2DoubleAVLTreeMap;
 import it.unimi.dsi.fastutil.doubles.Double2ObjectAVLTreeMap;
-import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntLists;
+import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.ToIntFunction;
 
 /** Orthogonal routing within components, through layer gaps, and across interval-packed inter-layer tracks. */
 final class CraftingPlanEdgeRouter {
@@ -30,7 +37,7 @@ final class CraftingPlanEdgeRouter {
 
     private final Int2ObjectMap<RoutingComponent> components = new Int2ObjectAVLTreeMap<>();
     private final Int2ObjectMap<RoutingComponent> componentByNode = new Int2ObjectOpenHashMap<>();
-    private final Int2IntMap degree = new Int2IntOpenHashMap();
+    private final Int2IntOpenHashMap degree = new Int2IntOpenHashMap();
     private final List<Layer> layers = new ObjectArrayList<>();
     private final List<EdgePorts> edges = new ObjectArrayList<>();
     private final List<ExternalRoute> external = new ObjectArrayList<>();
@@ -48,17 +55,20 @@ final class CraftingPlanEdgeRouter {
             layers.add(new Layer(row));
             bands.put(rank, new Band());
         }
+        var groups = CraftingPlanRouteGroup.index(graph.source());
+        Object2IntMap<PortKey> ports = new Object2IntLinkedOpenHashMap<>();
+        ToIntFunction<PortKey> nextPort = key -> degree.addTo(key.node(), 1);
         for (ViewEdge edge : graph.edges()) {
-            degree.put(edge.source(), degree.get(edge.source()) + 1);
-            degree.put(edge.target(), degree.get(edge.target()) + 1);
-        }
-        Int2IntMap used = new Int2IntOpenHashMap();
-        for (ViewEdge edge : graph.edges()) {
-            int sourcePort = used.get(edge.source());
-            used.put(edge.source(), sourcePort + 1);
-            int targetPort = used.get(edge.target());
-            used.put(edge.target(), targetPort + 1);
-            edges.add(new EdgePorts(edges.size(), edge, sourcePort, targetPort));
+            Object2ObjectMap<CraftingPlanRouteGroup, IntList> split = new Object2ObjectLinkedOpenHashMap<>();
+            for (int original : edge.originalEdgeIds()) {
+                split.computeIfAbsent(groups.get(original), unused -> new IntArrayList()).add(original);
+            }
+            for (var entry : split.object2ObjectEntrySet()) {
+                CraftingPlanRouteGroup group = entry.getKey();
+                int sourcePort = ports.computeIfAbsent(new PortKey(edge.source(), true, group), nextPort);
+                int targetPort = ports.computeIfAbsent(new PortKey(edge.target(), false, group), nextPort);
+                edges.add(new EdgePorts(edges.size(), edge, sourcePort, targetPort, group, IntLists.unmodifiable(entry.getValue())));
+            }
         }
     }
 
@@ -71,7 +81,7 @@ final class CraftingPlanEdgeRouter {
             if (edge.view().cyclic()) {
                 RoutingComponent component = componentByNode.get(edge.view().source());
                 List<Point> points = cycleRoute(component, edge);
-                component.occupied.reserve(points);
+                component.occupied.reserve(points, edge.group(), false);
                 component.include(points);
                 component.internal.add(new LocalRoute(edge, points));
             }
@@ -82,8 +92,10 @@ final class CraftingPlanEdgeRouter {
                 RoutingComponent target = componentByNode.get(edge.view().target());
                 boolean sourceBottom = source.rank <= target.rank;
                 boolean targetBottom = source.rank >= target.rank;
-                Terminal from = terminal(source, edge, true, sourceBottom);
-                Terminal to = terminal(target, edge, false, targetBottom);
+                Terminal from = source.terminals.computeIfAbsent(new TerminalKey(edge.view().source(), true, sourceBottom, edge.group()),
+                        unused -> terminal(source, edge, true, sourceBottom));
+                Terminal to = target.terminals.computeIfAbsent(new TerminalKey(edge.view().target(), false, targetBottom, edge.group()),
+                        unused -> terminal(target, edge, false, targetBottom));
                 external.add(new ExternalRoute(edge, from, to));
             }
         }
@@ -126,7 +138,7 @@ final class CraftingPlanEdgeRouter {
             List<Point> horizontal = directRoute(component, source, target, edge, true);
             List<Point> vertical = directRoute(component, source, target, edge, false);
             if (!horizontal.isEmpty() || !vertical.isEmpty()) {
-                return horizontal.isEmpty() || (!vertical.isEmpty() && length(vertical) < length(horizontal)) ? vertical : horizontal;
+                return horizontal.isEmpty() || (!vertical.isEmpty() && better(component, vertical, horizontal, edge.group(), false)) ? vertical : horizontal;
             }
         }
         Side fromSide = component.input.outward().get(source.id());
@@ -134,6 +146,9 @@ final class CraftingPlanEdgeRouter {
         Point from = port(source, fromSide, edge.sourcePort());
         Point to = port(target, toSide, edge.targetPort());
         int attempts = component.occupied.segmentCount() + 2;
+        List<Point> best = List.of();
+        double bestAdded = Double.POSITIVE_INFINITY;
+        double bestLength = Double.POSITIVE_INFINITY;
         for (int lane = 0; lane < attempts; lane++) {
             List<Point> candidate;
             if (source.id() == target.id()) {
@@ -144,10 +159,17 @@ final class CraftingPlanEdgeRouter {
             } else {
                 candidate = boundaryRoute(component.boundary(lane), from, fromSide, to, toSide);
             }
-            if (component.occupied.available(candidate)) {
-                return candidate;
+            if (!clearOfNodes(candidate, component.nodes.values())) continue;
+            double added = component.occupied.addedLength(candidate, edge.group(), false);
+            double candidateLength = length(candidate);
+            if (added < bestAdded || (Math.abs(added - bestAdded) < EPSILON && candidateLength < bestLength)) {
+                best = candidate;
+                bestAdded = added;
+                bestLength = candidateLength;
+                if (added == 0) break;
             }
         }
+        if (!best.isEmpty()) return best;
         throw new IllegalStateException("Cannot reserve a component route for " + edge.view().source() + " -> " + edge.view().target());
     }
 
@@ -169,17 +191,36 @@ final class CraftingPlanEdgeRouter {
         double end = (forward ? targetStart : sourceStart) - GAP;
         double center = (start + end) / 2;
         int steps = Math.min((int) Math.ceil((end - start) / GAP) + 2, component.occupied.segmentCount() * 2 + 3);
+        List<Point> best = List.of();
+        double bestAdded = Double.POSITIVE_INFINITY;
+        double bestLength = Double.POSITIVE_INFINITY;
         for (int step = 0; step < steps; step++) {
             double lane = center + alternatingOffset(step);
             if (lane < start || lane > end) {
                 continue;
             }
             List<Point> candidate = horizontal ? List.of(from, new Point(lane, from.y()), new Point(lane, to.y()), to) : List.of(from, new Point(from.x(), lane), new Point(to.x(), lane), to);
-            if (component.occupied.available(candidate) && clearOfNodes(candidate, component.nodes.values())) {
-                return candidate;
+            if (!clearOfNodes(candidate, component.nodes.values())) continue;
+            double added = component.occupied.addedLength(candidate, edge.group(), false);
+            double candidateLength = length(candidate);
+            if (added < bestAdded || (Math.abs(added - bestAdded) < EPSILON && candidateLength < bestLength)) {
+                best = candidate;
+                bestAdded = added;
+                bestLength = candidateLength;
+                if (added == 0) break;
             }
         }
-        return List.of();
+        return best;
+    }
+
+    private static boolean better(RoutingComponent component, List<Point> candidate, List<Point> previous,
+                                  CraftingPlanRouteGroup group, boolean reverse) {
+        double cost = component.occupied.addedLength(candidate, group, reverse);
+        double previousCost = component.occupied.addedLength(previous, group, reverse);
+        if (Math.abs(cost - previousCost) > EPSILON) return cost < previousCost;
+        double candidateLength = length(candidate);
+        double previousLength = length(previous);
+        return Math.abs(candidateLength - previousLength) > EPSILON ? candidateLength < previousLength : candidate.size() < previous.size();
     }
 
     private Terminal terminal(RoutingComponent component, EdgePorts edge, boolean source, boolean bottom) {
@@ -198,10 +239,10 @@ final class CraftingPlanEdgeRouter {
             Point exit = new Point(exitX, bottom ? boundary.y() + boundary.height() : boundary.y());
             List<Point> candidate = boundaryRoute(boundary, from, nodeSide, exit, exitSide);
             List<Point> withRay = new ObjectArrayList<>(candidate);
-            // Reserve the eventual full-height escape now; later component growth must not merge two escapes.
+            // Reserve the eventual escape in the route's traversal direction, including target-side reversal.
             withRay.add(new Point(exitX, bottom ? Double.POSITIVE_INFINITY : Double.NEGATIVE_INFINITY));
-            if (component.occupied.available(withRay)) {
-                component.occupied.reserve(withRay);
+            if (component.occupied.available(withRay, edge.group(), !source) && clearOfNodes(candidate, component.nodes.values())) {
+                component.occupied.reserve(withRay, edge.group(), !source);
                 component.include(candidate);
                 return new Terminal(component, candidate, bottom);
             }
@@ -243,6 +284,7 @@ final class CraftingPlanEdgeRouter {
             int sourceRank = route.source.component().rank;
             int targetRank = route.target.component().rank;
             int direction = Integer.compare(targetRank, sourceRank);
+            LaneKey laneKey = new LaneKey(route.edge.group(), direction);
             double sourceX = route.source.x();
             double currentX = sourceX;
             double targetX = route.target.x();
@@ -254,7 +296,8 @@ final class CraftingPlanEdgeRouter {
                 double bestDeviation = Double.POSITIVE_INFINITY;
                 for (int gap = 0; gap < layer.centers.length; gap++) {
                     double x = layer.centers[gap];
-                    double cost = Math.abs(currentX - x) + Math.abs(targetX - x) + layer.used[gap] * GAP;
+                    double cost = Math.abs(currentX - x) + Math.abs(targetX - x) +
+                            (layer.lanes.get(gap).containsKey(laneKey) ? 0 : (layer.used[gap] + 2) * GAP);
                     double deviation = Math.abs(x - preferredX);
                     if (cost < best || (Math.abs(cost - best) < EPSILON && deviation < bestDeviation)) {
                         chosen = gap;
@@ -262,7 +305,10 @@ final class CraftingPlanEdgeRouter {
                         bestDeviation = deviation;
                     }
                 }
-                route.passages.add(new Passage(rank, chosen, layer.used[chosen]++));
+                int gap = chosen;
+                int lane = layer.lanes.get(gap).computeIfAbsent(laneKey,
+                        (ToIntFunction<LaneKey>) unused -> layer.used[gap]++);
+                route.passages.add(new Passage(rank, gap, lane));
                 currentX = layer.centers[chosen];
             }
         }
@@ -284,14 +330,14 @@ final class CraftingPlanEdgeRouter {
 
     private void addVisit(ExternalRoute route, int rank, Anchor source, Anchor target) {
         Band band = bands.computeIfAbsent(rank, unused -> new Band());
-        BandVisit visit = new BandVisit(band, source, target);
+        BandVisit visit = new BandVisit(band, source, target, route.edge.group());
         band.visits.add(visit);
         route.visits.add(visit);
     }
 
     private Layout assemble() {
         Int2ObjectMap<PlacedNode> nodes = new Int2ObjectAVLTreeMap<>();
-        Int2ObjectMap<RoutedEdge> routed = new Int2ObjectAVLTreeMap<>();
+        Int2ObjectMap<Path> routed = new Int2ObjectAVLTreeMap<>();
         for (RoutingComponent component : components.values()) {
             for (PlacedNode node : component.nodes.values()) {
                 Point location = component.global(new Point(node.x(), node.y()));
@@ -320,7 +366,7 @@ final class CraftingPlanEdgeRouter {
             maxX = Math.max(maxX, node.x() + node.width());
             maxY = Math.max(maxY, node.y() + node.height());
         }
-        for (RoutedEdge edge : routed.values()) {
+        for (Path edge : routed.values()) {
             for (Point point : edge.points()) {
                 minX = Math.min(minX, point.x());
                 maxX = Math.max(maxX, point.x());
@@ -330,15 +376,15 @@ final class CraftingPlanEdgeRouter {
         double shift = minX < 0 ? PADDING - minX : 0;
         List<PlacedNode> shiftedNodes = nodes.values().stream()
                 .map(node -> new PlacedNode(node.viewNode(), node.x() + shift, node.y(), node.width(), node.height())).toList();
-        List<RoutedEdge> shiftedEdges = routed.values().stream().map(edge -> new RoutedEdge(edge.source(), edge.target(),
-                edge.points().stream().map(point -> new Point(point.x() + shift, point.y())).toList(),
-                edge.cyclic(), edge.originalEdgeIds())).toList();
-        return new Layout(shiftedNodes, shiftedEdges, new Bounds(0, 0, maxX + shift + PADDING, maxY + PADDING));
+        List<Path> shiftedEdges = routed.values().stream().map(edge -> new Path(edge.source(), edge.target(),
+                shift == 0 ? edge.points() : edge.points().stream().map(point -> new Point(point.x() + shift, point.y())).toList(),
+                edge.cyclic(), edge.originalEdgeIds(), edge.group())).toList();
+        return CraftingPlanRouteGeometry.assemble(shiftedNodes, shiftedEdges, new Bounds(0, 0, maxX + shift + PADDING, maxY + PADDING));
     }
 
-    private static RoutedEdge routed(EdgePorts edge, List<Point> points) {
-        return new RoutedEdge(edge.view().source(), edge.view().target(), simplify(points), edge.view().cyclic(),
-                edge.view().originalEdgeIds());
+    private static Path routed(EdgePorts edge, List<Point> points) {
+        return new Path(edge.view().source(), edge.view().target(), simplify(points), edge.view().cyclic(),
+                edge.originalEdgeIds(), edge.group());
     }
 
     private static List<Point> simplify(List<Point> points) {
@@ -350,7 +396,8 @@ final class CraftingPlanEdgeRouter {
             if (result.size() >= 2) {
                 Point before = result.get(result.size() - 2);
                 Point last = result.getLast();
-                if ((before.x() == last.x() && last.x() == point.x()) || (before.y() == last.y() && last.y() == point.y())) {
+                if (((before.x() == last.x() && last.x() == point.x()) || (before.y() == last.y() && last.y() == point.y())) &&
+                        (last.x() - before.x()) * (point.x() - last.x()) + (last.y() - before.y()) * (point.y() - last.y()) > 0) {
                     result.removeLast();
                 }
             }
@@ -458,7 +505,14 @@ final class CraftingPlanEdgeRouter {
 
     record Component(int id, List<PlacedNode> nodes, Int2ObjectMap<Side> outward, double width, double height) {}
 
-    private record EdgePorts(int ordinal, ViewEdge view, int sourcePort, int targetPort) {}
+    private record EdgePorts(int ordinal, ViewEdge view, int sourcePort, int targetPort, CraftingPlanRouteGroup group,
+                             IntList originalEdgeIds) {}
+
+    private record PortKey(int node, boolean source, CraftingPlanRouteGroup group) {}
+
+    private record TerminalKey(int node, boolean source, boolean bottom, CraftingPlanRouteGroup group) {}
+
+    private record LaneKey(CraftingPlanRouteGroup group, int direction) {}
 
     private record LocalRoute(EdgePorts edge, List<Point> points) {}
 
@@ -479,6 +533,7 @@ final class CraftingPlanEdgeRouter {
         private final int rank;
         private final Int2ObjectMap<PlacedNode> nodes = new Int2ObjectAVLTreeMap<>();
         private final OrthogonalSegmentReservations occupied = new OrthogonalSegmentReservations();
+        private final Object2ObjectMap<TerminalKey, Terminal> terminals = new Object2ObjectOpenHashMap<>();
         private final List<LocalRoute> internal = new ObjectArrayList<>();
         private double left;
         private double top;
@@ -496,7 +551,7 @@ final class CraftingPlanEdgeRouter {
         }
 
         private Bounds boundary(int lane) {
-            double inset = 8 - lane * GAP;
+            double inset = -8 - lane * GAP;
             return new Bounds(inset, inset, input.width() - 2 * inset, input.height() - 2 * inset);
         }
 
@@ -527,11 +582,13 @@ final class CraftingPlanEdgeRouter {
         private final List<RoutingComponent> groups;
         private final int[] used;
         private final double[] centers;
+        private final List<Object2IntMap<LaneKey>> lanes = new ObjectArrayList<>();
 
         private Layer(List<RoutingComponent> groups) {
             this.groups = groups;
             used = new int[groups.size() + 1];
             centers = new double[used.length];
+            for (int gap = 0; gap < used.length; gap++) lanes.add(new Object2IntLinkedOpenHashMap<>());
         }
 
         private double gapWidth(int index) {
@@ -565,11 +622,13 @@ final class CraftingPlanEdgeRouter {
     private static final class BandEndpoint {
 
         private final Anchor anchor;
+        private final LaneKey lane;
         private double column;
         private int header = -1;
 
-        private BandEndpoint(Anchor anchor) {
+        private BandEndpoint(Anchor anchor, LaneKey lane) {
             this.anchor = anchor;
+            this.lane = lane;
         }
     }
 
@@ -578,12 +637,14 @@ final class CraftingPlanEdgeRouter {
         private final Band band;
         private final BandEndpoint from;
         private final BandEndpoint to;
+        private final CraftingPlanRouteGroup group;
         private int track;
 
-        private BandVisit(Band band, Anchor from, Anchor to) {
+        private BandVisit(Band band, Anchor from, Anchor to, CraftingPlanRouteGroup group) {
             this.band = band;
-            this.from = new BandEndpoint(from);
-            this.to = new BandEndpoint(to);
+            this.group = group;
+            this.from = band.endpoint(from, new LaneKey(group, from.top() ? 1 : -1));
+            this.to = band.endpoint(to, new LaneKey(group, to.top() ? -1 : 1));
         }
 
         private List<Point> points() {
@@ -611,85 +672,97 @@ final class CraftingPlanEdgeRouter {
     private static final class Band {
 
         private final List<BandVisit> visits = new ObjectArrayList<>();
+        private final Object2ObjectMap<EndpointKey, BandEndpoint> endpoints = new Object2ObjectLinkedOpenHashMap<>();
         private final Double2ObjectAVLTreeMap<List<BandEndpoint>> originals = new Double2ObjectAVLTreeMap<>();
-        private final Double2ObjectAVLTreeMap<BandVisit> columns = new Double2ObjectAVLTreeMap<>();
+        private final Double2ObjectAVLTreeMap<LaneKey> columns = new Double2ObjectAVLTreeMap<>();
         private int topHeaders;
         private int bottomHeaders;
         private double y;
         private double height = 3 * PADDING;
 
+        private BandEndpoint endpoint(Anchor anchor, LaneKey lane) {
+            return endpoints.computeIfAbsent(new EndpointKey(anchor, lane), unused -> new BandEndpoint(anchor, lane));
+        }
+
         private void allocate() {
-            for (BandVisit visit : visits) {
-                originals.computeIfAbsent(visit.from.anchor.x(), unused -> new ObjectArrayList<>()).add(visit.from);
-                originals.computeIfAbsent(visit.to.anchor.x(), unused -> new ObjectArrayList<>()).add(visit.to);
+            for (BandEndpoint endpoint : endpoints.values()) {
+                originals.computeIfAbsent(endpoint.anchor.x(), unused -> new ObjectArrayList<>()).add(endpoint);
             }
-            for (BandVisit visit : visits) {
-                allocateEndpoint(visit, visit.from, visit.to);
-                allocateEndpoint(visit, visit.to, visit.from);
-            }
-            // Horizontal intervals can share a track only when separated; vertical trunks own distinct columns.
+            for (BandEndpoint endpoint : endpoints.values()) allocateEndpoint(endpoint);
+            // Track occupancy merges compatible overlaps, not unrelated cycles or reverse flows.
             List<BandVisit> ordered = new ObjectArrayList<>(visits);
             ordered.sort(Comparator.comparingDouble(visit -> Math.min(visit.from.column, visit.to.column)));
-            List<Double2DoubleAVLTreeMap> tracks = new ObjectArrayList<>();
+            List<OrthogonalSegmentReservations> tracks = new ObjectArrayList<>();
             for (BandVisit visit : ordered) {
-                double start = Math.min(visit.from.column, visit.to.column);
-                double end = Math.max(visit.from.column, visit.to.column);
-                if (end - start < EPSILON) {
-                    continue;
+                if (Math.abs(visit.to.column - visit.from.column) < EPSILON) continue;
+                List<Point> interval = List.of(new Point(visit.from.column, 0), new Point(visit.to.column, 0));
+                int track = tracks.size();
+                double best = Double.POSITIVE_INFINITY;
+                for (int candidate = 0; candidate < tracks.size(); candidate++) {
+                    double added = tracks.get(candidate).addedLength(interval, visit.group, false);
+                    if (added < best) {
+                        best = added;
+                        track = candidate;
+                        if (added == 0) break;
+                    }
                 }
-                int track = 0;
-                while (track < tracks.size() && !trackAvailable(tracks.get(track), start, end)) {
-                    track++;
-                }
-                if (track == tracks.size()) {
-                    tracks.add(new Double2DoubleAVLTreeMap());
-                }
-                tracks.get(track).put(start, end);
+                if (track == tracks.size()) tracks.add(new OrthogonalSegmentReservations(GAP));
+                tracks.get(track).reserve(interval, visit.group, false);
                 visit.track = track;
             }
             height = Math.max(height, 2 * PADDING + (topHeaders + bottomHeaders + Math.max(1, tracks.size()) + 2) * GAP);
         }
 
-        private void allocateEndpoint(BandVisit visit, BandEndpoint endpoint, BandEndpoint other) {
+        private void allocateEndpoint(BandEndpoint endpoint) {
+            double reused = Double.NaN;
+            double distance = Double.POSITIVE_INFINITY;
+            for (var existing : columns.subMap(endpoint.anchor.x() - 2 * PADDING, endpoint.anchor.x() + 2 * PADDING).double2ObjectEntrySet()) {
+                double offset = Math.abs(existing.getDoubleKey() - endpoint.anchor.x());
+                if (existing.getValue().equals(endpoint.lane) && offset < distance && columnAvailable(existing.getDoubleKey(), endpoint)) {
+                    reused = existing.getDoubleKey();
+                    distance = offset;
+                }
+            }
+            if (!Double.isNaN(reused)) {
+                assignColumn(endpoint, reused);
+                return;
+            }
             int attempts = 4 * (originals.size() + columns.size() + 1);
             for (int attempt = 0; attempt < attempts; attempt++) {
                 double column = endpoint.anchor.x() + alternatingOffset(attempt);
-                if (columnAvailable(column, visit, endpoint, other)) {
-                    endpoint.column = column;
-                    columns.put(column, visit);
-                    if (Math.abs(column - endpoint.anchor.x()) > EPSILON) {
-                        endpoint.header = endpoint.anchor.top() ? topHeaders++ : bottomHeaders++;
-                    }
+                if (columnAvailable(column, endpoint)) {
+                    assignColumn(endpoint, column);
                     return;
                 }
             }
             throw new IllegalStateException("Cannot allocate a distinct vertical column in an inter-layer band");
         }
 
-        private boolean columnAvailable(double column, BandVisit visit, BandEndpoint endpoint, BandEndpoint other) {
+        private void assignColumn(BandEndpoint endpoint, double column) {
+            endpoint.column = column;
+            columns.put(column, endpoint.lane);
+            if (Math.abs(column - endpoint.anchor.x()) > EPSILON) {
+                endpoint.header = endpoint.anchor.top() ? topHeaders++ : bottomHeaders++;
+            }
+        }
+
+        private boolean columnAvailable(double column, BandEndpoint endpoint) {
             // A moved trunk must also avoid the original short entry stems in the top/bottom fan-out regions.
             for (List<BandEndpoint> endpoints : originals.subMap(column - GAP + EPSILON, column + GAP).values()) {
                 for (BandEndpoint existing : endpoints) {
-                    if (existing != endpoint && !(existing == other && Math.abs(other.anchor.x() - endpoint.anchor.x()) < EPSILON)) {
+                    if (existing != endpoint && !existing.lane.equals(endpoint.lane)) {
                         return false;
                     }
                 }
             }
             for (var occupied : columns.subMap(column - GAP + EPSILON, column + GAP).double2ObjectEntrySet()) {
-                if (occupied.getValue() != visit || Math.abs(occupied.getDoubleKey() - column) > EPSILON || Math.abs(other.anchor.x() - endpoint.anchor.x()) > EPSILON) {
+                if (!occupied.getValue().equals(endpoint.lane) || Math.abs(occupied.getDoubleKey() - column) > EPSILON) {
                     return false;
                 }
             }
             return true;
         }
 
-        private static boolean trackAvailable(Double2DoubleAVLTreeMap intervals, double start, double end) {
-            var before = intervals.headMap(start + EPSILON);
-            if (!before.isEmpty() && before.get(before.lastDoubleKey()) + GAP > start) {
-                return false;
-            }
-            var after = intervals.tailMap(start - EPSILON);
-            return after.isEmpty() || after.firstDoubleKey() >= end + GAP;
-        }
+        private record EndpointKey(Anchor anchor, LaneKey lane) {}
     }
 }

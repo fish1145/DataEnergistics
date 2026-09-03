@@ -5,11 +5,16 @@ import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGr
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphDrawingFacts.RouteStyle;
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphPalette;
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphRenderer;
+import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphRouteDrawing;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Bounds;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Layout;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Point;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Run;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Segment;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGroup;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Material;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Process;
@@ -20,6 +25,7 @@ import net.minecraft.client.gui.Font;
 import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.io.IOException;
@@ -31,11 +37,9 @@ import java.util.List;
 final class CraftingPlanGraphSvgWriter {
 
     private static final double TEXT_SCALE = 0.65;
-    private static final double STROKE = 1.5;
-    private static final double ARROW_SIZE = 5;
-
     private final Layout layout;
     private final CraftingPlanGraphDrawingFacts facts;
+    private final Object2ObjectOpenHashMap<CraftingPlanRouteGroup, RouteStyle> routeStyles = new Object2ObjectOpenHashMap<>();
     private final List<AEKey> keys = new ObjectArrayList<>();
     private final List<NodeDrawing> nodes = new ObjectArrayList<>();
 
@@ -105,16 +109,16 @@ final class CraftingPlanGraphSvgWriter {
     }
 
     void finish(Writer output) throws IOException {
-        output.write("</defs>\n<g fill=\"none\" stroke-width=\"" + STROKE + "\" stroke-linecap=\"butt\" stroke-linejoin=\"round\">\n");
-        for (var edge : this.layout.edges()) {
-            RouteStyle style = this.facts.route(edge.originalEdgeIds());
-            for (int i = 1; i < edge.points().size(); i++) {
-                segment(output, edge.points().get(i - 1), edge.points().get(i), style);
-            }
-            if (style.materialFlow() && edge.points().size() > 1) {
-                // Dependency routes point towards inputs, so physical material arrows run in reverse.
-                arrow(output, edge.points().get(1), edge.points().getFirst(), style.color(0));
-            }
+        output.write("</defs>\n<g fill=\"none\" stroke-width=\"" + CraftingPlanGraphRouteDrawing.STROKE_WIDTH + "\" stroke-linecap=\"butt\" stroke-linejoin=\"round\">\n");
+        CraftingPlanRouteGeometry geometry = this.layout.geometry();
+        for (Run run : geometry.runs()) {
+            run(output, run, style(run.group()));
+        }
+        for (int segmentId : geometry.terminalSegments()) {
+            Segment segment = geometry.segments().get(segmentId);
+            RouteStyle style = style(segment.group());
+            // Dependency routes point towards inputs, so physical material arrows run in reverse.
+            arrow(output, segment.to(), segment.from(), style.color(0));
         }
         output.write("</g>\n");
         for (NodeDrawing drawing : this.nodes) {
@@ -137,37 +141,43 @@ final class CraftingPlanGraphSvgWriter {
         output.write("</svg>\n");
     }
 
+    private RouteStyle style(CraftingPlanRouteGroup group) {
+        return this.routeStyles.computeIfAbsent(group, this.facts::route);
+    }
+
     private static void text(List<TextDrawing> labels, Font font, String value, double x, double y,
                              double maximumWidth, int color) {
         String visible = font.plainSubstrByWidth(value, (int) (maximumWidth / TEXT_SCALE));
         if (!visible.isEmpty()) labels.add(new TextDrawing(visible, x, y, font.width(visible) * TEXT_SCALE, color));
     }
 
-    private static void segment(Writer output, Point a, Point b, RouteStyle style) throws IOException {
-        double length = Math.hypot(b.x() - a.x(), b.y() - a.y());
-        if (length == 0) return;
-        int bands = style.cycles().size() > 1 ? Math.max(style.cycles().size(), Math.min(48, (int) Math.ceil(length / 24))) : 1;
+    private static void run(Writer output, Run run, RouteStyle style) throws IOException {
+        double length = Math.hypot(run.to().x() - run.from().x(), run.to().y() - run.from().y());
+        int bands = CraftingPlanGraphRouteDrawing.bandCount(style, length, CraftingPlanGraphRouteDrawing.EXPORT_PIXEL_SCALE);
         // A continuous underlay prevents antialiasing seams where differently colored cycle bands meet.
-        if (bands > 1) line(output, a, b, style.color(0), 1);
-        for (int band = 0; band < bands; band++) {
-            line(output, interpolate(a, b, band / (double) bands), interpolate(a, b, (band + 1D) / bands),
-                    style.color(band), style.materialFlow() ? 1 : 0.55);
+        if (bands == 1) {
+            line(output, run.from(), run.to(), style.lineColor(), style.lineOpacity());
+        } else {
+            line(output, run.from(), run.to(), style.color(0), 1);
+            for (int band = 0; band < bands; band++) {
+                line(output, interpolate(run.from(), run.to(), band / (double) bands),
+                        interpolate(run.from(), run.to(), (band + 1D) / bands), style.color(band), 1);
+            }
         }
-        if (!style.materialFlow() || length < 24) return;
-        int arrows = Math.max(1, Math.min(4, (int) (length / 100)));
+        if (!CraftingPlanGraphRouteDrawing.hasInteriorArrows(style, length, CraftingPlanGraphRouteDrawing.EXPORT_PIXEL_SCALE)) return;
+        int arrows = CraftingPlanGraphRouteDrawing.interiorArrowCount(length, CraftingPlanGraphRouteDrawing.EXPORT_PIXEL_SCALE);
         for (int i = 0; i < arrows; i++) {
             double fraction = (i + 1D) / (arrows + 1);
-            arrow(output, interpolate(a, b, Math.min(1, fraction + ARROW_SIZE / length)),
-                    interpolate(a, b, fraction), style.color(Math.min(bands - 1, (int) (fraction * bands))));
+            arrow(output, interpolate(run.from(), run.to(), Math.min(1, fraction + CraftingPlanGraphRouteDrawing.ARROW_SIZE / length)),
+                    interpolate(run.from(), run.to(), fraction), style.color(Math.min(bands - 1, (int) (fraction * bands))));
         }
     }
 
     private static void arrow(Writer output, Point from, Point tip, int color) throws IOException {
         double length = Math.hypot(tip.x() - from.x(), tip.y() - from.y());
-        if (length == 0) return;
         double dx = (tip.x() - from.x()) / length;
         double dy = (tip.y() - from.y()) / length;
-        double depth = Math.min(ARROW_SIZE, length);
+        double depth = Math.min(CraftingPlanGraphRouteDrawing.ARROW_SIZE, length);
         double x = tip.x() - dx * depth;
         double y = tip.y() - dy * depth;
         line(output, new Point(x + dy * depth * 0.55, y - dx * depth * 0.55), tip, color, 1);

@@ -7,6 +7,10 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Layout;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Point;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Run;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Segment;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGroup;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Material;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Process;
@@ -18,6 +22,7 @@ import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.AEKey;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.GraphViewLod;
 import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
@@ -32,7 +37,9 @@ public final class CraftingPlanGraphRenderer {
     private final CraftingPlanGraph graph;
     private final CraftingPlanGraphDrawingFacts facts;
     private @Nullable Layout styledLayout;
-    private final ObjectArrayList<RouteStyle> routeStyles = new ObjectArrayList<>();
+    private final Object2ObjectOpenHashMap<CraftingPlanRouteGroup, RouteStyle> routeStyles = new Object2ObjectOpenHashMap<>();
+    private final ObjectArrayList<RouteStyle> segmentStyles = new ObjectArrayList<>();
+    private final ObjectArrayList<RouteStyle> runStyles = new ObjectArrayList<>();
     private final ObjectArrayList<NodeDrawing> nodeDrawings = new ObjectArrayList<>();
     private final ObjectArrayList<NodeDrawing> visibleNodes = new ObjectArrayList<>();
 
@@ -47,24 +54,23 @@ public final class CraftingPlanGraphRenderer {
 
     public void draw(GuiGraphics graphics, Layout layout, GraphViewLod lod,
                      boolean showAmounts, int selectedNodeId, IntSet highlighted,
+                     CraftingPlanSegmentSelection highlightedSegments,
                      @Nullable Bounds viewport, float pixelScale) {
         prepare(layout);
         CraftingPlanGraphStrokes strokes = new CraftingPlanGraphStrokes(graphics, pixelScale, viewport);
-        for (int edgeIndex = 0; edgeIndex < layout.edges().size(); edgeIndex++) {
-            var edge = layout.edges().get(edgeIndex);
-            RouteStyle style = this.routeStyles.get(edgeIndex);
-            boolean emphasized = highlighted.contains(edge.source()) && highlighted.contains(edge.target());
-            double width = emphasized ? 2 : 1.5;
-            for (int i = 1; i < edge.points().size(); i++) {
-                Point a = edge.points().get(i - 1);
-                Point b = edge.points().get(i);
-                segment(strokes, a, b, width, pixelScale, style, viewport, lod);
-            }
-            if (style.materialFlow() && lod != GraphViewLod.BLOCK && edge.points().size() > 1) {
-                // Layout edges encode demand; arrows show the opposite, actual material flow.
-                Point end = edge.points().getFirst();
-                Point previous = edge.points().get(1);
-                strokes.arrow(previous.x(), previous.y(), end.x(), end.y(), 5, width, style.color(0));
+        CraftingPlanRouteGeometry geometry = layout.geometry();
+        for (int runId = 0; runId < geometry.runs().size(); runId++) {
+            drawRun(strokes, geometry, geometry.runs().get(runId), this.runStyles.get(runId), highlightedSegments,
+                    pixelScale, viewport, lod);
+        }
+        if (lod != GraphViewLod.BLOCK) {
+            for (int segmentId : geometry.terminalSegments()) {
+                Segment segment = geometry.segments().get(segmentId);
+                RouteStyle style = this.segmentStyles.get(segmentId);
+                double width = highlightedSegments.contains(segmentId) ? CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH : CraftingPlanGraphRouteDrawing.STROKE_WIDTH;
+                // Layout routes encode demand, so this terminal marker points along actual material flow.
+                strokes.arrow(segment.to().x(), segment.to().y(), segment.from().x(), segment.from().y(),
+                        CraftingPlanGraphRouteDrawing.ARROW_SIZE, width, style.color(0));
             }
         }
         this.visibleNodes.clear();
@@ -124,7 +130,14 @@ public final class CraftingPlanGraphRenderer {
     private void prepare(Layout layout) {
         if (this.styledLayout == layout) return;
         this.routeStyles.clear();
-        for (var edge : layout.edges()) this.routeStyles.add(this.facts.route(edge.originalEdgeIds()));
+        this.segmentStyles.clear();
+        for (Segment segment : layout.geometry().segments()) {
+            this.segmentStyles.add(this.routeStyles.computeIfAbsent(segment.group(), this.facts::route));
+        }
+        this.runStyles.clear();
+        for (Run run : layout.geometry().runs()) {
+            this.runStyles.add(this.routeStyles.computeIfAbsent(run.group(), this.facts::route));
+        }
         this.nodeDrawings.clear();
         for (PlacedNode node : layout.nodes()) {
             AEKey key = key(node);
@@ -138,48 +151,95 @@ public final class CraftingPlanGraphRenderer {
         this.styledLayout = layout;
     }
 
-    private static void segment(CraftingPlanGraphStrokes strokes, Point a, Point b, double width,
-                                float pixelScale, RouteStyle style, @Nullable Bounds viewport, GraphViewLod lod) {
-        double dx = b.x() - a.x();
-        double dy = b.y() - a.y();
+    private static void drawRun(CraftingPlanGraphStrokes strokes, CraftingPlanRouteGeometry geometry, Run run,
+                                RouteStyle style, CraftingPlanSegmentSelection highlightedSegments, float pixelScale,
+                                @Nullable Bounds viewport, GraphViewLod lod) {
+        double dx = run.to().x() - run.from().x();
+        double dy = run.to().y() - run.from().y();
         double length = Math.hypot(dx, dy);
-        if (length == 0) return;
-        double margin = width + 0.5 / pixelScale;
-        if (!visible(Math.min(a.x(), b.x()) - margin, Math.min(a.y(), b.y()) - margin,
-                Math.abs(dx) + 2 * margin, Math.abs(dy) + 2 * margin, viewport))
+        double margin = CraftingPlanGraphRouteDrawing.ARROW_SIZE * 0.55 + CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH + 0.5 / pixelScale;
+        if (!visible(Math.min(run.from().x(), run.to().x()) - margin,
+                Math.min(run.from().y(), run.to().y()) - margin, Math.abs(dx) + 2 * margin,
+                Math.abs(dy) + 2 * margin, viewport))
             return;
-        // Diagnostics are continuous, muted, undirected evidence links, not broken material-flow routes.
-        int bands = 1;
-        if (style.cycles().size() <= 1) {
-            strokes.line(a.x(), a.y(), b.x(), b.y(), width, style.materialFlow() ? style.color(0) : CraftingPlanGraphPalette.DIAGNOSTIC);
-        } else {
-            bands = Math.max(style.cycles().size(), Math.min(48, (int) Math.ceil(length / Math.max(24, 18 / pixelScale))));
-            double bandLength = length / bands;
-            int first = 0;
-            int last = bands;
-            if (viewport != null) {
-                double start = dx == 0 ? (viewport.y() - a.y()) / dy : (viewport.x() - a.x()) / dx;
-                double end = dx == 0 ? (viewport.y() + viewport.height() - a.y()) / dy : (viewport.x() + viewport.width() - a.x()) / dx;
-                first = Math.max(0, (int) Math.floor(Math.min(start, end) * length / bandLength) - 1);
-                last = Math.min(bands, (int) Math.ceil(Math.max(start, end) * length / bandLength) + 1);
-            }
-            for (int band = first; band < last; band++) {
-                double start = band * bandLength / length;
-                double end = Math.min(1, (band + 1) * bandLength / length);
-                strokes.line(a.x() + dx * start, a.y() + dy * start,
-                        a.x() + dx * end, a.y() + dy * end, width, style.color(band));
-            }
+        int bands = CraftingPlanGraphRouteDrawing.bandCount(style, length, pixelScale);
+        int first = 0;
+        int last = run.segmentIds().size() - 1;
+        if (viewport != null) {
+            double firstDistance = viewportDistance(run, viewport, margin, length, true);
+            double lastDistance = viewportDistance(run, viewport, margin, length, false);
+            first = segmentIndexAt(run, geometry, firstDistance);
+            last = segmentIndexAt(run, geometry, lastDistance);
         }
-        if (!style.materialFlow() || lod == GraphViewLod.BLOCK || length * pixelScale < 48) return;
-        // Fixed world-sized arrows cannot swell across adjacent lanes as the camera zooms out.
-        int arrows = Math.max(1, Math.min(4, (int) (length * pixelScale / 160)));
-        for (int i = 0; i < arrows; i++) {
-            double fraction = (i + 1D) / (arrows + 1);
-            double tipX = a.x() + dx * fraction;
-            double tipY = a.y() + dy * fraction;
-            strokes.arrow(tipX + dx / length * 5, tipY + dy / length * 5, tipX, tipY, 5, width,
+        for (int index = first; index <= last; index++) {
+            int segmentId = run.segmentIds().getInt(index);
+            Segment segment = geometry.segments().get(segmentId);
+            double width = highlightedSegments.contains(segmentId) ? CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH : CraftingPlanGraphRouteDrawing.STROKE_WIDTH;
+            drawSegment(strokes, segment, style, width, distanceFromRun(run, segment.from()), length, bands);
+        }
+        if (lod == GraphViewLod.BLOCK || !CraftingPlanGraphRouteDrawing.hasInteriorArrows(style, length, pixelScale)) return;
+        int arrows = CraftingPlanGraphRouteDrawing.interiorArrowCount(length, pixelScale);
+        for (int arrow = 0; arrow < arrows; arrow++) {
+            double fraction = (arrow + 1D) / (arrows + 1);
+            double tipX = run.from().x() + dx * fraction;
+            double tipY = run.from().y() + dy * fraction;
+            int segmentId = run.segmentIds().getInt(segmentIndexAt(run, geometry, fraction * length));
+            double width = highlightedSegments.contains(segmentId) ? CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH : CraftingPlanGraphRouteDrawing.STROKE_WIDTH;
+            strokes.arrow(tipX + dx / length * CraftingPlanGraphRouteDrawing.ARROW_SIZE,
+                    tipY + dy / length * CraftingPlanGraphRouteDrawing.ARROW_SIZE, tipX, tipY,
+                    CraftingPlanGraphRouteDrawing.ARROW_SIZE, width,
                     style.color(Math.min(bands - 1, (int) (fraction * bands))));
         }
+    }
+
+    private static void drawSegment(CraftingPlanGraphStrokes strokes, Segment segment, RouteStyle style, double width,
+                                    double offset, double runLength, int bands) {
+        double dx = segment.to().x() - segment.from().x();
+        double dy = segment.to().y() - segment.from().y();
+        double length = Math.hypot(dx, dy);
+        if (style.cycles().size() <= 1) {
+            strokes.line(segment.from().x(), segment.from().y(), segment.to().x(), segment.to().y(), width, style.lineColor());
+            return;
+        }
+        double bandLength = runLength / bands;
+        int first = Math.max(0, (int) Math.floor(offset / bandLength));
+        int last = Math.min(bands, (int) Math.ceil((offset + length) / bandLength));
+        for (int band = first; band < last; band++) {
+            double start = Math.max(offset, band * bandLength);
+            double end = Math.min(offset + length, (band + 1D) * bandLength);
+            if (start >= end) continue;
+            double startFraction = (start - offset) / length;
+            double endFraction = (end - offset) / length;
+            strokes.line(segment.from().x() + dx * startFraction, segment.from().y() + dy * startFraction,
+                    segment.from().x() + dx * endFraction, segment.from().y() + dy * endFraction, width, style.color(band));
+        }
+    }
+
+    private static int segmentIndexAt(Run run, CraftingPlanRouteGeometry geometry, double distance) {
+        int first = 0;
+        int last = run.segmentIds().size() - 1;
+        while (first < last) {
+            int middle = (first + last + 1) >>> 1;
+            Segment segment = geometry.segments().get(run.segmentIds().getInt(middle));
+            if (distanceFromRun(run, segment.from()) <= distance) first = middle;
+            else last = middle - 1;
+        }
+        return first;
+    }
+
+    private static double viewportDistance(Run run, Bounds viewport, double margin, double runLength, boolean first) {
+        boolean horizontal = run.from().y() == run.to().y();
+        double start = (horizontal ? viewport.x() : viewport.y()) - margin;
+        double end = (horizontal ? viewport.x() + viewport.width() : viewport.y() + viewport.height()) + margin;
+        double origin = horizontal ? run.from().x() : run.from().y();
+        double direction = Math.signum((horizontal ? run.to().x() : run.to().y()) - origin);
+        double from = (start - origin) * direction;
+        double to = (end - origin) * direction;
+        return Math.max(0, Math.min(runLength, first ? Math.min(from, to) : Math.max(from, to)));
+    }
+
+    private static double distanceFromRun(Run run, Point point) {
+        return run.from().y() == run.to().y() ? Math.abs(point.x() - run.from().x()) : Math.abs(point.y() - run.from().y());
     }
 
     private static boolean visible(double x, double y, double width, double height, @Nullable Bounds viewport) {

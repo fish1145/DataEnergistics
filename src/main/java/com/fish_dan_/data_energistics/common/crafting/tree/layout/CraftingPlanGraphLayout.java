@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.tree.layout;
 
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanEdgeRouter.Component;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.SegmentRange;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Process;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewEdge;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewGraph;
@@ -35,7 +36,7 @@ public final class CraftingPlanGraphLayout {
 
     public static Layout layout(ViewGraph graph, boolean compact) {
         if (graph.nodes().isEmpty()) {
-            return new Layout(List.of(), List.of(), new Bounds(0, 0, 0, 0));
+            return new Layout(List.of(), List.of(), new Bounds(0, 0, 0, 0), CraftingPlanRouteGeometry.EMPTY);
         }
         double cellWidth = compact ? 88 : 92;
         double cellHeight = compact ? 42 : 46;
@@ -231,15 +232,10 @@ public final class CraftingPlanGraphLayout {
         }
     }
 
-    public record RoutedEdge(int source, int target, List<Point> points, boolean cyclic, List<Integer> originalEdgeIds) {
+    public record RoutedEdge(int source, int target, boolean cyclic, IntList originalEdgeIds,
+                             CraftingPlanRouteGroup group, List<SegmentRange> segmentRanges) {}
 
-        public RoutedEdge {
-            points = List.copyOf(points);
-            originalEdgeIds = List.copyOf(originalEdgeIds);
-        }
-    }
-
-    public record Layout(List<PlacedNode> nodes, List<RoutedEdge> edges, Bounds bounds) {
+    public record Layout(List<PlacedNode> nodes, List<RoutedEdge> edges, Bounds bounds, CraftingPlanRouteGeometry geometry) {
 
         public Layout {
             nodes = List.copyOf(nodes);
