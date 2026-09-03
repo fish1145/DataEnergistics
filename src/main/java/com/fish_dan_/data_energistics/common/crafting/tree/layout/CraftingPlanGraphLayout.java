@@ -1,6 +1,5 @@
 package com.fish_dan_.data_energistics.common.crafting.tree.layout;
 
-import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanEdgeRouter.Component;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.SegmentRange;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Process;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewEdge;
@@ -9,6 +8,8 @@ import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGrap
 
 import it.unimi.dsi.fastutil.ints.Int2DoubleMap;
 import it.unimi.dsi.fastutil.ints.Int2DoubleOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -35,8 +36,7 @@ public final class CraftingPlanGraphLayout {
             return new Layout(List.of(), List.of(), new Bounds(0, 0, 0, 0), CraftingPlanRouteGeometry.EMPTY);
         }
         Spacing spacing = compact ? Spacing.COMPACT : Spacing.RELAXED;
-        // The router works in layer coordinates. Transpose card footprints now, then publish upright cards
-        // horizontally.
+        // Retain the perimeter calculation's virtual axes, then publish upright cards with rank along X.
         double cellWidth = compact ? 40 : 46;
         double cellHeight = compact ? 84 : 92;
         Int2ObjectMap<Group> groups = new Int2ObjectAVLTreeMap<>();
@@ -108,21 +108,22 @@ public final class CraftingPlanGraphLayout {
                 }
             }
         }
-        List<List<Component>> components = new ObjectArrayList<>();
-        for (List<Group> layer : layers.values()) {
-            List<Component> row = new ObjectArrayList<>();
-            for (Group group : layer) {
-                placeNodes(group, compact, cellWidth, cellHeight, spacing);
-                Int2ObjectMap<Side> outward = new Int2ObjectOpenHashMap<>();
-                for (int index = 0; index < group.nodes.size(); index++) {
-                    outward.put(group.nodes.get(index).id(), group.slots.get(index).side());
-                }
-                row.add(new Component(group.id, new ObjectArrayList<>(group.placed.values()), outward,
-                        group.width, group.height));
-            }
-            components.add(row);
+        Int2ObjectMap<PlacedNode> placed = new Int2ObjectAVLTreeMap<>();
+        Int2IntMap nodeRanks = new Int2IntOpenHashMap();
+        positionGroups(layers, spacing);
+        for (Group group : groups.values()) {
+            for (ViewNode node : group.nodes) nodeRanks.put(node.id(), group.rank);
+            placeNodes(group, compact, cellWidth, cellHeight, spacing, placed);
         }
-        return CraftingPlanEdgeRouter.route(graph, components, spacing);
+        var score = new CraftingPlanLayoutOrderScore(graph.edges(), placed, nodeRanks);
+        improveLayers(layers, score, placed, compact, cellWidth, cellHeight, spacing);
+        var attachments = externalAttachments(graph.edges(), nodeById, placed);
+        for (Group group : groups.values()) {
+            if (group.cyclic && group.nodes.size() > 1) {
+                improveCycle(group, graph.rootId(), attachments, score, placed, compact, cellWidth, cellHeight, spacing);
+            }
+        }
+        return CraftingPlanEdgeRouter.route(graph, new ObjectArrayList<>(placed.values()), spacing);
     }
 
     private static void orderCycle(Group group, Int2ObjectMap<ViewNode> nodes, Int2ObjectMap<IntList> outgoing) {
@@ -161,31 +162,206 @@ public final class CraftingPlanGraphLayout {
             rows = Math.max(2, (count - 2 * columns + 5) / 2);
         }
         for (int column = 0; column < columns && group.slots.size() < count; column++) {
-            group.slots.add(new Slot(0, column, Side.TOP));
+            group.slots.add(new Slot(0, column));
         }
         for (int row = 1; row < rows && group.slots.size() < count; row++) {
-            group.slots.add(new Slot(row, columns - 1, Side.RIGHT));
+            group.slots.add(new Slot(row, columns - 1));
         }
         for (int column = columns - 2; column >= 0 && group.slots.size() < count; column--) {
-            group.slots.add(new Slot(rows - 1, column, Side.BOTTOM));
+            group.slots.add(new Slot(rows - 1, column));
         }
         for (int row = rows - 2; row > 0 && group.slots.size() < count; row--) {
-            group.slots.add(new Slot(row, 0, Side.LEFT));
+            group.slots.add(new Slot(row, 0));
         }
         group.width = 2 * spacing.componentPadding() + columns * cellWidth + (columns - 1) * spacing.cellGap();
         group.height = 2 * spacing.componentPadding() + rows * cellHeight + (rows - 1) * spacing.cellGap();
     }
 
-    private static void placeNodes(Group group, boolean compact, double cellWidth, double cellHeight, Spacing spacing) {
+    private static void placeNodes(Group group, boolean compact, double cellWidth, double cellHeight, Spacing spacing,
+                                   Int2ObjectMap<PlacedNode> placed) {
         for (int index = 0; index < group.nodes.size(); index++) {
-            ViewNode node = group.nodes.get(index);
-            Slot slot = group.slots.get(index);
-            double width = node.sourceNode() instanceof Process ? compact ? 36 : 40 : node.embeddedProcessId() != null ? cellWidth : compact ? 30 : 32;
-            double height = node.sourceNode() instanceof Process ? cellHeight : compact ? 72 : 80;
-            double nodeX = spacing.componentPadding() + slot.column() * (cellWidth + spacing.cellGap()) + (cellWidth - width) / 2;
-            double nodeY = spacing.componentPadding() + slot.row() * (cellHeight + spacing.cellGap());
-            group.placed.put(node.id(), new PlacedNode(node, nodeX, nodeY, width, height));
+            placeNode(group, index, compact, cellWidth, cellHeight, spacing, placed);
         }
+    }
+
+    private static void placeNode(Group group, int index, boolean compact, double cellWidth, double cellHeight,
+                                  Spacing spacing, Int2ObjectMap<PlacedNode> placed) {
+        ViewNode node = group.nodes.get(index);
+        Slot slot = group.slots.get(index);
+        double width = node.sourceNode() instanceof Process ? compact ? 36 : 40 : node.embeddedProcessId() != null ? cellWidth : compact ? 30 : 32;
+        double height = node.sourceNode() instanceof Process ? cellHeight : compact ? 72 : 80;
+        double nodeX = spacing.componentPadding() + slot.column() * (cellWidth + spacing.cellGap()) + (cellWidth - width) / 2;
+        double nodeY = spacing.componentPadding() + slot.row() * (cellHeight + spacing.cellGap());
+        placed.put(node.id(), new PlacedNode(node, group.depth + nodeY, group.cross + nodeX, height, width));
+    }
+
+    /** Packing depends only on card envelopes and density, never on the number or shape of routed edges. */
+    private static void positionGroups(Int2ObjectMap<List<Group>> layers, Spacing spacing) {
+        double maximumWidth = 0;
+        for (List<Group> layer : layers.values()) maximumWidth = Math.max(maximumWidth, layerWidth(layer, spacing));
+        double depth = spacing.routingPadding();
+        for (List<Group> layer : layers.values()) {
+            double cross = spacing.routingPadding() + (maximumWidth - layerWidth(layer, spacing)) / 2;
+            double height = 0;
+            for (Group group : layer) {
+                group.cross = cross;
+                group.depth = depth;
+                cross += group.width + spacing.groupGap();
+                height = Math.max(height, group.height);
+            }
+            depth += height + 2 * spacing.routingPadding();
+        }
+    }
+
+    private static double layerWidth(List<Group> layer, Spacing spacing) {
+        double width = Math.max(0, layer.size() - 1) * spacing.groupGap();
+        for (Group group : layer) width += group.width;
+        return width;
+    }
+
+    private static void improveLayers(Int2ObjectMap<List<Group>> layers, CraftingPlanLayoutOrderScore score,
+                                      Int2ObjectMap<PlacedNode> placed, boolean compact, double cellWidth,
+                                      double cellHeight, Spacing spacing) {
+        for (int pass = 0; pass < 2; pass++) {
+            for (List<Group> layer : layers.values()) {
+                for (int step = 0; step + 1 < layer.size(); step++) {
+                    int index = pass == 0 ? step : layer.size() - step - 2;
+                    Group first = layer.get(index);
+                    Group second = layer.get(index + 1);
+                    IntList moved = nodeIds(first);
+                    for (ViewNode node : second.nodes) moved.add(node.id());
+                    double firstCross = first.cross;
+                    double secondCross = second.cross;
+                    if (score.improve(moved, () -> {
+                        second.cross = firstCross;
+                        first.cross = firstCross + second.width + spacing.groupGap();
+                        placeNodes(first, compact, cellWidth, cellHeight, spacing, placed);
+                        placeNodes(second, compact, cellWidth, cellHeight, spacing, placed);
+                    }, () -> {
+                        first.cross = firstCross;
+                        second.cross = secondCross;
+                        placeNodes(first, compact, cellWidth, cellHeight, spacing, placed);
+                        placeNodes(second, compact, cellWidth, cellHeight, spacing, placed);
+                    })) {
+                        layer.set(index, second);
+                        layer.set(index + 1, first);
+                    }
+                }
+            }
+        }
+    }
+
+    private static Int2ObjectMap<Attachment> externalAttachments(List<ViewEdge> edges,
+                                                                 Int2ObjectMap<ViewNode> nodes,
+                                                                 Int2ObjectMap<PlacedNode> placed) {
+        Int2ObjectMap<Attachment> result = new Int2ObjectOpenHashMap<>();
+        for (ViewEdge edge : edges) {
+            if (nodes.get(edge.source()).componentId() == nodes.get(edge.target()).componentId()) continue;
+            result.computeIfAbsent(edge.source(), unused -> new Attachment()).add(placed.get(edge.target()));
+            result.computeIfAbsent(edge.target(), unused -> new Attachment()).add(placed.get(edge.source()));
+        }
+        return result;
+    }
+
+    private static void improveCycle(Group group, int rootId, Int2ObjectMap<Attachment> attachments,
+                                     CraftingPlanLayoutOrderScore score, Int2ObjectMap<PlacedNode> placed,
+                                     boolean compact, double cellWidth, double cellHeight, Spacing spacing) {
+        List<ViewNode> original = new ObjectArrayList<>(group.nodes);
+        IntList moved = nodeIds(group);
+        IntList guides = new IntArrayList(4);
+        for (int index = 0; index < original.size(); index++) {
+            Attachment attachment = attachments.get(original.get(index).id());
+            if (attachment == null) continue;
+            int insert = 0;
+            while (insert < guides.size()) {
+                ViewNode previous = original.get(guides.getInt(insert));
+                int previousCount = attachments.get(previous.id()).count;
+                if (attachment.count > previousCount || attachment.count == previousCount && original.get(index).id() < previous.id()) break;
+                insert++;
+            }
+            if (insert < 4) {
+                guides.add(insert, index);
+                if (guides.size() > 4) guides.removeInt(4);
+            }
+        }
+        IntSet tried = new IntOpenHashSet();
+        for (int guide : guides) {
+            Attachment attachment = attachments.get(original.get(guide).id());
+            int desired = closestSlot(group, attachment.x / attachment.count, attachment.y / attachment.count,
+                    cellWidth, cellHeight, spacing);
+            for (int direction : new int[] { 1, -1 }) {
+                int shift = Math.floorMod(desired - direction * guide, original.size());
+                int key = shift * 2 + (direction == 1 ? 0 : 1);
+                if (!tried.add(key)) continue;
+                List<ViewNode> candidate = new ObjectArrayList<>(original);
+                for (int index = 0; index < original.size(); index++) {
+                    candidate.set(Math.floorMod(shift + direction * index, original.size()), original.get(index));
+                }
+                if (!rootOnLeft(group, candidate, rootId)) continue;
+                List<ViewNode> previous = new ObjectArrayList<>(group.nodes);
+                score.improve(moved, () -> {
+                    replaceOrder(group, candidate);
+                    placeNodes(group, compact, cellWidth, cellHeight, spacing, placed);
+                }, () -> {
+                    replaceOrder(group, previous);
+                    placeNodes(group, compact, cellWidth, cellHeight, spacing, placed);
+                });
+            }
+        }
+        for (int pass = 0; pass < 2; pass++) {
+            for (int step = 0; step + 1 < group.nodes.size(); step++) {
+                int first = pass == 0 ? step : group.nodes.size() - step - 2;
+                int second = first + 1;
+                ViewNode a = group.nodes.get(first);
+                ViewNode b = group.nodes.get(second);
+                if (a.id() == rootId && group.slots.get(second).row() != 0 || b.id() == rootId && group.slots.get(first).row() != 0) continue;
+                IntList pair = IntArrayList.of(a.id(), b.id());
+                score.improve(pair, () -> {
+                    group.nodes.set(first, b);
+                    group.nodes.set(second, a);
+                    placeNode(group, first, compact, cellWidth, cellHeight, spacing, placed);
+                    placeNode(group, second, compact, cellWidth, cellHeight, spacing, placed);
+                }, () -> {
+                    group.nodes.set(first, a);
+                    group.nodes.set(second, b);
+                    placeNode(group, first, compact, cellWidth, cellHeight, spacing, placed);
+                    placeNode(group, second, compact, cellWidth, cellHeight, spacing, placed);
+                });
+            }
+        }
+    }
+
+    private static int closestSlot(Group group, double x, double y, double cellWidth, double cellHeight, Spacing spacing) {
+        int best = 0;
+        double distance = Double.POSITIVE_INFINITY;
+        for (int index = 0; index < group.slots.size(); index++) {
+            Slot slot = group.slots.get(index);
+            double centerX = group.depth + spacing.componentPadding() + slot.row() * (cellHeight + spacing.cellGap()) + cellHeight / 2;
+            double centerY = group.cross + spacing.componentPadding() + slot.column() * (cellWidth + spacing.cellGap()) + cellWidth / 2;
+            double candidate = Math.abs(centerX - x) + Math.abs(centerY - y);
+            if (candidate < distance) {
+                best = index;
+                distance = candidate;
+            }
+        }
+        return best;
+    }
+
+    private static boolean rootOnLeft(Group group, List<ViewNode> order, int rootId) {
+        for (int index = 0; index < order.size(); index++) {
+            if (order.get(index).id() == rootId) return group.slots.get(index).row() == 0;
+        }
+        return true;
+    }
+
+    private static void replaceOrder(Group group, List<ViewNode> nodes) {
+        for (int index = 0; index < nodes.size(); index++) group.nodes.set(index, nodes.get(index));
+    }
+
+    private static IntList nodeIds(Group group) {
+        IntList ids = new IntArrayList(group.nodes.size());
+        for (ViewNode node : group.nodes) ids.add(node.id());
+        return ids;
     }
 
     private static Int2DoubleMap positions(Int2ObjectMap<List<Group>> layers, double groupGap) {
@@ -255,14 +431,13 @@ public final class CraftingPlanGraphLayout {
         private static final Spacing RELAXED = new Spacing(16, 24, 32, 16, 8);
     }
 
-    private record Slot(int row, int column, Side side) {}
+    private record Slot(int row, int column) {}
 
     private static final class Group {
 
         private final int id;
         private final List<ViewNode> nodes = new ObjectArrayList<>();
         private final List<Slot> slots = new ObjectArrayList<>();
-        private final Int2ObjectMap<PlacedNode> placed = new Int2ObjectAVLTreeMap<>();
         private final IntSet parents = new IntAVLTreeSet();
         private final IntSet children = new IntAVLTreeSet();
         private int remainingParents;
@@ -270,9 +445,24 @@ public final class CraftingPlanGraphLayout {
         private boolean cyclic;
         private double width;
         private double height;
+        private double cross;
+        private double depth;
 
         private Group(int id) {
             this.id = id;
+        }
+    }
+
+    private static final class Attachment {
+
+        private int count;
+        private double x;
+        private double y;
+
+        private void add(PlacedNode node) {
+            count++;
+            x += node.x() + node.width() / 2;
+            y += node.y() + node.height() / 2;
         }
     }
 }
