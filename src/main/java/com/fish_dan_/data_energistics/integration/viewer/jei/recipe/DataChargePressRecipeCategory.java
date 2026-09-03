@@ -36,18 +36,18 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
             Data_Energistics.MODID, "data_charge_press", DataChargePressRecipeView.class);
     private static final int LEFT_CROP = 0;
     private static final int TOP_CROP = 15;
-    private static final int UI_OFFSET_X = 5;
+    private static final int CONTENT_OFFSET_X = 5;
     private static final int BACKGROUND_WIDTH = 160;
-    private static final int WIDTH = UI_OFFSET_X + BACKGROUND_WIDTH + 2;
+    private static final int WIDTH = CONTENT_OFFSET_X + BACKGROUND_WIDTH + 2;
     private static final int HEIGHT = 64;
     // Map top/middle/bottom recipe inputs to the first vertical column of the machine's 3x3 input grid.
-    private static final int FIRST_INPUT_X = 22;
-    private static final int SECOND_INPUT_X = 22;
-    private static final int THIRD_INPUT_X = 22;
-    private static final int FLUID_X = 76;
+    private static final int FIRST_INPUT_X = 17 + CONTENT_OFFSET_X;
+    private static final int SECOND_INPUT_X = 17 + CONTENT_OFFSET_X;
+    private static final int THIRD_INPUT_X = 17 + CONTENT_OFFSET_X;
+    private static final int FLUID_X = 71 + CONTENT_OFFSET_X;
     private static final int FLUID_Y = 7;
-    private static final int OUTPUT_X = 122;
-    private static final int PROGRESS_X = 161;
+    private static final int OUTPUT_X = 117 + CONTENT_OFFSET_X;
+    private static final int PROGRESS_X = 156 + CONTENT_OFFSET_X;
     private static final int FIRST_INPUT_Y = 7;
     private static final int SECOND_INPUT_Y = 25;
     private static final int THIRD_INPUT_Y = 43;
@@ -73,7 +73,7 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
     @Override
     public void draw(DataChargePressRecipeView recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics,
                      double mouseX, double mouseY) {
-        this.background.draw(guiGraphics, UI_OFFSET_X, 0);
+        this.background.draw(guiGraphics);
         this.progress.draw(guiGraphics, PROGRESS_X, PROGRESS_Y);
     }
 
