@@ -38,19 +38,6 @@ public final class BeamFormerBlock extends AEBaseEntityBlock<BeamFormerBlockEnti
 
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
     public static final EnumProperty<Status> STATUS = EnumProperty.create("status", Status.class);
-    private static final VoxelShape[] SHAPES = new VoxelShape[6];
-    static {
-        for (Direction facing : Direction.values()) {
-            SHAPES[facing.get3DDataValue()] = switch (facing) {
-                case NORTH -> Block.box(2, 2, 0, 14, 14, 8);
-                case SOUTH -> Block.box(2, 2, 8, 14, 14, 16);
-                case WEST -> Block.box(0, 2, 2, 8, 14, 14);
-                case EAST -> Block.box(8, 2, 2, 16, 14, 14);
-                case UP -> Block.box(2, 8, 2, 14, 16, 14);
-                case DOWN -> Block.box(2, 0, 2, 14, 8, 14);
-            };
-        }
-    }
     private final BeamDeviceKind kind;
 
     public BeamFormerBlock(BlockBehaviour.Properties properties, BeamDeviceKind kind) {
@@ -116,7 +103,7 @@ public final class BeamFormerBlock extends AEBaseEntityBlock<BeamFormerBlockEnti
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return SHAPES[state.getValue(FACING).get3DDataValue()];
+        return BeamFormerShapes.forFacing(this.kind, state.getValue(FACING));
     }
 
     @Override
