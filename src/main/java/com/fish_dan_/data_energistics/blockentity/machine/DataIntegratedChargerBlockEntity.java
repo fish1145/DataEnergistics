@@ -86,11 +86,11 @@ import java.util.Set;
 public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEntity
                                               implements InternalInventoryHost, IConfigurableObject, IUpgradeableObject {
 
-    public static final int ITEM_INPUT_SLOT_COUNT = 6;
+    public static final int ITEM_INPUT_SLOT_COUNT = 9;
     public static final int ITEM_OUTPUT_SLOT_COUNT = 6;
-    // Preserve output and module indexes from the original eight-input layout.
-    // This keeps previously saved output and module stacks in place as the two inputs are retired.
-    public static final int ITEM_OUTPUT_START_SLOT = 8;
+    public static final int FLUID_TANK_COUNT = 3;
+    // Keep the new inputs contiguous while retaining a dedicated legacy-module refund slot.
+    public static final int ITEM_OUTPUT_START_SLOT = ITEM_INPUT_SLOT_COUNT;
     public static final int LEGACY_MACHINE_MODULE_SLOT = ITEM_OUTPUT_START_SLOT + ITEM_OUTPUT_SLOT_COUNT;
     /** @deprecated Module items are refunded from this legacy slot; select modes through the menu button. */
     @Deprecated
@@ -111,7 +111,13 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String STORAGE_SLOT_TAG = "Slot";
     private static final String STORAGE_COUNT_TAG = "DataEnergisticsCount";
     private static final String UPGRADES_TAG = "upgrades";
+    /** Single-tank key used by layouts written before the three-tank upgrade. */
     private static final String FLUID_TAG = "fluid";
+    private static final String FLUID_TANKS_TAG = "fluid_tanks";
+    private static final String STORAGE_LAYOUT_VERSION_TAG = "storage_layout_version";
+    private static final int STORAGE_LAYOUT_VERSION = 2;
+    private static final int PREVIOUS_ITEM_OUTPUT_START_SLOT = 8;
+    private static final int PREVIOUS_LEGACY_MACHINE_MODULE_SLOT = 14;
     private static final String CONFIG_TAG = "config";
     private static final String OUTPUT_SIDES_TAG = "output_sides";
     private static final String PROGRESS_TAG = "progress";
@@ -125,11 +131,11 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private final InternalInventory externalInput = createExternalInput();
     private final InternalInventory externalOutput = createExternalOutput();
     private final InternalInventory externalInventory = new CombinedInternalInventory(this.externalInput, this.externalOutput);
-    private final FluidTank fluidTank = new IntegratedFluidTank();
+    private final List<FluidTank> fluidTanks = createFluidTanks();
     private final IFluidHandler externalFluidInput = new FluidInputHandler();
-    private final GenericStackInv fluidMenuInventory = createFluidMenuInventory();
+    private final List<GenericStackInv> fluidMenuInventories = createFluidMenuInventories();
     private final ConfigManager configManager = new ConfigManager(this::onConfigChanged);
-    private boolean syncingFluidMenu;
+    private boolean syncingFluidMenus;
     private final Set<Direction> outputSides = EnumSet.allOf(Direction.class);
     private @Nullable AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentGenericInventories;
     private @Nullable AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
@@ -153,7 +159,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         this.storage.setMaxStackSize(LEGACY_MACHINE_MODULE_SLOT, 1);
         this.setPowerSides(connectableSides);
         updateEnergyCapacity();
-        syncMenuFluidFromTank();
+        syncMenuFluidsFromTanks();
     }
 
     @Override
@@ -209,20 +215,39 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return this.externalInventory;
     }
 
+    public FluidTank getFluidTank(int tank) {
+        return getFluidTank(tank, this.fluidTanks);
+    }
+
+    /**
+     * @deprecated The integrated charger now exposes three fluid tanks. Use {@link #getFluidTank(int)} instead.
+     */
+    @Deprecated
     public FluidTank getFluidTank() {
-        return this.fluidTank;
+        return getFluidTank(0);
     }
 
     public IFluidHandler getExternalFluidHandler() {
         return this.externalFluidInput;
     }
 
+    public ConfigMenuInventory getFluidMenuInventory(int tank) {
+        if (tank < 0 || tank >= this.fluidMenuInventories.size()) {
+            throw new IndexOutOfBoundsException("Invalid Data Integrated Charger fluid tank: " + tank);
+        }
+        return this.fluidMenuInventories.get(tank).createMenuWrapper();
+    }
+
+    /**
+     * @deprecated The integrated charger now exposes three fluid menus. Use {@link #getFluidMenuInventory(int)} instead.
+     */
+    @Deprecated
     public ConfigMenuInventory getFluidMenuInventory() {
-        return this.fluidMenuInventory.createMenuWrapper();
+        return getFluidMenuInventory(0);
     }
 
     public int getFluidCapacity() {
-        return this.fluidTank.getCapacity();
+        return FLUID_CAPACITY;
     }
 
     public boolean isAutoExportEnabled() {
@@ -362,7 +387,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         super.loadTag(data, registries);
         this.storage.readFromNBT(data, STORAGE_TAG, registries);
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
-        this.fluidTank.readFromNBT(registries, data.getCompound(FLUID_TAG));
+        loadFluidTanks(data, registries);
         if (data.contains(CONFIG_TAG)) {
             this.configManager.readFromNBT(data.getCompound(CONFIG_TAG), registries);
         }
@@ -378,8 +403,9 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         this.processingMode = this.machineMode;
         this.pendingLegacyModuleRefund = data.contains(LEGACY_MODULE_REFUND_TAG, Tag.TAG_COMPOUND) ?
                 ItemStack.parseOptional(registries, data.getCompound(LEGACY_MODULE_REFUND_TAG)) : ItemStack.EMPTY;
+        migrateLegacyStorageLayout(data);
         moveLegacyModuleToRefundQueue();
-        syncMenuFluidFromTank();
+        syncMenuFluidsFromTanks();
         updateEnergyCapacity();
     }
 
@@ -394,7 +420,13 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         }
         this.storage.writeToNBT(data, STORAGE_TAG, registries);
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
-        data.put(FLUID_TAG, this.fluidTank.writeToNBT(registries, new CompoundTag()));
+        ListTag fluidTanksTag = new ListTag();
+        for (FluidTank tank : this.fluidTanks) {
+            fluidTanksTag.add(tank.writeToNBT(registries, new CompoundTag()));
+        }
+        data.remove(FLUID_TAG);
+        data.put(FLUID_TANKS_TAG, fluidTanksTag);
+        data.putInt(STORAGE_LAYOUT_VERSION_TAG, STORAGE_LAYOUT_VERSION);
         CompoundTag config = new CompoundTag();
         this.configManager.writeToNBT(config, registries);
         data.put(CONFIG_TAG, config);
@@ -421,7 +453,9 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     public void clearContent() {
         super.clearContent();
         this.storage.clear();
-        this.fluidTank.setFluid(FluidStack.EMPTY);
+        for (FluidTank tank : this.fluidTanks) {
+            tank.setFluid(FluidStack.EMPTY);
+        }
         this.pendingLegacyModuleRefund = ItemStack.EMPTY;
     }
 
@@ -579,13 +613,14 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
      * Executes data charge press operations before their normal AE2 machine recipes.
      */
     private boolean processDataChargePressOperation(DataChargePressOperation operation) {
-        if (this.fluidTank.drain(operation.fluidAmount(), IFluidHandler.FluidAction.SIMULATE)
+        FluidTank fluidTank = getFluidTank(operation.fluidTank(), this.fluidTanks);
+        if (fluidTank.drain(operation.fluidAmount(), IFluidHandler.FluidAction.SIMULATE)
                 .getAmount() != operation.fluidAmount() ||
                 !consumeOperationEnergy()) {
             return false;
         }
 
-        FluidStack drained = this.fluidTank.drain(
+        FluidStack drained = fluidTank.drain(
                 operation.fluidAmount(), IFluidHandler.FluidAction.EXECUTE);
         if (drained.getAmount() != operation.fluidAmount()) {
             return false;
@@ -607,9 +642,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         for (int slot = 0; slot < ITEM_INPUT_SLOT_COUNT; slot++) {
             inputs.add(this.storage.getStackInSlot(slot));
         }
-        if (!DataChargePressRecipeSupport.matchesFluid(this.fluidTank.getFluid())) {
-            return null;
-        }
         for (RecipeHolder<InscriberRecipe> holder : this.level.getRecipeManager()
                 .getAllRecipesFor(AERecipeTypes.INSCRIBER)) {
             InscriberRecipe recipe = holder.value();
@@ -621,9 +653,14 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             ItemStack result = DataChargePressRecipeSupport.getTripleResult(recipe);
             if (materialSlot >= 0 && inputs.get(materialSlot).getCount() >=
                     DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT && findOutputSlot(result) >= 0) {
-                return new DataChargePressOperation(result, DataChargePressRecipeSupport.DATA_CORROSION_AMOUNT,
-                        List.of(new DataChargePressRecipe.InputSlot(materialSlot,
-                                DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT)));
+                for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+                    if (DataChargePressRecipeSupport.matchesFluid(getFluidTank(tank, this.fluidTanks).getFluid())) {
+                        return new DataChargePressOperation(result, tank,
+                                DataChargePressRecipeSupport.DATA_CORROSION_AMOUNT,
+                                List.of(new DataChargePressRecipe.InputSlot(materialSlot,
+                                        DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT)));
+                    }
+                }
             }
         }
         return null;
@@ -641,13 +678,15 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         for (RecipeHolder<DataChargePressRecipe> holder : this.level.getRecipeManager()
                 .getAllRecipesFor(DERecipes.DATA_CHARGE_PRESS_TYPE.get())) {
             DataChargePressRecipe recipe = holder.value();
-            if (!recipe.matchesMachineInputs(inputs, this.fluidTank.getFluid())) {
-                continue;
-            }
             List<DataChargePressRecipe.InputSlot> inputSlots = recipe.findMatchingInputSlots(inputs);
             ItemStack result = recipe.getResult();
-            if (!inputSlots.isEmpty() && findOutputSlot(result) >= 0) {
-                return new DataChargePressOperation(result, recipe.getFluidAmount(), inputSlots);
+            if (inputSlots.isEmpty() || findOutputSlot(result) < 0) {
+                continue;
+            }
+            for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+                if (recipe.matchesMachineInputs(inputs, getFluidTank(tank, this.fluidTanks).getFluid())) {
+                    return new DataChargePressOperation(result, tank, recipe.getFluidAmount(), inputSlots);
+                }
             }
         }
         return null;
@@ -1191,17 +1230,63 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
+    private void loadFluidTanks(CompoundTag data, HolderLookup.Provider registries) {
+        if (data.contains(FLUID_TANKS_TAG, Tag.TAG_LIST)) {
+            ListTag tanksTag = data.getList(FLUID_TANKS_TAG, Tag.TAG_COMPOUND);
+            for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+                CompoundTag tankTag = tank < tanksTag.size() ? tanksTag.getCompound(tank) : new CompoundTag();
+                getFluidTank(tank, this.fluidTanks).readFromNBT(registries, tankTag);
+            }
+            return;
+        }
+
+        // Single-tank worlds retain their fluid in the first visible input tank.
+        getFluidTank(0, this.fluidTanks).readFromNBT(registries, data.getCompound(FLUID_TAG));
+        for (int tank = 1; tank < FLUID_TANK_COUNT; tank++) {
+            getFluidTank(tank, this.fluidTanks).setFluid(FluidStack.EMPTY);
+        }
+    }
+
+    private void migrateLegacyStorageLayout(CompoundTag data) {
+        if (data.getInt(STORAGE_LAYOUT_VERSION_TAG) >= STORAGE_LAYOUT_VERSION) {
+            return;
+        }
+
+        boolean migrated = false;
+        ItemStack legacyModule = this.storage.getStackInSlot(PREVIOUS_LEGACY_MACHINE_MODULE_SLOT);
+        if (!legacyModule.isEmpty()) {
+            queueLegacyModuleRefund(legacyModule);
+            this.storage.setItemDirect(PREVIOUS_LEGACY_MACHINE_MODULE_SLOT, ItemStack.EMPTY);
+            migrated = true;
+        }
+
+        // Slot 8 was the first output in the six-input layout and becomes the ninth input in this layout.
+        ItemStack displacedOutput = this.storage.getStackInSlot(PREVIOUS_ITEM_OUTPUT_START_SLOT);
+        if (!displacedOutput.isEmpty()) {
+            this.storage.setItemDirect(PREVIOUS_ITEM_OUTPUT_START_SLOT, ItemStack.EMPTY);
+            this.storage.setItemDirect(PREVIOUS_LEGACY_MACHINE_MODULE_SLOT, displacedOutput);
+            migrated = true;
+        }
+        if (migrated) {
+            setChanged();
+        }
+    }
+
     private void moveLegacyModuleToRefundQueue() {
         ItemStack legacyModule = this.storage.getStackInSlot(LEGACY_MACHINE_MODULE_SLOT);
         if (legacyModule.isEmpty()) {
             return;
         }
+        queueLegacyModuleRefund(legacyModule);
+        this.storage.setItemDirect(LEGACY_MACHINE_MODULE_SLOT, ItemStack.EMPTY);
+        setChanged();
+    }
+
+    private void queueLegacyModuleRefund(ItemStack legacyModule) {
         if (!this.pendingLegacyModuleRefund.isEmpty()) {
             throw new IllegalStateException("Data Integrated Charger has multiple pending legacy module refunds");
         }
         this.pendingLegacyModuleRefund = legacyModule.copy();
-        this.storage.setItemDirect(LEGACY_MACHINE_MODULE_SLOT, ItemStack.EMPTY);
-        setChanged();
     }
 
     private boolean refundLegacyModule() {
@@ -1237,45 +1322,68 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return new CombinedInternalInventory(outputs);
     }
 
-    private GenericStackInv createFluidMenuInventory() {
-        var inventory = new GenericStackInv(
-                Set.of(AEKeyType.fluids()), this::syncTankFromMenuFluid, GenericStackInv.Mode.STORAGE, 1);
-        inventory.setCapacity(AEKeyType.fluids(), FLUID_CAPACITY);
-        return inventory;
+    private List<FluidTank> createFluidTanks() {
+        List<FluidTank> tanks = new ObjectArrayList<>(FLUID_TANK_COUNT);
+        for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+            tanks.add(new IntegratedFluidTank());
+        }
+        return tanks;
     }
 
-    private void syncMenuFluidFromTank() {
-        if (this.syncingFluidMenu) {
+    private List<GenericStackInv> createFluidMenuInventories() {
+        List<GenericStackInv> inventories = new ObjectArrayList<>(FLUID_TANK_COUNT);
+        for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+            int fluidTank = tank;
+            var inventory = new GenericStackInv(Set.of(AEKeyType.fluids()),
+                    () -> syncTankFromMenuFluid(fluidTank), GenericStackInv.Mode.STORAGE, 1);
+            inventory.setCapacity(AEKeyType.fluids(), FLUID_CAPACITY);
+            inventories.add(inventory);
+        }
+        return inventories;
+    }
+
+    private void syncMenuFluidsFromTanks() {
+        if (this.syncingFluidMenus) {
             return;
         }
 
-        this.syncingFluidMenu = true;
+        this.syncingFluidMenus = true;
         try {
-            this.fluidMenuInventory.setStack(0, createFluidGenericStack(this.fluidTank.getFluid()));
+            for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+                this.fluidMenuInventories.get(tank).setStack(0,
+                        createFluidGenericStack(getFluidTank(tank, this.fluidTanks).getFluid()));
+            }
         } finally {
-            this.syncingFluidMenu = false;
+            this.syncingFluidMenus = false;
         }
     }
 
-    private void syncTankFromMenuFluid() {
-        if (this.syncingFluidMenu) {
+    private void syncTankFromMenuFluid(int tank) {
+        if (this.syncingFluidMenus) {
             return;
         }
 
-        this.syncingFluidMenu = true;
+        this.syncingFluidMenus = true;
         try {
-            GenericStack stack = this.fluidMenuInventory.getStack(0);
+            GenericStack stack = this.fluidMenuInventories.get(tank).getStack(0);
             if (stack == null || !(stack.what() instanceof AEFluidKey fluidKey) || stack.amount() <= 0) {
-                this.fluidTank.setFluid(FluidStack.EMPTY);
+                getFluidTank(tank, this.fluidTanks).setFluid(FluidStack.EMPTY);
             } else {
                 int amount = (int) Math.min(FLUID_CAPACITY, stack.amount());
-                this.fluidTank.setFluid(fluidKey.toStack(amount));
+                getFluidTank(tank, this.fluidTanks).setFluid(fluidKey.toStack(amount));
             }
             saveChanges();
             markForClientUpdate();
         } finally {
-            this.syncingFluidMenu = false;
+            this.syncingFluidMenus = false;
         }
+    }
+
+    private static FluidTank getFluidTank(int tank, List<FluidTank> tanks) {
+        if (tank < 0 || tank >= tanks.size()) {
+            throw new IndexOutOfBoundsException("Invalid Data Integrated Charger fluid tank: " + tank);
+        }
+        return tanks.get(tank);
     }
 
     private static @Nullable GenericStack createFluidGenericStack(FluidStack fluid) {
@@ -1306,7 +1414,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    private record DataChargePressOperation(ItemStack result, int fluidAmount,
+    private record DataChargePressOperation(ItemStack result, int fluidTank, int fluidAmount,
                                             List<DataChargePressRecipe.InputSlot> inputSlots) {}
 
     private final class StorageFilter implements IAEItemFilter {
@@ -1338,7 +1446,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         protected void onContentsChanged() {
-            syncMenuFluidFromTank();
+            syncMenuFluidsFromTanks();
             saveChanges();
             markForClientUpdate();
         }
@@ -1348,27 +1456,34 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public int getTanks() {
-            return 1;
+            return FLUID_TANK_COUNT;
         }
 
         @Override
         public FluidStack getFluidInTank(int tank) {
-            return tank == 0 ? fluidTank.getFluid() : FluidStack.EMPTY;
+            return tank >= 0 && tank < FLUID_TANK_COUNT ? getFluidTank(tank, fluidTanks).getFluid() : FluidStack.EMPTY;
         }
 
         @Override
         public int getTankCapacity(int tank) {
-            return tank == 0 ? fluidTank.getCapacity() : 0;
+            return tank >= 0 && tank < FLUID_TANK_COUNT ? getFluidTank(tank, fluidTanks).getCapacity() : 0;
         }
 
         @Override
         public boolean isFluidValid(int tank, FluidStack stack) {
-            return tank == 0 && fluidTank.isFluidValid(stack);
+            return tank >= 0 && tank < FLUID_TANK_COUNT && getFluidTank(tank, fluidTanks).isFluidValid(stack);
         }
 
         @Override
         public int fill(FluidStack resource, FluidAction action) {
-            return fluidTank.fill(resource, action);
+            int filled = 0;
+            for (FluidTank tank : fluidTanks) {
+                if (filled >= resource.getAmount()) {
+                    break;
+                }
+                filled += tank.fill(resource.copyWithAmount(resource.getAmount() - filled), action);
+            }
+            return filled;
         }
 
         @Override

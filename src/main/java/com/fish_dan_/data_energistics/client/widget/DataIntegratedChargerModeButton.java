@@ -41,7 +41,14 @@ public final class DataIntegratedChargerModeButton extends Button implements ITo
             return;
         }
 
-        getModeIcon().dest(this.getX(), this.getY()).zOffset(3).blit(guiGraphics);
+        int yOffset = this.isHovered() ? 1 : 0;
+        Icon background = this.isHovered() ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER :
+                this.isFocused() ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND;
+        background.getBlitter()
+                .dest(this.getX() - 1, this.getY() + yOffset, 18, 20)
+                .zOffset(2)
+                .blit(guiGraphics);
+        getModeIcon().dest(this.getX(), this.getY() + 1 + yOffset).zOffset(3).blit(guiGraphics);
     }
 
     @Override

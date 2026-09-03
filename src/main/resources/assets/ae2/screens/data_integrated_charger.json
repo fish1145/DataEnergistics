@@ -16,13 +16,26 @@
 			"grid": "VERTICAL"
 		},
 		"DATA_INTEGRATED_CHARGER_INPUT_RIGHT": {
+			"left": 71,
+			"top": 22,
+			"grid": "VERTICAL"
+		},
+		"DATA_INTEGRATED_CHARGER_INPUT_MIDDLE": {
 			"left": 53,
 			"top": 22,
 			"grid": "VERTICAL"
 		},
-		"DATA_INTEGRATED_CHARGER_FLUID": {
-			"left": 71,
+		"DATA_INTEGRATED_CHARGER_FLUID_1": {
+			"left": 89,
 			"top": 22
+		},
+		"DATA_INTEGRATED_CHARGER_FLUID_2": {
+			"left": 89,
+			"top": 40
+		},
+		"DATA_INTEGRATED_CHARGER_FLUID_3": {
+			"left": 89,
+			"top": 58
 		},
 		"MACHINE_OUTPUT": {
 			"left": 108,
