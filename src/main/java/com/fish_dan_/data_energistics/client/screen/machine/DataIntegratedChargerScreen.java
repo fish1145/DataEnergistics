@@ -51,6 +51,12 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
         this.widgets.add("progressBar", this.progressBar);
     }
 
+    @Override
+    protected void init() {
+        super.init();
+        this.modeButton.setPosition(this.modeButton.getX() - 2, this.modeButton.getY() + 2);
+    }
+
     private void openOutputConfig() {
         if (this.menu.getHost() == null) {
             return;
