@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Side;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Spacing;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Path;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGroup.Style;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewEdge;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewGraph;
 
@@ -57,16 +58,19 @@ final class CraftingPlanEdgeRouter {
             layers.add(new Layer(row, padding));
             bands.put(rank, new Band(padding));
         }
-        var groups = CraftingPlanRouteGroup.index(graph.source());
+        var styles = CraftingPlanRouteGroup.indexStyles(graph.source());
         Object2IntMap<PortKey> ports = new Object2IntLinkedOpenHashMap<>();
         ToIntFunction<PortKey> nextPort = key -> degree.addTo(key.node(), 1);
         for (ViewEdge edge : graph.edges()) {
-            Object2ObjectMap<CraftingPlanRouteGroup, IntList> split = new Object2ObjectLinkedOpenHashMap<>();
+            Object2ObjectMap<Style, IntList> split = new Object2ObjectLinkedOpenHashMap<>();
             for (int original : edge.originalEdgeIds()) {
-                split.computeIfAbsent(groups.get(original), unused -> new IntArrayList()).add(original);
+                split.computeIfAbsent(styles.get(original), unused -> new IntArrayList()).add(original);
             }
             for (var entry : split.object2ObjectEntrySet()) {
-                CraftingPlanRouteGroup group = entry.getKey();
+                Style style = entry.getKey();
+                // Material flows back along the demand edge; diagnostics retain their evidence-link destination.
+                int destination = style.materialFlow() ? edge.source() : edge.target();
+                CraftingPlanRouteGroup group = new CraftingPlanRouteGroup(style, destination);
                 int sourcePort = ports.computeIfAbsent(new PortKey(edge.source(), true, group), nextPort);
                 int targetPort = ports.computeIfAbsent(new PortKey(edge.target(), false, group), nextPort);
                 edges.add(new EdgePorts(edges.size(), edge, sourcePort, targetPort, group, IntLists.unmodifiable(entry.getValue())));

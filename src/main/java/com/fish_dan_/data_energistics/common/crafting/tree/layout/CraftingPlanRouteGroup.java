@@ -11,35 +11,45 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntLists;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
-/** Semantic lane identity; equal palette colors never make different cycles share a route. */
-public record CraftingPlanRouteGroup(boolean materialFlow, IntList cycleIds) {
+/** Sharing identity: routes must reach the same projected destination and retain the same cycle/flow style. */
+public record CraftingPlanRouteGroup(Style style, int destinationNodeId) {
 
-    public CraftingPlanRouteGroup {
-        // Construction transfers the sorted membership list to the immutable layout.
-        cycleIds = IntLists.unmodifiable(cycleIds);
+    public boolean materialFlow() {
+        return style.materialFlow();
     }
 
-    static Int2ObjectMap<CraftingPlanRouteGroup> index(CraftingPlanGraph graph) {
-        var diagnostic = new CraftingPlanRouteGroup(false, IntLists.emptyList());
-        Int2ObjectMap<CraftingPlanRouteGroup> processes = new Int2ObjectOpenHashMap<>();
-        Int2ObjectMap<CraftingPlanRouteGroup> edges = new Int2ObjectOpenHashMap<>();
-        var groups = new Object2ObjectOpenHashMap<CraftingPlanRouteGroup, CraftingPlanRouteGroup>();
+    /**
+     * Shared visual facts, independent of destination, so splitting routes does not duplicate cycle lists or colors.
+     */
+    public record Style(boolean materialFlow, IntList cycleIds) {
+
+        public Style {
+            // Construction transfers the sorted membership list to the immutable layout.
+            cycleIds = IntLists.unmodifiable(cycleIds);
+        }
+    }
+
+    static Int2ObjectMap<Style> indexStyles(CraftingPlanGraph graph) {
+        var diagnostic = new Style(false, IntLists.emptyList());
+        Int2ObjectMap<Style> processes = new Int2ObjectOpenHashMap<>();
+        Int2ObjectMap<Style> edges = new Int2ObjectOpenHashMap<>();
+        var styles = new Object2ObjectOpenHashMap<Style, Style>();
         for (var edge : graph.edges()) {
             int processId = switch (edge.role()) {
                 case INPUT -> edge.source();
                 case OUTPUT, REMAINDER -> edge.target();
                 case DIAGNOSTIC -> -1;
             };
-            CraftingPlanRouteGroup group = diagnostic;
+            Style style = diagnostic;
             if (processId >= 0) {
-                group = processes.computeIfAbsent(processId, id -> {
+                style = processes.computeIfAbsent(processId, id -> {
                     IntList cycles = new IntArrayList(((Process) graph.node(id)).cycleIds());
                     cycles.sort(IntComparators.NATURAL_COMPARATOR);
-                    var key = new CraftingPlanRouteGroup(true, cycles);
-                    return groups.computeIfAbsent(key, unused -> key);
+                    var key = new Style(true, cycles);
+                    return styles.computeIfAbsent(key, unused -> key);
                 });
             }
-            edges.put(edge.id(), group);
+            edges.put(edge.id(), style);
         }
         return edges;
     }

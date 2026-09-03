@@ -16,6 +16,7 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRo
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Run;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Segment;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGroup;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGroup.Style;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Material;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Process;
@@ -43,7 +44,7 @@ final class CraftingPlanGraphSvgWriter {
     private static final double TEXT_SCALE = 0.65;
     private final Layout layout;
     private final CraftingPlanGraphDrawingFacts facts;
-    private final Object2ObjectOpenHashMap<CraftingPlanRouteGroup, RouteStyle> routeStyles = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectOpenHashMap<Style, RouteStyle> routeStyles = new Object2ObjectOpenHashMap<>();
     private final List<AEKey> keys = new ObjectArrayList<>();
     private final List<NodeDrawing> nodes = new ObjectArrayList<>();
 
@@ -161,7 +162,7 @@ final class CraftingPlanGraphSvgWriter {
     }
 
     private RouteStyle style(CraftingPlanRouteGroup group) {
-        return this.routeStyles.computeIfAbsent(group, this.facts::route);
+        return this.routeStyles.computeIfAbsent(group.style(), this.facts::route);
     }
 
     private static void text(List<TextDrawing> labels, Font font, String value, double x, double y,

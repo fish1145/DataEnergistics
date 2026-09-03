@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.client.crafting.tree.render;
 
-import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGroup;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGroup.Style;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -44,11 +44,11 @@ public final class CraftingPlanGraphDrawingFacts {
         return this.labels.get(id);
     }
 
-    public RouteStyle route(CraftingPlanRouteGroup group) {
-        ObjectList<CycleMark> marks = new ObjectArrayList<>(group.cycleIds().size());
-        for (int cycleId : group.cycleIds()) marks.add(this.cycles.get(cycleId));
+    public RouteStyle route(Style style) {
+        ObjectList<CycleMark> marks = new ObjectArrayList<>(style.cycleIds().size());
+        for (int cycleId : style.cycleIds()) marks.add(this.cycles.get(cycleId));
         marks.sort(Comparator.comparingInt(CycleMark::ordinal));
-        return new RouteStyle(ObjectLists.unmodifiable(marks), group.materialFlow());
+        return new RouteStyle(ObjectLists.unmodifiable(marks), style.materialFlow());
     }
 
     private static String label(List<CycleMark> marks) {

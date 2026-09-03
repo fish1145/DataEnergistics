@@ -11,7 +11,7 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRo
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Run;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Segment;
-import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGroup;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGroup.Style;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Material;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Process;
@@ -41,7 +41,7 @@ public final class CraftingPlanGraphRenderer {
     private final CraftingPlanGraph graph;
     private final CraftingPlanGraphDrawingFacts facts;
     private @Nullable Layout styledLayout;
-    private final Object2ObjectOpenHashMap<CraftingPlanRouteGroup, RouteStyle> routeStyles = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectOpenHashMap<Style, RouteStyle> routeStyles = new Object2ObjectOpenHashMap<>();
     private final ObjectArrayList<RouteStyle> segmentStyles = new ObjectArrayList<>();
     private final ObjectArrayList<RouteStyle> runStyles = new ObjectArrayList<>();
     private final Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>> bridges = new Int2ObjectOpenHashMap<>();
@@ -139,11 +139,11 @@ public final class CraftingPlanGraphRenderer {
         this.routeStyles.clear();
         this.segmentStyles.clear();
         for (Segment segment : layout.geometry().segments()) {
-            this.segmentStyles.add(this.routeStyles.computeIfAbsent(segment.group(), this.facts::route));
+            this.segmentStyles.add(this.routeStyles.computeIfAbsent(segment.group().style(), this.facts::route));
         }
         this.runStyles.clear();
         for (Run run : layout.geometry().runs()) {
-            this.runStyles.add(this.routeStyles.computeIfAbsent(run.group(), this.facts::route));
+            this.runStyles.add(this.routeStyles.computeIfAbsent(run.group().style(), this.facts::route));
         }
         this.bridges.clear();
         this.underpasses.clear();
