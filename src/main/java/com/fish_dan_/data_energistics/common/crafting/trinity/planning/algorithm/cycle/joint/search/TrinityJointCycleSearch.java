@@ -207,8 +207,8 @@ public final class TrinityJointCycleSearch {
                     this.mode,
                     this.control);
             if (!rootSolved.successful()) {
-                if (rootSolved.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION &&
-                        this.incumbent == null) {
+                if (rootSolved.diagnostic().code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION ||
+                        recoverableStop(rootSolved.diagnostic())) {
                     return diagnoseRootShortage(rootBox, rootSolved.diagnostic());
                 }
                 return failed(rootSolved.diagnostic());
@@ -554,15 +554,19 @@ public final class TrinityJointCycleSearch {
             TrinityCycleDiagnosticEvidence evidence = TrinityCycleDiagnosticEvidence.fromJointPlan(this.componentIndex, this.demand, plan);
             TrinityCycleDiagnosticOutcome outcome = TrinityCycleDiagnosticOutcome.create(evidence, this.available, this.producibleInputs);
             if (outcome.inputRequirements().isEmpty()) return TrinityAlgorithmResult.success(plan);
-            return TrinityAlgorithmResult.failure(shortageDiagnostic(solution, outcome));
+            return TrinityAlgorithmResult.failure(shortageDiagnostic(rootFailure, solution, outcome));
         }
 
         private TrinityPlanningDiagnostic shortageDiagnostic(
+                                                             TrinityPlanningDiagnostic rootFailure,
                                                              TrinityCycleFeasibilitySolution solution, TrinityCycleDiagnosticOutcome outcome) {
             TrinityPlanningDiagnostic.PartialPlan materials = outcome.materials();
             Map<AEKey, InputRequirement> requirements = materials.inputRequirements();
             Map.Entry<AEKey, InputRequirement> first = requirements.entrySet().iterator().next();
-            Object2ObjectLinkedOpenHashMap<String, String> metadata = new Object2ObjectLinkedOpenHashMap<>();
+            // A verified order proves its own input requirements, not that every route needs missing inventory.
+            boolean provedInfeasible = rootFailure.code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION;
+            Object2ObjectLinkedOpenHashMap<String, String> metadata = provedInfeasible ?
+                    new Object2ObjectLinkedOpenHashMap<>() : new Object2ObjectLinkedOpenHashMap<>(rootFailure.metadata());
             metadata.put("available", first.getValue().available().toString());
             metadata.put("key", first.getKey().toString());
             metadata.put("missing", first.getValue().missing().toString());
@@ -576,7 +580,8 @@ public final class TrinityJointCycleSearch {
             metadata.put("diagnosticProvedCycles", "1");
             metadata.put("diagnosticCycleProofStates", Integer.toString(outcome.evidence().scheduleStates()));
             return new TrinityPlanningDiagnostic(
-                    TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT, Component.translatable(INSUFFICIENT_INPUT_KEY),
+                    provedInfeasible ? TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT : rootFailure.code(),
+                    provedInfeasible ? Component.translatable(INSUFFICIENT_INPUT_KEY) : rootFailure.message(),
                     metadata, new TrinityPlanningDiagnostic.CompositeEvidence(materials, List.of(outcome.evidence())));
         }
 
@@ -590,8 +595,10 @@ public final class TrinityJointCycleSearch {
             Component message;
             if (diagnosisFailure != null) {
                 diagnosisFailure.metadata().forEach((key, value) -> metadata.put("shortage." + key, value));
-                code = diagnosisFailure.code();
-                message = diagnosisFailure.message();
+                boolean replaceFailure = rootFailure.code() == TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION ||
+                        diagnosisFailure.code() == TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED;
+                code = replaceFailure ? diagnosisFailure.code() : rootFailure.code();
+                message = replaceFailure ? diagnosisFailure.message() : rootFailure.message();
             } else {
                 code = "timeout".equals(stop) ? TrinityPlanningDiagnosticCode.MIP_TIMEOUT : TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT;
                 message = Component.translatable("timeout".equals(stop) ? "gui.data_energistics.trinity_planning.mip.timeout" : "gui.data_energistics.trinity_planning.mip.schedule_search_limit");
