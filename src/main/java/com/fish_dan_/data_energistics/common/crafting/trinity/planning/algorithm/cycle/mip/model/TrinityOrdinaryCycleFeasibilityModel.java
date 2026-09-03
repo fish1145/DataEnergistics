@@ -41,6 +41,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
 
     // ojAlgo NodeKey stores integer domains in int[] and reserves MAX_VALUE as an unbounded sentinel.
     private static final BigDecimal INTEGER_BRANCH_LIMIT = BigDecimal.valueOf(Integer.MAX_VALUE);
+    private static final long CORRECTION_CALL_MILLIS = 100L;
 
     private final TrinityIntegerResultVerifier integerVerifier;
     private final TrinityExactConservationVerifier conservationVerifier;
@@ -309,6 +310,9 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         }
         TrinityAlgorithmResult<List<BigInteger>> verified = integerCandidate(data, result, relaxed);
         if (!verified.successful()) {
+            if (relaxed && pass == FeasibilityPass.INSTANCE) {
+                return correctCandidate(request, pass, modelTemplate, result, control, metrics, stateBudget);
+            }
             return TrinityAlgorithmResult.failure(verified.diagnostic());
         }
         if (verified.value().stream().anyMatch(value -> value.signum() < 0)) {
@@ -317,10 +321,55 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         SolvedModel solved = data.decode(verified.value());
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExact(request, pass, solved);
         if (!exact.successful()) {
+            if (relaxed && pass == FeasibilityPass.INSTANCE) {
+                return correctCandidate(request, pass, modelTemplate, result, control, metrics, stateBudget);
+            }
             return relaxed ? integerDomainLimit("candidate_verification") :
                     TrinityAlgorithmResult.failure(exact.diagnostic());
         }
         return TrinityAlgorithmResult.success(new SolvedPass(solved, objectiveProved));
+    }
+
+    private TrinityAlgorithmResult<SolvedPass> correctCandidate(
+                                                                TrinityCycleFeasibilityRequest request, ModelPass pass,
+                                                                OrdinaryModelTemplate modelTemplate, Optimisation.Result witness,
+                                                                TrinityPlanningControl control, SolverMetrics metrics,
+                                                                TrinityCycleSolveBudget stateBudget) {
+        if (control.cancellationRequested()) {
+            return failure(TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                    "gui.data_energistics.trinity_planning.diagnostic.cancelled", Map.of());
+        }
+        if (control.deadlineExceeded()) return timeout(metrics, "before_correction");
+        // Reuse the untouched template: the linear solver may have presolved its own model in place.
+        ModelData data = modelTemplate.forPass(request, pass);
+        TrinityIntegerCorrection correction = TrinityIntegerCorrection.translate(data.model(), witness);
+        if (correction == null) return integerDomainLimit("correction_domain");
+        if (!stateBudget.tryConsume()) {
+            return failure(TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    "gui.data_energistics.trinity_planning.mip.schedule_search_limit",
+                    Map.of("limit", Integer.toString(stateBudget.limit()), "states", Integer.toString(stateBudget.used())));
+        }
+        TrinityOjAlgoSolvePolicy.configure(data.model(), control, true);
+        data.model().options.time_abort = Math.min(data.model().options.time_abort, CORRECTION_CALL_MILLIS);
+        long started = System.nanoTime();
+        Optimisation.Result result = data.model().minimise();
+        long elapsed = Math.max(0L, System.nanoTime() - started);
+        metrics.addPass(elapsed);
+        control.recordSolverPass(elapsed);
+        if (control.cancellationRequested()) {
+            return failure(TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                    "gui.data_energistics.trinity_planning.diagnostic.cancelled", Map.of());
+        }
+        if (control.deadlineExceeded()) return timeout(metrics, "correction");
+        if (!result.getState().isFeasible()) return integerDomainLimit("correction_" + result.getState().name());
+        TrinityAlgorithmResult<List<BigInteger>> delta = integerCandidate(data, result, false);
+        if (!delta.successful()) return integerDomainLimit("correction_integer");
+        List<BigInteger> restored = correction.restore(delta.value());
+        if (restored == null) return integerDomainLimit("correction_domain");
+        SolvedModel solved = data.decode(restored);
+        TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExact(request, pass, solved);
+        return exact.successful() ? TrinityAlgorithmResult.success(new SolvedPass(solved, false)) :
+                integerDomainLimit("correction_verification");
     }
 
     private TrinityAlgorithmResult<List<BigInteger>> integerCandidate(ModelData data, Optimisation.Result result, boolean relaxed) {
