@@ -2,7 +2,7 @@
 	"format_version": "1.21.11",
 	"credit": "Made with Blockbench",
 	"parent": "block/block",
-	"render_type": "translucent",
+	"render_type": "cutout",
 	"textures": {
 		"0": "data_energistics:block/data_asynchronous_processing_factory/front",
 		"1": "data_energistics:block/data_asynchronous_processing_factory/screen_off",
@@ -161,13 +161,6 @@
 			"rotation": { "angle": 0, "axis": "y", "origin": [15, 10, 4] },
 			"faces": {
 				"east": { "uv": [0, 9, 8, 16], "texture": "#6" }
-			}
-		},
-		{
-			"from": [0, 14.98, 0],
-			"to": [16, 14.99, 16],
-			"faces": {
-				"up": {"uv": [0, 0, 14, 8], "texture": "#6"}
 			}
 		},
 		{
