@@ -34,7 +34,8 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
 
     public static final RecipeType<DataChargePressRecipeView> RECIPE_TYPE = RecipeType.create(
             Data_Energistics.MODID, "data_charge_press", DataChargePressRecipeView.class);
-    private static final int LEFT_CROP = 0;
+    // Keep recipe content in machine coordinates while shifting only the background five pixels forward.
+    private static final int LEFT_CROP = 5;
     private static final int TOP_CROP = 15;
     private static final int BACKGROUND_WIDTH = 160;
     private static final int WIDTH = BACKGROUND_WIDTH + 2;
