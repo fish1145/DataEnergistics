@@ -28,6 +28,7 @@ import org.ojalgo.optimisation.Variable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,10 @@ import java.util.Set;
  * Ordinary exact-window ojAlgo model retaining the established sequential objective semantics.
  */
 final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibilityModel {
+
+    // ojAlgo NodeKey stores integer domains in int[] and reserves MAX_VALUE as an unbounded sentinel.
+    private static final BigDecimal INTEGER_BRANCH_LIMIT = BigDecimal.valueOf(Integer.MAX_VALUE);
+    private static final long CORRECTION_CALL_MILLIS = 100L;
 
     private final TrinityIntegerResultVerifier integerVerifier;
     private final TrinityExactConservationVerifier conservationVerifier;
@@ -199,8 +204,8 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
     }
 
     /**
-     * Proves the minimum virtual reserve required to repair a root-infeasible finite-inventory domain. Unlike
-     * executable anytime optimisation, every objective must be proved before diagnostic evidence can be published.
+     * Finds an exactly verified conservation candidate with virtual reserve after executable search stops.
+     * This is not an optimality or global infeasibility proof; the caller must verify its schedule and actual inputs.
      */
     private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solveShortage(
                                                                                   TrinityCycleFeasibilityRequest request, TrinityPlanningControl control,
@@ -265,6 +270,11 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             return timeout(metrics, "before_model");
         }
         ModelData data = modelTemplate.forPass(request, pass);
+        boolean relaxed = data.model().getVariables().stream()
+                .anyMatch(variable -> variable.getUpperLimit().compareTo(INTEGER_BRANCH_LIMIT) >= 0);
+        if (relaxed) {
+            data.model().relax(true);
+        }
         if (!stateBudget.tryConsume()) {
             return failure(
                     TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
@@ -285,8 +295,11 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                     "gui.data_energistics.trinity_planning.diagnostic.cancelled",
                     Map.of("passes", Integer.toString(metrics.passes)));
         }
-        boolean objectiveProved = result.getState().isOptimal();
+        boolean objectiveProved = !relaxed && result.getState().isOptimal();
         if (!objectiveProved && !result.getState().isFeasible()) {
+            if (relaxed && !control.deadlineExceeded()) {
+                return integerDomainLimit(result.getState().name());
+            }
             if (control.deadlineExceeded() || result.getState() != Optimisation.State.INFEASIBLE) {
                 return timeout(metrics, result.getState().name());
             }
@@ -295,14 +308,11 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                     "gui.data_energistics.trinity_planning.diagnostic.no_integer_solution",
                     Map.of("state", result.getState().name()));
         }
-        ObjectArrayList<BigDecimal> rawValues = new ObjectArrayList<>(data.template().variableCount());
-        for (int index = 0; index < data.template().variableCount(); index++) {
-            rawValues.add(result.get(index));
-        }
-        TrinityAlgorithmResult<List<BigInteger>> verified = this.integerVerifier.verify(
-                rawValues,
-                data.model().options.integer().getIntegralityTolerance());
+        TrinityAlgorithmResult<List<BigInteger>> verified = integerCandidate(data, result, relaxed);
         if (!verified.successful()) {
+            if (relaxed && pass == FeasibilityPass.INSTANCE) {
+                return correctCandidate(request, pass, modelTemplate, result, control, metrics, stateBudget);
+            }
             return TrinityAlgorithmResult.failure(verified.diagnostic());
         }
         if (verified.value().stream().anyMatch(value -> value.signum() < 0)) {
@@ -310,8 +320,84 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         }
         SolvedModel solved = data.decode(verified.value());
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExact(request, pass, solved);
-        return exact.successful() ? TrinityAlgorithmResult.success(new SolvedPass(solved, objectiveProved)) :
-                TrinityAlgorithmResult.failure(exact.diagnostic());
+        if (!exact.successful()) {
+            if (relaxed && pass == FeasibilityPass.INSTANCE) {
+                return correctCandidate(request, pass, modelTemplate, result, control, metrics, stateBudget);
+            }
+            return relaxed ? integerDomainLimit("candidate_verification") :
+                    TrinityAlgorithmResult.failure(exact.diagnostic());
+        }
+        return TrinityAlgorithmResult.success(new SolvedPass(solved, objectiveProved));
+    }
+
+    private TrinityAlgorithmResult<SolvedPass> correctCandidate(
+                                                                TrinityCycleFeasibilityRequest request, ModelPass pass,
+                                                                OrdinaryModelTemplate modelTemplate, Optimisation.Result witness,
+                                                                TrinityPlanningControl control, SolverMetrics metrics,
+                                                                TrinityCycleSolveBudget stateBudget) {
+        if (control.cancellationRequested()) {
+            return failure(TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                    "gui.data_energistics.trinity_planning.diagnostic.cancelled", Map.of());
+        }
+        if (control.deadlineExceeded()) return timeout(metrics, "before_correction");
+        // Reuse the untouched template: the linear solver may have presolved its own model in place.
+        ModelData data = modelTemplate.forPass(request, pass);
+        TrinityIntegerCorrection correction = TrinityIntegerCorrection.translate(data.model(), witness);
+        if (correction == null) return integerDomainLimit("correction_domain");
+        if (!stateBudget.tryConsume()) {
+            return failure(TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    "gui.data_energistics.trinity_planning.mip.schedule_search_limit",
+                    Map.of("limit", Integer.toString(stateBudget.limit()), "states", Integer.toString(stateBudget.used())));
+        }
+        TrinityOjAlgoSolvePolicy.configure(data.model(), control, true);
+        data.model().options.time_abort = Math.min(data.model().options.time_abort, CORRECTION_CALL_MILLIS);
+        long started = System.nanoTime();
+        Optimisation.Result result = data.model().minimise();
+        long elapsed = Math.max(0L, System.nanoTime() - started);
+        metrics.addPass(elapsed);
+        control.recordSolverPass(elapsed);
+        if (control.cancellationRequested()) {
+            return failure(TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
+                    "gui.data_energistics.trinity_planning.diagnostic.cancelled", Map.of());
+        }
+        if (control.deadlineExceeded()) return timeout(metrics, "correction");
+        if (!result.getState().isFeasible()) return integerDomainLimit("correction_" + result.getState().name());
+        TrinityAlgorithmResult<List<BigInteger>> delta = integerCandidate(data, result, false);
+        if (!delta.successful()) return integerDomainLimit("correction_integer");
+        List<BigInteger> restored = correction.restore(delta.value());
+        if (restored == null) return integerDomainLimit("correction_domain");
+        SolvedModel solved = data.decode(restored);
+        TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExact(request, pass, solved);
+        return exact.successful() ? TrinityAlgorithmResult.success(new SolvedPass(solved, false)) :
+                integerDomainLimit("correction_verification");
+    }
+
+    private TrinityAlgorithmResult<List<BigInteger>> integerCandidate(ModelData data, Optimisation.Result result, boolean relaxed) {
+        int count = data.template().variableCount();
+        if (relaxed) {
+            ObjectArrayList<BigInteger> candidate = new ObjectArrayList<>(count);
+            for (int index = 0; index < count; index++) {
+                // Rounding proposes a candidate only. Exact domains, balances and settlement below decide acceptance.
+                BigDecimal value = result.get(index).setScale(0, RoundingMode.HALF_EVEN);
+                Variable variable = data.model().getVariable(index);
+                if (value.compareTo(variable.getLowerLimit()) < 0 || value.compareTo(variable.getUpperLimit()) > 0) {
+                    return integerDomainLimit("variable_domain");
+                }
+                candidate.add(value.toBigIntegerExact());
+            }
+            return TrinityAlgorithmResult.success(candidate);
+        }
+        ObjectArrayList<BigDecimal> rawValues = new ObjectArrayList<>(count);
+        for (int index = 0; index < count; index++) {
+            rawValues.add(result.get(index));
+        }
+        return this.integerVerifier.verify(rawValues, data.model().options.integer().getIntegralityTolerance());
+    }
+
+    private static <T> TrinityAlgorithmResult<T> integerDomainLimit(String reason) {
+        return failure(TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                "gui.data_energistics.trinity_planning.mip.radix_model_limit",
+                Map.of("phase", "ordinary_integer_domain", "reason", reason));
     }
 
     private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solution(
@@ -347,6 +433,16 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                 request.demand().requiredNetChangeLowerBounds());
         if (!exact.successful()) {
             return exact;
+        }
+        boolean exportsInternalKey = request.internalKeys().stream()
+                .anyMatch(request.demand().requiredNetChangeLowerBounds()::containsKey);
+        for (AEKey key : request.internalKeys()) {
+            if (!request.demand().requiredNetChangeLowerBounds().containsKey(key)) {
+                int sign = exact.value().getOrDefault(key, BigInteger.ZERO).signum();
+                if (exportsInternalKey ? sign != 0 : sign < 0) {
+                    return inexact("settled_internal", key.toString());
+                }
+            }
         }
         BigInteger externalTotal = total(solved.externalInputs());
         BigInteger seedTotal = total(solved.modelSeed());

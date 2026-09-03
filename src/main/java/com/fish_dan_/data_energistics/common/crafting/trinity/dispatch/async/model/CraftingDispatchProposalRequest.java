@@ -33,20 +33,11 @@ public record CraftingDispatchProposalRequest(
     }
 
     public CraftingDispatchProposalRequest {
-        if (lease == null) {
-            throw new IllegalArgumentException("Crafting dispatch proposal lease must not be null");
-        }
-        if (capacity == null || capacity.snapshots().isEmpty()) {
+        if (capacity.snapshots().isEmpty()) {
             throw new IllegalArgumentException("Crafting dispatch proposal requires at least one candidate");
         }
         if (remainingCrafts.signum() <= 0) {
             throw new IllegalArgumentException("Crafting dispatch proposal work must be positive");
-        }
-        if (cursor == null) {
-            throw new IllegalArgumentException("Crafting dispatch proposal cursor must not be null");
-        }
-        if (exclusions == null || exclusions.contains(null)) {
-            throw new IllegalArgumentException("Crafting dispatch proposal exclusions must not contain null");
         }
         exclusions = Set.copyOf(exclusions);
         long publicationScope = capacity.key().gridScope();

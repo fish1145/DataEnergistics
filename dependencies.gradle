@@ -4,6 +4,7 @@ dependencies {
 
     testImplementation(libs.testframework)
     testCompileOnly(libs.jspecify)
+    testCompileOnly(forge.ae2)
 
     jarJar(api(forge.mdlib.get()))
     jarJar(api(libs.ojalgo.get()))
