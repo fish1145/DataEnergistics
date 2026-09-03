@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.integration.viewer.jei.recipe;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.integration.viewer.jei.ui.JeiIconDrawable;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataChargePressRecipeView;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressIngredient;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
@@ -14,9 +15,11 @@ import net.minecraft.world.item.crafting.Ingredient;
 
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.GenericStack;
+import appeng.client.gui.Icon;
 import appeng.recipes.handlers.InscriberProcessType;
 import appeng.recipes.handlers.InscriberRecipe;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
+import mezz.jei.api.gui.builder.ITooltipBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.drawable.IDrawableAnimated;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
@@ -48,6 +51,10 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
     private static final int FLUID_Y = 7;
     private static final int OUTPUT_X = 111;
     private static final int OUTPUT_Y = 6;
+    private static final int MODE_ICON_X = OUTPUT_X - 18;
+    private static final int MODE_ICON_Y = OUTPUT_Y + 18;
+    private static final int MODE_BUTTON_X = MODE_ICON_X - 1;
+    private static final int MODE_BUTTON_Y = MODE_ICON_Y - 1;
     private static final int PROGRESS_X = 151;
     private static final int FIRST_INPUT_Y = 6;
     private static final int SECOND_INPUT_Y = 24;
@@ -55,9 +62,16 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
     private static final int PROGRESS_Y = 24;
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
             "ae2", "textures/guis/data_integrated_charger.png");
+    private static final ResourceLocation DATA_STATES_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+            Data_Energistics.MODID, "textures/guis/states.png");
 
     private final IDrawable background;
     private final IDrawableAnimated progress;
+    private final IDrawable modeBackground;
+    private final IDrawable powderModeIcon;
+    private final IDrawable crystalGrowthModeIcon;
+    private final IDrawable inscriberModeIcon;
+    private final IDrawable chargerModeIcon;
 
     public DataChargePressRecipeCategory(IGuiHelper guiHelper) {
         super(
@@ -69,6 +83,17 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         this.background = guiHelper.createDrawable(TEXTURE, LEFT_CROP, TOP_CROP, BACKGROUND_WIDTH, HEIGHT);
         this.progress = guiHelper.drawableBuilder(TEXTURE, 176, 0, 6, 18)
                 .buildAnimated(200, IDrawableAnimated.StartDirection.BOTTOM, false);
+        this.modeBackground = new JeiIconDrawable(Icon.TOOLBAR_BUTTON_BACKGROUND);
+        this.powderModeIcon = new JeiIconDrawable(Icon.PLACEMENT_ITEM);
+        this.crystalGrowthModeIcon = guiHelper.drawableBuilder(DATA_STATES_TEXTURE, 80, 80, 16, 16)
+                .setTextureSize(128, 128)
+                .build();
+        this.inscriberModeIcon = guiHelper.drawableBuilder(DATA_STATES_TEXTURE, 96, 80, 16, 16)
+                .setTextureSize(128, 128)
+                .build();
+        this.chargerModeIcon = guiHelper.drawableBuilder(DATA_STATES_TEXTURE, 112, 80, 16, 16)
+                .setTextureSize(128, 128)
+                .build();
     }
 
     @Override
@@ -76,6 +101,19 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
                      double mouseX, double mouseY) {
         this.background.draw(guiGraphics);
         this.progress.draw(guiGraphics, PROGRESS_X, PROGRESS_Y);
+        this.modeBackground.draw(guiGraphics, MODE_BUTTON_X, MODE_BUTTON_Y);
+        getModeIcon(recipe).draw(guiGraphics, MODE_ICON_X, MODE_ICON_Y);
+    }
+
+    @Override
+    public void getTooltip(ITooltipBuilder tooltip, DataChargePressRecipeView recipe,
+                           IRecipeSlotsView recipeSlotsView, double mouseX, double mouseY) {
+        if (mouseX >= MODE_BUTTON_X && mouseX < MODE_BUTTON_X + 18 &&
+                mouseY >= MODE_BUTTON_Y && mouseY < MODE_BUTTON_Y + 20) {
+            tooltip.add(Component.translatable("button.data_energistics.data_integrated_charger.machine_mode"));
+            tooltip.add(Component.translatable("button.data_energistics.data_integrated_charger.machine_mode." +
+                    getModeTranslationKey(recipe)));
+        }
     }
 
     @Override
@@ -179,6 +217,34 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
             copy.setCount(count);
             return copy;
         }).toList();
+    }
+
+    private IDrawable getModeIcon(DataChargePressRecipeView recipe) {
+        if (recipe instanceof DataChargePressRecipeView.PowderView) {
+            return this.powderModeIcon;
+        }
+        if (recipe instanceof DataChargePressRecipeView.CustomView) {
+            return this.crystalGrowthModeIcon;
+        }
+        if (recipe instanceof DataChargePressRecipeView.InscriberView ||
+                recipe instanceof DataChargePressRecipeView.CircuitBoardView) {
+            return this.inscriberModeIcon;
+        }
+        return this.chargerModeIcon;
+    }
+
+    private static String getModeTranslationKey(DataChargePressRecipeView recipe) {
+        if (recipe instanceof DataChargePressRecipeView.PowderView) {
+            return "powder";
+        }
+        if (recipe instanceof DataChargePressRecipeView.CustomView) {
+            return "crystal_growth";
+        }
+        if (recipe instanceof DataChargePressRecipeView.InscriberView ||
+                recipe instanceof DataChargePressRecipeView.CircuitBoardView) {
+            return "inscriber";
+        }
+        return "charger";
     }
 
 }
