@@ -44,13 +44,13 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private static final int WIDTH = BACKGROUND_WIDTH + 2;
     private static final int HEIGHT = 64;
     // Map top/middle/bottom recipe inputs to the first vertical column of the machine's 3x3 input grid.
-    private static final int FIRST_INPUT_X = 17;
-    private static final int SECOND_INPUT_X = 17;
-    private static final int THIRD_INPUT_X = 17;
-    private static final int FLUID_X = 71;
+    private static final int FIRST_INPUT_X = 12;
+    private static final int SECOND_INPUT_X = 12;
+    private static final int THIRD_INPUT_X = 12;
+    private static final int FLUID_X = 66;
     private static final int FLUID_Y = 7;
     private static final int OUTPUT_X = 117;
-    private static final int PROGRESS_X = 156;
+    private static final int PROGRESS_X = 151;
     private static final int FIRST_INPUT_Y = 7;
     private static final int SECOND_INPUT_Y = 25;
     private static final int THIRD_INPUT_Y = 43;
