@@ -132,9 +132,7 @@ public final class BeamFormerPart extends UpgradeablePart implements IGridTickab
 
     @Override
     public void getBoxes(IPartCollisionHelper boxes) {
-        boxes.addBox(4, 4, 11, 12, 12, 17);
-        boxes.addBox(5, 5, 17, 11, 11, 19);
-        boxes.addBox(6, 6, 19, 10, 10, 21);
+        BeamFormerPartShapes.addBoxes(boxes);
     }
 
     @Override
