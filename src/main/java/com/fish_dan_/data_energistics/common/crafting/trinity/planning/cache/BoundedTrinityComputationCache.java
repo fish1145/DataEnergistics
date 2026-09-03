@@ -326,9 +326,10 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
         while (entries.hasNext()) {
             Map.Entry<ScopedKey, CacheEntry<?>> mapped = entries.next();
             if (isObsolete(mapped.getKey(), revisionDomain, currentRevision)) {
+                CacheEntry<?> obsolete = mapped.getValue();
                 entries.remove();
-                mapped.getValue().markCancellation();
-                cancelled.add(mapped.getValue());
+                obsolete.markCancellation();
+                cancelled.add(obsolete);
             }
         }
     }
@@ -361,9 +362,10 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
         while (bypass.hasNext()) {
             Map.Entry<ScopedKey, CacheEntry<?>> mapped = bypass.next();
             if (isObsolete(mapped.getKey(), revisionDomain, revision)) {
+                CacheEntry<?> obsolete = mapped.getValue();
                 bypass.remove();
-                mapped.getValue().markCancellation();
-                cancelled.add(mapped.getValue());
+                obsolete.markCancellation();
+                cancelled.add(obsolete);
             }
         }
         return false;
