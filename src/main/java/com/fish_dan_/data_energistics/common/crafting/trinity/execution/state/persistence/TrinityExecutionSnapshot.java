@@ -6,12 +6,14 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
-import java.util.ArrayList;
+import java.math.BigInteger;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,8 +41,7 @@ import java.util.Set;
  * @param actualFinalOutputs actual item variants isolated from working inventory
  * @param deliveryRemaining  total target amount still owed to the requester
  * @param borrowingEntries   ownership-preserving dynamic borrowing history
- * @param savedAtTick        server tick used to convert retry deadlines across a restart, or {@code -1} for legacy
- *                           saves
+ * @param savedAtTick        non-negative server tick used to convert retry deadlines across a restart
  * @param budgetRetryAt      next tick after a physical budget exhaustion, or {@code -1}
  */
 public record TrinityExecutionSnapshot(
@@ -54,10 +55,10 @@ public record TrinityExecutionSnapshot(
                                        List<Stage> stages,
                                        List<Integer> stageOrder,
                                        List<RepeatBlock> repeatBlocks,
-                                       Map<AEKey, Long> seedReserve,
+                                       Map<AEKey, BigInteger> seedReserve,
                                        boolean completionSealed,
                                        long completionBuffer,
-                                       Map<AEKey, Long> actualFinalOutputs,
+                                       Object2LongMap<AEKey> actualFinalOutputs,
                                        long deliveryRemaining,
                                        Map<AEKey, TrinityBorrowingLedger.Balances> borrowingEntries,
                                        long savedAtTick,
@@ -70,11 +71,11 @@ public record TrinityExecutionSnapshot(
         stages = List.copyOf(stages);
         stageOrder = List.copyOf(stageOrder);
         repeatBlocks = List.copyOf(repeatBlocks);
-        seedReserve = immutableMap(seedReserve);
-        actualFinalOutputs = immutableAmounts(actualFinalOutputs, false, "actual final output");
+        seedReserve = immutableBigAmounts(seedReserve, false, "seed reserve");
+        actualFinalOutputs = immutableLongAmounts(actualFinalOutputs, "actual final output");
         borrowingEntries = immutableMap(borrowingEntries);
-        if (savedAtTick < -1L) {
-            throw new IllegalArgumentException("A Trinity execution save tick cannot be less than the legacy sentinel");
+        if (savedAtTick < 0L) {
+            throw new IllegalArgumentException("A Trinity execution save tick cannot be negative");
         }
     }
 
@@ -103,7 +104,7 @@ public record TrinityExecutionSnapshot(
      * @param primaryOutput   output used to resolve a concrete pattern
      * @param variantOrdinal  bound input variant
      * @param plannedCount    logical firings per plan unit or cycle wave
-     * @param outputs         exact pattern-declared outputs per logical firing; empty only for schema 2/3 migration
+     * @param outputs         exact pattern-declared outputs per logical firing, including the primary output
      * @param remainingCount  logical firings left in the active unit or wave
      * @param initialized     whether remaining work has been initialized
      */
@@ -111,18 +112,21 @@ public record TrinityExecutionSnapshot(
                          TrinityPatternIdentity patternIdentity,
                          AEKey primaryOutput,
                          int variantOrdinal,
-                         long plannedCount,
-                         Map<AEKey, Long> outputs,
-                         long remainingCount,
+                         BigInteger plannedCount,
+                         Map<AEKey, BigInteger> outputs,
+                         BigInteger remainingCount,
                          boolean initialized) {
 
         /**
          * Rejects cursors that could create work absent from the plan.
          */
         public Firing {
-            outputs = immutableAmounts(outputs, false, "firing output");
-            if (variantOrdinal < 0 || plannedCount <= 0L || remainingCount < 0L ||
-                    (!initialized && remainingCount != 0L)) {
+            outputs = immutableBigAmounts(outputs, false, "firing output");
+            if (!outputs.containsKey(primaryOutput)) {
+                throw new IllegalArgumentException("A Trinity firing state must retain its primary output");
+            }
+            if (variantOrdinal < 0 || plannedCount.signum() <= 0 || remainingCount.signum() < 0 ||
+                    (!initialized && remainingCount.signum() != 0)) {
                 throw new IllegalArgumentException("A Trinity firing state contains an invalid signature or cursor");
             }
         }
@@ -161,8 +165,8 @@ public record TrinityExecutionSnapshot(
                         int nextProviderDelay,
                         long retryVersion,
                         List<Firing> firings,
-                        Map<AEKey, Long> requiredAtStart,
-                        Map<AEKey, Long> netChange) {
+                        Map<AEKey, BigInteger> requiredAtStart,
+                        Map<AEKey, BigInteger> netChange) {
 
         /**
          * Copies ordered collections and rejects malformed local stage metadata.
@@ -172,8 +176,8 @@ public record TrinityExecutionSnapshot(
             inputKeys = immutableSet(inputKeys);
             waitingKeys = immutableSet(waitingKeys);
             firings = List.copyOf(firings);
-            requiredAtStart = immutableAmounts(requiredAtStart, false, "stage start requirement");
-            netChange = immutableAmounts(netChange, true, "stage net change");
+            requiredAtStart = immutableBigAmounts(requiredAtStart, false, "stage start requirement");
+            netChange = immutableBigAmounts(netChange, true, "stage net change");
             if (index < 0 || dependencies.contains(index) || firings.isEmpty()) {
                 throw new IllegalArgumentException("A Trinity stage state requires a valid index and firings");
             }
@@ -196,33 +200,33 @@ public record TrinityExecutionSnapshot(
     public record RepeatBlock(
                               int index,
                               List<Integer> stageOrder,
-                              long remainingRepetitions,
+                              BigInteger remainingRepetitions,
                               int cursor,
-                              long waveCount) {
+                              BigInteger waveCount) {
 
         /**
          * Rejects repeat cursors that cannot identify a unique active stage.
          */
         public RepeatBlock {
             stageOrder = immutableIndexes(stageOrder, "repeat stage");
-            if (index < 0 || stageOrder.isEmpty() || remainingRepetitions < 0L ||
-                    cursor < 0 || cursor >= stageOrder.size() || waveCount < 0L ||
-                    waveCount > remainingRepetitions) {
+            if (index < 0 || stageOrder.isEmpty() || remainingRepetitions.signum() < 0 ||
+                    cursor < 0 || cursor >= stageOrder.size() || waveCount.signum() < 0 ||
+                    waveCount.compareTo(remainingRepetitions) > 0) {
                 throw new IllegalArgumentException("A Trinity repeat state contains an invalid cursor or count");
             }
         }
     }
 
     private static <K, V> Map<K, V> immutableMap(Map<K, V> source) {
-        return Collections.unmodifiableMap(new LinkedHashMap<>(source));
+        return Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(source));
     }
 
-    private static Map<AEKey, Long> immutableAmounts(Map<AEKey, Long> source,
-                                                     boolean signed,
-                                                     String role) {
-        LinkedHashMap<AEKey, Long> copied = new LinkedHashMap<>();
+    private static Map<AEKey, BigInteger> immutableBigAmounts(Map<AEKey, BigInteger> source,
+                                                              boolean signed,
+                                                              String role) {
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> copied = new Object2ObjectLinkedOpenHashMap<>();
         source.forEach((key, amount) -> {
-            if (signed ? amount == 0L : amount <= 0L) {
+            if (signed ? amount.signum() == 0 : amount.signum() <= 0) {
                 throw new IllegalArgumentException("A Trinity " + role + " contains an invalid amount");
             }
             copied.put(key, amount);
@@ -230,14 +234,25 @@ public record TrinityExecutionSnapshot(
         return Collections.unmodifiableMap(copied);
     }
 
+    private static Object2LongMap<AEKey> immutableLongAmounts(Object2LongMap<AEKey> source,
+                                                              String role) {
+        Object2LongMap<AEKey> copied = TrinityLongAmountSnapshot.copyOf(source);
+        for (Object2LongMap.Entry<AEKey> entry : copied.object2LongEntrySet()) {
+            if (entry.getLongValue() <= 0L) {
+                throw new IllegalArgumentException("A Trinity " + role + " contains an invalid amount");
+            }
+        }
+        return copied;
+    }
+
     private static <E> Set<E> immutableSet(Set<E> source) {
-        return Collections.unmodifiableSet(new LinkedHashSet<>(source));
+        return Collections.unmodifiableSet(new ObjectLinkedOpenHashSet<>(source));
     }
 
     private static List<Integer> immutableIndexes(List<Integer> source, String role) {
-        ArrayList<Integer> copied = new ArrayList<>(source.size());
-        HashSet<Integer> seen = new HashSet<>();
-        for (Integer index : source) {
+        IntArrayList copied = new IntArrayList(source.size());
+        IntOpenHashSet seen = new IntOpenHashSet();
+        for (int index : source) {
             if (index < 0 || !seen.add(index)) {
                 throw new IllegalArgumentException("A Trinity " + role + " requires unique non-negative indexes");
             }

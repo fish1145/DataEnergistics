@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui>
+    <stylesheet location="data_energistics:lss/crafting_plan_tree.lss"/>
+    <root id="plan_tree_root" class="plan-tree-root">
+        <label id="title" class="plan-tree-title"/>
+        <label id="status" class="plan-tree-status"/>
+        <label id="help" class="plan-tree-help"/>
+        <button id="missing"/>
+        <button id="expand"/>
+        <button id="collapse"/>
+        <button id="fit"/>
+        <button id="density"/>
+        <button id="preferences"/>
+        <button id="screenshot"/>
+        <button id="list"/>
+        <button id="cpu"/>
+        <button id="cancel"/>
+        <button id="replan"/>
+        <button id="start"/>
+        <button id="export_visible" class="plan-tree-popup"/>
+        <button id="export_full" class="plan-tree-popup"/>
+        <button id="export_svg_visible" class="plan-tree-popup"/>
+        <button id="export_svg_full" class="plan-tree-popup"/>
+        <button id="pref_missing" class="plan-tree-popup"/>
+        <button id="pref_amounts" class="plan-tree-popup"/>
+        <button id="pref_budget" class="plan-tree-popup"/>
+    </root>
+</ui>

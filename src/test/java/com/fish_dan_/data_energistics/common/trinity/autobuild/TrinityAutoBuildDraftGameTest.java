@@ -73,15 +73,6 @@ public final class TrinityAutoBuildDraftGameTest {
                 "Current Trinity auto-build submission must carry explicit variant zero");
         helper.assertTrue(submission.buildRequested(), "Submission must retain the active build choice");
 
-        TrinityAutoBuildRequest request = restoredCpu.toLegacyRequest();
-        helper.assertValueEqual(request.structureIndex(), TrinityAutoBuildRequest.CPU_STRUCTURE_INDEX,
-                "Legacy adapter must map the stable CPU key to its existing builder index");
-        helper.assertValueEqual(request.options().repeatCount(), TrinityAutoBuildOptions.MAX_REPEAT_COUNT,
-                "Legacy adapter must retain the CPU repeat count");
-        helper.assertValueEqual(
-                request.options().tierSelections().get(TrinityAutoBuildBlockMap.PARALLEL_CPU_CORE),
-                10,
-                "Legacy adapter must retain the CPU tier");
         helper.succeed();
     }
 }

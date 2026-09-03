@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.grid.ExactExtractableStorage;
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess;
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess.FiniteTransferResult;
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess.FiniteTransferTarget;
@@ -84,15 +85,15 @@ import appeng.helpers.patternprovider.PatternContainer;
 import appeng.me.helpers.MachineSource;
 import appeng.menu.ISubMenu;
 import appeng.util.ConfigManager;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayDeque;
-import java.util.Collections;
+import java.math.BigInteger;
 import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -120,10 +121,10 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
     private final ICraftingProvider craftingProvider = new HatchCraftingProvider();
     private final IStorageWatcherNode transferWatcherNode = new TransferWatcherNode();
     private final IActionSource transferActionSource = new MachineSource(this);
-    private final ArrayDeque<AEKey> transferQueue = new ArrayDeque<>();
-    private final Set<AEKey> queuedTransferKeys = new HashSet<>();
+    private final ObjectArrayFIFOQueue<AEKey> transferQueue = new ObjectArrayFIFOQueue<>();
+    private final Set<AEKey> queuedTransferKeys = new ObjectOpenHashSet<>();
     private final ConfigManager craftingStatusConfig = new ConfigManager(this::saveChanges);
-    private final Set<PatternContainer> managedTerminalPartitions = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Set<PatternContainer> managedTerminalPartitions = new ReferenceOpenHashSet<>();
     @Nullable
     private TrinityInformationExchangeDepotBindingState compartmentBindingState;
     @Nullable
@@ -587,7 +588,10 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
     @Override
     public void compartment$unbindFromHost(String structureName, CompartmentHost host) {
         try {
-            requireUnbindArguments(structureName, host);
+            if (structureName.isBlank()) {
+                throw new IllegalArgumentException(
+                        "Trinity information exchange depot unbind structure name must not be blank");
+            }
         } catch (RuntimeException exception) {
             LOGGER.error("Rejecting invalid Trinity information exchange depot unbind at {}: host={}, structure={}",
                     this.worldPosition, host, structureName, exception);
@@ -638,17 +642,6 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
     @Override
     public void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
                                                      String structureName,
-                                                     VerticalMultiBlockContext<?> context) {
-        LOGGER.debug("Ignoring untagged Trinity information exchange depot vertical bind at {} for controller={}, structure={}; " +
-                "the vertical runtime must supply its binding epoch",
-                this.worldPosition,
-                controller,
-                structureName);
-    }
-
-    @Override
-    public void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
-                                                     String structureName,
                                                      VerticalMultiBlockContext<?> context,
                                                      long bindingEpoch) {
         if (!(controller instanceof CompartmentHost host)) {
@@ -658,15 +651,6 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
             return;
         }
         bindToHost(structureName, host, controller, bindingEpoch);
-    }
-
-    @Override
-    public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller, String structureName) {
-        LOGGER.debug("Ignoring untagged Trinity information exchange depot vertical removal at {} for controller={}, structure={}; " +
-                "the vertical runtime must return its captured binding epoch",
-                this.worldPosition,
-                controller,
-                structureName);
     }
 
     @Override
@@ -691,14 +675,6 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
             return;
         }
         compartment$unbindFromHost(currentBinding);
-    }
-
-    @Override
-    public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller) {
-        LOGGER.debug("Ignoring untagged Trinity information exchange depot legacy vertical removal at {} for controller={}; " +
-                "the vertical runtime must return its captured binding epoch",
-                this.worldPosition,
-                controller);
     }
 
     private TrinityInformationExchangeDepotBindingState createBindingState(String structureName,
@@ -828,16 +804,6 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         }
     }
 
-    private static void requireUnbindArguments(String structureName, CompartmentHost host) {
-        if (host == null) {
-            throw new IllegalArgumentException("Trinity information exchange depot unbind host must not be null");
-        }
-        if (structureName == null || structureName.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Trinity information exchange depot unbind structure name must not be blank");
-        }
-    }
-
     private static void requestLeaseReevaluation(CompartmentHost host) {
         if (host instanceof TrinityDataCoreBlockEntity dataCore) {
             dataCore.requestAccessLeaseReevaluation();
@@ -854,9 +820,6 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
      * Classifies the original CPU pin against this hatch's current lease publication.
      */
     public TargetState cpuStatusTargetState(TrinityCraftingStatusSelection.Target target) {
-        if (target == null) {
-            throw new IllegalArgumentException("Trinity CPU status target cannot be null");
-        }
         TrinityDataCoreBlockEntity host = boundHost(false);
         if (host == null) {
             return TargetState.STALE_ROUTE;
@@ -875,9 +838,6 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
      * Verifies the Host, runtime, lease and Grid route after the original worker retires.
      */
     public boolean isCurrentCpuStatusRoute(TrinityCraftingStatusSelection.Target target) {
-        if (target == null) {
-            throw new IllegalArgumentException("Trinity CPU status target cannot be null");
-        }
         TrinityDataCoreBlockEntity host = boundHost(false);
         return host != null && target.isRouteCurrent(
                 host.getHostId(),
@@ -938,10 +898,6 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
      */
     @Override
     public boolean isInformationExchangeDepotMenuValid(Player player) {
-        if (player == null) {
-            throw new IllegalArgumentException(
-                    "Trinity information exchange depot menu player cannot be null");
-        }
         Level currentLevel = this.level;
         return currentLevel != null &&
                 !this.isRemoved() &&
@@ -1213,7 +1169,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         List<TrinityPatternTerminalPartition> desired = TrinityPatternTerminalPartition.createLayout(
                 host.getPatternCatalog(),
                 terminalGroup());
-        Map<TrinityPatternTerminalPartition.PartitionKey, TrinityPatternTerminalPartition> existingByKey = new HashMap<>();
+        Map<TrinityPatternTerminalPartition.PartitionKey, TrinityPatternTerminalPartition> existingByKey = new Object2ObjectOpenHashMap<>();
         for (TrinityPatternTerminalPartition existing : this.terminalPartitions) {
             existingByKey.put(existing.key(), existing);
         }
@@ -1383,7 +1339,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         long startedAtNanos = System.nanoTime();
         int scheduledKeys = Math.min(TRANSFER_KEYS_PER_TICK, this.transferQueue.size());
         for (int processedKeys = 0; processedKeys < scheduledKeys && System.nanoTime() - startedAtNanos < TRANSFER_NANOS_PER_TICK; processedKeys++) {
-            AEKey key = this.transferQueue.removeFirst();
+            AEKey key = this.transferQueue.dequeue();
             boolean retry = false;
             try {
                 FiniteTransferResult result = finiteStorage.transferFinite(
@@ -1413,7 +1369,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         long startedAtNanos = System.nanoTime();
         int scheduledKeys = Math.min(TRANSFER_KEYS_PER_TICK, this.transferQueue.size());
         for (int processedKeys = 0; processedKeys < scheduledKeys && System.nanoTime() - startedAtNanos < TRANSFER_NANOS_PER_TICK; processedKeys++) {
-            AEKey key = this.transferQueue.removeFirst();
+            AEKey key = this.transferQueue.dequeue();
             boolean retry = false;
             try {
                 OutputTransferResult result = transferOutputKey(
@@ -1532,7 +1488,7 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
 
     private void enqueueTransfer(AEKey key) {
         if (this.queuedTransferKeys.add(key)) {
-            this.transferQueue.addLast(key);
+            this.transferQueue.enqueue(key);
         }
     }
 
@@ -1822,7 +1778,16 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         }
     }
 
-    private final class HatchStorage implements MEStorage {
+    private final class HatchStorage implements MEStorage, ExactExtractableStorage {
+
+        @Override
+        public BigInteger exactAvailable(AEKey key, IActionSource source) {
+            TrinityDataCoreBlockEntity host = boundHost();
+            if (!canUseStorage(host) || !(level instanceof ServerLevel serverLevel)) {
+                return BigInteger.ZERO;
+            }
+            return TrinityDataCoreStorageSavedData.get(serverLevel.getServer()).amount(host.getStorageId(), key);
+        }
 
         @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {

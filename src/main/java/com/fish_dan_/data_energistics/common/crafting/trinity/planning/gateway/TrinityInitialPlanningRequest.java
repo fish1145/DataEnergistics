@@ -1,15 +1,15 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.capacity.TrinityCpuStorageCapacity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
-import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 
 import appeng.api.stacks.AEKey;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * Immutable, background-safe input for one initial Trinity planning attempt.
@@ -27,28 +27,20 @@ public final class TrinityInitialPlanningRequest {
     private final AEKey target;
     private final BigInteger requestedAmount;
     private final CraftingQuantityMode quantityMode;
-    private final Map<AEKey, BigInteger> available;
-    private final TrinityCraftingSchema settings;
-    private final long maxTrinityBytes;
+    private final TrinityPlanningInventory inventory;
+    private final TrinityPlanningLimits limits;
+    private final TrinityCpuStorageCapacity maxTrinityCapacity;
 
     private TrinityInitialPlanningRequest(Builder builder) {
         if (builder.graph == null || builder.target == null || builder.requestedAmount == null ||
-                builder.quantityMode == null || builder.available == null || builder.settings == null) {
+                builder.quantityMode == null || builder.inventory == null || builder.limits == null ||
+                builder.maxTrinityCapacity == null) {
             throw new IllegalStateException("A Trinity initial planning request is incomplete");
         }
-        if (builder.gridScope <= 0L || builder.requestId <= 0L || builder.requestedAmount.signum() <= 0 ||
-                builder.maxTrinityBytes <= 0L) {
+        if (builder.gridScope <= 0L || builder.requestId <= 0L || builder.requestedAmount.signum() <= 0) {
             throw new IllegalStateException(
                     "A Trinity initial planning request requires positive Grid scope, identity, amount, and CPU capacity");
         }
-
-        LinkedHashMap<AEKey, BigInteger> copiedAvailable = new LinkedHashMap<>();
-        builder.available.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() <= 0) {
-                throw new IllegalArgumentException("A Trinity inventory snapshot may contain only positive named amounts");
-            }
-            copiedAvailable.put(key, amount);
-        });
 
         this.graph = builder.graph;
         this.gridScope = builder.gridScope;
@@ -56,9 +48,9 @@ public final class TrinityInitialPlanningRequest {
         this.target = builder.target;
         this.requestedAmount = builder.requestedAmount;
         this.quantityMode = builder.quantityMode;
-        this.available = Collections.unmodifiableMap(copiedAvailable);
-        this.settings = builder.settings;
-        this.maxTrinityBytes = builder.maxTrinityBytes;
+        this.inventory = builder.inventory;
+        this.limits = builder.limits;
+        this.maxTrinityCapacity = builder.maxTrinityCapacity;
     }
 
     /**
@@ -92,16 +84,16 @@ public final class TrinityInitialPlanningRequest {
         return this.quantityMode;
     }
 
-    public Map<AEKey, BigInteger> available() {
-        return this.available;
+    public TrinityPlanningInventory inventory() {
+        return this.inventory;
     }
 
-    public TrinityCraftingSchema settings() {
-        return this.settings;
+    public TrinityPlanningLimits limits() {
+        return this.limits;
     }
 
-    public long maxTrinityBytes() {
-        return this.maxTrinityBytes;
+    public TrinityCpuStorageCapacity maxTrinityCapacity() {
+        return this.maxTrinityCapacity;
     }
 
     /**
@@ -109,15 +101,15 @@ public final class TrinityInitialPlanningRequest {
      */
     public static final class Builder {
 
-        private TrinityCraftingGraphSnapshot graph;
+        private @Nullable TrinityCraftingGraphSnapshot graph;
         private long gridScope;
         private long requestId;
-        private AEKey target;
-        private BigInteger requestedAmount;
-        private CraftingQuantityMode quantityMode;
-        private Map<AEKey, BigInteger> available;
-        private TrinityCraftingSchema settings;
-        private long maxTrinityBytes;
+        private @Nullable AEKey target;
+        private @Nullable BigInteger requestedAmount;
+        private @Nullable CraftingQuantityMode quantityMode;
+        private @Nullable TrinityPlanningInventory inventory;
+        private @Nullable TrinityPlanningLimits limits;
+        private @Nullable TrinityCpuStorageCapacity maxTrinityCapacity;
 
         private Builder() {}
 
@@ -151,18 +143,18 @@ public final class TrinityInitialPlanningRequest {
             return this;
         }
 
-        public Builder available(Map<AEKey, BigInteger> available) {
-            this.available = available;
+        public Builder inventory(TrinityPlanningInventory inventory) {
+            this.inventory = inventory;
             return this;
         }
 
-        public Builder settings(TrinityCraftingSchema settings) {
-            this.settings = settings;
+        public Builder limits(TrinityPlanningLimits limits) {
+            this.limits = limits;
             return this;
         }
 
-        public Builder maxTrinityBytes(long maxTrinityBytes) {
-            this.maxTrinityBytes = maxTrinityBytes;
+        public Builder maxTrinityCapacity(TrinityCpuStorageCapacity maxTrinityCapacity) {
+            this.maxTrinityCapacity = maxTrinityCapacity;
             return this;
         }
 

@@ -6,25 +6,45 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.proof.TrinityCycleUnitProof;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.selection.TrinityCyclePlanSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.selection.TrinityCycleSelection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticEvidence;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticOutcome;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityDiagnosticMaterialAccumulator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
-import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntMaps;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectSets;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,7 +53,8 @@ import java.util.Set;
 /**
  * Aggregates reverse demands across a condensation graph and selects bounded routes without constructing plan stages.
  * <p>
- * Branching reverse-demand implementation with one shared route-state budget across cloned search accumulators.
+ * Branching reverse-demand implementation with explicit DFS frames, journaled rollback and one shared route-state
+ * budget.
  */
 public final class TrinityGraphDemandAggregator {
 
@@ -53,9 +74,6 @@ public final class TrinityGraphDemandAggregator {
     private final TrinityCyclePlanSelector cyclePlanSelector;
 
     TrinityGraphDemandAggregator(TrinityCyclePlanSelector cyclePlanSelector) {
-        if (cyclePlanSelector == null) {
-            throw new IllegalArgumentException("A Trinity graph demand aggregator requires a cycle selector");
-        }
         this.cyclePlanSelector = cyclePlanSelector;
     }
 
@@ -67,12 +85,11 @@ public final class TrinityGraphDemandAggregator {
                                                                         AEKey target,
                                                                         BigInteger requestedAmount,
                                                                         CraftingQuantityMode quantityMode,
-                                                                        Map<AEKey, BigInteger> available,
-                                                                        TrinityCraftingSchema settings,
+                                                                        TrinityPlanningInventory inventory,
+                                                                        TrinityPlanningLimits limits,
+                                                                        TrinityPlanningMode mode,
                                                                         TrinityPlanningControl control) {
-        if (topology == null || target == null || requestedAmount == null ||
-                requestedAmount.signum() <= 0 || quantityMode == null || available == null || settings == null ||
-                control == null) {
+        if (requestedAmount.signum() <= 0) {
             throw new IllegalArgumentException("A Trinity graph demand request is incomplete");
         }
         return new PlanningAccumulator(
@@ -80,126 +97,255 @@ public final class TrinityGraphDemandAggregator {
                 target,
                 requestedAmount,
                 quantityMode,
-                available,
-                settings,
-                control).solve();
+                inventory,
+                limits,
+                mode,
+                control,
+                Map.of(),
+                Int2ObjectMaps.emptyMap()).solve();
+    }
+
+    /** Resolves demand with quantity-independent cycle and coefficient proofs attached to the compiled structure. */
+    public TrinityAlgorithmResult<TrinityGraphDemandSolution> aggregate(
+                                                                        TrinityCraftingTopology topology,
+                                                                        AEKey target,
+                                                                        BigInteger requestedAmount,
+                                                                        CraftingQuantityMode quantityMode,
+                                                                        TrinityPlanningInventory inventory,
+                                                                        TrinityPlanningLimits limits,
+                                                                        TrinityPlanningMode mode,
+                                                                        TrinityPlanningControl control,
+                                                                        Map<AEKey, TrinityCycleUnitProof> cycleUnitProofs,
+                                                                        Int2ObjectMap<TrinityMipCoefficientTemplate> cycleMipTemplates) {
+        return new PlanningAccumulator(
+                topology,
+                target,
+                requestedAmount,
+                quantityMode,
+                inventory,
+                limits,
+                mode,
+                control,
+                cycleUnitProofs,
+                cycleMipTemplates).solve();
     }
 
     /**
-     * Holds one isolated route branch while sharing only the bounded route counter and immutable graph context.
+     * Owns the single thread-confined demand state traversed by explicit cursors and reversible producer choices.
      */
     private final class PlanningAccumulator {
 
         private final TrinityCraftingTopology topology;
         private final AEKey target;
+        private final BigInteger requestedAmount;
         private final CraftingQuantityMode quantityMode;
-        private final LinkedHashMap<AEKey, BigInteger> inventory;
-        private final TrinityCraftingSchema settings;
+        private final Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> inventory;
+        private final Set<AEKey> unlimitedInventory;
+        private final TrinityPlanningLimits limits;
+        private final TrinityPlanningMode mode;
         private final TrinityPlanningControl control;
-        private final Map<Integer, Integer> topologicalPositions;
+        private final Map<AEKey, TrinityCycleUnitProof> cycleUnitProofs;
+        private final Int2ObjectMap<TrinityMipCoefficientTemplate> cycleMipTemplates;
+        private final Int2IntMap topologicalPositions;
         private final RouteSearchBudget routeSearchBudget;
-        private final LinkedHashMap<AEKey, BigInteger> demand = new LinkedHashMap<>();
-        private final LinkedHashMap<AEKey, BigInteger> initialInputs = new LinkedHashMap<>();
-        private final LinkedHashMap<AEKey, InputRequirement> inputShortages = new LinkedHashMap<>();
-        private final LinkedHashMap<TrinityPatternVariant, TrinityRankedPatternFiring> acyclicFirings = new LinkedHashMap<>();
-        private final ArrayList<TrinityCycleSelection> cycleSolutions = new ArrayList<>();
-        private final LinkedHashMap<Integer, LinkedHashMap<AEKey, BigInteger>> cycleOutputDemands = new LinkedHashMap<>();
+        private final Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> demand = new Object2ObjectLinkedOpenHashMap<>();
+        private final Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> initialInputs = new Object2ObjectLinkedOpenHashMap<>();
+        private final Object2ObjectLinkedOpenHashMap<AEKey, InputRequirement> inputShortages = new Object2ObjectLinkedOpenHashMap<>();
+        private final Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, TrinityRankedPatternFiring> acyclicFirings = new Object2ObjectLinkedOpenHashMap<>();
+        private final ObjectArrayList<TrinityCycleSelection> cycleSolutions = new ObjectArrayList<>();
+        private final ObjectArrayList<TrinityCycleDiagnosticEvidence> diagnosticCycles = new ObjectArrayList<>();
+        private final ObjectArrayList<TrinityPlanningDiagnostic.PartialPlan> diagnosticMaterials = new ObjectArrayList<>();
+        private final Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> unresolvedDemands = new Object2ObjectLinkedOpenHashMap<>();
+        private final IntSet unprovedCycleComponents = new IntLinkedOpenHashSet();
+        private final Int2ObjectMap<TrinityCycleDiagnosticEvidence> retainedCycleEvidence = new Int2ObjectOpenHashMap<>();
+        private final Int2ObjectMap<Object2ObjectLinkedOpenHashMap<AEKey, BigInteger>> cycleOutputDemands = new Int2ObjectLinkedOpenHashMap<>();
+        private final MutationJournal mutationJournal = new MutationJournal();
         private int scheduleStates;
         private long mipNanos;
+        private boolean diagnosticMode;
+        private int diagnosticStartedRouteStates;
+        private @Nullable TrinityPlanningDiagnostic diagnosticRootFailure;
+        private @Nullable String diagnosticCycleProofStop;
 
         private PlanningAccumulator(
                                     TrinityCraftingTopology topology,
                                     AEKey target,
                                     BigInteger requestedAmount,
                                     CraftingQuantityMode quantityMode,
-                                    Map<AEKey, BigInteger> available,
-                                    TrinityCraftingSchema settings,
-                                    TrinityPlanningControl control) {
+                                    TrinityPlanningInventory available,
+                                    TrinityPlanningLimits limits,
+                                    TrinityPlanningMode mode,
+                                    TrinityPlanningControl control,
+                                    Map<AEKey, TrinityCycleUnitProof> cycleUnitProofs,
+                                    Int2ObjectMap<TrinityMipCoefficientTemplate> cycleMipTemplates) {
             this.topology = topology;
             this.target = target;
+            this.requestedAmount = requestedAmount;
             this.quantityMode = quantityMode;
-            this.inventory = new LinkedHashMap<>(available);
-            this.settings = settings;
+            this.inventory = new Object2ObjectLinkedOpenHashMap<>(available.finiteAmounts());
+            this.unlimitedInventory = available.unlimitedKeys();
+            this.limits = limits;
+            this.mode = mode;
             this.control = control;
+            this.cycleUnitProofs = cycleUnitProofs;
+            this.cycleMipTemplates = cycleMipTemplates;
             this.topologicalPositions = topologicalPositions(topology);
-            this.routeSearchBudget = new RouteSearchBudget(settings.maxScheduleStates);
+            this.routeSearchBudget = new RouteSearchBudget(limits.maxScheduleStates(), control);
             this.demand.put(target, requestedAmount);
         }
 
-        private PlanningAccumulator(PlanningAccumulator source) {
-            this.topology = source.topology;
-            this.target = source.target;
-            this.quantityMode = source.quantityMode;
-            this.inventory = new LinkedHashMap<>(source.inventory);
-            this.settings = source.settings;
-            this.control = source.control;
-            this.topologicalPositions = source.topologicalPositions;
-            this.routeSearchBudget = source.routeSearchBudget;
-            this.demand.putAll(source.demand);
-            this.initialInputs.putAll(source.initialInputs);
-            this.inputShortages.putAll(source.inputShortages);
-            this.acyclicFirings.putAll(source.acyclicFirings);
-            this.cycleSolutions.addAll(source.cycleSolutions);
-            source.cycleOutputDemands.forEach((component, amounts) -> this.cycleOutputDemands.put(component, new LinkedHashMap<>(amounts)));
-            this.scheduleStates = source.scheduleStates;
-            this.mipNanos = source.mipNanos;
-        }
-
         private TrinityAlgorithmResult<TrinityGraphDemandSolution> solve() {
-            return solveComponent(this.topology.topologicalOrder().size() - 1);
+            TrinityAlgorithmResult<TrinityGraphDemandSolution> result = solvePass();
+            if (result.successful() || this.diagnosticMode ||
+                    result.diagnostic().code() == TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED ||
+                    this.control.cancellationRequested()) {
+                return result;
+            }
+            if (this.mode == TrinityPlanningMode.OPTIMAL && this.control.deadlineExceeded()) {
+                Object2ObjectLinkedOpenHashMap<String, String> metadata = new Object2ObjectLinkedOpenHashMap<>(result.diagnostic().metadata());
+                metadata.put("phase", "graph");
+                metadata.put("priorCode", result.diagnostic().code().name());
+                return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                        TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
+                        Component.translatable(TIMEOUT_KEY),
+                        metadata,
+                        result.diagnostic().detail()));
+            }
+            this.mutationJournal.rollback(0);
+            this.diagnosticMode = true;
+            this.diagnosticRootFailure = result.diagnostic();
+            this.diagnosticStartedRouteStates = this.routeSearchBudget.used();
+            result.diagnostic().cycleEvidence().forEach(evidence -> this.retainedCycleEvidence.putIfAbsent(
+                    evidence.componentIndex(),
+                    evidence));
+            return solvePass();
         }
 
-        private TrinityAlgorithmResult<TrinityGraphDemandSolution> solveComponent(int position) {
+        private TrinityAlgorithmResult<TrinityGraphDemandSolution> solvePass() {
+            ObjectArrayList<SearchFrame> frames = new ObjectArrayList<>();
+            frames.push(new ComponentCursor(this.topology.topologicalOrder().size() - 1));
+            TrinityPlanningDiagnostic pendingFailure = null;
+            while (!frames.isEmpty()) {
+                SearchFrame frame = frames.pop();
+                if (frame instanceof ProducerChoiceFrame choice) {
+                    if (pendingFailure != null) {
+                        this.mutationJournal.rollback(choice.checkpoint);
+                        choice.recordFirstFailure(pendingFailure);
+                        pendingFailure = null;
+                    }
+                    SearchAction action = advanceChoice(choice);
+                    if (action instanceof ContinueAction continuation) {
+                        frames.push(choice);
+                        frames.push(continuation.cursor());
+                    } else if (action instanceof FailureAction failure) {
+                        pendingFailure = failure.diagnostic();
+                    } else {
+                        throw new IllegalStateException("A Trinity producer choice returned an invalid search action");
+                    }
+                    continue;
+                }
+                if (pendingFailure != null) {
+                    throw new IllegalStateException("A Trinity search failure bypassed its producer choice");
+                }
+
+                SearchAction action = advanceCursor((SearchCursor) frame);
+                if (action instanceof ContinueAction continuation) {
+                    frames.push(continuation.cursor());
+                } else if (action instanceof ChoiceAction choice) {
+                    frames.push(choice.choice());
+                } else if (action instanceof CompleteAction complete) {
+                    return TrinityAlgorithmResult.success(complete.solution());
+                } else if (action instanceof FailureAction failure) {
+                    pendingFailure = failure.diagnostic();
+                }
+            }
+            if (pendingFailure != null) {
+                return TrinityAlgorithmResult.failure(pendingFailure);
+            }
+            return failed(TrinityPlanningDiagnosticCode.INTERNAL_ERROR, INTERNAL_ERROR_KEY, Map.of());
+        }
+
+        private SearchAction advanceCursor(SearchCursor cursor) {
+            return switch (cursor) {
+                case ComponentCursor component -> advanceComponent(component);
+                case AcyclicKeyCursor acyclic -> advanceAcyclic(acyclic);
+                case CycleInputCursor cycleInput -> advanceCycleInput(cycleInput);
+            };
+        }
+
+        private SearchAction advanceComponent(ComponentCursor cursor) {
             StopState state = stopState(this.control);
             if (state == StopState.CANCELLED) {
-                return failed(cancelled().diagnostic());
+                return failureAction(cancelled());
             }
-            if (state == StopState.DEADLINE_EXCEEDED) {
-                return failed(deadlineExceeded().diagnostic());
+            if (state == StopState.DEADLINE_EXCEEDED &&
+                    (!this.diagnosticMode || this.mode == TrinityPlanningMode.OPTIMAL)) {
+                return failureAction(failed(deadlineExceeded().diagnostic()));
             }
-            if (position < 0) {
-                return completeDemand();
+            if (cursor.position() < 0) {
+                TrinityAlgorithmResult<TrinityGraphDemandSolution> completed = completeDemand();
+                return completed.successful() ?
+                        new CompleteAction(completed.value()) :
+                        new FailureAction(completed.diagnostic());
             }
-            int componentIndex = this.topology.topologicalOrder().get(position);
+            int componentIndex = this.topology.topologicalOrder().get(cursor.position());
             TrinityStronglyConnectedComponent component = this.topology.components().get(componentIndex);
             if (!component.cyclic()) {
-                return processAcyclicComponent(component, 0, position);
+                return new ContinueAction(new AcyclicKeyCursor(component, 0, cursor.position()));
+            }
+            if (this.diagnosticMode) {
+                return advanceDiagnosticCycle(component, cursor.position());
             }
             TrinityAlgorithmResult<Optional<PreparedCycle>> prepared = prepareCycleComponent(component);
             if (!prepared.successful()) {
-                return failed(prepared.diagnostic());
+                return failureAction(failed(prepared.diagnostic()));
             }
             if (prepared.value().isEmpty()) {
-                return solveComponent(position - 1);
+                return new ContinueAction(new ComponentCursor(cursor.position() - 1));
             }
             PreparedCycle cycle = prepared.value().orElseThrow();
-            return satisfyCycleInputs(
+            return new ContinueAction(new CycleInputCursor(
                     component,
                     cycle,
                     List.copyOf(cycle.solution().initialInputs().entrySet()),
                     0,
-                    position);
+                    cursor.position()));
         }
 
         private TrinityAlgorithmResult<TrinityGraphDemandSolution> completeDemand() {
-            if (this.cycleOutputDemands.values().stream()
+            boolean unresolvedCycleOutput = this.cycleOutputDemands.values().stream()
                     .flatMap(amounts -> amounts.values().stream())
-                    .anyMatch(amount -> amount.signum() > 0)) {
+                    .anyMatch(amount -> amount.signum() > 0);
+            if (unresolvedCycleOutput && !this.diagnosticMode) {
                 return failed(
                         TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
                         INTERNAL_ERROR_KEY,
                         Map.of());
             }
+            if (unresolvedCycleOutput) {
+                this.cycleOutputDemands.values().forEach(amounts -> amounts.forEach(
+                        this::recordUnresolvedMaximum));
+            }
             for (Map.Entry<AEKey, BigInteger> remaining : this.demand.entrySet()) {
                 BigInteger required = remaining.getValue().max(BigInteger.ZERO);
                 if (required.signum() > 0) {
+                    if (this.diagnosticMode && !this.topology.variantsByOutputKey()
+                            .getOrDefault(remaining.getKey(), List.of())
+                            .isEmpty()) {
+                        recordUnresolvedMaximum(remaining.getKey(), required);
+                        putState(this.demand, remaining.getKey(), BigInteger.ZERO);
+                        continue;
+                    }
                     BigInteger reserved = reserveFromInventory(remaining.getKey(), required);
                     BigInteger missing = required.subtract(reserved);
                     if (missing.signum() > 0) {
                         recordShortage(remaining.getKey(), required, reserved, missing);
                     }
-                    remaining.setValue(BigInteger.ZERO);
+                    putState(this.demand, remaining.getKey(), BigInteger.ZERO);
                 }
+            }
+            if (this.diagnosticMode) {
+                return diagnosticFailure();
             }
             if (!this.inputShortages.isEmpty()) {
                 return insufficient();
@@ -212,30 +358,32 @@ public final class TrinityGraphDemandAggregator {
                     this.mipNanos));
         }
 
-        private TrinityAlgorithmResult<TrinityGraphDemandSolution> processAcyclicComponent(
-                                                                                           TrinityStronglyConnectedComponent component,
-                                                                                           int keyIndex,
-                                                                                           int position) {
-            if (keyIndex >= component.keys().size()) {
-                return solveComponent(position - 1);
+        private SearchAction advanceAcyclic(AcyclicKeyCursor cursor) {
+            TrinityStronglyConnectedComponent component = cursor.component();
+            if (cursor.keyIndex() >= component.keys().size()) {
+                return new ContinueAction(new ComponentCursor(cursor.position() - 1));
             }
-            AEKey key = component.keys().get(keyIndex);
+            SearchCursor continuation = new AcyclicKeyCursor(
+                    component,
+                    cursor.keyIndex() + 1,
+                    cursor.position());
+            AEKey key = component.keys().get(cursor.keyIndex());
             BigInteger required = positiveDemand(key);
             boolean forceFinalProduction = key.equals(this.target) &&
                     this.quantityMode == CraftingQuantityMode.FINAL_TOTAL;
             if (required.signum() <= 0 && !forceFinalProduction) {
-                return processAcyclicComponent(component, keyIndex + 1, position);
+                return new ContinueAction(continuation);
             }
 
             boolean netNewTarget = key.equals(this.target) &&
                     this.quantityMode == CraftingQuantityMode.NET_NEW;
             if (!netNewTarget && required.signum() > 0) {
                 BigInteger reserved = reserveFromInventory(key, required);
-                merge(this.demand, key, reserved.negate());
+                mergeState(this.demand, key, reserved.negate());
             }
             BigInteger missing = positiveDemand(key);
             if (missing.signum() <= 0 && !forceFinalProduction) {
-                return processAcyclicComponent(component, keyIndex + 1, position);
+                return new ContinueAction(continuation);
             }
 
             List<TrinityPatternVariant> candidates = producersFor(key, component.index(), false);
@@ -243,114 +391,56 @@ public final class TrinityGraphDemandAggregator {
                 if (missing.signum() > 0) {
                     BigInteger allocated = required.subtract(missing);
                     recordShortage(key, required, allocated, missing);
-                    merge(this.demand, key, missing.negate());
-                    return processAcyclicComponent(component, keyIndex + 1, position);
+                    mergeState(this.demand, key, missing.negate());
+                    return new ContinueAction(continuation);
                 }
-                return failed(
+                return failureAction(failed(
                         TrinityPlanningDiagnosticCode.INSUFFICIENT_INPUT,
                         INSUFFICIENT_INPUT_KEY,
-                        Map.of("key", key.toString(), "required", required.toString()));
+                        Map.of("key", key.toString(), "required", required.toString())));
             }
-            TrinityPlanningDiagnostic bestDiagnostic = null;
-            for (TrinityPatternVariant selected : candidates) {
+            BigInteger outputDemand = missing.signum() > 0 ? missing : BigInteger.ONE;
+            if (this.diagnosticMode) {
                 if (!this.routeSearchBudget.tryConsume()) {
-                    return routeSearchLimit();
+                    recordUnresolvedMaximum(key, outputDemand);
+                    mergeState(this.demand, key, outputDemand.negate());
+                    return new ContinueAction(continuation);
                 }
-                PlanningAccumulator branch = new PlanningAccumulator(this);
-                BigInteger outputDemand = missing.signum() > 0 ? missing : BigInteger.ONE;
-                TrinityAlgorithmResult<StepSuccess> applied = branch.applyProducerChoice(
+                TrinityAlgorithmResult<StepSuccess> applied = applyProducerChoice(
                         component,
                         key,
-                        selected,
+                        candidates.get(0),
                         outputDemand,
                         false);
                 if (!applied.successful()) {
-                    if (bestDiagnostic == null) {
-                        bestDiagnostic = applied.diagnostic();
-                    }
-                    continue;
+                    recordUnresolvedMaximum(key, outputDemand);
+                    mergeState(this.demand, key, outputDemand.negate());
                 }
-                TrinityAlgorithmResult<TrinityGraphDemandSolution> result = branch.processAcyclicComponent(
-                        component,
-                        keyIndex + 1,
-                        position);
-                if (result.successful()) {
-                    return result;
-                }
-                if (bestDiagnostic == null) {
-                    bestDiagnostic = result.diagnostic();
-                }
+                return new ContinueAction(continuation);
             }
-            return bestDiagnostic == null ?
-                    failed(
-                            TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
-                            INTERNAL_ERROR_KEY,
-                            Map.of("key", key.toString())) :
-                    failed(bestDiagnostic);
+            return new ChoiceAction(new ProducerChoiceFrame(
+                    component,
+                    key,
+                    outputDemand,
+                    false,
+                    candidates,
+                    continuation,
+                    this.mutationJournal.checkpoint()));
         }
 
         private TrinityAlgorithmResult<Optional<PreparedCycle>> prepareCycleComponent(
                                                                                       TrinityStronglyConnectedComponent component) {
-            LinkedHashMap<AEKey, BigInteger> internalRequirements = new LinkedHashMap<>();
-            boolean requiresCycle = !this.cycleOutputDemands
-                    .getOrDefault(component.index(), new LinkedHashMap<>())
-                    .isEmpty();
-            for (AEKey key : component.keys()) {
-                BigInteger required = positiveDemand(key);
-                if (required.signum() <= 0) {
-                    continue;
-                }
-                internalRequirements.put(key, required);
-                if (key.equals(this.target) ||
-                        this.inventory.getOrDefault(key, BigInteger.ZERO).compareTo(required) < 0) {
-                    requiresCycle = true;
-                }
-            }
-            if (!requiresCycle) {
-                internalRequirements.forEach((key, required) -> {
-                    BigInteger reserved = reserveFromInventory(key, required);
-                    merge(this.demand, key, reserved.negate());
-                });
+            Optional<CyclePreparation> prepared = prepareCycleRequest(component);
+            if (prepared.isEmpty()) {
                 return TrinityAlgorithmResult.success(Optional.empty());
             }
-
-            LinkedHashMap<AEKey, BigInteger> finalBalances = new LinkedHashMap<>();
-            LinkedHashMap<AEKey, BigInteger> requiredNetChanges = new LinkedHashMap<>();
-            for (Map.Entry<AEKey, BigInteger> requirement : internalRequirements.entrySet()) {
-                AEKey key = requirement.getKey();
-                BigInteger required = requirement.getValue();
-                if (key.equals(this.target) && this.quantityMode == CraftingQuantityMode.NET_NEW) {
-                    merge(requiredNetChanges, key, required);
-                    continue;
-                }
-                finalBalances.put(key, required);
-                BigInteger shortage = required
-                        .subtract(this.inventory.getOrDefault(key, BigInteger.ZERO))
-                        .max(BigInteger.ZERO);
-                if (key.equals(this.target)) {
-                    shortage = shortage.max(BigInteger.ONE);
-                }
-                if (shortage.signum() > 0) {
-                    requiredNetChanges.put(key, shortage);
-                }
-            }
-            Map<AEKey, BigInteger> requestedCycleOutputs = Map.copyOf(
-                    this.cycleOutputDemands.getOrDefault(component.index(), new LinkedHashMap<>()));
-            requestedCycleOutputs.forEach((key, amount) -> merge(requiredNetChanges, key, amount));
-            TrinityCycleDemand cycleDemand = new TrinityCycleDemand(finalBalances, requiredNetChanges);
-            Set<AEKey> producibleInputs = producibleInputs(component);
-            TrinityAlgorithmResult<TrinityCycleSelection> solved = TrinityGraphDemandAggregator.this.cyclePlanSelector.select(
-                    component,
-                    cycleDemand,
-                    this.inventory,
-                    producibleInputs,
-                    this.settings.maxScheduleStates,
-                    this.control);
+            CyclePreparation request = prepared.orElseThrow();
+            TrinityAlgorithmResult<TrinityCycleSelection> solved = selectCycle(component, request);
             if (!solved.successful()) {
                 return failedNested(solved.diagnostic());
             }
             TrinityCycleSelection selection = solved.value();
-            if (requiredNetChanges.entrySet().stream()
+            if (request.demand().requiredNetChangeLowerBounds().entrySet().stream()
                     .anyMatch(entry -> selection.exportableNet()
                             .getOrDefault(entry.getKey(), BigInteger.ZERO)
                             .compareTo(entry.getValue()) < 0)) {
@@ -361,102 +451,321 @@ public final class TrinityGraphDemandAggregator {
             }
             return TrinityAlgorithmResult.success(Optional.of(new PreparedCycle(
                     selection,
-                    internalRequirements,
-                    producibleInputs)));
+                    request.internalRequirements(),
+                    request.producibleInputs())));
         }
 
-        private TrinityAlgorithmResult<TrinityGraphDemandSolution> satisfyCycleInputs(
-                                                                                      TrinityStronglyConnectedComponent component,
-                                                                                      PreparedCycle prepared,
-                                                                                      List<Map.Entry<AEKey, BigInteger>> inputs,
-                                                                                      int inputIndex,
-                                                                                      int position) {
-            if (inputIndex >= inputs.size()) {
-                return finishCycleComponent(component, prepared, position);
+        private Optional<CyclePreparation> prepareCycleRequest(TrinityStronglyConnectedComponent component) {
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> internalRequirements = new Object2ObjectLinkedOpenHashMap<>();
+            Map<AEKey, BigInteger> recordedCycleOutputs = this.cycleOutputDemands.get(component.index());
+            Map<AEKey, BigInteger> requestedCycleOutputs = recordedCycleOutputs == null ?
+                    Map.of() : recordedCycleOutputs;
+            boolean requiresCycle = !requestedCycleOutputs.isEmpty();
+            for (AEKey key : component.keys()) {
+                BigInteger required = positiveDemand(key);
+                if (required.signum() <= 0) {
+                    continue;
+                }
+                internalRequirements.put(key, required);
             }
-            Map.Entry<AEKey, BigInteger> input = inputs.get(inputIndex);
+            ObjectOpenHashSet<AEKey> demandedCycleKeys = new ObjectOpenHashSet<>(internalRequirements.keySet());
+            demandedCycleKeys.addAll(requestedCycleOutputs.keySet());
+            TrinityCycleUnitProof unitProof = selectUnitProof(component, demandedCycleKeys);
+            Map<AEKey, BigInteger> retainedSeed = unitProof == null ? Map.of() : unitProof.internalSeed();
+            for (Map.Entry<AEKey, BigInteger> requirement : internalRequirements.entrySet()) {
+                AEKey key = requirement.getKey();
+                BigInteger usefulInventory = availableUpTo(
+                        key,
+                        requirement.getValue().add(retainedSeed.getOrDefault(key, BigInteger.ZERO)));
+                BigInteger safeSurplus = usefulInventory
+                        .subtract(retainedSeed.getOrDefault(key, BigInteger.ZERO))
+                        .max(BigInteger.ZERO);
+                if (key.equals(this.target) || safeSurplus.compareTo(requirement.getValue()) < 0) {
+                    requiresCycle = true;
+                }
+            }
+            if (!requiresCycle) {
+                internalRequirements.forEach((key, required) -> {
+                    BigInteger reserved = reserveFromInventory(key, required);
+                    mergeState(this.demand, key, reserved.negate());
+                });
+                return Optional.empty();
+            }
+
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> settledWithdrawals = new Object2ObjectLinkedOpenHashMap<>();
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> terminalBalances = new Object2ObjectLinkedOpenHashMap<>();
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> requiredNetChanges = new Object2ObjectLinkedOpenHashMap<>();
+            for (Map.Entry<AEKey, BigInteger> requirement : internalRequirements.entrySet()) {
+                AEKey key = requirement.getKey();
+                BigInteger required = requirement.getValue();
+                if (key.equals(this.target) && this.quantityMode == CraftingQuantityMode.NET_NEW) {
+                    merge(requiredNetChanges, key, required);
+                    continue;
+                }
+                if (key.equals(this.target)) {
+                    terminalBalances.put(key, required);
+                } else {
+                    settledWithdrawals.put(key, required);
+                }
+                BigInteger shortage = required
+                        .subtract(availableUpTo(key, required))
+                        .max(BigInteger.ZERO);
+                if (key.equals(this.target)) {
+                    shortage = shortage.max(BigInteger.ONE);
+                }
+                if (shortage.signum() > 0) {
+                    requiredNetChanges.put(key, shortage);
+                }
+            }
+            requestedCycleOutputs.forEach((key, amount) -> {
+                merge(settledWithdrawals, key, amount);
+                merge(requiredNetChanges, key, amount);
+            });
+            TrinityCycleDemand cycleDemand = new TrinityCycleDemand(
+                    settledWithdrawals,
+                    terminalBalances,
+                    requiredNetChanges,
+                    this.quantityMode == CraftingQuantityMode.NET_NEW && component.keys().contains(this.target) ?
+                            Set.of(this.target) : Set.of());
+            if (!retainedSeed.isEmpty()) {
+                cycleDemand = cycleDemand.withRetainedSeed(retainedSeed);
+            }
+            Set<AEKey> producibleInputs = producibleInputs(component);
+            return Optional.of(new CyclePreparation(
+                    internalRequirements,
+                    cycleDemand,
+                    producibleInputs,
+                    unitProof));
+        }
+
+        private @Nullable TrinityCycleUnitProof selectUnitProof(
+                                                                TrinityStronglyConnectedComponent component,
+                                                                Set<AEKey> demandedKeys) {
+            for (AEKey key : component.keys()) {
+                if (demandedKeys.contains(key)) {
+                    TrinityCycleUnitProof proof = this.cycleUnitProofs.get(key);
+                    if (proof != null) {
+                        return proof.instantiate(this.inventory, component.keys());
+                    }
+                }
+            }
+            return null;
+        }
+
+        private TrinityAlgorithmResult<TrinityCycleSelection> selectCycle(
+                                                                          TrinityStronglyConnectedComponent component,
+                                                                          CyclePreparation request) {
+            TrinityMipCoefficientTemplate template = this.cycleMipTemplates.get(component.index());
+            if (template == null) {
+                return TrinityGraphDemandAggregator.this.cyclePlanSelector.select(
+                        component,
+                        request.demand(),
+                        this.inventory,
+                        request.producibleInputs(),
+                        this.limits.maxScheduleStates(),
+                        this.mode,
+                        this.control);
+            }
+            return TrinityGraphDemandAggregator.this.cyclePlanSelector.select(
+                    component,
+                    request.demand(),
+                    this.inventory,
+                    request.producibleInputs(),
+                    this.limits.maxScheduleStates(),
+                    this.mode,
+                    this.control,
+                    request.unitProof(),
+                    template);
+        }
+
+        private SearchAction advanceDiagnosticCycle(
+                                                    TrinityStronglyConnectedComponent component,
+                                                    int position) {
+            Optional<CyclePreparation> prepared = prepareCycleRequest(component);
+            if (prepared.isEmpty()) {
+                return new ContinueAction(new ComponentCursor(position - 1));
+            }
+            CyclePreparation request = prepared.orElseThrow();
+            TrinityCycleDiagnosticEvidence evidence = this.retainedCycleEvidence.get(component.index());
+            if (evidence != null && !satisfies(evidence, request.demand())) {
+                evidence = null;
+            }
+            TrinityPlanningDiagnostic cycleFailure = null;
+            if (evidence == null) {
+                TrinityAlgorithmResult<TrinityCycleSelection> selected = selectCycle(component, request);
+                if (selected.successful()) {
+                    evidence = TrinityCycleDiagnosticEvidence.fromSelection(selected.value(), request.demand());
+                } else {
+                    cycleFailure = selected.diagnostic();
+                    if (cycleFailure.code() == TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED ||
+                            this.control.cancellationRequested()) {
+                        return failureAction(cancelled());
+                    }
+                    evidence = cycleFailure.cycleEvidence().stream()
+                            .filter(candidate -> candidate.componentIndex() == component.index())
+                            .filter(candidate -> satisfies(candidate, request.demand()))
+                            .findFirst()
+                            .orElse(null);
+                }
+            }
+            if (evidence == null) {
+                Map<AEKey, BigInteger> coveredMissing = Map.of();
+                Optional<TrinityPlanningDiagnostic.PartialPlan> partial = cycleFailure.partialPlan();
+                if (partial.isPresent()) {
+                    TrinityPlanningDiagnostic.PartialPlan retained = partial.orElseThrow();
+                    coveredMissing = retained.missingItems();
+                    retainDiagnosticMaterial(retained);
+                }
+                if (this.diagnosticCycleProofStop == null) {
+                    this.diagnosticCycleProofStop = cycleFailure.metadata().getOrDefault(
+                            "diagnosticCycleProofStop",
+                            cycleFailure.code().name());
+                }
+                Map<AEKey, BigInteger> provedMissing = coveredMissing;
+                request.internalRequirements().forEach((key, amount) -> recordResidualUnresolved(
+                        key,
+                        amount,
+                        provedMissing));
+                this.cycleOutputDemands
+                        .getOrDefault(component.index(), new Object2ObjectLinkedOpenHashMap<>())
+                        .forEach((key, amount) -> recordResidualUnresolved(key, amount, provedMissing));
+                request.internalRequirements().keySet().forEach(key -> putState(this.demand, key, BigInteger.ZERO));
+                if (this.cycleOutputDemands.containsKey(component.index())) {
+                    putState(this.cycleOutputDemands, component.index(), new Object2ObjectLinkedOpenHashMap<>());
+                }
+                this.unprovedCycleComponents.add(component.index());
+                return new ContinueAction(new ComponentCursor(position - 1));
+            }
+
+            TrinityCycleDiagnosticOutcome outcome = TrinityCycleDiagnosticOutcome.create(
+                    evidence,
+                    this.inventory,
+                    request.producibleInputs());
+            for (Map.Entry<AEKey, BigInteger> actual : outcome.actualInputs().entrySet()) {
+                BigInteger reserved = reserveFromInventory(actual.getKey(), actual.getValue());
+                if (!reserved.equals(actual.getValue())) {
+                    return failureAction(failed(
+                            TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
+                            INTERNAL_ERROR_KEY,
+                            Map.of("component", Integer.toString(component.index()))));
+                }
+            }
+            outcome.inputRequirements().forEach((key, requirement) -> recordShortage(
+                    key,
+                    requirement.required(),
+                    requirement.available(),
+                    requirement.missing()));
+            outcome.boundaryInputs().forEach((key, amount) -> mergeState(this.demand, key, amount));
+            this.diagnosticCycles.add(evidence);
+            setScheduleStates(Math.addExact(this.scheduleStates, evidence.scheduleStates()));
+            setMipNanos(Math.addExact(this.mipNanos, evidence.mipNanos()));
+            request.internalRequirements().keySet().forEach(key -> putState(this.demand, key, BigInteger.ZERO));
+            if (this.cycleOutputDemands.containsKey(component.index())) {
+                putState(this.cycleOutputDemands, component.index(), new Object2ObjectLinkedOpenHashMap<>());
+            }
+            return new ContinueAction(new ComponentCursor(position - 1));
+        }
+
+        private SearchAction advanceCycleInput(CycleInputCursor cursor) {
+            TrinityStronglyConnectedComponent component = cursor.component();
+            PreparedCycle prepared = cursor.prepared();
+            if (cursor.inputIndex() >= cursor.inputs().size()) {
+                return finishCycleComponent(component, prepared, cursor.position());
+            }
+            SearchCursor continuation = new CycleInputCursor(
+                    component,
+                    prepared,
+                    cursor.inputs(),
+                    cursor.inputIndex() + 1,
+                    cursor.position());
+            Map.Entry<AEKey, BigInteger> input = cursor.inputs().get(cursor.inputIndex());
             AEKey key = input.getKey();
             BigInteger required = input.getValue();
+            if (this.unlimitedInventory.contains(key)) {
+                reserveFromInventory(key, required);
+                return new ContinueAction(continuation);
+            }
             BigInteger available = this.inventory.getOrDefault(key, BigInteger.ZERO);
             if (available.compareTo(required) >= 0) {
                 reserveFromInventory(key, required);
-                return satisfyCycleInputs(component, prepared, inputs, inputIndex + 1, position);
+                return new ContinueAction(continuation);
             }
             if (!prepared.producibleInputs().contains(key)) {
                 BigInteger reserved = reserveFromInventory(key, required);
                 BigInteger missing = required.subtract(reserved);
                 recordShortage(key, required, reserved, missing);
-                return satisfyCycleInputs(component, prepared, inputs, inputIndex + 1, position);
+                return new ContinueAction(continuation);
             }
-            int inputComponent = this.topology.componentByKey().get(key);
+            int inputComponent = this.topology.componentByKey().getOrDefault(key, -1);
             int cyclePosition = this.topologicalPositions.get(component.index());
             int inputPosition = this.topologicalPositions.get(inputComponent);
             if (inputPosition < cyclePosition) {
-                merge(this.demand, key, required);
-                return satisfyCycleInputs(component, prepared, inputs, inputIndex + 1, position);
+                mergeState(this.demand, key, required);
+                return new ContinueAction(continuation);
             }
             if (inputComponent != component.index()) {
-                return failed(
+                return failureAction(failed(
                         TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
                         INTERNAL_ERROR_KEY,
-                        Map.of("key", key.toString()));
+                        Map.of("key", key.toString())));
             }
             BigInteger missing = required.subtract(reserveFromInventory(key, required));
             List<TrinityPatternVariant> candidates = producersFor(key, component.index(), true);
             if (candidates.isEmpty()) {
                 recordShortage(key, required, required.subtract(missing), missing);
-                return satisfyCycleInputs(component, prepared, inputs, inputIndex + 1, position);
+                return new ContinueAction(continuation);
             }
-            TrinityPlanningDiagnostic bestDiagnostic = null;
-            for (TrinityPatternVariant selected : candidates) {
-                if (!this.routeSearchBudget.tryConsume()) {
-                    return routeSearchLimit();
-                }
-                PlanningAccumulator branch = new PlanningAccumulator(this);
-                TrinityAlgorithmResult<StepSuccess> applied = branch.applyProducerChoice(
-                        component,
-                        key,
-                        selected,
-                        missing,
-                        true);
-                if (!applied.successful()) {
-                    if (bestDiagnostic == null) {
-                        bestDiagnostic = applied.diagnostic();
-                    }
-                    continue;
-                }
-                TrinityAlgorithmResult<TrinityGraphDemandSolution> result = branch.satisfyCycleInputs(
-                        component,
-                        prepared,
-                        inputs,
-                        inputIndex + 1,
-                        position);
-                if (result.successful()) {
-                    return result;
-                }
-                if (bestDiagnostic == null) {
-                    bestDiagnostic = result.diagnostic();
-                }
-            }
-            return bestDiagnostic == null ?
-                    failed(
-                            TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
-                            INTERNAL_ERROR_KEY,
-                            Map.of("key", key.toString())) :
-                    failed(bestDiagnostic);
+            return new ChoiceAction(new ProducerChoiceFrame(
+                    component,
+                    key,
+                    missing,
+                    true,
+                    candidates,
+                    continuation,
+                    this.mutationJournal.checkpoint()));
         }
 
-        private TrinityAlgorithmResult<TrinityGraphDemandSolution> finishCycleComponent(
-                                                                                        TrinityStronglyConnectedComponent component,
-                                                                                        PreparedCycle prepared,
-                                                                                        int position) {
+        private SearchAction finishCycleComponent(
+                                                  TrinityStronglyConnectedComponent component,
+                                                  PreparedCycle prepared,
+                                                  int position) {
             TrinityCycleSelection solution = prepared.solution();
-            this.cycleSolutions.add(solution);
-            this.scheduleStates = Math.addExact(this.scheduleStates, solution.scheduleStates());
-            this.mipNanos = Math.addExact(this.mipNanos, solution.mipNanos());
-            prepared.internalRequirements().keySet().forEach(key -> this.demand.put(key, BigInteger.ZERO));
-            this.cycleOutputDemands.remove(component.index());
-            return solveComponent(position - 1);
+            addState(this.cycleSolutions, solution);
+            setScheduleStates(Math.addExact(this.scheduleStates, solution.scheduleStates()));
+            setMipNanos(Math.addExact(this.mipNanos, solution.mipNanos()));
+            prepared.internalRequirements().keySet().forEach(key -> putState(this.demand, key, BigInteger.ZERO));
+            if (this.cycleOutputDemands.containsKey(component.index())) {
+                putState(this.cycleOutputDemands, component.index(), new Object2ObjectLinkedOpenHashMap<>());
+            }
+            return new ContinueAction(new ComponentCursor(position - 1));
+        }
+
+        private SearchAction advanceChoice(ProducerChoiceFrame choice) {
+            while (choice.nextCandidateIndex < choice.candidates.size()) {
+                if (!this.routeSearchBudget.tryConsume()) {
+                    return failureAction(routeSearchLimit());
+                }
+                TrinityPatternVariant selected = choice.candidates.get(choice.nextCandidateIndex++);
+                TrinityAlgorithmResult<StepSuccess> applied = applyProducerChoice(
+                        choice.outputComponent,
+                        choice.key,
+                        selected,
+                        choice.outputDemand,
+                        choice.crossBoundaryInput);
+                if (applied.successful()) {
+                    return new ContinueAction(choice.continuation);
+                }
+                TrinityPlanningDiagnostic diagnostic = applied.diagnostic();
+                this.mutationJournal.rollback(choice.checkpoint);
+                choice.recordFirstFailure(diagnostic);
+            }
+            if (choice.bestDiagnostic != null) {
+                return failureAction(failed(choice.bestDiagnostic));
+            }
+            return failureAction(failed(
+                    TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
+                    INTERNAL_ERROR_KEY,
+                    Map.of("key", choice.key.toString())));
         }
 
         private TrinityAlgorithmResult<StepSuccess> applyProducerChoice(
@@ -465,8 +774,8 @@ public final class TrinityGraphDemandAggregator {
                                                                         TrinityPatternVariant selected,
                                                                         BigInteger outputDemand,
                                                                         boolean crossBoundaryInput) {
-            Integer cyclicOwner = this.topology.cyclicOwnerByVariant().get(selected);
-            if (cyclicOwner != null && cyclicOwner != outputComponent.index()) {
+            int cyclicOwner = this.topology.cyclicOwnerByVariant().getOrDefault(selected, -1);
+            if (cyclicOwner >= 0 && cyclicOwner != outputComponent.index()) {
                 int ownerPosition = this.topologicalPositions.get(cyclicOwner);
                 int outputPosition = this.topologicalPositions.get(outputComponent.index());
                 if (ownerPosition >= outputPosition) {
@@ -475,11 +784,9 @@ public final class TrinityGraphDemandAggregator {
                             INTERNAL_ERROR_KEY,
                             Map.of("key", key.toString()));
                 }
-                this.cycleOutputDemands
-                        .computeIfAbsent(cyclicOwner, ignored -> new LinkedHashMap<>())
-                        .merge(key, outputDemand, BigInteger::add);
+                mergeCycleOutputDemand(cyclicOwner, key, outputDemand);
                 if (!crossBoundaryInput) {
-                    merge(this.demand, key, outputDemand.negate());
+                    mergeState(this.demand, key, outputDemand.negate());
                 }
                 return TrinityAlgorithmResult.success(StepSuccess.INSTANCE);
             }
@@ -501,62 +808,70 @@ public final class TrinityGraphDemandAggregator {
             return this.topology.variantsByOutputKey()
                     .getOrDefault(key, List.of())
                     .stream()
-                    .filter(variant -> !crossBoundaryOnly || variant.inputs().keySet().stream().allMatch(input -> this.topologicalPositions.get(this.topology.componentByKey().get(input)) < outputPosition))
+                    .filter(variant -> !crossBoundaryOnly || variant.inputs().keySet().stream().allMatch(input -> this.topologicalPositions.get(this.topology.componentByKey().getOrDefault(input, -1)) < outputPosition))
                     .toList();
         }
 
         private Set<AEKey> producibleInputs(TrinityStronglyConnectedComponent component) {
             int cyclePosition = this.topologicalPositions.get(component.index());
-            LinkedHashSet<AEKey> inputs = new LinkedHashSet<>(component.keys());
+            ObjectLinkedOpenHashSet<AEKey> inputs = new ObjectLinkedOpenHashSet<>(component.keys());
             component.cycleVariants().forEach(variant -> inputs.addAll(variant.inputs().keySet()));
-            LinkedHashSet<AEKey> producible = new LinkedHashSet<>();
+            ObjectLinkedOpenHashSet<AEKey> producible = new ObjectLinkedOpenHashSet<>();
             for (AEKey key : inputs) {
                 boolean hasEarlierProducer = this.topology.variantsByOutputKey()
                         .getOrDefault(key, List.of())
                         .stream()
-                        .anyMatch(variant -> variant.inputs().keySet().stream().allMatch(input -> this.topologicalPositions.get(this.topology.componentByKey().get(input)) <
+                        .anyMatch(variant -> variant.inputs().keySet().stream().allMatch(input -> this.topologicalPositions.get(this.topology.componentByKey().getOrDefault(input, -1)) <
                                 cyclePosition));
                 if (hasEarlierProducer) {
                     producible.add(key);
                 }
             }
-            return Collections.unmodifiableSet(producible);
+            inputs.stream().filter(this.unlimitedInventory::contains).forEach(producible::add);
+            return ObjectSets.unmodifiable(producible);
         }
 
         private void applyReverseDemand(
                                         TrinityPatternVariant variant,
                                         BigInteger count,
-                                        AEKey satisfiedBoundary) {
-            variant.inputs().forEach((key, amount) -> merge(this.demand, key, amount.multiply(count)));
+                                        @Nullable AEKey satisfiedBoundary) {
+            variant.inputs().forEach((key, amount) -> mergeState(this.demand, key, amount.multiply(count)));
             variant.outputs().forEach((key, amount) -> {
                 if (!key.equals(satisfiedBoundary)) {
-                    merge(this.demand, key, amount.multiply(count).negate());
+                    mergeState(this.demand, key, amount.multiply(count).negate());
                 }
             });
         }
 
         private void registerAcyclic(TrinityPatternVariant variant, BigInteger count, int rank) {
-            this.acyclicFirings.merge(
+            TrinityRankedPatternFiring added = new TrinityRankedPatternFiring(count, rank);
+            TrinityRankedPatternFiring existing = this.acyclicFirings.get(variant);
+            putState(
+                    this.acyclicFirings,
                     variant,
-                    new TrinityRankedPatternFiring(count, rank),
-                    (existing, added) -> new TrinityRankedPatternFiring(
+                    existing == null ? added : new TrinityRankedPatternFiring(
                             existing.count().add(added.count()),
                             Math.min(existing.rank(), added.rank())));
         }
 
         private BigInteger reserveFromInventory(AEKey key, BigInteger required) {
+            if (this.unlimitedInventory.contains(key)) {
+                mergeState(this.initialInputs, key, required);
+                return required;
+            }
             BigInteger available = this.inventory.getOrDefault(key, BigInteger.ZERO);
             BigInteger reserved = required.min(available);
             if (reserved.signum() > 0) {
                 BigInteger remaining = available.subtract(reserved);
-                if (remaining.signum() == 0) {
-                    this.inventory.remove(key);
-                } else {
-                    this.inventory.put(key, remaining);
-                }
-                merge(this.initialInputs, key, reserved);
+                putState(this.inventory, key, remaining);
+                mergeState(this.initialInputs, key, reserved);
             }
             return reserved;
+        }
+
+        private BigInteger availableUpTo(AEKey key, BigInteger usefulUpper) {
+            return this.unlimitedInventory.contains(key) ?
+                    usefulUpper : this.inventory.getOrDefault(key, BigInteger.ZERO).min(usefulUpper);
         }
 
         private BigInteger positiveDemand(AEKey key) {
@@ -564,7 +879,7 @@ public final class TrinityGraphDemandAggregator {
         }
 
         private <T> TrinityAlgorithmResult<T> insufficient() {
-            LinkedHashMap<String, String> metadata = new LinkedHashMap<>();
+            Object2ObjectLinkedOpenHashMap<String, String> metadata = new Object2ObjectLinkedOpenHashMap<>();
             metadata.put("shortageKinds", Integer.toString(this.inputShortages.size()));
             if (this.inputShortages.size() == 1) {
                 Map.Entry<AEKey, InputRequirement> shortage = this.inputShortages.entrySet().iterator().next();
@@ -599,6 +914,9 @@ public final class TrinityGraphDemandAggregator {
         }
 
         private <T> TrinityAlgorithmResult<T> failed(TrinityPlanningDiagnostic diagnostic) {
+            if (diagnostic.code() == TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED) {
+                return TrinityAlgorithmResult.failure(diagnostic);
+            }
             if (diagnostic.inputShortage().isPresent() || diagnostic.partialPlan().isPresent()) {
                 return TrinityAlgorithmResult.failure(diagnostic);
             }
@@ -606,64 +924,58 @@ public final class TrinityGraphDemandAggregator {
         }
 
         private <T> TrinityAlgorithmResult<T> failedNested(TrinityPlanningDiagnostic diagnostic) {
-            if (diagnostic.inputShortage().isPresent()) {
-                return TrinityAlgorithmResult.failure(diagnostic);
-            }
             TrinityPlanningDiagnostic.PartialPlan accumulated = partialPlan();
             TrinityPlanningDiagnostic.PartialPlan progress = diagnostic.partialPlan()
+                    .or(() -> diagnostic.inputShortage().map(
+                            TrinityDiagnosticMaterialAccumulator::fromShortage))
                     .map(partial -> mergeProgress(accumulated, partial))
                     .orElse(accumulated);
-            return TrinityAlgorithmResult.failure(diagnostic.withDetail(progress));
+            TrinityPlanningDiagnostic.Detail detail = diagnostic.cycleEvidence().isEmpty() ?
+                    progress :
+                    new TrinityPlanningDiagnostic.CompositeEvidence(progress, diagnostic.cycleEvidence());
+            return TrinityAlgorithmResult.failure(diagnostic.withDetail(detail));
         }
 
         private static TrinityPlanningDiagnostic.PartialPlan mergeProgress(
                                                                            TrinityPlanningDiagnostic.PartialPlan accumulated,
                                                                            TrinityPlanningDiagnostic.PartialPlan nested) {
-            LinkedHashMap<AEKey, BigInteger> used = sum(
-                    accumulated.usedItems(),
-                    nested.usedItems());
-            LinkedHashMap<AEKey, BigInteger> emitted = sum(
-                    accumulated.emittedItems(),
-                    nested.emittedItems());
-            LinkedHashMap<AEKey, BigInteger> missing = new LinkedHashMap<>(accumulated.missingItems());
-            nested.emittedItems().forEach((key, amount) -> {
-                BigInteger unresolved = missing.get(key);
-                if (unresolved == null) {
-                    return;
-                }
-                BigInteger remainder = unresolved.subtract(amount);
-                if (remainder.signum() > 0) {
-                    missing.put(key, remainder);
-                } else {
-                    missing.remove(key);
-                }
-            });
-            nested.missingItems().forEach((key, amount) -> missing.merge(key, amount, BigInteger::add));
-            return new TrinityPlanningDiagnostic.PartialPlan(used, emitted, missing);
-        }
-
-        private static LinkedHashMap<AEKey, BigInteger> sum(
-                                                            Map<AEKey, BigInteger> left,
-                                                            Map<AEKey, BigInteger> right) {
-            LinkedHashMap<AEKey, BigInteger> result = new LinkedHashMap<>(left);
-            right.forEach((key, amount) -> result.merge(key, amount, BigInteger::add));
-            return result;
+            TrinityDiagnosticMaterialAccumulator accumulator = TrinityDiagnosticMaterialAccumulator.create(
+                    accumulated);
+            accumulator.add(nested);
+            return accumulator.snapshot();
         }
 
         private TrinityPlanningDiagnostic.PartialPlan partialPlan() {
-            LinkedHashMap<AEKey, BigInteger> emitted = new LinkedHashMap<>();
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> emitted = new Object2ObjectLinkedOpenHashMap<>();
+            List<TrinityVariantFiring> selectedFirings = new ObjectArrayList<>();
+            this.acyclicFirings.entrySet().stream()
+                    .sorted(Comparator.<Map.Entry<TrinityPatternVariant, TrinityRankedPatternFiring>>comparingInt(
+                            entry -> entry.getValue().rank()).thenComparing(Map.Entry::getKey))
+                    .forEach(entry -> selectedFirings.add(new TrinityVariantFiring(
+                            entry.getKey(), entry.getValue().count())));
             this.acyclicFirings.forEach((variant, firing) -> mergeScaled(
                     emitted,
                     variant.outputs(),
                     firing.count()));
+            IntSet diagnosticComponents = new IntOpenHashSet();
+            this.diagnosticCycles.forEach(cycle -> diagnosticComponents.add(cycle.componentIndex()));
             for (TrinityCycleSelection cycle : this.cycleSolutions) {
                 mergeFiringOutputs(emitted, cycle.prefixOrder(), BigInteger.ONE);
                 mergeFiringOutputs(emitted, cycle.localOrder(), cycle.repetitions());
                 mergeFiringOutputs(emitted, cycle.suffixOrder(), BigInteger.ONE);
+                if (!diagnosticComponents.contains(cycle.componentIndex())) {
+                    selectedFirings.addAll(cycle.prefixOrder());
+                    cycle.localOrder().forEach(firing -> selectedFirings.add(new TrinityVariantFiring(
+                            firing.variant(), firing.count().multiply(cycle.repetitions()))));
+                    selectedFirings.addAll(cycle.suffixOrder());
+                }
             }
+            this.diagnosticCycles.forEach(cycle -> cycle.emittedItems().forEach(
+                    (key, amount) -> emitted.merge(key, amount, BigInteger::add)));
 
-            LinkedHashMap<AEKey, BigInteger> unresolved = new LinkedHashMap<>();
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> unresolved = new Object2ObjectLinkedOpenHashMap<>();
             this.inputShortages.forEach((key, requirement) -> unresolved.put(key, requirement.missing()));
+            this.unresolvedDemands.forEach((key, amount) -> unresolved.merge(key, amount, BigInteger::max));
             this.demand.forEach((key, amount) -> {
                 if (amount.signum() > 0) {
                     unresolved.merge(key, amount, BigInteger::add);
@@ -674,17 +986,126 @@ public final class TrinityGraphDemandAggregator {
                     unresolved.merge(key, amount, BigInteger::max);
                 }
             }));
-            LinkedHashMap<AEKey, InputRequirement> exactRequirements = new LinkedHashMap<>();
+            Object2ObjectLinkedOpenHashMap<AEKey, InputRequirement> exactRequirements = new Object2ObjectLinkedOpenHashMap<>();
             this.inputShortages.forEach((key, requirement) -> {
                 if (requirement.missing().equals(unresolved.get(key))) {
                     exactRequirements.put(key, requirement);
                 }
             });
-            return new TrinityPlanningDiagnostic.PartialPlan(
+            TrinityPlanningDiagnostic.PartialPlan base = new TrinityPlanningDiagnostic.PartialPlan(
                     this.initialInputs,
                     emitted,
                     unresolved,
-                    exactRequirements);
+                    exactRequirements,
+                    selectedFirings);
+            TrinityDiagnosticMaterialAccumulator accumulator = TrinityDiagnosticMaterialAccumulator.create(base);
+            this.diagnosticMaterials.forEach(accumulator::add);
+            return accumulator.snapshot();
+        }
+
+        private TrinityAlgorithmResult<TrinityGraphDemandSolution> diagnosticFailure() {
+            TrinityPlanningDiagnostic root = this.diagnosticRootFailure;
+            if (root == null) {
+                throw new IllegalStateException("A Trinity diagnostic graph pass requires its original failure");
+            }
+            TrinityPlanningDiagnostic.PartialPlan materials = partialPlan();
+            if (materials.missingItems().isEmpty()) {
+                recordUnresolvedMaximum(this.target, this.requestedAmount);
+                materials = partialPlan();
+            }
+            TrinityPlanningDiagnostic.PartialPlan completeMaterials = materials;
+            int exactKinds = completeMaterials.inputRequirements().size();
+            int unresolvedKinds = (int) completeMaterials.missingItems().keySet().stream()
+                    .filter(key -> !completeMaterials.inputRequirements().containsKey(key))
+                    .count();
+            Object2ObjectLinkedOpenHashMap<String, String> metadata = new Object2ObjectLinkedOpenHashMap<>(root.metadata());
+            metadata.put("diagnosticExactShortageKinds", Integer.toString(exactKinds));
+            metadata.put("diagnosticUnresolvedKinds", Integer.toString(unresolvedKinds));
+            metadata.put("diagnosticProvedCycles", Integer.toString(this.diagnosticCycles.size()));
+            metadata.put(
+                    "diagnosticUnprovedCycleComponents",
+                    Integer.toString(this.unprovedCycleComponents.size()));
+            metadata.put(
+                    "diagnosticContinuationStates",
+                    Integer.toString(Math.max(
+                            0,
+                            this.routeSearchBudget.used() - this.diagnosticStartedRouteStates)));
+            if (this.diagnosticCycleProofStop != null) {
+                metadata.put("diagnosticCycleProofStop", this.diagnosticCycleProofStop);
+            }
+            metadata.put("shortageKinds", Integer.toString(exactKinds));
+            completeMaterials.inputRequirements().entrySet().stream().findFirst().ifPresent(shortage -> {
+                metadata.put("key", shortage.getKey().toString());
+                metadata.put("required", shortage.getValue().required().toString());
+                metadata.put("available", shortage.getValue().available().toString());
+                metadata.put("missing", shortage.getValue().missing().toString());
+            });
+            TrinityPlanningDiagnostic.Detail detail = this.diagnosticCycles.isEmpty() ?
+                    completeMaterials :
+                    new TrinityPlanningDiagnostic.CompositeEvidence(completeMaterials, this.diagnosticCycles);
+            return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    root.code(),
+                    root.message(),
+                    metadata,
+                    detail));
+        }
+
+        private void retainDiagnosticMaterial(TrinityPlanningDiagnostic.PartialPlan partial) {
+            partial.usedItems().forEach((key, amount) -> {
+                BigInteger reserved = reserveFromInventory(key, amount);
+                if (!reserved.equals(amount)) {
+                    throw new IllegalStateException(
+                            "A retained Trinity diagnostic branch exceeded its captured inventory");
+                }
+            });
+            this.diagnosticMaterials.add(new TrinityPlanningDiagnostic.PartialPlan(
+                    Map.of(),
+                    partial.emittedItems(),
+                    partial.missingItems(),
+                    partial.inputRequirements(),
+                    partial.selectedFirings()));
+        }
+
+        private void recordUnresolvedMaximum(AEKey key, BigInteger amount) {
+            if (amount.signum() <= 0) {
+                return;
+            }
+            putState(
+                    this.unresolvedDemands,
+                    key,
+                    this.unresolvedDemands.getOrDefault(key, BigInteger.ZERO).max(amount));
+        }
+
+        private void recordResidualUnresolved(
+                                              AEKey key,
+                                              BigInteger required,
+                                              Map<AEKey, BigInteger> provedMissing) {
+            BigInteger unresolved = required
+                    .subtract(provedMissing.getOrDefault(key, BigInteger.ZERO))
+                    .max(BigInteger.ZERO);
+            recordUnresolvedMaximum(key, unresolved);
+        }
+
+        private static boolean satisfies(
+                                         TrinityCycleDiagnosticEvidence evidence,
+                                         TrinityCycleDemand demand) {
+            if (!evidence.demand().equals(demand)) {
+                return false;
+            }
+            for (Map.Entry<AEKey, BigInteger> required : demand.requiredNetChangeLowerBounds().entrySet()) {
+                if (evidence.netChange().getOrDefault(required.getKey(), BigInteger.ZERO)
+                        .compareTo(required.getValue()) < 0) {
+                    return false;
+                }
+            }
+            for (Map.Entry<AEKey, BigInteger> required : demand.finalBalanceLowerBounds().entrySet()) {
+                BigInteger finalBalance = evidence.initialInputs().getOrDefault(required.getKey(), BigInteger.ZERO)
+                        .add(evidence.netChange().getOrDefault(required.getKey(), BigInteger.ZERO));
+                if (finalBalance.compareTo(required.getValue()) < 0) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private void recordShortage(
@@ -693,10 +1114,169 @@ public final class TrinityGraphDemandAggregator {
                                     BigInteger available,
                                     BigInteger missing) {
             InputRequirement added = new InputRequirement(required, available, missing);
-            this.inputShortages.merge(key, added, (existing, value) -> new InputRequirement(
-                    existing.required().add(value.required()),
-                    existing.available().add(value.available()),
-                    existing.missing().add(value.missing())));
+            InputRequirement existing = this.inputShortages.get(key);
+            putState(
+                    this.inputShortages,
+                    key,
+                    existing == null ? added : new InputRequirement(
+                            existing.required().add(added.required()),
+                            existing.available().add(added.available()),
+                            existing.missing().add(added.missing())));
+        }
+
+        private FailureAction failureAction(TrinityAlgorithmResult<?> result) {
+            if (result.successful()) {
+                throw new IllegalArgumentException("A successful Trinity result cannot become a search failure");
+            }
+            return new FailureAction(result.diagnostic());
+        }
+
+        private void mergeCycleOutputDemand(int component, AEKey key, BigInteger amount) {
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> amounts = this.cycleOutputDemands.get(component);
+            if (amounts == null) {
+                amounts = new Object2ObjectLinkedOpenHashMap<>();
+                putState(this.cycleOutputDemands, component, amounts);
+            }
+            mergeState(amounts, key, amount);
+        }
+
+        private void mergeState(Object2ObjectMap<AEKey, BigInteger> amounts, AEKey key, BigInteger amount) {
+            putState(amounts, key, amounts.getOrDefault(key, BigInteger.ZERO).add(amount));
+        }
+
+        private <K, V> void putState(Object2ObjectMap<K, V> map, K key, V value) {
+            boolean contained = map.containsKey(key);
+            V previous = map.get(key);
+            this.mutationJournal.record(() -> {
+                if (contained) {
+                    map.put(key, previous);
+                } else {
+                    map.remove(key);
+                }
+            });
+            map.put(key, value);
+        }
+
+        private <V> void putState(Int2ObjectMap<V> map, int key, V value) {
+            boolean contained = map.containsKey(key);
+            V previous = map.get(key);
+            this.mutationJournal.record(() -> {
+                if (contained) {
+                    map.put(key, previous);
+                } else {
+                    map.remove(key);
+                }
+            });
+            map.put(key, value);
+        }
+
+        private <E> void addState(List<E> values, E value) {
+            int index = values.size();
+            this.mutationJournal.record(() -> values.remove(index));
+            values.add(value);
+        }
+
+        private void setScheduleStates(int value) {
+            int previous = this.scheduleStates;
+            this.mutationJournal.record(() -> this.scheduleStates = previous);
+            this.scheduleStates = value;
+        }
+
+        private void setMipNanos(long value) {
+            long previous = this.mipNanos;
+            this.mutationJournal.record(() -> this.mipNanos = previous);
+            this.mipNanos = value;
+        }
+
+        private sealed interface SearchFrame permits SearchCursor, ProducerChoiceFrame {}
+
+        private sealed interface SearchCursor extends SearchFrame
+                                              permits ComponentCursor, AcyclicKeyCursor, CycleInputCursor {}
+
+        private record ComponentCursor(int position) implements SearchCursor {}
+
+        private record AcyclicKeyCursor(
+                                        TrinityStronglyConnectedComponent component,
+                                        int keyIndex,
+                                        int position)
+                implements SearchCursor {}
+
+        private record CycleInputCursor(
+                                        TrinityStronglyConnectedComponent component,
+                                        PreparedCycle prepared,
+                                        List<Map.Entry<AEKey, BigInteger>> inputs,
+                                        int inputIndex,
+                                        int position)
+                implements SearchCursor {}
+
+        private static final class ProducerChoiceFrame implements SearchFrame {
+
+            private final TrinityStronglyConnectedComponent outputComponent;
+            private final AEKey key;
+            private final BigInteger outputDemand;
+            private final boolean crossBoundaryInput;
+            private final List<TrinityPatternVariant> candidates;
+            private final SearchCursor continuation;
+            private final int checkpoint;
+            private int nextCandidateIndex;
+            @Nullable
+            private TrinityPlanningDiagnostic bestDiagnostic;
+
+            private ProducerChoiceFrame(
+                                        TrinityStronglyConnectedComponent outputComponent,
+                                        AEKey key,
+                                        BigInteger outputDemand,
+                                        boolean crossBoundaryInput,
+                                        List<TrinityPatternVariant> candidates,
+                                        SearchCursor continuation,
+                                        int checkpoint) {
+                this.outputComponent = outputComponent;
+                this.key = key;
+                this.outputDemand = outputDemand;
+                this.crossBoundaryInput = crossBoundaryInput;
+                this.candidates = candidates;
+                this.continuation = continuation;
+                this.checkpoint = checkpoint;
+            }
+
+            private void recordFirstFailure(TrinityPlanningDiagnostic diagnostic) {
+                if (this.bestDiagnostic == null) {
+                    this.bestDiagnostic = diagnostic;
+                }
+            }
+        }
+
+        private sealed interface SearchAction
+                                              permits ContinueAction, ChoiceAction, CompleteAction, FailureAction {}
+
+        private record ContinueAction(SearchCursor cursor) implements SearchAction {}
+
+        private record ChoiceAction(ProducerChoiceFrame choice) implements SearchAction {}
+
+        private record CompleteAction(TrinityGraphDemandSolution solution) implements SearchAction {}
+
+        private record FailureAction(TrinityPlanningDiagnostic diagnostic) implements SearchAction {}
+
+        private static final class MutationJournal {
+
+            private final ObjectArrayList<Runnable> undoActions = new ObjectArrayList<>();
+
+            private int checkpoint() {
+                return this.undoActions.size();
+            }
+
+            private void record(Runnable action) {
+                this.undoActions.add(action);
+            }
+
+            private void rollback(int checkpoint) {
+                if (checkpoint < 0 || checkpoint > this.undoActions.size()) {
+                    throw new IllegalArgumentException("A Trinity demand rollback checkpoint is invalid");
+                }
+                for (int index = this.undoActions.size() - 1; index >= checkpoint; index--) {
+                    this.undoActions.remove(index).run();
+                }
+            }
         }
 
         private static void mergeFiringOutputs(
@@ -717,12 +1297,13 @@ public final class TrinityGraphDemandAggregator {
         }
     }
 
-    private static Map<Integer, Integer> topologicalPositions(TrinityCraftingTopology topology) {
-        HashMap<Integer, Integer> positions = new HashMap<>();
+    private static Int2IntMap topologicalPositions(TrinityCraftingTopology topology) {
+        Int2IntMap positions = new Int2IntOpenHashMap();
+        positions.defaultReturnValue(-1);
         for (int position = 0; position < topology.topologicalOrder().size(); position++) {
-            positions.put(topology.topologicalOrder().get(position), position);
+            positions.put(topology.topologicalOrder().get(position).intValue(), position);
         }
-        return Collections.unmodifiableMap(positions);
+        return Int2IntMaps.unmodifiable(positions);
     }
 
     private static void merge(Map<AEKey, BigInteger> amounts, AEKey key, BigInteger amount) {
@@ -773,23 +1354,31 @@ public final class TrinityGraphDemandAggregator {
                                  Map<AEKey, BigInteger> internalRequirements,
                                  Set<AEKey> producibleInputs) {}
 
+    private record CyclePreparation(
+                                    Map<AEKey, BigInteger> internalRequirements,
+                                    TrinityCycleDemand demand,
+                                    Set<AEKey> producibleInputs,
+                                    @Nullable TrinityCycleUnitProof unitProof) {}
+
     private enum StepSuccess {
         INSTANCE
     }
 
     /**
-     * Shares a single exact route-state allowance across every speculative branch clone.
+     * Shares a single exact route-state allowance across every speculative branch.
      */
     private static final class RouteSearchBudget {
 
         private final int limit;
+        private final TrinityPlanningControl control;
         private int used;
 
-        private RouteSearchBudget(int limit) {
+        private RouteSearchBudget(int limit, TrinityPlanningControl control) {
             if (limit <= 0) {
-                throw new IllegalArgumentException("A Trinity route-search limit must be positive");
+                throw new IllegalArgumentException("A Trinity route-search budget requires a positive limit");
             }
             this.limit = limit;
+            this.control = control;
         }
 
         @SuppressWarnings("BooleanMethodIsAlwaysInverted")
@@ -798,6 +1387,7 @@ public final class TrinityGraphDemandAggregator {
                 return false;
             }
             this.used = Math.incrementExact(this.used);
+            this.control.recordRouteStates(1);
             return true;
         }
 

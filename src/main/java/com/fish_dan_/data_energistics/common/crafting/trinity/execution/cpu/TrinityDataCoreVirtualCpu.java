@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.capacity.TrinityCpuStorageCapacity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CraftingDispatchWindow;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.governor.CraftingDispatchBudget;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchStepResult;
@@ -152,15 +153,6 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
     }
 
     /**
-     * Retains the pre-Governor execution contract with deterministic hard limits.
-     */
-    public void tick(IEnergyService energyService,
-                     CraftingService craftingService,
-                     CraftingDispatchWindow dispatchWindow) {
-        tick(energyService, craftingService, dispatchWindow, CraftingDispatchBudget.legacyFixedHard());
-    }
-
-    /**
      * Inserts a returned crafting output into this CPU.
      *
      * @param what   returned key
@@ -299,6 +291,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
         return this.host.craftingExecutionRoute() != null;
     }
 
+    @Nullable
     TrinityCraftingExecutionRoute executionRoute() {
         return this.host.craftingExecutionRoute();
     }
@@ -398,7 +391,12 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
 
     @Override
     public long getAvailableStorage() {
-        return this.profile.storageBytes();
+        return this.profile.storageCapacity().toAe2Long();
+    }
+
+    /** Returns exact finite or authoritative unlimited admission capacity for internal planning and submission. */
+    public TrinityCpuStorageCapacity storageCapacity() {
+        return this.profile.storageCapacity();
     }
 
     @Override

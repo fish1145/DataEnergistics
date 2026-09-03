@@ -79,9 +79,6 @@ public interface CompartmentPart extends VerticalMultiBlockPart {
      * </p>
      */
     default void compartment$unbindFromHost(CompartmentBindingHandle bindingHandle) {
-        if (bindingHandle == null) {
-            throw new IllegalArgumentException("Compartment binding handle must not be null");
-        }
         throw new IllegalArgumentException("Compartment part does not support identity-aware unbinding");
     }
 
@@ -94,29 +91,18 @@ public interface CompartmentPart extends VerticalMultiBlockPart {
 
     @Override
     default void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
-                                                      VerticalMultiBlockContext<?> context) {
-        verticalMultiBlock$addedToController(controller, context.structureName(), context);
-    }
-
-    @Override
-    default void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
                                                       String structureName,
-                                                      VerticalMultiBlockContext<?> context) {
+                                                      VerticalMultiBlockContext<?> context,
+                                                      long bindingEpoch) {
         if (controller instanceof CompartmentHost host) {
             compartment$bindToHost(structureName, host);
         }
     }
 
     @Override
-    default void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller) {
-        if (controller instanceof CompartmentHost host) {
-            compartment$unbindFromHost(compartmentStructureName(), host);
-        }
-    }
-
-    @Override
     default void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller,
-                                                          String structureName) {
+                                                          String structureName,
+                                                          long bindingEpoch) {
         if (controller instanceof CompartmentHost host) {
             compartment$unbindFromHost(structureName, host);
         }

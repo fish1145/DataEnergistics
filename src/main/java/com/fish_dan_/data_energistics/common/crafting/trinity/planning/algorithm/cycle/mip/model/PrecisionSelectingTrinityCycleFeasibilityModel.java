@@ -1,15 +1,25 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.bounds.TrinityCycleObjectiveBounds;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.TrinityRadixCycleFeasibilityModel;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityExactConservationVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
+
+import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
-import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -17,10 +27,12 @@ import java.util.Set;
  */
 final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCycleFeasibilityModel {
 
+    private static final int MAX_BOUNDED_ORDINARY_DOMAINS = 4;
     private static final BigInteger ORDINARY_EXACT_LIMIT = BigInteger.ONE.shiftLeft(52).subtract(BigInteger.ONE);
+    private static final TrinityCycleObjectiveBounds OBJECTIVE_BOUNDS = TrinityCycleObjectiveBounds.create();
 
     private final TrinityCycleFeasibilityModel ordinary;
-    private final TrinityCycleFeasibilityModel radix;
+    private final TrinityRadixCycleFeasibilityModel radix;
 
     PrecisionSelectingTrinityCycleFeasibilityModel() {
         TrinityIntegerResultVerifier integerVerifier = TrinityIntegerResultVerifier.create();
@@ -32,11 +44,119 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
     @Override
     public TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solve(
                                                                          TrinityCycleFeasibilityRequest request,
+                                                                         TrinityPlanningMode mode,
                                                                          TrinityPlanningControl control) {
-        if (request == null || control == null) {
-            throw new IllegalArgumentException("A Trinity feasibility solve requires a request and control");
+        return openSession(request).solve(request, mode, control);
+    }
+
+    @Override
+    public TrinityCycleFeasibilitySession openSession(TrinityCycleFeasibilityRequest request) {
+        return TrinityCycleFeasibilitySession.create(
+                request,
+                new PrecisionSessionSolver());
+    }
+
+    /**
+     * Selects precision for every related request and initializes the ordinary template only on its first use.
+     */
+    private final class PrecisionSessionSolver implements TrinityCycleFeasibilitySession.Solver {
+
+        private @Nullable TrinityCycleFeasibilitySession ordinarySession;
+
+        @Override
+        public TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solve(
+                                                                             TrinityCycleFeasibilityRequest request,
+                                                                             TrinityPlanningMode mode,
+                                                                             TrinityPlanningControl control) {
+            if (request.shortageDiagnostic()) return solveShortage(request, control);
+            if (requiresRadix(request)) {
+                if (mode == TrinityPlanningMode.FIRST_FEASIBLE) {
+                    TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> bounded = solveBoundedOrdinary(
+                            request,
+                            control);
+                    if (bounded.successful() ||
+                            bounded.diagnostic().code() != TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT) {
+                        return bounded;
+                    }
+                }
+                return radix.solve(request, mode, control);
+            }
+            TrinityCycleFeasibilitySession session = this.ordinarySession;
+            if (session == null) {
+                control.recordSolverModel();
+                session = ordinary.openSession(request);
+                this.ordinarySession = session;
+            }
+            return session.solve(request, mode, control);
         }
-        return requiresRadix(request) ? this.radix.solve(request, control) : this.ordinary.solve(request, control);
+
+        private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solveShortage(
+                                                                                      TrinityCycleFeasibilityRequest request, TrinityPlanningControl control) {
+            ShortageAccounting accounting = new ShortageAccounting(request.shortageStateLimit());
+            BigInteger firingUpper = OBJECTIVE_BOUNDS.compactFiringUpper(request);
+            for (int domain = 0; domain < MAX_BOUNDED_ORDINARY_DOMAINS; domain++) {
+                if (accounting.remaining() == 0) return accounting.stopped("shortage_state_limit");
+                TrinityCycleFeasibilityRequest bounded = request.withOpenFiringUpper(firingUpper)
+                        .forShortageDiagnosis(accounting.remaining());
+                if (requiresRadix(bounded)) break;
+                TrinityCycleFeasibilitySession session = this.ordinarySession;
+                if (session == null) {
+                    control.recordSolverModel();
+                    session = ordinary.openSession(bounded);
+                    this.ordinarySession = session;
+                }
+                TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solved = session.solve(
+                        bounded, TrinityPlanningMode.FIRST_FEASIBLE, control);
+                accounting.include(solved);
+                if (solved.successful() || solved.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
+                    return accounting.finish(solved);
+                }
+                firingUpper = firingUpper.shiftLeft(1);
+            }
+            if (accounting.remaining() == 0) return accounting.stopped("shortage_state_limit");
+            TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solved = radix.solveShortage(
+                    request.forShortageDiagnosis(accounting.remaining()), control, firingUpper);
+            accounting.include(solved);
+            return accounting.finish(solved);
+        }
+
+        private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solveBoundedOrdinary(
+                                                                                             TrinityCycleFeasibilityRequest request,
+                                                                                             TrinityPlanningControl control) {
+            BigInteger firingUpper = OBJECTIVE_BOUNDS.compactFiringUpper(request);
+            for (int domain = 0; domain < MAX_BOUNDED_ORDINARY_DOMAINS; domain++) {
+                TrinityCycleFeasibilityRequest bounded = request.withOpenFiringUpper(firingUpper);
+                if (requiresRadix(bounded)) {
+                    return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                            TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                            Component.translatable(
+                                    "gui.data_energistics.trinity_planning.mip.radix_model_limit"),
+                            Map.of("phase", "bounded_ordinary_precision")));
+                }
+                TrinityCycleFeasibilitySession session = this.ordinarySession;
+                if (session == null) {
+                    control.recordSolverModel();
+                    session = ordinary.openSession(bounded);
+                    this.ordinarySession = session;
+                }
+                TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solved = session.solve(
+                        bounded,
+                        TrinityPlanningMode.FIRST_FEASIBLE,
+                        control);
+                if (solved.successful() ||
+                        solved.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
+                    return solved;
+                }
+                firingUpper = firingUpper.multiply(firingUpper).max(BigInteger.TWO);
+            }
+            return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    Component.translatable(
+                            "gui.data_energistics.trinity_planning.mip.schedule_search_limit"),
+                    Map.of(
+                            "phase", "bounded_ordinary_expansion",
+                            "states", Integer.toString(MAX_BOUNDED_ORDINARY_DOMAINS))));
+        }
     }
 
     private static boolean requiresRadix(TrinityCycleFeasibilityRequest request) {
@@ -57,7 +177,8 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                         .anyMatch(PrecisionSelectingTrinityCycleFeasibilityModel::exceedsWindow)) {
             return true;
         }
-        LinkedHashSet<AEKey> touchedKeys = new LinkedHashSet<>();
+        Set<AEKey> externalKeys = OBJECTIVE_BOUNDS.externalReserveKeys(request);
+        ObjectLinkedOpenHashSet<AEKey> touchedKeys = new ObjectLinkedOpenHashSet<>();
         request.variants().forEach(variant -> touchedKeys.addAll(variant.netChange().keySet()));
         touchedKeys.addAll(request.demand().finalBalanceLowerBounds().keySet());
         touchedKeys.addAll(request.demand().requiredNetChangeLowerBounds().keySet());
@@ -68,8 +189,8 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
                             .abs()
                             .multiply(logicalUpper))
                     .reduce(BigInteger.ZERO, BigInteger::add);
-            if (request.internalKeys().contains(key) || externalReserveKeys(request).contains(key)) {
-                rowEnvelope = rowEnvelope.add(reserveUpperBound(request, key));
+            if (request.internalKeys().contains(key) || externalKeys.contains(key)) {
+                rowEnvelope = rowEnvelope.add(OBJECTIVE_BOUNDS.reserveUpperBound(request, key, logicalUpper));
             }
             if (exceedsWindow(rowEnvelope)) {
                 return true;
@@ -78,30 +199,86 @@ final class PrecisionSelectingTrinityCycleFeasibilityModel implements TrinityCyc
         BigInteger firingObjectiveEnvelope = logicalUpper.multiply(
                 BigInteger.valueOf(request.variants().size()));
         BigInteger seedObjectiveEnvelope = request.internalKeys().stream()
-                .map(key -> reserveUpperBound(request, key))
+                .map(key -> OBJECTIVE_BOUNDS.reserveUpperBound(request, key, logicalUpper))
                 .reduce(BigInteger.ZERO, BigInteger::add);
-        BigInteger externalObjectiveEnvelope = externalReserveKeys(request).stream()
-                .map(key -> reserveUpperBound(request, key))
+        BigInteger externalObjectiveEnvelope = externalKeys.stream()
+                .map(key -> OBJECTIVE_BOUNDS.reserveUpperBound(request, key, logicalUpper))
                 .reduce(BigInteger.ZERO, BigInteger::add);
-        return exceedsWindow(firingObjectiveEnvelope) || exceedsWindow(seedObjectiveEnvelope) ||
-                exceedsWindow(externalObjectiveEnvelope);
+        if (exceedsWindow(firingObjectiveEnvelope) || exceedsWindow(seedObjectiveEnvelope) ||
+                exceedsWindow(externalObjectiveEnvelope)) {
+            return true;
+        }
+        return false;
     }
 
-    private static Set<AEKey> externalReserveKeys(TrinityCycleFeasibilityRequest request) {
-        LinkedHashSet<AEKey> keys = new LinkedHashSet<>();
-        request.variants().forEach(variant -> variant.inputs().keySet().stream()
-                .filter(key -> !request.internalKeys().contains(key))
-                .forEach(keys::add));
-        request.demand().finalBalanceLowerBounds().keySet().stream()
-                .filter(key -> !request.internalKeys().contains(key))
-                .forEach(keys::add);
-        return Set.copyOf(keys);
-    }
+    /**
+     * Aggregates actual solver work across precision changes without refilling the diagnostic budget.
+     */
+    private static final class ShortageAccounting {
 
-    private static BigInteger reserveUpperBound(TrinityCycleFeasibilityRequest request, AEKey key) {
-        BigInteger proven = request.ordinaryLogicalUpperBound().orElseThrow();
-        return request.producibleInputs().contains(key) ?
-                proven : request.available().getOrDefault(key, BigInteger.ZERO).min(proven);
+        private final int limit;
+        private int states;
+        private int invocations;
+        private int passes;
+        private long nanos;
+
+        private ShortageAccounting(int limit) {
+            this.limit = limit;
+        }
+
+        private int remaining() {
+            return this.limit - this.states;
+        }
+
+        private void include(TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> result) {
+            this.invocations++;
+            int consumed;
+            int completed;
+            long elapsed;
+            if (result.successful()) {
+                consumed = result.value().diagnosticStates();
+                completed = result.value().solverPasses();
+                elapsed = result.value().solverNanos();
+            } else {
+                Map<String, String> metadata = result.diagnostic().metadata();
+                consumed = Integer.parseInt(metadata.get("states"));
+                completed = Integer.parseInt(metadata.get("passes"));
+                elapsed = Long.parseLong(metadata.get("nanos"));
+            }
+            if (consumed < 0 || consumed > remaining()) {
+                throw new IllegalStateException("A Trinity shortage backend exceeded its remaining budget");
+            }
+            this.states += consumed;
+            this.passes = Math.addExact(this.passes, completed);
+            this.nanos = Math.addExact(this.nanos, elapsed);
+        }
+
+        private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> finish(
+                                                                               TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> result) {
+            if (result.successful()) {
+                TrinityCycleFeasibilitySolution solved = result.value();
+                if (this.invocations == 1) return result;
+                return TrinityAlgorithmResult.success(new TrinityCycleFeasibilitySolution(
+                        solved.firings(), solved.modelSeed(), solved.externalInputs(), this.passes, this.nanos,
+                        solved.radix(), TrinityPlanQuality.VERIFIED_FEASIBLE,
+                        solved.actualInputs(), solved.missingInputs(), this.states));
+            }
+            TrinityPlanningDiagnostic diagnostic = result.diagnostic();
+            Object2ObjectLinkedOpenHashMap<String, String> metadata = new Object2ObjectLinkedOpenHashMap<>(diagnostic.metadata());
+            metadata.put("states", Integer.toString(this.states));
+            metadata.put("limit", Integer.toString(this.limit));
+            metadata.put("passes", Integer.toString(this.passes));
+            metadata.put("nanos", Long.toString(this.nanos));
+            return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    diagnostic.code(), diagnostic.message(), metadata, diagnostic.detail()));
+        }
+
+        private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> stopped(String phase) {
+            return finish(TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    Component.translatable("gui.data_energistics.trinity_planning.mip.schedule_search_limit"),
+                    Map.of("phase", phase))));
+        }
     }
 
     private static boolean exceedsWindow(BigInteger value) {

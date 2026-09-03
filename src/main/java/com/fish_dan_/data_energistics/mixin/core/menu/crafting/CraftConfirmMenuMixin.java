@@ -16,6 +16,11 @@ import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState
 import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPlanSummaryProjection;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.TrinityCraftingCycleSummaryProjection;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
+import com.fish_dan_.data_energistics.menu.crafting.tree.CraftingPlanTreeMenu;
+import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanSessionTransfer;
+import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanTreeRequest;
+import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanTreeResult;
+import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanTreeSession;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 
@@ -34,7 +39,10 @@ import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
+import appeng.api.storage.ISubMenuHost;
+import appeng.core.network.clientbound.CraftConfirmPlanPacket;
 import appeng.crafting.execution.CraftingSubmitResult;
+import appeng.helpers.ICraftingGridMenu.AutoCraftEntry;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.locator.MenuHostLocator;
@@ -52,13 +60,14 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.List;
 import java.util.concurrent.Future;
 
 /**
  * Owns confirmation-page quantity context, diagnostics, and CPU-family filtering.
  */
 @Mixin(CraftConfirmMenu.class)
-public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements TrinityCraftConfirmMenuState {
+public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements TrinityCraftConfirmMenuState, CraftingPlanSessionTransfer {
 
     @Unique
     private static final TrinityPlanAdmission DATA_ENERGISTICS_PLAN_ADMISSION = TrinityPlanAdmission.create();
@@ -77,6 +86,27 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Shadow
     @Nullable
     private Future<ICraftingPlan> job;
+
+    @Shadow
+    @Nullable
+    private ICraftingCPU selectedCpu;
+    @Shadow
+    @Nullable
+    private List<AutoCraftEntry> autoCraftingQueue;
+    @Shadow
+    @Nullable
+    private List<Integer> requestedSlots;
+
+    @GuiSync(800)
+    @Unique
+    public boolean dataEnergistics$hasTrinityCpu;
+    @GuiSync(801)
+    @Unique
+    public boolean dataEnergistics$treeReady;
+    @Unique
+    private @Nullable CraftingPlanTreeSession dataEnergistics$treeSession;
+    @Unique
+    private @Nullable ICraftingCPU dataEnergistics$restoreTreeCpu;
 
     @Shadow
     private IGrid getGrid() {
@@ -137,11 +167,25 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         super(menuType, id, playerInventory, host);
     }
 
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void dataEnergistics$registerPlanTreeAction(int id, Inventory inventory, ISubMenuHost host, CallbackInfo ci) {
+        registerClientAction("dataEnergisticsPlanTree", Long.class, this::dataEnergistics$handlePlanTreeAction);
+    }
+
+    @Unique
+    private void dataEnergistics$handlePlanTreeAction(@Nullable Long revision) {
+        if (revision != null && revision == this.dataEnergistics$planRevision) data_energistics$openPlanTree();
+    }
+
     @Inject(method = "broadcastChanges", at = @At("HEAD"))
     private void dataEnergistics$preparePlanningMetadata(CallbackInfo ci) {
         if (!this.isServerSide()) {
             return;
         }
+
+        IGrid currentGrid = getGrid();
+        this.dataEnergistics$hasTrinityCpu = currentGrid != null && currentGrid.getCraftingService().getCpus().stream()
+                .anyMatch(cpu -> cpu instanceof TrinityDataCoreVirtualCpu);
 
         this.dataEnergistics$planReady = this.result != null;
         this.dataEnergistics$trinityOnly = false;
@@ -171,7 +215,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Unique
     private static Component dataEnergistics$formatDiagnostic(TrinityPlanningDiagnostic diagnostic) {
         Component message = diagnostic.message();
-        return diagnostic.inputShortage()
+        Component exactShortage = diagnostic.inputShortage()
                 .<Component>map(shortage -> message.copy().append(
                         Component.translatable(
                                 "gui.data_energistics.trinity_planning.diagnostic.input_shortage_detail",
@@ -181,6 +225,19 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
                                 shortage.required())
                                 .withStyle(dataEnergistics$diagnosticDetailColor(diagnostic))))
                 .orElse(message);
+        if (diagnostic.inputShortage().isPresent() || diagnostic.partialPlan().isEmpty() ||
+                diagnostic.partialPlan().orElseThrow().inputRequirements().isEmpty()) {
+            return exactShortage;
+        }
+        TrinityPlanningDiagnostic.PartialPlan partial = diagnostic.partialPlan().orElseThrow();
+        var first = partial.inputRequirements().entrySet().iterator().next();
+        return message.copy().append(Component.translatable(
+                "gui.data_energistics.trinity_planning.diagnostic.input_shortage_summary",
+                partial.inputRequirements().size(),
+                first.getKey().getDisplayName(),
+                first.getValue().missing(),
+                first.getValue().available(),
+                first.getValue().required()).withStyle(dataEnergistics$diagnosticDetailColor(diagnostic)));
     }
 
     @Unique
@@ -207,9 +264,14 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             return planSummary;
         }
         if (job instanceof TrinityDiagnosedCraftingPlan diagnosed) {
-            return diagnosed.ae2FallbackEstimate() ?
-                    original.call(grid, actionSource, diagnosed.delegate()) :
-                    TrinityCraftingPlanSummaryProjection.createDiagnostic(diagnosed);
+            if (diagnosed.ae2FallbackEstimate()) {
+                return original.call(grid, actionSource, diagnosed.delegate());
+            }
+            CraftingPlanSummary planSummary = TrinityCraftingPlanSummaryProjection.createDiagnostic(diagnosed);
+            dataEnergistics$syncCycleSummary(TrinityCraftingCycleSummaryProjection.create(
+                    diagnosed,
+                    grid.getStorageService().getInventory().getAvailableStacks()));
+            return planSummary;
         }
         return original.call(grid, actionSource, job);
     }
@@ -219,6 +281,11 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         TrinityCraftingCycleSummary summary = TrinityCraftingCycleSummaryProjection.create(
                 plan,
                 grid.getStorageService().getInventory().getAvailableStacks());
+        dataEnergistics$syncCycleSummary(summary);
+    }
+
+    @Unique
+    private void dataEnergistics$syncCycleSummary(TrinityCraftingCycleSummary summary) {
         ServerPlayer player = (ServerPlayer) this.getPlayer();
         for (TrinityCraftConfirmCyclePayload payload : TrinityCraftConfirmCyclePayload.batches(
                 this.containerId,
@@ -290,6 +357,9 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         this.dataEnergistics$cycleSummaryRevision = -1L;
         this.dataEnergistics$cycleSummary = null;
         ((CraftConfirmMenu) (Object) this).setPlan(null);
+        this.dataEnergistics$treeReady = false;
+        if (this.dataEnergistics$treeSession != null) this.dataEnergistics$treeSession.closeIfOwnedBy(this);
+        this.dataEnergistics$treeSession = null;
     }
 
     @Inject(method = "cpuMatches", at = @At("HEAD"), cancellable = true, require = 1, remap = false)
@@ -450,5 +520,92 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Override
     public Component data_energistics$diagnostic() {
         return this.dataEnergistics$diagnostic;
+    }
+
+    @Inject(method = "broadcastChanges", at = @At("TAIL"))
+    private void dataEnergistics$preparePlanTreeSession(CallbackInfo ci) {
+        if (!isServerSide() || getPlayer().containerMenu != (Object) this) return;
+        CraftConfirmMenu self = (CraftConfirmMenu) (Object) this;
+        IGrid grid = getGrid();
+        ICraftingCPU restore = this.dataEnergistics$restoreTreeCpu;
+        if (restore != null && grid != null) {
+            // Use the cycler's public action instead of reflecting into its private index/list.
+            int remaining = grid.getCraftingService().getCpus().size() + 1;
+            while (this.selectedCpu != restore && remaining-- > 0) {
+                self.cycleSelectedCPU(true);
+                if (this.selectedCpu == null) break;
+            }
+            this.dataEnergistics$restoreTreeCpu = null;
+        }
+        if (!this.dataEnergistics$hasTrinityCpu || this.result == null || this.job != null || grid == null || self.getPlan() == null || getLocator() == null) {
+            this.dataEnergistics$treeReady = false;
+            return;
+        }
+        if (this.dataEnergistics$treeSession == null || this.dataEnergistics$treeSession.result() == null || this.dataEnergistics$treeSession.result().plan() != this.result) {
+            if (this.dataEnergistics$treeSession != null) this.dataEnergistics$treeSession.closeIfOwnedBy(this);
+            var request = new CraftingPlanTreeRequest(getPlayer().getUUID(),
+                    this.whatToCraft == null ? this.result.finalOutput().what() : this.whatToCraft,
+                    this.dataEnergistics$requestedAmount > 0 ? this.dataEnergistics$requestedAmount : this.result.finalOutput().amount(),
+                    data_energistics$quantityMode(), getLocator(), self.getHost(), this.autoCraftingQueue, this.requestedSlots);
+            var outcome = CraftingPlanTreeResult.create(this.result, request, grid, getActionSrc());
+            this.dataEnergistics$treeSession = new CraftingPlanTreeSession(request, outcome,
+                    this.dataEnergistics$planRevision, this, this.selectedCpu);
+        }
+        this.dataEnergistics$treeReady = true;
+    }
+
+    @Override
+    public boolean data_energistics$hasTrinityCpu() {
+        return this.dataEnergistics$hasTrinityCpu;
+    }
+
+    @Override
+    public boolean data_energistics$isTreeReady() {
+        return this.dataEnergistics$treeReady;
+    }
+
+    @Override
+    public void data_energistics$openPlanTree() {
+        if (isClientSide()) {
+            sendClientAction("dataEnergisticsPlanTree", this.dataEnergistics$planRevision);
+            return;
+        }
+        if (!this.dataEnergistics$treeReady || !this.dataEnergistics$hasTrinityCpu || this.dataEnergistics$treeSession == null || getPlayer().containerMenu != (Object) this || !isValidMenu()) return;
+        IGrid grid = getGrid();
+        if (grid == null || grid.getCraftingService().getCpus().stream().noneMatch(cpu -> cpu instanceof TrinityDataCoreVirtualCpu)) return;
+        this.dataEnergistics$treeSession.selectCpu(this, this.selectedCpu);
+        CraftingPlanTreeMenu.open((ServerPlayer) getPlayer(), this.dataEnergistics$treeSession, this);
+    }
+
+    @Override
+    public void data_energistics$adoptPlanTreeSession(CraftingPlanTreeSession session, Object handoffOwner) {
+        if (!isServerSide() || !session.request().playerId().equals(getPlayer().getUUID()) || session.isPlanning()) {
+            throw new IllegalArgumentException("Invalid restored plan-tree session");
+        }
+        CraftingPlanTreeResult outcome = session.result();
+        if (outcome == null) throw new IllegalArgumentException("Cannot restore an incomplete plan-tree result");
+        session.transfer(handoffOwner, this);
+        this.dataEnergistics$treeSession = session;
+        this.result = outcome.plan();
+        this.job = null;
+        this.whatToCraft = session.request().target();
+        this.dataEnergistics$requestedAmount = session.request().amount();
+        this.amount = (int) Math.min(Integer.MAX_VALUE, this.dataEnergistics$requestedAmount);
+        this.autoCraftingQueue = session.request().queue();
+        this.requestedSlots = session.request().requestedSlots();
+        this.dataEnergistics$planRevision = session.revision();
+        this.dataEnergistics$quantityMode = session.request().quantityMode().ordinal();
+        this.dataEnergistics$restoreTreeCpu = session.selectedCpu();
+        CraftConfirmMenu self = (CraftConfirmMenu) (Object) this;
+        self.setAutoStart(false);
+        self.setPlan(outcome.summary());
+        self.broadcastChanges();
+        sendPacketToClient(new CraftConfirmPlanPacket(outcome.summary()));
+        if (outcome.cycles() != null) dataEnergistics$syncCycleSummary(outcome.cycles());
+    }
+
+    @Inject(method = "removed", at = @At("TAIL"))
+    private void dataEnergistics$releasePlanTreeSession(Player player, CallbackInfo ci) {
+        if (this.dataEnergistics$treeSession != null) this.dataEnergistics$treeSession.closeIfOwnedBy(this);
     }
 }

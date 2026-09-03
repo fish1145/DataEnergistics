@@ -233,10 +233,10 @@ public class DispersingDataEntity extends Entity {
         }
     }
 
-    public static void spawnAt(ServerLevel level, BlockPos pos, RandomSource random) {
+    public static boolean spawnAt(ServerLevel level, BlockPos pos, RandomSource random) {
         DispersingDataEntity entity = DEEntities.DISPERSING_DATA.get().create(level);
         if (entity == null) {
-            return;
+            return false;
         }
 
         BlockPos spawnPos = findSpawnPos(level, pos);
@@ -249,7 +249,7 @@ public class DispersingDataEntity extends Entity {
                 (random.nextDouble() - 0.5D) * 0.08D,
                 0.01D + random.nextDouble() * 0.03D,
                 (random.nextDouble() - 0.5D) * 0.08D);
-        level.addFreshEntity(entity);
+        return level.addFreshEntity(entity);
     }
 
     private static BlockPos findSpawnPos(ServerLevel level, BlockPos pos) {

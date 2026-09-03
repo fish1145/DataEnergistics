@@ -289,6 +289,7 @@ public final class DEItems {
             () -> new Item(new Item.Properties().stacksTo(16)));
     public static final DeferredItem<Item> COMPLEXIFIED_BIOCHIPS = ITEMS.registerSimpleItem("complexified_biochips");
     public static final DeferredItem<Item> DIGISIDIAN_MEMORIZE_INGOT = ITEMS.registerSimpleItem("digisidian_memorize_ingot");
+    public static final DeferredItem<Item> SINGULARITY_BLOCK = ITEMS.registerSimpleItem("singularity_block");
     public static final DeferredItem<DataStorageComponentItem> DATA_STORAGE_COMPONENT_1K = ITEMS.register(
             "data_storage_component_1k",
             () -> new DataStorageComponentItem(new Item.Properties(), 1));
@@ -348,7 +349,22 @@ public final class DEItems {
     private DEItems() {}
 
     public static void register(IEventBus modEventBus) {
+        registerDigitalStorageCellAliases();
+        TrinityCoreRegistryAliases.register(ITEMS);
         ITEMS.register(modEventBus);
+    }
+
+    /** Preserves the disk IDs written by 3.1.3 without restoring older, unrelated registry aliases. */
+    private static void registerDigitalStorageCellAliases() {
+        String[] tiers = { "1k", "4k", "16k", "64k", "256k", "1m", "4m", "16m", "64m", "256m" };
+        for (String tier : tiers) {
+            ITEMS.addAlias(
+                    Data_Energistics.id("data_flow_cell_" + tier),
+                    Data_Energistics.id("digital_storage_cell_" + tier));
+            ITEMS.addAlias(
+                    Data_Energistics.id("portable_data_flow_cell_" + tier),
+                    Data_Energistics.id("portable_digital_storage_cell_" + tier));
+        }
     }
 
     public static ItemStack wrappedDataFlow() {

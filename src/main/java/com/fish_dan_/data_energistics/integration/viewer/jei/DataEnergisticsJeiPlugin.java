@@ -1,11 +1,14 @@
 package com.fish_dan_.data_energistics.integration.viewer.jei;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewers;
+import com.fish_dan_.data_energistics.client.screen.crafting.CraftingPlanTreeScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataRipperReassemblerScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.viewer.jei.entrypoint.DataEnergisticsJeiEntrypointLoader;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.Ae2JeiIngredientRegistration;
+import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.CraftingPlanJeiIngredientViewer;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataResourceJeiIngredientHelper;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataResourceJeiIngredientRenderer;
@@ -126,11 +129,13 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                         this::requestMultiblockRefresh));
         registration.addRecipeCategories(
                 new TimeShiftRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
-                new CondenserOutputRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataChargerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataChargePressRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 new DataRipperReassemblerRecipeCategory(registration.getJeiHelpers().getGuiHelper()),
                 multiblockCategory);
+        if (!Data_Energistics.isModLoaded(AE2_JEI_INTEGRATION_MOD_ID)) {
+            registration.addRecipeCategories(new CondenserOutputRecipeCategory(registration.getJeiHelpers().getGuiHelper()));
+        }
     }
 
     @Override
@@ -138,7 +143,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         if (!shouldRegisterJei()) {
             return;
         }
-        registration.addRecipeCatalyst(AEBlocks.CONDENSER, CondenserOutputRecipeCategory.RECIPE_TYPE);
+        if (!Data_Energistics.isModLoaded(AE2_JEI_INTEGRATION_MOD_ID)) {
+            registration.addRecipeCatalyst(AEBlocks.CONDENSER, CondenserOutputRecipeCategory.RECIPE_TYPE);
+        }
         registration.addRecipeCatalyst(DEItems.RADIX_CONTAINMENT_SPHERE.get(), TimeShiftRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get(),
@@ -155,6 +162,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         if (!shouldRegisterJei()) {
             return;
         }
+        registration.addGuiContainerHandler(
+                CraftingPlanTreeScreen.class,
+                new PatternEncodingGenericStackJeiHandler<>());
         registration.addGuiContainerHandler(
                 DataRipperReassemblerScreen.class,
                 new PatternEncodingGenericStackJeiHandler<>());
@@ -210,11 +220,13 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
             worldInteractionRecipes.addAll(level.getRecipeManager().getAllRecipesFor(DERecipes.RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_TYPE.get()).stream()
                     .map(WorldInteractionJeiRecipe.RightClickView::new)
                     .toList());
-            registration.addRecipes(
-                    CondenserOutputRecipeCategory.RECIPE_TYPE,
-                    level.getRecipeManager().getAllRecipesFor(DERecipes.CONDENSER_OUTPUT_TYPE.get()).stream()
-                            .map(CondenserOutputRecipeView::from)
-                            .toList());
+            if (!Data_Energistics.isModLoaded(AE2_JEI_INTEGRATION_MOD_ID)) {
+                registration.addRecipes(
+                        CondenserOutputRecipeCategory.RECIPE_TYPE,
+                        level.getRecipeManager().getAllRecipesFor(DERecipes.CONDENSER_OUTPUT_TYPE.get()).stream()
+                                .map(CondenserOutputRecipeView::from)
+                                .toList());
+            }
             registration.addRecipes(
                     TimeShiftRecipeCategory.RECIPE_TYPE,
                     worldInteractionRecipes);
@@ -304,6 +316,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
             return;
         }
         this.jeiRuntime = jeiRuntime;
+        CraftingPlanIngredientViewers.register("jei", new CraftingPlanJeiIngredientViewer(() -> this.jeiRuntime));
         PatternProviderRecipeTypeNames.register(
                 RECIPE_TYPE_NAME_SOURCE_ID,
                 recipeTypeId -> resolveRecipeTypeName(jeiRuntime.getRecipeManager(), recipeTypeId));

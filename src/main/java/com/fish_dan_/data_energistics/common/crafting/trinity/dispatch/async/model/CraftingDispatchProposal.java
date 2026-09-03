@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.mo
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 
+import java.util.Set;
+
 /**
  * Immutable background result naming one physical provider call without carrying mutable server state.
  *
@@ -9,12 +11,25 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Pro
  * @param target        selected immutable provider-capacity observation
  * @param logicalCrafts positive logical batch proposed for the physical call
  * @param nextCursor    provider and target cursor to adopt only after a real physical call
+ * @param exclusions    accumulated transient replacement failures carried to server-thread revalidation
  */
 public record CraftingDispatchProposal(
                                        CraftingDispatchLease lease,
                                        ProviderCapacitySnapshot target,
                                        long logicalCrafts,
-                                       CraftingDispatchCursor nextCursor) {
+                                       CraftingDispatchCursor nextCursor,
+                                       Set<CraftingDispatchExclusion> exclusions) {
+
+    /**
+     * Creates an initial proposal without replacement history.
+     */
+    public CraftingDispatchProposal(
+                                    CraftingDispatchLease lease,
+                                    ProviderCapacitySnapshot target,
+                                    long logicalCrafts,
+                                    CraftingDispatchCursor nextCursor) {
+        this(lease, target, logicalCrafts, nextCursor, Set.of());
+    }
 
     public CraftingDispatchProposal {
         if (lease == null) {
@@ -31,6 +46,13 @@ public record CraftingDispatchProposal(
         }
         if (nextCursor == null) {
             throw new IllegalArgumentException("Crafting dispatch proposal cursor must not be null");
+        }
+        if (exclusions == null || exclusions.contains(null)) {
+            throw new IllegalArgumentException("Crafting dispatch proposal exclusions must not contain null");
+        }
+        exclusions = Set.copyOf(exclusions);
+        if (exclusions.stream().anyMatch(exclusion -> exclusion.excludes(target))) {
+            throw new IllegalArgumentException("Crafting dispatch proposal selected an excluded target");
         }
     }
 }

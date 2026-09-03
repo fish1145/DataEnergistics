@@ -27,7 +27,6 @@ import com.fish_dan_.data_energistics.registry.DEEntities;
 import com.fish_dan_.data_energistics.registry.DEFluids;
 import com.fish_dan_.data_energistics.registry.DEGameEvents;
 import com.fish_dan_.data_energistics.registry.DEItems;
-import com.fish_dan_.data_energistics.registry.DELegacyRegistryAliases;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.registry.DEMobEffects;
 import com.fish_dan_.data_energistics.registry.DEParticles;
@@ -58,7 +57,6 @@ public class CommonProxy {
         DEParticles.register(modEventBus);
         DEEntities.register(modEventBus);
         DEBlockEntities.register(modEventBus);
-        DELegacyRegistryAliases.register();
         DECreativeTabs.register(modEventBus);
         DEMenus.register(modEventBus);
         DERecipes.register(modEventBus);

@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.integration.viewer.emi.transfer;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternEncodingViewerContext;
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternProviderViewerWorkstations;
-import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -34,22 +34,22 @@ public final class EmiPatternTransferContextBridge {
     /**
      * Resolves a canonical context directly from the recipe's EMI category ID.
      */
-    public static PatternEncodingViewerRecipeScope resolve(EmiRecipe recipe) {
-        return PatternEncodingViewerContext.fromRecipeType(recipe.getCategory().getId(), WORKSTATION_SOURCE_ID);
+    public static PatternEncodingRankingContext resolve(EmiRecipe recipe) {
+        return PatternEncodingViewerContext.fromRecipeType(recipe.getCategory().getId());
     }
 
     /**
      * Starts a transfer frame after the viewer context has been validated.
      */
     public static void begin(PatternEncodingTermMenu menu,
-                             PatternEncodingViewerRecipeScope context) {
+                             PatternEncodingRankingContext context) {
         FRAMES.get().push(new Frame(menu, context));
     }
 
     /**
      * Returns the context scoped to the successful transfer, rejecting an unbalanced callback.
      */
-    public static PatternEncodingViewerRecipeScope requireCurrent(PatternEncodingTermMenu menu) {
+    public static PatternEncodingRankingContext requireCurrent(PatternEncodingTermMenu menu) {
         Frame frame = FRAMES.get().peek();
         if (frame == null || frame.menu() != menu) {
             throw new IllegalStateException("EMI transfer context is not scoped to the current menu");
@@ -78,5 +78,5 @@ public final class EmiPatternTransferContextBridge {
     }
 
     private record Frame(PatternEncodingTermMenu menu,
-                         PatternEncodingViewerRecipeScope context) {}
+                         PatternEncodingRankingContext context) {}
 }

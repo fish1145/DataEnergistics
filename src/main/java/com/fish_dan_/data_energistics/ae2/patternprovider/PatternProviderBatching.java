@@ -137,12 +137,18 @@ public final class PatternProviderBatching {
             var craftingMachine = ICraftingMachine.of(level, adjacentPosition, adjacentSide);
             boolean dedicatedCraftingMachine = craftingMachine != null && craftingMachine.acceptsPlans();
             if (requiresSingleCraftPath(LockCraftingMode.NONE, dedicatedCraftingMachine)) {
-                return prepareSingle(
-                        logic,
-                        patternDetails,
-                        prototype,
-                        requestedCount,
-                        targetAvailability);
+                if (targetAvailability.canAttempt(CraftingDispatchTarget.provider())) {
+                    return prepareSingle(
+                            logic,
+                            patternDetails,
+                            prototype,
+                            requestedCount,
+                            targetAvailability);
+                }
+                // A proposal may have selected another exact side from the same complete capacity capture. The
+                // provider-scoped dedicated-machine route is not that target, so continue scanning rather than
+                // allowing one adjacent crafting machine to hide every external processing route.
+                continue;
             }
 
             var target = access.dataEnergistics$invokeFindAdapter(direction);
@@ -263,17 +269,24 @@ public final class PatternProviderBatching {
         }
 
         ArrayList<ProviderCapacitySnapshot> snapshots = new ArrayList<>();
+        boolean providerRouteCaptured = false;
         for (Direction direction : access.dataEnergistics$invokeGetActiveSides()) {
             var adjacentPosition = blockEntity.getBlockPos().relative(direction);
             var adjacentSide = direction.getOpposite();
             var craftingMachine = ICraftingMachine.of(level, adjacentPosition, adjacentSide);
             if (craftingMachine != null && craftingMachine.acceptsPlans()) {
-                return List.of(singleRouteSnapshot(
-                        providerId,
-                        patternIdentity,
-                        publicationRevision,
-                        capacityRevision,
-                        captureTick));
+                if (!providerRouteCaptured) {
+                    snapshots.add(singleRouteSnapshot(
+                            providerId,
+                            patternIdentity,
+                            publicationRevision,
+                            capacityRevision,
+                            captureTick));
+                    providerRouteCaptured = true;
+                }
+                // Dedicated crafting-machine semantics remain a conservative one-craft provider route, but they do
+                // not erase independent external-inventory sides published by this processing-pattern provider.
+                continue;
             }
 
             PatternProviderTarget target = access.dataEnergistics$invokeFindAdapter(direction);

@@ -1,15 +1,24 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticEvidence;
+
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
 
 /**
  * Immutable UI and log diagnostic retained when Trinity planning cannot produce an executable plan.
@@ -41,22 +50,18 @@ public record TrinityPlanningDiagnostic(
     }
 
     /**
-     * Isolates mutable component/map implementations from the retained planning result.
+     * Validates and owns the retained planning result.
      */
     public TrinityPlanningDiagnostic {
-        if (code == null || message == null || metadata == null || detail == null) {
-            throw new IllegalArgumentException(
-                    "A Trinity planning diagnostic requires code, message, metadata and detail state");
-        }
         message = message.copy();
-        TreeMap<String, String> orderedMetadata = new TreeMap<>();
+        Object2ObjectAVLTreeMap<String, String> orderedMetadata = new Object2ObjectAVLTreeMap<>();
         metadata.forEach((key, value) -> {
-            if (key == null || key.isBlank() || value == null) {
+            if (key.isBlank()) {
                 throw new IllegalArgumentException("Trinity planning diagnostic metadata must be named");
             }
             orderedMetadata.put(key, value);
         });
-        metadata = Collections.unmodifiableMap(orderedMetadata);
+        metadata = Object2ObjectMaps.unmodifiable(orderedMetadata);
     }
 
     /**
@@ -68,24 +73,10 @@ public record TrinityPlanningDiagnostic(
      */
     public static TrinityPlanningDiagnostic ofTranslationKey(TrinityPlanningDiagnosticCode code,
                                                              String translationKey) {
-        if (translationKey == null || translationKey.isBlank()) {
+        if (translationKey.isBlank()) {
             throw new IllegalArgumentException("A Trinity planning diagnostic requires a translation key");
         }
         return new TrinityPlanningDiagnostic(code, Component.translatable(translationKey), Map.of());
-    }
-
-    /**
-     * Creates an exact literal diagnostic for tests and non-player-facing internal boundaries.
-     *
-     * @param code   stable reason
-     * @param detail non-localized detail
-     * @return immutable diagnostic
-     */
-    public static TrinityPlanningDiagnostic ofLiteral(TrinityPlanningDiagnosticCode code, String detail) {
-        if (detail == null || detail.isBlank()) {
-            throw new IllegalArgumentException("A Trinity planning diagnostic requires a detail");
-        }
-        return new TrinityPlanningDiagnostic(code, Component.literal(detail), Map.of());
     }
 
     /**
@@ -107,7 +98,18 @@ public record TrinityPlanningDiagnostic(
      * @return the material projection accumulated before planning stopped
      */
     public Optional<PartialPlan> partialPlan() {
-        return this.detail instanceof PartialPlan partial ? Optional.of(partial) : Optional.empty();
+        return switch (this.detail) {
+            case PartialPlan partial -> Optional.of(partial);
+            case CompositeEvidence evidence -> Optional.of(evidence.materials());
+            default -> Optional.empty();
+        };
+    }
+
+    /**
+     * @return fully scheduled non-executable cycles retained by this diagnostic in stable component order
+     */
+    public List<TrinityCycleDiagnosticEvidence> cycleEvidence() {
+        return this.detail instanceof CompositeEvidence evidence ? evidence.cycles() : List.of();
     }
 
     /**
@@ -120,7 +122,7 @@ public record TrinityPlanningDiagnostic(
     /**
      * Closed diagnostic-detail family keeps typed planner evidence separate from string log metadata.
      */
-    public sealed interface Detail permits InputShortage, PartialPlan, NoDetail {}
+    public sealed interface Detail permits InputShortage, PartialPlan, CompositeEvidence, NoDetail {}
 
     private enum NoDetail implements Detail {
         INSTANCE
@@ -142,8 +144,7 @@ public record TrinityPlanningDiagnostic(
             implements Detail {
 
         public InputShortage {
-            if (key == null || required == null || available == null ||
-                    required.signum() <= 0 || available.signum() < 0 ||
+            if (required.signum() <= 0 || available.signum() < 0 ||
                     !required.subtract(available).equals(missing) || missing.signum() <= 0) {
                 throw new IllegalArgumentException("A Trinity input shortage must be exact and positive");
             }
@@ -157,48 +158,67 @@ public record TrinityPlanningDiagnostic(
      * @param emittedItems      outputs of recipe firings already selected by the partial branch
      * @param missingItems      positive demands that remained unresolved when planning stopped
      * @param inputRequirements exact external-input allocations proven for the retained branch
+     * @param selectedFirings   actual selected variants and counts not represented by separate cycle evidence;
+     *                          these retain input bindings but do not assert a complete executable schedule
      */
     public record PartialPlan(
                               Map<AEKey, BigInteger> usedItems,
                               Map<AEKey, BigInteger> emittedItems,
                               Map<AEKey, BigInteger> missingItems,
-                              Map<AEKey, InputRequirement> inputRequirements)
+                              Map<AEKey, InputRequirement> inputRequirements,
+                              List<TrinityVariantFiring> selectedFirings)
             implements Detail {
 
-        public PartialPlan(
-                           Map<AEKey, BigInteger> usedItems,
-                           Map<AEKey, BigInteger> emittedItems,
-                           Map<AEKey, BigInteger> missingItems) {
-            this(usedItems, emittedItems, missingItems, Map.of());
-        }
-
         public PartialPlan {
-            usedItems = copyPositiveAmounts(usedItems, "used");
-            emittedItems = copyPositiveAmounts(emittedItems, "emitted");
-            missingItems = copyPositiveAmounts(missingItems, "missing");
-            Map<AEKey, BigInteger> copiedMissingItems = missingItems;
-            LinkedHashMap<AEKey, InputRequirement> copiedRequirements = new LinkedHashMap<>();
-            inputRequirements.forEach((key, requirement) -> {
-                if (!requirement.missing().equals(copiedMissingItems.get(key))) {
+            usedItems = validatePositiveAmounts(usedItems, "used");
+            emittedItems = validatePositiveAmounts(emittedItems, "emitted");
+            missingItems = validatePositiveAmounts(missingItems, "missing");
+            for (Map.Entry<AEKey, InputRequirement> requirement : inputRequirements.entrySet()) {
+                if (!requirement.getValue().missing().equals(missingItems.get(requirement.getKey()))) {
                     throw new IllegalArgumentException(
                             "A Trinity exact input requirement must match its projected missing amount");
                 }
-                copiedRequirements.put(key, requirement);
-            });
-            inputRequirements = Collections.unmodifiableMap(copiedRequirements);
+            }
+            inputRequirements = Collections.unmodifiableMap(inputRequirements);
+            // Variant/count records are immutable. Reusing a retained snapshot does not copy this list again.
+            selectedFirings = List.copyOf(selectedFirings);
         }
 
-        private static Map<AEKey, BigInteger> copyPositiveAmounts(
-                                                                  Map<AEKey, BigInteger> source,
-                                                                  String role) {
-            LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
+        private static Map<AEKey, BigInteger> validatePositiveAmounts(
+                                                                      Map<AEKey, BigInteger> source,
+                                                                      String role) {
             source.forEach((key, amount) -> {
-                if (key == null || amount == null || amount.signum() <= 0) {
+                if (amount.signum() <= 0) {
                     throw new IllegalArgumentException("Trinity partial " + role + " amounts must be positive");
                 }
-                copied.put(key, amount);
             });
-            return Collections.unmodifiableMap(copied);
+            return Collections.unmodifiableMap(source);
+        }
+    }
+
+    /**
+     * Immutable combination of the complete material projection and every cycle whose firing vector and compressed
+     * execution order were independently verified.
+     *
+     * @param materials accumulated material view
+     * @param cycles    fully proved diagnostic cycles
+     */
+    public record CompositeEvidence(
+                                    PartialPlan materials,
+                                    List<TrinityCycleDiagnosticEvidence> cycles)
+            implements Detail {
+
+        public CompositeEvidence {
+            ObjectArrayList<TrinityCycleDiagnosticEvidence> ordered = new ObjectArrayList<>(cycles);
+            ordered.sort(Comparator.comparingInt(TrinityCycleDiagnosticEvidence::componentIndex));
+            IntSet components = new IntOpenHashSet();
+            for (TrinityCycleDiagnosticEvidence cycle : ordered) {
+                if (!components.add(cycle.componentIndex())) {
+                    throw new IllegalArgumentException(
+                            "Composite Trinity diagnostic evidence requires unique cycles");
+                }
+            }
+            cycles = ObjectLists.unmodifiable(ordered);
         }
     }
 

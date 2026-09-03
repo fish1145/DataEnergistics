@@ -22,18 +22,7 @@ public record CraftingDispatchBudget(
                                      int retryBackoffTicks,
                                      boolean asynchronousEnabled) {
 
-    private static final CraftingDispatchBudget LEGACY_FIXED_HARD = new CraftingDispatchBudget(
-            CraftingDispatchLimits.DEFAULT,
-            actorPermitsFor(CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_GRID),
-            CraftingDispatchLimits.DEFAULT_MAX_ATTEMPTS_PER_PROVIDER,
-            DispatchProposalLimits.DEFAULT_MAX_OUTSTANDING,
-            1,
-            true);
-
     public CraftingDispatchBudget {
-        if (dispatchLimits == null) {
-            throw new IllegalArgumentException("Crafting dispatch limits are required");
-        }
         if (actorPermits <= 0 || providerQuantum <= 0 || proposalHighWater <= 0 || retryBackoffTicks <= 0) {
             throw new IllegalArgumentException("Crafting dispatch runtime budgets must be positive");
         }
@@ -65,12 +54,5 @@ public record CraftingDispatchBudget(
         }
         int permits = Math.floorDiv(maxAttemptsPerGrid - 1, 256) + 1;
         return Math.min(DispatchProposalLimits.DEFAULT_PER_GRID_OUTSTANDING, permits);
-    }
-
-    /**
-     * @return deterministic pre-Governor hard policy used only by the retained three-argument execution overloads
-     */
-    public static CraftingDispatchBudget legacyFixedHard() {
-        return LEGACY_FIXED_HARD;
     }
 }

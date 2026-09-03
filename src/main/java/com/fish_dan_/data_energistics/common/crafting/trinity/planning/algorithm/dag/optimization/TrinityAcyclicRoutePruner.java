@@ -1,10 +1,11 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.optimization;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
-import java.math.BigInteger;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,7 +13,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Removes target routes that cannot be reached from the captured inventory in an acyclic transition graph.
@@ -34,35 +34,26 @@ public final class TrinityAcyclicRoutePruner {
      *
      * @param variants  complete transition set
      * @param target    requested output
-     * @param available non-negative captured inventory
+     * @param inventory finite/unlimited captured inventory
      * @return stable identity-ordered executable target routes
      */
     public List<TrinityPatternVariant> retainExecutableTargetRoutes(
                                                                     List<TrinityPatternVariant> variants,
                                                                     AEKey target,
-                                                                    Map<AEKey, BigInteger> available) {
-        if (variants == null || target == null || available == null) {
-            throw new IllegalArgumentException("A Trinity acyclic route-pruning request is incomplete");
-        }
-        for (Map.Entry<AEKey, BigInteger> entry : available.entrySet()) {
-            if (entry.getKey() == null || entry.getValue() == null || entry.getValue().signum() < 0) {
-                throw new IllegalArgumentException("Trinity route-pruning inventory cannot be negative or null");
-            }
-        }
-
+                                                                    TrinityPlanningInventory inventory) {
         List<TrinityPatternVariant> backward = targetReachableVariants(variants, target);
         if (backward.isEmpty()) {
             return List.of();
         }
-        List<TrinityPatternVariant> executable = forwardExecutableVariants(backward, available);
+        List<TrinityPatternVariant> executable = forwardExecutableVariants(backward, inventory);
         return executable.size() == backward.size() ? backward : targetReachableVariants(executable, target);
     }
 
     private static List<TrinityPatternVariant> forwardExecutableVariants(
                                                                          List<TrinityPatternVariant> variants,
-                                                                         Map<AEKey, BigInteger> available) {
-        LinkedHashSet<AEKey> producibleKeys = new LinkedHashSet<>();
-        available.forEach((key, amount) -> {
+                                                                         TrinityPlanningInventory inventory) {
+        ObjectOpenHashSet<AEKey> producibleKeys = new ObjectOpenHashSet<>(inventory.unlimitedKeys());
+        inventory.finiteAmounts().forEach((key, amount) -> {
             if (amount.signum() > 0) {
                 producibleKeys.add(key);
             }

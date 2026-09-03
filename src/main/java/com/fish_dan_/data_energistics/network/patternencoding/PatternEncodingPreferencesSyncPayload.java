@@ -9,28 +9,28 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankin
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * C2S snapshot of client preferences and the provider history visible in one pattern menu.
@@ -38,21 +38,16 @@ import java.util.stream.Collectors;
 public record PatternEncodingPreferencesSyncPayload(
                                                     int containerId,
                                                     long sequence,
-                                                    int presentMask,
                                                     boolean uploadEnabled,
                                                     boolean patternSourceEnabled,
-                                                    @Nullable ResourceLocation lastWorkstation,
                                                     int previewPanelOffsetX,
                                                     int previewPanelOffsetY,
                                                     @Nullable PatternEncodingRankingContext rankingContext,
-                                                    List<ResourceLocation> viewerWorkstationIds,
                                                     List<LeafStatistic> statistics)
         implements CustomPacketPayload {
 
     public static final int MAX_STATISTICS = 2048;
-    public static final int MAX_VIEWER_WORKSTATIONS = 2048;
     public static final int MAX_DIGEST_LENGTH = 71;
-    private static final int KNOWN_PRESENT_MASK = 0x0F;
     private static final Pattern DIGEST_PATTERN = Pattern.compile("sha256:[0-9a-f]{64}");
     public static final Type<PatternEncodingPreferencesSyncPayload> TYPE = new Type<>(
             Data_Energistics.id("pattern_encoding_preferences_sync"));
@@ -69,38 +64,12 @@ public record PatternEncodingPreferencesSyncPayload(
         if (sequence <= 0L) {
             throw new IllegalArgumentException("Pattern preference sequence must be positive");
         }
-        if ((presentMask & ~KNOWN_PRESENT_MASK) != 0) {
-            throw new IllegalArgumentException("Pattern preference present mask contains unknown bits: " + presentMask);
-        }
-        if (lastWorkstation != null && BuiltInRegistries.ITEM.get(lastWorkstation) == Items.AIR) {
-            throw new IllegalArgumentException(
-                    "Pattern preference last workstation is not a registered item: " + lastWorkstation);
-        }
         validateOffset(previewPanelOffsetX, previewPanelOffsetY);
-        viewerWorkstationIds = List.copyOf(viewerWorkstationIds);
-        if (viewerWorkstationIds.size() > MAX_VIEWER_WORKSTATIONS) {
-            throw new IllegalArgumentException(
-                    "Pattern preference viewer workstations exceed " + MAX_VIEWER_WORKSTATIONS);
-        }
-        if (rankingContext == null && !viewerWorkstationIds.isEmpty()) {
-            throw new IllegalArgumentException("Pattern preference viewer workstations require a ranking context");
-        }
-        Set<ResourceLocation> seenWorkstations = new HashSet<>();
-        for (ResourceLocation workstationId : viewerWorkstationIds) {
-            if (BuiltInRegistries.ITEM.get(workstationId) == Items.AIR) {
-                throw new IllegalArgumentException(
-                        "Pattern preference viewer workstation is not a registered item: " + workstationId);
-            }
-            if (!seenWorkstations.add(workstationId)) {
-                throw new IllegalArgumentException(
-                        "Duplicate pattern preference viewer workstation: " + workstationId);
-            }
-        }
         statistics = List.copyOf(statistics);
         if (statistics.size() > MAX_STATISTICS) {
             throw new IllegalArgumentException("Pattern preference statistics exceed " + MAX_STATISTICS);
         }
-        Set<String> seen = new HashSet<>();
+        ObjectSet<String> seen = new ObjectOpenHashSet<>();
         for (LeafStatistic statistic : statistics) {
             if (!seen.add(statistic.providerDigest())) {
                 throw new IllegalArgumentException("Duplicate pattern provider statistic: " + statistic.providerDigest());
@@ -122,26 +91,29 @@ public record PatternEncodingPreferencesSyncPayload(
     }
 
     private PatternEncodingPreferencesSyncPayload(RegistryFriendlyByteBuf buffer) {
-        this(buffer.readVarInt(), buffer.readVarLong(), buffer.readUnsignedByte(), buffer.readBoolean(),
-                buffer.readBoolean(), readNullableResourceLocation(buffer), buffer.readInt(), buffer.readInt(),
-                readContext(buffer), readViewerWorkstations(buffer), readStatistics(buffer));
-        requireFullyConsumed(buffer);
+        this(readPayload(buffer));
+    }
+
+    private PatternEncodingPreferencesSyncPayload(Decoded decoded) {
+        this(
+                decoded.containerId,
+                decoded.sequence,
+                decoded.uploadEnabled,
+                decoded.patternSourceEnabled,
+                decoded.previewPanelOffsetX,
+                decoded.previewPanelOffsetY,
+                decoded.rankingContext,
+                decoded.statistics);
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
         buffer.writeVarInt(this.containerId);
         buffer.writeVarLong(this.sequence);
-        buffer.writeByte(this.presentMask);
         buffer.writeBoolean(this.uploadEnabled);
         buffer.writeBoolean(this.patternSourceEnabled);
-        writeNullableResourceLocation(buffer, this.lastWorkstation);
         buffer.writeInt(this.previewPanelOffsetX);
         buffer.writeInt(this.previewPanelOffsetY);
         writeContext(buffer, this.rankingContext);
-        buffer.writeVarInt(this.viewerWorkstationIds.size());
-        for (ResourceLocation workstationId : this.viewerWorkstationIds) {
-            PatternEncodingRankingContextCodec.writeResourceLocation(buffer, workstationId);
-        }
         buffer.writeVarInt(this.statistics.size());
         for (LeafStatistic statistic : this.statistics) {
             buffer.writeUtf(statistic.providerDigest(), MAX_DIGEST_LENGTH);
@@ -179,14 +151,6 @@ public record PatternEncodingPreferencesSyncPayload(
                     payload.containerId);
             return;
         }
-        if (previewMenu.data_energistics$getEncodingMode() != EncodingMode.PROCESSING &&
-                !payload.viewerWorkstationIds.isEmpty()) {
-            Data_Energistics.LOGGER.warn(
-                    "Rejected pattern preference viewer workstations outside processing mode for container {}",
-                    payload.containerId);
-            return;
-        }
-
         if (payload.rankingContext == null && !payload.statistics.isEmpty()) {
             Data_Energistics.LOGGER.warn("Rejected pattern preference statistics without a ranking context for container {}",
                     payload.containerId);
@@ -200,19 +164,20 @@ public record PatternEncodingPreferencesSyncPayload(
         }
 
         PatternEncodingRankingContext previousRankingContext = session.rankingContext();
-        List<ResourceLocation> previousViewerWorkstations = session.viewerWorkstationIds();
-        session.setViewerRecipeScope(payload.rankingContext, payload.viewerWorkstationIds);
+        session.setRankingContext(payload.rankingContext);
         previewMenu.data_energistics$refreshSyncedPatternProviders();
 
-        Set<String> visibleLeafDigests = new HashSet<>();
+        ObjectSet<String> visibleLeafDigests = new ObjectOpenHashSet<>();
         for (PatternEncodingPreviewMenu.SyncedPatternProvider provider : previewMenu.data_energistics$getSyncedPatternProviders()) {
-            visibleLeafDigests.addAll(provider.leafDigests());
+            for (PatternEncodingPreviewMenu.SyncedPatternProviderLeaf leaf : provider.leaves()) {
+                visibleLeafDigests.add(leaf.providerDigest());
+            }
         }
         for (LeafStatistic statistic : payload.statistics) {
             if (!visibleLeafDigests.contains(statistic.providerDigest())) {
                 Data_Energistics.LOGGER.warn("Rejected pattern preference statistic for non-visible provider leaf {}",
                         statistic.providerDigest());
-                session.setViewerRecipeScope(previousRankingContext, previousViewerWorkstations);
+                session.setRankingContext(previousRankingContext);
                 previewMenu.data_energistics$refreshSyncedPatternProviders();
                 return;
             }
@@ -220,19 +185,16 @@ public record PatternEncodingPreferencesSyncPayload(
         if (!session.acceptIncomingSequence(payload.sequence)) {
             throw new IllegalStateException("Pattern preference sequence changed during main-thread validation");
         }
+        session.rememberEncodedPattern(previewMenu);
 
-        int migratedMask = PatternEncodingClientPreferenceMask.missingMask(payload.presentMask);
-        if ((payload.presentMask & PatternEncodingClientPreferenceMask.UPLOAD_ENABLED) != 0) {
-            sourceAware.data_energistics$setUploadEnabled(payload.uploadEnabled);
+        sourceAware.data_energistics$setUploadEnabled(payload.uploadEnabled);
+        sourceAware.data_energistics$setPatternSourceEnabled(payload.patternSourceEnabled);
+        layoutAware.data_energistics$setPreviewPanelOffset(payload.previewPanelOffsetX, payload.previewPanelOffsetY);
+        Object2LongMap<String> leafCounts = new Object2LongOpenHashMap<>(payload.statistics.size());
+        for (LeafStatistic statistic : payload.statistics) {
+            leafCounts.put(statistic.providerDigest(), statistic.count());
         }
-        if ((payload.presentMask & PatternEncodingClientPreferenceMask.PATTERN_SOURCE_ENABLED) != 0) {
-            sourceAware.data_energistics$setPatternSourceEnabled(payload.patternSourceEnabled);
-        }
-        if ((payload.presentMask & PatternEncodingClientPreferenceMask.PREVIEW_PANEL) != 0) {
-            layoutAware.data_energistics$setPreviewPanelOffset(payload.previewPanelOffsetX, payload.previewPanelOffsetY);
-        }
-        session.replaceLeafCounts(payload.statistics.stream()
-                .collect(Collectors.toMap(LeafStatistic::providerDigest, LeafStatistic::count)));
+        session.replaceLeafCounts(leafCounts);
         previewMenu.data_energistics$refreshSyncedPatternProviders();
         if (previewMenu.data_energistics$getEncodingMode() == EncodingMode.PROCESSING) {
             PatternEncodingSourceHelper.applyPatternSource(sourceAware, null);
@@ -244,12 +206,7 @@ public record PatternEncodingPreferencesSyncPayload(
         PacketDistributor.sendToPlayer(serverPlayer, new PatternEncodingPreferencesAckPayload(
                 payload.containerId,
                 payload.sequence,
-                migratedMask,
-                sourceAware.data_energistics$isUploadEnabled(),
-                sourceAware.data_energistics$isPatternSourceEnabled(),
-                sourceAware.data_energistics$getLastEncodedPatternSource(),
-                layoutAware.data_energistics$getPreviewPanelOffsetX(),
-                layoutAware.data_energistics$getPreviewPanelOffsetY()));
+                sourceAware.data_energistics$getLastEncodedPatternSource()));
     }
 
     private static void validateOffset(int x, int y) {
@@ -259,21 +216,9 @@ public record PatternEncodingPreferencesSyncPayload(
     }
 
     private static void validateDigest(String digest) {
-        if (digest == null || !DIGEST_PATTERN.matcher(digest).matches()) {
+        if (!DIGEST_PATTERN.matcher(digest).matches()) {
             throw new IllegalArgumentException("Invalid pattern provider digest: " + digest);
         }
-    }
-
-    private static void writeNullableResourceLocation(RegistryFriendlyByteBuf buffer,
-                                                      @Nullable ResourceLocation value) {
-        buffer.writeBoolean(value != null);
-        if (value != null) {
-            buffer.writeResourceLocation(value);
-        }
-    }
-
-    private static @Nullable ResourceLocation readNullableResourceLocation(RegistryFriendlyByteBuf buffer) {
-        return buffer.readBoolean() ? buffer.readResourceLocation() : null;
     }
 
     private static void writeContext(RegistryFriendlyByteBuf buffer,
@@ -285,19 +230,25 @@ public record PatternEncodingPreferencesSyncPayload(
         return PatternEncodingRankingContextCodec.readNullable(buffer);
     }
 
-    private static List<ResourceLocation> readViewerWorkstations(RegistryFriendlyByteBuf buffer) {
-        int size = buffer.readVarInt();
-        if (size < 0 || size > MAX_VIEWER_WORKSTATIONS) {
-            throw new IllegalArgumentException(
-                    "Pattern preference viewer workstation count is outside [0, " + MAX_VIEWER_WORKSTATIONS + "]: " + size);
-        }
-        List<ResourceLocation> workstationIds = new ArrayList<>(size);
-        for (int index = 0; index < size; index++) {
-            workstationIds.add(PatternEncodingRankingContextCodec.readResourceLocation(
-                    buffer,
-                    "viewer workstation id"));
-        }
-        return List.copyOf(workstationIds);
+    private static Decoded readPayload(RegistryFriendlyByteBuf buffer) {
+        int containerId = buffer.readVarInt();
+        long sequence = buffer.readVarLong();
+        boolean uploadEnabled = buffer.readBoolean();
+        boolean patternSourceEnabled = buffer.readBoolean();
+        int previewPanelOffsetX = buffer.readInt();
+        int previewPanelOffsetY = buffer.readInt();
+        PatternEncodingRankingContext rankingContext = readContext(buffer);
+        List<LeafStatistic> statistics = readStatistics(buffer);
+        requireFullyConsumed(buffer);
+        return new Decoded(
+                containerId,
+                sequence,
+                uploadEnabled,
+                patternSourceEnabled,
+                previewPanelOffsetX,
+                previewPanelOffsetY,
+                rankingContext,
+                statistics);
     }
 
     private static List<LeafStatistic> readStatistics(RegistryFriendlyByteBuf buffer) {
@@ -305,11 +256,11 @@ public record PatternEncodingPreferencesSyncPayload(
         if (size < 0 || size > MAX_STATISTICS) {
             throw new IllegalArgumentException("Pattern preference statistics exceed " + MAX_STATISTICS);
         }
-        List<LeafStatistic> result = new ArrayList<>(size);
+        ObjectList<LeafStatistic> result = new ObjectArrayList<>(size);
         for (int index = 0; index < size; index++) {
             result.add(new LeafStatistic(buffer.readUtf(MAX_DIGEST_LENGTH), buffer.readVarLong()));
         }
-        return List.copyOf(result);
+        return ObjectLists.unmodifiable(result);
     }
 
     private static void requireFullyConsumed(RegistryFriendlyByteBuf buffer) {
@@ -318,20 +269,13 @@ public record PatternEncodingPreferencesSyncPayload(
         }
     }
 
-    /**
-     * Shared bit values kept package-independent for the ack payload.
-     */
-    static final class PatternEncodingClientPreferenceMask {
-
-        static final int UPLOAD_ENABLED = 1;
-        static final int PATTERN_SOURCE_ENABLED = 1 << 1;
-        static final int LAST_WORKSTATION = 1 << 2;
-        static final int PREVIEW_PANEL = 1 << 3;
-
-        private PatternEncodingClientPreferenceMask() {}
-
-        static int missingMask(int presentMask) {
-            return (UPLOAD_ENABLED | PATTERN_SOURCE_ENABLED | LAST_WORKSTATION | PREVIEW_PANEL) & ~presentMask;
-        }
-    }
+    private record Decoded(
+                           int containerId,
+                           long sequence,
+                           boolean uploadEnabled,
+                           boolean patternSourceEnabled,
+                           int previewPanelOffsetX,
+                           int previewPanelOffsetY,
+                           @Nullable PatternEncodingRankingContext rankingContext,
+                           List<LeafStatistic> statistics) {}
 }

@@ -4,22 +4,24 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admissio
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
 
 /**
  * Executable compact plan understood exclusively by Trinity crafting CPUs.
@@ -29,7 +31,7 @@ import java.util.TreeMap;
 public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
 
     private final GenericStack finalOutput;
-    private final long bytes;
+    private final BigInteger exactBytes;
     private final boolean multiplePaths;
     private final long catalogRevision;
     private final CraftingQuantityMode quantityMode;
@@ -43,33 +45,34 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
     private final Map<AEKey, BigInteger> targetNetChange;
     private final List<TrinityPlanningDiagnostic> diagnostics;
     private final TrinityPlanningStatistics statistics;
-    private final KeyCounter usedItems;
-    private final KeyCounter emittedItems;
+    private final Map<AEKey, BigInteger> exactEmittedItems;
 
     private TrinityCraftingPlan(Builder builder) {
-        if (builder.finalOutput == null || builder.finalOutput.what() == null || builder.finalOutput.amount() <= 0L) {
+        GenericStack finalOutput = builder.finalOutput;
+        if (finalOutput == null || finalOutput.amount() <= 0L) {
             throw new IllegalStateException("A Trinity plan requires a positive final output");
         }
-        if (builder.bytes < 0L || builder.catalogRevision < 0L || builder.quantityMode == null) {
+        CraftingQuantityMode quantityMode = builder.quantityMode;
+        if (builder.exactBytes.signum() < 0 || builder.catalogRevision < 0L || quantityMode == null) {
             throw new IllegalStateException("A Trinity plan requires bytes, revision and quantity mode");
         }
 
-        this.finalOutput = builder.finalOutput;
-        this.bytes = builder.bytes;
+        this.finalOutput = finalOutput;
+        this.exactBytes = builder.exactBytes;
         this.multiplePaths = builder.multiplePaths;
         this.catalogRevision = builder.catalogRevision;
-        this.quantityMode = builder.quantityMode;
-        this.initialExpectedInputs = TrinityPlanAmounts.copyPositive(
+        this.quantityMode = quantityMode;
+        this.initialExpectedInputs = TrinityPlanAmounts.validatePositive(
                 builder.initialExpectedInputs,
                 "initial expected input");
-        this.patternFirings = copyPatternFirings(builder.patternFirings);
-        this.stages = copyStages(builder.stages);
+        this.patternFirings = validatePatternFirings(builder.patternFirings);
+        this.stages = validateStages(builder.stages);
         this.stageOrder = validateStageOrder(builder.stageOrder, this.stages);
         this.cycleRepeatBlocks = validateRepeatBlocks(builder.cycleRepeatBlocks, this.stages);
         this.plannedOutputs = calculatePlannedOutputs(this.stages, this.cycleRepeatBlocks);
-        this.minimumSeed = TrinityPlanAmounts.copyPositive(builder.minimumSeed, "minimum seed");
-        this.targetNetChange = TrinityPlanAmounts.copySignedNonZero(builder.targetNetChange, "target net change");
-        this.diagnostics = copyDiagnostics(builder.diagnostics);
+        this.minimumSeed = TrinityPlanAmounts.validatePositive(builder.minimumSeed, "minimum seed");
+        this.targetNetChange = TrinityPlanAmounts.validateSignedNonZero(builder.targetNetChange, "target net change");
+        this.diagnostics = validateDiagnostics(builder.diagnostics);
         this.statistics = builder.statistics;
 
         validateFiringAggregation(this.patternFirings, this.stages, this.cycleRepeatBlocks);
@@ -85,15 +88,14 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
             throw new IllegalArgumentException("A Trinity plan must schedule its final output");
         }
 
-        this.usedItems = TrinityPlanAmounts.toKeyCounter(this.initialExpectedInputs);
-        this.emittedItems = TrinityPlanAmounts.toKeyCounter(TrinityPlanAmounts.copyPositive(
+        this.exactEmittedItems = TrinityPlanAmounts.validatePositive(
                 builder.emittedItems,
-                "emitted item"));
+                "emitted item");
     }
 
     private TrinityCraftingPlan(TrinityCraftingPlan source, TrinityPlanningStatistics statistics) {
         this.finalOutput = source.finalOutput;
-        this.bytes = source.bytes;
+        this.exactBytes = source.exactBytes;
         this.multiplePaths = source.multiplePaths;
         this.catalogRevision = source.catalogRevision;
         this.quantityMode = source.quantityMode;
@@ -107,8 +109,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
         this.targetNetChange = source.targetNetChange;
         this.diagnostics = source.diagnostics;
         this.statistics = statistics;
-        this.usedItems = source.usedItems;
-        this.emittedItems = source.emittedItems;
+        this.exactEmittedItems = source.exactEmittedItems;
     }
 
     /**
@@ -118,74 +119,71 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
         return new Builder();
     }
 
-    private static Map<TrinityPatternIdentity, BigInteger> copyPatternFirings(
-                                                                              Map<TrinityPatternIdentity, BigInteger> source) {
-        if (source == null || source.isEmpty()) {
+    private static Map<TrinityPatternIdentity, BigInteger> validatePatternFirings(
+                                                                                  Map<TrinityPatternIdentity, BigInteger> source) {
+        if (source.isEmpty()) {
             throw new IllegalStateException("A Trinity plan requires at least one pattern firing");
         }
-        TreeMap<TrinityPatternIdentity, BigInteger> copied = new TreeMap<>();
+        Object2ObjectAVLTreeMap<TrinityPatternIdentity, BigInteger> sorted = new Object2ObjectAVLTreeMap<>();
         source.forEach((identity, count) -> {
-            if (identity == null || count == null || count.signum() <= 0) {
+            if (count.signum() <= 0) {
                 throw new IllegalArgumentException("Trinity aggregate pattern firings must be positive");
             }
-            copied.put(identity, count);
+            sorted.put(identity, count);
         });
-        return Collections.unmodifiableMap(copied);
+        return Object2ObjectMaps.unmodifiable(sorted);
     }
 
-    private static List<TrinityPlanStage> copyStages(List<TrinityPlanStage> source) {
-        if (source == null || source.isEmpty()) {
+    private static List<TrinityPlanStage> validateStages(List<TrinityPlanStage> source) {
+        if (source.isEmpty()) {
             throw new IllegalStateException("A Trinity plan requires at least one stage");
         }
-        ArrayList<TrinityPlanStage> copied = new ArrayList<>(source);
-        Set<Integer> indexes = new HashSet<>();
-        for (TrinityPlanStage stage : copied) {
-            if (stage == null || !indexes.add(stage.index())) {
-                throw new IllegalArgumentException("A Trinity plan requires unique non-null stage indexes");
+        IntSet indexes = new IntOpenHashSet();
+        for (TrinityPlanStage stage : source) {
+            if (!indexes.add(stage.index())) {
+                throw new IllegalArgumentException("A Trinity plan requires unique stage indexes");
             }
         }
-        for (TrinityPlanStage stage : copied) {
+        for (TrinityPlanStage stage : source) {
             if (!indexes.containsAll(stage.dependencies())) {
                 throw new IllegalArgumentException("A Trinity stage dependency is absent from the plan");
             }
         }
-        return List.copyOf(copied);
+        return Collections.unmodifiableList(source);
     }
 
     private static List<Integer> validateStageOrder(List<Integer> source, List<TrinityPlanStage> stages) {
-        if (source == null || source.size() != stages.size()) {
+        if (source.size() != stages.size()) {
             throw new IllegalStateException("A Trinity plan stage order must contain every stage");
         }
-        Map<Integer, TrinityPlanStage> byIndex = new HashMap<>();
+        Int2ObjectOpenHashMap<TrinityPlanStage> byIndex = new Int2ObjectOpenHashMap<>();
         stages.forEach(stage -> byIndex.put(stage.index(), stage));
-        HashSet<Integer> completed = new HashSet<>();
-        ArrayList<Integer> copied = new ArrayList<>(source.size());
-        for (Integer index : source) {
-            TrinityPlanStage stage = byIndex.get(index);
-            if (stage == null || !completed.add(index) || !completed.containsAll(stage.dependencies())) {
+        IntSet completed = new IntOpenHashSet();
+        for (int index : source) {
+            if (!byIndex.containsKey(index)) {
                 throw new IllegalArgumentException("A Trinity plan stage order must be complete and topological");
             }
-            copied.add(index);
+            TrinityPlanStage stage = byIndex.get(index);
+            if (!completed.add(index) || !completed.containsAll(stage.dependencies())) {
+                throw new IllegalArgumentException("A Trinity plan stage order must be complete and topological");
+            }
         }
-        return List.copyOf(copied);
+        return Collections.unmodifiableList(source);
     }
 
     private static List<TrinityCycleRepeatBlock> validateRepeatBlocks(
                                                                       List<TrinityCycleRepeatBlock> source,
                                                                       List<TrinityPlanStage> stages) {
-        if (source == null) {
-            throw new IllegalArgumentException("Trinity repeat blocks are required");
-        }
-        Set<Integer> cycleStages = new HashSet<>();
+        IntSet cycleStages = new IntOpenHashSet();
         stages.stream().filter(TrinityPlanStage::cycleStage).forEach(stage -> cycleStages.add(stage.index()));
-        HashSet<Integer> usedStages = new HashSet<>();
-        HashSet<Integer> blockIndexes = new HashSet<>();
+        IntSet usedStages = new IntOpenHashSet();
+        IntSet blockIndexes = new IntOpenHashSet();
         for (TrinityCycleRepeatBlock block : source) {
-            if (block == null || !blockIndexes.add(block.index()) ||
+            if (!blockIndexes.add(block.index()) ||
                     !cycleStages.containsAll(block.stageOrder())) {
                 throw new IllegalArgumentException("A Trinity repeat block must reference unique cycle stages");
             }
-            for (Integer stage : block.stageOrder()) {
+            for (int stage : block.stageOrder()) {
                 if (!usedStages.add(stage)) {
                     throw new IllegalArgumentException("A Trinity cycle stage cannot belong to multiple repeat blocks");
                 }
@@ -194,31 +192,25 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
         if (!usedStages.equals(cycleStages)) {
             throw new IllegalArgumentException("Every Trinity cycle stage must belong to exactly one repeat block");
         }
-        return List.copyOf(source);
+        return Collections.unmodifiableList(source);
     }
 
-    private static List<TrinityPlanningDiagnostic> copyDiagnostics(List<TrinityPlanningDiagnostic> source) {
-        if (source == null) {
-            throw new IllegalArgumentException("Trinity planning diagnostics are required");
-        }
-        for (TrinityPlanningDiagnostic diagnostic : source) {
-            if (diagnostic == null) {
-                throw new IllegalArgumentException("A Trinity plan cannot contain a null diagnostic");
-            }
-        }
-        return List.copyOf(source);
+    private static List<TrinityPlanningDiagnostic> validateDiagnostics(List<TrinityPlanningDiagnostic> source) {
+        return Collections.unmodifiableList(source);
     }
 
     private static void validateFiringAggregation(
                                                   Map<TrinityPatternIdentity, BigInteger> expected,
                                                   List<TrinityPlanStage> stages,
                                                   List<TrinityCycleRepeatBlock> repeatBlocks) {
-        Map<Integer, BigInteger> stageMultipliers = new HashMap<>();
+        Int2ObjectOpenHashMap<BigInteger> stageMultipliers = new Int2ObjectOpenHashMap<>();
         stages.forEach(stage -> stageMultipliers.put(stage.index(), BigInteger.ONE));
         for (TrinityCycleRepeatBlock block : repeatBlocks) {
-            block.stageOrder().forEach(stage -> stageMultipliers.put(stage, block.repetitions()));
+            for (int stage : block.stageOrder()) {
+                stageMultipliers.put(stage, block.repetitions());
+            }
         }
-        Map<TrinityPatternIdentity, BigInteger> actual = new TreeMap<>();
+        Object2ObjectAVLTreeMap<TrinityPatternIdentity, BigInteger> actual = new Object2ObjectAVLTreeMap<>();
         for (TrinityPlanStage stage : stages) {
             for (TrinityPlanPatternFiring firing : stage.firings()) {
                 BigInteger total = firing.count().multiply(stageMultipliers.get(stage.index()));
@@ -233,12 +225,15 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
     private static Map<AEKey, BigInteger> calculatePlannedOutputs(
                                                                   List<TrinityPlanStage> stages,
                                                                   List<TrinityCycleRepeatBlock> repeatBlocks) {
-        Map<Integer, BigInteger> stageMultipliers = new HashMap<>();
+        Int2ObjectOpenHashMap<BigInteger> stageMultipliers = new Int2ObjectOpenHashMap<>();
         stages.forEach(stage -> stageMultipliers.put(stage.index(), BigInteger.ONE));
-        repeatBlocks.forEach(block -> block.stageOrder().forEach(
-                stage -> stageMultipliers.put(stage, block.repetitions())));
+        for (TrinityCycleRepeatBlock block : repeatBlocks) {
+            for (int stage : block.stageOrder()) {
+                stageMultipliers.put(stage, block.repetitions());
+            }
+        }
 
-        LinkedHashMap<AEKey, BigInteger> outputs = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> outputs = new Object2ObjectLinkedOpenHashMap<>();
         for (TrinityPlanStage stage : stages) {
             BigInteger stageMultiplier = stageMultipliers.get(stage.index());
             for (TrinityPlanPatternFiring firing : stage.firings()) {
@@ -249,23 +244,22 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
                         BigInteger::add));
             }
         }
-        outputs.replaceAll((key, amount) -> BigInteger.valueOf(amount.longValueExact()));
-        return TrinityPlanAmounts.copyPositive(outputs, "planned output");
+        return TrinityPlanAmounts.validatePositive(outputs, "planned output");
     }
 
     private static void validateNetChange(
                                           Map<AEKey, BigInteger> expected,
                                           List<TrinityPlanStage> stages,
                                           List<TrinityCycleRepeatBlock> repeatBlocks) {
-        Map<Integer, TrinityPlanStage> stagesByIndex = new HashMap<>();
+        Int2ObjectOpenHashMap<TrinityPlanStage> stagesByIndex = new Int2ObjectOpenHashMap<>();
         stages.forEach(stage -> stagesByIndex.put(stage.index(), stage));
-        LinkedHashMap<AEKey, BigInteger> actual = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> actual = new Object2ObjectLinkedOpenHashMap<>();
         stages.stream()
                 .filter(stage -> !stage.cycleStage())
                 .forEach(stage -> mergeNet(actual, stage.netChange(), BigInteger.ONE));
         for (TrinityCycleRepeatBlock block : repeatBlocks) {
-            LinkedHashMap<AEKey, BigInteger> expectedBlock = new LinkedHashMap<>();
-            for (Integer stageIndex : block.stageOrder()) {
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> expectedBlock = new Object2ObjectLinkedOpenHashMap<>();
+            for (int stageIndex : block.stageOrder()) {
                 mergeNet(expectedBlock, stagesByIndex.get(stageIndex).netChange(), block.repetitions());
             }
             removeZeros(expectedBlock);
@@ -308,14 +302,18 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
                                                   List<TrinityPlanStage> stages,
                                                   List<Integer> stageOrder,
                                                   List<TrinityCycleRepeatBlock> repeatBlocks) {
-        Map<Integer, TrinityPlanStage> stagesByIndex = new HashMap<>();
+        Int2ObjectOpenHashMap<TrinityPlanStage> stagesByIndex = new Int2ObjectOpenHashMap<>();
         stages.forEach(stage -> stagesByIndex.put(stage.index(), stage));
-        Map<Integer, TrinityCycleRepeatBlock> blockByStage = new HashMap<>();
-        repeatBlocks.forEach(block -> block.stageOrder().forEach(
-                stage -> blockByStage.put(stage, block)));
-        HashSet<Integer> completedBlocks = new HashSet<>();
-        LinkedHashMap<AEKey, BigInteger> balances = new LinkedHashMap<>(initialInputs);
-        for (Integer stageIndex : stageOrder) {
+        Int2ObjectOpenHashMap<TrinityCycleRepeatBlock> blockByStage = new Int2ObjectOpenHashMap<>();
+        for (TrinityCycleRepeatBlock block : repeatBlocks) {
+            for (int stage : block.stageOrder()) {
+                blockByStage.put(stage, block);
+            }
+        }
+        IntSet completedBlocks = new IntOpenHashSet();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> balances = new Object2ObjectLinkedOpenHashMap<>(
+                initialInputs);
+        for (int stageIndex : stageOrder) {
             TrinityPlanStage stage = stagesByIndex.get(stageIndex);
             if (!stage.cycleStage()) {
                 requireBalances(balances, stage.requiredAtStart(), "stage " + stageIndex);
@@ -384,7 +382,12 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
 
     @Override
     public long bytes() {
-        return this.bytes;
+        return TrinityAe2AmountProjection.toAe2Bytes(this.exactBytes);
+    }
+
+    /** Returns exact CPU storage accounting before the AE2 long-only projection. */
+    public BigInteger exactBytes() {
+        return this.exactBytes;
     }
 
     @Override
@@ -399,12 +402,12 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
 
     @Override
     public KeyCounter usedItems() {
-        return TrinityPlanAmounts.copy(this.usedItems);
+        return TrinityAe2AmountProjection.toKeyCounter(this.initialExpectedInputs);
     }
 
     @Override
     public KeyCounter emittedItems() {
-        return TrinityPlanAmounts.copy(this.emittedItems);
+        return TrinityAe2AmountProjection.toKeyCounter(this.exactEmittedItems);
     }
 
     @Override
@@ -484,13 +487,6 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
     }
 
     /**
-     * @return exact signed net change after all stages and repetitions
-     */
-    public Map<AEKey, BigInteger> targetNetChange() {
-        return this.targetNetChange;
-    }
-
-    /**
      * @return informational diagnostics retained with a successful plan
      */
     public List<TrinityPlanningDiagnostic> diagnostics() {
@@ -519,11 +515,11 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
      */
     public static final class Builder {
 
-        private GenericStack finalOutput;
-        private long bytes = -1L;
+        private @Nullable GenericStack finalOutput;
+        private BigInteger exactBytes = BigInteger.valueOf(-1L);
         private boolean multiplePaths;
         private long catalogRevision = -1L;
-        private CraftingQuantityMode quantityMode;
+        private @Nullable CraftingQuantityMode quantityMode;
         private Map<AEKey, BigInteger> initialExpectedInputs = Map.of();
         private Map<TrinityPatternIdentity, BigInteger> patternFirings = Map.of();
         private List<TrinityPlanStage> stages = List.of();
@@ -550,8 +546,8 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
          * @param value conservative AE2 CPU capacity charge
          * @return this builder
          */
-        public Builder bytes(long value) {
-            this.bytes = value;
+        public Builder bytes(BigInteger value) {
+            this.exactBytes = value;
             return this;
         }
 
@@ -676,9 +672,6 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
          * @return fully validated immutable plan
          */
         public TrinityCraftingPlan build() {
-            if (this.statistics == null) {
-                throw new IllegalStateException("Trinity planning statistics are required");
-            }
             return new TrinityCraftingPlan(this);
         }
     }

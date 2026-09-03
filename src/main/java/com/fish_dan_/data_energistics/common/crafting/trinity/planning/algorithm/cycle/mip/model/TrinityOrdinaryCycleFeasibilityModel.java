@@ -4,14 +4,23 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.bounds.TrinityCycleObjectiveBounds;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate.Coefficient;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityExactConservationVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMaps;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.ojalgo.optimisation.Expression;
 import org.ojalgo.optimisation.ExpressionsBasedModel;
 import org.ojalgo.optimisation.Optimisation;
@@ -19,14 +28,10 @@ import org.ojalgo.optimisation.Variable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Ordinary exact-window ojAlgo model retaining the established sequential objective semantics.
@@ -47,53 +52,105 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
     @Override
     public TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solve(
                                                                          TrinityCycleFeasibilityRequest request,
+                                                                         TrinityPlanningMode mode,
                                                                          TrinityPlanningControl control) {
+        return openSession(request).solve(request, mode, control);
+    }
+
+    @Override
+    public TrinityCycleFeasibilitySession openSession(TrinityCycleFeasibilityRequest request) {
+        OrdinaryModelTemplate modelTemplate = createModelTemplate(request);
+        return TrinityCycleFeasibilitySession.create(
+                request,
+                (current, mode, control) -> solve(current, mode, control, modelTemplate));
+    }
+
+    private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solve(
+                                                                          TrinityCycleFeasibilityRequest request,
+                                                                          TrinityPlanningMode mode,
+                                                                          TrinityPlanningControl control,
+                                                                          OrdinaryModelTemplate modelTemplate) {
         SolverMetrics metrics = new SolverMetrics();
-        TrinityAlgorithmResult<SolvedModel> external = optimize(
+        if (request.shortageDiagnostic()) {
+            return solveShortage(
+                    request,
+                    control,
+                    modelTemplate,
+                    metrics,
+                    TrinityCycleSolveBudget.limited(request.shortageStateLimit()));
+        }
+        if (mode == TrinityPlanningMode.FIRST_FEASIBLE) {
+            TrinityAlgorithmResult<SolvedPass> feasible = optimize(
+                    request,
+                    FeasibilityPass.INSTANCE,
+                    modelTemplate,
+                    control,
+                    metrics);
+            return feasible.successful() ?
+                    solution(feasible.value().model(), metrics, TrinityPlanQuality.VERIFIED_FEASIBLE) :
+                    TrinityAlgorithmResult.failure(feasible.diagnostic());
+        }
+
+        TrinityAlgorithmResult<SolvedPass> external = optimize(
                 request,
                 ExternalPass.INSTANCE,
+                modelTemplate,
                 control,
                 metrics);
         if (!external.successful()) {
             return TrinityAlgorithmResult.failure(external.diagnostic());
         }
-        BigInteger optimalExternal = total(external.value().externalInputs());
+        if (!external.value().objectiveProved()) {
+            return solution(external.value().model(), metrics, TrinityPlanQuality.VERIFIED_FEASIBLE);
+        }
+        SolvedModel incumbent = external.value().model();
+        BigInteger optimalExternal = total(incumbent.externalInputs());
         BigInteger seedLower = request.seedLowerBound();
         BigInteger firingLower = request.firingLowerBound();
         while (true) {
-            TrinityAlgorithmResult<SolvedModel> seed = optimize(
+            TrinityAlgorithmResult<SolvedPass> seed = optimize(
                     request,
                     new SeedPass(optimalExternal, seedLower),
+                    modelTemplate,
                     control,
                     metrics);
             if (!seed.successful()) {
-                return TrinityAlgorithmResult.failure(seed.diagnostic());
+                return recoverIncumbent(incumbent, metrics, seed.diagnostic());
             }
-            BigInteger optimalSeed = total(seed.value().modelSeed());
+            incumbent = seed.value().model();
+            if (!seed.value().objectiveProved()) {
+                return solution(incumbent, metrics, TrinityPlanQuality.VERIFIED_FEASIBLE);
+            }
+            BigInteger optimalSeed = total(incumbent.modelSeed());
             BigInteger firingObjectiveLower = firingLower.max(
                     this.objectiveBounds.conservationFiringLowerBound(request, optimalExternal, optimalSeed));
-            BigInteger seedWitnessFirings = total(seed.value().firings());
-            TrinityAlgorithmResult<SolvedModel> firing = seedWitnessFirings.equals(firingObjectiveLower) ?
-                    TrinityAlgorithmResult.success(seed.value()) :
+            BigInteger seedWitnessFirings = total(incumbent.firings());
+            TrinityAlgorithmResult<SolvedPass> firing = seedWitnessFirings.equals(firingObjectiveLower) ?
+                    TrinityAlgorithmResult.success(new SolvedPass(incumbent, true)) :
                     optimize(
                             request,
                             new FiringPass(optimalExternal, optimalSeed, firingObjectiveLower),
+                            modelTemplate,
                             control,
                             metrics);
             if (!firing.successful()) {
                 if (firing.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
-                    return TrinityAlgorithmResult.failure(firing.diagnostic());
+                    return recoverIncumbent(incumbent, metrics, firing.diagnostic());
                 }
                 seedLower = optimalSeed.add(BigInteger.ONE);
                 firingLower = BigInteger.ZERO;
                 continue;
             }
-            BigInteger optimalFirings = total(firing.value().firings());
-            LinkedHashMap<TrinityPatternVariant, BigInteger> fixedFirings = new LinkedHashMap<>();
-            SolvedModel canonical = firing.value();
+            incumbent = firing.value().model();
+            if (!firing.value().objectiveProved()) {
+                return solution(incumbent, metrics, TrinityPlanQuality.VERIFIED_FEASIBLE);
+            }
+            BigInteger optimalFirings = total(incumbent.firings());
+            Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> fixedFirings = new Object2ObjectLinkedOpenHashMap<>();
+            SolvedModel canonical = incumbent;
             for (TrinityPatternVariant variant : request.variants()) {
                 TrinityFiringBounds bounds = request.firingBounds().get(variant);
-                if (bounds.lowerInclusive().equals(bounds.upperInclusive())) {
+                if (bounds.fixed()) {
                     BigInteger fixedCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
                     if (!fixedCount.equals(bounds.lowerInclusive())) {
                         throw new IllegalStateException("An exact Trinity firing solution violated a fixed axis");
@@ -108,14 +165,13 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                         fixedFirings,
                         variant);
                 BigInteger witnessCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
-                BigInteger identityUpper = this.objectiveBounds.identityObjectiveUpperBound(
+                BigInteger identityUpper = bounds.upperOr(this.objectiveBounds.identityObjectiveUpperBound(
                         request,
                         optimalExternal,
                         optimalSeed,
                         optimalFirings,
                         fixedFirings,
-                        variant)
-                        .min(bounds.upperInclusive());
+                        variant));
                 if (witnessCount.compareTo(identityUpper) > 0) {
                     throw new IllegalStateException("A Trinity identity witness exceeded its proven upper bound");
                 }
@@ -123,32 +179,82 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                     fixedFirings.put(variant, witnessCount);
                     continue;
                 }
-                TrinityAlgorithmResult<SolvedModel> identity = optimize(
+                TrinityAlgorithmResult<SolvedPass> identity = optimize(
                         request,
                         identityPass,
+                        modelTemplate,
                         control,
                         metrics);
                 if (!identity.successful()) {
-                    return TrinityAlgorithmResult.failure(identity.diagnostic());
+                    return recoverIncumbent(canonical, metrics, identity.diagnostic());
                 }
-                canonical = identity.value();
+                canonical = identity.value().model();
+                if (!identity.value().objectiveProved()) {
+                    return solution(canonical, metrics, TrinityPlanQuality.VERIFIED_FEASIBLE);
+                }
                 fixedFirings.put(variant, canonical.firings().getOrDefault(variant, BigInteger.ZERO));
             }
-            return TrinityAlgorithmResult.success(new TrinityCycleFeasibilitySolution(
-                    canonical.firings(),
-                    canonical.modelSeed(),
-                    canonical.externalInputs(),
-                    metrics.passes,
-                    metrics.nanos,
-                    false));
+            return solution(canonical, metrics, TrinityPlanQuality.PROVED_OPTIMAL);
         }
     }
 
-    private TrinityAlgorithmResult<SolvedModel> optimize(
-                                                         TrinityCycleFeasibilityRequest request,
-                                                         ModelPass pass,
-                                                         TrinityPlanningControl control,
-                                                         SolverMetrics metrics) {
+    /**
+     * Proves the minimum virtual reserve required to repair a root-infeasible finite-inventory domain. Unlike
+     * executable anytime optimisation, every objective must be proved before diagnostic evidence can be published.
+     */
+    private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solveShortage(
+                                                                                  TrinityCycleFeasibilityRequest request, TrinityPlanningControl control,
+                                                                                  OrdinaryModelTemplate modelTemplate, SolverMetrics metrics, TrinityCycleSolveBudget stateBudget) {
+        TrinityAlgorithmResult<SolvedPass> feasible = optimize(
+                request, FeasibilityPass.INSTANCE, modelTemplate, control, metrics, stateBudget);
+        if (!feasible.successful()) return shortageFailure(feasible.diagnostic(), stateBudget, metrics);
+        SolvedModel solved = feasible.value().model();
+        TrinityShortageInputAllocation allocation = TrinityShortageInputAllocation.from(
+                request, solved.modelSeed(), solved.externalInputs());
+        return TrinityAlgorithmResult.success(new TrinityCycleFeasibilitySolution(
+                solved.firings(), solved.modelSeed(), solved.externalInputs(), metrics.passes, metrics.nanos,
+                false, TrinityPlanQuality.VERIFIED_FEASIBLE,
+                allocation.actualInputs(), allocation.missingInputs(), stateBudget.used()));
+    }
+
+    private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> shortageFailure(
+                                                                                           TrinityPlanningDiagnostic diagnostic,
+                                                                                           TrinityCycleSolveBudget stateBudget,
+                                                                                           SolverMetrics metrics) {
+        Object2ObjectLinkedOpenHashMap<String, String> metadata = new Object2ObjectLinkedOpenHashMap<>(diagnostic.metadata());
+        metadata.put("limit", Integer.toString(stateBudget.limit()));
+        metadata.put("states", Integer.toString(stateBudget.used()));
+        metadata.put("passes", Integer.toString(metrics.passes));
+        metadata.put("nanos", Long.toString(metrics.nanos));
+        return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                diagnostic.code(),
+                diagnostic.message(),
+                metadata,
+                diagnostic.detail()));
+    }
+
+    private TrinityAlgorithmResult<SolvedPass> optimize(
+                                                        TrinityCycleFeasibilityRequest request,
+                                                        ModelPass pass,
+                                                        OrdinaryModelTemplate modelTemplate,
+                                                        TrinityPlanningControl control,
+                                                        SolverMetrics metrics) {
+        return optimize(
+                request,
+                pass,
+                modelTemplate,
+                control,
+                metrics,
+                TrinityCycleSolveBudget.unbounded());
+    }
+
+    private TrinityAlgorithmResult<SolvedPass> optimize(
+                                                        TrinityCycleFeasibilityRequest request,
+                                                        ModelPass pass,
+                                                        OrdinaryModelTemplate modelTemplate,
+                                                        TrinityPlanningControl control,
+                                                        SolverMetrics metrics,
+                                                        TrinityCycleSolveBudget stateBudget) {
         if (control.cancellationRequested()) {
             return failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -158,19 +264,30 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         if (control.deadlineExceeded()) {
             return timeout(metrics, "before_model");
         }
-        ModelData data = createModel(request, pass);
-        configureDeadline(data.model(), control);
+        ModelData data = modelTemplate.forPass(request, pass);
+        if (!stateBudget.tryConsume()) {
+            return failure(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    "gui.data_energistics.trinity_planning.mip.schedule_search_limit",
+                    Map.of(
+                            "limit", Integer.toString(stateBudget.limit()),
+                            "states", Integer.toString(stateBudget.used())));
+        }
+        TrinityOjAlgoSolvePolicy.configure(data.model(), control, pass == FeasibilityPass.INSTANCE);
         long started = System.nanoTime();
         Optimisation.Result result = data.model().minimise();
-        metrics.addPass(Math.max(0L, System.nanoTime() - started));
+        long elapsedNanos = Math.max(0L, System.nanoTime() - started);
+        metrics.addPass(elapsedNanos);
+        control.recordSolverPass(elapsedNanos);
         if (control.cancellationRequested()) {
             return failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
                     "gui.data_energistics.trinity_planning.diagnostic.cancelled",
                     Map.of("passes", Integer.toString(metrics.passes)));
         }
-        if (!result.getState().isOptimal()) {
-            if (control.deadlineExceeded() || result.getState().isFeasible()) {
+        boolean objectiveProved = result.getState().isOptimal();
+        if (!objectiveProved && !result.getState().isFeasible()) {
+            if (control.deadlineExceeded() || result.getState() != Optimisation.State.INFEASIBLE) {
                 return timeout(metrics, result.getState().name());
             }
             return failure(
@@ -178,9 +295,9 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                     "gui.data_energistics.trinity_planning.diagnostic.no_integer_solution",
                     Map.of("state", result.getState().name()));
         }
-        ArrayList<BigDecimal> rawValues = new ArrayList<>(data.variables().size());
-        for (Variable variable : data.variables()) {
-            rawValues.add(result.get(data.model().indexOf(variable)));
+        ObjectArrayList<BigDecimal> rawValues = new ObjectArrayList<>(data.template().variableCount());
+        for (int index = 0; index < data.template().variableCount(); index++) {
+            rawValues.add(result.get(index));
         }
         TrinityAlgorithmResult<List<BigInteger>> verified = this.integerVerifier.verify(
                 rawValues,
@@ -193,34 +310,39 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         }
         SolvedModel solved = data.decode(verified.value());
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verifyExact(request, pass, solved);
-        return exact.successful() ? TrinityAlgorithmResult.success(solved) :
+        return exact.successful() ? TrinityAlgorithmResult.success(new SolvedPass(solved, objectiveProved)) :
                 TrinityAlgorithmResult.failure(exact.diagnostic());
     }
 
-    private static void configureDeadline(ExpressionsBasedModel model, TrinityPlanningControl control) {
-        if (!control.deadlineConfigured()) {
-            return;
-        }
-        long remainingNanos = control.remainingNanos();
-        long remainingMillis = Math.max(
-                1L,
-                TimeUnit.NANOSECONDS.toMillis(remainingNanos) +
-                        (remainingNanos % 1_000_000L == 0L ? 0L : 1L));
-        model.options.time_abort = remainingMillis;
-        model.options.time_suffice = remainingMillis;
+    private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solution(
+                                                                                    SolvedModel solved, SolverMetrics metrics, TrinityPlanQuality quality) {
+        return TrinityAlgorithmResult.success(new TrinityCycleFeasibilitySolution(
+                solved.firings(), solved.modelSeed(), solved.externalInputs(),
+                metrics.passes, metrics.nanos, false, quality, Map.of(), Map.of(), 0));
+    }
+
+    private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> recoverIncumbent(
+                                                                                            SolvedModel incumbent,
+                                                                                            SolverMetrics metrics,
+                                                                                            TrinityPlanningDiagnostic diagnostic) {
+        TrinityPlanningDiagnosticCode code = diagnostic.code();
+        return code == TrinityPlanningDiagnosticCode.MIP_TIMEOUT ||
+                code == TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT ?
+                        solution(incumbent, metrics, TrinityPlanQuality.VERIFIED_FEASIBLE) :
+                        TrinityAlgorithmResult.failure(diagnostic);
     }
 
     private TrinityAlgorithmResult<Map<AEKey, BigInteger>> verifyExact(
                                                                        TrinityCycleFeasibilityRequest request,
                                                                        ModelPass pass,
                                                                        SolvedModel solved) {
-        LinkedHashMap<AEKey, BigInteger> initialInputs = new LinkedHashMap<>(solved.externalInputs());
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> initialInputs = new Object2ObjectLinkedOpenHashMap<>(solved.externalInputs());
         solved.modelSeed().forEach((key, amount) -> initialInputs.merge(key, amount, BigInteger::add));
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = this.conservationVerifier.verify(
                 request.variants(),
                 solved.firings(),
                 initialInputs,
-                this.objectiveBounds.finiteInputUpperBounds(request),
+                request.shortageDiagnostic() ? Map.of() : this.objectiveBounds.finiteInputUpperBounds(request),
                 request.demand().finalBalanceLowerBounds(),
                 request.demand().requiredNetChangeLowerBounds());
         if (!exact.successful()) {
@@ -239,11 +361,13 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             }
         }
         if (externalTotal.compareTo(this.objectiveBounds.minimumFirstExternalInput(request)) < 0 ||
-                seedTotal.compareTo(this.objectiveBounds.minimumFirstInternalInput(request)) < 0) {
-            return inexact("objective_lower", externalTotal + "/" + seedTotal);
+                seedTotal.compareTo(this.objectiveBounds.minimumFirstInternalInput(request)
+                        .max(request.seedLowerBound())) < 0 ||
+                firingTotal.compareTo(request.firingLowerBound()) < 0) {
+            return inexact("objective_lower", externalTotal + "/" + seedTotal + "/" + firingTotal);
         }
         return switch (pass) {
-            case ExternalPass.INSTANCE -> exact;
+            case FeasibilityPass.INSTANCE, ExternalPass.INSTANCE -> exact;
             case SeedPass(var fixedExternal, var seedLowerBound) -> !externalTotal.equals(fixedExternal) || seedTotal.compareTo(seedLowerBound) < 0 ?
                     inexact("seed_level", externalTotal + "/" + seedTotal) : exact;
             case FiringPass(var fixedExternal, var fixedSeed, var firingLowerBound) -> !externalTotal.equals(fixedExternal) || !seedTotal.equals(fixedSeed) ||
@@ -258,100 +382,55 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         };
     }
 
-    private ModelData createModel(TrinityCycleFeasibilityRequest request, ModelPass pass) {
+    private OrdinaryModelTemplate createModelTemplate(TrinityCycleFeasibilityRequest request) {
         ExpressionsBasedModel model = new ExpressionsBasedModel();
-        BigInteger logicalUpper = request.ordinaryLogicalUpperBound().orElseThrow(() -> new IllegalArgumentException("A signed Trinity system cannot use the ordinary exact model"));
-        ArrayList<Variable> allVariables = new ArrayList<>();
-        LinkedHashMap<TrinityPatternVariant, Variable> firingVariables = new LinkedHashMap<>();
+        ObjectArrayList<Variable> allVariables = new ObjectArrayList<>();
+        Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, Variable> firingVariables = new Object2ObjectLinkedOpenHashMap<>();
         for (int index = 0; index < request.variants().size(); index++) {
             TrinityPatternVariant variant = request.variants().get(index);
-            TrinityFiringBounds bounds = request.firingBounds().get(variant);
             Variable variable = model.addVariable("firing_" + index)
-                    .integer()
-                    .lower(bounds.lowerInclusive())
-                    .upper(bounds.upperInclusive().min(logicalUpper));
+                    .integer();
             firingVariables.put(variant, variable);
             allVariables.add(variable);
         }
-        LinkedHashMap<AEKey, Variable> seedVariables = reserveVariables(
+        Object2ObjectLinkedOpenHashMap<AEKey, Variable> seedVariables = reserveVariables(
                 model,
                 allVariables,
                 request.internalKeys(),
-                request,
                 "seed_");
-        LinkedHashMap<AEKey, Variable> externalVariables = reserveVariables(
+        Object2ObjectLinkedOpenHashMap<AEKey, Variable> externalVariables = reserveVariables(
                 model,
                 allVariables,
                 this.objectiveBounds.externalReserveKeys(request),
-                request,
                 "external_");
         addConservation(model, request, firingVariables, seedVariables, externalVariables);
-        Expression seedTotal = expression(model, "seed_total", seedVariables.values());
-        seedTotal.lower(this.objectiveBounds.minimumFirstInternalInput(request));
-        Expression externalTotal = expression(model, "external_total", externalVariables.values());
-        externalTotal.lower(this.objectiveBounds.minimumFirstExternalInput(request));
-        request.fixedExternalTotal().ifPresent(externalTotal::level);
-        Expression firingTotal = expression(model, "firing_total", firingVariables.values());
-        switch (pass) {
-            case ExternalPass.INSTANCE -> externalTotal.weight(BigDecimal.ONE);
-            case SeedPass(var fixedExternal, var seedLowerBound) -> {
-                externalTotal.level(fixedExternal);
-                seedTotal.lower(this.objectiveBounds.minimumFirstInternalInput(request).max(seedLowerBound));
-                seedTotal.weight(BigDecimal.ONE);
-            }
-            case FiringPass(var fixedExternal, var fixedSeed, var firingLowerBound) -> {
-                externalTotal.level(fixedExternal);
-                seedTotal.level(fixedSeed);
-                firingTotal.lower(firingLowerBound.max(
-                        this.objectiveBounds.conservationFiringLowerBound(
-                                request,
-                                fixedExternal,
-                                fixedSeed)));
-                firingTotal.weight(BigDecimal.ONE);
-            }
-            case IdentityPass(var fixedExternal, var fixedSeed, var fixedFirings, var fixedCounts, var variant) -> {
-                externalTotal.level(fixedExternal);
-                seedTotal.level(fixedSeed);
-                firingTotal.level(fixedFirings);
-                fixedCounts.forEach((fixedVariant, count) -> model
-                        .addExpression("fixed_firing_" + request.variants().indexOf(fixedVariant))
-                        .set(firingVariables.get(fixedVariant), BigInteger.ONE)
-                        .level(count));
-                BigInteger identityUpper = this.objectiveBounds.identityObjectiveUpperBound(
-                        request,
-                        fixedExternal,
-                        fixedSeed,
-                        fixedFirings,
-                        fixedCounts,
-                        variant)
-                        .min(request.firingBounds().get(variant).upperInclusive());
-                model.addExpression("identity_objective")
-                        .set(firingVariables.get(variant), BigInteger.ONE)
-                        .upper(identityUpper)
-                        .weight(BigDecimal.ONE.negate());
-            }
-        }
-        return new ModelData(
+        expression(model, "seed_total", seedVariables.values());
+        expression(model, "external_total", externalVariables.values());
+        expression(model, "firing_total", firingVariables.values());
+        Object2IntMap<TrinityPatternVariant> firingIndexes = new Object2IntLinkedOpenHashMap<>();
+        firingVariables.forEach((variant, variable) -> firingIndexes.put(variant, model.indexOf(variable)));
+        Object2IntMap<AEKey> seedIndexes = new Object2IntLinkedOpenHashMap<>();
+        seedVariables.forEach((key, variable) -> seedIndexes.put(key, model.indexOf(variable)));
+        Object2IntMap<AEKey> externalIndexes = new Object2IntLinkedOpenHashMap<>();
+        externalVariables.forEach((key, variable) -> externalIndexes.put(key, model.indexOf(variable)));
+        return new OrdinaryModelTemplate(
                 model,
-                List.copyOf(allVariables),
-                firingVariables,
-                seedVariables,
-                externalVariables);
+                allVariables.size(),
+                Object2IntMaps.unmodifiable(firingIndexes),
+                Object2IntMaps.unmodifiable(seedIndexes),
+                Object2IntMaps.unmodifiable(externalIndexes),
+                this.objectiveBounds);
     }
 
-    private static LinkedHashMap<AEKey, Variable> reserveVariables(
-                                                                   ExpressionsBasedModel model,
-                                                                   List<Variable> allVariables,
-                                                                   Set<AEKey> keys,
-                                                                   TrinityCycleFeasibilityRequest request,
-                                                                   String prefix) {
-        LinkedHashMap<AEKey, Variable> variables = new LinkedHashMap<>();
+    private static Object2ObjectLinkedOpenHashMap<AEKey, Variable> reserveVariables(
+                                                                                    ExpressionsBasedModel model,
+                                                                                    List<Variable> allVariables,
+                                                                                    Set<AEKey> keys,
+                                                                                    String prefix) {
+        Object2ObjectLinkedOpenHashMap<AEKey, Variable> variables = new Object2ObjectLinkedOpenHashMap<>();
         int index = 0;
         for (AEKey key : keys) {
-            Variable variable = model.addVariable(prefix + index++).integer().lower(BigInteger.ZERO);
-            BigInteger logicalUpper = request.ordinaryLogicalUpperBound().orElseThrow();
-            variable.upper(request.producibleInputs().contains(key) ?
-                    logicalUpper : request.available().getOrDefault(key, BigInteger.ZERO).min(logicalUpper));
+            Variable variable = model.addVariable(prefix + index++).integer();
             variables.put(key, variable);
             allVariables.add(variable);
         }
@@ -364,20 +443,15 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                                         Map<TrinityPatternVariant, Variable> firingVariables,
                                         Map<AEKey, Variable> seedVariables,
                                         Map<AEKey, Variable> externalVariables) {
-        LinkedHashSet<AEKey> touchedKeys = new LinkedHashSet<>();
-        request.variants().forEach(variant -> {
-            touchedKeys.addAll(variant.inputs().keySet());
-            touchedKeys.addAll(variant.outputs().keySet());
-        });
-        touchedKeys.addAll(request.demand().finalBalanceLowerBounds().keySet());
-        touchedKeys.addAll(request.demand().requiredNetChangeLowerBounds().keySet());
+        ObjectArrayList<AEKey> touchedKeys = new ObjectArrayList<>(request.coefficientTemplate().touchedKeys());
+        ObjectOpenHashSet<AEKey> seenKeys = new ObjectOpenHashSet<>(touchedKeys);
+        request.demand().finalBalanceLowerBounds().keySet().forEach(key -> addStableKey(key, seenKeys, touchedKeys));
+        request.demand().requiredNetChangeLowerBounds().keySet().forEach(
+                key -> addStableKey(key, seenKeys, touchedKeys));
         int conservationIndex = 0;
         for (AEKey key : touchedKeys) {
             Expression conservation = model.addExpression("conservation_" + conservationIndex++);
-            firingVariables.forEach((variant, variable) -> setIfNonZero(
-                    conservation,
-                    variable,
-                    variant.netChange().getOrDefault(key, BigInteger.ZERO)));
+            setNetCoefficients(conservation, request, firingVariables, key);
             Variable reserve = request.internalKeys().contains(key) ?
                     seedVariables.get(key) : externalVariables.get(key);
             if (reserve != null) {
@@ -388,10 +462,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         int netIndex = 0;
         for (Map.Entry<AEKey, BigInteger> bound : request.demand().requiredNetChangeLowerBounds().entrySet()) {
             Expression net = model.addExpression("required_net_" + netIndex++);
-            firingVariables.forEach((variant, variable) -> setIfNonZero(
-                    net,
-                    variable,
-                    variant.netChange().getOrDefault(bound.getKey(), BigInteger.ZERO)));
+            setNetCoefficients(net, request, firingVariables, bound.getKey());
             net.lower(bound.getValue());
         }
         int settlementIndex = 0;
@@ -399,10 +470,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                 .anyMatch(request.demand().requiredNetChangeLowerBounds()::containsKey);
         for (AEKey key : request.internalKeys()) {
             Expression settlement = model.addExpression("settled_internal_" + settlementIndex++);
-            firingVariables.forEach((variant, variable) -> setIfNonZero(
-                    settlement,
-                    variable,
-                    variant.netChange().getOrDefault(key, BigInteger.ZERO)));
+            setNetCoefficients(settlement, request, firingVariables, key);
             BigInteger requestedOutput = request.demand().requiredNetChangeLowerBounds().get(key);
             if (requestedOutput != null) {
                 settlement.lower(requestedOutput);
@@ -414,21 +482,32 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         }
     }
 
-    private static void setIfNonZero(Expression expression, Variable variable, BigInteger coefficient) {
-        if (coefficient.signum() != 0) {
-            expression.set(variable, coefficient);
+    private static void setNetCoefficients(
+                                           Expression expression,
+                                           TrinityCycleFeasibilityRequest request,
+                                           Map<TrinityPatternVariant, Variable> firingVariables,
+                                           AEKey key) {
+        for (Coefficient coefficient : request.coefficientTemplate().coefficients(key)) {
+            expression.set(
+                    firingVariables.get(request.variants().get(coefficient.variantIndex())),
+                    coefficient.value());
         }
     }
 
-    private static Expression expression(
-                                         ExpressionsBasedModel model,
-                                         String name,
-                                         Iterable<Variable> variables) {
+    private static void addStableKey(AEKey key, Set<AEKey> seen, List<AEKey> destination) {
+        if (seen.add(key)) {
+            destination.add(key);
+        }
+    }
+
+    private static void expression(
+                                   ExpressionsBasedModel model,
+                                   String name,
+                                   Iterable<Variable> variables) {
         Expression expression = model.addExpression(name);
         for (Variable variable : variables) {
             expression.set(variable, BigInteger.ONE);
         }
-        return expression;
     }
 
     private static BigInteger total(Map<?, BigInteger> amounts) {
@@ -456,7 +535,11 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(code, Component.translatable(detail), metadata));
     }
 
-    private sealed interface ModelPass permits ExternalPass, SeedPass, FiringPass, IdentityPass {}
+    private sealed interface ModelPass permits FeasibilityPass, ExternalPass, SeedPass, FiringPass, IdentityPass {}
+
+    private enum FeasibilityPass implements ModelPass {
+        INSTANCE
+    }
 
     private enum ExternalPass implements ModelPass {
         INSTANCE
@@ -479,42 +562,111 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             implements ModelPass {
 
         private IdentityPass {
-            fixedCounts = Collections.unmodifiableMap(new LinkedHashMap<>(fixedCounts));
+            fixedCounts = Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(fixedCounts));
         }
     }
 
-    private record ModelData(
-                             ExpressionsBasedModel model,
-                             List<Variable> variables,
-                             Map<TrinityPatternVariant, Variable> firingVariables,
-                             Map<AEKey, Variable> seedVariables,
-                             Map<AEKey, Variable> externalVariables) {
+    private record OrdinaryModelTemplate(
+                                         ExpressionsBasedModel baseModel,
+                                         int variableCount,
+                                         Object2IntMap<TrinityPatternVariant> firingIndexes,
+                                         Object2IntMap<AEKey> seedIndexes,
+                                         Object2IntMap<AEKey> externalIndexes, TrinityCycleObjectiveBounds objectiveBounds) {
+
+        private ModelData forPass(TrinityCycleFeasibilityRequest request, ModelPass pass) {
+            ExpressionsBasedModel model = this.baseModel.copy();
+            BigInteger logicalUpper = request.ordinaryLogicalUpperBound().orElseThrow(() -> new IllegalArgumentException("A signed Trinity system cannot use the ordinary exact model"));
+            Object2IntMaps.fastForEach(this.firingIndexes, entry -> {
+                Variable variable = model.getVariable(entry.getIntValue());
+                TrinityFiringBounds bounds = request.firingBounds().get(entry.getKey());
+                variable.lower(bounds.lowerInclusive());
+                variable.upper(bounds.upperOr(logicalUpper));
+            });
+            Object2IntMaps.fastForEach(this.seedIndexes, entry -> {
+                Variable variable = model.getVariable(entry.getIntValue());
+                variable.lower(BigInteger.ZERO);
+                variable.upper(this.objectiveBounds.reserveUpperBound(request, entry.getKey(), logicalUpper));
+            });
+            Object2IntMaps.fastForEach(this.externalIndexes, entry -> {
+                Variable variable = model.getVariable(entry.getIntValue());
+                variable.lower(BigInteger.ZERO);
+                variable.upper(this.objectiveBounds.reserveUpperBound(request, entry.getKey(), logicalUpper));
+            });
+            Expression seedTotal = model.getExpression("seed_total");
+            Expression externalTotal = model.getExpression("external_total");
+            Expression firingTotal = model.getExpression("firing_total");
+            seedTotal.lower(this.objectiveBounds.minimumFirstInternalInput(request)
+                    .max(request.seedLowerBound()));
+            externalTotal.lower(this.objectiveBounds.minimumFirstExternalInput(request));
+            firingTotal.lower(request.shortageDiagnostic() ? request.firingLowerBound().max(BigInteger.ONE) : request.firingLowerBound());
+            request.fixedExternalTotal().ifPresent(externalTotal::level);
+            switch (pass) {
+                case FeasibilityPass.INSTANCE -> {
+                    // Zero objective: obtain any integer witness and verify it exactly after the solve.
+                }
+                case ExternalPass.INSTANCE -> externalTotal.weight(BigDecimal.ONE);
+                case SeedPass(var fixedExternal, var seedLowerBound) -> {
+                    externalTotal.level(fixedExternal);
+                    seedTotal.lower(this.objectiveBounds.minimumFirstInternalInput(request)
+                            .max(request.seedLowerBound())
+                            .max(seedLowerBound));
+                    seedTotal.weight(BigDecimal.ONE);
+                }
+                case FiringPass(var fixedExternal, var fixedSeed, var firingLowerBound) -> {
+                    externalTotal.level(fixedExternal);
+                    seedTotal.level(fixedSeed);
+                    firingTotal.lower(firingLowerBound.max(
+                            request.firingLowerBound()).max(
+                                    this.objectiveBounds.conservationFiringLowerBound(
+                                            request,
+                                            fixedExternal,
+                                            fixedSeed)));
+                    firingTotal.weight(BigDecimal.ONE);
+                }
+                case IdentityPass(var fixedExternal, var fixedSeed, var fixedFirings, var fixedCounts, var variant) -> {
+                    externalTotal.level(fixedExternal);
+                    seedTotal.level(fixedSeed);
+                    firingTotal.level(fixedFirings);
+                    fixedCounts.forEach((fixedVariant, count) -> model
+                            .addExpression("fixed_firing_" + request.variants().indexOf(fixedVariant))
+                            .set(model.getVariable(this.firingIndexes.getInt(fixedVariant)), BigInteger.ONE)
+                            .level(count));
+                    BigInteger identityUpper = request.firingBounds().get(variant).upperOr(
+                            this.objectiveBounds.identityObjectiveUpperBound(
+                                    request,
+                                    fixedExternal,
+                                    fixedSeed,
+                                    fixedFirings,
+                                    fixedCounts,
+                                    variant));
+                    model.addExpression("identity_objective")
+                            .set(model.getVariable(this.firingIndexes.getInt(variant)), BigInteger.ONE)
+                            .upper(identityUpper)
+                            .weight(BigDecimal.ONE.negate());
+                }
+            }
+            return new ModelData(model, this);
+        }
+    }
+
+    private record ModelData(ExpressionsBasedModel model, OrdinaryModelTemplate template) {
 
         private SolvedModel decode(List<BigInteger> values) {
-            LinkedHashMap<Variable, BigInteger> byVariable = new LinkedHashMap<>();
-            for (int index = 0; index < variables.size(); index++) {
-                byVariable.put(variables.get(index), values.get(index));
-            }
-            LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
-            firingVariables.forEach((variant, variable) -> putPositive(firings, variant, byVariable.get(variable)));
-            return new SolvedModel(
-                    Collections.unmodifiableMap(firings),
-                    positiveAmounts(seedVariables, byVariable),
-                    positiveAmounts(externalVariables, byVariable));
+            Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> firings = new Object2ObjectLinkedOpenHashMap<>();
+            Object2IntMaps.fastForEach(this.template.firingIndexes(), entry -> putPositive(firings, entry.getKey(), values.get(entry.getIntValue())));
+            return new SolvedModel(Collections.unmodifiableMap(firings),
+                    positiveAmounts(this.template.seedIndexes(), values),
+                    positiveAmounts(this.template.externalIndexes(), values));
         }
 
-        private static Map<AEKey, BigInteger> positiveAmounts(
-                                                              Map<AEKey, Variable> variables,
-                                                              Map<Variable, BigInteger> values) {
-            LinkedHashMap<AEKey, BigInteger> positive = new LinkedHashMap<>();
-            variables.forEach((key, variable) -> putPositive(positive, key, values.get(variable)));
+        private static Map<AEKey, BigInteger> positiveAmounts(Object2IntMap<AEKey> indexes, List<BigInteger> values) {
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> positive = new Object2ObjectLinkedOpenHashMap<>();
+            Object2IntMaps.fastForEach(indexes, entry -> putPositive(positive, entry.getKey(), values.get(entry.getIntValue())));
             return Collections.unmodifiableMap(positive);
         }
 
         private static <K> void putPositive(Map<K, BigInteger> target, K key, BigInteger value) {
-            if (value.signum() > 0) {
-                target.put(key, value);
-            }
+            if (value.signum() > 0) target.put(key, value);
         }
     }
 
@@ -522,6 +674,8 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                                Map<TrinityPatternVariant, BigInteger> firings,
                                Map<AEKey, BigInteger> modelSeed,
                                Map<AEKey, BigInteger> externalInputs) {}
+
+    private record SolvedPass(SolvedModel model, boolean objectiveProved) {}
 
     private static final class SolverMetrics {
 

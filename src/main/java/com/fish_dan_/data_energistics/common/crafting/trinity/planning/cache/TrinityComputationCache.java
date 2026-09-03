@@ -45,25 +45,6 @@ public interface TrinityComputationCache extends AutoCloseable {
     }
 
     /**
-     * Reuses or starts one pure computation and returns an isolated caller wait handle.
-     *
-     * @param gridScope   immutable Grid publication scope
-     * @param namespace   computation namespace
-     * @param revision    publication revision, or {@link #SEMANTIC_REVISION} for semantic namespaces
-     * @param key         complete immutable semantic key
-     * @param calculation bottom-level pure calculation
-     * @param <K>         key type
-     * @param <V>         result type
-     * @return cache lookup and caller-owned future
-     */
-    <K, V> TrinityComputationLookup<V> compute(
-                                               long gridScope,
-                                               TrinityComputationNamespace namespace,
-                                               long revision,
-                                               K key,
-                                               Callable<TrinityCachedComputation<V>> calculation);
-
-    /**
      * Runs the cache-owning calculation on the current cache-managed worker. Concurrent callers may share one active
      * inline calculation, and completed results remain reusable. Subscriber tracking cancels the active calculation
      * once no request still needs it, without nested submission to the same bounded executor.
@@ -121,6 +102,26 @@ public interface TrinityComputationCache extends AutoCloseable {
                                                                       BooleanSupplier lifecycleActive,
                                                                       Callable<TrinityCachedComputation<V>> calculation)
                                                                                                                          throws InterruptedException, ExecutionException;
+
+    /**
+     * Reads one completed retained value without creating or joining an active computation.
+     */
+    <K, V> Optional<V> getIfPresent(
+                                    long gridScope,
+                                    TrinityComputationNamespace namespace,
+                                    long revision,
+                                    K key);
+
+    /**
+     * Atomically publishes one already verified immutable value when no retained or active entry owns the key.
+     *
+     */
+    <K, V> void publishIfAbsent(
+                                long gridScope,
+                                TrinityComputationNamespace namespace,
+                                long revision,
+                                K key,
+                                V value);
 
     /**
      * Submits one lifecycle-tracked orchestration task on the cache's default executor without registering it in the

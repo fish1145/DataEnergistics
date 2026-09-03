@@ -12,72 +12,72 @@
 	"slots": {
 		"DATA_ASYNCHRONOUS_FACTORY_INPUT_LEFT": {
 			"left": 8,
-			"top": 21,
+			"top": 18,
 			"grid": "BREAK_AFTER_3COLS"
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_INPUT_RIGHT": {
 			"left": 62,
-			"top": 21,
+			"top": 18,
 			"grid": "BREAK_AFTER_3COLS"
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_INPUT_END": {
 			"left": 116,
-			"top": 21,
+			"top": 18,
 			"grid": "VERTICAL"
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_FLUID_INPUT_LEFT": {
 			"left": 134,
-			"top": 21,
+			"top": 18,
 			"grid": "VERTICAL"
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_FLUID_INPUT_RIGHT": {
 			"left": 152,
-			"top": 21,
+			"top": 18,
 			"grid": "VERTICAL"
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_TOP": {
 			"left": 170,
-			"top": 21
+			"top": 18
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_MIDDLE": {
 			"left": 170,
-			"top": 39
+			"top": 36
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_KEY_INPUT_BOTTOM": {
 			"left": 170,
-			"top": 57
+			"top": 54
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_FLUID_OUTPUT_LEFT": {
 			"left": 134,
-			"top": 103,
+			"top": 100,
 			"grid": "VERTICAL"
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_FLUID_OUTPUT_RIGHT": {
 			"left": 152,
-			"top": 103,
+			"top": 100,
 			"grid": "VERTICAL"
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT_TOP": {
 			"left": 170,
-			"top": 103
+			"top": 100
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_KEY_OUTPUT_BOTTOM": {
 			"left": 170,
-			"top": 121
+			"top": 118
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_OUTPUT_LEFT": {
 			"left": 8,
-			"top": 103,
+			"top": 100,
 			"grid": "BREAK_AFTER_3COLS"
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_OUTPUT_RIGHT": {
 			"left": 62,
-			"top": 103,
+			"top": 100,
 			"grid": "BREAK_AFTER_3COLS"
 		},
 		"DATA_ASYNCHRONOUS_FACTORY_OUTPUT_END": {
 			"left": 116,
-			"top": 103,
+			"top": 100,
 			"grid": "VERTICAL"
 		},
 		"PLAYER_INVENTORY": {
@@ -125,15 +125,15 @@
 	"widgets": {
 		"progressBar": {
 			"left": 47,
-			"top": 77
+			"top": 74
 		},
 		"progressBarMiddle": {
 			"left": 101,
-			"top": 77
+			"top": 74
 		},
 		"progressBarRight": {
 			"left": 155,
-			"top": 77
+			"top": 74
 		},
 		"toolbox": {
 			"right": 2,

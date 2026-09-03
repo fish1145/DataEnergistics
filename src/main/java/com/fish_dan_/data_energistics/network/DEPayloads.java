@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.network.action.DataTeleportAnchorKnifeTele
 import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotBucketModePayload;
 import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotScrollPayload;
 import com.fish_dan_.data_energistics.network.action.MeVacuumLaunchPayload;
+import com.fish_dan_.data_energistics.network.crafting.tree.action.CraftingPlanTreeActionPayload;
+import com.fish_dan_.data_energistics.network.crafting.tree.protocol.CraftingPlanGraphPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlConsoleOpenPayload;
@@ -43,6 +45,8 @@ public final class DEPayloads {
 
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("6");
+        registrar.playToClient(CraftingPlanGraphPayload.TYPE, CraftingPlanGraphPayload.STREAM_CODEC, CraftingPlanGraphPayload::handle);
+        registrar.playToServer(CraftingPlanTreeActionPayload.TYPE, CraftingPlanTreeActionPayload.STREAM_CODEC, CraftingPlanTreeActionPayload::handle);
         registrar.playToServer(
                 PatternEncodingPreferencesSyncPayload.TYPE,
                 PatternEncodingPreferencesSyncPayload.STREAM_CODEC,

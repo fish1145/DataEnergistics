@@ -5,11 +5,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import org.ojalgo.optimisation.Variable;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -38,7 +38,7 @@ public record TrinityRadixBuiltModel(
      * Reconstructs all published logical values from solver digits using exact {@link BigInteger} arithmetic.
      */
     public TrinityRadixSolvedModel decode(Map<Variable, BigInteger> values) {
-        LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> firings = new Object2ObjectLinkedOpenHashMap<>();
         firingVariables.forEach((variant, variable) -> putPositive(firings, variant, variable.decode(values)));
         return new TrinityRadixSolvedModel(
                 Collections.unmodifiableMap(firings),
@@ -49,7 +49,7 @@ public record TrinityRadixBuiltModel(
     private static Map<AEKey, BigInteger> decodePositive(
                                                          Map<AEKey, TrinityRadixVariable> variables,
                                                          Map<Variable, BigInteger> values) {
-        LinkedHashMap<AEKey, BigInteger> decoded = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> decoded = new Object2ObjectLinkedOpenHashMap<>();
         variables.forEach((key, variable) -> putPositive(decoded, key, variable.decode(values)));
         return Collections.unmodifiableMap(decoded);
     }

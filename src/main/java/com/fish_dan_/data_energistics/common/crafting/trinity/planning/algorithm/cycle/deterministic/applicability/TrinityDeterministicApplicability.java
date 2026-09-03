@@ -3,11 +3,13 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.TrinityDeterministicCycleSequence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.support.TrinityDeterministicFiringMath;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.proof.TrinityCycleUnitProof;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.math.BigInteger;
 import java.util.LinkedHashMap;
@@ -32,9 +34,6 @@ public final class TrinityDeterministicApplicability {
     private final TrinityDeterministicCycleSequence cycleSequence;
 
     TrinityDeterministicApplicability(TrinityDeterministicCycleSequence cycleSequence) {
-        if (cycleSequence == null) {
-            throw new IllegalArgumentException("A deterministic applicability check requires a cycle resolver");
-        }
         this.cycleSequence = cycleSequence;
     }
 
@@ -46,9 +45,6 @@ public final class TrinityDeterministicApplicability {
                                                           TrinityCycleDemand demand,
                                                           AEKey reservoir,
                                                           Map<AEKey, BigInteger> available) {
-        if (component == null || demand == null || reservoir == null || available == null) {
-            throw new IllegalArgumentException("A deterministic applicability request is incomplete");
-        }
         Optional<List<TrinityVariantFiring>> primitive = this.cycleSequence.resolve(
                 component,
                 reservoir,
@@ -71,6 +67,35 @@ public final class TrinityDeterministicApplicability {
                 primitiveFirings,
                 primitiveNet,
                 topology.orElseThrow()));
+    }
+
+    /** Reuses a semantic unit proof while recomputing only its inventory-dependent order and prefix reserve. */
+    public TrinityDeterministicApplicabilityResult assess(
+                                                          TrinityStronglyConnectedComponent component,
+                                                          TrinityCycleDemand demand,
+                                                          TrinityCycleUnitProof unitProof,
+                                                          Map<AEKey, BigInteger> available) {
+        if (!component.keys().contains(unitProof.reservoir()) ||
+                !new ObjectOpenHashSet<>(unitProof.firings().keySet())
+                        .equals(new ObjectOpenHashSet<>(component.cycleVariants()))) {
+            return TrinityDeterministicApplicabilityResult.skip();
+        }
+        TrinityCycleUnitProof instantiated = unitProof.instantiate(available, component.keys());
+        LinkedHashMap<TrinityPatternVariant, BigInteger> firings = TrinityDeterministicFiringMath.aggregate(instantiated.order());
+        Map<AEKey, BigInteger> net = TrinityDeterministicFiringMath.netChange(firings);
+        if (!firings.equals(instantiated.firings()) || !net.equals(instantiated.netChange()) ||
+                !isProductiveBasis(component, demand, instantiated.reservoir(), net)) {
+            return TrinityDeterministicApplicabilityResult.skip();
+        }
+        Optional<TrinityDeterministicResidualTopology> topology = TrinityDeterministicResidualTopology.create(
+                component,
+                instantiated.reservoir());
+        return topology.map(value -> TrinityDeterministicApplicabilityResult.applicable(new TrinityDeterministicBasis(
+                instantiated.reservoir(),
+                instantiated.order(),
+                instantiated.firings(),
+                instantiated.netChange(),
+                value))).orElseGet(TrinityDeterministicApplicabilityResult::skip);
     }
 
     private static boolean isProductiveBasis(

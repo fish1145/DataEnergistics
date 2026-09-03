@@ -5,16 +5,32 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.dag.TrinityAcyclicPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityExactConservationVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.optimization.TrinityIntegerResultVerifier;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMaps;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+import it.unimi.dsi.fastutil.objects.ObjectSets;
 import org.ojalgo.optimisation.Expression;
 import org.ojalgo.optimisation.ExpressionsBasedModel;
 import org.ojalgo.optimisation.Optimisation;
@@ -22,13 +38,8 @@ import org.ojalgo.optimisation.Variable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,6 +92,7 @@ public final class TrinityAcyclicRouteOptimizer {
      * @param quantityMode    target inventory semantics
      * @param available       immutable inventory snapshot
      * @param maxSearchStates maximum sequential optimization passes
+     * @param mode            complete optimisation or first-feasible fallback
      * @param control         cooperative cancellation and deadline
      * @return exact executable aggregate plan or a stable fallback diagnostic
      */
@@ -90,14 +102,38 @@ public final class TrinityAcyclicRouteOptimizer {
                                                                AEKey target,
                                                                BigInteger requestedAmount,
                                                                CraftingQuantityMode quantityMode,
-                                                               Map<AEKey, BigInteger> available,
+                                                               TrinityPlanningInventory available,
                                                                int maxSearchStates,
+                                                               TrinityPlanningMode mode,
                                                                TrinityPlanningControl control) {
-        if (topology == null || variants == null || target == null || requestedAmount == null ||
-                requestedAmount.signum() <= 0 || quantityMode == null || available == null ||
-                maxSearchStates <= 0 || control == null) {
+        if (requestedAmount.signum() <= 0 || maxSearchStates <= 0) {
             throw new IllegalArgumentException("A Trinity acyclic route optimization requires complete inputs");
         }
+        return optimize(
+                topology,
+                variants,
+                target,
+                requestedAmount,
+                quantityMode,
+                available,
+                Set.of(),
+                maxSearchStates,
+                mode,
+                control);
+    }
+
+    /** Uses a quantity-free route hint only as an exactly revalidated incumbent. */
+    public TrinityAlgorithmResult<TrinityAcyclicPlan> optimize(
+                                                               TrinityCraftingTopology topology,
+                                                               List<TrinityPatternVariant> variants,
+                                                               AEKey target,
+                                                               BigInteger requestedAmount,
+                                                               CraftingQuantityMode quantityMode,
+                                                               TrinityPlanningInventory available,
+                                                               Set<TrinityPatternIdentity> routeHint,
+                                                               int maxSearchStates,
+                                                               TrinityPlanningMode mode,
+                                                               TrinityPlanningControl control) {
         List<TrinityPatternVariant> reachable = this.routePruner.retainExecutableTargetRoutes(
                 variants,
                 target,
@@ -105,9 +141,9 @@ public final class TrinityAcyclicRouteOptimizer {
         if (reachable.isEmpty()) {
             return insufficient(target, requestedAmount);
         }
-        Map<AEKey, BigInteger> inventory = copyAvailable(available);
+        TrinityPlanningInventory inventory = available;
         BigInteger requiredTargetNet = requiredTargetNet(target, requestedAmount, quantityMode, inventory);
-        SearchBudget budget = new SearchBudget(maxSearchStates);
+        SearchBudget budget = new SearchBudget(maxSearchStates, control);
         Optional<UniformBindingFamily> uniformBindings = UniformBindingFamily.tryCreate(reachable, target);
         if (uniformBindings.isPresent()) {
             return optimizeUniformBindings(
@@ -121,8 +157,72 @@ public final class TrinityAcyclicRouteOptimizer {
                     budget,
                     control);
         }
+        ModelRequest templateRequest = new ModelRequest(
+                reachable,
+                target,
+                requestedAmount,
+                requiredTargetNet,
+                quantityMode,
+                inventory,
+                FeasibilityPass.INSTANCE);
+        control.recordSolverModel();
+        AcyclicModelTemplate modelTemplate = createModelTemplate(templateRequest);
 
-        TrinityAlgorithmResult<SolvedModel> externalResult = solve(
+        TrinityAcyclicPlan hintedIncumbent = null;
+        if (!routeHint.isEmpty()) {
+            TrinityAlgorithmResult<SolvedPass> hinted = solve(
+                    new ModelRequest(
+                            reachable,
+                            target,
+                            requestedAmount,
+                            requiredTargetNet,
+                            quantityMode,
+                            inventory,
+                            new HintFeasibilityPass(routeHint)),
+                    budget,
+                    modelTemplate,
+                    control);
+            if (hinted.successful()) {
+                TrinityAlgorithmResult<TrinityAcyclicPlan> built = buildQualifiedPlan(
+                        topology,
+                        hinted.value().model(),
+                        budget.used(),
+                        TrinityPlanQuality.VERIFIED_FEASIBLE);
+                if (built.successful()) {
+                    hintedIncumbent = built.value();
+                }
+            } else if (hinted.diagnostic().code() == TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED) {
+                return TrinityAlgorithmResult.failure(hinted.diagnostic());
+            }
+        }
+
+        if (mode == TrinityPlanningMode.FIRST_FEASIBLE) {
+            if (hintedIncumbent != null) {
+                return TrinityAlgorithmResult.success(hintedIncumbent);
+            }
+            TrinityAlgorithmResult<SolvedPass> feasible = solve(
+                    new ModelRequest(
+                            reachable,
+                            target,
+                            requestedAmount,
+                            requiredTargetNet,
+                            quantityMode,
+                            inventory,
+                            FeasibilityPass.INSTANCE),
+                    budget,
+                    modelTemplate,
+                    control);
+            if (!feasible.successful()) {
+                return TrinityAlgorithmResult.failure(feasible.diagnostic());
+            }
+            return buildQualifiedPlan(
+                    topology,
+                    feasible.value().model(),
+                    budget.used(),
+                    TrinityPlanQuality.VERIFIED_FEASIBLE);
+        }
+
+        TrinityAlgorithmResult<SolvedPass> externalResult = solve(
                 new ModelRequest(
                         reachable,
                         target,
@@ -132,13 +232,28 @@ public final class TrinityAcyclicRouteOptimizer {
                         inventory,
                         ExternalPass.INSTANCE),
                 budget,
+                modelTemplate,
                 control);
         if (!externalResult.successful()) {
-            return TrinityAlgorithmResult.failure(externalResult.diagnostic());
+            return hintedIncumbent == null ?
+                    TrinityAlgorithmResult.failure(externalResult.diagnostic()) :
+                    recoverIncumbent(hintedIncumbent, externalResult.diagnostic());
         }
-        BigInteger optimalExternal = sum(externalResult.value().reserves());
+        TrinityAlgorithmResult<TrinityAcyclicPlan> externalPlan = buildQualifiedPlan(
+                topology,
+                externalResult.value().model(),
+                budget.used(),
+                TrinityPlanQuality.VERIFIED_FEASIBLE);
+        if (!externalPlan.successful()) {
+            return externalPlan;
+        }
+        TrinityAcyclicPlan incumbent = externalPlan.value();
+        if (!externalResult.value().objectiveProved()) {
+            return TrinityAlgorithmResult.success(incumbent);
+        }
+        BigInteger optimalExternal = sum(externalResult.value().model().reserves());
 
-        TrinityAlgorithmResult<SolvedModel> firingResult = solve(
+        TrinityAlgorithmResult<SolvedPass> firingResult = solve(
                 new ModelRequest(
                         reachable,
                         target,
@@ -148,15 +263,27 @@ public final class TrinityAcyclicRouteOptimizer {
                         inventory,
                         new FiringPass(optimalExternal)),
                 budget,
+                modelTemplate,
                 control);
         if (!firingResult.successful()) {
-            return TrinityAlgorithmResult.failure(firingResult.diagnostic());
+            return recoverIncumbent(incumbent, firingResult.diagnostic());
         }
-        BigInteger optimalFirings = sum(firingResult.value().firings());
-        SolvedModel selected = firingResult.value();
-        LinkedHashMap<TrinityPatternVariant, BigInteger> fixedPrefix = new LinkedHashMap<>();
+        TrinityAlgorithmResult<TrinityAcyclicPlan> firingPlan = buildQualifiedPlan(
+                topology,
+                firingResult.value().model(),
+                budget.used(),
+                TrinityPlanQuality.VERIFIED_FEASIBLE);
+        if (firingPlan.successful()) {
+            incumbent = firingPlan.value();
+        }
+        if (!firingResult.value().objectiveProved()) {
+            return firingPlan.successful() ? firingPlan : TrinityAlgorithmResult.failure(firingPlan.diagnostic());
+        }
+        BigInteger optimalFirings = sum(firingResult.value().model().firings());
+        SolvedModel selected = firingResult.value().model();
+        Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> fixedPrefix = new Object2ObjectLinkedOpenHashMap<>();
         Map<AEKey, BigInteger> sourceCapacity = sourceCapacity(reachable, inventory);
-        LinkedHashMap<AEKey, BigInteger> fixedSourceConsumption = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> fixedSourceConsumption = new Object2ObjectLinkedOpenHashMap<>();
         BigInteger remainingFirings = optimalFirings;
         for (int index = 0; index < reachable.size() - 1; index++) {
             TrinityPatternVariant preferred = reachable.get(index);
@@ -170,7 +297,7 @@ public final class TrinityAcyclicRouteOptimizer {
                     sourceCapacity,
                     fixedSourceConsumption);
             if (!preferredCount.equals(provenUpper)) {
-                TrinityAlgorithmResult<SolvedModel> identityResult = solve(
+                TrinityAlgorithmResult<SolvedPass> identityResult = solve(
                         new ModelRequest(
                                 reachable,
                                 target,
@@ -181,21 +308,37 @@ public final class TrinityAcyclicRouteOptimizer {
                                 new IdentityPass(
                                         optimalExternal,
                                         optimalFirings,
-                                        Collections.unmodifiableMap(new LinkedHashMap<>(fixedPrefix)),
+                                        Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(fixedPrefix)),
                                         preferred)),
                         budget,
+                        modelTemplate,
                         control);
                 if (!identityResult.successful()) {
-                    return TrinityAlgorithmResult.failure(identityResult.diagnostic());
+                    return recoverIncumbent(incumbent, identityResult.diagnostic());
                 }
-                selected = identityResult.value();
+                selected = identityResult.value().model();
+                TrinityAlgorithmResult<TrinityAcyclicPlan> identityPlan = buildQualifiedPlan(
+                        topology,
+                        selected,
+                        budget.used(),
+                        TrinityPlanQuality.VERIFIED_FEASIBLE);
+                if (identityPlan.successful()) {
+                    incumbent = identityPlan.value();
+                }
+                if (!identityResult.value().objectiveProved()) {
+                    return identityPlan.successful() ? identityPlan : TrinityAlgorithmResult.failure(identityPlan.diagnostic());
+                }
                 preferredCount = selected.firings().getOrDefault(preferred, BigInteger.ZERO);
             }
             fixedPrefix.put(preferred, preferredCount);
             remainingFirings = remainingFirings.subtract(preferredCount);
             mergeSourceConsumption(fixedSourceConsumption, preferred, preferredCount, sourceCapacity.keySet());
         }
-        return buildPlan(topology, selected, budget.used());
+        return buildQualifiedPlan(
+                topology,
+                selected,
+                budget.used(),
+                TrinityPlanQuality.PROVED_OPTIMAL);
     }
 
     /**
@@ -217,24 +360,23 @@ public final class TrinityAcyclicRouteOptimizer {
                                                                      AEKey target,
                                                                      BigInteger requestedAmount,
                                                                      CraftingQuantityMode quantityMode,
-                                                                     Map<AEKey, BigInteger> available,
+                                                                     TrinityPlanningInventory available,
                                                                      int maxSearchStates,
                                                                      TrinityPlanningControl control) {
-        if (variants == null || target == null || requestedAmount == null || requestedAmount.signum() <= 0 ||
-                quantityMode == null || available == null || maxSearchStates <= 0 || control == null) {
+        if (requestedAmount.signum() <= 0 || maxSearchStates <= 0) {
             throw new IllegalArgumentException("A Trinity acyclic shortage diagnosis requires complete inputs");
         }
         List<TrinityPatternVariant> reachable = targetReachableVariants(variants, target);
         if (reachable.isEmpty()) {
             return insufficient(target, requestedAmount);
         }
-        Map<AEKey, BigInteger> inventory = copyAvailable(available);
-        Set<AEKey> sourceKeys = externalSourceKeys(reachable);
+        TrinityPlanningInventory inventory = available;
+        Set<AEKey> sourceKeys = externalSourceKeys(reachable, inventory);
         if (sourceKeys.isEmpty()) {
             return insufficient(target, requestedAmount);
         }
         BigInteger requiredTargetNet = requiredTargetNet(target, requestedAmount, quantityMode, inventory);
-        SearchBudget budget = new SearchBudget(maxSearchStates);
+        SearchBudget budget = new SearchBudget(maxSearchStates, control);
 
         TrinityAlgorithmResult<DiagnosticSolvedModel> missingResult = solveDiagnostic(
                 new DiagnosticModelRequest(
@@ -256,7 +398,7 @@ public final class TrinityAcyclicRouteOptimizer {
         }
         DiagnosticSolvedModel selected = missingResult.value();
 
-        LinkedHashMap<AEKey, InputRequirement> requirements = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, InputRequirement> requirements = new Object2ObjectLinkedOpenHashMap<>();
         for (AEKey sourceKey : sourceKeys) {
             BigInteger allocated = selected.actualReserves().getOrDefault(sourceKey, BigInteger.ZERO);
             BigInteger missing = selected.missing().getOrDefault(sourceKey, BigInteger.ZERO);
@@ -289,14 +431,14 @@ public final class TrinityAcyclicRouteOptimizer {
                                                                                BigInteger requestedAmount,
                                                                                BigInteger requiredTargetNet,
                                                                                CraftingQuantityMode quantityMode,
-                                                                               Map<AEKey, BigInteger> available,
+                                                                               TrinityPlanningInventory available,
                                                                                SearchBudget budget,
                                                                                TrinityPlanningControl control) {
         BigInteger requiredFirings = ceilDivide(requiredTargetNet, family.outputPerFiring());
         BigInteger remainingFirings = requiredFirings;
-        LinkedHashMap<AEKey, BigInteger> remainingInventory = new LinkedHashMap<>(available);
-        LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
-        LinkedHashMap<AEKey, BigInteger> reserves = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> remainingInventory = new Object2ObjectLinkedOpenHashMap<>(available.finiteAmounts());
+        Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> firings = new Object2ObjectLinkedOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> reserves = new Object2ObjectLinkedOpenHashMap<>();
         BigInteger targetReserve = targetReserve(target, requestedAmount, quantityMode, available);
         if (targetReserve.signum() > 0) {
             reserves.put(target, targetReserve);
@@ -323,13 +465,18 @@ public final class TrinityAcyclicRouteOptimizer {
             }
 
             Map.Entry<AEKey, BigInteger> input = variant.inputs().entrySet().iterator().next();
-            BigInteger availableInput = remainingInventory.getOrDefault(input.getKey(), BigInteger.ZERO);
+            boolean unlimited = available.unlimited(input.getKey());
+            BigInteger availableInput = unlimited ?
+                    family.inputPerFiring().multiply(remainingFirings) :
+                    remainingInventory.getOrDefault(input.getKey(), BigInteger.ZERO);
             BigInteger selectedFirings = remainingFirings.min(availableInput.divide(family.inputPerFiring()));
             if (selectedFirings.signum() > 0) {
                 BigInteger consumed = family.inputPerFiring().multiply(selectedFirings);
                 firings.put(variant, selectedFirings);
                 reserves.merge(input.getKey(), consumed, BigInteger::add);
-                remainingInventory.put(input.getKey(), availableInput.subtract(consumed));
+                if (!unlimited) {
+                    remainingInventory.put(input.getKey(), availableInput.subtract(consumed));
+                }
                 remainingFirings = remainingFirings.subtract(selectedFirings);
             }
             if (remainingFirings.signum() == 0) {
@@ -354,8 +501,8 @@ public final class TrinityAcyclicRouteOptimizer {
                 available,
                 ExternalPass.INSTANCE);
         SolvedModel selected = new SolvedModel(
-                Collections.unmodifiableMap(new LinkedHashMap<>(firings)),
-                Collections.unmodifiableMap(new LinkedHashMap<>(reserves)),
+                Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(firings)),
+                Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(reserves)),
                 Map.of());
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = verify(verificationRequest, selected);
         if (!exact.successful()) {
@@ -367,10 +514,11 @@ public final class TrinityAcyclicRouteOptimizer {
                 budget.used());
     }
 
-    private TrinityAlgorithmResult<SolvedModel> solve(
-                                                      ModelRequest request,
-                                                      SearchBudget budget,
-                                                      TrinityPlanningControl control) {
+    private TrinityAlgorithmResult<SolvedPass> solve(
+                                                     ModelRequest request,
+                                                     SearchBudget budget,
+                                                     AcyclicModelTemplate modelTemplate,
+                                                     TrinityPlanningControl control) {
         if (control.cancellationRequested()) {
             return failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -390,11 +538,13 @@ public final class TrinityAcyclicRouteOptimizer {
                     Map.of("states", Integer.toString(budget.used())));
         }
 
-        ModelData data = createModel(request);
+        ModelData data = modelTemplate.forPass(request.pass());
         configureDeadline(data.model(), control);
+        long startedNanos = System.nanoTime();
         Optimisation.Result result = request.pass() instanceof IdentityPass ?
                 data.model().maximise() :
                 data.model().minimise();
+        control.recordSolverPass(Math.max(0L, System.nanoTime() - startedNanos));
 
         if (control.cancellationRequested()) {
             return failure(
@@ -402,8 +552,9 @@ public final class TrinityAcyclicRouteOptimizer {
                     CANCELLED_KEY,
                     Map.of("states", Integer.toString(budget.used())));
         }
-        if (!result.getState().isOptimal()) {
-            if (control.deadlineExceeded() || result.getState().isFeasible()) {
+        boolean objectiveProved = result.getState().isOptimal();
+        if (!objectiveProved && !result.getState().isFeasible()) {
+            if (control.deadlineExceeded()) {
                 return failure(
                         TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
                         TIMEOUT_KEY,
@@ -421,7 +572,7 @@ public final class TrinityAcyclicRouteOptimizer {
                     Map.of("state", result.getState().name()));
         }
 
-        ArrayList<BigDecimal> values = new ArrayList<>(data.variables().size());
+        ObjectArrayList<BigDecimal> values = new ObjectArrayList<>(data.variables().size());
         for (Variable variable : data.variables()) {
             values.add(result.get(data.model().indexOf(variable)));
         }
@@ -439,10 +590,33 @@ public final class TrinityAcyclicRouteOptimizer {
         if (!exact.successful()) {
             return TrinityAlgorithmResult.failure(exact.diagnostic());
         }
-        return TrinityAlgorithmResult.success(new SolvedModel(
-                solved.firings(),
-                solved.reserves(),
-                exact.value()));
+        return TrinityAlgorithmResult.success(new SolvedPass(
+                new SolvedModel(
+                        solved.firings(),
+                        solved.reserves(),
+                        exact.value()),
+                objectiveProved));
+    }
+
+    private TrinityAlgorithmResult<TrinityAcyclicPlan> buildQualifiedPlan(
+                                                                          TrinityCraftingTopology topology,
+                                                                          SolvedModel solved,
+                                                                          int states,
+                                                                          TrinityPlanQuality quality) {
+        TrinityAlgorithmResult<TrinityAcyclicPlan> built = buildPlan(topology, solved, states);
+        return built.successful() ?
+                TrinityAlgorithmResult.success(built.value().withQuality(quality)) :
+                built;
+    }
+
+    private static TrinityAlgorithmResult<TrinityAcyclicPlan> recoverIncumbent(
+                                                                               TrinityAcyclicPlan incumbent,
+                                                                               TrinityPlanningDiagnostic diagnostic) {
+        TrinityPlanningDiagnosticCode code = diagnostic.code();
+        return code == TrinityPlanningDiagnosticCode.MIP_TIMEOUT ||
+                code == TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT ?
+                        TrinityAlgorithmResult.success(incumbent) :
+                        TrinityAlgorithmResult.failure(diagnostic);
     }
 
     private TrinityAlgorithmResult<DiagnosticSolvedModel> solveDiagnostic(
@@ -468,9 +642,12 @@ public final class TrinityAcyclicRouteOptimizer {
                     Map.of("states", Integer.toString(budget.used())));
         }
 
+        control.recordSolverModel();
         DiagnosticModelData data = createDiagnosticModel(request);
         configureDeadline(data.model(), control);
+        long startedNanos = System.nanoTime();
         Optimisation.Result result = data.model().minimise();
+        control.recordSolverPass(Math.max(0L, System.nanoTime() - startedNanos));
         if (control.cancellationRequested()) {
             return failure(
                     TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
@@ -496,7 +673,7 @@ public final class TrinityAcyclicRouteOptimizer {
                     Map.of("state", result.getState().name()));
         }
 
-        ArrayList<BigDecimal> values = new ArrayList<>(data.variables().size());
+        ObjectArrayList<BigDecimal> values = new ObjectArrayList<>(data.variables().size());
         for (Variable variable : data.variables()) {
             values.add(result.get(data.model().indexOf(variable)));
         }
@@ -530,7 +707,7 @@ public final class TrinityAcyclicRouteOptimizer {
             BigInteger upper = request.quantityMode() == CraftingQuantityMode.NET_NEW &&
                     reserve.getKey().equals(request.target()) ?
                             BigInteger.ZERO :
-                            request.available().getOrDefault(reserve.getKey(), BigInteger.ZERO);
+                            request.available().availableUpTo(reserve.getKey(), reserve.getValue());
             if (reserve.getValue().compareTo(upper) > 0) {
                 return inexact("actual_reserve_upper", reserve.getKey() + ":" + reserve.getValue() + ">" + upper);
             }
@@ -541,24 +718,25 @@ public final class TrinityAcyclicRouteOptimizer {
             }
         }
 
-        LinkedHashMap<AEKey, BigInteger> diagnosticReserves = new LinkedHashMap<>(solved.actualReserves());
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> diagnosticReserves = new Object2ObjectLinkedOpenHashMap<>(solved.actualReserves());
         solved.missing().forEach((key, amount) -> diagnosticReserves.merge(key, amount, BigInteger::add));
-        LinkedHashMap<AEKey, BigInteger> upperBounds = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> upperBounds = new Object2ObjectLinkedOpenHashMap<>();
         touchedKeys(request.variants(), request.target()).forEach(key -> upperBounds.put(
                 key,
                 request.sourceKeys().contains(key) ?
                         diagnosticReserves.getOrDefault(key, BigInteger.ZERO) :
                         request.quantityMode() == CraftingQuantityMode.NET_NEW && key.equals(request.target()) ?
                                 BigInteger.ZERO :
-                                request.available().getOrDefault(key, BigInteger.ZERO)));
+                                request.available().availableUpTo(
+                                        key,
+                                        solved.actualReserves().getOrDefault(key, BigInteger.ZERO))));
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = this.conservationVerifier.verify(
                 request.variants(),
                 solved.firings(),
                 diagnosticReserves,
                 upperBounds,
                 Map.of(request.target(), request.requestedAmount()),
-                request.target(),
-                request.requiredTargetNet());
+                Map.of(request.target(), request.requiredTargetNet()));
         if (!exact.successful()) {
             return TrinityAlgorithmResult.failure(exact.diagnostic());
         }
@@ -581,20 +759,21 @@ public final class TrinityAcyclicRouteOptimizer {
         if (actualTargetReserve.compareTo(expectedTargetReserve) != 0) {
             return inexact("target_reserve", actualTargetReserve + "!=" + expectedTargetReserve);
         }
-        LinkedHashMap<AEKey, BigInteger> upperBounds = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> upperBounds = new Object2ObjectLinkedOpenHashMap<>();
         touchedKeys(request.variants(), request.target()).forEach(key -> upperBounds.put(
                 key,
                 request.quantityMode() == CraftingQuantityMode.NET_NEW && key.equals(request.target()) ?
                         BigInteger.ZERO :
-                        request.available().getOrDefault(key, BigInteger.ZERO)));
+                        request.available().availableUpTo(
+                                key,
+                                solved.reserves().getOrDefault(key, BigInteger.ZERO))));
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = this.conservationVerifier.verify(
                 request.variants(),
                 solved.firings(),
                 solved.reserves(),
                 upperBounds,
                 Map.of(request.target(), request.requestedAmount()),
-                request.target(),
-                request.requiredTargetNet());
+                Map.of(request.target(), request.requiredTargetNet()));
         if (!exact.successful()) {
             return exact;
         }
@@ -635,22 +814,20 @@ public final class TrinityAcyclicRouteOptimizer {
         model.options.time_suffice = remainingMillis;
     }
 
-    private static ModelData createModel(ModelRequest request) {
+    private static AcyclicModelTemplate createModelTemplate(ModelRequest request) {
         ExpressionsBasedModel model = new ExpressionsBasedModel();
-        ArrayList<Variable> variables = new ArrayList<>();
-        LinkedHashMap<TrinityPatternVariant, Variable> firingVariables = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, Variable> firingVariables = new Object2ObjectLinkedOpenHashMap<>();
         for (int index = 0; index < request.variants().size(); index++) {
             Variable variable = model.addVariable("firing_" + index)
                     .integer()
                     .lower(BigInteger.ZERO);
             firingVariables.put(request.variants().get(index), variable);
-            variables.add(variable);
         }
 
-        LinkedHashMap<AEKey, Variable> reserveVariables = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, Variable> reserveVariables = new Object2ObjectLinkedOpenHashMap<>();
         int reserveIndex = 0;
         for (AEKey key : touchedKeys(request.variants(), request.target())) {
-            BigInteger upper = request.available().getOrDefault(key, BigInteger.ZERO);
+            BigInteger upper = request.available().finiteAmount(key);
             Variable variable = model.addVariable("reserve_" + reserveIndex++)
                     .integer()
                     .lower(BigInteger.ZERO);
@@ -661,11 +838,10 @@ public final class TrinityAcyclicRouteOptimizer {
                         request.quantityMode(),
                         request.available());
                 variable.level(targetReserve);
-            } else {
+            } else if (!request.available().unlimited(key)) {
                 variable.upper(upper);
             }
             reserveVariables.put(key, variable);
-            variables.add(variable);
         }
 
         int conservationIndex = 0;
@@ -693,26 +869,23 @@ public final class TrinityAcyclicRouteOptimizer {
 
         Expression externalTotal = expression(model, "external_total", reserveVariables.values());
         Expression firingTotal = expression(model, "firing_total", firingVariables.values());
-        if (request.pass() instanceof ExternalPass) {
-            externalTotal.weight(BigDecimal.ONE);
-        } else if (request.pass() instanceof FiringPass pass) {
-            externalTotal.level(pass.fixedExternal());
-            firingTotal.weight(BigDecimal.ONE);
-        } else if (request.pass() instanceof IdentityPass pass) {
-            externalTotal.level(pass.fixedExternal());
-            firingTotal.level(pass.fixedFirings());
-            pass.fixedPrefix().forEach((variant, value) -> firingVariables.get(variant).level(value));
-            firingVariables.get(pass.preferred()).weight(BigDecimal.ONE);
-        } else {
-            throw new IllegalStateException("Unknown Trinity acyclic optimization pass");
-        }
-        return new ModelData(model, List.copyOf(variables), firingVariables, reserveVariables);
+        Object2IntMap<TrinityPatternVariant> firingIndexes = new Object2IntLinkedOpenHashMap<>();
+        firingIndexes.defaultReturnValue(-1);
+        firingVariables.forEach((variant, variable) -> firingIndexes.put(variant, model.indexOf(variable)));
+        Object2IntMap<AEKey> reserveIndexes = new Object2IntLinkedOpenHashMap<>();
+        reserveIndexes.defaultReturnValue(-1);
+        reserveVariables.forEach((key, variable) -> reserveIndexes.put(key, model.indexOf(variable)));
+        return new AcyclicModelTemplate(
+                model,
+                model.countVariables(),
+                Object2IntMaps.unmodifiable(firingIndexes),
+                Object2IntMaps.unmodifiable(reserveIndexes));
     }
 
     private static DiagnosticModelData createDiagnosticModel(DiagnosticModelRequest request) {
         ExpressionsBasedModel model = new ExpressionsBasedModel();
-        ArrayList<Variable> variables = new ArrayList<>();
-        LinkedHashMap<TrinityPatternVariant, Variable> firingVariables = new LinkedHashMap<>();
+        ObjectArrayList<Variable> variables = new ObjectArrayList<>();
+        Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, Variable> firingVariables = new Object2ObjectLinkedOpenHashMap<>();
         for (int index = 0; index < request.variants().size(); index++) {
             Variable variable = model.addVariable("firing_" + index)
                     .integer()
@@ -721,7 +894,7 @@ public final class TrinityAcyclicRouteOptimizer {
             variables.add(variable);
         }
 
-        LinkedHashMap<AEKey, Variable> reserveVariables = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, Variable> reserveVariables = new Object2ObjectLinkedOpenHashMap<>();
         int reserveIndex = 0;
         for (AEKey key : touchedKeys(request.variants(), request.target())) {
             Variable variable = model.addVariable("reserve_" + reserveIndex++)
@@ -733,14 +906,14 @@ public final class TrinityAcyclicRouteOptimizer {
                         request.requestedAmount(),
                         request.quantityMode(),
                         request.available()));
-            } else {
-                variable.upper(request.available().getOrDefault(key, BigInteger.ZERO));
+            } else if (!request.available().unlimited(key)) {
+                variable.upper(request.available().finiteAmount(key));
             }
             reserveVariables.put(key, variable);
             variables.add(variable);
         }
 
-        LinkedHashMap<AEKey, Variable> missingVariables = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, Variable> missingVariables = new Object2ObjectLinkedOpenHashMap<>();
         int missingIndex = 0;
         for (AEKey sourceKey : request.sourceKeys()) {
             Variable variable = model.addVariable("missing_" + missingIndex++)
@@ -800,8 +973,8 @@ public final class TrinityAcyclicRouteOptimizer {
                                                                         TrinityCraftingTopology topology,
                                                                         SolvedModel solved,
                                                                         int states) {
-        Map<Integer, Integer> positions = topologicalPositions(topology);
-        ArrayList<TrinityVariantFiring> executionOrder = new ArrayList<>();
+        Int2IntMap positions = topologicalPositions(topology);
+        ObjectArrayList<TrinityVariantFiring> executionOrder = new ObjectArrayList<>();
         solved.firings().entrySet().stream()
                 .sorted(Comparator
                         .comparingInt((Map.Entry<TrinityPatternVariant, BigInteger> entry) -> producerPosition(
@@ -810,7 +983,7 @@ public final class TrinityAcyclicRouteOptimizer {
                                 entry.getKey()))
                         .thenComparing(Map.Entry::getKey))
                 .forEach(entry -> executionOrder.add(new TrinityVariantFiring(entry.getKey(), entry.getValue())));
-        LinkedHashMap<TrinityPatternVariant, BigInteger> orderedFirings = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> orderedFirings = new Object2ObjectLinkedOpenHashMap<>();
         executionOrder.forEach(firing -> orderedFirings.put(firing.variant(), firing.count()));
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> executable = verifyExecutionPrefix(
                 executionOrder,
@@ -823,43 +996,38 @@ public final class TrinityAcyclicRouteOptimizer {
                 orderedFirings,
                 solved.reserves(),
                 solved.netChange(),
-                states));
+                states,
+                TrinityPlanQuality.PROVED_OPTIMAL));
     }
 
     private static Set<AEKey> touchedKeys(List<TrinityPatternVariant> variants, AEKey target) {
-        LinkedHashSet<AEKey> keys = new LinkedHashSet<>();
+        ObjectLinkedOpenHashSet<AEKey> keys = new ObjectLinkedOpenHashSet<>();
         keys.add(target);
         variants.forEach(variant -> {
             keys.addAll(variant.inputs().keySet());
             keys.addAll(variant.outputs().keySet());
         });
-        return Collections.unmodifiableSet(keys);
+        return ObjectSets.unmodifiable(keys);
     }
 
     private static List<TrinityPatternVariant> targetReachableVariants(
                                                                        List<TrinityPatternVariant> variants,
                                                                        AEKey target) {
-        ArrayList<TrinityPatternVariant> ordered = new ArrayList<>(variants.size());
-        for (TrinityPatternVariant variant : variants) {
-            if (variant == null) {
-                throw new IllegalArgumentException("A Trinity acyclic graph cannot contain a null variant");
-            }
-            ordered.add(variant);
-        }
+        ObjectArrayList<TrinityPatternVariant> ordered = new ObjectArrayList<>(variants);
         ordered.sort(Comparator.naturalOrder());
-        HashMap<AEKey, ArrayList<TrinityPatternVariant>> producersByOutput = new HashMap<>();
+        Object2ObjectOpenHashMap<AEKey, ObjectArrayList<TrinityPatternVariant>> producersByOutput = new Object2ObjectOpenHashMap<>();
         for (TrinityPatternVariant variant : ordered) {
             variant.outputs().keySet().forEach(output -> producersByOutput
-                    .computeIfAbsent(output, ignored -> new ArrayList<>())
+                    .computeIfAbsent(output, ignored -> new ObjectArrayList<>())
                     .add(variant));
         }
 
-        ArrayDeque<AEKey> pending = new ArrayDeque<>();
-        LinkedHashSet<AEKey> visitedKeys = new LinkedHashSet<>();
-        LinkedHashSet<TrinityPatternVariant> reachable = new LinkedHashSet<>();
-        pending.add(target);
+        ObjectArrayFIFOQueue<AEKey> pending = new ObjectArrayFIFOQueue<>();
+        ObjectLinkedOpenHashSet<AEKey> visitedKeys = new ObjectLinkedOpenHashSet<>();
+        ObjectLinkedOpenHashSet<TrinityPatternVariant> reachable = new ObjectLinkedOpenHashSet<>();
+        pending.enqueue(target);
         while (!pending.isEmpty()) {
-            AEKey required = pending.removeFirst();
+            AEKey required = pending.dequeue();
             if (!visitedKeys.add(required)) {
                 continue;
             }
@@ -869,34 +1037,36 @@ public final class TrinityAcyclicRouteOptimizer {
             }
             for (TrinityPatternVariant producer : producers) {
                 if (reachable.add(producer)) {
-                    pending.addAll(producer.inputs().keySet());
+                    producer.inputs().keySet().forEach(pending::enqueue);
                 }
             }
         }
-        ArrayList<TrinityPatternVariant> result = new ArrayList<>(reachable);
+        ObjectArrayList<TrinityPatternVariant> result = new ObjectArrayList<>(reachable);
         result.sort(Comparator.naturalOrder());
-        return Collections.unmodifiableList(result);
+        return ObjectLists.unmodifiable(result);
     }
 
-    private static Set<AEKey> externalSourceKeys(List<TrinityPatternVariant> variants) {
-        LinkedHashSet<AEKey> produced = new LinkedHashSet<>();
+    private static Set<AEKey> externalSourceKeys(
+                                                 List<TrinityPatternVariant> variants,
+                                                 TrinityPlanningInventory inventory) {
+        ObjectLinkedOpenHashSet<AEKey> produced = new ObjectLinkedOpenHashSet<>();
         variants.forEach(variant -> produced.addAll(variant.outputs().keySet()));
-        LinkedHashSet<AEKey> sourceKeys = new LinkedHashSet<>();
+        ObjectLinkedOpenHashSet<AEKey> sourceKeys = new ObjectLinkedOpenHashSet<>();
         variants.forEach(variant -> variant.inputs().keySet().stream()
-                .filter(key -> !produced.contains(key))
+                .filter(key -> !produced.contains(key) && !inventory.unlimited(key))
                 .forEach(sourceKeys::add));
-        return Collections.unmodifiableSet(sourceKeys);
+        return ObjectSets.unmodifiable(sourceKeys);
     }
 
     private static Map<AEKey, BigInteger> sourceCapacity(
                                                          List<TrinityPatternVariant> variants,
-                                                         Map<AEKey, BigInteger> available) {
-        LinkedHashSet<AEKey> produced = new LinkedHashSet<>();
+                                                         TrinityPlanningInventory available) {
+        ObjectLinkedOpenHashSet<AEKey> produced = new ObjectLinkedOpenHashSet<>();
         variants.forEach(variant -> produced.addAll(variant.outputs().keySet()));
-        LinkedHashMap<AEKey, BigInteger> capacity = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> capacity = new Object2ObjectLinkedOpenHashMap<>();
         variants.forEach(variant -> variant.inputs().keySet().stream()
-                .filter(key -> !produced.contains(key))
-                .forEach(key -> capacity.putIfAbsent(key, available.getOrDefault(key, BigInteger.ZERO))));
+                .filter(key -> !produced.contains(key) && !available.unlimited(key))
+                .forEach(key -> capacity.putIfAbsent(key, available.finiteAmount(key))));
         return Collections.unmodifiableMap(capacity);
     }
 
@@ -933,28 +1103,15 @@ public final class TrinityAcyclicRouteOptimizer {
         });
     }
 
-    private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
-        source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() < 0) {
-                throw new IllegalArgumentException("Trinity acyclic inventory cannot be negative or null");
-            }
-            if (amount.signum() > 0) {
-                copied.put(key, amount);
-            }
-        });
-        return Collections.unmodifiableMap(copied);
-    }
-
     private static BigInteger requiredTargetNet(AEKey target,
                                                 BigInteger requestedAmount,
                                                 CraftingQuantityMode quantityMode,
-                                                Map<AEKey, BigInteger> available) {
+                                                TrinityPlanningInventory available) {
         if (quantityMode == CraftingQuantityMode.NET_NEW) {
             return requestedAmount;
         }
         return requestedAmount
-                .subtract(available.getOrDefault(target, BigInteger.ZERO))
+                .subtract(available.availableUpTo(target, requestedAmount))
                 .max(BigInteger.ZERO)
                 .max(BigInteger.ONE);
     }
@@ -962,16 +1119,16 @@ public final class TrinityAcyclicRouteOptimizer {
     private static BigInteger targetReserve(AEKey target,
                                             BigInteger requestedAmount,
                                             CraftingQuantityMode quantityMode,
-                                            Map<AEKey, BigInteger> available) {
+                                            TrinityPlanningInventory available) {
         return quantityMode == CraftingQuantityMode.NET_NEW ?
                 BigInteger.ZERO :
-                requestedAmount.min(available.getOrDefault(target, BigInteger.ZERO));
+                available.availableUpTo(target, requestedAmount);
     }
 
     private static TrinityAlgorithmResult<Map<AEKey, BigInteger>> verifyExecutionPrefix(
                                                                                         List<TrinityVariantFiring> executionOrder,
                                                                                         Map<AEKey, BigInteger> reserves) {
-        LinkedHashMap<AEKey, BigInteger> balance = new LinkedHashMap<>(reserves);
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> balance = new Object2ObjectLinkedOpenHashMap<>(reserves);
         for (TrinityVariantFiring firing : executionOrder) {
             for (Map.Entry<AEKey, BigInteger> input : firing.variant().inputs().entrySet()) {
                 BigInteger required = input.getValue().multiply(firing.count());
@@ -997,12 +1154,12 @@ public final class TrinityAcyclicRouteOptimizer {
     }
 
     private static int producerPosition(TrinityCraftingTopology topology,
-                                        Map<Integer, Integer> positions,
+                                        Int2IntMap positions,
                                         TrinityPatternVariant variant) {
         int earliestOutput = Integer.MAX_VALUE;
         for (AEKey output : variant.outputs().keySet()) {
-            Integer component = topology.componentByKey().get(output);
-            if (component != null) {
+            int component = topology.componentByKey().getOrDefault(output, -1);
+            if (component >= 0) {
                 earliestOutput = Math.min(earliestOutput, positions.get(component));
             }
         }
@@ -1012,10 +1169,11 @@ public final class TrinityAcyclicRouteOptimizer {
         return earliestOutput;
     }
 
-    private static Map<Integer, Integer> topologicalPositions(TrinityCraftingTopology topology) {
-        HashMap<Integer, Integer> positions = new HashMap<>();
+    private static Int2IntMap topologicalPositions(TrinityCraftingTopology topology) {
+        Int2IntMap positions = new Int2IntOpenHashMap();
+        positions.defaultReturnValue(-1);
         for (int index = 0; index < topology.topologicalOrder().size(); index++) {
-            positions.put(topology.topologicalOrder().get(index), index);
+            positions.put(topology.topologicalOrder().get(index).intValue(), index);
         }
         return positions;
     }
@@ -1068,7 +1226,7 @@ public final class TrinityAcyclicRouteOptimizer {
     public record InputRequirement(BigInteger required, BigInteger allocated, BigInteger missing) {
 
         public InputRequirement {
-            if (required == null || allocated == null || missing == null || required.signum() <= 0 ||
+            if (required.signum() <= 0 ||
                     allocated.signum() < 0 || missing.signum() < 0 || !required.equals(allocated.add(missing))) {
                 throw new IllegalArgumentException(
                         "A Trinity shortage requirement must satisfy required = allocated + missing");
@@ -1093,19 +1251,24 @@ public final class TrinityAcyclicRouteOptimizer {
                                    int statesVisited) {
 
         public ShortageEvidence {
-            if (firings == null || actualReserves == null || inputRequirements == null || netChange == null ||
-                    firings.isEmpty() || inputRequirements.isEmpty() || statesVisited <= 0 ||
+            if (firings.isEmpty() || inputRequirements.isEmpty() || statesVisited <= 0 ||
                     inputRequirements.values().stream().noneMatch(requirement -> requirement.missing().signum() > 0)) {
                 throw new IllegalArgumentException("A Trinity shortage evidence requires one exact missing route");
             }
-            firings = Collections.unmodifiableMap(new LinkedHashMap<>(firings));
-            actualReserves = Collections.unmodifiableMap(new LinkedHashMap<>(actualReserves));
-            inputRequirements = Collections.unmodifiableMap(new LinkedHashMap<>(inputRequirements));
-            netChange = Collections.unmodifiableMap(new LinkedHashMap<>(netChange));
+            firings = Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(firings));
+            actualReserves = Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(actualReserves));
+            inputRequirements = Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(inputRequirements));
+            netChange = Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(netChange));
         }
     }
 
-    private sealed interface ModelPass permits ExternalPass, FiringPass, IdentityPass {}
+    private sealed interface ModelPass permits FeasibilityPass, HintFeasibilityPass, ExternalPass, FiringPass, IdentityPass {}
+
+    private enum FeasibilityPass implements ModelPass {
+        INSTANCE
+    }
+
+    private record HintFeasibilityPass(Set<TrinityPatternIdentity> selectedPatterns) implements ModelPass {}
 
     private enum ExternalPass implements ModelPass {
         INSTANCE
@@ -1126,8 +1289,61 @@ public final class TrinityAcyclicRouteOptimizer {
                                 BigInteger requestedAmount,
                                 BigInteger requiredTargetNet,
                                 CraftingQuantityMode quantityMode,
-                                Map<AEKey, BigInteger> available,
+                                TrinityPlanningInventory available,
                                 ModelPass pass) {}
+
+    /**
+     * Request-private immutable coefficient template copied for each lexicographic pass. The mutable ojAlgo copies are
+     * never shared across requests or threads.
+     */
+    private record AcyclicModelTemplate(
+                                        ExpressionsBasedModel baseModel,
+                                        int variableCount,
+                                        Object2IntMap<TrinityPatternVariant> firingIndexes,
+                                        Object2IntMap<AEKey> reserveIndexes) {
+
+        private ModelData forPass(ModelPass pass) {
+            ExpressionsBasedModel model = this.baseModel.copy();
+            ObjectArrayList<Variable> variables = new ObjectArrayList<>(this.variableCount);
+            for (int index = 0; index < this.variableCount; index++) {
+                variables.add(model.getVariable(index));
+            }
+            Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, Variable> firingVariables = new Object2ObjectLinkedOpenHashMap<>();
+            Object2IntMaps.fastForEach(this.firingIndexes, entry -> firingVariables.put(entry.getKey(), model.getVariable(entry.getIntValue())));
+            Object2ObjectLinkedOpenHashMap<AEKey, Variable> reserveVariables = new Object2ObjectLinkedOpenHashMap<>();
+            Object2IntMaps.fastForEach(this.reserveIndexes, entry -> reserveVariables.put(entry.getKey(), model.getVariable(entry.getIntValue())));
+
+            Expression externalTotal = model.getExpression("external_total");
+            Expression firingTotal = model.getExpression("firing_total");
+            if (pass instanceof FeasibilityPass) {
+                // Zero objective: obtain any integer witness and verify it exactly after the solve.
+            } else if (pass instanceof HintFeasibilityPass hintPass) {
+                firingVariables.forEach((variant, variable) -> {
+                    if (!hintPass.selectedPatterns().contains(variant.patternIdentity())) {
+                        variable.upper(BigInteger.ZERO);
+                    }
+                });
+            } else if (pass instanceof ExternalPass) {
+                externalTotal.weight(BigDecimal.ONE);
+            } else if (pass instanceof FiringPass firingPass) {
+                externalTotal.level(firingPass.fixedExternal());
+                firingTotal.weight(BigDecimal.ONE);
+            } else if (pass instanceof IdentityPass identityPass) {
+                externalTotal.level(identityPass.fixedExternal());
+                firingTotal.level(identityPass.fixedFirings());
+                identityPass.fixedPrefix()
+                        .forEach((variant, value) -> firingVariables.get(variant).level(value));
+                firingVariables.get(identityPass.preferred()).weight(BigDecimal.ONE);
+            } else {
+                throw new IllegalStateException("Unknown Trinity acyclic optimisation pass");
+            }
+            return new ModelData(
+                    model,
+                    List.copyOf(variables),
+                    Collections.unmodifiableMap(firingVariables),
+                    Collections.unmodifiableMap(reserveVariables));
+        }
+    }
 
     private record ModelData(
                              ExpressionsBasedModel model,
@@ -1136,18 +1352,18 @@ public final class TrinityAcyclicRouteOptimizer {
                              Map<AEKey, Variable> reserveVariables) {
 
         private SolvedModel decode(List<BigInteger> values) {
-            LinkedHashMap<Variable, BigInteger> byVariable = new LinkedHashMap<>();
+            Object2ObjectLinkedOpenHashMap<Variable, BigInteger> byVariable = new Object2ObjectLinkedOpenHashMap<>();
             for (int index = 0; index < this.variables.size(); index++) {
                 byVariable.put(this.variables.get(index), values.get(index));
             }
-            LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
+            Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> firings = new Object2ObjectLinkedOpenHashMap<>();
             this.firingVariables.forEach((variant, variable) -> {
                 BigInteger count = byVariable.get(variable);
                 if (count.signum() > 0) {
                     firings.put(variant, count);
                 }
             });
-            LinkedHashMap<AEKey, BigInteger> reserves = new LinkedHashMap<>();
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> reserves = new Object2ObjectLinkedOpenHashMap<>();
             this.reserveVariables.forEach((key, variable) -> {
                 BigInteger amount = byVariable.get(variable);
                 if (amount.signum() > 0) {
@@ -1166,6 +1382,8 @@ public final class TrinityAcyclicRouteOptimizer {
                                Map<AEKey, BigInteger> reserves,
                                Map<AEKey, BigInteger> netChange) {}
 
+    private record SolvedPass(SolvedModel model, boolean objectiveProved) {}
+
     private record DiagnosticModelRequest(
                                           List<TrinityPatternVariant> variants,
                                           Set<AEKey> sourceKeys,
@@ -1173,7 +1391,7 @@ public final class TrinityAcyclicRouteOptimizer {
                                           BigInteger requestedAmount,
                                           BigInteger requiredTargetNet,
                                           CraftingQuantityMode quantityMode,
-                                          Map<AEKey, BigInteger> available) {}
+                                          TrinityPlanningInventory available) {}
 
     private record DiagnosticModelData(
                                        ExpressionsBasedModel model,
@@ -1183,17 +1401,17 @@ public final class TrinityAcyclicRouteOptimizer {
                                        Map<AEKey, Variable> missingVariables) {
 
         private DiagnosticSolvedModel decode(List<BigInteger> values) {
-            LinkedHashMap<Variable, BigInteger> byVariable = new LinkedHashMap<>();
+            Object2ObjectLinkedOpenHashMap<Variable, BigInteger> byVariable = new Object2ObjectLinkedOpenHashMap<>();
             for (int index = 0; index < this.variables.size(); index++) {
                 byVariable.put(this.variables.get(index), values.get(index));
             }
-            LinkedHashMap<TrinityPatternVariant, BigInteger> firings = decodePositive(
+            Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> firings = decodePositive(
                     this.firingVariables,
                     byVariable);
-            LinkedHashMap<AEKey, BigInteger> actualReserves = decodePositive(
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> actualReserves = decodePositive(
                     this.reserveVariables,
                     byVariable);
-            LinkedHashMap<AEKey, BigInteger> missing = decodePositive(
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> missing = decodePositive(
                     this.missingVariables,
                     byVariable);
             return new DiagnosticSolvedModel(
@@ -1203,10 +1421,10 @@ public final class TrinityAcyclicRouteOptimizer {
                     Map.of());
         }
 
-        private static <K> LinkedHashMap<K, BigInteger> decodePositive(
-                                                                       Map<K, Variable> variables,
-                                                                       Map<Variable, BigInteger> values) {
-            LinkedHashMap<K, BigInteger> decoded = new LinkedHashMap<>();
+        private static <K> Object2ObjectLinkedOpenHashMap<K, BigInteger> decodePositive(
+                                                                                        Map<K, Variable> variables,
+                                                                                        Map<Variable, BigInteger> values) {
+            Object2ObjectLinkedOpenHashMap<K, BigInteger> decoded = new Object2ObjectLinkedOpenHashMap<>();
             variables.forEach((key, variable) -> {
                 BigInteger amount = values.get(variable);
                 if (amount.signum() > 0) {
@@ -1257,17 +1475,20 @@ public final class TrinityAcyclicRouteOptimizer {
     private static final class SearchBudget {
 
         private final int limit;
+        private final TrinityPlanningControl control;
         private int used;
 
-        private SearchBudget(int limit) {
+        private SearchBudget(int limit, TrinityPlanningControl control) {
             this.limit = limit;
+            this.control = control;
         }
 
         private boolean consume() {
             if (this.used >= this.limit) {
                 return false;
             }
-            this.used++;
+            this.used = Math.incrementExact(this.used);
+            this.control.recordRouteStates(1);
             return true;
         }
 

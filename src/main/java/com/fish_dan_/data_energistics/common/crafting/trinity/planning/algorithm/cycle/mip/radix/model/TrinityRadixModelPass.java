@@ -2,9 +2,10 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -58,7 +59,14 @@ public sealed interface TrinityRadixModelPass {
             implements TrinityRadixModelPass {
 
         public Identity {
-            fixedCounts = Collections.unmodifiableMap(new LinkedHashMap<>(fixedCounts));
+            fixedCounts = Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(fixedCounts));
         }
+    }
+
+    /**
+     * Builds a finite feasibility domain without running any sequential objective search.
+     */
+    enum Feasibility implements TrinityRadixModelPass {
+        INSTANCE
     }
 }

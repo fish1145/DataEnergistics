@@ -1,7 +1,6 @@
 package com.fish_dan_.data_energistics.integration.viewer.xei.transfer;
 
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
-import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
@@ -36,12 +35,9 @@ public final class PatternEncodingViewerContext {
     }
 
     /**
-     * Captures the viewer recipe type used for learning and its current workstation list used for network matching.
+     * Captures only the stable viewer recipe type. Display metadata is resolved lazily by the upload screen.
      */
-    public static PatternEncodingViewerRecipeScope fromRecipeType(ResourceLocation recipeTypeId,
-                                                                  ResourceLocation workstationSourceId) {
-        return new PatternEncodingViewerRecipeScope(
-                PatternEncodingRankingContext.of(recipeTypeId),
-                PatternProviderViewerWorkstations.resolve(workstationSourceId, recipeTypeId));
+    public static PatternEncodingRankingContext fromRecipeType(ResourceLocation recipeTypeId) {
+        return PatternEncodingRankingContext.of(recipeTypeId);
     }
 }

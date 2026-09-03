@@ -100,31 +100,31 @@ public final class DataAsynchronousProcessingFactoryScreen
         SlotSemantic semantic = this.menu.getSlotSemantic(slot);
         if (semantic == DataAsynchronousProcessingFactoryMenu.FLUID_INPUT_LEFT) {
             return switch (slot.y) {
-                case 21 -> fluidStack(this.menu.fluidInputAId, this.menu.fluidInputAAmount);
-                case 39 -> fluidStack(this.menu.fluidInputCId, this.menu.fluidInputCAmount);
-                case 57 -> fluidStack(this.menu.fluidInputEId, this.menu.fluidInputEAmount);
+                case 18 -> fluidStack(this.menu.fluidInputAId, this.menu.fluidInputAAmount);
+                case 36 -> fluidStack(this.menu.fluidInputCId, this.menu.fluidInputCAmount);
+                case 54 -> fluidStack(this.menu.fluidInputEId, this.menu.fluidInputEAmount);
                 default -> null;
             };
         }
         if (semantic == DataAsynchronousProcessingFactoryMenu.FLUID_INPUT_RIGHT) {
             return switch (slot.y) {
-                case 21 -> fluidStack(this.menu.fluidInputBId, this.menu.fluidInputBAmount);
-                case 39 -> fluidStack(this.menu.fluidInputDId, this.menu.fluidInputDAmount);
-                case 57 -> fluidStack(this.menu.fluidInputFId, this.menu.fluidInputFAmount);
+                case 18 -> fluidStack(this.menu.fluidInputBId, this.menu.fluidInputBAmount);
+                case 36 -> fluidStack(this.menu.fluidInputDId, this.menu.fluidInputDAmount);
+                case 54 -> fluidStack(this.menu.fluidInputFId, this.menu.fluidInputFAmount);
                 default -> null;
             };
         }
         if (semantic == DataAsynchronousProcessingFactoryMenu.FLUID_OUTPUT_LEFT) {
             return switch (slot.y) {
-                case 103 -> fluidStack(this.menu.fluidOutputAId, this.menu.fluidOutputAAmount);
-                case 121 -> fluidStack(this.menu.fluidOutputCId, this.menu.fluidOutputCAmount);
+                case 100 -> fluidStack(this.menu.fluidOutputAId, this.menu.fluidOutputAAmount);
+                case 118 -> fluidStack(this.menu.fluidOutputCId, this.menu.fluidOutputCAmount);
                 default -> null;
             };
         }
         if (semantic == DataAsynchronousProcessingFactoryMenu.FLUID_OUTPUT_RIGHT) {
             return switch (slot.y) {
-                case 103 -> fluidStack(this.menu.fluidOutputBId, this.menu.fluidOutputBAmount);
-                case 121 -> fluidStack(this.menu.fluidOutputDId, this.menu.fluidOutputDAmount);
+                case 100 -> fluidStack(this.menu.fluidOutputBId, this.menu.fluidOutputBAmount);
+                case 118 -> fluidStack(this.menu.fluidOutputDId, this.menu.fluidOutputDAmount);
                 default -> null;
             };
         }

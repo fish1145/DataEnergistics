@@ -1,7 +1,11 @@
 package com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model;
 
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.diagnostic.TrinityCraftingExactShortage;
+import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.diagnostic.TrinityCraftingUnresolvedDemand;
+
 import appeng.api.stacks.AEKey;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -10,11 +14,12 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 
 /**
- * Immutable, network-friendly cycle statistics projected from one executable Trinity crafting plan.
+ * Immutable, network-friendly cycle and material statistics projected from one executable or diagnosed Trinity plan.
  *
  * <p>
  * Cycle headers, material contributions and inventory usage percentages remain separate so a transport can flatten
@@ -32,18 +37,36 @@ public final class TrinityCraftingCycleSummary {
     private final List<TrinityCraftingCycleHeader> cycles;
     private final List<TrinityCraftingCycleMaterialContribution> contributions;
     private final Map<AEKey, List<TrinityCraftingCycleMaterialContribution>> contributionsByKey;
+    private final List<TrinityCraftingExactShortage> exactShortages;
+    private final Map<AEKey, TrinityCraftingExactShortage> exactShortagesByKey;
+    private final List<TrinityCraftingUnresolvedDemand> unresolvedDemands;
+    private final Map<AEKey, TrinityCraftingUnresolvedDemand> unresolvedDemandsByKey;
+    private final List<TrinityCraftingExactPlanAmounts> exactPlanAmounts;
+    private final Map<AEKey, TrinityCraftingExactPlanAmounts> exactPlanAmountsByKey;
+    private final Optional<BigInteger> exactBytes;
 
     private TrinityCraftingCycleSummary(Map<AEKey, Integer> inventoryUsageBasisPoints,
                                         List<TrinityCraftingCycleHeader> cycles,
-                                        List<TrinityCraftingCycleMaterialContribution> contributions) {
+                                        List<TrinityCraftingCycleMaterialContribution> contributions,
+                                        List<TrinityCraftingExactShortage> exactShortages,
+                                        List<TrinityCraftingUnresolvedDemand> unresolvedDemands,
+                                        List<TrinityCraftingExactPlanAmounts> exactPlanAmounts,
+                                        Optional<BigInteger> exactBytes) {
         this.inventoryUsageBasisPoints = copyInventoryUsage(inventoryUsageBasisPoints);
         this.cycles = copyAndValidateCycles(cycles);
         this.contributions = copyAndValidateContributions(contributions, this.cycles);
         this.contributionsByKey = indexContributions(this.contributions);
+        this.exactShortages = copyExactShortages(exactShortages);
+        this.exactShortagesByKey = indexExactShortages(this.exactShortages);
+        this.unresolvedDemands = copyUnresolvedDemands(unresolvedDemands, this.exactShortagesByKey.keySet());
+        this.unresolvedDemandsByKey = indexUnresolvedDemands(this.unresolvedDemands);
+        this.exactPlanAmounts = copyExactPlanAmounts(exactPlanAmounts);
+        this.exactPlanAmountsByKey = indexExactPlanAmounts(this.exactPlanAmounts);
+        this.exactBytes = exactBytes;
     }
 
     /**
-     * Rebuilds one complete summary from the three record families used by the network representation.
+     * Rebuilds an executable summary from the original three record families used by the network representation.
      *
      * @param inventoryUsageBasisPoints inventory usage percentages in hundredths of a percentage point
      * @param cycles                    cycle header records
@@ -53,7 +76,35 @@ public final class TrinityCraftingCycleSummary {
     public static TrinityCraftingCycleSummary create(Map<AEKey, Integer> inventoryUsageBasisPoints,
                                                      List<TrinityCraftingCycleHeader> cycles,
                                                      List<TrinityCraftingCycleMaterialContribution> contributions) {
-        return new TrinityCraftingCycleSummary(inventoryUsageBasisPoints, cycles, contributions);
+        return create(
+                inventoryUsageBasisPoints,
+                cycles,
+                contributions,
+                List.of(),
+                List.of(),
+                List.of(),
+                Optional.empty());
+    }
+
+    /**
+     * Rebuilds one complete executable or diagnostic summary from all typed transport families.
+     */
+    public static TrinityCraftingCycleSummary create(
+                                                     Map<AEKey, Integer> inventoryUsageBasisPoints,
+                                                     List<TrinityCraftingCycleHeader> cycles,
+                                                     List<TrinityCraftingCycleMaterialContribution> contributions,
+                                                     List<TrinityCraftingExactShortage> exactShortages,
+                                                     List<TrinityCraftingUnresolvedDemand> unresolvedDemands,
+                                                     List<TrinityCraftingExactPlanAmounts> exactPlanAmounts,
+                                                     Optional<BigInteger> exactBytes) {
+        return new TrinityCraftingCycleSummary(
+                inventoryUsageBasisPoints,
+                cycles,
+                contributions,
+                exactShortages,
+                unresolvedDemands,
+                exactPlanAmounts,
+                exactBytes);
     }
 
     /**
@@ -75,6 +126,41 @@ public final class TrinityCraftingCycleSummary {
      */
     public List<TrinityCraftingCycleMaterialContribution> contributions() {
         return this.contributions;
+    }
+
+    /** @return exact shortages in stable transport order */
+    public List<TrinityCraftingExactShortage> exactShortages() {
+        return this.exactShortages;
+    }
+
+    /** @return unresolved demands in stable transport order */
+    public List<TrinityCraftingUnresolvedDemand> unresolvedDemands() {
+        return this.unresolvedDemands;
+    }
+
+    /** @return exact confirmation-table rows in stable transport order */
+    public List<TrinityCraftingExactPlanAmounts> exactPlanAmounts() {
+        return this.exactPlanAmounts;
+    }
+
+    /** @return exact compact-plan byte charge, absent for non-executable diagnostics */
+    public Optional<BigInteger> exactBytes() {
+        return this.exactBytes;
+    }
+
+    /** Looks up an exact finite-input shortage for one material. */
+    public Optional<TrinityCraftingExactShortage> exactShortage(AEKey key) {
+        return Optional.ofNullable(this.exactShortagesByKey.get(key));
+    }
+
+    /** Looks up an unresolved intermediate demand for one material. */
+    public Optional<TrinityCraftingUnresolvedDemand> unresolvedDemand(AEKey key) {
+        return Optional.ofNullable(this.unresolvedDemandsByKey.get(key));
+    }
+
+    /** Looks up exact stored, missing and crafting counters for one table row. */
+    public Optional<TrinityCraftingExactPlanAmounts> exactPlanAmounts(AEKey key) {
+        return Optional.ofNullable(this.exactPlanAmountsByKey.get(key));
     }
 
     /**
@@ -159,6 +245,68 @@ public final class TrinityCraftingCycleSummary {
         LinkedHashMap<AEKey, List<TrinityCraftingCycleMaterialContribution>> copied = new LinkedHashMap<>();
         mutable.forEach((key, values) -> copied.put(key, List.copyOf(values)));
         return Collections.unmodifiableMap(copied);
+    }
+
+    private static List<TrinityCraftingExactShortage> copyExactShortages(
+                                                                         List<TrinityCraftingExactShortage> source) {
+        ArrayList<TrinityCraftingExactShortage> copied = new ArrayList<>(source.size());
+        HashSet<AEKey> keys = new HashSet<>();
+        for (TrinityCraftingExactShortage shortage : source) {
+            if (shortage == null || !keys.add(shortage.key())) {
+                throw new IllegalArgumentException("Trinity crafting diagnostics cannot repeat an exact shortage");
+            }
+            copied.add(shortage);
+        }
+        return List.copyOf(copied);
+    }
+
+    private static Map<AEKey, TrinityCraftingExactShortage> indexExactShortages(
+                                                                                List<TrinityCraftingExactShortage> shortages) {
+        LinkedHashMap<AEKey, TrinityCraftingExactShortage> indexed = new LinkedHashMap<>();
+        shortages.forEach(shortage -> indexed.put(shortage.key(), shortage));
+        return Collections.unmodifiableMap(indexed);
+    }
+
+    private static List<TrinityCraftingUnresolvedDemand> copyUnresolvedDemands(
+                                                                               List<TrinityCraftingUnresolvedDemand> source,
+                                                                               Set<AEKey> exactShortageKeys) {
+        ArrayList<TrinityCraftingUnresolvedDemand> copied = new ArrayList<>(source.size());
+        HashSet<AEKey> keys = new HashSet<>();
+        for (TrinityCraftingUnresolvedDemand unresolved : source) {
+            if (unresolved == null || exactShortageKeys.contains(unresolved.key()) || !keys.add(unresolved.key())) {
+                throw new IllegalArgumentException(
+                        "Trinity crafting diagnostics require disjoint unique unresolved demands");
+            }
+            copied.add(unresolved);
+        }
+        return List.copyOf(copied);
+    }
+
+    private static Map<AEKey, TrinityCraftingUnresolvedDemand> indexUnresolvedDemands(
+                                                                                      List<TrinityCraftingUnresolvedDemand> unresolvedDemands) {
+        LinkedHashMap<AEKey, TrinityCraftingUnresolvedDemand> indexed = new LinkedHashMap<>();
+        unresolvedDemands.forEach(unresolved -> indexed.put(unresolved.key(), unresolved));
+        return Collections.unmodifiableMap(indexed);
+    }
+
+    private static List<TrinityCraftingExactPlanAmounts> copyExactPlanAmounts(
+                                                                              List<TrinityCraftingExactPlanAmounts> source) {
+        ArrayList<TrinityCraftingExactPlanAmounts> copied = new ArrayList<>(source.size());
+        HashSet<AEKey> keys = new HashSet<>();
+        for (TrinityCraftingExactPlanAmounts amounts : source) {
+            if (!keys.add(amounts.key())) {
+                throw new IllegalArgumentException("Trinity crafting confirmation cannot repeat an exact plan row");
+            }
+            copied.add(amounts);
+        }
+        return List.copyOf(copied);
+    }
+
+    private static Map<AEKey, TrinityCraftingExactPlanAmounts> indexExactPlanAmounts(
+                                                                                     List<TrinityCraftingExactPlanAmounts> amounts) {
+        LinkedHashMap<AEKey, TrinityCraftingExactPlanAmounts> indexed = new LinkedHashMap<>();
+        amounts.forEach(entry -> indexed.put(entry.key(), entry));
+        return Collections.unmodifiableMap(indexed);
     }
 
     private record BlockMaterial(int blockIndex, AEKey key) {}

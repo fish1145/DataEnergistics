@@ -104,7 +104,6 @@ neoForge {
 
         gameTestClient {
             client()
-            sourceSet = sourceSets.test
             sourceSet = sourceSets.clientExtra
             ideName = "Game Tests (Client)"
 

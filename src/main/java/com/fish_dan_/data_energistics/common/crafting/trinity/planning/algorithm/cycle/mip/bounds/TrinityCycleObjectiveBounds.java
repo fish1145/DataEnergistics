@@ -1,14 +1,15 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.bounds;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilityRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityFiringBounds;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,6 +57,38 @@ public final class TrinityCycleObjectiveBounds {
     }
 
     /**
+     * Derives a compact first feasibility domain from the current component demand and transition magnitudes.
+     */
+    public BigInteger compactFiringUpper(TrinityCycleFeasibilityRequest request) {
+        BigInteger upper = BigInteger.ONE
+                .max(request.seedLowerBound())
+                .max(request.firingLowerBound())
+                .max(minimumFirstExternalInput(request))
+                .max(minimumFirstInternalInput(request));
+        if (request.fixedExternalTotal().isPresent()) {
+            upper = upper.max(request.fixedExternalTotal().orElseThrow());
+        }
+        for (BigInteger amount : request.demand().finalBalanceLowerBounds().values()) {
+            upper = upper.max(amount);
+        }
+        for (BigInteger amount : request.demand().requiredNetChangeLowerBounds().values()) {
+            upper = upper.max(amount);
+        }
+        for (TrinityFiringBounds bounds : request.firingBounds().values()) {
+            upper = upper.max(bounds.lowerInclusive());
+        }
+        for (TrinityPatternVariant variant : request.variants()) {
+            for (BigInteger amount : variant.inputs().values()) {
+                upper = upper.max(amount);
+            }
+            for (BigInteger amount : variant.outputs().values()) {
+                upper = upper.max(amount);
+            }
+        }
+        return upper.multiply(BigInteger.valueOf(request.variants().size()));
+    }
+
+    /**
      * Derives a conservation-based exact lower bound for total firings at fixed reserve objectives.
      */
     public BigInteger conservationFiringLowerBound(
@@ -65,7 +98,7 @@ public final class TrinityCycleObjectiveBounds {
         requireNonNegative(fixedExternal, "external");
         requireNonNegative(fixedSeed, "seed");
         BigInteger lowerBound = BigInteger.ZERO;
-        LinkedHashSet<AEKey> touchedKeys = touchedKeys(request);
+        ObjectLinkedOpenHashSet<AEKey> touchedKeys = touchedKeys(request);
         Set<AEKey> externalKeys = externalReserveKeys(request);
         for (AEKey key : touchedKeys) {
             BigInteger reserveUpper = request.internalKeys().contains(key) ? fixedSeed :
@@ -99,9 +132,6 @@ public final class TrinityCycleObjectiveBounds {
         requireNonNegative(fixedExternal, "external");
         requireNonNegative(fixedSeed, "seed");
         requireNonNegative(fixedFirings, "firings");
-        if (fixedCounts == null || variant == null) {
-            throw new IllegalArgumentException("A Trinity identity objective requires fixed counts and a variant");
-        }
         BigInteger remainingFirings = fixedFirings.subtract(total(fixedCounts));
         if (remainingFirings.signum() < 0) {
             throw new IllegalStateException("Fixed Trinity identity counts exceed the total firing objective");
@@ -145,7 +175,7 @@ public final class TrinityCycleObjectiveBounds {
      * Identifies boundary keys that may receive an initial external reserve variable.
      */
     public Set<AEKey> externalReserveKeys(TrinityCycleFeasibilityRequest request) {
-        LinkedHashSet<AEKey> keys = new LinkedHashSet<>();
+        ObjectLinkedOpenHashSet<AEKey> keys = new ObjectLinkedOpenHashSet<>();
         request.variants().forEach(variant -> variant.inputs().keySet().stream()
                 .filter(key -> !request.internalKeys().contains(key))
                 .forEach(keys::add));
@@ -156,21 +186,63 @@ public final class TrinityCycleObjectiveBounds {
     }
 
     /**
+     * Derives the per-key reserve domain used by executable and diagnostic models.
+     *
+     * <p>
+     * Executable finite input remains capped by captured inventory. Diagnostic finite input instead receives a
+     * request-private firing envelope so the model can separate it into actual and missing amounts.
+     * </p>
+     */
+    public BigInteger reserveUpperBound(
+                                        TrinityCycleFeasibilityRequest request,
+                                        AEKey key,
+                                        BigInteger firingUpper) {
+        if (firingUpper.signum() < 0) {
+            throw new IllegalArgumentException("A Trinity reserve upper bound requires complete non-negative inputs");
+        }
+        if (!request.shortageDiagnostic()) {
+            return request.producibleInputs().contains(key) ?
+                    firingUpper : request.available().getOrDefault(key, BigInteger.ZERO).min(firingUpper);
+        }
+        BigInteger required = request.demand().finalBalanceLowerBounds().getOrDefault(key, BigInteger.ZERO);
+        for (TrinityPatternVariant variant : request.variants()) {
+            BigInteger coefficient = variant.netChange().getOrDefault(key, BigInteger.ZERO);
+            if (coefficient.signum() >= 0) {
+                continue;
+            }
+            BigInteger variantUpper = request.firingBounds()
+                    .get(variant)
+                    .upperOr(firingUpper);
+            required = required.add(coefficient.negate().multiply(variantUpper));
+        }
+        BigInteger objectiveFloor;
+        if (request.internalKeys().contains(key)) {
+            objectiveFloor = minimumFirstInternalInput(request).max(request.seedLowerBound());
+        } else {
+            objectiveFloor = minimumFirstExternalInput(request);
+            if (request.fixedExternalTotal().isPresent()) {
+                objectiveFloor = objectiveFloor.max(request.fixedExternalTotal().orElseThrow());
+            }
+        }
+        return required.max(objectiveFloor);
+    }
+
+    /**
      * Captures finite current-inventory caps for exact post-solve conservation replay.
      */
     public Map<AEKey, BigInteger> finiteInputUpperBounds(TrinityCycleFeasibilityRequest request) {
-        LinkedHashSet<AEKey> keys = new LinkedHashSet<>(request.internalKeys());
+        ObjectLinkedOpenHashSet<AEKey> keys = new ObjectLinkedOpenHashSet<>(request.internalKeys());
         request.variants().forEach(variant -> keys.addAll(variant.inputs().keySet()));
         keys.addAll(request.demand().finalBalanceLowerBounds().keySet());
-        LinkedHashMap<AEKey, BigInteger> bounds = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> bounds = new Object2ObjectLinkedOpenHashMap<>();
         keys.stream()
                 .filter(key -> !request.producibleInputs().contains(key))
                 .forEach(key -> bounds.put(key, request.available().getOrDefault(key, BigInteger.ZERO)));
         return Collections.unmodifiableMap(bounds);
     }
 
-    private static LinkedHashSet<AEKey> touchedKeys(TrinityCycleFeasibilityRequest request) {
-        LinkedHashSet<AEKey> keys = new LinkedHashSet<>();
+    private static ObjectLinkedOpenHashSet<AEKey> touchedKeys(TrinityCycleFeasibilityRequest request) {
+        ObjectLinkedOpenHashSet<AEKey> keys = new ObjectLinkedOpenHashSet<>();
         request.variants().forEach(variant -> {
             keys.addAll(variant.inputs().keySet());
             keys.addAll(variant.outputs().keySet());
@@ -262,7 +334,7 @@ public final class TrinityCycleObjectiveBounds {
     }
 
     private static void requireNonNegative(BigInteger value, String role) {
-        if (value == null || value.signum() < 0) {
+        if (value.signum() < 0) {
             throw new IllegalArgumentException("A fixed Trinity " + role + " objective cannot be negative");
         }
     }

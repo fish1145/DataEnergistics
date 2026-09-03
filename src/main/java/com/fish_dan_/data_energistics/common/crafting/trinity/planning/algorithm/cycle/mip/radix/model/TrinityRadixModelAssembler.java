@@ -2,17 +2,19 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorith
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.bounds.TrinityCycleObjectiveBounds;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityCycleFeasibilityRequest;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.model.TrinityFiringBounds;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.codec.TrinityRadixCodec;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.codec.TrinityRadixLinearEncoder;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.radix.codec.TrinityRadixVariable;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.mip.template.TrinityMipCoefficientTemplate.Coefficient;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.math.BigInteger;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -36,9 +38,6 @@ public final class TrinityRadixModelAssembler {
     private final TrinityCycleObjectiveBounds exactBounds;
 
     TrinityRadixModelAssembler(TrinityRadixCodec codec, TrinityCycleObjectiveBounds exactBounds) {
-        if (codec == null || exactBounds == null) {
-            throw new IllegalArgumentException("A Trinity radix assembler requires a codec and exact bounds");
-        }
         this.codec = codec;
         this.exactBounds = exactBounds;
     }
@@ -54,32 +53,30 @@ public final class TrinityRadixModelAssembler {
                                            TrinityCycleFeasibilityRequest request,
                                            TrinityRadixModelPass pass,
                                            BigInteger logicalUpper) {
-        if (request == null || pass == null || logicalUpper == null || logicalUpper.signum() < 0) {
-            throw new IllegalArgumentException("A Trinity radix assembly request is incomplete");
+        if (logicalUpper.signum() < 0) {
+            throw new IllegalArgumentException("A Trinity radix logical upper bound cannot be negative");
         }
         TrinityRadixLinearEncoder model = new TrinityRadixLinearEncoder(this.codec);
-        LinkedHashMap<TrinityPatternVariant, TrinityRadixVariable> firingVariables = new LinkedHashMap<>();
-        boolean overflowProofDomain = logicalUpper.compareTo(TrinityFiringBounds.MAXIMUM_FIRINGS) > 0 &&
-                request.fullLongFiringDomain();
+        Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, TrinityRadixVariable> firingVariables = new Object2ObjectLinkedOpenHashMap<>();
         for (int index = 0; index < request.variants().size(); index++) {
             TrinityPatternVariant variant = request.variants().get(index);
-            TrinityFiringBounds bounds = request.firingBounds().get(variant);
+            var bounds = request.firingBounds().get(variant);
             TrinityRadixVariable variable = model.addBounded(
                     "firing_" + index,
-                    overflowProofDomain ? logicalUpper : logicalUpper.min(bounds.upperInclusive()),
+                    bounds.upperOr(logicalUpper),
                     false);
             if (bounds.lowerInclusive().signum() > 0) {
                 model.addLowerBound("firing_lower_" + index, variable, bounds.lowerInclusive());
             }
             firingVariables.put(variant, variable);
         }
-        LinkedHashMap<AEKey, TrinityRadixVariable> seedVariables = reserveVariables(
+        Object2ObjectLinkedOpenHashMap<AEKey, TrinityRadixVariable> seedVariables = reserveVariables(
                 model,
                 request.internalKeys(),
                 request,
                 "seed_",
                 logicalUpper);
-        LinkedHashMap<AEKey, TrinityRadixVariable> externalVariables = reserveVariables(
+        Object2ObjectLinkedOpenHashMap<AEKey, TrinityRadixVariable> externalVariables = reserveVariables(
                 model,
                 this.exactBounds.externalReserveKeys(request),
                 request,
@@ -176,21 +173,28 @@ public final class TrinityRadixModelAssembler {
                 }
                 yield new ObjectiveSelection(objective, false, BigInteger.ZERO, upperBound);
             }
+            case TrinityRadixModelPass.Feasibility.INSTANCE -> {
+                model.addLowerBound("feasible_seed_lower", seedTotal, request.seedLowerBound());
+                model.addLowerBound("feasible_firing_lower", firingTotal, request.firingLowerBound().max(BigInteger.ONE));
+                yield new ObjectiveSelection(externalTotal, true, BigInteger.ZERO, externalTotal.upperBound());
+            }
         };
     }
 
-    private static LinkedHashMap<AEKey, TrinityRadixVariable> reserveVariables(
-                                                                               TrinityRadixLinearEncoder model,
-                                                                               Set<AEKey> keys,
-                                                                               TrinityCycleFeasibilityRequest request,
-                                                                               String prefix,
-                                                                               BigInteger logicalUpper) {
-        LinkedHashMap<AEKey, TrinityRadixVariable> variables = new LinkedHashMap<>();
+    private Object2ObjectLinkedOpenHashMap<AEKey, TrinityRadixVariable> reserveVariables(
+                                                                                         TrinityRadixLinearEncoder model,
+                                                                                         Set<AEKey> keys,
+                                                                                         TrinityCycleFeasibilityRequest request,
+                                                                                         String prefix,
+                                                                                         BigInteger logicalUpper) {
+        Object2ObjectLinkedOpenHashMap<AEKey, TrinityRadixVariable> variables = new Object2ObjectLinkedOpenHashMap<>();
         int index = 0;
         for (AEKey key : keys) {
-            BigInteger upper = request.producibleInputs().contains(key) ?
-                    logicalUpper : request.available().getOrDefault(key, BigInteger.ZERO).min(logicalUpper);
-            variables.put(key, model.addBounded(prefix + index++, upper, !request.producibleInputs().contains(key)));
+            BigInteger upper = this.exactBounds.reserveUpperBound(
+                    request,
+                    key,
+                    logicalUpper);
+            variables.put(key, model.addBounded(prefix + index++, upper, !request.shortageDiagnostic() && !request.producibleInputs().contains(key)));
         }
         return variables;
     }
@@ -201,16 +205,14 @@ public final class TrinityRadixModelAssembler {
                                         Map<TrinityPatternVariant, TrinityRadixVariable> firingVariables,
                                         Map<AEKey, TrinityRadixVariable> seedVariables,
                                         Map<AEKey, TrinityRadixVariable> externalVariables) {
-        LinkedHashSet<AEKey> touchedKeys = new LinkedHashSet<>();
-        request.variants().forEach(variant -> {
-            touchedKeys.addAll(variant.inputs().keySet());
-            touchedKeys.addAll(variant.outputs().keySet());
-        });
-        touchedKeys.addAll(request.demand().finalBalanceLowerBounds().keySet());
-        touchedKeys.addAll(request.demand().requiredNetChangeLowerBounds().keySet());
+        ObjectArrayList<AEKey> touchedKeys = new ObjectArrayList<>(request.coefficientTemplate().touchedKeys());
+        ObjectOpenHashSet<AEKey> seenKeys = new ObjectOpenHashSet<>(touchedKeys);
+        request.demand().finalBalanceLowerBounds().keySet().forEach(key -> addStableKey(key, seenKeys, touchedKeys));
+        request.demand().requiredNetChangeLowerBounds().keySet().forEach(
+                key -> addStableKey(key, seenKeys, touchedKeys));
         int conservationIndex = 0;
         for (AEKey key : touchedKeys) {
-            LinkedHashMap<TrinityRadixVariable, BigInteger> terms = netTerms(key, firingVariables);
+            Object2ObjectLinkedOpenHashMap<TrinityRadixVariable, BigInteger> terms = netTerms(request, key, firingVariables);
             TrinityRadixVariable reserve = request.internalKeys().contains(key) ?
                     seedVariables.get(key) : externalVariables.get(key);
             if (reserve != null) {
@@ -225,7 +227,7 @@ public final class TrinityRadixModelAssembler {
         for (Map.Entry<AEKey, BigInteger> bound : request.demand().requiredNetChangeLowerBounds().entrySet()) {
             model.addGreaterOrEqual(
                     "required_net_" + netIndex++,
-                    netTerms(bound.getKey(), firingVariables),
+                    netTerms(request, bound.getKey(), firingVariables),
                     bound.getValue());
         }
         int settlementIndex = 0;
@@ -233,7 +235,7 @@ public final class TrinityRadixModelAssembler {
                 .anyMatch(request.demand().requiredNetChangeLowerBounds()::containsKey);
         for (AEKey key : request.internalKeys()) {
             String name = "settled_internal_" + settlementIndex++;
-            LinkedHashMap<TrinityRadixVariable, BigInteger> terms = netTerms(key, firingVariables);
+            Object2ObjectLinkedOpenHashMap<TrinityRadixVariable, BigInteger> terms = netTerms(request, key, firingVariables);
             BigInteger requestedOutput = request.demand().requiredNetChangeLowerBounds().get(key);
             if (requestedOutput != null) {
                 model.addGreaterOrEqual(name, terms, requestedOutput);
@@ -245,17 +247,22 @@ public final class TrinityRadixModelAssembler {
         }
     }
 
-    private static LinkedHashMap<TrinityRadixVariable, BigInteger> netTerms(
-                                                                            AEKey key,
-                                                                            Map<TrinityPatternVariant, TrinityRadixVariable> firings) {
-        LinkedHashMap<TrinityRadixVariable, BigInteger> terms = new LinkedHashMap<>();
-        firings.forEach((variant, variable) -> {
-            BigInteger coefficient = variant.netChange().getOrDefault(key, BigInteger.ZERO);
-            if (coefficient.signum() != 0) {
-                terms.put(variable, coefficient);
-            }
-        });
+    private static Object2ObjectLinkedOpenHashMap<TrinityRadixVariable, BigInteger> netTerms(
+                                                                                             TrinityCycleFeasibilityRequest request,
+                                                                                             AEKey key,
+                                                                                             Map<TrinityPatternVariant, TrinityRadixVariable> firings) {
+        Object2ObjectLinkedOpenHashMap<TrinityRadixVariable, BigInteger> terms = new Object2ObjectLinkedOpenHashMap<>();
+        for (Coefficient coefficient : request.coefficientTemplate().coefficients(key)) {
+            TrinityPatternVariant variant = request.variants().get(coefficient.variantIndex());
+            terms.put(firings.get(variant), coefficient.value());
+        }
         return terms;
+    }
+
+    private static void addStableKey(AEKey key, Set<AEKey> seen, List<AEKey> destination) {
+        if (seen.add(key)) {
+            destination.add(key);
+        }
     }
 
     /**

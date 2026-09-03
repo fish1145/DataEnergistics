@@ -1,13 +1,10 @@
-# Data Energistics 3.0.x API
+# Data Energistics API
 
-本目录记录 Data Energistics 3.0.x 对外扩展 API 的用法、生命周期和兼容性边界。开始集成前，请先阅读[版本与稳定性](versioning-and-stability.md)和[生命周期与线程](lifecycle-and-threading.md)。
+本目录记录 Data Energistics 当前对外扩展 API 的用法、生命周期和兼容性边界。开始集成前，请先阅读[版本与稳定性](versioning-and-stability.md)和[生命周期与线程](lifecycle-and-threading.md)。
 
 ## 稳定 API 边界
 
-3.0.x 的稳定外部 API 仅包括：
-
-- `com.fish_dan_.data_energistics.api.**` 下的类型；
-- [Universal Terminal 迁移文档](terminal/legacy-migration.md)明确列出的三个过渡类型。
+稳定外部 API 仅包括 `com.fish_dan_.data_energistics.api.**` 下的类型。[Universal Terminal 迁移文档](terminal/legacy-migration.md)中列出的旧过渡类型已在 3.1.0 移除，不属于当前 API。
 
 源码中其他 `public` 类型仍属于内部实现。`public` 只代表 Java 可见性，不代表兼容承诺。
 

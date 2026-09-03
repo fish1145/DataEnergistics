@@ -1,8 +1,11 @@
 package com.fish_dan_.data_energistics.integration.viewer.emi;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewers;
+import com.fish_dan_.data_energistics.client.screen.crafting.CraftingPlanTreeScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.integration.viewer.emi.entrypoint.DataEnergisticsEmiEntrypointLoader;
+import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.CraftingPlanEmiIngredientViewer;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStack;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStackConverter;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.DataResourceEmiStackSerializer;
@@ -39,7 +42,6 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.enchantment.Enchantments;
 
 import appeng.api.integrations.emi.EmiStackConverters;
-import appeng.core.definitions.AEBlocks;
 import appeng.integration.modules.emi.EmiEncodePatternHandler;
 import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
 import appeng.menu.me.items.PatternEncodingTermMenu;
@@ -54,6 +56,7 @@ import dev.emi.emi.api.recipe.EmiInfoRecipe;
 import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiStack;
+import dev.emi.emi.api.widget.Bounds;
 import dev.emi.emi.recipe.special.EmiAnvilEnchantRecipe;
 import dev.emi.emi.registry.EmiRecipes;
 import org.apache.logging.log4j.Logger;
@@ -67,6 +70,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final ResourceLocation AE2_CHARGER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
+    private static final ResourceLocation AE2_CONDENSER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath("ae2", "condenser");
     private static final ResourceLocation RECIPE_TYPE_NAME_SOURCE_ID = Data_Energistics.id("emi_recipe_type_names");
     private static final ConverterRegistration CONVERTER_REGISTRATION = new ConverterRegistration();
 
@@ -99,6 +103,11 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.ECHO, 1L));
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.CELESTIAL_ENERGY, 1L));
         registry.addGenericStackProvider(new PatternEncodingGenericStackEmiProvider());
+        CraftingPlanIngredientViewers.register("emi", new CraftingPlanEmiIngredientViewer());
+        registry.addScreenBoundsProvider(CraftingPlanTreeScreen.class, screen -> {
+            var panel = screen.panelBounds();
+            return new Bounds(panel.getX(), panel.getY(), panel.getWidth(), panel.getHeight());
+        });
         registry.addDragDropHandler(OrderPackageScreen.class, new OrderPackageEmiDragDropHandler());
         registry.addGenericExclusionArea(new UniversalTerminalEmiExclusionArea());
         registry.removeRecipes(PoweredRepairRecipeFilter::shouldHideEmiRepairRecipe);
@@ -130,12 +139,16 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.getRecipeManager().getAllRecipesFor(DERecipes.RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_TYPE.get()).stream()
                 .map(RadixContainmentSphereRightClickEmiRecipe::new)
                 .forEach(registry::addRecipe);
-        registry.addCategory(CondenserOutputEmiRecipe.CATEGORY);
-        registry.addWorkstation(CondenserOutputEmiRecipe.CATEGORY, EmiStack.of(AEBlocks.CONDENSER.asItem()));
-        registry.addDeferredRecipes(consumer -> registry.getRecipeManager()
-                .getAllRecipesFor(DERecipes.CONDENSER_OUTPUT_TYPE.get()).stream()
-                .map(CondenserOutputEmiRecipe::new)
-                .forEach(consumer));
+        registry.addDeferredRecipes(consumer -> {
+            EmiRecipeCategory category = findCategoryById(AE2_CONDENSER_CATEGORY_ID);
+            if (category == null) {
+                LOGGER.warn("AE2 condenser EMI category was not registered; skipping Data Energistics condenser recipes");
+                return;
+            }
+            registry.getRecipeManager().getAllRecipesFor(DERecipes.CONDENSER_OUTPUT_TYPE.get()).stream()
+                    .map(holder -> new CondenserOutputEmiRecipe(category, holder))
+                    .forEach(consumer);
+        });
         registry.addCategory(DataRipperReassemblerEmiRecipe.CATEGORY);
         registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY, EmiStack.of(DEBlocks.DATA_RIPPER_REASSEMBLER.get()));
         registry.addWorkstation(DataRipperReassemblerEmiRecipe.CATEGORY,
@@ -176,7 +189,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 DEItems.MATTER_CONVERGING_CROSSBOW.get(),
                 EmiPort.getEnchantmentRegistry().get(Enchantments.POWER.location()),
                 1,
-                Data_Energistics.id("emi/anvil/matter_converging_crossbow_power")));
+                syntheticEmiRecipeId(Data_Energistics.id("emi/anvil/matter_converging_crossbow_power"))));
         registry.addDeferredRecipes(consumer -> registerAe2ChargerWorkstations(registry));
     }
 
@@ -205,8 +218,12 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 .map(recipe -> new EmiCraftingRecipe(
                         List.of(EmiStack.of(recipe.firstInput()), EmiStack.of(recipe.secondInput())),
                         EmiStack.of(recipe.output()),
-                        recipe.id()))
+                        syntheticEmiRecipeId(recipe.id())))
                 .toList();
+    }
+
+    private static ResourceLocation syntheticEmiRecipeId(ResourceLocation id) {
+        return ResourceLocation.fromNamespaceAndPath(id.getNamespace(), "/" + id.getPath());
     }
 
     private static <R extends Recipe<?>> void registerRecipeCategory(

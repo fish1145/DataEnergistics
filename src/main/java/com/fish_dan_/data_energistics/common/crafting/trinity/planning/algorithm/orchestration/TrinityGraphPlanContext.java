@@ -15,7 +15,6 @@ import java.util.List;
  * @param catalogRevision source graph revision
  * @param target          requested output
  * @param requestedAmount exact requested quantity
- * @param requestedLong   AE2-compatible exact requested quantity
  * @param quantityMode    selected quantity semantics
  * @param variants        immutable expanded variants used for statistics and route flags
  * @param topology        immutable SCC topology used for statistics
@@ -25,7 +24,6 @@ public record TrinityGraphPlanContext(
                                       long catalogRevision,
                                       AEKey target,
                                       BigInteger requestedAmount,
-                                      long requestedLong,
                                       CraftingQuantityMode quantityMode,
                                       List<TrinityPatternVariant> variants,
                                       TrinityCraftingTopology topology,

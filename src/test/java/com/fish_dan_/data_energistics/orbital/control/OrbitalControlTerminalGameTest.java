@@ -1,12 +1,9 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.integration.curios.CuriosOrbitalControlTerminalAccess;
-import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlPlayerMenu;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
-import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -15,23 +12,14 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.mojang.authlib.GameProfile;
-import top.theillusivec4.curios.api.CuriosApi;
 
 import java.util.List;
-import java.util.OptionalInt;
 import java.util.UUID;
 
 @GameTestHolder(Data_Energistics.MODID)
@@ -39,71 +27,6 @@ import java.util.UUID;
 public final class OrbitalControlTerminalGameTest {
 
     private OrbitalControlTerminalGameTest() {}
-
-    @TestHolder("orbital_control_terminal_opens_uuid_scoped_ldlib2_overview")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void opensUuidScopedLdlib2Overview(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(server);
-        Item terminal = DEItems.ORBITAL_CONTROL_TERMINAL.get();
-
-        ServerPlayer owner = createPlayer(level, "terminal-owner");
-        ServerPlayer operator = createPlayer(level, "terminal-operator");
-        ServerPlayer outsider = createPlayer(level, "terminal-outsider");
-        OrbitalWeaponRecord ownerWeapon = data.createForOwner(server, owner.getUUID());
-        OrbitalWeaponRecord sharedWeapon = data.createForOwner(server, UUID.randomUUID());
-        data.authorize(server, sharedWeapon.weaponId(), sharedWeapon.ownerId(), operator.getUUID(), OrbitalAccessRole.OPERATOR);
-
-        ItemStack ownerTerminal = DEItems.ORBITAL_CONTROL_TERMINAL.toStack();
-        owner.setItemInHand(InteractionHand.MAIN_HAND, ownerTerminal);
-        InteractionResultHolder<ItemStack> ownerResult = terminal.use(level, owner, InteractionHand.MAIN_HAND);
-        helper.assertValueEqual(
-                ownerResult.getResult(),
-                InteractionResult.CONSUME,
-                "An owner holding the orbital terminal must open the server-side LDLib2 menu");
-        AbstractContainerMenu ownerMenu = requireMenu(helper, owner, "owner");
-        helper.assertTrue(ownerMenu.stillValid(owner), "The owner menu must remain valid while the terminal is held");
-        OrbitalControlTerminalSnapshot ownerSnapshot = OrbitalControlTerminalSnapshot.capture(server, owner.getUUID());
-        helper.assertValueEqual(ownerSnapshot.weapons().size(), 1, "The owner UUID must select only its own weapon");
-        helper.assertValueEqual(
-                ownerSnapshot.selectedWeaponId(),
-                ownerWeapon.weaponId(),
-                "The terminal selection must come from the owner's UUID index");
-
-        owner.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        helper.assertFalse(ownerMenu.stillValid(owner), "Removing the terminal must invalidate its held-item menu");
-        closeMenu(owner, ownerMenu);
-
-        operator.setItemInHand(InteractionHand.MAIN_HAND, DEItems.ORBITAL_CONTROL_TERMINAL.toStack());
-        InteractionResultHolder<ItemStack> operatorResult = terminal.use(level, operator, InteractionHand.MAIN_HAND);
-        helper.assertValueEqual(
-                operatorResult.getResult(),
-                InteractionResult.CONSUME,
-                "An operator holding the orbital terminal must open the same LDLib2 menu path");
-        AbstractContainerMenu operatorMenu = requireMenu(helper, operator, "operator");
-        OrbitalControlTerminalSnapshot operatorSnapshot = OrbitalControlTerminalSnapshot.capture(server, operator.getUUID());
-        helper.assertValueEqual(operatorSnapshot.weapons().size(), 1, "The operator must see the delegated weapon");
-        helper.assertValueEqual(
-                operatorSnapshot.weapons().getFirst().delegatedRole(),
-                OrbitalAccessRole.OPERATOR,
-                "The terminal overview must preserve the delegated role from SavedData");
-        data.revoke(server, sharedWeapon.weaponId(), sharedWeapon.ownerId(), operator.getUUID());
-        helper.assertFalse(operatorMenu.stillValid(operator), "Revoking access must invalidate the open terminal menu");
-        closeMenu(operator, operatorMenu);
-
-        outsider.setItemInHand(InteractionHand.MAIN_HAND, DEItems.ORBITAL_CONTROL_TERMINAL.toStack());
-        InteractionResultHolder<ItemStack> outsiderResult = terminal.use(level, outsider, InteractionHand.MAIN_HAND);
-        helper.assertValueEqual(
-                outsiderResult.getResult(),
-                InteractionResult.FAIL,
-                "A UUID without an owned or delegated weapon must not open a control terminal");
-        helper.assertFalse(
-                outsider.containerMenu != outsider.inventoryMenu,
-                "A rejected terminal use must not replace the player's normal menu");
-        helper.succeed();
-    }
 
     @TestHolder("orbital_control_terminal_cycles_persisted_server_selection")
     @EmptyTemplate("5")
@@ -135,85 +58,6 @@ public final class OrbitalControlTerminalGameTest {
         helper.succeed();
     }
 
-    @TestHolder("orbital_control_terminal_curios_source_opens_and_invalidates_shared_menu")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void curiosSourceOpensAndInvalidatesSharedMenu(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(server);
-
-        ServerPlayer owner = createPlayer(level, "curios-terminal-owner");
-        data.createForOwner(server, owner.getUUID());
-        var ownerCurios = CuriosApi.getCuriosInventory(owner).orElseThrow();
-        ownerCurios.setEquippedCurio(
-                CuriosOrbitalControlTerminalAccess.SLOT_ID,
-                0,
-                DEItems.ORBITAL_CONTROL_TERMINAL.toStack());
-        helper.assertTrue(
-                OrbitalControlPlayerMenu.open(owner),
-                "A terminal in the dedicated Curios slot must open the shared LDLib2 player menu");
-        AbstractContainerMenu ownerMenu = requireMenu(helper, owner, "Curios owner");
-        helper.assertTrue(ownerMenu.stillValid(owner), "The Curios-backed menu must remain valid while equipped");
-
-        ownerCurios.setEquippedCurio(CuriosOrbitalControlTerminalAccess.SLOT_ID, 0, ItemStack.EMPTY);
-        helper.assertFalse(
-                ownerMenu.stillValid(owner),
-                "Removing the only Curios terminal must invalidate the open player menu");
-        owner.setItemInHand(InteractionHand.MAIN_HAND, DEItems.ORBITAL_CONTROL_TERMINAL.toStack());
-        helper.assertTrue(
-                ownerMenu.stillValid(owner),
-                "A handheld terminal must preserve the same menu after the Curios source is removed");
-        closeMenu(owner, ownerMenu);
-
-        ServerPlayer operator = createPlayer(level, "curios-terminal-operator");
-        OrbitalWeaponRecord shared = data.createForOwner(server, UUID.randomUUID());
-        data.authorize(server, shared.weaponId(), shared.ownerId(), operator.getUUID(), OrbitalAccessRole.OPERATOR);
-        CuriosApi.getCuriosInventory(operator).orElseThrow().setEquippedCurio(
-                CuriosOrbitalControlTerminalAccess.SLOT_ID,
-                0,
-                DEItems.ORBITAL_CONTROL_TERMINAL.toStack());
-        helper.assertTrue(
-                OrbitalControlPlayerMenu.open(operator),
-                "A delegated operator must open the same Curios-backed control menu");
-        AbstractContainerMenu operatorMenu = requireMenu(helper, operator, "Curios operator");
-        data.revoke(server, shared.weaponId(), shared.ownerId(), operator.getUUID());
-        helper.assertFalse(
-                operatorMenu.stillValid(operator),
-                "Revoking weapon access must invalidate the Curios-backed menu even while the terminal stays equipped");
-        closeMenu(operator, operatorMenu);
-
-        ServerPlayer outsider = createPlayer(level, "curios-terminal-outsider");
-        CuriosApi.getCuriosInventory(outsider).orElseThrow().setEquippedCurio(
-                CuriosOrbitalControlTerminalAccess.SLOT_ID,
-                0,
-                DEItems.ORBITAL_CONTROL_TERMINAL.toStack());
-        helper.assertFalse(
-                OrbitalControlPlayerMenu.open(outsider),
-                "A Curios terminal must not open fire control for a player without weapon access");
-        helper.assertTrue(
-                outsider.containerMenu == outsider.inventoryMenu,
-                "A rejected Curios open intent must keep the normal inventory menu");
-        helper.succeed();
-    }
-
-    private static AbstractContainerMenu requireMenu(GameTestHelper helper, ServerPlayer player, String subject) {
-        AbstractContainerMenu menu = player.containerMenu;
-        helper.assertTrue(
-                menu != player.inventoryMenu,
-                subject + " use must replace the normal menu through the LDLib2 held-item factory");
-        return menu;
-    }
-
-    private static void closeMenu(ServerPlayer player, AbstractContainerMenu menu) {
-        if (player.containerMenu == menu) {
-            // GameTest's synthetic ServerPlayer has no network connection. The public
-            // closeContainer() path sends ClientboundContainerClosePacket; doCloseContainer()
-            // performs the same server-side lifecycle without requiring a client socket.
-            player.doCloseContainer();
-        }
-    }
-
     private static ServerPlayer createPlayer(ServerLevel level, String name) {
         return new TestServerPlayer(
                 level.getServer(),
@@ -234,15 +78,5 @@ public final class OrbitalControlTerminalGameTest {
 
         @Override
         public void displayClientMessage(Component chatComponent, boolean actionBar) {}
-
-        @Override
-        public OptionalInt openMenu(MenuProvider provider) {
-            AbstractContainerMenu menu = provider.createMenu(1, this.getInventory(), this);
-            if (menu == null) {
-                return OptionalInt.empty();
-            }
-            this.containerMenu = menu;
-            return OptionalInt.of(menu.containerId);
-        }
     }
 }

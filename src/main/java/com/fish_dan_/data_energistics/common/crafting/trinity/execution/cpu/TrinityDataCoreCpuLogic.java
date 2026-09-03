@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletion;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletionMode;
@@ -10,6 +11,7 @@ import com.fish_dan_.data_energistics.common.crafting.dynamic.DynamicCraftingOut
 import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.lifecycle.TrinityDispatchProposalLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchCursor;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchExclusion;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchLease;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposal;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.async.model.CraftingDispatchProposalRequest;
@@ -41,14 +43,20 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityPatternSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityBorrowingTransaction;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityInitialInputExtractor;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityRemainingPlanCalculation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityBorrowingLedger;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.inventory.TrinityExactWorkingInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityCraftingGraphAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityPlanningGatewayLifecycle;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityAvailableAmount;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventorySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputProjection;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
@@ -88,14 +96,16 @@ import appeng.crafting.inv.ListCraftingInventory;
 import appeng.hooks.ticking.TickHandler;
 import appeng.me.service.CraftingService;
 import com.google.common.base.Preconditions;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -114,9 +124,10 @@ import java.util.function.Consumer;
 final class TrinityDataCoreCpuLogic {
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int SCHEMA_VERSION = 2;
-    private static final int LEGACY_SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 3;
+    private static final int LONG_INVENTORY_SCHEMA_VERSION = 2;
     private static final String INVENTORY_TAG = "inventory";
+    private static final String EXACT_INVENTORY_TAG = "exact_inventory";
     private static final String VIRTUAL_COMPLETIONS_TAG = "virtual_completions";
     private static final String NO_OUTPUT_VIRTUAL_COMPLETIONS_TAG = "no_output_virtual_completions";
     private static final String JOB_TAG = "job";
@@ -138,10 +149,11 @@ final class TrinityDataCoreCpuLogic {
     @Nullable
     private TrinityDataCoreExecutingCraftingJob job;
     private final ListCraftingInventory inventory = new ListCraftingInventory(this::postChange);
+    private final TrinityExactWorkingInventory exactWorkingInventory = new TrinityExactWorkingInventory();
     private final ListCraftingInventory pendingVirtualCompletions;
     private final ListCraftingInventory pendingNoOutputCompletions;
     private final WorkerOperationTracker operationTracker = WorkerOperationTracker.create();
-    private final Set<Consumer<AEKey>> listeners = new HashSet<>();
+    private final Set<Consumer<AEKey>> listeners = new ObjectOpenHashSet<>();
     private boolean cantStoreItems;
     private CraftingDispatchCursor capacitySliceCursor = CraftingDispatchCursor.initial();
     private long proposalRetryAt = -1L;
@@ -185,14 +197,23 @@ final class TrinityDataCoreCpuLogic {
         if (this.job != null) {
             return CraftingSubmitResult.CPU_BUSY;
         }
-        if (this.cpu.getAvailableStorage() < plan.bytes()) {
+        if (plan instanceof TrinityCraftingPlan trinityPlan ?
+                !this.cpu.storageCapacity().accepts(trinityPlan.exactBytes()) :
+                this.cpu.getAvailableStorage() < plan.bytes()) {
             return CraftingSubmitResult.CPU_TOO_SMALL;
         }
-        if (!this.inventory.list.isEmpty()) {
+        if (!this.inventory.list.isEmpty() || !this.exactWorkingInventory.isEmpty()) {
             Data_Energistics.LOGGER.warn("Trinity Data Core CPU inventory is not empty when a job is submitted");
         }
 
-        GenericStack missingIngredient = CraftingCpuHelper.tryExtractInitialItems(plan, grid, this.inventory, source);
+        GenericStack missingIngredient = plan instanceof TrinityCraftingPlan trinityPlan ?
+                TrinityInitialInputExtractor.extract(
+                        trinityPlan,
+                        grid,
+                        this.inventory,
+                        this.exactWorkingInventory,
+                        source) :
+                CraftingCpuHelper.tryExtractInitialItems(plan, grid, this.inventory, source);
         if (missingIngredient != null) {
             return CraftingSubmitResult.missingIngredient(missingIngredient);
         }
@@ -346,7 +367,7 @@ final class TrinityDataCoreCpuLogic {
         if (this.job == null) {
             recoverVirtualCompletions();
             storeItems();
-            if (!this.inventory.list.isEmpty()) {
+            if (!this.inventory.list.isEmpty() || !this.exactWorkingInventory.isEmpty()) {
                 this.cantStoreItems = true;
             }
             return;
@@ -377,16 +398,20 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
         if (this.proposalRetryAt > currentTick) {
-            return;
+            if (!this.proposalCoordinator.hasActionableProposal()) {
+                return;
+            }
+        } else {
+            this.proposalRetryAt = -1L;
         }
-        this.proposalRetryAt = -1L;
     }
 
     private boolean readyForDispatch(long currentTick) {
         if (!this.cpu.isOnline() || !this.cpu.isActive() || this.job == null || this.job.suspended) {
             return false;
         }
-        if (this.job.link.isCanceled() || this.proposalRetryAt > currentTick) {
+        if (this.job.link.isCanceled() ||
+                (this.proposalRetryAt > currentTick && !this.proposalCoordinator.hasActionableProposal())) {
             return false;
         }
         return true;
@@ -400,7 +425,7 @@ final class TrinityDataCoreCpuLogic {
         boolean hasReadyWork = !dispatchWindow.isExhausted() &&
                 after.schedulingHint().kind() == TrinityWorkerSchedulingHint.Kind.READY;
         return new CraftingDispatchStepResult(
-                physicalAttempts == 1,
+                physicalAttempts > 0,
                 !before.equals(after),
                 hasReadyWork,
                 dispatchWindow.isExhausted());
@@ -501,7 +526,7 @@ final class TrinityDataCoreCpuLogic {
             }
             pushedPatterns = Math.addExact(pushedPatterns, outcome.physicalAttempts());
             dispatched |= outcome.dispatched();
-            if (outcome.proposalOutstanding() || outcome.proposalDeferred()) {
+            if (outcome.currentProposalOutstanding() || outcome.proposalDeferred()) {
                 return new CraftingExecutionOutcome(pushedPatterns, dispatched);
             }
             if (!outcome.dispatched()) {
@@ -532,6 +557,7 @@ final class TrinityDataCoreCpuLogic {
         int physicalAttempts = 0;
         boolean dispatched = false;
         int passes = 0;
+        IntSet inspectedStages = new IntOpenHashSet();
         while (passes < maxPatterns && !dispatchWindow.isExhausted() && this.job == currentJob) {
             CraftingExecutionOutcome outcome = executeTrinityCraftingOne(
                     currentJob,
@@ -540,14 +566,14 @@ final class TrinityDataCoreCpuLogic {
                     level,
                     dispatchWindow,
                     dispatchBudget,
-                    passes > 0);
+                    inspectedStages);
             physicalAttempts = Math.addExact(physicalAttempts, outcome.physicalAttempts());
             dispatched |= outcome.dispatched();
             passes++;
             if (outcome.proposalDeferred()) {
                 break;
             }
-            if (outcome.proposalOutstanding()) {
+            if (outcome.currentProposalOutstanding()) {
                 continue;
             }
             if (outcome.physicalAttempts() == 0) {
@@ -566,7 +592,7 @@ final class TrinityDataCoreCpuLogic {
                                                                Level level,
                                                                CraftingDispatchWindow dispatchWindow,
                                                                CraftingDispatchBudget dispatchBudget,
-                                                               boolean skipLeased) {
+                                                               IntSet inspectedStages) {
         if (advanceTrinityCompletion(currentJob)) {
             return CraftingExecutionOutcome.NONE;
         }
@@ -578,7 +604,12 @@ final class TrinityDataCoreCpuLogic {
             advanceTrinityReplanning(currentJob, craftingService, currentTick);
             return CraftingExecutionOutcome.NONE;
         }
-        var workOffer = skipLeased ? execution.pollNext(currentTick) : execution.poll(currentTick);
+        boolean allowNewProposal = this.proposalRetryAt <= currentTick;
+        var workOffer = execution.pollDispatchable(
+                currentTick,
+                inspectedStages,
+                work -> this.proposalCoordinator.dispatchable(work, allowNewProposal),
+                allowNewProposal);
         if (workOffer.isEmpty()) {
             if (execution.status() == TrinityPlanExecution.Status.FAILED) {
                 Data_Energistics.LOGGER.error(
@@ -601,6 +632,9 @@ final class TrinityDataCoreCpuLogic {
         }
 
         TrinityPlanExecution.Work work = workOffer.orElseThrow();
+        if (!inspectedStages.add(work.stageIndex())) {
+            throw new IllegalStateException("A Trinity worker pass selected the same stage twice");
+        }
         TrinityPatternResolver.Resolution resolution;
         try {
             resolution = this.patternResolver.resolve(
@@ -637,13 +671,16 @@ final class TrinityDataCoreCpuLogic {
             return CraftingExecutionOutcome.NONE;
         }
         MEStorage network = activeGrid.getStorageService().getInventory();
+        if (this.exactWorkingInventory.refillPhysicalWindows(this.inventory)) {
+            this.cpu.markDirty();
+        }
         long maximumLogicalFirings = work.maximumLogicalFirings();
         if (work.cycle()) {
             TrinityPlanExecution.CycleWaveLimit cycleWaveLimit;
             try {
                 cycleWaveLimit = execution.maximumCycleLogicalFirings(
                         work,
-                        key -> combinedCycleSeedAvailability(network, key));
+                        (key, usefulUpper) -> combinedCycleSeedAvailability(network, key, usefulUpper));
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
                         "Trinity CPU {} failed to calculate the seed-safe cycle wave for compact job {}",
@@ -702,13 +739,11 @@ final class TrinityDataCoreCpuLogic {
             }
         }
 
-        Optional<TrinityBorrowingTransaction> borrowing = work.cycle() ?
-                borrowDynamicInputs(
-                        selected.inputsPerCraft(),
-                        selected.maximumCrafts(),
-                        network,
-                        execution.borrowingLedger()) :
-                Optional.of(newBorrowingTransaction(network, execution.borrowingLedger()));
+        Optional<TrinityBorrowingTransaction> borrowing = borrowDynamicInputs(
+                selected.inputsPerCraft(),
+                selected.maximumCrafts(),
+                network,
+                execution.borrowingLedger());
         if (borrowing.isEmpty()) {
             execution.deferDynamicInput(
                     work,
@@ -780,7 +815,7 @@ final class TrinityDataCoreCpuLogic {
         if (outcome.dispatched()) {
             return new CraftingExecutionOutcome(outcome.physicalAttempts(), true);
         }
-        if (outcome.proposalOutstanding()) {
+        if (outcome.currentProposalOutstanding()) {
             return new CraftingExecutionOutcome(outcome.physicalAttempts(), false, true, false);
         }
         if (outcome.proposalDeferred()) {
@@ -818,8 +853,8 @@ final class TrinityDataCoreCpuLogic {
                 graphSnapshot,
                 craftingProviderPublications(craftingService).publicationScope(),
                 () -> graphSnapshot
-                        .map(snapshot -> captureReplanAvailability(snapshot, network))
-                        .orElseGet(Map::of),
+                        .map(snapshot -> captureReplanAvailability(snapshot, activeGrid))
+                        .orElseGet(TrinityPlanningInventory::empty),
                 execution.finalOutput().what(),
                 BigInteger.valueOf(execution.deliveryRemaining()),
                 execution.quantityMode(),
@@ -850,15 +885,14 @@ final class TrinityDataCoreCpuLogic {
             }
         }
 
-        long availableStorage = this.cpu.getAvailableStorage();
-        if (ready.plan().bytes() > availableStorage) {
+        if (!this.cpu.storageCapacity().accepts(ready.plan().exactBytes())) {
             Data_Energistics.LOGGER.warn(
                     "Trinity CPU {} retained job {} because replacement plan at catalog revision {} requires {} bytes but the worker currently has {}",
                     this.cpu.number(),
                     currentJob.link.getCraftingID(),
                     ready.revision(),
-                    ready.plan().bytes(),
-                    availableStorage);
+                    ready.plan().exactBytes(),
+                    this.cpu.storageCapacity().diagnosticValue());
             this.remainingPlanCalculation.retrySameRevision(
                     ready.revision(),
                     currentTick,
@@ -866,11 +900,7 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
 
-        Optional<TrinityBorrowingTransaction> reservation = reserveReplacementInputs(
-                ready.plan(),
-                network,
-                execution.borrowingLedger());
-        if (reservation.isEmpty()) {
+        if (!reserveReplacementInputs(ready.plan(), network)) {
             Data_Energistics.LOGGER.warn(
                     "Trinity CPU {} retained job {} while replacement inputs for catalog revision {} were unavailable",
                     this.cpu.number(),
@@ -882,49 +912,35 @@ final class TrinityDataCoreCpuLogic {
                     settings.dynamicRetryMaxTicks);
             return;
         }
-        reservation.orElseThrow().retain();
-        Map<AEKey, Long> previousPendingOutputs = execution.pendingOutputs();
-        HashSet<AEKey> changedOutputKeys = new HashSet<>(previousPendingOutputs.keySet());
+        Map<AEKey, BigInteger> previousPendingOutputs = execution.pendingOutputs();
+        ObjectOpenHashSet<AEKey> changedOutputKeys = new ObjectOpenHashSet<>(previousPendingOutputs.keySet());
         execution.replaceRemainingPlan(ready.plan(), currentTick);
-        if (currentJob.timeTracker.hasPlanBaseline()) {
-            currentJob.timeTracker.replacePendingPlan(previousPendingOutputs, ready.plan().plannedOutputs());
-        } else {
-            currentJob.timeTracker.installReplacementAfterLegacyRestore(ready.plan().plannedOutputs());
-        }
+        currentJob.timeTracker.replacePendingPlan(previousPendingOutputs, ready.plan().plannedOutputs());
         changedOutputKeys.addAll(execution.pendingOutputs().keySet());
         this.remainingPlanCalculation.acceptRevision(ready.revision());
         this.cpu.markDirty();
         changedOutputKeys.forEach(this::postChange);
     }
 
-    private Map<AEKey, BigInteger> captureReplanAvailability(TrinityCraftingGraphSnapshot snapshot,
-                                                             MEStorage network) {
-        LinkedHashMap<AEKey, BigInteger> available = new LinkedHashMap<>();
-        for (AEKey key : snapshot.keys()) {
-            long cpuAmount = this.inventory.list.get(key);
-            long networkAmount = simulateNetworkExtraction(network, key);
-            BigInteger amount = BigInteger.valueOf(cpuAmount).add(BigInteger.valueOf(networkAmount));
-            if (amount.signum() > 0) {
-                available.put(key, amount);
-            }
-        }
-        return Map.copyOf(available);
+    private TrinityPlanningInventory captureReplanAvailability(
+                                                               TrinityCraftingGraphSnapshot snapshot,
+                                                               IGrid grid) {
+        var storageService = grid.getStorageService();
+        return TrinityPlanningInventorySnapshot.capture(
+                snapshot.keys(),
+                storageService.getInventory(),
+                this.cpu.actionSource()).inventory()
+                .plus(this.inventory.list)
+                .plus(this.exactWorkingInventory.snapshot());
     }
 
-    private Optional<TrinityBorrowingTransaction> reserveReplacementInputs(TrinityCraftingPlan replacement,
-                                                                           MEStorage network,
-                                                                           TrinityBorrowingLedger ledger) {
-        ArrayList<GenericStack> inputs = new ArrayList<>(replacement.initialExpectedInputs().size());
-        try {
-            replacement.initialExpectedInputs().forEach((key, amount) -> inputs.add(new GenericStack(key, amount.longValueExact())));
-        } catch (ArithmeticException exception) {
-            Data_Energistics.LOGGER.error(
-                    "Trinity CPU {} cannot reserve overflowing replacement-plan inputs",
-                    this.cpu.number(),
-                    exception);
-            return Optional.empty();
-        }
-        return borrowDynamicInputs(inputs, 1L, network, ledger);
+    private boolean reserveReplacementInputs(TrinityCraftingPlan replacement, MEStorage network) {
+        return TrinityInitialInputExtractor.reserveReplacement(
+                replacement.initialExpectedInputs(),
+                network,
+                this.inventory,
+                this.exactWorkingInventory,
+                this.cpu.actionSource()) == null;
     }
 
     private long simulateNetworkExtraction(MEStorage network, AEKey key) {
@@ -943,13 +959,20 @@ final class TrinityDataCoreCpuLogic {
     /**
      * Returns the saturated combined CPU and network amount used to decide whether a whole cycle wave can start.
      */
-    private long combinedCycleSeedAvailability(MEStorage network, AEKey key) {
-        long cpuAmount = this.inventory.list.get(key);
-        long networkAmount = simulateNetworkExtraction(network, key);
-        if (cpuAmount < 0L || networkAmount < 0L) {
-            throw new IllegalStateException("Trinity cycle seed availability cannot be negative");
+    private BigInteger combinedCycleSeedAvailability(
+                                                     MEStorage network,
+                                                     AEKey key,
+                                                     BigInteger usefulUpper) {
+        BigInteger cpuAmount = this.exactWorkingInventory.totalAmount(key, this.inventory).min(usefulUpper);
+        if (cpuAmount.equals(usefulUpper)) {
+            return cpuAmount;
         }
-        return Long.MAX_VALUE - cpuAmount < networkAmount ? Long.MAX_VALUE : cpuAmount + networkAmount;
+        if (!(network instanceof FiniteNetworkStorageAccess storageAccess)) {
+            return cpuAmount.add(BigInteger.valueOf(simulateNetworkExtraction(network, key)))
+                    .min(usefulUpper);
+        }
+        TrinityAvailableAmount networkAmount = storageAccess.exactAvailability(key, this.cpu.actionSource());
+        return cpuAmount.add(networkAmount.availableUpTo(usefulUpper.subtract(cpuAmount)));
     }
 
     /**
@@ -1044,10 +1067,10 @@ final class TrinityDataCoreCpuLogic {
         }
 
         if (currentJob.link.isStandalone()) {
-            execution.releaseCompletionForStandalone().forEach((key, amount) -> {
-                this.inventory.insert(key, amount, Actionable.MODULATE);
-                postChange(key);
-            });
+            for (Object2LongMap.Entry<AEKey> entry : execution.releaseCompletionForStandalone().object2LongEntrySet()) {
+                this.inventory.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
+                postChange(entry.getKey());
+            }
         } else {
             Optional<GenericStack> completionOffer = execution.completionOffer();
             if (completionOffer.isPresent() && !deliverCompletionToRequester(currentJob, execution, completionOffer.get())) {
@@ -1121,7 +1144,7 @@ final class TrinityDataCoreCpuLogic {
         if (physicalCallLimit <= 0 ||
                 dispatchWindow.isExhausted() ||
                 !dispatchWindow.canCaptureProviderCapacity()) {
-            return ProviderDispatchOutcome.NONE;
+            return settleProposal(workIdentity, false, ProviderDispatchOutcome.NONE);
         }
         long remainingLogicalCrafts = remainingCrafts;
         CraftingDispatchLease dispatchLease = captureDispatchLease(
@@ -1153,12 +1176,12 @@ final class TrinityDataCoreCpuLogic {
         ExtractedPatternInputs prototype;
         long maximumCount;
         long currentTick;
-        ProviderCapacityCapture capacityCapture = null;
+        ProviderCapacityCapture capacityCapture;
         List<ProviderCapacitySnapshot> snapshots;
         try (CraftingDispatchWindow.CapacityCaptureScope ignored = dispatchWindow.beginProviderCapacityCapture()) {
             prototype = capturePatternInputPrototype(extractionDetails, level);
             if (prototype == null || dispatchWindow.isExhausted()) {
-                return settleProposal(asynchronousSelection, ProviderDispatchOutcome.NONE);
+                return settleProposal(workIdentity, asynchronousSelection, ProviderDispatchOutcome.NONE);
             }
 
             double prototypePower = CraftingCpuHelper.calculatePatternPower(prototype.inputHolder());
@@ -1166,33 +1189,29 @@ final class TrinityDataCoreCpuLogic {
             maximumCount = limitByWaitingCapacity(currentJob, prototype.waitingPerCraft(), maximumCount);
             maximumCount = limitByEnergy(prototypePower, maximumCount, energyService);
             if (maximumCount <= 0L || dispatchWindow.isExhausted()) {
-                return settleProposal(asynchronousSelection, ProviderDispatchOutcome.NONE);
+                return settleProposal(workIdentity, asynchronousSelection, ProviderDispatchOutcome.NONE);
             }
 
             currentTick = TickHandler.instance().getCurrentTick();
-            if (selectedProposal == null) {
-                capacityCapture = this.capacityResolver.capture(
-                        publications,
-                        details,
-                        prototype.inputHolder(),
-                        maximumCount,
-                        patternIdentity,
-                        currentTick);
+            capacityCapture = this.capacityResolver.capture(
+                    publications,
+                    details,
+                    prototype.inputHolder(),
+                    maximumCount,
+                    patternIdentity,
+                    currentTick);
+            snapshots = capacityCapture.snapshots();
+            if (snapshots.isEmpty()) {
+                capacityCapture = nativeSingleCraftFallbackCapture(capacityCapture);
                 snapshots = capacityCapture.snapshots();
-                if (snapshots.isEmpty()) {
-                    capacityCapture = nativeSingleCraftFallbackCapture(capacityCapture);
-                    snapshots = capacityCapture.snapshots();
-                    nativeSingleCraftFallback = !snapshots.isEmpty();
-                    if (nativeSingleCraftFallback) {
-                        synchronousFallback = true;
-                    }
+                nativeSingleCraftFallback = !snapshots.isEmpty();
+                if (nativeSingleCraftFallback) {
+                    synchronousFallback = true;
                 }
-            } else {
-                snapshots = List.of(selectedProposal.target());
             }
         }
-        if (snapshots.isEmpty()) {
-            return settleProposal(asynchronousSelection, ProviderDispatchOutcome.NONE);
+        if (snapshots.isEmpty() && selectedProposal == null) {
+            return settleProposal(workIdentity, asynchronousSelection, ProviderDispatchOutcome.NONE);
         }
         if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Empty &&
                 !synchronousFallback &&
@@ -1227,18 +1246,16 @@ final class TrinityDataCoreCpuLogic {
         if (proposalDecision instanceof TrinityWorkerProposalCoordinator.Pending) {
             return ProviderDispatchOutcome.AWAITING_PROPOSAL;
         }
-        if (asynchronousSelection) {
-            maximumCount = Math.min(maximumCount, selectedProposal.logicalCrafts());
-        }
-
         int physicalAttempts = 0;
         int inspectedSnapshots = 0;
         CraftingDispatchCursor searchCursor = this.capacitySliceCursor;
-        Set<ProviderCapacitySnapshot> inspectedTargets = Collections.newSetFromMap(new IdentityHashMap<>());
-        while (inspectedSnapshots < snapshots.size() &&
+        Set<ProviderCapacitySnapshot> inspectedTargets = new ReferenceOpenHashSet<>();
+        int candidateLimit = asynchronousSelection ? 1 : snapshots.size();
+        while (inspectedSnapshots < candidateLimit &&
                 physicalAttempts < physicalCallLimit &&
                 !dispatchWindow.isExhausted()) {
-            DispatchCapacitySlicePlan candidatePlan = asynchronousSelection ?
+            boolean usingSelectedProposal = asynchronousSelection;
+            DispatchCapacitySlicePlan candidatePlan = usingSelectedProposal ?
                     new DispatchCapacitySlicePlan(List.of(new DispatchCapacitySlicePlan.Slice(
                             selectedProposal.target(),
                             Math.min(selectedProposal.logicalCrafts(), maximumCount),
@@ -1253,14 +1270,15 @@ final class TrinityDataCoreCpuLogic {
             }
             DispatchCapacitySlicePlan.Slice slice = candidatePlan.slices().getFirst();
             ProviderCapacitySnapshot snapshot = slice.target();
+            inspectedSnapshots++;
+            searchCursor = slice.nextCursor();
             if (!inspectedTargets.add(snapshot)) {
                 break;
             }
-            inspectedSnapshots++;
-            searchCursor = slice.nextCursor();
+            boolean candidateNativeFallback = !usingSelectedProposal && nativeSingleCraftFallback;
             long prototypeOffer = offeredCount(snapshot, slice, maximumCount);
             ICraftingProvider provider = resolveCurrentProvider(
-                    nativeSingleCraftFallback,
+                    candidateNativeFallback,
                     publications,
                     details,
                     prototype.inputHolder(),
@@ -1270,12 +1288,33 @@ final class TrinityDataCoreCpuLogic {
                     currentTick);
             if (provider == null) {
                 if (asynchronousSelection) {
-                    this.proposalCoordinator.discardStale();
+                    return resubmitAfterSelectedTargetFailure(
+                            dispatchLease,
+                            capacityCapture,
+                            maximumCount,
+                            selectedProposal,
+                            workIdentity,
+                            currentTick,
+                            dispatchBudget,
+                            true,
+                            CraftingDispatchExclusion.target(selectedProposal.target()));
                 }
                 continue;
             }
             boolean countedDispatch = CountedCraftingProviderAdapters.supportsCountedDispatch(provider);
             if (!canAttemptProvider(dispatchWindow, provider, details, snapshot.route(), countedDispatch)) {
+                if (asynchronousSelection) {
+                    return resubmitAfterSelectedTargetFailure(
+                            dispatchLease,
+                            capacityCapture,
+                            maximumCount,
+                            selectedProposal,
+                            workIdentity,
+                            currentTick,
+                            dispatchBudget,
+                            false,
+                            CraftingDispatchExclusion.target(selectedProposal.target()));
+                }
                 continue;
             }
 
@@ -1285,6 +1324,18 @@ final class TrinityDataCoreCpuLogic {
                     details,
                     countedDispatch)) {
                 if (providerBusy(provider, details, dispatchWindow)) {
+                    if (asynchronousSelection) {
+                        return resubmitAfterSelectedTargetFailure(
+                                dispatchLease,
+                                capacityCapture,
+                                maximumCount,
+                                selectedProposal,
+                                workIdentity,
+                                currentTick,
+                                dispatchBudget,
+                                false,
+                                CraftingDispatchExclusion.provider(selectedProposal.target()));
+                    }
                     continue;
                 }
                 if (dispatchWindow.isExhausted()) {
@@ -1294,6 +1345,7 @@ final class TrinityDataCoreCpuLogic {
                 PatternInputTransaction inputTransaction = beginPatternInputTransaction(extractionDetails, level);
                 if (inputTransaction == null) {
                     return settleProposal(
+                            workIdentity,
                             asynchronousSelection,
                             new ProviderDispatchOutcome(physicalAttempts, false));
                 }
@@ -1312,7 +1364,7 @@ final class TrinityDataCoreCpuLogic {
 
                     long offeredCount = offeredCount(snapshot, slice, currentMaximum);
                     ICraftingProvider currentProvider = resolveCurrentProvider(
-                            nativeSingleCraftFallback,
+                            candidateNativeFallback,
                             publications,
                             details,
                             inputs.inputHolder(),
@@ -1322,7 +1374,16 @@ final class TrinityDataCoreCpuLogic {
                             currentTick);
                     if (currentProvider != provider) {
                         if (asynchronousSelection) {
-                            this.proposalCoordinator.discardStale();
+                            return resubmitAfterSelectedTargetFailure(
+                                    dispatchLease,
+                                    capacityCapture,
+                                    maximumCount,
+                                    selectedProposal,
+                                    workIdentity,
+                                    currentTick,
+                                    dispatchBudget,
+                                    true,
+                                    CraftingDispatchExclusion.target(selectedProposal.target()));
                         }
                         continue;
                     }
@@ -1333,10 +1394,11 @@ final class TrinityDataCoreCpuLogic {
                             workGeneration,
                             snapshot)) {
                         if (asynchronousSelection) {
-                            this.proposalCoordinator.discardStale();
+                            this.proposalCoordinator.discardStale(workIdentity);
                         }
                         return settleProposal(
-                                asynchronousSelection,
+                                workIdentity,
+                                false,
                                 new ProviderDispatchOutcome(physicalAttempts, false));
                     }
 
@@ -1349,7 +1411,7 @@ final class TrinityDataCoreCpuLogic {
                                 offeredCount,
                                 snapshot,
                                 dispatchWindow,
-                                nativeSingleCraftFallback,
+                                candidateNativeFallback,
                                 countedDispatch);
                     } catch (RuntimeException exception) {
                         Data_Energistics.LOGGER.error(
@@ -1363,12 +1425,36 @@ final class TrinityDataCoreCpuLogic {
                                 details,
                                 snapshot.route(),
                                 CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
+                        if (asynchronousSelection) {
+                            return resubmitAfterSelectedTargetFailure(
+                                    dispatchLease,
+                                    capacityCapture,
+                                    maximumCount,
+                                    selectedProposal,
+                                    workIdentity,
+                                    currentTick,
+                                    dispatchBudget,
+                                    false,
+                                    CraftingDispatchExclusion.provider(selectedProposal.target()));
+                        }
                         continue;
                     }
                     for (CraftingDispatchRejection rejection : preparation.rejections()) {
                         dispatchWindow.recordResult(provider, details, rejection.target(), rejection.status());
                     }
                     if (!preparation.accepted()) {
+                        if (asynchronousSelection) {
+                            return resubmitAfterSelectedTargetFailure(
+                                    dispatchLease,
+                                    capacityCapture,
+                                    maximumCount,
+                                    selectedProposal,
+                                    workIdentity,
+                                    currentTick,
+                                    dispatchBudget,
+                                    false,
+                                    preparationExclusion(preparation, selectedProposal.target()));
+                        }
                         continue;
                     }
                     if (dispatchWindow.isExhausted()) {
@@ -1383,6 +1469,18 @@ final class TrinityDataCoreCpuLogic {
                     if ((snapshot.routingMode() != ProviderRoutingMode.AGGREGATE &&
                             !target.equals(snapshot.route())) ||
                             !canAttemptProvider(dispatchWindow, provider, details, target, countedDispatch)) {
+                        if (asynchronousSelection) {
+                            return resubmitAfterSelectedTargetFailure(
+                                    dispatchLease,
+                                    capacityCapture,
+                                    maximumCount,
+                                    selectedProposal,
+                                    workIdentity,
+                                    currentTick,
+                                    dispatchBudget,
+                                    false,
+                                    CraftingDispatchExclusion.target(selectedProposal.target()));
+                        }
                         continue;
                     }
                     long count;
@@ -1403,6 +1501,18 @@ final class TrinityDataCoreCpuLogic {
                                 details,
                                 target,
                                 CraftingDispatchStatus.FAILED_BEFORE_OWNERSHIP);
+                        if (asynchronousSelection) {
+                            return resubmitAfterSelectedTargetFailure(
+                                    dispatchLease,
+                                    capacityCapture,
+                                    maximumCount,
+                                    selectedProposal,
+                                    workIdentity,
+                                    currentTick,
+                                    dispatchBudget,
+                                    false,
+                                    CraftingDispatchExclusion.provider(selectedProposal.target()));
+                        }
                         continue;
                     }
                     if (dispatchWindow.isExhausted()) {
@@ -1422,6 +1532,7 @@ final class TrinityDataCoreCpuLogic {
                     AdditionalInputTransaction additionalInputs = extractAdditionalInputs(inputs.inputsPerCraft(), count);
                     if (additionalInputs == null) {
                         return settleProposal(
+                                workIdentity,
                                 asynchronousSelection,
                                 new ProviderDispatchOutcome(physicalAttempts, false));
                     }
@@ -1433,6 +1544,7 @@ final class TrinityDataCoreCpuLogic {
                     if (energyCharge == null) {
                         additionalInputs.rollback();
                         return settleProposal(
+                                workIdentity,
                                 asynchronousSelection,
                                 new ProviderDispatchOutcome(physicalAttempts, false));
                     }
@@ -1445,10 +1557,11 @@ final class TrinityDataCoreCpuLogic {
                         energyCharge.rollback();
                         additionalInputs.rollback();
                         if (asynchronousSelection) {
-                            this.proposalCoordinator.discardStale();
+                            this.proposalCoordinator.discardStale(workIdentity);
                         }
                         return settleProposal(
-                                asynchronousSelection,
+                                workIdentity,
+                                false,
                                 new ProviderDispatchOutcome(physicalAttempts, false));
                     }
                     PatternInputTransaction acceptedInputs = inputTransaction;
@@ -1478,7 +1591,7 @@ final class TrinityDataCoreCpuLogic {
                             accounting));
                     if (result.physicalAttempted()) {
                         physicalAttempts = Math.incrementExact(physicalAttempts);
-                        this.capacitySliceCursor = asynchronousSelection ?
+                        this.capacitySliceCursor = usingSelectedProposal ?
                                 selectedProposal.nextCursor() :
                                 slice.nextCursor();
                     }
@@ -1489,12 +1602,14 @@ final class TrinityDataCoreCpuLogic {
                                 currentJob.link.getCraftingID());
                         finishJob(false);
                         return settleProposal(
+                                workIdentity,
                                 asynchronousSelection,
                                 new ProviderDispatchOutcome(physicalAttempts, false));
                     }
                     if (result.dispatched()) {
-                        if (asynchronousSelection || physicalAttempts >= physicalCallLimit) {
+                        if (usingSelectedProposal || physicalAttempts >= physicalCallLimit) {
                             return settleProposal(
+                                    workIdentity,
                                     asynchronousSelection,
                                     new ProviderDispatchOutcome(physicalAttempts, true));
                         }
@@ -1502,6 +1617,7 @@ final class TrinityDataCoreCpuLogic {
                         maximumCount = Math.min(maximumCount - count, remainingLogicalCrafts);
                         if (remainingLogicalCrafts <= 0L || maximumCount <= 0L) {
                             return settleProposal(
+                                    workIdentity,
                                     asynchronousSelection,
                                     new ProviderDispatchOutcome(physicalAttempts, true));
                         }
@@ -1512,15 +1628,102 @@ final class TrinityDataCoreCpuLogic {
             }
         }
         return settleProposal(
+                workIdentity,
                 asynchronousSelection,
                 new ProviderDispatchOutcome(physicalAttempts, false));
     }
 
-    private ProviderDispatchOutcome settleProposal(boolean consumedProposal, ProviderDispatchOutcome outcome) {
-        if (consumedProposal) {
-            this.proposalCoordinator.releaseLast();
+    /**
+     * Replaces a selected proposal that failed before provider ownership with a freshly reserved asynchronous choice.
+     *
+     * <p>
+     * The selected ticket retains its provider-route and machine reservation until this boundary. The replacement is
+     * submitted through the ordinary scheduler so every fallback target is checked against the same shard,
+     * provider-quantum and machine-exclusive reservation state as the original proposal. No synchronous fallback may
+     * bypass those reservations while other work tickets remain outstanding.
+     * </p>
+     */
+    private ProviderDispatchOutcome resubmitAfterSelectedTargetFailure(
+                                                                       CraftingDispatchLease dispatchLease,
+                                                                       ProviderCapacityCapture capacityCapture,
+                                                                       long maximumCount,
+                                                                       CraftingDispatchProposal failedProposal,
+                                                                       Object workIdentity,
+                                                                       long currentTick,
+                                                                       CraftingDispatchBudget dispatchBudget,
+                                                                       boolean stale,
+                                                                       CraftingDispatchExclusion failureExclusion) {
+        if (stale) {
+            this.proposalCoordinator.discardStale(workIdentity);
+        } else {
+            this.proposalCoordinator.release(workIdentity);
         }
-        return outcome.withProposalOutstanding(this.proposalCoordinator.outstanding());
+
+        ObjectLinkedOpenHashSet<CraftingDispatchExclusion> exclusions = new ObjectLinkedOpenHashSet<>(failedProposal.exclusions());
+        exclusions.add(failureExclusion);
+        List<ProviderCapacitySnapshot> alternatives = capacityCapture.snapshots().stream()
+                .filter(snapshot -> exclusions.stream().noneMatch(exclusion -> exclusion.excludes(snapshot)))
+                .toList();
+        if (alternatives.isEmpty()) {
+            return ProviderDispatchOutcome.NONE;
+        }
+        ProviderCapacityCapture alternativeCapture = new ProviderCapacityCapture(
+                capacityCapture.key(),
+                alternatives);
+        TrinityWorkerProposalCoordinator.Decision replacement;
+        try {
+            replacement = this.proposalCoordinator.submit(
+                    new CraftingDispatchProposalRequest(
+                            dispatchLease,
+                            alternativeCapture,
+                            BigInteger.valueOf(maximumCount),
+                            this.capacitySliceCursor,
+                            exclusions),
+                    workIdentity,
+                    this.cpu::proposalCompleted,
+                    dispatchBudget.proposalPolicy());
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Trinity CPU {} could not replace a pre-ownership dispatch proposal",
+                    this.cpu.number(),
+                    exception);
+            return ProviderDispatchOutcome.NONE;
+        }
+        if (replacement instanceof TrinityWorkerProposalCoordinator.Pending) {
+            return ProviderDispatchOutcome.AWAITING_PROPOSAL;
+        }
+        if (replacement instanceof TrinityWorkerProposalCoordinator.Deferred) {
+            this.proposalRetryAt = Math.addExact(currentTick, dispatchBudget.retryBackoffTicks());
+            return ProviderDispatchOutcome.DEFERRED;
+        }
+        if (replacement instanceof TrinityWorkerProposalCoordinator.Fallback) {
+            return ProviderDispatchOutcome.NONE;
+        }
+        throw new IllegalStateException("A replacement Trinity dispatch proposal returned an impossible decision");
+    }
+
+    private static CraftingDispatchExclusion preparationExclusion(
+                                                                  CountedCraftingPreparation preparation,
+                                                                  ProviderCapacitySnapshot failedTarget) {
+        boolean providerScoped = preparation.rejections().stream()
+                .anyMatch(rejection -> rejection.target() == null);
+        return providerScoped ?
+                CraftingDispatchExclusion.provider(failedTarget) :
+                CraftingDispatchExclusion.target(failedTarget);
+    }
+
+    /**
+     * Settles proposal ownership for one exact work identity. Worker-wide outstanding state belongs to scheduling
+     * snapshots and must never be projected onto this work's committed provider outcome.
+     */
+    private ProviderDispatchOutcome settleProposal(
+                                                   Object workIdentity,
+                                                   boolean consumedProposal,
+                                                   ProviderDispatchOutcome outcome) {
+        if (consumedProposal) {
+            this.proposalCoordinator.release(workIdentity);
+        }
+        return outcome.withCurrentProposalOutstanding(this.proposalCoordinator.outstanding(workIdentity));
     }
 
     private CountedCraftingPreparation prepareSelectedProvider(
@@ -1823,7 +2026,7 @@ final class TrinityDataCoreCpuLogic {
 
     @Nullable
     private static List<GenericStack> captureCounter(KeyCounter source, KeyCounter aggregate) {
-        ArrayList<GenericStack> captured = new ArrayList<>();
+        ObjectArrayList<GenericStack> captured = new ObjectArrayList<>();
         for (var entry : source) {
             long amount = entry.getLongValue();
             long existing = aggregate.get(entry.getKey());
@@ -1960,7 +2163,7 @@ final class TrinityDataCoreCpuLogic {
     }
 
     private static List<GenericStack> counterSnapshot(KeyCounter counter) {
-        ArrayList<GenericStack> snapshot = new ArrayList<>();
+        ObjectArrayList<GenericStack> snapshot = new ObjectArrayList<>();
         for (var entry : counter) {
             snapshot.add(new GenericStack(entry.getKey(), entry.getLongValue()));
         }
@@ -2055,7 +2258,7 @@ final class TrinityDataCoreCpuLogic {
                 count,
                 expectedOutputs,
                 expectedContainerItems);
-        ArrayList<GenericStack> allExpectedPhysicalOutputs = new ArrayList<>(expectedOutputs);
+        ObjectArrayList<GenericStack> allExpectedPhysicalOutputs = new ObjectArrayList<>(expectedOutputs);
         allExpectedPhysicalOutputs.addAll(expectedContainerItems);
         if (currentJob.dynamicOutputs.evaluate(
                 currentJob.waitingFor.list,
@@ -2082,7 +2285,7 @@ final class TrinityDataCoreCpuLogic {
         }
         if (validateScheduledOutputs) {
             for (GenericStack output : scheduledOutputs) {
-                if (currentJob.getPendingOutputs(output.what()) < output.amount()) {
+                if (currentJob.exactPendingOutput(output.what()).compareTo(BigInteger.valueOf(output.amount())) < 0) {
                     Data_Energistics.LOGGER.error(
                             "Trinity Data Core CPU cannot remove {} scheduled units of {}",
                             output.amount(),
@@ -2091,7 +2294,7 @@ final class TrinityDataCoreCpuLogic {
                 }
             }
         }
-        HashSet<AEKey> changedKeys = new HashSet<>();
+        ObjectOpenHashSet<AEKey> changedKeys = new ObjectOpenHashSet<>();
         for (GenericStack output : expectedOutputs) {
             changedKeys.add(output.what());
         }
@@ -2114,7 +2317,7 @@ final class TrinityDataCoreCpuLogic {
                                                                                  long count,
                                                                                  List<GenericStack> expectedOutputs,
                                                                                  List<GenericStack> expectedContainerItems) {
-        ArrayList<DynamicCraftingOutputLedger.Registration> resolved = new ArrayList<>();
+        ObjectArrayList<DynamicCraftingOutputLedger.Registration> resolved = new ObjectArrayList<>();
         Optional<DynamicCraftingOutputAdapters.ResolvedSemantics> adapter = DynamicCraftingOutputAdapters.resolve(details);
         if (adapter.isPresent()) {
             DynamicCraftingOutputAdapters.ResolvedSemantics semantics = adapter.orElseThrow();
@@ -2203,7 +2406,7 @@ final class TrinityDataCoreCpuLogic {
 
     @Nullable
     private static List<GenericStack> scaleAmounts(List<GenericStack> amounts, long count) {
-        ArrayList<GenericStack> scaled = new ArrayList<>();
+        ObjectArrayList<GenericStack> scaled = new ObjectArrayList<>();
         for (GenericStack stack : amounts) {
             long amount = stack.amount();
             if (amount <= 0L || amount > Long.MAX_VALUE / count) {
@@ -2259,11 +2462,6 @@ final class TrinityDataCoreCpuLogic {
         addWaiting(currentJob, commit.expectedContainerItems());
         currentJob.dynamicOutputs.register(commit.dynamicOutputs());
         execution.recordAccepted(work, commit.count(), logicalOffer);
-        if (!currentJob.timeTracker.hasPlanBaseline()) {
-            for (GenericStack output : commit.expectedOutputs()) {
-                currentJob.timeTracker.addMaxItems(output.amount(), output.what().getType());
-            }
-        }
         for (GenericStack containerItem : commit.expectedContainerItems()) {
             currentJob.timeTracker.addMaxItems(containerItem.amount(), containerItem.what().getType());
         }
@@ -2287,27 +2485,38 @@ final class TrinityDataCoreCpuLogic {
                 if (missing == 0L) {
                     continue;
                 }
-                long simulated = network.extract(
-                        input.what(),
-                        missing,
-                        Actionable.SIMULATE,
-                        this.cpu.actionSource());
-                if (simulated != missing) {
-                    transaction.releaseUncommitted();
-                    return Optional.empty();
-                }
                 transaction.validateRecord(input.what(), missing);
-                long extracted = network.extract(
-                        input.what(),
-                        missing,
-                        Actionable.MODULATE,
-                        this.cpu.actionSource());
-                if (extracted > 0L) {
+                long remaining = missing;
+                while (remaining > 0L) {
+                    long extracted = network.extract(
+                            input.what(),
+                            remaining,
+                            Actionable.MODULATE,
+                            this.cpu.actionSource());
+                    if (extracted == 0L) {
+                        break;
+                    }
+                    if (extracted < 0L || extracted > remaining) {
+                        if (extracted > 0L) {
+                            long restored = network.insert(
+                                    input.what(),
+                                    extracted,
+                                    Actionable.MODULATE,
+                                    this.cpu.actionSource());
+                            if (restored < extracted) {
+                                long retained = extracted - restored;
+                                this.inventory.insert(input.what(), retained, Actionable.MODULATE);
+                                transaction.record(input.what(), retained);
+                            }
+                        }
+                        throw new IllegalStateException("AE storage violated its extraction amount contract");
+                    }
                     this.inventory.insert(input.what(), extracted, Actionable.MODULATE);
                     transaction.record(input.what(), extracted);
                     postChange(input.what());
+                    remaining -= extracted;
                 }
-                if (extracted != missing) {
+                if (remaining > 0L) {
                     transaction.releaseUncommitted();
                     return Optional.empty();
                 }
@@ -2362,8 +2571,8 @@ final class TrinityDataCoreCpuLogic {
             return false;
         }
 
-        ArrayList<GenericStack> intermediate = new ArrayList<>();
-        ArrayList<GenericStack> finalResults = new ArrayList<>();
+        ObjectArrayList<GenericStack> intermediate = new ObjectArrayList<>();
+        ObjectArrayList<GenericStack> finalResults = new ObjectArrayList<>();
         for (var entry : this.pendingVirtualCompletions.list) {
             GenericStack completion = new GenericStack(entry.getKey(), entry.getLongValue());
             (entry.getKey().matches(currentJob.finalOutput) ? finalResults : intermediate).add(completion);
@@ -2442,7 +2651,7 @@ final class TrinityDataCoreCpuLogic {
         if (this.pendingNoOutputCompletions.list.isEmpty()) {
             return true;
         }
-        ArrayList<GenericStack> completions = new ArrayList<>();
+        ObjectArrayList<GenericStack> completions = new ObjectArrayList<>();
         for (var entry : this.pendingNoOutputCompletions.list) {
             completions.add(new GenericStack(entry.getKey(), entry.getLongValue()));
         }
@@ -2541,7 +2750,7 @@ final class TrinityDataCoreCpuLogic {
             }
             return;
         }
-        ArrayList<GenericStack> recoverable = new ArrayList<>();
+        ObjectArrayList<GenericStack> recoverable = new ObjectArrayList<>();
         for (var entry : this.pendingVirtualCompletions.list) {
             recoverable.add(new GenericStack(entry.getKey(), entry.getLongValue()));
         }
@@ -2616,7 +2825,7 @@ final class TrinityDataCoreCpuLogic {
 
     private record CraftingExecutionOutcome(int physicalAttempts,
                                             boolean dispatched,
-                                            boolean proposalOutstanding,
+                                            boolean currentProposalOutstanding,
                                             boolean proposalDeferred) {
 
         private static final CraftingExecutionOutcome NONE = new CraftingExecutionOutcome(0, false, false, false);
@@ -2632,10 +2841,10 @@ final class TrinityDataCoreCpuLogic {
             if (dispatched && physicalAttempts == 0) {
                 throw new IllegalArgumentException("Advanced crafting work must consume a physical attempt");
             }
-            if (dispatched && (proposalOutstanding || proposalDeferred)) {
+            if (dispatched && (currentProposalOutstanding || proposalDeferred)) {
                 throw new IllegalArgumentException("A committed work item cannot retain proposal state");
             }
-            if (proposalOutstanding && proposalDeferred) {
+            if (currentProposalOutstanding && proposalDeferred) {
                 throw new IllegalArgumentException("A work item cannot be outstanding and deferred together");
             }
         }
@@ -2647,12 +2856,12 @@ final class TrinityDataCoreCpuLogic {
                                           long proposalRetryAt,
                                           CraftingDispatchCursor capacitySliceCursor,
                                           boolean cantStoreItems,
-                                          boolean proposalOutstanding,
+                                          boolean workerProposalOutstanding,
                                           TrinityWorkerSchedulingHint schedulingHint) {}
 
     private record ProviderDispatchOutcome(int physicalAttempts,
                                            boolean dispatched,
-                                           boolean proposalOutstanding,
+                                           boolean currentProposalOutstanding,
                                            boolean proposalDeferred) {
 
         private static final ProviderDispatchOutcome NONE = new ProviderDispatchOutcome(0, false, false, false);
@@ -2670,16 +2879,16 @@ final class TrinityDataCoreCpuLogic {
             if (dispatched && physicalAttempts == 0) {
                 throw new IllegalArgumentException("A dispatched provider slice must consume a physical attempt");
             }
-            if (dispatched && (proposalOutstanding || proposalDeferred)) {
-                throw new IllegalArgumentException("A committed provider slice cannot retain its stale proposal");
+            if (dispatched && (currentProposalOutstanding || proposalDeferred)) {
+                throw new IllegalArgumentException("A committed provider slice cannot retain its current proposal");
             }
-            if (proposalOutstanding && proposalDeferred) {
+            if (currentProposalOutstanding && proposalDeferred) {
                 throw new IllegalArgumentException("A provider proposal cannot be outstanding and deferred");
             }
         }
 
-        private ProviderDispatchOutcome withProposalOutstanding(boolean outstanding) {
-            return this.proposalOutstanding == outstanding ?
+        private ProviderDispatchOutcome withCurrentProposalOutstanding(boolean outstanding) {
+            return this.currentProposalOutstanding == outstanding ?
                     this :
                     new ProviderDispatchOutcome(
                             this.physicalAttempts,
@@ -2817,7 +3026,7 @@ final class TrinityDataCoreCpuLogic {
 
         if (exactAccepted > 0L) {
             if (exactReceiveLocally) {
-                this.inventory.insert(what, exactAccepted, Actionable.MODULATE);
+                this.exactWorkingInventory.deposit(what, exactAccepted, this.inventory);
                 if (currentJob.isTrinityPlan()) {
                     currentJob.trinityExecution().wake(what);
                 }
@@ -2984,12 +3193,6 @@ final class TrinityDataCoreCpuLogic {
      * @return immediate, event-gated, timed-retry or idle disposition
      */
     TrinityWorkerSchedulingHint schedulingHint(long currentTick) {
-        if (this.proposalCoordinator.pending()) {
-            return TrinityWorkerSchedulingHint.waitingEvent();
-        }
-        if (this.proposalRetryAt > currentTick) {
-            return TrinityWorkerSchedulingHint.retryAt(this.proposalRetryAt);
-        }
         TrinityDataCoreExecutingCraftingJob currentJob = this.job;
         if (currentJob == null) {
             return this.inventory.list.isEmpty() &&
@@ -3002,6 +3205,12 @@ final class TrinityDataCoreCpuLogic {
             return TrinityWorkerSchedulingHint.waitingEvent();
         }
         if (!currentJob.isTrinityPlan()) {
+            if (this.proposalRetryAt > currentTick) {
+                return TrinityWorkerSchedulingHint.retryAt(this.proposalRetryAt);
+            }
+            if (this.proposalCoordinator.pending()) {
+                return TrinityWorkerSchedulingHint.waitingEvent();
+            }
             if (!currentJob.tasks.isEmpty()) {
                 return TrinityWorkerSchedulingHint.ready();
             }
@@ -3011,6 +3220,23 @@ final class TrinityDataCoreCpuLogic {
         }
 
         TrinityPlanExecution execution = currentJob.trinityExecution();
+        boolean allowNewProposal = this.proposalRetryAt <= currentTick;
+        if (execution.hasDispatchableWork(
+                work -> this.proposalCoordinator.dispatchable(work, allowNewProposal),
+                allowNewProposal)) {
+            return TrinityWorkerSchedulingHint.ready();
+        }
+        if (!allowNewProposal && execution.hasDispatchableWork(
+                work -> this.proposalCoordinator.dispatchable(work, true),
+                true)) {
+            return TrinityWorkerSchedulingHint.retryAt(this.proposalRetryAt);
+        }
+        if (this.proposalCoordinator.pending()) {
+            return TrinityWorkerSchedulingHint.waitingEvent();
+        }
+        if (!allowNewProposal) {
+            return TrinityWorkerSchedulingHint.retryAt(this.proposalRetryAt);
+        }
         return switch (execution.status()) {
             case READY, COMPLETED, FAILED -> TrinityWorkerSchedulingHint.ready();
             case WAITING_INPUT -> TrinityWorkerSchedulingHint.waitingEvent();
@@ -3094,6 +3320,9 @@ final class TrinityDataCoreCpuLogic {
         CompoundTag data = new CompoundTag();
         data.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
         data.put(INVENTORY_TAG, this.inventory.writeToNBT(registries));
+        if (!this.exactWorkingInventory.isEmpty()) {
+            data.put(EXACT_INVENTORY_TAG, this.exactWorkingInventory.save(registries));
+        }
         data.put(VIRTUAL_COMPLETIONS_TAG, this.pendingVirtualCompletions.writeToNBT(registries));
         data.put(NO_OUTPUT_VIRTUAL_COMPLETIONS_TAG, this.pendingNoOutputCompletions.writeToNBT(registries));
         if (this.job != null) {
@@ -3115,12 +3344,12 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != SCHEMA_VERSION && schemaVersion != LEGACY_SCHEMA_VERSION) {
+        if (schemaVersion != LONG_INVENTORY_SCHEMA_VERSION && schemaVersion != SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
-                    "Ignoring Trinity Data Core CPU logic schema version {}; expected {} or legacy {}",
+                    "Ignoring Trinity Data Core CPU logic schema version {}; expected {} or {}",
                     schemaVersion,
-                    SCHEMA_VERSION,
-                    LEGACY_SCHEMA_VERSION);
+                    LONG_INVENTORY_SCHEMA_VERSION,
+                    SCHEMA_VERSION);
             return;
         }
         Tag rawInventory = data.get(INVENTORY_TAG);
@@ -3131,54 +3360,66 @@ final class TrinityDataCoreCpuLogic {
         }
 
         this.inventory.readFromNBT(inventoryTag, registries);
-        if (schemaVersion == SCHEMA_VERSION) {
-            Tag rawVirtualCompletions = data.get(VIRTUAL_COMPLETIONS_TAG);
-            if (!(rawVirtualCompletions instanceof ListTag virtualCompletionsTag) ||
-                    (!virtualCompletionsTag.isEmpty() &&
-                            virtualCompletionsTag.getElementType() != Tag.TAG_COMPOUND)) {
-                Data_Energistics.LOGGER.error(
-                        "Ignoring Trinity Data Core CPU logic without a virtual completion ledger");
-                this.inventory.clear();
+        if (schemaVersion == SCHEMA_VERSION && data.contains(EXACT_INVENTORY_TAG)) {
+            if (!data.contains(EXACT_INVENTORY_TAG, Tag.TAG_COMPOUND)) {
+                Data_Energistics.LOGGER.error("Ignoring Trinity Data Core CPU logic with invalid exact inventory");
+                discardPersistedState();
                 return;
             }
             try {
-                this.pendingVirtualCompletions.readFromNBT(virtualCompletionsTag, registries);
-                for (var entry : this.pendingVirtualCompletions.list) {
-                    if (entry.getLongValue() <= 0L) {
-                        throw new IllegalArgumentException("Virtual completion amount must be positive");
-                    }
-                }
+                this.exactWorkingInventory.load(data.getCompound(EXACT_INVENTORY_TAG), registries);
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
-                        "Ignoring Trinity Data Core CPU logic with a damaged virtual completion ledger",
+                        "Ignoring Trinity Data Core CPU logic with damaged exact inventory",
                         exception);
                 discardPersistedState();
                 return;
             }
-            if (data.contains(NO_OUTPUT_VIRTUAL_COMPLETIONS_TAG)) {
-                Tag rawNoOutputCompletions = data.get(NO_OUTPUT_VIRTUAL_COMPLETIONS_TAG);
-                if (!(rawNoOutputCompletions instanceof ListTag noOutputTag) ||
-                        (!noOutputTag.isEmpty() && noOutputTag.getElementType() != Tag.TAG_COMPOUND)) {
-                    Data_Energistics.LOGGER.error(
-                            "Ignoring Trinity Data Core CPU logic without a valid no-output virtual completion ledger");
-                    discardPersistedState();
-                    return;
-                }
-                try {
-                    this.pendingNoOutputCompletions.readFromNBT(noOutputTag, registries);
-                    for (var entry : this.pendingNoOutputCompletions.list) {
-                        if (entry.getLongValue() <= 0L) {
-                            throw new IllegalArgumentException("No-output virtual completion amount must be positive");
-                        }
-                    }
-                } catch (RuntimeException exception) {
-                    Data_Energistics.LOGGER.error(
-                            "Ignoring Trinity Data Core CPU logic with a damaged no-output virtual completion ledger",
-                            exception);
-                    discardPersistedState();
-                    return;
+        }
+        Tag rawVirtualCompletions = data.get(VIRTUAL_COMPLETIONS_TAG);
+        if (!(rawVirtualCompletions instanceof ListTag virtualCompletionsTag) ||
+                (!virtualCompletionsTag.isEmpty() &&
+                        virtualCompletionsTag.getElementType() != Tag.TAG_COMPOUND)) {
+            Data_Energistics.LOGGER.error(
+                    "Ignoring Trinity Data Core CPU logic without a virtual completion ledger");
+            discardPersistedState();
+            return;
+        }
+        try {
+            this.pendingVirtualCompletions.readFromNBT(virtualCompletionsTag, registries);
+            for (var entry : this.pendingVirtualCompletions.list) {
+                if (entry.getLongValue() <= 0L) {
+                    throw new IllegalArgumentException("Virtual completion amount must be positive");
                 }
             }
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Ignoring Trinity Data Core CPU logic with a damaged virtual completion ledger",
+                    exception);
+            discardPersistedState();
+            return;
+        }
+        Tag rawNoOutputCompletions = data.get(NO_OUTPUT_VIRTUAL_COMPLETIONS_TAG);
+        if (!(rawNoOutputCompletions instanceof ListTag noOutputTag) ||
+                (!noOutputTag.isEmpty() && noOutputTag.getElementType() != Tag.TAG_COMPOUND)) {
+            Data_Energistics.LOGGER.error(
+                    "Ignoring Trinity Data Core CPU logic without a valid no-output virtual completion ledger");
+            discardPersistedState();
+            return;
+        }
+        try {
+            this.pendingNoOutputCompletions.readFromNBT(noOutputTag, registries);
+            for (var entry : this.pendingNoOutputCompletions.list) {
+                if (entry.getLongValue() <= 0L) {
+                    throw new IllegalArgumentException("No-output virtual completion amount must be positive");
+                }
+            }
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error(
+                    "Ignoring Trinity Data Core CPU logic with a damaged no-output virtual completion ledger",
+                    exception);
+            discardPersistedState();
+            return;
         }
         if (!data.contains(JOB_TAG)) {
             return;
@@ -3207,19 +3448,19 @@ final class TrinityDataCoreCpuLogic {
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error("Ignoring invalid persisted Trinity Data Core CPU job", exception);
             this.job = null;
-            Map<AEKey, Long> recoveredCompletion = TrinityDataCoreExecutingCraftingJob.recoverCompletionContents(jobData, registries);
-            recoveredCompletion.forEach((key, amount) -> {
+            Object2LongMap<AEKey> recoveredCompletion = TrinityDataCoreExecutingCraftingJob.recoverCompletionContents(jobData, registries);
+            for (Object2LongMap.Entry<AEKey> entry : recoveredCompletion.object2LongEntrySet()) {
                 try {
-                    this.inventory.insert(key, amount, Actionable.MODULATE);
+                    this.inventory.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
                 } catch (RuntimeException recoveryException) {
                     Data_Energistics.LOGGER.error(
                             "Trinity CPU {} could not recover persisted completion item {} x{}",
                             this.cpu.number(),
-                            key,
-                            amount,
+                            entry.getKey(),
+                            entry.getLongValue(),
                             recoveryException);
                 }
-            });
+            }
             if (!recoveredCompletion.isEmpty()) {
                 Data_Energistics.LOGGER.warn(
                         "Trinity CPU {} moved {} persisted completion variants into recovery inventory",
@@ -3234,6 +3475,7 @@ final class TrinityDataCoreCpuLogic {
         this.proposalCoordinator.cancel();
         cancelPendingReplan();
         this.inventory.clear();
+        this.exactWorkingInventory.clear();
         this.pendingVirtualCompletions.clear();
         this.job = null;
         this.capacitySliceCursor = CraftingDispatchCursor.initial();
@@ -3248,6 +3490,7 @@ final class TrinityDataCoreCpuLogic {
     static boolean persistedHasRetainedState(CompoundTag data) {
         return data.contains(JOB_TAG) ||
                 !data.getList(INVENTORY_TAG, Tag.TAG_COMPOUND).isEmpty() ||
+                data.contains(EXACT_INVENTORY_TAG, Tag.TAG_COMPOUND) ||
                 !data.getList(VIRTUAL_COMPLETIONS_TAG, Tag.TAG_COMPOUND).isEmpty();
     }
 
@@ -3277,28 +3520,34 @@ final class TrinityDataCoreCpuLogic {
             }
         }
         this.inventory.list.removeZeros();
+        boolean recoveredExact = this.exactWorkingInventory.recover(recovery);
         this.cpu.markDirty();
-        return this.inventory.list.isEmpty();
+        return recoveredExact && this.inventory.list.isEmpty();
     }
 
     void getAllItems(KeyCounter out) {
         out.addAll(this.inventory.list);
+        this.exactWorkingInventory.snapshot().forEach(
+                (key, amount) -> TrinityAe2AmountProjection.addToKeyCounter(out, key, amount));
         if (this.job == null) {
             return;
         }
         out.addAll(this.job.waitingFor.list);
         if (this.job.isTrinityPlan()) {
-            this.job.trinityExecution().completionContents().forEach(out::add);
+            for (Object2LongMap.Entry<AEKey> entry : this.job.trinityExecution().completionContents().object2LongEntrySet()) {
+                out.add(entry.getKey(), entry.getLongValue());
+            }
         }
         this.job.addScheduledOutputsTo(out);
     }
 
     long getStored(AEKey template) {
-        long stored = this.inventory.extract(template, Long.MAX_VALUE, Actionable.SIMULATE);
+        BigInteger stored = this.exactWorkingInventory.totalAmount(template, this.inventory);
         if (this.job == null || !this.job.isTrinityPlan()) {
-            return stored;
+            return TrinityAe2AmountProjection.toAe2Amount(stored);
         }
-        return Math.addExact(stored, this.job.trinityExecution().completionAmount(template));
+        return TrinityAe2AmountProjection.toAe2Amount(
+                stored.add(BigInteger.valueOf(this.job.trinityExecution().completionAmount(template))));
     }
 
     long getPendingOutputs(AEKey template) {
@@ -3324,8 +3573,10 @@ final class TrinityDataCoreCpuLogic {
                 this.job.trinityExecution().pendingOutputs().keySet() :
                 Set.of();
         if (this.job.isTrinityPlan()) {
-            this.job.trinityExecution().releaseCompletionForStandalone()
-                    .forEach((key, amount) -> this.inventory.insert(key, amount, Actionable.MODULATE));
+            for (Object2LongMap.Entry<AEKey> entry : this.job.trinityExecution().releaseCompletionForStandalone()
+                    .object2LongEntrySet()) {
+                this.exactWorkingInventory.deposit(entry.getKey(), entry.getLongValue(), this.inventory);
+            }
         }
         if (success) {
             this.job.link.markDone();
@@ -3357,7 +3608,7 @@ final class TrinityDataCoreCpuLogic {
 
     private void storeItems() {
         Preconditions.checkState(this.job == null, "CPU should not have a job while dumping inventory");
-        if (this.inventory.list.isEmpty()) {
+        if (this.inventory.list.isEmpty() && this.exactWorkingInventory.isEmpty()) {
             return;
         }
 
@@ -3368,6 +3619,7 @@ final class TrinityDataCoreCpuLogic {
 
         var storage = grid.getStorageService().getInventory();
         IActionSource source = this.cpu.actionSource();
+        this.exactWorkingInventory.returnAll(storage, source);
         for (var entry : this.inventory.list) {
             postChange(entry.getKey());
             long inserted = storage.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE, source);

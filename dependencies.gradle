@@ -3,9 +3,7 @@ dependencies {
     compileOnly(libs.jspecify)
 
     testImplementation(libs.testframework)
-    testImplementation(libs.junit.jupiter)
-    testRuntimeOnly(libs.junit.platform.launcher)
-    localRuntime(libs.testframework)
+    testCompileOnly(libs.jspecify)
 
     jarJar(api(forge.mdlib.get()))
     jarJar(api(libs.ojalgo.get()))
@@ -15,7 +13,6 @@ dependencies {
     // Misc libraries
     compileOnly(forge.jech)
     compileOnly(forge.curios)
-    testCompileOnly(forge.curios)
 
     // AE2
     accessCompileOnly(forge.ae2)
@@ -63,7 +60,6 @@ dependencies {
 
     // UI framework
     compileOnly(forge.ldlib)
-    testCompileOnly(forge.ldlib)
 
     // WAILA-likes
     compileOnly(forge.jade)
@@ -92,6 +88,7 @@ dependencies {
     localRuntime(forge.mek)
     localRuntime(forge.oritech)
     localRuntime(forge.modern.industrialization)
+    localRuntime(forge.grandpower)
     localRuntime(forge.brandonscore)
     localRuntime(forge.codechickenlib)
     localRuntime(forge.draconic.evolution)

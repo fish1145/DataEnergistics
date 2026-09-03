@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.PlanningCachePath;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningCacheStatistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
@@ -18,6 +19,7 @@ import net.minecraft.network.chat.Component;
 import appeng.api.stacks.GenericStack;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -55,9 +57,12 @@ public final class TrinityInitialPlanCalculation {
                         request.target(),
                         request.requestedAmount(),
                         request.quantityMode(),
-                        request.available(),
-                        request.settings(),
-                        TrinityPlanningControl.unbounded()),
+                        request.inventory(),
+                        request.limits(),
+                        TrinityPlanningControl.create(
+                                () -> false,
+                                System::nanoTime,
+                                TimeUnit.MILLISECONDS.toNanos(request.limits().planningBudgetMs()))),
                 PlanningCachePath.MISS);
     }
 
@@ -86,39 +91,58 @@ public final class TrinityInitialPlanCalculation {
                     request,
                     result.diagnostic(),
                     computation.planningNanos());
-            logFailure(request, failedAttempt.diagnostic(), computation.cachePath());
+            logFailure(request, failedAttempt.diagnostic(), computation.cachePath(), computation.cacheStatistics());
             return failedAttempt;
         }
 
         TrinityCraftingPlan plan = result.value();
-        if (plan.bytes() > request.maxTrinityBytes()) {
+        if (!request.maxTrinityCapacity().accepts(plan.exactBytes())) {
             TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.NO_ELIGIBLE_TRINITY_CPU,
                     Component.translatable(
                             "gui.data_energistics.trinity_planning.cpu_too_small",
-                            plan.bytes(),
-                            request.maxTrinityBytes()),
+                            plan.exactBytes(),
+                            request.maxTrinityCapacity().diagnosticValue()),
                     Map.of(
-                            "planBytes", Long.toString(plan.bytes()),
-                            "maxTrinityBytes", Long.toString(request.maxTrinityBytes())));
-            logFailure(request, diagnostic, computation.cachePath());
+                            "planBytes", plan.exactBytes().toString(),
+                            "maxTrinityBytes", request.maxTrinityCapacity().diagnosticValue()));
+            logFailure(request, diagnostic, computation.cachePath(), computation.cacheStatistics());
             return TrinityPlanningAttempt.failure(diagnostic);
         }
 
         if (DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
             TrinityPlanningStatistics statistics = plan.statistics();
+            TrinityPlanningCacheStatistics cache = computation.cacheStatistics();
             Data_Energistics.LOGGER.info(
-                    "Trinity planning selected request={} target={} mode={} revision={} cachePath={} scc={} variants={} planningNanos={} mipNanos={} scheduleStates={}",
+                    "Trinity planning selected request={} target={} mode={} revision={} cachePath={} quality={} scc={} variants={} planningNanos={} firstFeasibleNanos={} mipNanos={} scheduleStates={} solverPasses={} solverModels={} jointStates={} routeStates={} seedRetentionKinds={} seedRetentionRequired={} seedRetentionFinal={} seedRefinementPasses={} patternExpansionHits={} patternExpansionMisses={} targetStructureHit={} dagRouteProofHits={} dagRouteHintHits={} cycleUnitProofHits={} mipTemplateHits={} requestInFlightShared={}",
                     request.requestId(),
                     request.target(),
                     request.quantityMode(),
                     request.graph().revision(),
                     computation.cachePath(),
+                    statistics.quality(),
                     statistics.sccCount(),
                     statistics.variantCount(),
                     statistics.planningNanos(),
+                    statistics.firstFeasibleNanos(),
                     statistics.mipNanos(),
-                    statistics.scheduleStates());
+                    statistics.scheduleStates(),
+                    statistics.solverPasses(),
+                    statistics.solverModels(),
+                    statistics.jointStates(),
+                    statistics.routeStates(),
+                    statistics.seedRetentionKinds(),
+                    statistics.seedRetentionRequired(),
+                    statistics.seedRetentionFinal(),
+                    statistics.seedRefinementPasses(),
+                    cache.patternExpansionHits(),
+                    cache.patternExpansionMisses(),
+                    cache.targetStructureHit(),
+                    cache.dagRouteProofHits(),
+                    cache.dagRouteHintHits(),
+                    cache.cycleUnitProofHits(),
+                    cache.mipTemplateHits(),
+                    cache.requestInFlightShared());
         }
         return TrinityPlanningAttempt.success(plan);
     }
@@ -146,19 +170,28 @@ public final class TrinityInitialPlanCalculation {
     private static void logFailure(
                                    TrinityInitialPlanningRequest request,
                                    TrinityPlanningDiagnostic diagnostic,
-                                   PlanningCachePath cachePath) {
+                                   PlanningCachePath cachePath,
+                                   TrinityPlanningCacheStatistics cache) {
         if (!DataEnergisticsConfiguration.INSTANCE.developer.verboseRuntimeLogging) {
             return;
         }
         Data_Energistics.LOGGER.info(
-                "Trinity planning stopped request={} target={} mode={} revision={} cachePath={} reason={} metadata={}",
+                "Trinity planning stopped request={} target={} mode={} revision={} cachePath={} reason={} metadata={} patternExpansionHits={} patternExpansionMisses={} targetStructureHit={} dagRouteProofHits={} dagRouteHintHits={} cycleUnitProofHits={} mipTemplateHits={} requestInFlightShared={}",
                 request.requestId(),
                 request.target(),
                 request.quantityMode(),
                 request.graph().revision(),
                 cachePath,
                 diagnostic.code(),
-                diagnostic.metadata());
+                diagnostic.metadata(),
+                cache.patternExpansionHits(),
+                cache.patternExpansionMisses(),
+                cache.targetStructureHit(),
+                cache.dagRouteProofHits(),
+                cache.dagRouteHintHits(),
+                cache.cycleUnitProofHits(),
+                cache.mipTemplateHits(),
+                cache.requestInFlightShared());
     }
 
     private static TrinityPlanningInput input(TrinityInitialPlanningRequest request) {
@@ -168,8 +201,8 @@ public final class TrinityInitialPlanCalculation {
                 request.target(),
                 request.requestedAmount(),
                 request.quantityMode(),
-                request.available(),
-                request.settings());
+                request.inventory(),
+                request.limits());
     }
 
     @FunctionalInterface

@@ -9,54 +9,41 @@ import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 
-import org.jspecify.annotations.Nullable;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
- * Encodes versioned tower bindings and migrates the legacy linked-position list.
+ * Reads and writes the binding schema used by release 3.1.3 and the current release.
  */
 public final class VersionedTowerBindingCodec {
 
     /** Current persistent binding schema. */
     public static final int CURRENT_VERSION = 2;
 
-    /** Version tag used to distinguish current data from legacy linked positions. */
+    /** Version tag identifying the supported binding representation. */
     public static final String VERSION_TAG = "tower_bindings_version";
 
     /** Current binding-list tag. */
     public static final String BINDINGS_TAG = "tower_bindings";
 
-    /** Legacy linked-position tag retained solely for migration. */
-    public static final String LEGACY_LINKED_POSITIONS_TAG = "linked_positions";
-
     /**
-     * Reads current bindings or migrates legacy linked positions in list order.
+     * Reads the complete supported binding representation.
      *
-     * @param root                 tower block-entity tag
-     * @param towerDimensionId     dimension used by legacy anchors, nullable only for already-versioned data
-     * @param legacyDisabledStates legacy position-level disable state
+     * @param root tower block-entity tag
      * @return immutable bindings ordered by FIFO sequence
      */
-    public List<TowerBinding> read(CompoundTag root,
-                                   @Nullable ResourceLocation towerDimensionId,
-                                   Map<BlockPos, Boolean> legacyDisabledStates) {
-        if (root.contains(VERSION_TAG, Tag.TAG_INT)) {
-            int version = root.getInt(VERSION_TAG);
-            if (version < 1 || version > CURRENT_VERSION) {
-                throw new IllegalArgumentException("Unsupported tower binding version: " + version);
-            }
-            return readVersioned(root, version);
+    public List<TowerBinding> read(CompoundTag root) {
+        int version = root.getInt(VERSION_TAG);
+        if (version != CURRENT_VERSION) {
+            throw new IllegalArgumentException("Unsupported tower binding version: " + version);
         }
-        if (towerDimensionId == null) {
-            throw new IllegalStateException("Legacy tower bindings require the tower dimension");
-        }
-        return migrateLegacy(root, towerDimensionId, legacyDisabledStates);
+        return readVersioned(root);
     }
 
     /**
@@ -66,7 +53,7 @@ public final class VersionedTowerBindingCodec {
      * @param bindings bindings to persist
      */
     public void write(CompoundTag root, List<TowerBinding> bindings) {
-        ArrayList<TowerBinding> orderedBindings = new ArrayList<>(bindings);
+        ObjectArrayList<TowerBinding> orderedBindings = new ObjectArrayList<>(bindings);
         orderedBindings.sort(Comparator.comparingLong(TowerBinding::fifoSequence));
 
         ListTag bindingTags = new ListTag();
@@ -79,7 +66,7 @@ public final class VersionedTowerBindingCodec {
             bindingTag.putLong("fifo", binding.fifoSequence());
             bindingTag.putBoolean("enabled", binding.enabled());
 
-            ArrayList<TowerDeviceKey> orderedDeviceKeys = new ArrayList<>(binding.disabledDeviceKeys());
+            ObjectArrayList<TowerDeviceKey> orderedDeviceKeys = new ObjectArrayList<>(binding.disabledDeviceKeys());
             orderedDeviceKeys.sort(Comparator.naturalOrder());
             ListTag disabledTags = new ListTag();
             for (TowerDeviceKey deviceKey : orderedDeviceKeys) {
@@ -98,22 +85,21 @@ public final class VersionedTowerBindingCodec {
         }
         root.putInt(VERSION_TAG, CURRENT_VERSION);
         root.put(BINDINGS_TAG, bindingTags);
-        root.remove(LEGACY_LINKED_POSITIONS_TAG);
     }
 
-    private static List<TowerBinding> readVersioned(CompoundTag root, int version) {
+    private static List<TowerBinding> readVersioned(CompoundTag root) {
         if (!root.contains(BINDINGS_TAG, Tag.TAG_LIST)) {
             throw new IllegalArgumentException("Versioned tower data is missing its binding list");
         }
         ListTag bindingTags = root.getList(BINDINGS_TAG, Tag.TAG_COMPOUND);
-        ArrayList<TowerBinding> bindings = new ArrayList<>(bindingTags.size());
-        Set<Long> fifoSequences = new HashSet<>();
+        ObjectArrayList<TowerBinding> bindings = new ObjectArrayList<>(bindingTags.size());
+        LongSet fifoSequences = new LongOpenHashSet();
         for (Tag rawBindingTag : bindingTags) {
             CompoundTag bindingTag = (CompoundTag) rawBindingTag;
             ResourceLocation dimensionId = parseId(bindingTag.getString("dimension"), "binding dimension");
             BlockPos anchor = NbtUtils.readBlockPos(bindingTag, "anchor")
                     .orElseThrow(() -> new IllegalArgumentException("Tower binding is missing its anchor"));
-            TowerBindingKind kind = version == 1 ? TowerBindingKind.TARGET : readBindingKind(bindingTag);
+            TowerBindingKind kind = readBindingKind(bindingTag);
             TowerBindingSource source;
             try {
                 source = TowerBindingSource.valueOf(bindingTag.getString("source"));
@@ -148,7 +134,7 @@ public final class VersionedTowerBindingCodec {
         if (!bindingTag.contains("disabled_devices", Tag.TAG_LIST)) {
             throw new IllegalArgumentException("Tower binding disabled-device data is not a list");
         }
-        HashSet<TowerDeviceKey> result = new HashSet<>();
+        ObjectOpenHashSet<TowerDeviceKey> result = new ObjectOpenHashSet<>();
         for (Tag rawDeviceTag : bindingTag.getList("disabled_devices", Tag.TAG_COMPOUND)) {
             CompoundTag deviceTag = (CompoundTag) rawDeviceTag;
             ResourceLocation dimensionId = parseId(deviceTag.getString("dimension"), "device dimension");
@@ -164,38 +150,6 @@ public final class VersionedTowerBindingCodec {
             }
         }
         return Set.copyOf(result);
-    }
-
-    private static List<TowerBinding> migrateLegacy(CompoundTag root,
-                                                    ResourceLocation towerDimensionId,
-                                                    Map<BlockPos, Boolean> legacyDisabledStates) {
-        if (!root.contains(LEGACY_LINKED_POSITIONS_TAG)) {
-            return List.of();
-        }
-        if (!root.contains(LEGACY_LINKED_POSITIONS_TAG, Tag.TAG_LIST)) {
-            throw new IllegalArgumentException("Legacy linked positions are not a list");
-        }
-        ListTag positions = root.getList(LEGACY_LINKED_POSITIONS_TAG, Tag.TAG_COMPOUND);
-        ArrayList<TowerBinding> bindings = new ArrayList<>(positions.size());
-        HashSet<BlockPos> seen = new HashSet<>();
-        for (Tag rawPositionTag : positions) {
-            CompoundTag positionTag = (CompoundTag) rawPositionTag;
-            BlockPos position = NbtUtils.readBlockPos(positionTag, "pos")
-                    .orElseThrow(() -> new IllegalArgumentException("Legacy tower binding is missing its position"));
-            if (!seen.add(position)) {
-                continue;
-            }
-            boolean enabled = !legacyDisabledStates.getOrDefault(position, false);
-            bindings.add(new TowerBinding(
-                    towerDimensionId,
-                    position,
-                    TowerBindingKind.TARGET,
-                    TowerBindingSource.MANUAL,
-                    bindings.size(),
-                    enabled,
-                    Set.of()));
-        }
-        return List.copyOf(bindings);
     }
 
     private static ResourceLocation parseId(String serializedId, String fieldName) {

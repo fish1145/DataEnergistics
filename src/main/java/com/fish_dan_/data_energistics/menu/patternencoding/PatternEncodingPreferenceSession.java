@@ -1,14 +1,23 @@
 package com.fish_dan_.data_energistics.menu.patternencoding;
 
-import net.minecraft.resources.ResourceLocation;
+import com.fish_dan_.data_energistics.common.crafting.pattern.EncodedPatternRecipeReference;
 
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+
+import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.stacks.AEItemKey;
+import appeng.core.definitions.AEItems;
 import appeng.parts.encoding.EncodingMode;
+import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2LongMaps;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -21,7 +30,7 @@ import java.util.Objects;
  */
 public final class PatternEncodingPreferenceSession {
 
-    private static final Map<Object, PatternEncodingPreferenceSession> SESSIONS = new IdentityHashMap<>();
+    private static final Reference2ObjectMap<Object, PatternEncodingPreferenceSession> SESSIONS = new Reference2ObjectOpenHashMap<>();
 
     private long nextOutgoingSequence;
     private long lastAcknowledgedSequence;
@@ -29,13 +38,14 @@ public final class PatternEncodingPreferenceSession {
     private long revision;
     @Nullable
     private PatternEncodingRankingContext rankingContext;
-    private List<ResourceLocation> viewerWorkstationIds = List.of();
+    @Nullable
+    private AEItemKey observedEncodedPattern;
     @Nullable
     private ResourceLocation confirmedWorkstation;
     @Nullable
     private EncodingMode deferredSnapshotMode;
     private boolean deferredSnapshotWaitsForTick;
-    private final Map<PatternEncodingRankingContext, Map<String, Long>> leafCountsByContext = new LinkedHashMap<>();
+    private final Object2ObjectMap<PatternEncodingRankingContext, Object2LongMap<String>> leafCountsByContext = new Object2ObjectLinkedOpenHashMap<>();
 
     private PatternEncodingPreferenceSession() {}
 
@@ -54,9 +64,8 @@ public final class PatternEncodingPreferenceSession {
     public static void clearForMenu(@Nullable Object menu) {
         if (menu != null) {
             synchronized (SESSIONS) {
-                PatternEncodingPreferenceSession session = SESSIONS.remove(menu);
-                if (session != null) {
-                    session.clear();
+                if (SESSIONS.containsKey(menu)) {
+                    SESSIONS.remove(menu).clear();
                 }
             }
         }
@@ -113,33 +122,55 @@ public final class PatternEncodingPreferenceSession {
      * Sets the exact context used by subsequent provider-history snapshots.
      */
     public void setRankingContext(@Nullable PatternEncodingRankingContext context) {
-        setViewerRecipeScope(context, List.of());
-    }
-
-    /**
-     * Returns the ephemeral workstation item IDs advertised for the current viewer transfer.
-     */
-    public List<ResourceLocation> viewerWorkstationIds() {
-        return this.viewerWorkstationIds;
-    }
-
-    /**
-     * Atomically updates the recipe-type learning key and its non-persistent viewer workstation condition.
-     */
-    public void setViewerRecipeScope(@Nullable PatternEncodingRankingContext context,
-                                     List<ResourceLocation> workstationIds) {
-        if (context == null && !workstationIds.isEmpty()) {
-            throw new IllegalArgumentException("Viewer workstations require a pattern ranking context");
-        }
-        List<ResourceLocation> canonicalWorkstations = context == null ? List.of() :
-                new PatternEncodingViewerRecipeScope(context, workstationIds).workstationIds();
-        if (Objects.equals(this.rankingContext, context) &&
-                this.viewerWorkstationIds.equals(canonicalWorkstations)) {
+        if (Objects.equals(this.rankingContext, context)) {
             return;
         }
         this.rankingContext = context;
-        this.viewerWorkstationIds = canonicalWorkstations;
         incrementRevision();
+    }
+
+    /**
+     * Restores a newly inserted pattern's recipe context and returns its expected editor mode.
+     * Empty slots retain the editor context, just as AE2 retains its ghost inputs on removal.
+     * Invalid saved patterns leave the editor unchanged, matching AE2's load behavior.
+     * Call on the menu thread, after the server has synchronized the encoding mode.
+     */
+    public @Nullable EncodingMode restoreEncodedPattern(PatternEncodingPreviewMenu menu, Level level) {
+        AEItemKey definition = menu.data_energistics$getEncodedPatternDefinition();
+        if (Objects.equals(definition, this.observedEncodedPattern)) {
+            return null;
+        }
+        this.observedEncodedPattern = definition;
+        if (definition == null) {
+            return null;
+        }
+        if (PatternDetailsHelper.decodePattern(definition, level) == null) {
+            return null;
+        }
+        var stack = definition.getReadOnlyStack();
+        var reference = EncodedPatternRecipeReference.get(stack);
+        if (reference != null) {
+            setRankingContext(PatternEncodingRankingContext.of(reference.recipeTypeId()));
+            return reference.encodingMode();
+        }
+        if (AEItems.PROCESSING_PATTERN.is(stack)) {
+            setRankingContext(null);
+            return EncodingMode.PROCESSING;
+        }
+        return null;
+    }
+
+    /**
+     * Anchors the existing completed slot before an explicit editor-context change or an accepted client snapshot.
+     * The unchanged old output must not replace a newly transferred recipe on the next observation.
+     */
+    public void rememberEncodedPattern(PatternEncodingPreviewMenu menu) {
+        this.observedEncodedPattern = menu.data_energistics$getEncodedPatternDefinition();
+    }
+
+    /** Returns whether a recipe or mode change is still waiting to publish its client snapshot. */
+    public boolean hasDeferredSnapshot() {
+        return this.deferredSnapshotMode != null;
     }
 
     /**
@@ -199,37 +230,39 @@ public final class PatternEncodingPreferenceSession {
     /**
      * Applies one validated absolute-count snapshot without lowering server-authoritative successes.
      */
-    public void replaceLeafCounts(Map<String, Long> counts) {
+    public void replaceLeafCounts(Object2LongMap<String> counts) {
         if (this.rankingContext == null) {
             if (!counts.isEmpty()) {
                 throw new IllegalStateException("Pattern preference leaf counts require a ranking context");
             }
             return;
         }
-        Map<String, Long> currentCounts = this.leafCountsByContext.getOrDefault(
-                this.rankingContext, Map.of());
-        Map<String, Long> merged = new LinkedHashMap<>(currentCounts);
-        for (Map.Entry<String, Long> entry : counts.entrySet()) {
-            if (entry.getKey() == null || entry.getValue() == null || entry.getValue() < 0L) {
-                throw new IllegalArgumentException("Pattern preference leaf count is invalid");
+        Object2LongMap<String> currentCounts = this.leafCountsByContext.computeIfAbsent(
+                this.rankingContext, ignored -> newLeafCounts());
+        boolean changed = false;
+        for (Object2LongMap.Entry<String> entry : counts.object2LongEntrySet()) {
+            long incoming = entry.getLongValue();
+            if (incoming > currentCounts.getLong(entry.getKey())) {
+                currentCounts.put(entry.getKey(), incoming);
+                changed = true;
             }
-            merged.merge(entry.getKey(), entry.getValue(), Math::max);
         }
-        if (currentCounts.equals(merged)) {
+        if (!changed) {
             return;
         }
-        this.leafCountsByContext.put(this.rankingContext, merged);
         incrementRevision();
     }
 
     /**
      * Returns an immutable copy of the currently accepted leaf counts.
      */
-    public Map<String, Long> leafCounts() {
+    public Object2LongMap<String> leafCounts() {
         if (this.rankingContext == null) {
-            return Map.of();
+            return Object2LongMaps.emptyMap();
         }
-        return Map.copyOf(this.leafCountsByContext.getOrDefault(this.rankingContext, Map.of()));
+        var counts = findLeafCounts(this.rankingContext);
+        return counts == null ? Object2LongMaps.emptyMap() :
+                Object2LongMaps.unmodifiable(new Object2LongLinkedOpenHashMap<>(counts));
     }
 
     /**
@@ -240,10 +273,10 @@ public final class PatternEncodingPreferenceSession {
         if (digest.isBlank()) {
             throw new IllegalArgumentException("Pattern preference leaf digest must not be blank");
         }
-        Map<String, Long> contextCounts = this.leafCountsByContext.computeIfAbsent(
-                context, ignored -> new LinkedHashMap<>());
-        long current = contextCounts.getOrDefault(digest, 0L);
-        long updated = current == Long.MAX_VALUE ? Long.MAX_VALUE : current + 1L;
+        Object2LongMap<String> contextCounts = this.leafCountsByContext.computeIfAbsent(
+                context, ignored -> newLeafCounts());
+        long current = contextCounts.getLong(digest);
+        long updated = current < 0L ? 1L : current == Long.MAX_VALUE ? Long.MAX_VALUE : current + 1L;
         contextCounts.put(digest, updated);
         incrementRevision();
         return updated;
@@ -261,7 +294,7 @@ public final class PatternEncodingPreferenceSession {
      */
     public void clear() {
         this.rankingContext = null;
-        this.viewerWorkstationIds = List.of();
+        this.observedEncodedPattern = null;
         this.confirmedWorkstation = null;
         this.deferredSnapshotMode = null;
         this.deferredSnapshotWaitsForTick = false;
@@ -276,5 +309,16 @@ public final class PatternEncodingPreferenceSession {
         if (this.revision != Long.MAX_VALUE) {
             this.revision++;
         }
+    }
+
+    private static Object2LongMap<String> newLeafCounts() {
+        Object2LongMap<String> counts = new Object2LongLinkedOpenHashMap<>();
+        counts.defaultReturnValue(-1L);
+        return counts;
+    }
+
+    @SuppressWarnings("ConstantConditions") // fastutil returns its null default value for an absent context.
+    private @Nullable Object2LongMap<String> findLeafCounts(PatternEncodingRankingContext context) {
+        return this.leafCountsByContext.get(context);
     }
 }

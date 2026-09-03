@@ -35,7 +35,12 @@ public final class TrinityPlanningControl {
             throw new IllegalArgumentException(
                     "A Trinity planning control requires complete sources and a positive budget");
         }
-        return new TrinityPlanningControl(cancellation, nanoClock, budgetNanos);
+        return new TrinityPlanningControl(
+                cancellation,
+                nanoClock,
+                budgetNanos,
+                true,
+                TrinityPlanningMetrics.noOp());
     }
 
     private final BooleanSupplier cancellation;
@@ -43,22 +48,25 @@ public final class TrinityPlanningControl {
     private final long budgetNanos;
     private final long startedNanos;
     private final boolean deadlineConfigured;
+    private final TrinityPlanningMetrics metrics;
 
     TrinityPlanningControl(BooleanSupplier cancellation,
                            LongSupplier nanoClock,
                            long budgetNanos) {
-        this(cancellation, nanoClock, budgetNanos, true);
+        this(cancellation, nanoClock, budgetNanos, true, TrinityPlanningMetrics.noOp());
     }
 
     private TrinityPlanningControl(BooleanSupplier cancellation,
                                    LongSupplier nanoClock,
                                    long budgetNanos,
-                                   boolean deadlineConfigured) {
+                                   boolean deadlineConfigured,
+                                   TrinityPlanningMetrics metrics) {
         this.cancellation = cancellation;
         this.nanoClock = nanoClock;
         this.budgetNanos = budgetNanos;
         this.startedNanos = nanoClock.getAsLong();
         this.deadlineConfigured = deadlineConfigured;
+        this.metrics = metrics;
     }
 
     /**
@@ -69,7 +77,54 @@ public final class TrinityPlanningControl {
      * @return unbounded cooperative control
      */
     public static TrinityPlanningControl unbounded(BooleanSupplier cancellation) {
-        return new TrinityPlanningControl(cancellation, () -> 0L, Long.MAX_VALUE, false);
+        return new TrinityPlanningControl(
+                cancellation,
+                () -> 0L,
+                Long.MAX_VALUE,
+                false,
+                TrinityPlanningMetrics.noOp());
+    }
+
+    static TrinityPlanningControl create(
+                                         BooleanSupplier cancellation,
+                                         LongSupplier nanoClock,
+                                         long budgetNanos,
+                                         TrinityPlanningMetrics metrics) {
+        if (budgetNanos <= 0L) {
+            throw new IllegalArgumentException("A tracked Trinity planning control requires a positive budget");
+        }
+        return new TrinityPlanningControl(cancellation, nanoClock, budgetNanos, true, metrics);
+    }
+
+    static TrinityPlanningControl unbounded(
+                                            BooleanSupplier cancellation,
+                                            TrinityPlanningMetrics metrics) {
+        return new TrinityPlanningControl(cancellation, () -> 0L, Long.MAX_VALUE, false, metrics);
+    }
+
+    /** Records one base or encoded solver-model assembly for this request. */
+    public void recordSolverModel() {
+        this.metrics.recordSolverModel();
+    }
+
+    /** Records one actual ojAlgo solve or probe and its non-negative duration. */
+    public void recordSolverPass(long nanos) {
+        this.metrics.recordSolverPass(nanos);
+    }
+
+    /** Records joint branch-and-bound states charged to this request. */
+    public void recordJointStates(int states) {
+        this.metrics.recordJointStates(states);
+    }
+
+    /** Records route-selection states charged to this request. */
+    public void recordRouteStates(int states) {
+        this.metrics.recordRouteStates(states);
+    }
+
+    /** @return route states already recorded by this request tracker */
+    public int recordedRouteStates() {
+        return this.metrics.routeStates();
     }
 
     /**

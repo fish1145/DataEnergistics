@@ -16,6 +16,12 @@ public final class TrinityRadixSolverMetrics {
         this.nanos = Math.addExact(this.nanos, elapsedNanos);
     }
 
+    /** Includes an already verified feasibility pass before later objective refinement. */
+    public void include(int completedPasses, long elapsedNanos) {
+        this.passes = Math.addExact(this.passes, completedPasses);
+        this.nanos = Math.addExact(this.nanos, elapsedNanos);
+    }
+
     /**
      * @return total completed solver invocations
      */

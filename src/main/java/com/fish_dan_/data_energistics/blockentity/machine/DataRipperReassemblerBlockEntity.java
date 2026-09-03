@@ -82,15 +82,19 @@ import appeng.util.inv.CombinedInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -108,8 +112,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final int KEY_INPUT_SLOT = 0;
     public static final int KEY_OUTPUT_SLOT = 1;
     public static final int KEY_SLOT_COUNT = 2;
-    public static final int FLUID_INPUT_CAPACITY = 51_200;
-    public static final int FLUID_OUTPUT_CAPACITY = 51_200;
+    public static final int FLUID_INPUT_CAPACITY = 512_000;
+    public static final int FLUID_OUTPUT_CAPACITY = 512_000;
     public static final long KEY_INPUT_CAPACITY = 51_200_000L;
     public static final long KEY_OUTPUT_CAPACITY = 51_200_000L;
     public static final int MAX_PROGRESS = 200;
@@ -131,7 +135,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String KEY_INPUT_TAG = "key_input";
     private static final String KEY_OUTPUT_TAG = "key_output";
     private static final String AUTO_EXPORT_TAG = "auto_export";
-    private static final String OUTPUT_SIDES_TAG = "output_sides";
     private static final String ITEM_OUTPUT_SIDES_TAG = "item_output_sides";
     private static final String FLUID_OUTPUT_SIDES_TAG = "fluid_output_sides";
     private static final String KEY_OUTPUT_SIDES_TAG = "key_output_sides";
@@ -155,7 +158,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private final int[] itemInputPatternColors = new int[getItemInputSlotCount()];
     private final int[] fluidInputPatternColors = new int[getFluidInputSlotCount()];
     private final int[] keyInputPatternColors = new int[getKeyInputSlotCount()];
-    private final Map<AEItemKey, Integer> patternInputColorAssignments = new HashMap<>();
+    private final Object2IntMap<AEItemKey> patternInputColorAssignments = new Object2IntOpenHashMap<>();
     private boolean suppressAe2DefaultInventorySerialization;
     private boolean preservingInputPatternColors;
     private final InternalInventory externalInput = createExternalInput();
@@ -180,12 +183,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private final ConfigManager configManager = new ConfigManager(this::onConfigChanged);
     private boolean syncingFluidMenu;
     private boolean syncingKeyMenu;
-    private final List<GenericStack> keyInputStacks = createKeyStacks(getKeyInputSlotCount());
-    private final List<GenericStack> keyOutputStacks = createKeyStacks(getKeyOutputSlotCount());
+    private final List<@Nullable GenericStack> keyInputStacks = createKeyStacks(getKeyInputSlotCount());
+    private final List<@Nullable GenericStack> keyOutputStacks = createKeyStacks(getKeyOutputSlotCount());
     private final Set<Direction> itemOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> fluidOutputSides = EnumSet.allOf(Direction.class);
     private final Set<Direction> keyOutputSides = EnumSet.allOf(Direction.class);
-    private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
+    private @Nullable AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
     private AdjacentBlockCapabilityCache<IFluidHandler> adjacentFluidHandlers;
     private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentKeyInventories;
     private final ProcessingChannelState[] processingChannels = createProcessingChannels();
@@ -633,7 +636,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     @Override
-    public InternalInventory getSubInventory(ResourceLocation id) {
+    public @Nullable InternalInventory getSubInventory(ResourceLocation id) {
         if (ISegmentedInventory.STORAGE.equals(id)) {
             return this.storage;
         }
@@ -657,20 +660,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         readKeyStacks(data, registries, this.keyInputStacks, true);
         readKeyStacks(data, registries, this.keyOutputStacks, false);
         readInputPatternColors(data, registries);
-        if (data.contains(AUTO_EXPORT_TAG)) {
-            this.configManager.readFromNBT(data.getCompound(AUTO_EXPORT_TAG), registries);
-        } else {
-            this.configManager.readFromNBT(data, registries);
-        }
+        this.configManager.readFromNBT(data.getCompound(AUTO_EXPORT_TAG), registries);
         boolean hasTypedOutputSides = data.contains(ITEM_OUTPUT_SIDES_TAG) || data.contains(FLUID_OUTPUT_SIDES_TAG) || data.contains(KEY_OUTPUT_SIDES_TAG);
         if (hasTypedOutputSides) {
             readOutputSides(data, ITEM_OUTPUT_SIDES_TAG, this.itemOutputSides);
             readOutputSides(data, FLUID_OUTPUT_SIDES_TAG, this.fluidOutputSides);
             readOutputSides(data, KEY_OUTPUT_SIDES_TAG, this.keyOutputSides);
-        } else if (data.contains(OUTPUT_SIDES_TAG)) {
-            Set<Direction> legacySides = EnumSet.noneOf(Direction.class);
-            readOutputSides(data, OUTPUT_SIDES_TAG, legacySides);
-            migrateLegacyOutputSidesToItemOnly(legacySides);
         } else {
             copyOutputSidesToAllTypes(EnumSet.allOf(Direction.class));
         }
@@ -702,7 +697,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         data.put(ITEM_OUTPUT_SIDES_TAG, createOutputSidesTag(this.itemOutputSides));
         data.put(FLUID_OUTPUT_SIDES_TAG, createOutputSidesTag(this.fluidOutputSides));
         data.put(KEY_OUTPUT_SIDES_TAG, createOutputSidesTag(this.keyOutputSides));
-        data.put(OUTPUT_SIDES_TAG, createOutputSidesTag(this.itemOutputSides));
         writeProcessingChannels(data);
         writeInputPatternColors(data, registries);
         writeKeyStacks(data, registries, this.keyInputStacks, true);
@@ -792,10 +786,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         data.putIntArray(FLUID_INPUT_PATTERN_COLORS_TAG, this.fluidInputPatternColors);
         data.putIntArray(KEY_INPUT_PATTERN_COLORS_TAG, this.keyInputPatternColors);
         ListTag assignments = new ListTag();
-        for (Map.Entry<AEItemKey, Integer> assignment : this.patternInputColorAssignments.entrySet()) {
+        for (Object2IntMap.Entry<AEItemKey> assignment : this.patternInputColorAssignments.object2IntEntrySet()) {
             CompoundTag serializedAssignment = new CompoundTag();
             serializedAssignment.put(PATTERN_DEFINITION_TAG, assignment.getKey().toTag(registries));
-            serializedAssignment.putInt(PATTERN_COLOR_TAG, assignment.getValue());
+            serializedAssignment.putInt(PATTERN_COLOR_TAG, assignment.getIntValue());
             assignments.add(serializedAssignment);
         }
         data.put(PATTERN_INPUT_COLOR_ASSIGNMENTS_TAG, assignments);
@@ -848,7 +842,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    private static void readKeyStacks(CompoundTag data, HolderLookup.Provider registries, List<GenericStack> stacks,
+    private static void readKeyStacks(CompoundTag data, HolderLookup.Provider registries, List<@Nullable GenericStack> stacks,
                                       boolean input) {
         for (int slot = 0; slot < stacks.size(); slot++) {
             String tag = input ? getKeyInputTag(slot) : getKeyOutputTag(slot);
@@ -856,7 +850,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    private static void writeKeyStacks(CompoundTag data, HolderLookup.Provider registries, List<GenericStack> stacks,
+    private static void writeKeyStacks(CompoundTag data, HolderLookup.Provider registries, List<@Nullable GenericStack> stacks,
                                        boolean input) {
         for (int slot = 0; slot < stacks.size(); slot++) {
             GenericStack stack = stacks.get(slot);
@@ -879,7 +873,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         settings.putInt(ITEM_OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.itemOutputSides));
         settings.putInt(FLUID_OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.fluidOutputSides));
         settings.putInt(KEY_OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.keyOutputSides));
-        settings.putInt(OUTPUT_SIDES_TAG, MemoryCardSettingsHelper.encodeSides(this.itemOutputSides));
         builder.set(DEDataComponents.MACHINE_MEMORY_CARD_SETTINGS.get(), settings);
     }
 
@@ -934,7 +927,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public void dropContents(Level level, BlockPos pos) {
-        ArrayList<ItemStack> drops = new ArrayList<>();
+        ObjectArrayList<ItemStack> drops = new ObjectArrayList<>();
         this.addAdditionalDrops(level, pos, drops);
         this.clearContent();
         for (ItemStack drop : drops) {
@@ -977,11 +970,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                     settings.getInt(FLUID_OUTPUT_SIDES_TAG));
             changed |= replaceOutputSides(DigitalStorageDepotOutputType.KEYS,
                     settings.getInt(KEY_OUTPUT_SIDES_TAG));
-        } else if (settings.contains(OUTPUT_SIDES_TAG)) {
-            int legacyMask = settings.getInt(OUTPUT_SIDES_TAG);
-            changed |= replaceOutputSides(DigitalStorageDepotOutputType.ITEMS, legacyMask);
-            changed |= replaceOutputSides(DigitalStorageDepotOutputType.FLUIDS, MemoryCardSettingsHelper.ALL_DIRECTIONS_MASK);
-            changed |= replaceOutputSides(DigitalStorageDepotOutputType.KEYS, MemoryCardSettingsHelper.ALL_DIRECTIONS_MASK);
         }
         if (!changed) {
             return;
@@ -1141,8 +1129,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         if (processingChannel.activeRecipeId != null) {
             RecipeHolder<DataRipperReassemblerRecipe> active = getRecipeById(currentLevel, processingChannel.activeRecipeId);
             if (active != null) {
-                List<Integer> colors = processingChannel.hasActiveInputPatternColor ?
-                        List.of(processingChannel.activeInputPatternColor) : getAvailableInputPatternColors(channel);
+                IntList colors = processingChannel.hasActiveInputPatternColor ?
+                        IntList.of(processingChannel.activeInputPatternColor) : getAvailableInputPatternColors(channel);
                 for (int color : colors) {
                     if (active.value().matches(createRecipeInput(channel, color), currentLevel)) {
                         match = new ColorMatchedRecipe(active, color);
@@ -1168,7 +1156,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private @Nullable ColorMatchedRecipe findMatchingRecipe(Level level, int channel,
                                                             Set<ResourceLocation> excludedRecipeIds) {
-        List<Integer> colors = getAvailableInputPatternColors(channel);
+        IntList colors = getAvailableInputPatternColors(channel);
         if (colors.isEmpty()) {
             return null;
         }
@@ -1187,7 +1175,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private Set<ResourceLocation> getOtherActiveRecipeIds(int excludedChannel) {
-        Set<ResourceLocation> recipeIds = new HashSet<>();
+        Set<ResourceLocation> recipeIds = new ObjectOpenHashSet<>();
         for (int channel = 0; channel < this.processingChannels.length; channel++) {
             if (channel == excludedChannel) {
                 continue;
@@ -1204,18 +1192,18 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     private RecipeMatchKey createRecipeMatchKey(int channel) {
         ProcessingChannelState processingChannel = getProcessingChannel(channel);
         InputReservationUsage reservedInputs = getReservedInputUsage(channel);
-        List<RecipeStackIdentity> items = new ArrayList<>(getItemInputSlotCountForChannel(channel));
+        List<RecipeStackIdentity> items = new ObjectArrayList<>(getItemInputSlotCountForChannel(channel));
         for (int i = 0; i < getItemInputSlotCountForChannel(channel); i++) {
             int slot = getItemInputStartSlotForChannel(channel) + i;
             items.add(createItemStackIdentity(getAvailableItemInput(slot, reservedInputs), getItemInputPatternColor(i)));
         }
-        List<RecipeStackIdentity> fluids = new ArrayList<>(getFluidInputSlotCountForChannel(channel));
+        List<RecipeStackIdentity> fluids = new ObjectArrayList<>(getFluidInputSlotCountForChannel(channel));
         for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
             int inputSlot = getFluidInputStartSlotForChannel(channel) + slot;
             fluids.add(createFluidStackIdentity(getAvailableFluidInput(inputSlot, reservedInputs),
                     getFluidInputPatternColor(slot)));
         }
-        List<RecipeStackIdentity> keys = new ArrayList<>(getKeyInputSlotCountForChannel(channel));
+        List<RecipeStackIdentity> keys = new ObjectArrayList<>(getKeyInputSlotCountForChannel(channel));
         for (int slot = 0; slot < getKeyInputSlotCountForChannel(channel); slot++) {
             int inputSlot = getKeyInputStartSlotForChannel(channel) + slot;
             keys.add(createKeyStackIdentity(getAvailableKeyInput(inputSlot, reservedInputs),
@@ -1267,12 +1255,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private DataRipperReassemblerRecipeInput createRecipeInput(int channel, int patternColor) {
         InputReservationUsage reservedInputs = getReservedInputUsage(channel);
-        List<ItemStack> inputs = new ArrayList<>(getItemInputSlotCountForChannel(channel));
+        List<ItemStack> inputs = new ObjectArrayList<>(getItemInputSlotCountForChannel(channel));
         for (int i = 0; i < getItemInputSlotCountForChannel(channel); i++) {
             inputs.add(matchesInputPatternColor(getItemInputPatternColor(i), patternColor) ?
                     getAvailableItemInput(getItemInputStartSlotForChannel(channel) + i, reservedInputs) : ItemStack.EMPTY);
         }
-        List<GenericStack> fluids = new ArrayList<>(getFluidInputSlotCountForChannel(channel));
+        List<GenericStack> fluids = new ObjectArrayList<>(getFluidInputSlotCountForChannel(channel));
         for (int slot = 0; slot < getFluidInputSlotCountForChannel(channel); slot++) {
             GenericStack fluid = matchesInputPatternColor(getFluidInputPatternColor(slot), patternColor) ?
                     createFluidGenericStack(getAvailableFluidInput(
@@ -1282,7 +1270,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 fluids.add(fluid);
             }
         }
-        List<GenericStack> keys = new ArrayList<>(getKeyInputSlotCountForChannel(channel));
+        List<@Nullable GenericStack> keys = new ObjectArrayList<>(getKeyInputSlotCountForChannel(channel));
         for (int slot = 0; slot < getKeyInputSlotCountForChannel(channel); slot++) {
             keys.add(matchesInputPatternColor(getKeyInputPatternColor(slot), patternColor) ?
                     getAvailableKeyInput(getKeyInputStartSlotForChannel(channel) + slot, reservedInputs) : null);
@@ -1290,13 +1278,13 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return new DataRipperReassemblerRecipeInput(inputs, fluids, keys);
     }
 
-    private List<Integer> getAvailableInputPatternColors(int channel) {
+    private IntList getAvailableInputPatternColors(int channel) {
         if (!usesPatternInputColors()) {
-            return List.of(0);
+            return IntList.of(0);
         }
 
         InputReservationUsage reservedInputs = getReservedInputUsage(channel);
-        Set<Integer> colors = new LinkedHashSet<>();
+        IntSet colors = new IntLinkedOpenHashSet();
         for (int slot = 0; slot < getItemInputSlotCountForChannel(channel); slot++) {
             int storageSlot = getItemInputStartSlotForChannel(channel) + slot;
             if (!getAvailableItemInput(storageSlot, reservedInputs).isEmpty()) {
@@ -1316,7 +1304,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 colors.add(getKeyInputPatternColor(slot));
             }
         }
-        return List.copyOf(colors);
+        return new IntArrayList(colors);
     }
 
     private boolean matchesInputPatternColor(int actualColor, int requiredColor) {
@@ -1379,7 +1367,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
 
         InputReservationUsage reservedInputs = getReservedInputUsage(channel);
-        List<ReservedItemInput> itemInputs = new ArrayList<>();
+        List<ReservedItemInput> itemInputs = new ObjectArrayList<>();
         for (DataRipperReassemblerIngredient countedIngredient : recipe.getItemInputs()) {
             int remaining = countedIngredient.count();
             for (int i = 0; i < getItemInputSlotCountForChannel(channel) && remaining > 0; i++) {
@@ -1406,7 +1394,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
         }
 
-        List<ReservedFluidInput> fluidInputs = new ArrayList<>();
+        List<ReservedFluidInput> fluidInputs = new ObjectArrayList<>();
         for (Map.Entry<AEFluidKey, Long> requirement : requiredFluidAmounts.entrySet()) {
             AEFluidKey requiredFluid = requirement.getKey();
             int remaining = requirement.getValue().intValue();
@@ -1434,7 +1422,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             }
         }
 
-        List<ReservedKeyInput> keyInputs = new ArrayList<>();
+        List<ReservedKeyInput> keyInputs = new ObjectArrayList<>();
         GenericStack requiredKey = recipe.getKeyInput();
         if (requiredKey != null) {
             AEKey requiredKeyType = requiredKey.what();
@@ -1734,7 +1722,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         syncKeyMenuFromStack();
     }
 
-    private ItemStack insertIntoOutputSlot(ItemStack[] simulated, int outputIndex, ItemStack stack, boolean modulate) {
+    private ItemStack insertIntoOutputSlot(ItemStack @Nullable [] simulated, int outputIndex, ItemStack stack, boolean modulate) {
         int slot = getItemOutputStartSlot() + outputIndex;
         ItemStack current = simulated != null ? simulated[outputIndex] : this.storage.getStackInSlot(slot);
         int slotLimit = this.storage.getSlotLimit(slot);
@@ -1757,8 +1745,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
             return stack;
         }
 
-        int maxCount = slotLimit;
-        int free = maxCount - current.getCount();
+        int free = slotLimit - current.getCount();
         if (free <= 0) {
             return stack;
         }
@@ -1999,15 +1986,6 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         this.keyOutputSides.addAll(sides);
     }
 
-    private void migrateLegacyOutputSidesToItemOnly(Set<Direction> legacySides) {
-        this.itemOutputSides.clear();
-        this.itemOutputSides.addAll(legacySides);
-        this.fluidOutputSides.clear();
-        this.fluidOutputSides.addAll(EnumSet.allOf(Direction.class));
-        this.keyOutputSides.clear();
-        this.keyOutputSides.addAll(EnumSet.allOf(Direction.class));
-    }
-
     private static void readOutputSides(CompoundTag data, String tagName, Set<Direction> target) {
         target.clear();
         for (Tag name : data.getList(tagName, Tag.TAG_STRING)) {
@@ -2026,7 +2004,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return tag;
     }
 
-    private PatternPushState findPatternPushState(@Nullable KeyCounter[] inputHolder, int patternColor) {
+    private @Nullable PatternPushState findPatternPushState(KeyCounter @Nullable [] inputHolder, int patternColor) {
         for (int channel = 0; channel < this.processingChannels.length; channel++) {
             PatternPushState state = createPatternPushState(channel, patternColor);
             if (canAcceptPatternInputs(state, inputHolder)) {
@@ -2062,7 +2040,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return slots;
     }
 
-    private boolean canAcceptPatternInputs(PatternPushState state, KeyCounter[] inputHolder) {
+    private boolean canAcceptPatternInputs(PatternPushState state, KeyCounter @Nullable [] inputHolder) {
         if (inputHolder == null) {
             return true;
         }
@@ -2215,7 +2193,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private boolean canAcceptGenericKeyInput(PatternPushState state, AEKey key, long amount) {
         if (amount <= 0) {
-            return amount <= 0;
+            return true;
         }
         return canStorePatternKeyAmount(state, key, amount) && storePatternKeyAmount(state, key, amount);
     }
@@ -2273,9 +2251,8 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private int getPatternColor(IPatternDetails patternDetails) {
         AEItemKey patternDefinition = patternDetails.getDefinition();
-        Integer assignedColor = this.patternInputColorAssignments.get(patternDefinition);
-        if (assignedColor != null) {
-            return assignedColor;
+        if (this.patternInputColorAssignments.containsKey(patternDefinition)) {
+            return this.patternInputColorAssignments.getInt(patternDefinition);
         }
 
         int colorSeed = patternDefinition.hashCode();
@@ -2366,7 +2343,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private List<FluidTank> createFluidTanks(int count, int capacity) {
-        List<FluidTank> tanks = new ArrayList<>(count);
+        List<FluidTank> tanks = new ObjectArrayList<>(count);
         for (int slot = 0; slot < count; slot++) {
             tanks.add(new SyncFluidTank(capacity));
         }
@@ -2374,7 +2351,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private List<GenericStackInv> createFluidMenuInventories(List<FluidTank> tanks, int capacity) {
-        List<GenericStackInv> menuInventories = new ArrayList<>(tanks.size());
+        List<GenericStackInv> menuInventories = new ObjectArrayList<>(tanks.size());
         for (FluidTank tank : tanks) {
             GenericStackInv[] holder = new GenericStackInv[1];
             GenericStackInv menuInventory = createFluidMenuInventory(
@@ -2403,7 +2380,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private List<GenericStackInv> createKeyMenuInventories(int count, boolean input) {
-        List<GenericStackInv> menuInventories = new ArrayList<>(count);
+        List<GenericStackInv> menuInventories = new ObjectArrayList<>(count);
         for (int slot = 0; slot < count; slot++) {
             menuInventories.add(createKeyMenuInventory(slot, input));
         }
@@ -2540,7 +2517,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    private void syncKeyMenuFromStacks(List<GenericStackInv> menuInventories, List<GenericStack> stacks) {
+    private void syncKeyMenuFromStacks(List<GenericStackInv> menuInventories, List<@Nullable GenericStack> stacks) {
         for (int slot = 0; slot < stacks.size(); slot++) {
             menuInventories.get(slot).setStack(0, stacks.get(slot));
         }
@@ -2553,7 +2530,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         this.syncingKeyMenu = true;
         try {
-            List<GenericStack> stacks = input ? this.keyInputStacks : this.keyOutputStacks;
+            List<@Nullable GenericStack> stacks = input ? this.keyInputStacks : this.keyOutputStacks;
             GenericStackInv menuInventory = input ? this.keyInputMenuInventories.get(slot) :
                     this.keyOutputMenuInventories.get(slot);
             long capacity = input ? getKeyInputCapacity() : getKeyOutputCapacity();
@@ -2578,7 +2555,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    private static boolean isCompatibleKeyReplacement(GenericStack current, GenericStack incoming) {
+    private static boolean isCompatibleKeyReplacement(@Nullable GenericStack current, @Nullable GenericStack incoming) {
         if (current == null || current.what() == null || current.amount() <= 0) {
             return true;
         }
@@ -2588,13 +2565,13 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return current.what().equals(incoming.what());
     }
 
-    private static GenericStack clampKeyStack(GenericStack stack, long capacity) {
+    private static @Nullable GenericStack clampKeyStack(GenericStack stack, long capacity) {
         AEKey what = stack.what();
         return what == null ? null : new GenericStack(what, Math.min(capacity, stack.amount()));
     }
 
-    private static List<GenericStack> createKeyStacks(int count) {
-        List<GenericStack> stacks = new ArrayList<>(count);
+    private static List<@Nullable GenericStack> createKeyStacks(int count) {
+        List<@Nullable GenericStack> stacks = new ObjectArrayList<>(count);
         for (int slot = 0; slot < count; slot++) {
             stacks.add(null);
         }
@@ -2602,7 +2579,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private static List<FluidStack> copyFluidStacks(List<FluidTank> tanks) {
-        List<FluidStack> copies = new ArrayList<>(tanks.size());
+        List<FluidStack> copies = new ObjectArrayList<>(tanks.size());
         for (FluidTank tank : tanks) {
             copies.add(tank.getFluid().copy());
         }
@@ -2610,23 +2587,23 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private static List<FluidStack> copyFluidStacks(List<FluidTank> tanks, int startSlot, int slotCount) {
-        List<FluidStack> copies = new ArrayList<>(slotCount);
+        List<FluidStack> copies = new ObjectArrayList<>(slotCount);
         for (int slot = 0; slot < slotCount; slot++) {
             copies.add(tanks.get(startSlot + slot).getFluid().copy());
         }
         return copies;
     }
 
-    private static List<GenericStack> copyKeyStacks(List<GenericStack> stacks) {
-        List<GenericStack> copies = new ArrayList<>(stacks.size());
+    private static List<@Nullable GenericStack> copyKeyStacks(List<@Nullable GenericStack> stacks) {
+        List<@Nullable GenericStack> copies = new ObjectArrayList<>(stacks.size());
         for (GenericStack stack : stacks) {
             copies.add(copyKeyStack(stack));
         }
         return copies;
     }
 
-    private static List<GenericStack> copyKeyStacks(List<GenericStack> stacks, int startSlot, int slotCount) {
-        List<GenericStack> copies = new ArrayList<>(slotCount);
+    private static List<@Nullable GenericStack> copyKeyStacks(List<@Nullable GenericStack> stacks, int startSlot, int slotCount) {
+        List<@Nullable GenericStack> copies = new ObjectArrayList<>(slotCount);
         for (int slot = 0; slot < slotCount; slot++) {
             copies.add(copyKeyStack(stacks.get(startSlot + slot)));
         }
@@ -2645,29 +2622,29 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    private static void restoreKeyStacks(List<GenericStack> target, List<GenericStack> source) {
+    private static void restoreKeyStacks(List<@Nullable GenericStack> target, List<@Nullable GenericStack> source) {
         for (int slot = 0; slot < target.size(); slot++) {
             target.set(slot, copyKeyStack(source.get(slot)));
         }
     }
 
-    private static void restoreKeyStacks(List<GenericStack> target, int startSlot, List<GenericStack> source) {
+    private static void restoreKeyStacks(List<@Nullable GenericStack> target, int startSlot, List<@Nullable GenericStack> source) {
         for (int slot = 0; slot < source.size(); slot++) {
             target.set(startSlot + slot, copyKeyStack(source.get(slot)));
         }
     }
 
-    private static void clearKeyStacks(List<GenericStack> stacks) {
+    private static void clearKeyStacks(List<@Nullable GenericStack> stacks) {
         for (int slot = 0; slot < stacks.size(); slot++) {
             stacks.set(slot, null);
         }
     }
 
-    private static boolean hasStoredKeys(List<GenericStack> stacks) {
+    private static boolean hasStoredKeys(List<@Nullable GenericStack> stacks) {
         return stacks.stream().anyMatch(stack -> stack != null && stack.what() != null && stack.amount() > 0L);
     }
 
-    private static boolean canStoreKeyAmount(List<GenericStack> stacks, GenericStack incoming, long capacity) {
+    private static boolean canStoreKeyAmount(List<@Nullable GenericStack> stacks, GenericStack incoming, long capacity) {
         AEKey key = incoming.what();
         if (key == null || incoming.amount() <= 0L) {
             return false;
@@ -2694,7 +2671,7 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return false;
     }
 
-    private static boolean storeKeyAmount(List<GenericStack> stacks, AEKey key, long amount, long capacity) {
+    private static boolean storeKeyAmount(List<@Nullable GenericStack> stacks, AEKey key, long amount, long capacity) {
         long remaining = amount;
         for (int slot = 0; slot < stacks.size() && remaining > 0L; slot++) {
             GenericStack stack = stacks.get(slot);
@@ -3218,12 +3195,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         private final ItemStack[] itemSlots;
         private final List<FluidStack> fluidInputs;
         private final List<FluidStack> fluidOutputs;
-        private final List<GenericStack> keyInputs;
-        private final List<GenericStack> keyOutputs;
+        private final List<@Nullable GenericStack> keyInputs;
+        private final List<@Nullable GenericStack> keyOutputs;
 
         private RecipeProcessingState(ItemStack[] itemSlots, List<FluidStack> fluidInputs,
-                                      List<FluidStack> fluidOutputs, List<GenericStack> keyInputs,
-                                      List<GenericStack> keyOutputs) {
+                                      List<FluidStack> fluidOutputs, List<@Nullable GenericStack> keyInputs,
+                                      List<@Nullable GenericStack> keyOutputs) {
             this.itemSlots = itemSlots;
             this.fluidInputs = fluidInputs;
             this.fluidOutputs = fluidOutputs;
@@ -3285,11 +3262,11 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
 
         private int progress;
         private int maxProgress = MAX_PROGRESS;
-        private ResourceLocation activeRecipeId;
+        private @Nullable ResourceLocation activeRecipeId;
         private boolean hasActiveInputPatternColor;
         private int activeInputPatternColor;
-        private RecipeMatchCache recipeMatchCache;
-        private RecipeInputReservation inputReservation;
+        private @Nullable RecipeMatchCache recipeMatchCache;
+        private @Nullable RecipeInputReservation inputReservation;
 
         private boolean isIdle() {
             return this.progress == 0 && this.maxProgress == MAX_PROGRESS && this.activeRecipeId == null &&
@@ -3315,11 +3292,11 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         private final int[] itemInputColors;
         private final List<FluidStack> fluidInputs;
         private final int[] fluidInputColors;
-        private final List<GenericStack> keyInputs;
+        private final List<@Nullable GenericStack> keyInputs;
         private final int[] keyInputColors;
 
         private PatternPushState(int channel, int patternColor, ItemStack[] itemInputs, int[] itemInputColors,
-                                 List<FluidStack> fluidInputs, int[] fluidInputColors, List<GenericStack> keyInputs,
+                                 List<FluidStack> fluidInputs, int[] fluidInputColors, List<@Nullable GenericStack> keyInputs,
                                  int[] keyInputColors) {
             this.channel = channel;
             this.patternColor = patternColor;

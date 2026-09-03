@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.ae2.grid;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityAvailableAmount;
+
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 
@@ -15,11 +17,17 @@ public interface FiniteNetworkStorageAccess {
     long storageStructureRevision();
 
     /**
+     * Captures one exact key across concrete mounts, preserving finite BigInteger totals and explicit unlimited
+     * sources. The action source participates in every mount-level extraction simulation.
+     */
+    TrinityAvailableAmount exactAvailability(AEKey what, IActionSource source);
+
+    /**
      * Transfers at most {@code amount} from concrete mounts in AE2's normal extraction order.
      *
      * <p>
-     * Mounts reporting exactly {@link Integer#MAX_VALUE} or {@link Long#MAX_VALUE} for the requested key are
-     * treated as infinite sources and skipped. A finite mount for the same key remains eligible.
+     * Mounts implementing {@link UnlimitedExtractableStorage} for the requested key are skipped. Finite mounts remain
+     * eligible even when their reported amount equals an integer sentinel value.
      * </p>
      */
     FiniteTransferResult transferFinite(AEKey what,

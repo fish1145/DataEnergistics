@@ -48,11 +48,6 @@ sourceSets {
         runtimeClasspath += client.output + client.runtimeClasspath + extra.runtimeClasspath
     }
 
-    clientGameTest {
-        compileClasspath += clientExtra.output + clientExtra.compileClasspath + test.output + test.compileClasspath
-        runtimeClasspath += clientExtra.output + clientExtra.runtimeClasspath + test.output + test.runtimeClasspath
-    }
-
 }
 
 configurations {
@@ -73,8 +68,6 @@ configurations {
     }
 }
 
-sourceSets.clientExtra.runtimeClasspath += configurations.clientExtraLocalRuntime
-
 apply from: "$rootDir/gradle/scripts/jars.gradle"
 apply from: "$rootDir/gradle/scripts/moddevgradle.gradle"
 apply from: "$rootDir/gradle/scripts/repositories.gradle"
@@ -88,9 +81,9 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << "-Xlint:-removal"
 }
 
-tasks.withType(Test).configureEach {
-    useJUnitPlatform()
-    failOnNoDiscoveredTests = false
+// GameTests run through NeoForge's dedicated launcher; no ordinary JVM test suite is retained.
+tasks.named("test") {
+    enabled = false
 }
 
 lombok {

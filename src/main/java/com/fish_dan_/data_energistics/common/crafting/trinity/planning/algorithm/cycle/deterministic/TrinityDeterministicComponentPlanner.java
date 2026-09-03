@@ -6,22 +6,20 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.TrinityCycleDemand;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.applicability.TrinityDeterministicApplicability;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.applicability.TrinityDeterministicApplicabilityResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.applicability.TrinityDeterministicBasis;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.firing.TrinityDeterministicFiringCalculator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.firing.TrinityDeterministicFiringSolution;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.proof.TrinityDeterministicCandidate;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.proof.TrinityDeterministicProofAssembler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.deterministic.support.TrinityDeterministicDiagnostics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle.proof.TrinityCycleUnitProof;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.opportunity.TrinityPlanningAttempt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityDeterministicRepeatScheduler;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityMinimumSeedScheduler;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 
 import appeng.api.stacks.AEKey;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -39,9 +37,7 @@ public final class TrinityDeterministicComponentPlanner {
         return new TrinityDeterministicComponentPlanner(
                 TrinityDeterministicApplicability.create(TrinityDeterministicCycleSequence.create()),
                 TrinityDeterministicFiringCalculator.create(),
-                TrinityDeterministicProofAssembler.create(
-                        TrinityMinimumSeedScheduler.create(),
-                        TrinityDeterministicRepeatScheduler.create()));
+                TrinityDeterministicProofAssembler.create(TrinityDeterministicRepeatScheduler.create()));
     }
 
     private final TrinityDeterministicApplicability applicability;
@@ -75,15 +71,41 @@ public final class TrinityDeterministicComponentPlanner {
                                                                           Set<AEKey> producibleInputs,
                                                                           int maxStates,
                                                                           TrinityPlanningControl control) {
-        if (component == null || !component.cyclic() || demand == null || available == null ||
-                producibleInputs == null || maxStates <= 0 || control == null) {
+        return plan(component, demand, available, producibleInputs, maxStates, control, null);
+    }
+
+    /** Attempts a cached semantic unit before deriving the same primitive basis again. */
+    public TrinityPlanningAttempt<TrinityDeterministicComponentPlan> plan(
+                                                                          TrinityStronglyConnectedComponent component,
+                                                                          TrinityCycleDemand demand,
+                                                                          Map<AEKey, BigInteger> available,
+                                                                          Set<AEKey> producibleInputs,
+                                                                          int maxStates,
+                                                                          TrinityPlanningControl control,
+                                                                          @Nullable TrinityCycleUnitProof unitProof) {
+        if (!component.cyclic() || maxStates <= 0) {
             throw new IllegalArgumentException("A deterministic Trinity component request is incomplete");
         }
-        Map<AEKey, BigInteger> inventory = copyAvailable(available);
-        Set<AEKey> producible = Set.copyOf(producibleInputs);
-        ArrayList<TrinityDeterministicCandidate> completeCandidates = new ArrayList<>();
-        ArrayList<TrinityDeterministicCandidate> localCandidates = new ArrayList<>();
-
+        if (unitProof != null) {
+            TrinityDeterministicApplicabilityResult cached = this.applicability.assess(
+                    component,
+                    demand,
+                    unitProof,
+                    available);
+            if (cached.kind() == TrinityDeterministicApplicabilityResult.Kind.APPLICABLE) {
+                TrinityPlanningAttempt<TrinityDeterministicComponentPlan> attempted = attemptBasis(
+                        component,
+                        demand,
+                        available,
+                        producibleInputs,
+                        maxStates,
+                        control,
+                        cached.basis());
+                if (attempted.kind() != TrinityPlanningAttempt.Kind.NOT_APPLICABLE) {
+                    return attempted;
+                }
+            }
+        }
         for (AEKey reservoir : component.keys()) {
             TrinityDeterministicDiagnostics.StopState state = TrinityDeterministicDiagnostics.stopState(control);
             if (state != TrinityDeterministicDiagnostics.StopState.RUNNING) {
@@ -93,60 +115,56 @@ public final class TrinityDeterministicComponentPlanner {
                     component,
                     demand,
                     reservoir,
-                    inventory);
+                    available);
             if (assessed.kind() == TrinityDeterministicApplicabilityResult.Kind.SKIP_RESERVOIR) {
                 continue;
             }
             if (assessed.kind() == TrinityDeterministicApplicabilityResult.Kind.REJECT_RESERVOIR) {
                 continue;
             }
-            TrinityAlgorithmResult<TrinityDeterministicFiringSolution> calculated = this.firingCalculator.calculate(
+            TrinityPlanningAttempt<TrinityDeterministicComponentPlan> attempted = attemptBasis(
                     component,
                     demand,
-                    inventory,
-                    producible,
-                    assessed.basis(),
-                    control);
-            if (!calculated.successful()) {
-                TrinityPlanningAttempt<TrinityDeterministicComponentPlan> failure = handleFailure(calculated);
-                if (failure.kind() == TrinityPlanningAttempt.Kind.TERMINAL) {
-                    return failure;
-                }
-                continue;
-            }
-            TrinityAlgorithmResult<TrinityDeterministicCandidate> assembled = this.proofAssembler.assemble(
-                    component,
-                    demand,
-                    inventory,
-                    producible,
-                    calculated.value(),
+                    available,
+                    producibleInputs,
                     maxStates,
-                    control);
-            if (!assembled.successful()) {
-                TrinityPlanningAttempt<TrinityDeterministicComponentPlan> failure = handleFailure(assembled);
-                if (failure.kind() == TrinityPlanningAttempt.Kind.TERMINAL) {
-                    return failure;
-                }
-                continue;
+                    control,
+                    assessed.basis());
+            if (attempted.kind() != TrinityPlanningAttempt.Kind.NOT_APPLICABLE) {
+                return attempted;
             }
-            if (calculated.value().completeComponentProof()) {
-                if (assembled.value().plan().macro().isPresent()) {
-                    return TrinityPlanningAttempt.provedOptimal(assembled.value().plan());
-                }
-                completeCandidates.add(assembled.value());
-                continue;
-            }
-            localCandidates.add(assembled.value());
         }
-        if (!completeCandidates.isEmpty()) {
-            completeCandidates.sort(TrinityDeterministicCandidate.ORDER);
-            return TrinityPlanningAttempt.provedOptimal(completeCandidates.getFirst().plan());
+        return TrinityDeterministicDiagnostics.notApplicable();
+    }
+
+    private TrinityPlanningAttempt<TrinityDeterministicComponentPlan> attemptBasis(
+                                                                                   TrinityStronglyConnectedComponent component,
+                                                                                   TrinityCycleDemand demand,
+                                                                                   Map<AEKey, BigInteger> available,
+                                                                                   Set<AEKey> producibleInputs,
+                                                                                   int maxStates,
+                                                                                   TrinityPlanningControl control,
+                                                                                   TrinityDeterministicBasis basis) {
+        TrinityAlgorithmResult<TrinityDeterministicFiringSolution> calculated = this.firingCalculator.calculate(
+                component,
+                demand,
+                available,
+                producibleInputs,
+                basis,
+                control);
+        if (!calculated.successful()) {
+            return handleFailure(calculated);
         }
-        if (localCandidates.isEmpty()) {
-            return TrinityDeterministicDiagnostics.notApplicable();
-        }
-        localCandidates.sort(TrinityDeterministicCandidate.ORDER);
-        return TrinityPlanningAttempt.feasible(localCandidates.getFirst().plan());
+        TrinityAlgorithmResult<TrinityDeterministicComponentPlan> assembled = this.proofAssembler.assemble(
+                component,
+                demand,
+                available,
+                producibleInputs,
+                calculated.value(),
+                maxStates,
+                control);
+        return assembled.successful() ?
+                TrinityPlanningAttempt.feasible(assembled.value()) : handleFailure(assembled);
     }
 
     private static TrinityPlanningAttempt<TrinityDeterministicComponentPlan> handleFailure(
@@ -157,18 +175,5 @@ public final class TrinityDeterministicComponentPlanner {
             return TrinityPlanningAttempt.terminal(failed.diagnostic());
         }
         return TrinityPlanningAttempt.notApplicable(failed.diagnostic());
-    }
-
-    private static Map<AEKey, BigInteger> copyAvailable(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
-        source.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() < 0) {
-                throw new IllegalArgumentException("Trinity deterministic-component inventory cannot be negative");
-            }
-            if (amount.signum() > 0) {
-                copied.put(key, amount);
-            }
-        });
-        return Collections.unmodifiableMap(copied);
     }
 }

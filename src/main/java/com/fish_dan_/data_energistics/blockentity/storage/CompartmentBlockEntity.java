@@ -191,14 +191,16 @@ public abstract class CompartmentBlockEntity extends AEBaseBlockEntity implement
     @Override
     public void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
                                                      String structureName,
-                                                     VerticalMultiBlockContext<?> context) {
-        CompartmentPart.super.verticalMultiBlock$addedToController(controller, structureName, context);
+                                                     VerticalMultiBlockContext<?> context,
+                                                     long bindingEpoch) {
+        CompartmentPart.super.verticalMultiBlock$addedToController(controller, structureName, context, bindingEpoch);
     }
 
     @Override
     public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller,
-                                                         String structureName) {
-        CompartmentPart.super.verticalMultiBlock$removedFromController(controller, structureName);
+                                                         String structureName,
+                                                         long bindingEpoch) {
+        CompartmentPart.super.verticalMultiBlock$removedFromController(controller, structureName, bindingEpoch);
         if (this.compartmentHost == controller && this.structureName.equals(structureName)) {
             this.compartmentHost = null;
             this.structureName = null;

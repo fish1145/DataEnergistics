@@ -1,0 +1,28 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["GGG", "FKA", "CQC"],
+	"key": {
+		"G": {
+			"item": "ae2:quartz_glass"
+		},
+		"F": {
+			"item": "ae2:formation_core"
+		},
+		"K": {
+			"item": "data_energistics:data_storage_component_1k"
+		},
+		"A": {
+			"item": "ae2:annihilation_core"
+		},
+		"C": {
+			"tag": "c:gems/charged_certus_quartz"
+		},
+		"Q": {
+			"tag": "c:gems/quartz"
+		}
+	},
+	"result": {
+		"id": "data_energistics:radix_containment_sphere",
+		"count": 1
+	}
+}

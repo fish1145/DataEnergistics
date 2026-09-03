@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.integration.viewer.jei.transfer;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternEncodingViewerContext;
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternProviderViewerWorkstations;
-import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingViewerRecipeScope;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -36,8 +36,8 @@ public final class JeiPatternTransferContextBridge {
     /**
      * Resolves the recipe type directly from the transferred JEI layout.
      */
-    public static PatternEncodingViewerRecipeScope resolve(IRecipeLayoutDrawable<?> recipeLayout) {
+    public static PatternEncodingRankingContext resolve(IRecipeLayoutDrawable<?> recipeLayout) {
         var recipeType = recipeLayout.getRecipeCategory().getRecipeType();
-        return PatternEncodingViewerContext.fromRecipeType(recipeType.getUid(), WORKSTATION_SOURCE_ID);
+        return PatternEncodingViewerContext.fromRecipeType(recipeType.getUid());
     }
 }

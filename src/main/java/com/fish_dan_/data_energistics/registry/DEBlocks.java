@@ -503,6 +503,7 @@ public final class DEBlocks {
     }
 
     public static void register(IEventBus modEventBus) {
+        TrinityCoreRegistryAliases.register(BLOCKS);
         BLOCKS.register(modEventBus);
     }
 }

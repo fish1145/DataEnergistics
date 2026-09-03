@@ -16,7 +16,6 @@ import java.math.BigInteger;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -43,10 +42,6 @@ public final class TrinityDeterministicFiringCalculator {
                                                                                 Set<AEKey> producibleInputs,
                                                                                 TrinityDeterministicBasis basis,
                                                                                 TrinityPlanningControl control) {
-        if (component == null || demand == null || available == null || producibleInputs == null || basis == null ||
-                control == null) {
-            throw new IllegalArgumentException("A deterministic firing calculation request is incomplete");
-        }
         Map<TrinityPatternVariant, BigInteger> primitiveFirings = basis.primitiveFirings();
         Map<AEKey, BigInteger> primitiveNet = basis.primitiveNet();
         BigInteger reservoirEffect = primitiveNet.getOrDefault(
@@ -66,24 +61,24 @@ public final class TrinityDeterministicFiringCalculator {
                 demand,
                 available,
                 producibleInputs);
-        BigInteger repetitions = initialRepetitions(demand, primitiveNet);
+        BigInteger repetitions = initialRepetitions(netLowerBounds, primitiveNet);
         TrinityDeterministicResidualResult residual = null;
         int balancePasses = 0;
         int balancePassLimit = Math.addExact(component.cycleVariants().size(), 2);
         while (balancePasses < balancePassLimit) {
+            TrinityDeterministicDiagnostics.StopState stop = TrinityDeterministicDiagnostics.stopState(control);
+            if (stop != TrinityDeterministicDiagnostics.StopState.RUNNING) {
+                return TrinityDeterministicDiagnostics.stopped(stop);
+            }
             balancePasses = Math.incrementExact(balancePasses);
             TrinityAlgorithmResult<TrinityDeterministicResidualResult> solvedResidual = basis.residualTopology().solveResidual(
-                    demand.requiredNetChangeLowerBounds(),
+                    netLowerBounds,
                     primitiveNet,
                     repetitions);
             if (!solvedResidual.successful()) {
                 return TrinityAlgorithmResult.failure(solvedResidual.diagnostic());
             }
             residual = solvedResidual.value();
-            if (hasPositiveEffectOnPrimitiveAxis(residual.netChange(), primitiveNet)) {
-                return TrinityDeterministicDiagnostics.unsupported();
-            }
-
             Map<AEKey, BigInteger> combinedNet = TrinityDeterministicFiringMath.addSigned(
                     TrinityDeterministicFiringMath.multiplySigned(primitiveNet, repetitions),
                     residual.netChange());
@@ -111,12 +106,6 @@ public final class TrinityDeterministicFiringCalculator {
         if (baselineFirings.isEmpty()) {
             return TrinityDeterministicDiagnostics.unsupported();
         }
-        boolean leastFiringsProven = isSettledPrimitiveMacro(
-                component,
-                demand,
-                primitiveNet,
-                residual);
-        boolean completeComponentProof = leastFiringsProven && hasMonotoneBoundary(component);
         Map<TrinityPatternVariant, BigInteger> firings = Collections.unmodifiableMap(
                 new LinkedHashMap<>(baselineFirings));
         Map<AEKey, BigInteger> totalNet = TrinityDeterministicFiringMath.netChange(firings);
@@ -127,10 +116,7 @@ public final class TrinityDeterministicFiringCalculator {
                 basis,
                 firings,
                 totalNet,
-                balancePasses,
-                leastFiringsProven,
-                completeComponentProof,
-                Optional.empty()));
+                balancePasses));
     }
 
     /**
@@ -156,10 +142,13 @@ public final class TrinityDeterministicFiringCalculator {
     }
 
     private static BigInteger initialRepetitions(
-                                                 TrinityCycleDemand demand,
+                                                 Map<AEKey, BigInteger> netLowerBounds,
                                                  Map<AEKey, BigInteger> primitiveNet) {
         BigInteger repetitions = TrinityDeterministicFiringMath.ZERO;
-        for (Map.Entry<AEKey, BigInteger> required : demand.requiredNetChangeLowerBounds().entrySet()) {
+        for (Map.Entry<AEKey, BigInteger> required : netLowerBounds.entrySet()) {
+            if (required.getValue().signum() <= 0) {
+                continue;
+            }
             BigInteger effect = primitiveNet.getOrDefault(required.getKey(), TrinityDeterministicFiringMath.ZERO);
             if (effect.signum() > 0) {
                 repetitions = repetitions.max(TrinityDeterministicFiringMath.ceilDivide(
@@ -196,58 +185,5 @@ public final class TrinityDeterministicFiringCalculator {
         return lowerBounds.entrySet().stream().anyMatch(entry -> net
                 .getOrDefault(entry.getKey(), TrinityDeterministicFiringMath.ZERO)
                 .compareTo(entry.getValue()) < 0);
-    }
-
-    private static boolean hasPositiveEffectOnPrimitiveAxis(
-                                                            Map<AEKey, BigInteger> residualNet,
-                                                            Map<AEKey, BigInteger> primitiveNet) {
-        return primitiveNet.entrySet().stream()
-                .filter(entry -> entry.getValue().signum() > 0)
-                .anyMatch(entry -> residualNet
-                        .getOrDefault(entry.getKey(), TrinityDeterministicFiringMath.ZERO)
-                        .signum() > 0);
-    }
-
-    /**
-     * The one-dimensional primitive ray and unique-producer residual DAG form a componentwise least solution when
-     * every external key crosses the component boundary in only one direction. An output-only boundary key cannot
-     * pay for another firing, and an input-only boundary key can only become more expensive as firings increase.
-     * Consequently no larger firing vector can improve external input, seed, or firing-count objectives.
-     */
-    private static boolean hasMonotoneBoundary(TrinityStronglyConnectedComponent component) {
-        Set<AEKey> internalKeys = Set.copyOf(component.keys());
-        LinkedHashMap<AEKey, Integer> directions = new LinkedHashMap<>();
-        for (TrinityPatternVariant variant : component.cycleVariants()) {
-            for (Map.Entry<AEKey, BigInteger> effect : variant.netChange().entrySet()) {
-                if (internalKeys.contains(effect.getKey())) {
-                    continue;
-                }
-                int direction = effect.getValue().signum();
-                Integer previous = directions.putIfAbsent(effect.getKey(), direction);
-                if (previous != null && previous != direction) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    /**
-     * A one-dimensional primitive ray is already the componentwise least solution when every requested export is a
-     * positive complete-cycle effect, no residual firing is needed, and no internal seed is depleted. In that case
-     * request size changes only the exact repetition count, so no alternate feasible vector can improve the result.
-     */
-    private static boolean isSettledPrimitiveMacro(
-                                                   TrinityStronglyConnectedComponent component,
-                                                   TrinityCycleDemand demand,
-                                                   Map<AEKey, BigInteger> primitiveNet,
-                                                   TrinityDeterministicResidualResult residual) {
-        if (!residual.firings().isEmpty()) {
-            return false;
-        }
-        boolean exportsArePositive = demand.requiredNetChangeLowerBounds().keySet().stream()
-                .allMatch(key -> primitiveNet.getOrDefault(key, TrinityDeterministicFiringMath.ZERO).signum() > 0);
-        return exportsArePositive && component.keys().stream()
-                .allMatch(key -> primitiveNet.getOrDefault(key, TrinityDeterministicFiringMath.ZERO).signum() >= 0);
     }
 }

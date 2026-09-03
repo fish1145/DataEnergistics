@@ -1,8 +1,11 @@
 package com.fish_dan_.data_energistics.mixin.core.grid.storage;
 
+import com.fish_dan_.data_energistics.ae2.grid.ExactExtractableStorage;
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess;
+import com.fish_dan_.data_energistics.ae2.grid.UnlimitedExtractableStorage;
 import com.fish_dan_.data_energistics.ae2.key.SaturatingKeyCounter;
 import com.fish_dan_.data_energistics.ae2.key.SaturatingKeyCounterBridge;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityAvailableAmount;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
@@ -19,6 +22,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.math.BigInteger;
 import java.util.List;
 import java.util.NavigableMap;
 
@@ -65,6 +69,51 @@ public abstract class NetworkStorageMixin implements FiniteNetworkStorageAccess 
     }
 
     @Override
+    public TrinityAvailableAmount exactAvailability(AEKey what, IActionSource source) {
+        if (this.mountsInUse) {
+            throw new IllegalStateException("AE network mounts are already in use during exact inventory capture");
+        }
+        BigInteger finite = BigInteger.ZERO;
+        this.mountsInUse = true;
+        try {
+            for (List<MEStorage> inventories : this.priorityInventory.descendingMap().values()) {
+                for (MEStorage inventory : inventories) {
+                    if (this.isQueuedForRemoval(inventory)) {
+                        continue;
+                    }
+                    if (inventory instanceof UnlimitedExtractableStorage unlimited &&
+                            unlimited.supportsUnlimitedExtraction(what, source)) {
+                        return TrinityAvailableAmount.Unlimited.INSTANCE;
+                    }
+                    if (inventory instanceof ExactExtractableStorage exact) {
+                        BigInteger amount = exact.exactAvailable(what, source);
+                        if (amount.signum() < 0) {
+                            throw new IllegalStateException("AE storage returned a negative exact availability");
+                        }
+                        finite = finite.add(amount);
+                        continue;
+                    }
+                    this.dataEnergistics$storageContribution.clear();
+                    inventory.getAvailableStacks(this.dataEnergistics$storageContribution);
+                    long reported = this.dataEnergistics$storageContribution.get(what);
+                    if (reported <= 0L) {
+                        continue;
+                    }
+                    long simulated = inventory.extract(what, reported, Actionable.SIMULATE, source);
+                    if (simulated < 0L || simulated > reported) {
+                        throw new IllegalStateException("AE storage returned an invalid simulated extraction amount");
+                    }
+                    finite = finite.add(BigInteger.valueOf(simulated));
+                }
+            }
+        } finally {
+            this.mountsInUse = false;
+            this.flushQueuedOperations();
+        }
+        return new TrinityAvailableAmount.Finite(finite);
+    }
+
+    @Override
     public FiniteTransferResult transferFinite(AEKey what,
                                                long amount,
                                                IActionSource source,
@@ -92,13 +141,14 @@ public abstract class NetworkStorageMixin implements FiniteNetworkStorageAccess 
                         continue;
                     }
 
-                    this.dataEnergistics$storageContribution.clear();
-                    inventory.getAvailableStacks(this.dataEnergistics$storageContribution);
-                    long reportedAmount = this.dataEnergistics$storageContribution.get(what);
-                    if (reportedAmount == Integer.MAX_VALUE || reportedAmount == Long.MAX_VALUE) {
+                    if (inventory instanceof UnlimitedExtractableStorage unlimited &&
+                            unlimited.supportsUnlimitedExtraction(what, source)) {
                         skippedInfiniteSources++;
                         continue;
                     }
+                    this.dataEnergistics$storageContribution.clear();
+                    inventory.getAvailableStacks(this.dataEnergistics$storageContribution);
+                    long reportedAmount = this.dataEnergistics$storageContribution.get(what);
                     if (reportedAmount <= 0L) {
                         continue;
                     }
