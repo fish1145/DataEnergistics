@@ -1,12 +1,10 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.cycle;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
-
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -26,21 +24,7 @@ public record TrinityCycleDemand(
                                  Set<AEKey> netNewKeys,
                                  Map<AEKey, BigInteger> finalBalanceLowerBounds) {
 
-    /**
-     * Computes the immutable effective final bound once instead of rebuilding it in every solver pass.
-     */
-    public TrinityCycleDemand(
-                              Map<AEKey, BigInteger> settledWithdrawals,
-                              Map<AEKey, BigInteger> terminalBalanceLowerBounds,
-                              Map<AEKey, BigInteger> requiredNetChangeLowerBounds) {
-        this(
-                settledWithdrawals,
-                terminalBalanceLowerBounds,
-                requiredNetChangeLowerBounds,
-                Set.of(),
-                combineFinalBalances(settledWithdrawals, terminalBalanceLowerBounds));
-    }
-
+    /** Computes the effective final bound while retaining explicit net-new target semantics. */
     public TrinityCycleDemand(
                               Map<AEKey, BigInteger> settledWithdrawals,
                               Map<AEKey, BigInteger> terminalBalanceLowerBounds,
@@ -54,19 +38,10 @@ public record TrinityCycleDemand(
                 combineFinalBalances(settledWithdrawals, terminalBalanceLowerBounds));
     }
 
-    /**
-     * Compatibility constructor for callers whose lower bounds are already terminal balances.
-     */
-    public TrinityCycleDemand(
-                              Map<AEKey, BigInteger> finalBalanceLowerBounds,
-                              Map<AEKey, BigInteger> requiredNetChangeLowerBounds) {
-        this(Map.of(), finalBalanceLowerBounds, requiredNetChangeLowerBounds);
-    }
-
     private static Map<AEKey, BigInteger> combineFinalBalances(
                                                                Map<AEKey, BigInteger> settledWithdrawals,
                                                                Map<AEKey, BigInteger> terminalBalanceLowerBounds) {
-        LinkedHashMap<AEKey, BigInteger> combined = new LinkedHashMap<>(settledWithdrawals);
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> combined = new Object2ObjectLinkedOpenHashMap<>(settledWithdrawals);
         terminalBalanceLowerBounds.forEach((key, amount) -> combined.merge(key, amount, BigInteger::add));
         return Collections.unmodifiableMap(combined);
     }
@@ -75,44 +50,12 @@ public record TrinityCycleDemand(
      * Adds internal restart reserves without changing delivery or net-new semantics.
      */
     public TrinityCycleDemand withRetainedSeed(Map<AEKey, BigInteger> retainedSeed) {
-        LinkedHashMap<AEKey, BigInteger> terminal = new LinkedHashMap<>(terminalBalanceLowerBounds);
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> terminal = new Object2ObjectLinkedOpenHashMap<>(terminalBalanceLowerBounds);
         retainedSeed.forEach((key, amount) -> terminal.merge(key, amount, BigInteger::max));
         return new TrinityCycleDemand(
                 settledWithdrawals,
                 terminal,
                 requiredNetChangeLowerBounds,
                 netNewKeys);
-    }
-
-    /**
-     * Adapts the legacy single-target quantity semantics to component-wide lower-bound maps.
-     *
-     * @param target          requested output, which may be an SCC key or a boundary output
-     * @param requestedAmount positive requested amount
-     * @param quantityMode    net-new or final-total delivery semantics
-     * @param available       current non-negative inventory snapshot
-     * @return immutable generalized cycle demand
-     */
-    public static TrinityCycleDemand forTarget(
-                                               AEKey target,
-                                               BigInteger requestedAmount,
-                                               CraftingQuantityMode quantityMode,
-                                               Map<AEKey, BigInteger> available) {
-        BigInteger availableTarget = available.getOrDefault(target, BigInteger.ZERO);
-        if (quantityMode == CraftingQuantityMode.NET_NEW) {
-            return new TrinityCycleDemand(
-                    Map.of(),
-                    Map.of(),
-                    Map.of(target, requestedAmount),
-                    Set.of(target));
-        }
-        BigInteger requiredNet = requestedAmount
-                .subtract(availableTarget)
-                .max(BigInteger.ZERO)
-                .max(BigInteger.ONE);
-        return new TrinityCycleDemand(
-                Map.of(),
-                Map.of(target, requestedAmount),
-                Map.of(target, requiredNet));
     }
 }

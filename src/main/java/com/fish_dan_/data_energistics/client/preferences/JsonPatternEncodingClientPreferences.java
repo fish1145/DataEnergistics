@@ -64,14 +64,10 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     private final ServerProfile sessionProfile = new ServerProfile(0L);
     private boolean loaded;
     private boolean writesDisabled;
-    private boolean uploadEnabledPresent;
     private boolean uploadEnabled = true;
-    private boolean patternSourceEnabledPresent;
     private boolean patternSourceEnabled = true;
-    private boolean lastWorkstationPresent;
     @Nullable
     private ResourceLocation lastWorkstation;
-    private boolean previewPanelPresent;
     private int previewPanelOffsetX;
     private int previewPanelOffsetY;
     private boolean providerDetailPanelPresent;
@@ -90,25 +86,6 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     }
 
     @Override
-    public int presentMask() {
-        ensureLoaded();
-        int mask = 0;
-        if (this.uploadEnabledPresent) {
-            mask |= PRESENT_UPLOAD_ENABLED;
-        }
-        if (this.patternSourceEnabledPresent) {
-            mask |= PRESENT_PATTERN_SOURCE_ENABLED;
-        }
-        if (this.lastWorkstationPresent) {
-            mask |= PRESENT_LAST_WORKSTATION;
-        }
-        if (this.previewPanelPresent) {
-            mask |= PRESENT_PREVIEW_PANEL;
-        }
-        return mask;
-    }
-
-    @Override
     public boolean uploadEnabled() {
         ensureLoaded();
         return this.uploadEnabled;
@@ -118,7 +95,6 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     public void setUploadEnabled(boolean enabled) {
         ensureLoaded();
         this.uploadEnabled = enabled;
-        this.uploadEnabledPresent = true;
         save();
     }
 
@@ -132,7 +108,6 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     public void setPatternSourceEnabled(boolean enabled) {
         ensureLoaded();
         this.patternSourceEnabled = enabled;
-        this.patternSourceEnabledPresent = true;
         save();
     }
 
@@ -146,7 +121,6 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
     public void setLastWorkstation(@Nullable ResourceLocation workstation) {
         ensureLoaded();
         this.lastWorkstation = workstation;
-        this.lastWorkstationPresent = true;
         save();
     }
 
@@ -168,7 +142,6 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
         validatePanelOffset(offsetX, offsetY);
         this.previewPanelOffsetX = offsetX;
         this.previewPanelOffsetY = offsetY;
-        this.previewPanelPresent = true;
         save();
     }
 
@@ -191,44 +164,6 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
         this.providerDetailPanelRelativeY = relativeY;
         this.providerDetailPanelPresent = true;
         save();
-    }
-
-    @Override
-    public int applyMissingLegacyValues(int fieldMask, boolean legacyUploadEnabled, boolean legacyPatternSourceEnabled,
-                                        @Nullable ResourceLocation legacyLastWorkstation,
-                                        int legacyOffsetX, int legacyOffsetY) {
-        ensureLoaded();
-        int knownMask = PRESENT_UPLOAD_ENABLED | PRESENT_PATTERN_SOURCE_ENABLED | PRESENT_LAST_WORKSTATION | PRESENT_PREVIEW_PANEL;
-        if ((fieldMask & ~knownMask) != 0) {
-            throw new IllegalArgumentException("Legacy preference field mask contains unknown bits: " + fieldMask);
-        }
-        validatePanelOffset(legacyOffsetX, legacyOffsetY);
-        int migratedMask = 0;
-        if ((fieldMask & PRESENT_UPLOAD_ENABLED) != 0 && !this.uploadEnabledPresent) {
-            this.uploadEnabled = legacyUploadEnabled;
-            this.uploadEnabledPresent = true;
-            migratedMask |= PRESENT_UPLOAD_ENABLED;
-        }
-        if ((fieldMask & PRESENT_PATTERN_SOURCE_ENABLED) != 0 && !this.patternSourceEnabledPresent) {
-            this.patternSourceEnabled = legacyPatternSourceEnabled;
-            this.patternSourceEnabledPresent = true;
-            migratedMask |= PRESENT_PATTERN_SOURCE_ENABLED;
-        }
-        if ((fieldMask & PRESENT_LAST_WORKSTATION) != 0 && !this.lastWorkstationPresent) {
-            this.lastWorkstation = legacyLastWorkstation;
-            this.lastWorkstationPresent = true;
-            migratedMask |= PRESENT_LAST_WORKSTATION;
-        }
-        if ((fieldMask & PRESENT_PREVIEW_PANEL) != 0 && !this.previewPanelPresent) {
-            this.previewPanelOffsetX = legacyOffsetX;
-            this.previewPanelOffsetY = legacyOffsetY;
-            this.previewPanelPresent = true;
-            migratedMask |= PRESENT_PREVIEW_PANEL;
-        }
-        if (migratedMask != 0) {
-            save();
-        }
-        return migratedMask;
     }
 
     @Override
@@ -333,19 +268,17 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
         if (schemaVersion > SCHEMA_VERSION) {
             throw new FutureSchemaException(schemaVersion);
         }
-        if (schemaVersion < 1) {
+        if (schemaVersion < 3) {
             throw new IllegalArgumentException("Unsupported client preference schema: " + schemaVersion);
         }
-        boolean legacySchema = schemaVersion < SCHEMA_VERSION;
+        boolean requiresSchemaUpgrade = schemaVersion < SCHEMA_VERSION;
         JsonObject preferences = readOptionalObject(root, "preferences");
         if (preferences != null) {
             if (preferences.has("uploadEnabled")) {
                 this.uploadEnabled = readRequiredBoolean(preferences, "uploadEnabled");
-                this.uploadEnabledPresent = true;
             }
             if (preferences.has("patternSourceEnabled")) {
                 this.patternSourceEnabled = readRequiredBoolean(preferences, "patternSourceEnabled");
-                this.patternSourceEnabledPresent = true;
             }
             if (preferences.has("lastWorkstation")) {
                 JsonElement workstationElement = preferences.get("lastWorkstation");
@@ -354,14 +287,12 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
                 } else {
                     this.lastWorkstation = parseResourceLocation(readString(workstationElement, "lastWorkstation"));
                 }
-                this.lastWorkstationPresent = true;
             }
             if (preferences.has("previewPanel")) {
                 JsonObject previewPanel = readRequiredObject(preferences, "previewPanel");
                 this.previewPanelOffsetX = readRequiredInt(previewPanel, "offsetX");
                 this.previewPanelOffsetY = readRequiredInt(previewPanel, "offsetY");
                 validatePanelOffset(this.previewPanelOffsetX, this.previewPanelOffsetY);
-                this.previewPanelPresent = true;
             }
             if (preferences.has("providerDetailPanel")) {
                 JsonObject providerDetailPanel = readRequiredObject(preferences, "providerDetailPanel");
@@ -373,7 +304,7 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
         }
         JsonObject profiles = readOptionalObject(root, "serverProfiles");
         if (profiles == null) {
-            return legacySchema;
+            return requiresSchemaUpgrade;
         }
         if (profiles.size() > MAX_SERVER_PROFILES) {
             throw new IllegalArgumentException("Client preference server profiles exceed " + MAX_SERVER_PROFILES);
@@ -384,17 +315,17 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
             if (!entry.getValue().isJsonObject()) {
                 throw new IllegalArgumentException("Server profile must be a JSON object: " + entry.getKey());
             }
-            ServerProfile profile = readProfile(entry.getValue().getAsJsonObject(), schemaVersion);
+            ServerProfile profile = readProfile(entry.getValue().getAsJsonObject());
             totalStatistics += profile.statistics.size();
             if (totalStatistics > MAX_STATISTICS_TOTAL) {
                 throw new IllegalArgumentException("Client preference statistics exceed " + MAX_STATISTICS_TOTAL);
             }
             this.serverProfiles.put(entry.getKey(), profile);
         }
-        return legacySchema;
+        return requiresSchemaUpgrade;
     }
 
-    private ServerProfile readProfile(JsonObject profileObject, int schemaVersion) {
+    private ServerProfile readProfile(JsonObject profileObject) {
         long lastAccess = readRequiredLong(profileObject, "lastAccessEpochMillis");
         if (lastAccess < 0L) {
             throw new IllegalArgumentException("Server profile last access must not be negative");
@@ -413,33 +344,8 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
             String providerDigest = readRequiredString(statisticObject, "providerDigest");
             long count = readRequiredLong(statisticObject, "count");
             long lastUsed = readRequiredLong(statisticObject, "lastUsedEpochMillis");
-            PatternEncodingRankingContext context;
-            if (schemaVersion == 1) {
-                String recipeScope = readRequiredString(statisticObject, "recipeScope");
-                ResourceLocation recipeTypeId = legacyCategoryId(recipeScope);
-                if (recipeTypeId == null) {
-                    Data_Energistics.LOGGER.warn(
-                            "Discarding legacy pattern preference statistic without an exact recipe type identity: {}",
-                            recipeScope);
-                    continue;
-                }
-                parseResourceLocation(readRequiredString(statisticObject, "workstation"));
-                context = PatternEncodingRankingContext.of(recipeTypeId);
-            } else if (schemaVersion == 2) {
-                ResourceLocation recipeTypeId = parseResourceLocation(
-                        readRequiredString(statisticObject, "categoryId"));
-                JsonArray workstationArray = readRequiredArray(statisticObject, "workstationIds");
-                if (workstationArray.size() > 64) {
-                    throw new IllegalArgumentException("Legacy pattern preference workstation ids exceed 64");
-                }
-                for (JsonElement workstationElement : workstationArray) {
-                    parseResourceLocation(readString(workstationElement, "workstationIds"));
-                }
-                context = PatternEncodingRankingContext.of(recipeTypeId);
-            } else {
-                context = PatternEncodingRankingContext.of(parseResourceLocation(
-                        readRequiredString(statisticObject, "recipeTypeId")));
-            }
+            PatternEncodingRankingContext context = PatternEncodingRankingContext.of(parseResourceLocation(
+                    readRequiredString(statisticObject, "recipeTypeId")));
             PatternProviderClickStatistic statistic = new PatternProviderClickStatistic(
                     context, providerDigest, count, lastUsed);
             if (profile.statistics.putIfAbsent(statistic.stableKey(), statistic) != null) {
@@ -447,11 +353,6 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
             }
         }
         return profile;
-    }
-
-    @Nullable
-    private static ResourceLocation legacyCategoryId(String recipeScope) {
-        return recipeScope.startsWith("type:") ? ResourceLocation.tryParse(recipeScope.substring("type:".length())) : null;
     }
 
     private void recoverCorruptFile(Exception failure) {
@@ -497,10 +398,6 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
         this.previewPanelOffsetY = 0;
         this.providerDetailPanelRelativeX = 0;
         this.providerDetailPanelRelativeY = 0;
-        this.uploadEnabledPresent = true;
-        this.patternSourceEnabledPresent = true;
-        this.lastWorkstationPresent = true;
-        this.previewPanelPresent = true;
         this.providerDetailPanelPresent = false;
         this.serverProfiles.clear();
         this.sessionProfile.statistics.clear();
@@ -556,25 +453,17 @@ public final class JsonPatternEncodingClientPreferences implements PatternEncodi
         JsonObject root = new JsonObject();
         root.addProperty("schemaVersion", SCHEMA_VERSION);
         JsonObject preferences = new JsonObject();
-        if (this.uploadEnabledPresent) {
-            preferences.addProperty("uploadEnabled", this.uploadEnabled);
+        preferences.addProperty("uploadEnabled", this.uploadEnabled);
+        preferences.addProperty("patternSourceEnabled", this.patternSourceEnabled);
+        if (this.lastWorkstation == null) {
+            preferences.add("lastWorkstation", null);
+        } else {
+            preferences.addProperty("lastWorkstation", this.lastWorkstation.toString());
         }
-        if (this.patternSourceEnabledPresent) {
-            preferences.addProperty("patternSourceEnabled", this.patternSourceEnabled);
-        }
-        if (this.lastWorkstationPresent) {
-            if (this.lastWorkstation == null) {
-                preferences.add("lastWorkstation", null);
-            } else {
-                preferences.addProperty("lastWorkstation", this.lastWorkstation.toString());
-            }
-        }
-        if (this.previewPanelPresent) {
-            JsonObject previewPanel = new JsonObject();
-            previewPanel.addProperty("offsetX", this.previewPanelOffsetX);
-            previewPanel.addProperty("offsetY", this.previewPanelOffsetY);
-            preferences.add("previewPanel", previewPanel);
-        }
+        JsonObject previewPanel = new JsonObject();
+        previewPanel.addProperty("offsetX", this.previewPanelOffsetX);
+        previewPanel.addProperty("offsetY", this.previewPanelOffsetY);
+        preferences.add("previewPanel", previewPanel);
         if (this.providerDetailPanelPresent) {
             JsonObject providerDetailPanel = new JsonObject();
             providerDetailPanel.addProperty("relativeX", this.providerDetailPanelRelativeX);

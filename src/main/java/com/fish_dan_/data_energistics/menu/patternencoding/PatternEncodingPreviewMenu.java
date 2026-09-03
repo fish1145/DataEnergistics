@@ -75,7 +75,6 @@ public interface PatternEncodingPreviewMenu {
                                      @Nullable PatternEncodingRankingContext rankingContext)
             implements PacketWritable {
 
-        private static final int MAX_VIEWER_WORKSTATION_IDS = 2048;
         public static final SyncedPatternProviderList EMPTY = new SyncedPatternProviderList(
                 ObjectLists.emptyList(), null);
 
@@ -98,7 +97,6 @@ public interface PatternEncodingPreviewMenu {
                 provider.writeToPacket(data);
             }
             writeRankingContext(data, this.rankingContext);
-            data.writeVarInt(0);
         }
 
         private static ObjectList<SyncedPatternProvider> readProviders(RegistryFriendlyByteBuf data) {
@@ -128,21 +126,9 @@ public interface PatternEncodingPreviewMenu {
             return new PatternEncodingRankingContext(readBoundedResourceLocation(data, "recipe type id"));
         }
 
-        private static void skipLegacyViewerWorkstationIds(RegistryFriendlyByteBuf data) {
-            int size = data.readVarInt();
-            if (size < 0 || size > MAX_VIEWER_WORKSTATION_IDS) {
-                throw new IllegalArgumentException(
-                        "Pattern viewer workstation count is outside [0, " + MAX_VIEWER_WORKSTATION_IDS + "]: " + size);
-            }
-            for (int index = 0; index < size; index++) {
-                readBoundedResourceLocation(data, "legacy workstation id");
-            }
-        }
-
         private static DecodedProviderList readFromPacket(RegistryFriendlyByteBuf data) {
             ObjectList<SyncedPatternProvider> providers = readProviders(data);
             PatternEncodingRankingContext rankingContext = readRankingContext(data);
-            skipLegacyViewerWorkstationIds(data);
             return new DecodedProviderList(providers, rankingContext);
         }
 

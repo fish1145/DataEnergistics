@@ -15,9 +15,12 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,7 +36,7 @@ public final class VerticalMultiBlockRuntimeBindingTest {
     @GameTest(template = "empty_5x5")
     public static void bindsInvalidatesAndRebindsControllerAndParts(GameTestHelper helper) {
         VerticalMultiBlockDefinition<String> definition = definition();
-        Map<VerticalMultiBlockPos, String> world = new HashMap<>();
+        Map<VerticalMultiBlockPos, String> world = new Object2ObjectOpenHashMap<>();
         place(world, definition, new VerticalMultiBlockPos(0, 0, 0), 3);
         TestController controller = new TestController();
         TestPart part = new TestPart();
@@ -104,7 +107,7 @@ public final class VerticalMultiBlockRuntimeBindingTest {
     public static void distinguishesStructureNamesInEvents(GameTestHelper helper) {
         VerticalMultiBlockDefinition<String> mainDefinition = definition();
         VerticalMultiBlockDefinition<String> auxDefinition = definition("aux");
-        Map<VerticalMultiBlockPos, String> world = new HashMap<>();
+        Map<VerticalMultiBlockPos, String> world = new Object2ObjectOpenHashMap<>();
         place(world, mainDefinition, new VerticalMultiBlockPos(0, 0, 0), 3);
         TestController controller = new TestController();
         TestPart part = new TestPart();
@@ -195,7 +198,7 @@ public final class VerticalMultiBlockRuntimeBindingTest {
     @GameTest(template = "empty_5x5")
     public static void registersCompartmentPartsWithHost(GameTestHelper helper) {
         VerticalMultiBlockDefinition<String> definition = definition();
-        Map<VerticalMultiBlockPos, String> world = new HashMap<>();
+        Map<VerticalMultiBlockPos, String> world = new Object2ObjectOpenHashMap<>();
         place(world, definition, new VerticalMultiBlockPos(0, 0, 0), 3);
         TestCompartmentHost controller = new TestCompartmentHost();
         TestCompartmentPart part = new TestCompartmentPart(new VerticalMultiBlockPos(1, 1, 0));
@@ -222,35 +225,6 @@ public final class VerticalMultiBlockRuntimeBindingTest {
                 controller.compartmentHost$getCompartments("main").isEmpty(),
                 "Compartment host should remove the part after invalidation");
         helper.assertTrue(part.compartmentHost() == null, "Compartment part should clear its host after invalidation");
-        helper.succeed();
-    }
-
-    @TestHolder("compartment_part_legacy_unbind_uses_current_structure_name")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void compartmentPartLegacyUnbindUsesCurrentStructureName(GameTestHelper helper) {
-        TestCompartmentHost controller = new TestCompartmentHost();
-        TestCompartmentPart part = new TestCompartmentPart(new VerticalMultiBlockPos(1, 1, 0));
-        VerticalMultiBlockDefinition<String> auxDefinition = definition("aux");
-        VerticalMultiBlockContext<String> context = new VerticalMultiBlockContext<>(
-                auxDefinition,
-                new VerticalMultiBlockPos(0, 0, 0),
-                new VerticalMultiBlockPos(0, 0, 0),
-                VerticalMultiBlockDirection.NORTH,
-                3);
-
-        part.verticalMultiBlock$addedToController(controller, "aux", context);
-        helper.assertValueEqual(
-                controller.compartmentHost$getCompartments("aux"),
-                List.of(part),
-                "Compartment should be registered under the named aux structure");
-
-        part.verticalMultiBlock$removedFromController(controller);
-
-        helper.assertTrue(
-                controller.compartmentHost$getCompartments("aux").isEmpty(),
-                "Legacy removal should use the part's current structure name");
-        helper.assertTrue(part.compartmentHost() == null, "Legacy removal should clear the part host");
         helper.succeed();
     }
 
@@ -337,10 +311,10 @@ public final class VerticalMultiBlockRuntimeBindingTest {
 
     private static class TestController implements VerticalMultiBlockController {
 
-        private final List<String> events = new ArrayList<>();
+        private final List<String> events = new ObjectArrayList<>();
         private final String definitionId;
-        private final Map<String, VerticalMultiBlockRuntimeState> states = new HashMap<>();
-        private final Map<String, Long> bindingEpochs = new HashMap<>();
+        private final Map<String, VerticalMultiBlockRuntimeState> states = new Object2ObjectOpenHashMap<>();
+        private final Object2LongOpenHashMap<String> bindingEpochs = new Object2LongOpenHashMap<>();
 
         private TestController() {
             this("test:runtime");
@@ -394,7 +368,7 @@ public final class VerticalMultiBlockRuntimeBindingTest {
         public VerticalMultiBlockRuntimeState verticalMultiBlock$getRuntimeState(String structureName) {
             return this.states.getOrDefault(
                     structureName,
-                    VerticalMultiBlockRuntimeState.unformed(this.bindingEpochs.getOrDefault(structureName, 0L)));
+                    VerticalMultiBlockRuntimeState.unformed(this.bindingEpochs.getLong(structureName)));
         }
 
         @Override
@@ -414,7 +388,7 @@ public final class VerticalMultiBlockRuntimeBindingTest {
 
         @Override
         public Map<String, VerticalMultiBlockRuntimeState> verticalMultiBlock$getRuntimeStates() {
-            return Map.copyOf(this.states);
+            return Collections.unmodifiableMap(new Object2ObjectOpenHashMap<>(this.states));
         }
     }
 
@@ -440,27 +414,20 @@ public final class VerticalMultiBlockRuntimeBindingTest {
 
     private static final class TestPart implements VerticalMultiBlockPart {
 
-        private final List<String> events = new ArrayList<>();
-
-        @Override
-        public void verticalMultiBlock$addedToController(VerticalMultiBlockController controller, VerticalMultiBlockContext<?> context) {
-            this.events.add("legacy-added:" + context.definition().id());
-        }
+        private final List<String> events = new ObjectArrayList<>();
 
         @Override
         public void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
                                                          String structureName,
-                                                         VerticalMultiBlockContext<?> context) {
+                                                         VerticalMultiBlockContext<?> context,
+                                                         long bindingEpoch) {
             this.events.add("added:" + context.definition().id() + ":" + structureName);
         }
 
         @Override
-        public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller) {
-            this.events.add("legacy-removed");
-        }
-
-        @Override
-        public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller, String structureName) {
+        public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller,
+                                                             String structureName,
+                                                             long bindingEpoch) {
             this.events.add("removed:" + structureName);
         }
     }
@@ -519,14 +486,16 @@ public final class VerticalMultiBlockRuntimeBindingTest {
         @Override
         public void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
                                                          String structureName,
-                                                         VerticalMultiBlockContext<?> context) {
-            CompartmentPart.super.verticalMultiBlock$addedToController(controller, structureName, context);
+                                                         VerticalMultiBlockContext<?> context,
+                                                         long bindingEpoch) {
+            CompartmentPart.super.verticalMultiBlock$addedToController(controller, structureName, context, bindingEpoch);
         }
 
         @Override
         public void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller,
-                                                             String structureName) {
-            CompartmentPart.super.verticalMultiBlock$removedFromController(controller, structureName);
+                                                             String structureName,
+                                                             long bindingEpoch) {
+            CompartmentPart.super.verticalMultiBlock$removedFromController(controller, structureName, bindingEpoch);
         }
     }
 }

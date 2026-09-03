@@ -74,9 +74,9 @@ import appeng.util.inv.CombinedInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -113,7 +113,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String FLUID_TAG = "fluid";
     private static final String CONFIG_TAG = "config";
     private static final String OUTPUT_SIDES_TAG = "output_sides";
-    private static final String LEGACY_ITEM_OUTPUT_SIDES_TAG = "item_output_sides";
     private static final String PROGRESS_TAG = "progress";
     private static final String PROCESSING_MODE_TAG = "processing_mode";
     private static final ResourceLocation AE2_INSCRIBER = ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
@@ -136,8 +135,8 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private final ConfigManager configManager = new ConfigManager(this::onConfigChanged);
     private boolean syncingFluidMenu;
     private final Set<Direction> outputSides = EnumSet.allOf(Direction.class);
-    private AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentGenericInventories;
-    private AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
+    private @Nullable AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentGenericInventories;
+    private @Nullable AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
     private int progress;
     private MachineMode processingMode = MachineMode.NONE;
 
@@ -352,7 +351,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
         this.storage.readFromNBT(data, STORAGE_TAG, registries);
-        moveRetiredInputStacks();
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
         this.fluidTank.readFromNBT(registries, data.getCompound(FLUID_TAG));
         if (data.contains(CONFIG_TAG)) {
@@ -360,9 +358,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         }
         this.outputSides.clear();
         if (data.contains(OUTPUT_SIDES_TAG)) {
-            readOutputSides(data, OUTPUT_SIDES_TAG, this.outputSides);
-        } else if (data.contains(LEGACY_ITEM_OUTPUT_SIDES_TAG)) {
-            readOutputSides(data, LEGACY_ITEM_OUTPUT_SIDES_TAG, this.outputSides);
+            readOutputSides(data, this.outputSides);
         } else {
             this.outputSides.addAll(EnumSet.allOf(Direction.class));
         }
@@ -600,7 +596,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             return null;
         }
 
-        List<ItemStack> inputs = new ArrayList<>(ITEM_INPUT_SLOT_COUNT);
+        List<ItemStack> inputs = new ObjectArrayList<>(ITEM_INPUT_SLOT_COUNT);
         for (int slot = 0; slot < ITEM_INPUT_SLOT_COUNT; slot++) {
             inputs.add(this.storage.getStackInSlot(slot));
         }
@@ -615,7 +611,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
                 continue;
             }
 
-            int materialSlot = findInputSlot(inputs, recipe.getMiddleInput(), -1);
+            int materialSlot = findInputSlot(inputs, recipe.getMiddleInput());
             ItemStack result = DataChargePressRecipeSupport.getTripleResult(recipe);
             if (materialSlot >= 0 && inputs.get(materialSlot).getCount() >=
                     DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT && findOutputSlot(result) >= 0) {
@@ -632,7 +628,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             return null;
         }
 
-        List<ItemStack> inputs = new ArrayList<>(ITEM_INPUT_SLOT_COUNT);
+        List<ItemStack> inputs = new ObjectArrayList<>(ITEM_INPUT_SLOT_COUNT);
         for (int slot = 0; slot < ITEM_INPUT_SLOT_COUNT; slot++) {
             inputs.add(this.storage.getStackInSlot(slot));
         }
@@ -655,9 +651,9 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return null;
     }
 
-    private static int findInputSlot(List<ItemStack> inputs, Ingredient ingredient, int excludedSlot) {
+    private static int findInputSlot(List<ItemStack> inputs, Ingredient ingredient) {
         for (int slot = 0; slot < inputs.size(); slot++) {
-            if (slot != excludedSlot && ingredient.test(inputs.get(slot))) {
+            if (ingredient.test(inputs.get(slot))) {
                 return slot;
             }
         }
@@ -980,24 +976,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         }
     }
 
-    /**
-     * Input slots 6 and 7 are no longer exposed. Move their legacy contents into the six visible input slots
-     * whenever possible; any remainder stays stored safely and is still returned when the block is broken.
-     */
-    private void moveRetiredInputStacks() {
-        for (int slot = ITEM_INPUT_SLOT_COUNT; slot < ITEM_OUTPUT_START_SLOT; slot++) {
-            ItemStack remaining = this.storage.getStackInSlot(slot);
-            if (remaining.isEmpty()) {
-                continue;
-            }
-
-            for (int target = 0; target < ITEM_INPUT_SLOT_COUNT && !remaining.isEmpty(); target++) {
-                remaining = this.storage.insertItem(target, remaining, false);
-            }
-            this.storage.setItemDirect(slot, remaining);
-        }
-    }
-
     private boolean tryAutoExport() {
         return exportItemOutputs(this.outputSides);
     }
@@ -1190,9 +1168,9 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         markForClientUpdate();
     }
 
-    private static void readOutputSides(CompoundTag data, String tagName, Set<Direction> target) {
+    private static void readOutputSides(CompoundTag data, Set<Direction> target) {
         target.clear();
-        for (Tag name : data.getList(tagName, Tag.TAG_STRING)) {
+        for (Tag name : data.getList(OUTPUT_SIDES_TAG, Tag.TAG_STRING)) {
             Direction side = Direction.byName(name.getAsString());
             if (side != null) {
                 target.add(side);

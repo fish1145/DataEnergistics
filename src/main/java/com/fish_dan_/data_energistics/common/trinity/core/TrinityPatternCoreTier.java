@@ -4,8 +4,8 @@ package com.fish_dan_.data_energistics.common.trinity.core;
  * Defines the fixed physical capacities of the three Trinity pattern processing core tiers.
  *
  * <p>
- * The current capacities are complete nine-slot UI rows. Their paired legacy capacities are accepted only while
- * loading V3 persistent state, allowing the core inventory to grow without renumbering existing physical slots.
+ * The current capacities are complete nine-slot UI rows. Paired 3.1.3 capacities support direct upgrades without
+ * renumbering existing physical slots.
  * </p>
  */
 public enum TrinityPatternCoreTier {
@@ -14,11 +14,11 @@ public enum TrinityPatternCoreTier {
     EXTENDED(128, 144),
     OVERLIMIT(512, 576);
 
-    private final int legacyPatternCapacity;
+    private final int powerOfTwoPatternCapacity;
     private final int patternCapacity;
 
-    TrinityPatternCoreTier(int legacyPatternCapacity, int patternCapacity) {
-        this.legacyPatternCapacity = legacyPatternCapacity;
+    TrinityPatternCoreTier(int powerOfTwoPatternCapacity, int patternCapacity) {
+        this.powerOfTwoPatternCapacity = powerOfTwoPatternCapacity;
         this.patternCapacity = patternCapacity;
     }
 
@@ -37,12 +37,10 @@ public enum TrinityPatternCoreTier {
         return false;
     }
 
-    /**
-     * Returns whether a V3 persisted capacity may migrate into the supplied current block capacity.
-     */
-    public static boolean matchesLegacyCapacity(int persistedCapacity, int currentCapacity) {
+    /** Returns whether a 3.1.3 persisted capacity may upgrade into the current block capacity. */
+    public static boolean matchesPowerOfTwoCapacity(int persistedCapacity, int currentCapacity) {
         for (TrinityPatternCoreTier tier : values()) {
-            if (tier.legacyPatternCapacity == persistedCapacity && tier.patternCapacity == currentCapacity) {
+            if (tier.powerOfTwoPatternCapacity == persistedCapacity && tier.patternCapacity == currentCapacity) {
                 return true;
             }
         }

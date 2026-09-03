@@ -318,7 +318,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                                                                                     SolvedModel solved, SolverMetrics metrics, TrinityPlanQuality quality) {
         return TrinityAlgorithmResult.success(new TrinityCycleFeasibilitySolution(
                 solved.firings(), solved.modelSeed(), solved.externalInputs(),
-                metrics.passes, metrics.nanos, false, quality));
+                metrics.passes, metrics.nanos, false, quality, Map.of(), Map.of(), 0));
     }
 
     private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> recoverIncumbent(

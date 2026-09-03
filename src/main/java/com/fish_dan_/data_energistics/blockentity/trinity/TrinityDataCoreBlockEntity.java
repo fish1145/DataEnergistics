@@ -109,15 +109,16 @@ import com.modularmc.mdl.api.multiblock.PatternDiagnostic;
 import com.modularmc.mdl.api.multiblock.StructureMatchResult;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import lombok.Getter;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -241,7 +242,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     /**
      * Runtime-only authorization records for one-tick information-exchange-depot crafting dispatches.
      */
-    private final Map<CraftingAdmissionToken, CraftingAdmissionState> craftingAdmissions = new IdentityHashMap<>();
+    private final Map<CraftingAdmissionToken, CraftingAdmissionState> craftingAdmissions = new Reference2ReferenceOpenHashMap<>();
     /**
      * Invalidates every issued admission when any host-owned routing boundary changes.
      */
@@ -960,7 +961,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                                                                             BlockPos origin,
                                                                             AutoBuildOrientation orientation,
                                                                             int repeatCount) {
-        LinkedHashMap<BlockPos, TraceabilityPredicate> predicates = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<BlockPos, TraceabilityPredicate> predicates = new Object2ObjectLinkedOpenHashMap<>();
         int minX = pattern.getMinX();
         int minY = pattern.getMinY();
         int expandedZ = pattern.getMinZ();
@@ -1102,7 +1103,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         TrinityPatternCatalog.LayoutSnapshot layout = this.patternCatalog.layoutSnapshot();
         int first = TrinityPatternCatalogView.normalizeFirstGlobalSlot(firstGlobalSlot, layout.slotCount());
         int count = Math.min(TrinityPatternCatalogView.PAGE_SIZE, layout.slotCount() - first);
-        List<ItemStack> patterns = new ArrayList<>(count);
+        List<ItemStack> patterns = new ObjectArrayList<>(count);
         for (int offset = 0; offset < count; offset++) {
             TrinityPatternCatalog.GlobalSlot slot = this.patternCatalog.resolveGlobalSlot(
                     layout.revision(),
@@ -1160,8 +1161,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         if (layout.revision() != layoutRevision) {
             return TrinityHostedActionStatus.STALE_STATE;
         }
-        Set<Integer> uniqueSlots = new HashSet<>(globalSlots.size());
-        List<TrinityPatternCatalog.GlobalSlot> resolvedSlots = new ArrayList<>(globalSlots.size());
+        IntSet uniqueSlots = new IntOpenHashSet(globalSlots.size());
+        List<TrinityPatternCatalog.GlobalSlot> resolvedSlots = new ObjectArrayList<>(globalSlots.size());
         for (int globalSlot : globalSlots) {
             if (!uniqueSlots.add(globalSlot)) {
                 throw new IllegalArgumentException("Duplicate Trinity pattern quick-move global slot: " + globalSlot);
@@ -1337,7 +1338,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     @Override
     public int getBusyCpuPartitionCount() {
         int busyPartitions = 0;
-        for (TrinityDataCoreVirtualCpu cpu : this.craftingRuntime.partitions()) {
+        for (TrinityDataCoreVirtualCpu cpu : this.craftingRuntime.publishedCpus()) {
             if (cpu.isBusy()) {
                 busyPartitions++;
             }
@@ -1382,7 +1383,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      * @return virtual CPU partitions currently exposed by this formed structure
      */
     public List<TrinityDataCoreVirtualCpu> getCpuPartitions() {
-        return this.craftingRuntime.partitions();
+        return this.craftingRuntime.publishedCpus();
     }
 
     /**
@@ -2753,7 +2754,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
-    private void applyCpuFailure(PatternDiagnostic diagnostic) {
+    private void applyCpuFailure(@Nullable PatternDiagnostic diagnostic) {
         this.structureValidation.markInvalid(Structure.CPU);
         this.craftingRuntime.setPaused(true);
         String nextFailureReason;
@@ -2808,7 +2809,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
-    private void applyCraftingFailure(PatternDiagnostic diagnostic) {
+    private void applyCraftingFailure(@Nullable PatternDiagnostic diagnostic) {
         if (diagnostic == null) {
             applyCraftingFailure("Structure pattern did not match", null);
         } else {
@@ -2844,7 +2845,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         setChanged();
     }
 
-    private void applyFailure(PatternDiagnostic diagnostic, String structureName) {
+    private void applyFailure(@Nullable PatternDiagnostic diagnostic, String structureName) {
         this.structureValidation.markInvalid(Structure.MAIN);
         this.structureValidation.markPending(Structure.CPU);
         this.structureValidation.markPending(Structure.CRAFTING);
@@ -2876,8 +2877,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 (hasPendingTrinityWork() || hasUnresolvedStructureValidation()) ? this.accessLease.unbind() : null;
         transitionAccessLease(retainedLease);
         clearCompartmentBindings(structureName);
-        clearCpuStructureStatus(MAIN_STRUCTURE_NOT_FORMED, null);
-        clearCraftingStructureStatus(MAIN_STRUCTURE_NOT_FORMED, null);
+        clearCpuStructureStatus();
+        clearCraftingStructureStatus();
         this.formed = false;
         this.matchedPositions = List.of();
         this.lastFailureReason = nextFailureReason;
@@ -3257,7 +3258,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private PatternCatalogScanResult scanPatternCores(StructureWorldView world, List<BlockPos> positions) {
-        ArrayList<TrinityPatternCatalog.CoreMount> mounts = new ArrayList<>();
+        ObjectArrayList<TrinityPatternCatalog.CoreMount> mounts = new ObjectArrayList<>();
         for (BlockPos pos : positions) {
             BlockState state = world.getBlockState(pos);
             if (!(state.getBlock() instanceof TrinityCoreComponent component) ||
@@ -3288,7 +3289,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
 
     private TrinityDataCoreCpuContribution buildCpuContribution(StructureWorldView world, List<BlockPos> positions) {
         TrinityDataCoreCpuCoreProfile.Builder builder = TrinityDataCoreCpuCoreProfile.builder();
-        Set<Integer> repeatedLayers = new HashSet<>();
+        IntSet repeatedLayers = new IntOpenHashSet();
         for (BlockPos pos : positions) {
             int localY = cpuLocalY(pos);
             if (localY >= TrinityDataCoreCpuCoreProfile.REPEAT_START_Y &&
@@ -3314,19 +3315,19 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return pos.getY() - this.worldPosition.getY() + TrinityDataCoreCpuCoreProfile.CONTROLLER_LOCAL_Y;
     }
 
-    private void clearCpuStructureStatus(String failureReason, @Nullable BlockPos failurePosition) {
+    private void clearCpuStructureStatus() {
         this.cpuStructureFormed = false;
         this.cpuStructureMatchedBlockCount = 0;
-        this.cpuLastFailureReason = failureReason;
-        this.cpuLastFailurePosition = failurePosition;
+        this.cpuLastFailureReason = MAIN_STRUCTURE_NOT_FORMED;
+        this.cpuLastFailurePosition = null;
     }
 
-    private void clearCraftingStructureStatus(String failureReason, @Nullable BlockPos failurePosition) {
+    private void clearCraftingStructureStatus() {
         withdrawPatternCatalog();
         this.craftingStructureFormed = false;
         this.craftingStructureMatchedBlockCount = 0;
-        this.craftingLastFailureReason = failureReason;
-        this.craftingLastFailurePosition = failurePosition;
+        this.craftingLastFailureReason = MAIN_STRUCTURE_NOT_FORMED;
+        this.craftingLastFailurePosition = null;
     }
 
     /**

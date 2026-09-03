@@ -10,8 +10,8 @@ import net.minecraft.world.item.ItemStack;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public record UniversalTerminalItemData(String activeTerminal, List<TerminalEntryData> terminals,
@@ -33,7 +33,6 @@ public record UniversalTerminalItemData(String activeTerminal, List<TerminalEntr
     public static final StreamCodec<RegistryFriendlyByteBuf, UniversalTerminalItemData> STREAM_CODEC = ByteBufCodecs.fromCodecWithRegistries(CODEC);
 
     public UniversalTerminalItemData {
-        activeTerminal = activeTerminal == null ? "" : activeTerminal;
         terminals = List.copyOf(terminals);
         terminalData = terminalData.copy();
     }
@@ -50,7 +49,8 @@ public record UniversalTerminalItemData(String activeTerminal, List<TerminalEntr
         return new UniversalTerminalItemData(this.activeTerminal, this.terminals, terminalData);
     }
 
-    public CompoundTag toLegacyTag(HolderLookup.Provider registries) {
+    /** Converts the item component to the terminal part's current persistent representation. */
+    public CompoundTag toPartTag(HolderLookup.Provider registries) {
         CompoundTag tag = this.terminalData.copy();
         if (!this.activeTerminal.isEmpty()) {
             tag.putString(TAG_ACTIVE, this.activeTerminal);
@@ -71,8 +71,9 @@ public record UniversalTerminalItemData(String activeTerminal, List<TerminalEntr
         return tag;
     }
 
-    public static UniversalTerminalItemData fromLegacyTag(CompoundTag tag, HolderLookup.Provider registries) {
-        List<TerminalEntryData> entries = new ArrayList<>();
+    /** Reads the current part representation used by both release 3.1.3 and current terminal parts. */
+    public static UniversalTerminalItemData fromPartTag(CompoundTag tag, HolderLookup.Provider registries) {
+        List<TerminalEntryData> entries = new ObjectArrayList<>();
         ListTag terminalList = tag.getList(TAG_TERMINALS, CompoundTag.TAG_COMPOUND);
         for (int i = 0; i < terminalList.size(); i++) {
             CompoundTag entryTag = terminalList.getCompound(i);
@@ -93,7 +94,6 @@ public record UniversalTerminalItemData(String activeTerminal, List<TerminalEntr
                 .apply(instance, TerminalEntryData::new));
 
         public TerminalEntryData {
-            name = name == null ? "" : name;
             stack = stack.copyWithCount(1);
         }
     }

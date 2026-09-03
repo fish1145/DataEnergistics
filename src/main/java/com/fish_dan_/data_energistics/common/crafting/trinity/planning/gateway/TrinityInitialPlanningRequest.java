@@ -5,9 +5,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
-import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import appeng.api.stacks.AEKey;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
 
@@ -92,15 +92,6 @@ public final class TrinityInitialPlanningRequest {
         return this.limits;
     }
 
-    /**
-     * @return detached compatibility configuration that cannot mutate this request
-     * @deprecated use {@link #limits()}
-     */
-    @Deprecated(forRemoval = false)
-    public TrinityCraftingSchema settings() {
-        return this.limits.detachedSchema();
-    }
-
     public TrinityCpuStorageCapacity maxTrinityCapacity() {
         return this.maxTrinityCapacity;
     }
@@ -110,15 +101,15 @@ public final class TrinityInitialPlanningRequest {
      */
     public static final class Builder {
 
-        private TrinityCraftingGraphSnapshot graph;
+        private @Nullable TrinityCraftingGraphSnapshot graph;
         private long gridScope;
         private long requestId;
-        private AEKey target;
-        private BigInteger requestedAmount;
-        private CraftingQuantityMode quantityMode;
-        private TrinityPlanningInventory inventory;
-        private TrinityPlanningLimits limits;
-        private TrinityCpuStorageCapacity maxTrinityCapacity;
+        private @Nullable AEKey target;
+        private @Nullable BigInteger requestedAmount;
+        private @Nullable CraftingQuantityMode quantityMode;
+        private @Nullable TrinityPlanningInventory inventory;
+        private @Nullable TrinityPlanningLimits limits;
+        private @Nullable TrinityCpuStorageCapacity maxTrinityCapacity;
 
         private Builder() {}
 
@@ -154,11 +145,6 @@ public final class TrinityInitialPlanningRequest {
 
         public Builder inventory(TrinityPlanningInventory inventory) {
             this.inventory = inventory;
-            return this;
-        }
-
-        public Builder settings(TrinityCraftingSchema settings) {
-            this.limits = TrinityPlanningLimits.capture(settings);
             return this;
         }
 

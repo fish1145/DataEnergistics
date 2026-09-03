@@ -6,8 +6,8 @@ package com.fish_dan_.data_energistics.common.trinity.core;
 public interface TrinityCoreComponent {
 
     /**
-     * Returns this component's primary capability category. Universal placeholders retain a primary category only for
-     * legacy callers and do not necessarily contribute capacity to it.
+     * Returns this component's primary capability category. Query {@link #contributesToKind(TrinityCoreKind)} before
+     * aggregating capacity: a universal placeholder contributes to none of its supported domains.
      */
     TrinityCoreKind kind();
 
@@ -21,7 +21,7 @@ public interface TrinityCoreComponent {
      *
      * <p>
      * Ordinary cores expose only their declared {@link #kind()}; a universal empty unit may expose all three
-     * domains while retaining a primary kind for legacy callers.
+     * domains without contributing capacity to any of them.
      * </p>
      *
      * @param requestedKind capability domain being queried
@@ -48,11 +48,9 @@ public interface TrinityCoreComponent {
 
     /**
      * Returns the exact item or crafting storage capacity contributed by this core, in bytes. Pattern cores and empty
-     * units return zero. The default preserves the historical ratio for third-party component implementations.
+     * units return zero. This capacity is independent of the storage type count and must be supplied explicitly.
      */
-    default long byteCapacity() {
-        return Math.multiplyExact(capacityValue(), 524_288L);
-    }
+    long byteCapacity();
 
     /**
      * Returns the number of patterns this core lets the crafting child structure recognize; storage cores, parallel

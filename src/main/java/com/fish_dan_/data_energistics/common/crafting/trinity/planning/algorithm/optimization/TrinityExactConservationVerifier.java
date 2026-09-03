@@ -8,11 +8,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -28,38 +28,6 @@ public final class TrinityExactConservationVerifier {
      */
     public static TrinityExactConservationVerifier create() {
         return new TrinityExactConservationVerifier();
-    }
-
-    /**
-     * Adapts the legacy single-target net constraint to the generalized map contract.
-     *
-     * @param variants          complete model transition set
-     * @param firings           exact non-zero firing values
-     * @param initialInputs     exact seed and external values
-     * @param upperBounds       finite input upper bounds
-     * @param finalLowerBounds  required final balance per key
-     * @param target            requested productive key
-     * @param requiredTargetNet required net target effect independent of seed
-     * @return recomputed signed net change or {@code MIP_INEXACT_RESULT}
-     */
-    public TrinityAlgorithmResult<Map<AEKey, BigInteger>> verify(
-                                                                 List<TrinityPatternVariant> variants,
-                                                                 Map<TrinityPatternVariant, BigInteger> firings,
-                                                                 Map<AEKey, BigInteger> initialInputs,
-                                                                 Map<AEKey, BigInteger> upperBounds,
-                                                                 Map<AEKey, BigInteger> finalLowerBounds,
-                                                                 AEKey target,
-                                                                 BigInteger requiredTargetNet) {
-        if (target == null || requiredTargetNet == null || requiredTargetNet.signum() <= 0) {
-            throw new IllegalArgumentException("A Trinity conservation target net must be positive");
-        }
-        return verify(
-                variants,
-                firings,
-                initialInputs,
-                upperBounds,
-                finalLowerBounds,
-                Map.of(target, requiredTargetNet));
     }
 
     /**
@@ -79,24 +47,18 @@ public final class TrinityExactConservationVerifier {
                                                                  Map<AEKey, BigInteger> upperBounds,
                                                                  Map<AEKey, BigInteger> finalLowerBounds,
                                                                  Map<AEKey, BigInteger> requiredNetChangeLowerBounds) {
-        if (variants == null || firings == null || initialInputs == null || upperBounds == null ||
-                finalLowerBounds == null || requiredNetChangeLowerBounds == null ||
-                requiredNetChangeLowerBounds.isEmpty()) {
+        if (requiredNetChangeLowerBounds.isEmpty()) {
             throw new IllegalArgumentException(
                     "A Trinity conservation verification requires complete inputs and positive net bounds");
         }
 
-        LinkedHashSet<TrinityPatternVariant> legalVariants = new LinkedHashSet<>(variants);
-        if (legalVariants.contains(null)) {
-            throw new IllegalArgumentException("A Trinity conservation model cannot contain a null variant");
-        }
+        ObjectLinkedOpenHashSet<TrinityPatternVariant> legalVariants = new ObjectLinkedOpenHashSet<>(variants);
         validatePositiveBounds(finalLowerBounds, "final");
         validatePositiveBounds(requiredNetChangeLowerBounds, "net change");
-        LinkedHashMap<AEKey, BigInteger> net = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> net = new Object2ObjectLinkedOpenHashMap<>();
         for (Map.Entry<TrinityPatternVariant, BigInteger> firing : firings.entrySet()) {
-            if (!legalVariants.contains(firing.getKey()) || firing.getValue() == null ||
-                    firing.getValue().signum() <= 0) {
-                return inexact("firing_domain", firing.getKey() == null ? "null" : firing.getKey().toString());
+            if (!legalVariants.contains(firing.getKey()) || firing.getValue().signum() <= 0) {
+                return inexact("firing_domain", firing.getKey().toString());
             }
             firing.getKey().netChange().forEach((key, amount) -> net.merge(key, amount.multiply(firing.getValue()), BigInteger::add));
         }
@@ -109,7 +71,7 @@ public final class TrinityExactConservationVerifier {
         }
 
         for (Map.Entry<AEKey, BigInteger> input : initialInputs.entrySet()) {
-            if (input.getKey() == null || input.getValue() == null || input.getValue().signum() < 0) {
+            if (input.getValue().signum() < 0) {
                 return inexact("input_domain", String.valueOf(input.getValue()));
             }
             BigInteger upper = upperBounds.get(input.getKey());
@@ -118,12 +80,12 @@ public final class TrinityExactConservationVerifier {
             }
         }
         for (Map.Entry<AEKey, BigInteger> bound : upperBounds.entrySet()) {
-            if (bound.getKey() == null || bound.getValue() == null || bound.getValue().signum() < 0) {
-                throw new IllegalArgumentException("A Trinity exact upper bound cannot be negative or null");
+            if (bound.getValue().signum() < 0) {
+                throw new IllegalArgumentException("A Trinity exact upper bound cannot be negative");
             }
         }
 
-        LinkedHashSet<AEKey> keys = new LinkedHashSet<>(net.keySet());
+        ObjectLinkedOpenHashSet<AEKey> keys = new ObjectLinkedOpenHashSet<>(net.keySet());
         keys.addAll(initialInputs.keySet());
         keys.addAll(finalLowerBounds.keySet());
         keys.addAll(requiredNetChangeLowerBounds.keySet());
@@ -140,7 +102,7 @@ public final class TrinityExactConservationVerifier {
 
     private static void validatePositiveBounds(Map<AEKey, BigInteger> bounds, String description) {
         bounds.forEach((key, amount) -> {
-            if (key == null || amount == null || amount.signum() <= 0) {
+            if (amount.signum() <= 0) {
                 throw new IllegalArgumentException("A Trinity exact " + description + " bound must be positive");
             }
         });

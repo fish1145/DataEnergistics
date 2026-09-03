@@ -8,6 +8,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.math.BigInteger;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -86,7 +87,8 @@ public record TrinityCycleDiagnosticOutcome(
                 this.actualInputs,
                 this.evidence.emittedItems(),
                 missing,
-                this.inputRequirements);
+                this.inputRequirements,
+                List.of());
     }
 
     private static Map<AEKey, BigInteger> validatePositiveAmounts(

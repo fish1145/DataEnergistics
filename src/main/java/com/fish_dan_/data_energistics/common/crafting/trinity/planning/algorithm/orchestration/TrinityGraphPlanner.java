@@ -15,12 +15,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanByteEstimator;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
-import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
-import java.util.Map;
 
 /**
  * Coordinates immutable graph expansion, topology analysis, exact demand solving and compact plan construction.
@@ -65,25 +63,4 @@ public interface TrinityGraphPlanner {
                                                      TrinityPlanningInventory inventory,
                                                      TrinityPlanningLimits limits,
                                                      TrinityPlanningControl control);
-
-    /**
-     * Compatibility entry point that captures a mutable configuration before planning.
-     */
-    default TrinityAlgorithmResult<TrinityCraftingPlan> plan(
-                                                             TrinityCraftingGraphSnapshot snapshot,
-                                                             AEKey target,
-                                                             BigInteger requestedAmount,
-                                                             CraftingQuantityMode quantityMode,
-                                                             Map<AEKey, BigInteger> available,
-                                                             TrinityCraftingSchema settings,
-                                                             TrinityPlanningControl control) {
-        return plan(
-                snapshot,
-                target,
-                requestedAmount,
-                quantityMode,
-                TrinityPlanningInventory.finite(available),
-                TrinityPlanningLimits.capture(settings),
-                control);
-    }
 }

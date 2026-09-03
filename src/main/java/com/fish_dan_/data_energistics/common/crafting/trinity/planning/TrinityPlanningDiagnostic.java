@@ -169,21 +169,6 @@ public record TrinityPlanningDiagnostic(
                               List<TrinityVariantFiring> selectedFirings)
             implements Detail {
 
-        public PartialPlan(
-                           Map<AEKey, BigInteger> usedItems,
-                           Map<AEKey, BigInteger> emittedItems,
-                           Map<AEKey, BigInteger> missingItems,
-                           Map<AEKey, InputRequirement> inputRequirements) {
-            this(usedItems, emittedItems, missingItems, inputRequirements, List.of());
-        }
-
-        public PartialPlan(
-                           Map<AEKey, BigInteger> usedItems,
-                           Map<AEKey, BigInteger> emittedItems,
-                           Map<AEKey, BigInteger> missingItems) {
-            this(usedItems, emittedItems, missingItems, Map.of());
-        }
-
         public PartialPlan {
             usedItems = validatePositiveAmounts(usedItems, "used");
             emittedItems = validatePositiveAmounts(emittedItems, "emitted");

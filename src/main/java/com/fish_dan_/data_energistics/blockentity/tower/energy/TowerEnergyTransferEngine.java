@@ -16,10 +16,10 @@ import net.neoforged.neoforge.energy.IEnergyStorage;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -88,7 +88,7 @@ public final class TowerEnergyTransferEngine {
             return transferred;
         }
 
-        ArrayList<TransferSource> sources = createTransferSources();
+        ObjectArrayList<TransferSource> sources = createTransferSources();
         if (sources.isEmpty()) {
             return transferred;
         }
@@ -141,8 +141,8 @@ public final class TowerEnergyTransferEngine {
         return inserted > 0;
     }
 
-    private ArrayList<TransferSource> createTransferSources() {
-        ArrayList<TransferSource> sources = new ArrayList<>();
+    private ObjectArrayList<TransferSource> createTransferSources() {
+        ObjectArrayList<TransferSource> sources = new ObjectArrayList<>();
         if (this.appFluxEnergySupportLoaded) {
             long quota = extractGridEnergy(Long.MAX_VALUE, true, "active source quota");
             if (quota > 0) {
@@ -604,13 +604,6 @@ public final class TowerEnergyTransferEngine {
         return transferRegisteredEndpoint(endpoint, amount, simulate, true);
     }
 
-    /**
-     * Legacy implementation retained temporarily for source compatibility while registrations are migrated.
-     */
-    private long extractEnergyFromEndpoint(TowerEnergyEndpoint endpoint, long amount, boolean simulate) {
-        return extractEnergyFromEndpointResult(endpoint, amount, simulate).amount();
-    }
-
     private EndpointTransferResult extractEnergyFromEndpointResult(
                                                                    TowerEnergyEndpoint endpoint,
                                                                    long amount,
@@ -619,7 +612,7 @@ public final class TowerEnergyTransferEngine {
     }
 
     /**
-     * Legacy implementation retained temporarily for source compatibility while registrations are migrated.
+     * Caches same-tick int-capability extraction simulations without changing endpoint routing.
      */
     private int getCachedSimulatedExtract(int amount, @Nullable BlockPos excludedPos) {
         Level level = this.context.level();
@@ -692,7 +685,7 @@ public final class TowerEnergyTransferEngine {
                 continue;
             }
 
-            long extracted = extractEnergyFromEndpoint(endpoint, remaining, simulate);
+            long extracted = extractEnergyFromEndpointResult(endpoint, remaining, simulate).amount();
             if (extracted > 0) {
                 totalExtracted += extracted;
                 remaining -= extracted;
@@ -776,7 +769,7 @@ public final class TowerEnergyTransferEngine {
             return endpoints;
         }
 
-        ArrayList<TowerEnergyEndpoint> filtered = new ArrayList<>(endpoints.size());
+        ObjectArrayList<TowerEnergyEndpoint> filtered = new ObjectArrayList<>(endpoints.size());
         for (TowerEnergyEndpoint endpoint : endpoints) {
             if (!excludedPos.equals(endpoint.pos())) {
                 filtered.add(endpoint);

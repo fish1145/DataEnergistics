@@ -10,19 +10,16 @@ import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 
 import appeng.api.util.IConfigManager;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -58,7 +55,7 @@ public final class UniversalTerminalData {
         if (definitionsInstalled) {
             throw new IllegalStateException("Universal terminal definitions have already been installed");
         }
-        LinkedHashMap<String, UniversalTerminalRegistration> unique = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<String, UniversalTerminalRegistration> unique = new Object2ObjectLinkedOpenHashMap<>();
         for (UniversalTerminalRegistration registration : definitions) {
             if (unique.putIfAbsent(registration.name(), registration) != null) {
                 throw new IllegalStateException("Duplicate universal terminal registration: " + registration.name());
@@ -98,7 +95,7 @@ public final class UniversalTerminalData {
 
     public static List<Component> getInstalledTerminalLines(ItemStack stack, HolderLookup.Provider registries) {
         List<TerminalEntry> entries = readEntries(stack, registries);
-        List<Component> lines = new ArrayList<>();
+        List<Component> lines = new ObjectArrayList<>();
         if (entries.isEmpty()) {
             return List.of();
         }
@@ -116,7 +113,7 @@ public final class UniversalTerminalData {
 
     @Nullable
     public static String getActiveTerminalName(ItemStack stack, HolderLookup.Provider registries) {
-        UniversalTerminalItemData data = getData(stack, registries);
+        UniversalTerminalItemData data = getData(stack);
         String active = data.activeTerminal();
         if (active.isEmpty() || getDefinition(active).isEmpty()) {
             List<TerminalEntry> entries = readEntries(stack, registries);
@@ -126,7 +123,7 @@ public final class UniversalTerminalData {
     }
 
     public static void setActiveTerminal(ItemStack stack, String terminalName) {
-        UniversalTerminalItemData data = getData(stack, null);
+        UniversalTerminalItemData data = getData(stack);
         stack.set(DEDataComponents.UNIVERSAL_TERMINAL.get(), data.withActiveTerminal(terminalName));
     }
 
@@ -197,15 +194,15 @@ public final class UniversalTerminalData {
     }
 
     public static void writeEntries(ItemStack stack, HolderLookup.Provider registries, List<TerminalEntry> entries) {
-        UniversalTerminalItemData data = getData(stack, registries);
+        UniversalTerminalItemData data = getData(stack);
         stack.set(DEDataComponents.UNIVERSAL_TERMINAL.get(), data.withTerminals(entries.stream()
                 .map(entry -> new UniversalTerminalItemData.TerminalEntryData(entry.name(), entry.stack()))
                 .toList()));
     }
 
     public static List<TerminalEntry> readEntries(ItemStack stack, HolderLookup.Provider registries) {
-        UniversalTerminalItemData data = getData(stack, registries);
-        List<TerminalEntry> entries = new ArrayList<>(data.terminals().size());
+        UniversalTerminalItemData data = getData(stack);
+        List<TerminalEntry> entries = new ObjectArrayList<>(data.terminals().size());
         for (UniversalTerminalItemData.TerminalEntryData entry : data.terminals()) {
             String name = entry.name();
             if (name.isEmpty() || getDefinition(name).isEmpty()) {
@@ -219,16 +216,8 @@ public final class UniversalTerminalData {
         return entries;
     }
 
-    public static UniversalTerminalItemData getData(ItemStack stack, HolderLookup.@Nullable Provider registries) {
-        UniversalTerminalItemData data = stack.get(DEDataComponents.UNIVERSAL_TERMINAL.get());
-        if (data != null) {
-            return data;
-        }
-        if (registries == null) {
-            return UniversalTerminalItemData.EMPTY;
-        }
-        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        return tag.isEmpty() ? UniversalTerminalItemData.EMPTY : UniversalTerminalItemData.fromLegacyTag(tag, registries);
+    public static UniversalTerminalItemData getData(ItemStack stack) {
+        return stack.getOrDefault(DEDataComponents.UNIVERSAL_TERMINAL.get(), UniversalTerminalItemData.EMPTY);
     }
 
     private static Optional<UniversalTerminalRegistration> getDefinition(
@@ -317,7 +306,7 @@ public final class UniversalTerminalData {
     }
 
     private static List<TerminalEntry> mergeEntries(List<TerminalEntry> existing, List<TerminalEntry> additions) {
-        Map<String, TerminalEntry> merged = new LinkedHashMap<>();
+        Map<String, TerminalEntry> merged = new Object2ObjectLinkedOpenHashMap<>();
         for (TerminalEntry entry : existing) {
             merged.put(entry.name(), entry);
         }

@@ -195,7 +195,10 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                             metrics.passes(),
                             metrics.nanos(),
                             true,
-                            TrinityPlanQuality.VERIFIED_FEASIBLE));
+                            TrinityPlanQuality.VERIFIED_FEASIBLE,
+                            Map.of(),
+                            Map.of(),
+                            0));
                 }
                 if (witness.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
                     return TrinityAlgorithmResult.failure(witness.diagnostic());
@@ -379,7 +382,11 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                 canonical.externalInputs(),
                 metrics.passes(),
                 metrics.nanos(),
-                true)));
+                true,
+                TrinityPlanQuality.PROVED_OPTIMAL,
+                Map.of(),
+                Map.of(),
+                0)));
     }
 
     private BigInteger completeLogicalUpper(
@@ -538,7 +545,10 @@ public final class TrinityRadixCycleFeasibilityModel implements TrinityCycleFeas
                 metrics.passes(),
                 metrics.nanos(),
                 true,
-                TrinityPlanQuality.VERIFIED_FEASIBLE);
+                TrinityPlanQuality.VERIFIED_FEASIBLE,
+                Map.of(),
+                Map.of(),
+                0);
     }
 
     private static boolean recoverableStop(TrinityPlanningDiagnostic diagnostic) {

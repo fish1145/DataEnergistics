@@ -230,10 +230,11 @@ public class MultiBlockJadeProvider implements IBlockComponentProvider, IServerD
             data.putInt(TAG_CRAFTING_FAILURE_Y, craftingFailurePosition.getY());
             data.putInt(TAG_CRAFTING_FAILURE_Z, craftingFailurePosition.getZ());
         }
-        data.putInt(TAG_STORED_TYPE_COUNT, host.getStoredTypeCount());
-        data.putString(TAG_STORED_AMOUNT, host.getStoredAmountText());
-        data.putString(TAG_STORED_TYPE_CAPACITY, host.getStoredTypeCapacityText());
-        data.putString(TAG_STORED_AMOUNT_CAPACITY, host.getStoredAmountCapacityText());
+        var storage = host.getStorageStatus();
+        data.putInt(TAG_STORED_TYPE_COUNT, storage.typeCount());
+        data.putString(TAG_STORED_AMOUNT, storage.totalAmount().toString());
+        data.putString(TAG_STORED_TYPE_CAPACITY, storage.unlimited() ? TrinityDataCoreMenuHost.UNLIMITED_STORAGE_CAPACITY : Integer.toString(storage.typeCapacity()));
+        data.putString(TAG_STORED_AMOUNT_CAPACITY, storage.unlimited() ? TrinityDataCoreMenuHost.UNLIMITED_STORAGE_CAPACITY : storage.amountCapacity().toString());
         data.putInt(TAG_CPU_PARTITION_COUNT, host.getCpuPartitionCount());
         data.putInt(TAG_BUSY_CPU_PARTITION_COUNT, host.getBusyCpuPartitionCount());
         data.putLong(TAG_CPU_STORAGE_BYTES, host.getCpuStorageBytes());

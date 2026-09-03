@@ -18,9 +18,11 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,11 +33,11 @@ import java.util.function.Predicate;
  */
 public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedBlockEntity implements MultiBlockStatusProvider, VerticalMultiBlockController, VerticalMultiBlockPart {
 
-    private final Map<String, VerticalMultiBlockRuntimeState> verticalMultiBlockStates = new HashMap<>();
+    private final Map<String, VerticalMultiBlockRuntimeState> verticalMultiBlockStates = new Object2ObjectOpenHashMap<>();
     /**
      * Last issued callback identity for each named structure, retained after that structure becomes unformed.
      */
-    private final Map<String, Long> verticalMultiBlockBindingEpochs = new HashMap<>();
+    private final Object2LongOpenHashMap<String> verticalMultiBlockBindingEpochs = new Object2LongOpenHashMap<>();
     private boolean verticalMultiBlockRecheckRequested = true;
     private boolean defaultStructureController;
 
@@ -135,13 +137,13 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
         requireStructureName(structureName);
         return this.verticalMultiBlockStates.getOrDefault(
                 structureName,
-                VerticalMultiBlockRuntimeState.unformed(this.verticalMultiBlockBindingEpochs.getOrDefault(structureName, 0L)));
+                VerticalMultiBlockRuntimeState.unformed(this.verticalMultiBlockBindingEpochs.getLong(structureName)));
     }
 
     @Override
     public final void verticalMultiBlock$setRuntimeState(String structureName, VerticalMultiBlockRuntimeState state) {
         requireStructureName(structureName);
-        long previousBindingEpoch = this.verticalMultiBlockBindingEpochs.getOrDefault(structureName, 0L);
+        long previousBindingEpoch = this.verticalMultiBlockBindingEpochs.getLong(structureName);
         if (state.bindingEpoch() < previousBindingEpoch) {
             throw new IllegalArgumentException("Vertical multiblock binding epoch cannot move backwards for " + structureName);
         }
@@ -164,23 +166,7 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
 
     @Override
     public final Map<String, VerticalMultiBlockRuntimeState> verticalMultiBlock$getRuntimeStates() {
-        return Map.copyOf(this.verticalMultiBlockStates);
-    }
-
-    @Override
-    public final void verticalMultiBlock$addedToController(VerticalMultiBlockController controller, VerticalMultiBlockContext<?> context) {
-        verticalMultiBlock$addedToController(controller, context.structureName(), context);
-    }
-
-    @Override
-    public final void verticalMultiBlock$addedToController(VerticalMultiBlockController controller,
-                                                           String structureName,
-                                                           VerticalMultiBlockContext<?> context) {
-        verticalMultiBlock$addedToController(
-                controller,
-                structureName,
-                context,
-                verticalMultiBlock$getRuntimeState(structureName).bindingEpoch());
+        return Collections.unmodifiableMap(new Object2ObjectOpenHashMap<>(this.verticalMultiBlockStates));
     }
 
     @Override
@@ -200,19 +186,6 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
                 List.copyOf(context.matchedPositions()),
                 bindingEpoch));
         onVerticalMultiBlockAddedToController(controller, structureName, context);
-    }
-
-    @Override
-    public final void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller) {
-        verticalMultiBlock$removedFromController(controller, VerticalMultiBlockDefinition.DEFAULT_STRUCTURE_NAME);
-    }
-
-    @Override
-    public final void verticalMultiBlock$removedFromController(VerticalMultiBlockController controller, String structureName) {
-        verticalMultiBlock$removedFromController(
-                controller,
-                structureName,
-                verticalMultiBlock$getRuntimeState(structureName).bindingEpoch());
     }
 
     @Override
@@ -268,7 +241,7 @@ public abstract class AbstractVerticalMultiBlockBlockEntity extends AENetworkedB
         if (this.level == null) {
             throw new IllegalStateException("Cannot resolve vertical multiblock parts without a level");
         }
-        Map<VerticalMultiBlockPos, VerticalMultiBlockPart> parts = new HashMap<>();
+        Map<VerticalMultiBlockPos, VerticalMultiBlockPart> parts = new Object2ObjectOpenHashMap<>();
         for (VerticalMultiBlockPos pos : matchedPositions) {
             BlockEntity blockEntity = this.level.getBlockEntity(toBlockPos(pos));
             if (blockEntity instanceof VerticalMultiBlockPart part) {

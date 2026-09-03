@@ -27,12 +27,14 @@ import appeng.crafting.CraftingLink;
 import appeng.crafting.inv.ListCraftingInventory;
 import appeng.hooks.ticking.TickHandler;
 import appeng.me.service.CraftingService;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2LongMaps;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
 import java.util.AbstractMap;
 import java.util.AbstractSet;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -51,8 +53,6 @@ import static com.fish_dan_.data_energistics.common.crafting.LongAmountMath.satu
 final class TrinityDataCoreExecutingCraftingJob {
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int LEGACY_SCHEMA_VERSION = 1;
-    private static final int PLAN_SCHEMA_VERSION = 2;
     private static final int DYNAMIC_OUTPUT_SCHEMA_VERSION = 3;
     private static final String LINK_TAG = "link";
     private static final String PLAYER_ID_TAG = "player_id";
@@ -116,15 +116,15 @@ final class TrinityDataCoreExecutingCraftingJob {
                 this.waitingFor.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
                 this.timeTracker.addMaxItems(entry.getLongValue(), entry.getKey().getType());
             }
-            for (Map.Entry<IPatternDetails, Long> entry : plan.patternTimes().entrySet()) {
-                long craftCount = entry.getValue();
-                this.scheduledTasks.add(entry.getKey(), craftCount);
-                for (GenericStack output : entry.getKey().getOutputs()) {
+            plan.patternTimes().forEach((pattern, times) -> {
+                long craftCount = times;
+                this.scheduledTasks.add(pattern, craftCount);
+                for (GenericStack output : pattern.getOutputs()) {
                     long amount = saturatingMultiplyNonNegative(output.amount(), craftCount);
                     amount = saturatingMultiplyNonNegative(amount, output.what().getAmountPerUnit());
                     this.timeTracker.addMaxItems(amount, output.what().getType());
                 }
-            }
+            });
         }
         this.link = link;
         this.playerId = playerId;
@@ -137,7 +137,6 @@ final class TrinityDataCoreExecutingCraftingJob {
         if (!hasSupportedSchema(data)) {
             throw new IllegalArgumentException("Unsupported persisted Trinity Data Core CPU job schema");
         }
-        int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
         this.link = new CraftingLink(data.getCompound(LINK_TAG), logic.cpu());
         this.finalOutput = GenericStack.readTag(registries, data.getCompound(FINAL_OUTPUT_TAG));
         this.remainingAmount = data.getLong(REMAINING_AMOUNT_TAG);
@@ -145,12 +144,10 @@ final class TrinityDataCoreExecutingCraftingJob {
         this.waitingFor = new ListCraftingInventory(differenceListener::onCraftingDifference);
         this.waitingFor.readFromNBT(data.getList(WAITING_FOR_TAG, Tag.TAG_COMPOUND), registries);
         this.timeTracker = new TrinityDataCoreElapsedTimeTracker(data.getCompound(TIME_TRACKER_TAG));
-        this.dynamicOutputs = schemaVersion >= DYNAMIC_OUTPUT_SCHEMA_VERSION ?
-                readDynamicOutputs(data, registries) : new DynamicCraftingOutputLedger();
+        this.dynamicOutputs = readDynamicOutputs(data, registries);
         this.playerId = data.contains(PLAYER_ID_TAG, Tag.TAG_INT) ? data.getInt(PLAYER_ID_TAG) : null;
 
-        if (schemaVersion == PLAN_SCHEMA_VERSION ||
-                schemaVersion >= DYNAMIC_OUTPUT_SCHEMA_VERSION && data.contains(PLAN_EXECUTION_TAG, Tag.TAG_COMPOUND)) {
+        if (data.contains(PLAN_EXECUTION_TAG)) {
             if (!data.contains(PLAN_EXECUTION_TAG, Tag.TAG_COMPOUND)) {
                 throw new IllegalArgumentException("Persisted Trinity plan job is missing execution state");
             }
@@ -158,9 +155,7 @@ final class TrinityDataCoreExecutingCraftingJob {
                     data.getCompound(PLAN_EXECUTION_TAG),
                     registries,
                     TickHandler.instance().getCurrentTick());
-            if (this.planExecution.hasExactPendingOutputProjection()) {
-                this.timeTracker.restorePlanBaseline(this.planExecution.pendingOutputs());
-            }
+            this.timeTracker.restorePlanBaseline(this.planExecution.pendingOutputs());
             GenericStack executionOutput = this.planExecution.finalOutput();
             if (this.finalOutput == null ||
                     !this.finalOutput.what().equals(executionOutput.what()) ||
@@ -324,7 +319,7 @@ final class TrinityDataCoreExecutingCraftingJob {
      */
     @Nullable
     static IPatternDetails readTaskDetails(CompoundTag item,
-                                           Function<CompoundTag, IPatternDetails> definitionReader) {
+                                           Function<CompoundTag, @Nullable IPatternDetails> definitionReader) {
         if (!item.contains(TASK_DEFINITION_TAG, Tag.TAG_COMPOUND)) {
             throw new IllegalArgumentException("Persisted Trinity CPU task is missing its pattern definition");
         }
@@ -339,7 +334,7 @@ final class TrinityDataCoreExecutingCraftingJob {
 
     @Nullable
     private static IPatternDetails readProviderTask(CompoundTag item,
-                                                    Function<CompoundTag, IPatternDetails> definitionReader) {
+                                                    Function<CompoundTag, @Nullable IPatternDetails> definitionReader) {
         if (item.contains(ROUTE_TAG)) {
             throw new IllegalArgumentException("Persisted provider task must not contain a Trinity route");
         }
@@ -348,7 +343,7 @@ final class TrinityDataCoreExecutingCraftingJob {
 
     @Nullable
     private static IPatternDetails readTrinityTask(CompoundTag item,
-                                                   Function<CompoundTag, IPatternDetails> definitionReader) {
+                                                   Function<CompoundTag, @Nullable IPatternDetails> definitionReader) {
         if (!item.contains(ROUTE_TAG, Tag.TAG_COMPOUND)) {
             throw new IllegalArgumentException("Persisted Trinity task is missing its route");
         }
@@ -363,13 +358,10 @@ final class TrinityDataCoreExecutingCraftingJob {
             return false;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != LEGACY_SCHEMA_VERSION && schemaVersion != PLAN_SCHEMA_VERSION &&
-                schemaVersion != DYNAMIC_OUTPUT_SCHEMA_VERSION) {
+        if (schemaVersion != DYNAMIC_OUTPUT_SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
-                    "Ignoring persisted Trinity Data Core CPU job schema version {}; expected {}, {}, or {}",
+                    "Ignoring persisted Trinity Data Core CPU job schema version {}; expected {}",
                     schemaVersion,
-                    LEGACY_SCHEMA_VERSION,
-                    PLAN_SCHEMA_VERSION,
                     DYNAMIC_OUTPUT_SCHEMA_VERSION);
             return false;
         }
@@ -384,10 +376,10 @@ final class TrinityDataCoreExecutingCraftingJob {
         return DynamicCraftingOutputLedger.readFromTag(data.getCompound(DYNAMIC_OUTPUTS_TAG), registries);
     }
 
-    static Map<AEKey, Long> recoverCompletionContents(CompoundTag data,
-                                                      HolderLookup.Provider registries) {
+    static Object2LongMap<AEKey> recoverCompletionContents(CompoundTag data,
+                                                           HolderLookup.Provider registries) {
         if (!data.contains(PLAN_EXECUTION_TAG, Tag.TAG_COMPOUND)) {
-            return Map.of();
+            return Object2LongMaps.emptyMap();
         }
         return TrinityExecutionNbtCodec.recoverCompletionContents(
                 data.getCompound(PLAN_EXECUTION_TAG),
@@ -438,7 +430,7 @@ final class TrinityDataCoreExecutingCraftingJob {
      */
     static final class TaskQueue extends AbstractMap<IPatternDetails, TaskProgress> {
 
-        private final Map<IPatternDetails, TaskNode> index = new HashMap<>();
+        private final Map<IPatternDetails, TaskNode> index = new Object2ObjectOpenHashMap<>();
         private final Set<Entry<IPatternDetails, TaskProgress>> entries = new AbstractSet<>() {
 
             @Override
@@ -477,13 +469,13 @@ final class TrinityDataCoreExecutingCraftingJob {
         }
 
         @Override
-        public TaskProgress get(Object key) {
+        public @Nullable TaskProgress get(Object key) {
             TaskNode node = this.index.get(key);
             return node == null ? null : node.value;
         }
 
         @Override
-        public TaskProgress put(IPatternDetails key, TaskProgress value) {
+        public @Nullable TaskProgress put(IPatternDetails key, TaskProgress value) {
             TaskNode existing = this.index.get(key);
             if (existing != null) {
                 return existing.setValue(value);
@@ -495,7 +487,7 @@ final class TrinityDataCoreExecutingCraftingJob {
         }
 
         @Override
-        public TaskProgress remove(Object key) {
+        public @Nullable TaskProgress remove(Object key) {
             TaskNode node = this.index.get(key);
             if (node == null) {
                 return null;

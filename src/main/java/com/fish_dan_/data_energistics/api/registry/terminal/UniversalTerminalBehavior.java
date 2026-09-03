@@ -10,8 +10,8 @@ import org.jspecify.annotations.Nullable;
  * Complete runtime behavior retained by one universal-terminal registration.
  *
  * <p>
- * The same contract also permits the deprecated implementation bridge to participate without making the API
- * depend on its legacy package. New integrations register this behavior through {@link UniversalTerminalRegistry}.
+ * Integrations register this behavior through {@link UniversalTerminalRegistry}; runtime callers use this contract
+ * without depending on internal terminal-part implementations.
  * </p>
  */
 public interface UniversalTerminalBehavior {
