@@ -37,23 +37,21 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         }
     };
 
-    private static final int LEFT_CROP = 25;
+    private static final int LEFT_CROP = 0;
     private static final int TOP_CROP = 15;
-    private static final int WIDTH = 131;
+    private static final int WIDTH = 160;
     private static final int HEIGHT = 64;
-    // Map the AE2 top/middle/bottom inputs to the left input column: 0, 1, then 2.
-    private static final int FIRST_INPUT_X = 9;
-    private static final int SECOND_INPUT_X = 9;
-    private static final int THIRD_INPUT_X = 9;
-    private static final int FLUID_X = 46;
+    // Map top/middle/bottom recipe inputs to the first vertical column of the machine's 3x3 input grid.
+    private static final int FIRST_INPUT_X = 17;
+    private static final int SECOND_INPUT_X = 17;
+    private static final int THIRD_INPUT_X = 17;
+    private static final int FLUID_X = 71;
     private static final int FLUID_Y = 7;
-    private static final int MODULE_X = 45;
-    private static final int OUTPUT_X = 82;
-    private static final int PROGRESS_X = 122;
-    private static final int FIRST_INPUT_Y = 6;
-    private static final int SECOND_INPUT_Y = 24;
-    private static final int THIRD_INPUT_Y = 42;
-    private static final int MODULE_Y = 42;
+    private static final int OUTPUT_X = 115;
+    private static final int PROGRESS_X = 154;
+    private static final int FIRST_INPUT_Y = 7;
+    private static final int SECOND_INPUT_Y = 25;
+    private static final int THIRD_INPUT_Y = 43;
     private static final int PROGRESS_Y = 24;
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
             "ae2", "textures/guis/data_integrated_charger.png");
@@ -64,7 +62,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         super(CATEGORY, emiRecipeId(view), WIDTH, HEIGHT);
         this.view = view;
         if (view instanceof DataChargePressRecipeView.ChargerView chargerView) {
-            this.catalysts.add(EmiIngredient.of(DataChargePressRecipeSupport.CHARGER_MODULES));
             this.inputs.add(EmiIngredient.of(chargerView.holder().value().getIngredient()));
             this.outputs.add(EmiStack.of(chargerView.holder().value().getResultItem()));
         } else if (view instanceof DataChargePressRecipeView.InscriberView inscriberView) {
@@ -99,7 +96,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     }
 
     private void addInscriberRecipe(InscriberRecipe recipe) {
-        this.catalysts.add(EmiIngredient.of(DataChargePressRecipeSupport.INSCRIBER_MODULES));
         addOptionalInscriberIngredient(recipe, recipe.getTopOptional());
         this.inputs.add(EmiIngredient.of(recipe.getMiddleInput()));
         addOptionalInscriberIngredient(recipe, recipe.getBottomOptional());
@@ -113,13 +109,11 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
 
     private void addDataChargerRecipe(DataChargePressRecipeView.DataChargerView view) {
         var recipe = view.holder().value();
-        this.catalysts.add(EmiIngredient.of(DataChargePressRecipeSupport.DATA_CHARGER_MODULES));
         this.inputs.add(EmiIngredient.of(recipe.getIngredient()));
         this.outputs.add(EmiStack.of(recipe.getResult()));
     }
 
     private void addCircuitBoardRecipe(InscriberRecipe recipe) {
-        this.catalysts.add(EmiIngredient.of(DataChargePressRecipeSupport.INSCRIBER_MODULES));
         this.inputs.add(EmiIngredient.of(recipe.getMiddleInput(),
                 DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT));
         if (DataChargePressRecipeSupport.getFluidInput().what() instanceof AEFluidKey fluidKey) {
@@ -130,7 +124,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
 
     private void addCustomRecipe(DataChargePressRecipeView.CustomView view) {
         var recipe = view.holder().value();
-        this.catalysts.add(EmiIngredient.of(recipe.getModule()));
         recipe.getInputs().forEach(input -> this.inputs.add(EmiIngredient.of(input.ingredient(), input.count())));
         if (recipe.getFluidInput().what() instanceof AEFluidKey fluidKey) {
             this.inputs.add(EmiStack.of(fluidKey.getFluid(), recipe.getFluidInput().amount()));
@@ -152,8 +145,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private void addChargerWidgets(WidgetHolder widgets, DataChargePressRecipeView.ChargerView view) {
         widgets.addSlot(EmiIngredient.of(view.holder().value().getIngredient()), FIRST_INPUT_X, FIRST_INPUT_Y)
                 .drawBack(false);
-        addModuleWidget(widgets, DataChargePressRecipeSupport.CHARGER_MODULES,
-                "recipe.data_energistics.data_charge_press.charger_module");
         widgets.addSlot(EmiStack.of(view.holder().value().getResultItem()), OUTPUT_X, FIRST_INPUT_Y)
                 .drawBack(false)
                 .recipeContext(this);
@@ -163,8 +154,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         addOptionalInscriberWidget(widgets, recipe, recipe.getTopOptional(), FIRST_INPUT_X, FIRST_INPUT_Y);
         widgets.addSlot(EmiIngredient.of(recipe.getMiddleInput()), SECOND_INPUT_X, SECOND_INPUT_Y).drawBack(false);
         addOptionalInscriberWidget(widgets, recipe, recipe.getBottomOptional(), THIRD_INPUT_X, THIRD_INPUT_Y);
-        addModuleWidget(widgets, DataChargePressRecipeSupport.INSCRIBER_MODULES,
-                "recipe.data_energistics.data_charge_press.inscriber_module");
         widgets.addSlot(EmiStack.of(recipe.getResultItem()), OUTPUT_X, FIRST_INPUT_Y)
                 .drawBack(false)
                 .recipeContext(this);
@@ -180,12 +169,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private void addDataChargerWidgets(WidgetHolder widgets, DataChargePressRecipeView.DataChargerView view) {
         var recipe = view.holder().value();
         widgets.addSlot(EmiIngredient.of(recipe.getIngredient()), FIRST_INPUT_X, FIRST_INPUT_Y).drawBack(false);
-        widgets.addSlot(EmiIngredient.of(DataChargePressRecipeSupport.DATA_CHARGER_MODULES), MODULE_X, MODULE_Y)
-                .catalyst(true)
-                .drawBack(false)
-                .appendTooltip(Component.translatable("recipe.data_energistics.data_charge_press.data_charger_module"))
-                .appendTooltip(Component.translatable("recipe.data_energistics.data_charger.cost", recipe.getDataFlow(),
-                        formatPower(recipe.getPower())));
         widgets.addSlot(EmiStack.of(recipe.getResult()), OUTPUT_X, FIRST_INPUT_Y).drawBack(false).recipeContext(this);
     }
 
@@ -196,8 +179,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         if (DataChargePressRecipeSupport.getFluidInput().what() instanceof AEFluidKey fluidKey) {
             addFluidTank(widgets, fluidKey, DataChargePressRecipeSupport.DATA_CORROSION_AMOUNT);
         }
-        addModuleWidget(widgets, DataChargePressRecipeSupport.INSCRIBER_MODULES,
-                "recipe.data_energistics.data_charge_press.inscriber_module");
         widgets.addSlot(EmiStack.of(DataChargePressRecipeSupport.getTripleResult(recipe)), OUTPUT_X, FIRST_INPUT_Y)
                 .drawBack(false)
                 .recipeContext(this);
@@ -209,7 +190,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         if (recipe.getFluidInput().what() instanceof AEFluidKey fluidKey) {
             addFluidTank(widgets, fluidKey, recipe.getFluidInput().amount());
         }
-        addModuleWidget(widgets, recipe.getModule());
         widgets.addSlot(EmiStack.of(recipe.getResult()), OUTPUT_X, FIRST_INPUT_Y).drawBack(false).recipeContext(this);
     }
 
@@ -239,19 +219,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         }
     }
 
-    private void addModuleWidget(WidgetHolder widgets, Ingredient module, String tooltipKey) {
-        widgets.addSlot(EmiIngredient.of(module), MODULE_X, MODULE_Y)
-                .catalyst(true)
-                .drawBack(false)
-                .appendTooltip(Component.translatable(tooltipKey));
-    }
-
-    private void addModuleWidget(WidgetHolder widgets, Ingredient module) {
-        widgets.addSlot(EmiIngredient.of(module), MODULE_X, MODULE_Y)
-                .catalyst(true)
-                .drawBack(false);
-    }
-
     private static void addFluidTank(WidgetHolder widgets, AEFluidKey fluidKey, long amount) {
         // TankWidget reserves a one-pixel inset. Its 18x18 bounds therefore fill the GUI's 16x16 slot content.
         widgets.add(new FluidAmountTankWidget(
@@ -277,10 +244,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         widgets.addTexture(TEXTURE, 0, 0, WIDTH, HEIGHT, LEFT_CROP, TOP_CROP);
         widgets.addAnimatedTexture(TEXTURE, PROGRESS_X, PROGRESS_Y, 6, 18, 176, 0,
                 2_000, false, true, false);
-    }
-
-    private static String formatPower(double power) {
-        return Math.rint(power) == power ? Long.toString((long) power) : Double.toString(power);
     }
 
     private static final class FluidAmountTankWidget extends TankWidget {

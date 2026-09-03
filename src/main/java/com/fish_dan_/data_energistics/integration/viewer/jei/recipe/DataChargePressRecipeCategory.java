@@ -34,23 +34,21 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
 
     public static final RecipeType<DataChargePressRecipeView> RECIPE_TYPE = RecipeType.create(
             Data_Energistics.MODID, "data_charge_press", DataChargePressRecipeView.class);
-    private static final int LEFT_CROP = 25;
+    private static final int LEFT_CROP = 0;
     private static final int TOP_CROP = 15;
-    private static final int WIDTH = 131;
+    private static final int WIDTH = 160;
     private static final int HEIGHT = 64;
-    // Map the AE2 top/middle/bottom inputs to the left input column: 0, 1, then 2.
-    private static final int FIRST_INPUT_X = 9;
-    private static final int SECOND_INPUT_X = 9;
-    private static final int THIRD_INPUT_X = 9;
-    private static final int FLUID_X = 46;
+    // Map top/middle/bottom recipe inputs to the first vertical column of the machine's 3x3 input grid.
+    private static final int FIRST_INPUT_X = 17;
+    private static final int SECOND_INPUT_X = 17;
+    private static final int THIRD_INPUT_X = 17;
+    private static final int FLUID_X = 71;
     private static final int FLUID_Y = 7;
-    private static final int MODULE_X = 45;
-    private static final int OUTPUT_X = 82;
-    private static final int PROGRESS_X = 122;
-    private static final int FIRST_INPUT_Y = 6;
-    private static final int SECOND_INPUT_Y = 24;
-    private static final int THIRD_INPUT_Y = 42;
-    private static final int MODULE_Y = 42;
+    private static final int OUTPUT_X = 115;
+    private static final int PROGRESS_X = 154;
+    private static final int FIRST_INPUT_Y = 7;
+    private static final int SECOND_INPUT_Y = 25;
+    private static final int THIRD_INPUT_Y = 43;
     private static final int PROGRESS_Y = 24;
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
             "ae2", "textures/guis/data_integrated_charger.png");
@@ -96,8 +94,6 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
 
     private static void setChargerRecipe(IRecipeLayoutBuilder builder, DataChargePressRecipeView.ChargerView view) {
         builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y).addIngredients(view.holder().value().getIngredient());
-        addModuleCatalyst(builder, DataChargePressRecipeSupport.CHARGER_MODULES,
-                "recipe.data_energistics.data_charge_press.charger_module");
         builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y).addItemStack(view.holder().value().getResultItem());
     }
 
@@ -108,8 +104,6 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         builder.addInputSlot(SECOND_INPUT_X, SECOND_INPUT_Y).addIngredients(recipe.getMiddleInput());
         addOptionalInscriberIngredient(builder, recipe.getBottomOptional(), THIRD_INPUT_X, THIRD_INPUT_Y,
                 recipe.getProcessType());
-        addModuleCatalyst(builder, DataChargePressRecipeSupport.INSCRIBER_MODULES,
-                "recipe.data_energistics.data_charge_press.inscriber_module");
         builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y).addItemStack(recipe.getResultItem());
     }
 
@@ -123,12 +117,6 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
                                              DataChargePressRecipeView.DataChargerView view) {
         var recipe = view.holder().value();
         builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y).addIngredients(recipe.getIngredient());
-        builder.addSlot(RecipeIngredientRole.CATALYST, MODULE_X, MODULE_Y)
-                .addIngredients(DataChargePressRecipeSupport.DATA_CHARGER_MODULES).addRichTooltipCallback((slotView, tooltip) -> {
-                    tooltip.add(Component.translatable("recipe.data_energistics.data_charge_press.data_charger_module"));
-                    tooltip.add(Component.translatable("recipe.data_energistics.data_charger.cost", recipe.getDataFlow(),
-                            formatPower(recipe.getPower())));
-                });
         builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y).addItemStack(recipe.getResult());
     }
 
@@ -138,8 +126,6 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         builder.addInputSlot(SECOND_INPUT_X, SECOND_INPUT_Y).addItemStacks(withCount(recipe.getMiddleInput(),
                 DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT));
         addFluidInput(builder, DataChargePressRecipeSupport.getFluidInput());
-        addModuleCatalyst(builder, DataChargePressRecipeSupport.INSCRIBER_MODULES,
-                "recipe.data_energistics.data_charge_press.inscriber_module");
         builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y)
                 .addItemStack(DataChargePressRecipeSupport.getTripleResult(recipe));
     }
@@ -148,7 +134,6 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         var recipe = view.holder().value();
         addCustomItemInputs(builder, recipe.getInputs());
         addFluidInput(builder, recipe.getFluidInput());
-        addModuleCatalyst(builder, recipe.getModule());
         builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y)
                 .addItemStack(recipe.getResult());
     }
@@ -177,15 +162,6 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         builder.addSlot(role, x, y).addIngredients(ingredient);
     }
 
-    private static void addModuleCatalyst(IRecipeLayoutBuilder builder, Ingredient module, String tooltipKey) {
-        builder.addSlot(RecipeIngredientRole.CATALYST, MODULE_X, MODULE_Y)
-                .addIngredients(module).addRichTooltipCallback((slotView, tooltip) -> tooltip.add(Component.translatable(tooltipKey)));
-    }
-
-    private static void addModuleCatalyst(IRecipeLayoutBuilder builder, Ingredient module) {
-        builder.addSlot(RecipeIngredientRole.CATALYST, MODULE_X, MODULE_Y).addIngredients(module);
-    }
-
     private static void addFluidInput(IRecipeLayoutBuilder builder, GenericStack fluidInput) {
         if (fluidInput.what() instanceof AEFluidKey fluidKey) {
             builder.addInputSlot(FLUID_X, FLUID_Y)
@@ -202,7 +178,4 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         }).toList();
     }
 
-    private static String formatPower(double power) {
-        return Math.rint(power) == power ? Long.toString((long) power) : Double.toString(power);
-    }
 }
