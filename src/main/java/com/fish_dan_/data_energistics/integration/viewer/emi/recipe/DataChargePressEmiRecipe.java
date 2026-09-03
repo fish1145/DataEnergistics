@@ -52,9 +52,9 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private static final int OUTPUT_X = 111;
     private static final int OUTPUT_Y = 6;
     private static final int PROGRESS_X = 151;
-    private static final int FIRST_INPUT_Y = 7;
-    private static final int SECOND_INPUT_Y = 25;
-    private static final int THIRD_INPUT_Y = 43;
+    private static final int FIRST_INPUT_Y = 6;
+    private static final int SECOND_INPUT_Y = 24;
+    private static final int THIRD_INPUT_Y = 42;
     private static final int PROGRESS_Y = 24;
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
             "ae2", "textures/guis/data_integrated_charger.png");
