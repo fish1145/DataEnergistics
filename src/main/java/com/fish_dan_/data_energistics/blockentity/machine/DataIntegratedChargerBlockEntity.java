@@ -1292,7 +1292,12 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         INSCRIBER;
 
         public MachineMode next() {
-            return values()[(this.ordinal() + 1) % values().length];
+            return switch (this) {
+                case POWDER -> CRYSTAL_GROWTH;
+                case CRYSTAL_GROWTH -> INSCRIBER;
+                case INSCRIBER -> CHARGER;
+                case CHARGER -> POWDER;
+            };
         }
 
         public static MachineMode fromOrdinal(int ordinal) {

@@ -46,9 +46,15 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
         this.outputSidesButton = new OutputSideActionButton(button -> openOutputConfig());
         this.addToLeftToolbar(this.outputSidesButton);
         this.modeButton = new DataIntegratedChargerModeButton(this.menu::sendSetMachineMode);
-        this.addToLeftToolbar(this.modeButton);
         this.progressBar = new ProgressBar(this.menu, style.getImage("progressBar"), ProgressBar.Direction.VERTICAL);
         this.widgets.add("progressBar", this.progressBar);
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        this.modeButton.setPosition(this.leftPos + 71, this.topPos + 58);
+        this.addRenderableWidget(this.modeButton);
     }
 
     private void openOutputConfig() {

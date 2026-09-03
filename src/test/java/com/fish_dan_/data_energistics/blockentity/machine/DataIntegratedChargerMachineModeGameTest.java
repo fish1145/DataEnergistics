@@ -22,9 +22,9 @@ public final class DataIntegratedChargerMachineModeGameTest {
     @GameTest(template = "empty_5x5")
     public static void modeButtonCyclesAllProcessingFamilies(GameTestHelper helper) {
         assertEquals(MachineMode.CRYSTAL_GROWTH, MachineMode.POWDER.next());
-        assertEquals(MachineMode.CHARGER, MachineMode.CRYSTAL_GROWTH.next());
-        assertEquals(MachineMode.INSCRIBER, MachineMode.CHARGER.next());
-        assertEquals(MachineMode.POWDER, MachineMode.INSCRIBER.next());
+        assertEquals(MachineMode.INSCRIBER, MachineMode.CRYSTAL_GROWTH.next());
+        assertEquals(MachineMode.CHARGER, MachineMode.INSCRIBER.next());
+        assertEquals(MachineMode.POWDER, MachineMode.CHARGER.next());
         assertEquals(MachineMode.POWDER, MachineMode.fromOrdinal(-1));
         assertEquals(MachineMode.POWDER, MachineMode.fromOrdinal(MachineMode.values().length));
         helper.succeed();
