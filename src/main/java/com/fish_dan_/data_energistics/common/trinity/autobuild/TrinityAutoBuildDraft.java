@@ -11,11 +11,10 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.projection.Subst
 import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import com.modularmc.mdl.api.multiblock.RepeatRange;
+import it.unimi.dsi.fastutil.objects.Object2BooleanLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2BooleanMap;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.OptionalInt;
 
 /**
@@ -35,26 +34,22 @@ public final class TrinityAutoBuildDraft {
 
     private final MultiblockPreviewSpec spec;
     private final PreviewSelection previewSelection;
-    private final Map<String, Boolean> buildRequestedByStructure;
+    private final Object2BooleanMap<String> buildRequestedByStructure;
 
     private TrinityAutoBuildDraft(MultiblockPreviewSpec spec,
                                   PreviewSelection previewSelection,
-                                  Map<String, Boolean> buildRequestedByStructure) {
-        if (spec == null || previewSelection == null || buildRequestedByStructure == null) {
-            throw new IllegalArgumentException("Trinity auto-build draft arguments cannot be null");
-        }
-        validateTrinitySpec(spec);
-        previewSelection.validateAgainst(spec);
+                                  Object2BooleanMap<String> buildRequestedByStructure) {
         this.spec = spec;
         this.previewSelection = previewSelection;
-        this.buildRequestedByStructure = copyBuildChoices(buildRequestedByStructure);
+        // The private constructor takes ownership; updates copy this map, while preview-only changes share it.
+        this.buildRequestedByStructure = buildRequestedByStructure;
     }
 
     /**
      * Creates a fresh draft at the current definition revision.
      *
      * <p>
-     * The main structure retains the legacy enabled default. CPU and crafting remain opt-in until selected.
+     * The main structure starts enabled. CPU and crafting remain opt-in until selected.
      * </p>
      *
      * @param spec current Trinity preview specification
@@ -62,7 +57,7 @@ public final class TrinityAutoBuildDraft {
      */
     public static TrinityAutoBuildDraft initial(MultiblockPreviewSpec spec) {
         validateTrinitySpec(spec);
-        Map<String, Boolean> buildChoices = new LinkedHashMap<>();
+        Object2BooleanMap<String> buildChoices = new Object2BooleanLinkedOpenHashMap<>();
         buildChoices.put(JsonMultiBlockStructureKey.DEFAULT_STRUCTURE_NAME, true);
         buildChoices.put(DEVerticalMultiBlocks.TRINITY_DATA_CORE_CPU_STRUCTURE_NAME, false);
         buildChoices.put(DEVerticalMultiBlocks.TRINITY_DATA_CORE_CRAFTING_STRUCTURE_NAME, false);
@@ -94,18 +89,17 @@ public final class TrinityAutoBuildDraft {
      * Returns whether the named structure is currently marked for construction.
      */
     public boolean buildRequested(String structureKey) {
-        Boolean requested = this.buildRequestedByStructure.get(structureKey);
-        if (requested == null) {
+        if (!this.buildRequestedByStructure.containsKey(structureKey)) {
             throw new IllegalArgumentException("Unknown Trinity auto-build structure: " + structureKey);
         }
-        return requested;
+        return this.buildRequestedByStructure.getBoolean(structureKey);
     }
 
     /**
      * Returns whether the active structure is currently marked for construction.
      */
     public boolean activeBuildRequested() {
-        return buildRequested(this.previewSelection.activeSubstructureId());
+        return this.buildRequestedByStructure.getBoolean(this.previewSelection.activeSubstructureId());
     }
 
     /**
@@ -148,7 +142,7 @@ public final class TrinityAutoBuildDraft {
      * Changes only the active structure's build enablement.
      */
     public TrinityAutoBuildDraft withBuildRequested(boolean buildRequested) {
-        Map<String, Boolean> updated = new LinkedHashMap<>(this.buildRequestedByStructure);
+        Object2BooleanMap<String> updated = new Object2BooleanLinkedOpenHashMap<>(this.buildRequestedByStructure);
         updated.put(this.previewSelection.activeSubstructureId(), buildRequested);
         return new TrinityAutoBuildDraft(this.spec, this.previewSelection, updated);
     }
@@ -180,7 +174,7 @@ public final class TrinityAutoBuildDraft {
     }
 
     /**
-     * Finds the sole variable pattern unit used by the legacy one-count build planner.
+     * Finds the active structure's sole variable repeat unit.
      *
      * @return empty for the fixed main structure, otherwise the variable unit index
      */
@@ -233,33 +227,6 @@ public final class TrinityAutoBuildDraft {
                 activeBuildRequested());
     }
 
-    /**
-     * Converts the current single-variant state for the existing builder entry point.
-     *
-     * <p>
-     * The conversion rejects fields the legacy request cannot represent instead of silently dropping them. The
-     * generation-aware hosted payload retains {@link #submission()} as its transport source of truth.
-     * </p>
-     *
-     * @return validated existing Trinity builder request
-     */
-    public TrinityAutoBuildRequest toLegacyRequest() {
-        SubstructureSelection activeSelection = this.previewSelection.activeSelection();
-        if (activeSelection.variantIndex() != 0) {
-            throw new IllegalStateException("Legacy Trinity auto-build request cannot represent variant " +
-                    activeSelection.variantIndex());
-        }
-        int structureIndex = structureIndex(this.previewSelection.activeSubstructureId());
-        String category = TrinityAutoBuildBlockMap.categoryForStructure(structureIndex);
-        return new TrinityAutoBuildRequest(
-                structureIndex,
-                new TrinityAutoBuildOptions(
-                        activeBuildRequested(),
-                        activeRepeatCount(),
-                        Map.of(category, activeTierValue()),
-                        activeSelection.candidateSelections()));
-    }
-
     private TrinityAutoBuildDraft withPreviewSelection(PreviewSelection updated) {
         return new TrinityAutoBuildDraft(this.spec, updated, this.buildRequestedByStructure);
     }
@@ -282,9 +249,6 @@ public final class TrinityAutoBuildDraft {
     }
 
     private static void validateTrinitySpec(MultiblockPreviewSpec spec) {
-        if (spec == null) {
-            throw new IllegalArgumentException("Trinity auto-build draft requires a preview spec");
-        }
         if (!DEVerticalMultiBlocks.trinityDataCoreId().equals(spec.controllerId())) {
             throw new IllegalArgumentException("Trinity auto-build draft belongs to another controller: " +
                     spec.controllerId());
@@ -293,20 +257,5 @@ public final class TrinityAutoBuildDraft {
         if (!STRUCTURE_KEYS.equals(actualKeys)) {
             throw new IllegalArgumentException("Trinity auto-build spec must expose main, cpu, and crafting in order");
         }
-    }
-
-    private static Map<String, Boolean> copyBuildChoices(Map<String, Boolean> choices) {
-        if (!STRUCTURE_KEYS.equals(List.copyOf(choices.keySet()))) {
-            throw new IllegalArgumentException("Trinity auto-build choices must match main, cpu, and crafting order");
-        }
-        Map<String, Boolean> copy = new LinkedHashMap<>();
-        for (String structureKey : STRUCTURE_KEYS) {
-            Boolean requested = choices.get(structureKey);
-            if (requested == null) {
-                throw new IllegalArgumentException("Missing Trinity auto-build choice for " + structureKey);
-            }
-            copy.put(structureKey, requested);
-        }
-        return Collections.unmodifiableMap(copy);
     }
 }

@@ -8,10 +8,10 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -21,7 +21,7 @@ import java.util.Set;
 public final class TrinityBorrowingLedgerNbtCodec {
 
     private static final String SCHEMA_TAG = "schema_version";
-    private static final int LEGACY_SCHEMA = 1;
+    private static final int LONG_AMOUNT_SCHEMA = 1;
     private static final int SCHEMA = 2;
     private static final int MAX_BIG_INTEGER_BYTES = 512;
     private static final String ENTRIES_TAG = "entries";
@@ -47,9 +47,6 @@ public final class TrinityBorrowingLedgerNbtCodec {
      */
     public static CompoundTag encode(Map<AEKey, TrinityBorrowingLedger.Balances> entries,
                                      HolderLookup.Provider registries) {
-        if (registries == null) {
-            throw new IllegalArgumentException("Trinity borrowing persistence requires registries");
-        }
         CompoundTag root = new CompoundTag();
         root.putInt(SCHEMA_TAG, SCHEMA);
         ListTag encodedEntries = new ListTag();
@@ -78,7 +75,7 @@ public final class TrinityBorrowingLedgerNbtCodec {
         requireFields(tag, ROOT_FIELDS, "borrowing ledger");
         requireType(tag, SCHEMA_TAG, Tag.TAG_INT, "borrowing ledger schema");
         int schema = tag.getInt(SCHEMA_TAG);
-        if (schema != LEGACY_SCHEMA && schema != SCHEMA) {
+        if (schema != LONG_AMOUNT_SCHEMA && schema != SCHEMA) {
             throw new IllegalArgumentException("Unsupported Trinity borrowing ledger schema");
         }
         requireType(tag, ENTRIES_TAG, Tag.TAG_LIST, "borrowing ledger entries");
@@ -88,7 +85,7 @@ public final class TrinityBorrowingLedgerNbtCodec {
             throw new IllegalArgumentException("A Trinity borrowing ledger must contain compound entries");
         }
 
-        LinkedHashMap<AEKey, TrinityBorrowingLedger.Balances> restored = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, TrinityBorrowingLedger.Balances> restored = new Object2ObjectLinkedOpenHashMap<>();
         for (Tag encoded : encodedEntries) {
             CompoundTag entry = (CompoundTag) encoded;
             requireFields(entry, ENTRY_FIELDS, "borrowing ledger entry");
@@ -121,7 +118,7 @@ public final class TrinityBorrowingLedgerNbtCodec {
     }
 
     private static BigInteger readBigInteger(CompoundTag tag, String field, int schema) {
-        if (schema == LEGACY_SCHEMA) {
+        if (schema == LONG_AMOUNT_SCHEMA) {
             return BigInteger.valueOf(tag.getLong(field));
         }
         byte[] encoded = tag.getByteArray(field);
@@ -132,7 +129,7 @@ public final class TrinityBorrowingLedgerNbtCodec {
     }
 
     private static void requireFields(CompoundTag tag, Set<String> fields, String role) {
-        if (tag == null || !tag.getAllKeys().equals(fields)) {
+        if (!tag.getAllKeys().equals(fields)) {
             throw new IllegalArgumentException("Unexpected or missing fields in Trinity " + role);
         }
     }

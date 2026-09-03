@@ -3,12 +3,15 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnost
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic.InputRequirement;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic.InputShortage;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic.PartialPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 
 import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.math.BigInteger;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -54,7 +57,8 @@ public final class TrinityDiagnosticMaterialAccumulator {
                 used,
                 Map.of(),
                 missing,
-                requirements);
+                requirements,
+                List.of());
     }
 
     /**
@@ -98,7 +102,19 @@ public final class TrinityDiagnosticMaterialAccumulator {
                 exactRequirements.put(key, requirement);
             }
         });
-        return new PartialPlan(used, emitted, missing, exactRequirements);
+        return new PartialPlan(used, emitted, missing, exactRequirements,
+                mergeFirings(accumulated.selectedFirings(), nested.selectedFirings()));
+    }
+
+    private static List<TrinityVariantFiring> mergeFirings(
+                                                           List<TrinityVariantFiring> accumulated,
+                                                           List<TrinityVariantFiring> nested) {
+        if (accumulated.isEmpty()) return nested;
+        if (nested.isEmpty()) return accumulated;
+        List<TrinityVariantFiring> merged = new ObjectArrayList<>(accumulated.size() + nested.size());
+        merged.addAll(accumulated);
+        merged.addAll(nested);
+        return merged;
     }
 
     private static Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> sum(

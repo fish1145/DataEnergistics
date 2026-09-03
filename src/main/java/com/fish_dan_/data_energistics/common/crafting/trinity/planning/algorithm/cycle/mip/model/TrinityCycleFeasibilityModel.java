@@ -40,13 +40,4 @@ public interface TrinityCycleFeasibilityModel {
                                                                   TrinityCycleFeasibilityRequest request,
                                                                   TrinityPlanningMode mode,
                                                                   TrinityPlanningControl control);
-
-    /**
-     * Compatibility entry point that retains complete optimisation.
-     */
-    default TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solve(
-                                                                          TrinityCycleFeasibilityRequest request,
-                                                                          TrinityPlanningControl control) {
-        return solve(request, TrinityPlanningMode.FIRST_FEASIBLE, control);
-    }
 }

@@ -11,17 +11,12 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 
 /**
- * S2C acknowledgement containing the server's final menu preference values and migration mask.
+ * S2C acknowledgement of an accepted preference snapshot and the server-confirmed workstation.
  */
 public record PatternEncodingPreferencesAckPayload(
                                                    int containerId,
                                                    long sequence,
-                                                   int migratedMask,
-                                                   boolean uploadEnabled,
-                                                   boolean patternSourceEnabled,
-                                                   @Nullable ResourceLocation lastWorkstation,
-                                                   int previewPanelOffsetX,
-                                                   int previewPanelOffsetY)
+                                                   @Nullable ResourceLocation lastWorkstation)
         implements CustomPacketPayload {
 
     public static final Type<PatternEncodingPreferencesAckPayload> TYPE = new Type<>(
@@ -36,17 +31,10 @@ public record PatternEncodingPreferencesAckPayload(
         if (containerId < 0 || sequence <= 0L) {
             throw new IllegalArgumentException("Pattern preference acknowledgement envelope is invalid");
         }
-        if ((migratedMask & ~0x0F) != 0) {
-            throw new IllegalArgumentException("Pattern preference migration mask contains unknown bits");
-        }
-        if (previewPanelOffsetX < -8192 || previewPanelOffsetX > 8192 || previewPanelOffsetY < -8192 || previewPanelOffsetY > 8192) {
-            throw new IllegalArgumentException("Pattern preference preview offset is outside [-8192, 8192]");
-        }
     }
 
     private PatternEncodingPreferencesAckPayload(RegistryFriendlyByteBuf buffer) {
-        this(buffer.readVarInt(), buffer.readVarLong(), buffer.readUnsignedByte(), buffer.readBoolean(),
-                buffer.readBoolean(), readNullableResourceLocation(buffer), buffer.readInt(), buffer.readInt());
+        this(buffer.readVarInt(), buffer.readVarLong(), readNullableResourceLocation(buffer));
         if (buffer.readableBytes() != 0) {
             throw new IllegalArgumentException("Trailing bytes in pattern preference acknowledgement");
         }
@@ -55,15 +43,10 @@ public record PatternEncodingPreferencesAckPayload(
     private void write(RegistryFriendlyByteBuf buffer) {
         buffer.writeVarInt(this.containerId);
         buffer.writeVarLong(this.sequence);
-        buffer.writeByte(this.migratedMask);
-        buffer.writeBoolean(this.uploadEnabled);
-        buffer.writeBoolean(this.patternSourceEnabled);
         buffer.writeBoolean(this.lastWorkstation != null);
         if (this.lastWorkstation != null) {
             buffer.writeResourceLocation(this.lastWorkstation);
         }
-        buffer.writeInt(this.previewPanelOffsetX);
-        buffer.writeInt(this.previewPanelOffsetY);
     }
 
     @Override
@@ -72,7 +55,7 @@ public record PatternEncodingPreferencesAckPayload(
     }
 
     /**
-     * Applies only fields marked as migrated and still absent from the local client file.
+     * Confirms an accepted snapshot for the client's current menu session.
      */
     public static void handle(PatternEncodingPreferencesAckPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> PatternEncodingPreferencesAckHandler.handle(payload, context.player()));

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.screen.beam.BeamFormerScreen;
+import com.fish_dan_.data_energistics.client.screen.crafting.CraftingPlanTreeScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.AdaptivePatternProviderScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataAsynchronousProcessingFactoryScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataDistributionTowerScreen;
@@ -38,6 +39,7 @@ final class ClientScreenRegistrar {
     private ClientScreenRegistrar() {}
 
     static void register(RegisterMenuScreensEvent event) {
+        event.register(DEMenus.CRAFTING_PLAN_TREE.get(), CraftingPlanTreeScreen::new);
         InitScreens.register(event, DEMenus.DATA_RIPPER.get(), DataRipperScreen::new, "/screens/data_ripper.json");
         InitScreens.register(event, DEMenus.DATA_DISTRIBUTION_TOWER.get(), DataDistributionTowerScreen::new, "/screens/data_distribution_tower.json");
         InitScreens.register(event, DEMenus.DATA_EXTRACTOR.get(), DataExtractorScreen::new, "/screens/data_extractor.json");

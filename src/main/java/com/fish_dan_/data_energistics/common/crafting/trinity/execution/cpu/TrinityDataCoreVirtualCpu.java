@@ -153,15 +153,6 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
     }
 
     /**
-     * Retains the pre-Governor execution contract with deterministic hard limits.
-     */
-    public void tick(IEnergyService energyService,
-                     CraftingService craftingService,
-                     CraftingDispatchWindow dispatchWindow) {
-        tick(energyService, craftingService, dispatchWindow, CraftingDispatchBudget.legacyFixedHard());
-    }
-
-    /**
      * Inserts a returned crafting output into this CPU.
      *
      * @param what   returned key
@@ -300,6 +291,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
         return this.host.craftingExecutionRoute() != null;
     }
 
+    @Nullable
     TrinityCraftingExecutionRoute executionRoute() {
         return this.host.craftingExecutionRoute();
     }

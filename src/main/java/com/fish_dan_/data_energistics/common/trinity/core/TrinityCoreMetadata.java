@@ -5,7 +5,7 @@ package com.fish_dan_.data_energistics.common.trinity.core;
  */
 public final class TrinityCoreMetadata implements TrinityCoreComponent {
 
-    /** Primary capability category used by ordinary cores and retained by placeholders for legacy callers. */
+    /** Primary category; structural acceptance and contributed capacity are queried separately. */
     private final TrinityCoreKind kind;
     /** Storage type count contributed by storage cores. */
     private final int capacityValue;
@@ -15,15 +15,6 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
     private final int patternCapacity;
     /** Whether this metadata is the zero-capacity placeholder accepted by every core predicate. */
     private final boolean universal;
-
-    public TrinityCoreMetadata(TrinityCoreKind kind, int capacityValue, int patternCapacity) {
-        this(
-                kind,
-                kind == TrinityCoreKind.PARALLEL_CPU ? 0 : capacityValue,
-                Math.multiplyExact(capacityValue, 524_288L),
-                patternCapacity,
-                false);
-    }
 
     public TrinityCoreMetadata(TrinityCoreKind kind, int capacityValue, long byteCapacity, int patternCapacity) {
         this(kind, capacityValue, byteCapacity, patternCapacity, false);
@@ -75,7 +66,7 @@ public final class TrinityCoreMetadata implements TrinityCoreComponent {
      * Creates the zero-capacity universal unit that can occupy a storage, merged CPU, or pattern-processing core slot.
      *
      * <p>
-     * The primary kind remains storage for compatibility with callers that still read {@link #kind()} directly.
+     * The primary kind is storage, but it does not imply a storage capacity contribution.
      * Domain-aware callers must distinguish structural compatibility through
      * {@link TrinityCoreComponent#supportsKind(TrinityCoreKind)} from actual capacity through
      * {@link TrinityCoreComponent#contributesToKind(TrinityCoreKind)}.

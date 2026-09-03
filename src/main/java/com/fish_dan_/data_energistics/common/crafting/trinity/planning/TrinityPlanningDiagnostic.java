@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticEvidence;
 
 import net.minecraft.network.chat.Component;
@@ -157,20 +158,16 @@ public record TrinityPlanningDiagnostic(
      * @param emittedItems      outputs of recipe firings already selected by the partial branch
      * @param missingItems      positive demands that remained unresolved when planning stopped
      * @param inputRequirements exact external-input allocations proven for the retained branch
+     * @param selectedFirings   actual selected variants and counts not represented by separate cycle evidence;
+     *                          these retain input bindings but do not assert a complete executable schedule
      */
     public record PartialPlan(
                               Map<AEKey, BigInteger> usedItems,
                               Map<AEKey, BigInteger> emittedItems,
                               Map<AEKey, BigInteger> missingItems,
-                              Map<AEKey, InputRequirement> inputRequirements)
+                              Map<AEKey, InputRequirement> inputRequirements,
+                              List<TrinityVariantFiring> selectedFirings)
             implements Detail {
-
-        public PartialPlan(
-                           Map<AEKey, BigInteger> usedItems,
-                           Map<AEKey, BigInteger> emittedItems,
-                           Map<AEKey, BigInteger> missingItems) {
-            this(usedItems, emittedItems, missingItems, Map.of());
-        }
 
         public PartialPlan {
             usedItems = validatePositiveAmounts(usedItems, "used");
@@ -183,6 +180,8 @@ public record TrinityPlanningDiagnostic(
                 }
             }
             inputRequirements = Collections.unmodifiableMap(inputRequirements);
+            // Variant/count records are immutable. Reusing a retained snapshot does not copy this list again.
+            selectedFirings = List.copyOf(selectedFirings);
         }
 
         private static Map<AEKey, BigInteger> validatePositiveAmounts(

@@ -10,12 +10,13 @@ import java.util.Map;
 /**
  * One compact pattern firing vector entry inside a stage.
  *
- * @param patternIdentity stable published pattern semantics
- * @param primaryOutput   primary output used for server-thread provider lookup
- * @param variantOrdinal  deterministic legal input-binding ordinal
- * @param count           logical firing count without per-request expansion
- * @param inputs          exact selected pattern inputs per logical firing
- * @param outputs         exact pattern-declared outputs per logical firing
+ * @param patternIdentity  stable published pattern semantics
+ * @param primaryOutput    primary output used for server-thread provider lookup
+ * @param variantOrdinal   deterministic legal input-binding ordinal
+ * @param count            logical firing count without per-request expansion
+ * @param inputs           exact selected pattern inputs per logical firing
+ * @param outputs          exact pattern-declared outputs per logical firing
+ * @param remainingOutputs exact returned input containers per logical firing, separate from declared outputs
  */
 public record TrinityPlanPatternFiring(
                                        TrinityPatternIdentity patternIdentity,
@@ -23,7 +24,8 @@ public record TrinityPlanPatternFiring(
                                        int variantOrdinal,
                                        BigInteger count,
                                        Map<AEKey, BigInteger> inputs,
-                                       Map<AEKey, BigInteger> outputs) {
+                                       Map<AEKey, BigInteger> outputs,
+                                       Map<AEKey, BigInteger> remainingOutputs) {
 
     /**
      * Rejects unbound or non-productive scheduling entries.
@@ -34,6 +36,7 @@ public record TrinityPlanPatternFiring(
         }
         inputs = TrinityPlanAmounts.validatePositive(inputs, "pattern firing input");
         outputs = TrinityPlanAmounts.validatePositive(outputs, "pattern firing output");
+        remainingOutputs = TrinityPlanAmounts.validatePositive(remainingOutputs, "pattern firing remainder");
         if (!outputs.containsKey(primaryOutput)) {
             throw new IllegalArgumentException("A Trinity pattern firing must retain its primary output");
         }

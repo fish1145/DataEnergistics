@@ -15,6 +15,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import net.minecraft.network.chat.Component;
 
 import appeng.api.stacks.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMaps;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.ojalgo.optimisation.Expression;
@@ -24,13 +28,9 @@ import org.ojalgo.optimisation.Variable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -146,7 +146,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                 return solution(incumbent, metrics, TrinityPlanQuality.VERIFIED_FEASIBLE);
             }
             BigInteger optimalFirings = total(incumbent.firings());
-            LinkedHashMap<TrinityPatternVariant, BigInteger> fixedFirings = new LinkedHashMap<>();
+            Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> fixedFirings = new Object2ObjectLinkedOpenHashMap<>();
             SolvedModel canonical = incumbent;
             for (TrinityPatternVariant variant : request.variants()) {
                 TrinityFiringBounds bounds = request.firingBounds().get(variant);
@@ -203,221 +203,34 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
      * executable anytime optimisation, every objective must be proved before diagnostic evidence can be published.
      */
     private TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solveShortage(
-                                                                                  TrinityCycleFeasibilityRequest request,
-                                                                                  TrinityPlanningControl control,
-                                                                                  OrdinaryModelTemplate modelTemplate,
-                                                                                  SolverMetrics metrics,
-                                                                                  TrinityCycleSolveBudget stateBudget) {
-        TrinityAlgorithmResult<SolvedPass> missing = optimize(
-                request,
-                ShortageMissingPass.INSTANCE,
-                modelTemplate,
-                control,
-                metrics,
-                stateBudget);
-        if (!missing.successful()) {
-            return shortageFailure(missing.diagnostic(), stateBudget);
-        }
-        if (!missing.value().objectiveProved()) {
-            return unprovedShortage(metrics, stateBudget, "missing");
-        }
-        SolvedModel incumbent = missing.value().model();
-        BigInteger optimalMissing = total(incumbent.missingInputs());
-        if (optimalMissing.signum() == 0) {
-            return solution(
-                    incumbent,
-                    metrics,
-                    TrinityPlanQuality.PROVED_OPTIMAL,
-                    stateBudget.used());
-        }
-
-        TrinityAlgorithmResult<SolvedPass> external = optimize(
-                request,
-                new ShortageExternalPass(optimalMissing),
-                modelTemplate,
-                control,
-                metrics,
-                stateBudget);
-        if (!external.successful()) {
-            return shortageFailure(external.diagnostic(), stateBudget);
-        }
-        if (!external.value().objectiveProved()) {
-            return unprovedShortage(metrics, stateBudget, "external");
-        }
-        incumbent = external.value().model();
-        BigInteger optimalExternal = total(incumbent.externalInputs());
-        BigInteger seedLower = request.seedLowerBound();
-        BigInteger firingLower = request.firingLowerBound();
-        while (true) {
-            TrinityAlgorithmResult<SolvedPass> seed = optimize(
-                    request,
-                    new ShortageSeedPass(optimalMissing, optimalExternal, seedLower),
-                    modelTemplate,
-                    control,
-                    metrics,
-                    stateBudget);
-            if (!seed.successful()) {
-                return shortageFailure(seed.diagnostic(), stateBudget);
-            }
-            if (!seed.value().objectiveProved()) {
-                return unprovedShortage(metrics, stateBudget, "seed");
-            }
-            incumbent = seed.value().model();
-            BigInteger optimalSeed = total(incumbent.modelSeed());
-            BigInteger firingObjectiveLower = firingLower.max(
-                    this.objectiveBounds.conservationFiringLowerBound(request, optimalExternal, optimalSeed));
-            BigInteger seedWitnessFirings = total(incumbent.firings());
-            TrinityAlgorithmResult<SolvedPass> firing = seedWitnessFirings.equals(firingObjectiveLower) ?
-                    TrinityAlgorithmResult.success(new SolvedPass(incumbent, true)) :
-                    optimize(
-                            request,
-                            new ShortageFiringPass(
-                                    optimalMissing,
-                                    optimalExternal,
-                                    optimalSeed,
-                                    firingObjectiveLower),
-                            modelTemplate,
-                            control,
-                            metrics,
-                            stateBudget);
-            if (!firing.successful()) {
-                if (firing.diagnostic().code() != TrinityPlanningDiagnosticCode.MIP_NO_INTEGER_SOLUTION) {
-                    return shortageFailure(firing.diagnostic(), stateBudget);
-                }
-                seedLower = optimalSeed.add(BigInteger.ONE);
-                firingLower = BigInteger.ZERO;
-                continue;
-            }
-            if (!firing.value().objectiveProved()) {
-                return unprovedShortage(metrics, stateBudget, "firing");
-            }
-            incumbent = firing.value().model();
-            BigInteger optimalFirings = total(incumbent.firings());
-            LinkedHashMap<TrinityPatternVariant, BigInteger> fixedFirings = new LinkedHashMap<>();
-            SolvedModel canonical = incumbent;
-            for (TrinityPatternVariant variant : request.variants()) {
-                TrinityFiringBounds bounds = request.firingBounds().get(variant);
-                if (bounds.fixed()) {
-                    BigInteger fixedCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
-                    if (!fixedCount.equals(bounds.lowerInclusive())) {
-                        throw new IllegalStateException("An exact Trinity shortage solution violated a fixed axis");
-                    }
-                    fixedFirings.put(variant, fixedCount);
-                    continue;
-                }
-                BigInteger witnessCount = canonical.firings().getOrDefault(variant, BigInteger.ZERO);
-                BigInteger identityUpper = bounds.upperOr(this.objectiveBounds.identityObjectiveUpperBound(
-                        request,
-                        optimalExternal,
-                        optimalSeed,
-                        optimalFirings,
-                        fixedFirings,
-                        variant));
-                if (witnessCount.compareTo(identityUpper) > 0) {
-                    throw new IllegalStateException("A Trinity shortage identity witness exceeded its proven upper bound");
-                }
-                if (witnessCount.equals(identityUpper)) {
-                    fixedFirings.put(variant, witnessCount);
-                    continue;
-                }
-                TrinityAlgorithmResult<SolvedPass> identity = optimize(
-                        request,
-                        new ShortageIdentityPass(
-                                optimalMissing,
-                                optimalExternal,
-                                optimalSeed,
-                                optimalFirings,
-                                fixedFirings,
-                                variant),
-                        modelTemplate,
-                        control,
-                        metrics,
-                        stateBudget);
-                if (!identity.successful()) {
-                    return shortageFailure(identity.diagnostic(), stateBudget);
-                }
-                if (!identity.value().objectiveProved()) {
-                    return unprovedShortage(metrics, stateBudget, "identity");
-                }
-                canonical = identity.value().model();
-                fixedFirings.put(variant, canonical.firings().getOrDefault(variant, BigInteger.ZERO));
-            }
-            LinkedHashMap<AEKey, BigInteger> fixedReserves = new LinkedHashMap<>();
-            LinkedHashSet<AEKey> reserveKeys = diagnosticReserveKeys(request);
-            for (AEKey key : reserveKeys) {
-                BigInteger witness = requiredInputs(canonical).getOrDefault(key, BigInteger.ZERO);
-                if (witness.signum() == 0) {
-                    fixedReserves.put(key, BigInteger.ZERO);
-                    continue;
-                }
-                TrinityAlgorithmResult<SolvedPass> reserve = optimize(
-                        request,
-                        new ShortageReservePass(
-                                optimalMissing,
-                                optimalExternal,
-                                optimalSeed,
-                                optimalFirings,
-                                fixedFirings,
-                                fixedReserves,
-                                key),
-                        modelTemplate,
-                        control,
-                        metrics,
-                        stateBudget);
-                if (!reserve.successful()) {
-                    return shortageFailure(reserve.diagnostic(), stateBudget);
-                }
-                if (!reserve.value().objectiveProved()) {
-                    return unprovedShortage(metrics, stateBudget, "reserve");
-                }
-                canonical = reserve.value().model();
-                fixedReserves.put(key, requiredInputs(canonical).getOrDefault(key, BigInteger.ZERO));
-            }
-            return solution(
-                    canonical,
-                    metrics,
-                    TrinityPlanQuality.PROVED_OPTIMAL,
-                    stateBudget.used());
-        }
-    }
-
-    private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> unprovedShortage(
-                                                                                            SolverMetrics metrics,
-                                                                                            TrinityCycleSolveBudget stateBudget,
-                                                                                            String objective) {
-        return failure(
-                TrinityPlanningDiagnosticCode.MIP_TIMEOUT,
-                "gui.data_energistics.trinity_planning.mip.timeout",
-                Map.of(
-                        "objective", objective,
-                        "passes", Integer.toString(metrics.passes),
-                        "states", Integer.toString(stateBudget.used())));
+                                                                                  TrinityCycleFeasibilityRequest request, TrinityPlanningControl control,
+                                                                                  OrdinaryModelTemplate modelTemplate, SolverMetrics metrics, TrinityCycleSolveBudget stateBudget) {
+        TrinityAlgorithmResult<SolvedPass> feasible = optimize(
+                request, FeasibilityPass.INSTANCE, modelTemplate, control, metrics, stateBudget);
+        if (!feasible.successful()) return shortageFailure(feasible.diagnostic(), stateBudget, metrics);
+        SolvedModel solved = feasible.value().model();
+        TrinityShortageInputAllocation allocation = TrinityShortageInputAllocation.from(
+                request, solved.modelSeed(), solved.externalInputs());
+        return TrinityAlgorithmResult.success(new TrinityCycleFeasibilitySolution(
+                solved.firings(), solved.modelSeed(), solved.externalInputs(), metrics.passes, metrics.nanos,
+                false, TrinityPlanQuality.VERIFIED_FEASIBLE,
+                allocation.actualInputs(), allocation.missingInputs(), stateBudget.used()));
     }
 
     private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> shortageFailure(
                                                                                            TrinityPlanningDiagnostic diagnostic,
-                                                                                           TrinityCycleSolveBudget stateBudget) {
-        LinkedHashMap<String, String> metadata = new LinkedHashMap<>(diagnostic.metadata());
+                                                                                           TrinityCycleSolveBudget stateBudget,
+                                                                                           SolverMetrics metrics) {
+        Object2ObjectLinkedOpenHashMap<String, String> metadata = new Object2ObjectLinkedOpenHashMap<>(diagnostic.metadata());
         metadata.put("limit", Integer.toString(stateBudget.limit()));
         metadata.put("states", Integer.toString(stateBudget.used()));
+        metadata.put("passes", Integer.toString(metrics.passes));
+        metadata.put("nanos", Long.toString(metrics.nanos));
         return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
                 diagnostic.code(),
                 diagnostic.message(),
                 metadata,
                 diagnostic.detail()));
-    }
-
-    private LinkedHashSet<AEKey> diagnosticReserveKeys(TrinityCycleFeasibilityRequest request) {
-        LinkedHashSet<AEKey> keys = new LinkedHashSet<>(request.internalKeys());
-        keys.addAll(this.objectiveBounds.externalReserveKeys(request));
-        keys.removeAll(request.producibleInputs());
-        return keys;
-    }
-
-    private static Map<AEKey, BigInteger> requiredInputs(SolvedModel solved) {
-        LinkedHashMap<AEKey, BigInteger> required = new LinkedHashMap<>(solved.externalInputs());
-        solved.modelSeed().forEach((key, amount) -> required.merge(key, amount, BigInteger::add));
-        return required;
     }
 
     private TrinityAlgorithmResult<SolvedPass> optimize(
@@ -451,6 +264,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         if (control.deadlineExceeded()) {
             return timeout(metrics, "before_model");
         }
+        ModelData data = modelTemplate.forPass(request, pass);
         if (!stateBudget.tryConsume()) {
             return failure(
                     TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
@@ -459,7 +273,6 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                             "limit", Integer.toString(stateBudget.limit()),
                             "states", Integer.toString(stateBudget.used())));
         }
-        ModelData data = modelTemplate.forPass(request, pass);
         TrinityOjAlgoSolvePolicy.configure(data.model(), control, pass == FeasibilityPass.INSTANCE);
         long started = System.nanoTime();
         Optimisation.Result result = data.model().minimise();
@@ -482,9 +295,9 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                     "gui.data_energistics.trinity_planning.diagnostic.no_integer_solution",
                     Map.of("state", result.getState().name()));
         }
-        ArrayList<BigDecimal> rawValues = new ArrayList<>(data.variables().size());
-        for (Variable variable : data.variables()) {
-            rawValues.add(result.get(data.model().indexOf(variable)));
+        ObjectArrayList<BigDecimal> rawValues = new ObjectArrayList<>(data.template().variableCount());
+        for (int index = 0; index < data.template().variableCount(); index++) {
+            rawValues.add(result.get(index));
         }
         TrinityAlgorithmResult<List<BigInteger>> verified = this.integerVerifier.verify(
                 rawValues,
@@ -502,28 +315,10 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
     }
 
     private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solution(
-                                                                                    SolvedModel solved,
-                                                                                    SolverMetrics metrics,
-                                                                                    TrinityPlanQuality quality) {
-        return solution(solved, metrics, quality, 0);
-    }
-
-    private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> solution(
-                                                                                    SolvedModel solved,
-                                                                                    SolverMetrics metrics,
-                                                                                    TrinityPlanQuality quality,
-                                                                                    int diagnosticStates) {
+                                                                                    SolvedModel solved, SolverMetrics metrics, TrinityPlanQuality quality) {
         return TrinityAlgorithmResult.success(new TrinityCycleFeasibilitySolution(
-                solved.firings(),
-                solved.modelSeed(),
-                solved.externalInputs(),
-                metrics.passes,
-                metrics.nanos,
-                false,
-                quality,
-                solved.actualInputs(),
-                solved.missingInputs(),
-                diagnosticStates));
+                solved.firings(), solved.modelSeed(), solved.externalInputs(),
+                metrics.passes, metrics.nanos, false, quality, Map.of(), Map.of(), 0));
     }
 
     private static TrinityAlgorithmResult<TrinityCycleFeasibilitySolution> recoverIncumbent(
@@ -541,7 +336,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                                                                        TrinityCycleFeasibilityRequest request,
                                                                        ModelPass pass,
                                                                        SolvedModel solved) {
-        LinkedHashMap<AEKey, BigInteger> initialInputs = new LinkedHashMap<>(solved.externalInputs());
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> initialInputs = new Object2ObjectLinkedOpenHashMap<>(solved.externalInputs());
         solved.modelSeed().forEach((key, amount) -> initialInputs.merge(key, amount, BigInteger::add));
         TrinityAlgorithmResult<Map<AEKey, BigInteger>> exact = this.conservationVerifier.verify(
                 request.variants(),
@@ -553,21 +348,9 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         if (!exact.successful()) {
             return exact;
         }
-        if (request.shortageDiagnostic()) {
-            TrinityAlgorithmResult<Map<AEKey, BigInteger>> shortage = verifyShortageInputs(
-                    request,
-                    solved,
-                    initialInputs);
-            if (!shortage.successful()) {
-                return shortage;
-            }
-        } else if (!solved.actualInputs().isEmpty() || !solved.missingInputs().isEmpty()) {
-            return inexact("diagnostic_input", "executable_model");
-        }
         BigInteger externalTotal = total(solved.externalInputs());
         BigInteger seedTotal = total(solved.modelSeed());
         BigInteger firingTotal = total(solved.firings());
-        BigInteger missingTotal = total(solved.missingInputs());
         if (request.fixedExternalTotal().filter(fixed -> !fixed.equals(externalTotal)).isPresent()) {
             return inexact("fixed_external", externalTotal.toString());
         }
@@ -584,7 +367,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             return inexact("objective_lower", externalTotal + "/" + seedTotal + "/" + firingTotal);
         }
         return switch (pass) {
-            case FeasibilityPass.INSTANCE, ExternalPass.INSTANCE, ShortageMissingPass.INSTANCE -> exact;
+            case FeasibilityPass.INSTANCE, ExternalPass.INSTANCE -> exact;
             case SeedPass(var fixedExternal, var seedLowerBound) -> !externalTotal.equals(fixedExternal) || seedTotal.compareTo(seedLowerBound) < 0 ?
                     inexact("seed_level", externalTotal + "/" + seedTotal) : exact;
             case FiringPass(var fixedExternal, var fixedSeed, var firingLowerBound) -> !externalTotal.equals(fixedExternal) || !seedTotal.equals(fixedSeed) ||
@@ -596,78 +379,13 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                                     .getOrDefault(entry.getKey(), BigInteger.ZERO)
                                     .equals(entry.getValue())) ?
                                             inexact("identity_level", variant.patternIdentity().publicationEncoding()) : exact;
-            case ShortageExternalPass(var fixedMissing) -> !missingTotal.equals(fixedMissing) ?
-                    inexact("shortage_external_level", missingTotal.toString()) : exact;
-            case ShortageSeedPass(var fixedMissing, var fixedExternal, var seedLowerBound) -> !missingTotal.equals(fixedMissing) || !externalTotal.equals(fixedExternal) ||
-                    seedTotal.compareTo(seedLowerBound) < 0 ?
-                            inexact(
-                                    "shortage_seed_level",
-                                    missingTotal + "/" + externalTotal + "/" + seedTotal) :
-                            exact;
-            case ShortageFiringPass(var fixedMissing, var fixedExternal, var fixedSeed, var firingLowerBound) -> !missingTotal.equals(fixedMissing) || !externalTotal.equals(fixedExternal) ||
-                    !seedTotal.equals(fixedSeed) || firingTotal.compareTo(firingLowerBound) < 0 ?
-                            inexact(
-                                    "shortage_firing_level",
-                                    missingTotal + "/" + externalTotal + "/" + seedTotal + "/" + firingTotal) :
-                            exact;
-            case ShortageIdentityPass(var fixedMissing, var fixedExternal, var fixedSeed, var fixedFirings, var fixedCounts, var variant) -> !missingTotal.equals(fixedMissing) ||
-                    !externalTotal.equals(fixedExternal) || !seedTotal.equals(fixedSeed) ||
-                    !firingTotal.equals(fixedFirings) || fixedCounts.entrySet().stream()
-                            .anyMatch(entry -> !solved.firings()
-                                    .getOrDefault(entry.getKey(), BigInteger.ZERO)
-                                    .equals(entry.getValue())) ?
-                                            inexact(
-                                                    "shortage_identity_level",
-                                                    variant.patternIdentity().publicationEncoding()) :
-                                            exact;
-            case ShortageReservePass(var fixedMissing, var fixedExternal, var fixedSeed, var fixedFirings, var fixedCounts, var fixedReserves, var key) -> !missingTotal.equals(fixedMissing) ||
-                    !externalTotal.equals(fixedExternal) || !seedTotal.equals(fixedSeed) ||
-                    !firingTotal.equals(fixedFirings) || fixedCounts.entrySet().stream()
-                            .anyMatch(entry -> !solved.firings()
-                                    .getOrDefault(entry.getKey(), BigInteger.ZERO)
-                                    .equals(entry.getValue())) ||
-                    fixedReserves.entrySet().stream()
-                            .anyMatch(entry -> !initialInputs
-                                    .getOrDefault(entry.getKey(), BigInteger.ZERO)
-                                    .equals(entry.getValue())) ?
-                                            inexact("shortage_reserve_level", key.toString()) : exact;
         };
-    }
-
-    private TrinityAlgorithmResult<Map<AEKey, BigInteger>> verifyShortageInputs(
-                                                                                TrinityCycleFeasibilityRequest request,
-                                                                                SolvedModel solved,
-                                                                                Map<AEKey, BigInteger> requiredInputs) {
-        LinkedHashSet<AEKey> finiteKeys = new LinkedHashSet<>(request.internalKeys());
-        finiteKeys.addAll(this.objectiveBounds.externalReserveKeys(request));
-        finiteKeys.removeAll(request.producibleInputs());
-        LinkedHashMap<AEKey, BigInteger> expectedActual = new LinkedHashMap<>();
-        LinkedHashMap<AEKey, BigInteger> expectedMissing = new LinkedHashMap<>();
-        for (AEKey key : finiteKeys) {
-            BigInteger required = requiredInputs.getOrDefault(key, BigInteger.ZERO);
-            BigInteger available = request.available().getOrDefault(key, BigInteger.ZERO);
-            BigInteger actual = required.min(available);
-            BigInteger missing = required.subtract(actual);
-            if (actual.signum() > 0) {
-                expectedActual.put(key, actual);
-            }
-            if (missing.signum() > 0) {
-                expectedMissing.put(key, missing);
-            }
-        }
-        if (!expectedActual.equals(solved.actualInputs())) {
-            return inexact("shortage_actual", solved.actualInputs().toString());
-        }
-        if (!expectedMissing.equals(solved.missingInputs())) {
-            return inexact("shortage_missing", solved.missingInputs().toString());
-        }
-        return TrinityAlgorithmResult.success(Map.copyOf(requiredInputs));
     }
 
     private OrdinaryModelTemplate createModelTemplate(TrinityCycleFeasibilityRequest request) {
         ExpressionsBasedModel model = new ExpressionsBasedModel();
-        ArrayList<Variable> allVariables = new ArrayList<>();
-        LinkedHashMap<TrinityPatternVariant, Variable> firingVariables = new LinkedHashMap<>();
+        ObjectArrayList<Variable> allVariables = new ObjectArrayList<>();
+        Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, Variable> firingVariables = new Object2ObjectLinkedOpenHashMap<>();
         for (int index = 0; index < request.variants().size(); index++) {
             TrinityPatternVariant variant = request.variants().get(index);
             Variable variable = model.addVariable("firing_" + index)
@@ -675,67 +393,41 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             firingVariables.put(variant, variable);
             allVariables.add(variable);
         }
-        LinkedHashMap<AEKey, Variable> seedVariables = reserveVariables(
+        Object2ObjectLinkedOpenHashMap<AEKey, Variable> seedVariables = reserveVariables(
                 model,
                 allVariables,
                 request.internalKeys(),
                 "seed_");
-        LinkedHashMap<AEKey, Variable> externalVariables = reserveVariables(
+        Object2ObjectLinkedOpenHashMap<AEKey, Variable> externalVariables = reserveVariables(
                 model,
                 allVariables,
                 this.objectiveBounds.externalReserveKeys(request),
                 "external_");
-        LinkedHashMap<AEKey, Variable> actualVariables = new LinkedHashMap<>();
-        LinkedHashMap<AEKey, Variable> missingVariables = new LinkedHashMap<>();
-        if (request.shortageDiagnostic()) {
-            LinkedHashSet<AEKey> finiteKeys = new LinkedHashSet<>(request.internalKeys());
-            finiteKeys.addAll(this.objectiveBounds.externalReserveKeys(request));
-            finiteKeys.removeAll(request.producibleInputs());
-            actualVariables.putAll(reserveVariables(model, allVariables, finiteKeys, "actual_"));
-            missingVariables.putAll(reserveVariables(model, allVariables, finiteKeys, "missing_"));
-            int splitIndex = 0;
-            for (AEKey key : finiteKeys) {
-                Variable required = request.internalKeys().contains(key) ?
-                        seedVariables.get(key) : externalVariables.get(key);
-                model.addExpression("shortage_split_" + splitIndex++)
-                        .set(required, BigInteger.ONE)
-                        .set(actualVariables.get(key), BigInteger.ONE.negate())
-                        .set(missingVariables.get(key), BigInteger.ONE.negate())
-                        .level(BigInteger.ZERO);
-            }
-        }
-        expression(model, "missing_total", missingVariables.values());
         addConservation(model, request, firingVariables, seedVariables, externalVariables);
         expression(model, "seed_total", seedVariables.values());
         expression(model, "external_total", externalVariables.values());
         expression(model, "firing_total", firingVariables.values());
-        LinkedHashMap<TrinityPatternVariant, Integer> firingIndexes = new LinkedHashMap<>();
+        Object2IntMap<TrinityPatternVariant> firingIndexes = new Object2IntLinkedOpenHashMap<>();
         firingVariables.forEach((variant, variable) -> firingIndexes.put(variant, model.indexOf(variable)));
-        LinkedHashMap<AEKey, Integer> seedIndexes = new LinkedHashMap<>();
+        Object2IntMap<AEKey> seedIndexes = new Object2IntLinkedOpenHashMap<>();
         seedVariables.forEach((key, variable) -> seedIndexes.put(key, model.indexOf(variable)));
-        LinkedHashMap<AEKey, Integer> externalIndexes = new LinkedHashMap<>();
+        Object2IntMap<AEKey> externalIndexes = new Object2IntLinkedOpenHashMap<>();
         externalVariables.forEach((key, variable) -> externalIndexes.put(key, model.indexOf(variable)));
-        LinkedHashMap<AEKey, Integer> actualIndexes = new LinkedHashMap<>();
-        actualVariables.forEach((key, variable) -> actualIndexes.put(key, model.indexOf(variable)));
-        LinkedHashMap<AEKey, Integer> missingIndexes = new LinkedHashMap<>();
-        missingVariables.forEach((key, variable) -> missingIndexes.put(key, model.indexOf(variable)));
         return new OrdinaryModelTemplate(
                 model,
                 allVariables.size(),
-                Collections.unmodifiableMap(firingIndexes),
-                Collections.unmodifiableMap(seedIndexes),
-                Collections.unmodifiableMap(externalIndexes),
-                Collections.unmodifiableMap(actualIndexes),
-                Collections.unmodifiableMap(missingIndexes),
+                Object2IntMaps.unmodifiable(firingIndexes),
+                Object2IntMaps.unmodifiable(seedIndexes),
+                Object2IntMaps.unmodifiable(externalIndexes),
                 this.objectiveBounds);
     }
 
-    private static LinkedHashMap<AEKey, Variable> reserveVariables(
-                                                                   ExpressionsBasedModel model,
-                                                                   List<Variable> allVariables,
-                                                                   Set<AEKey> keys,
-                                                                   String prefix) {
-        LinkedHashMap<AEKey, Variable> variables = new LinkedHashMap<>();
+    private static Object2ObjectLinkedOpenHashMap<AEKey, Variable> reserveVariables(
+                                                                                    ExpressionsBasedModel model,
+                                                                                    List<Variable> allVariables,
+                                                                                    Set<AEKey> keys,
+                                                                                    String prefix) {
+        Object2ObjectLinkedOpenHashMap<AEKey, Variable> variables = new Object2ObjectLinkedOpenHashMap<>();
         int index = 0;
         for (AEKey key : keys) {
             Variable variable = model.addVariable(prefix + index++).integer();
@@ -843,9 +535,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         return TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(code, Component.translatable(detail), metadata));
     }
 
-    private sealed interface ModelPass permits FeasibilityPass, ExternalPass, SeedPass, FiringPass, IdentityPass,
-                                       ShortageMissingPass, ShortageExternalPass, ShortageSeedPass, ShortageFiringPass, ShortageIdentityPass,
-                                       ShortageReservePass {}
+    private sealed interface ModelPass permits FeasibilityPass, ExternalPass, SeedPass, FiringPass, IdentityPass {}
 
     private enum FeasibilityPass implements ModelPass {
         INSTANCE
@@ -872,132 +562,43 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
             implements ModelPass {
 
         private IdentityPass {
-            fixedCounts = Collections.unmodifiableMap(new LinkedHashMap<>(fixedCounts));
+            fixedCounts = Collections.unmodifiableMap(new Object2ObjectLinkedOpenHashMap<>(fixedCounts));
         }
     }
 
-    private enum ShortageMissingPass implements ModelPass {
-        INSTANCE
-    }
-
-    private record ShortageExternalPass(BigInteger fixedMissing) implements ModelPass {}
-
-    private record ShortageSeedPass(
-                                    BigInteger fixedMissing,
-                                    BigInteger fixedExternal,
-                                    BigInteger seedLowerBound)
-            implements ModelPass {}
-
-    private record ShortageFiringPass(
-                                      BigInteger fixedMissing,
-                                      BigInteger fixedExternal,
-                                      BigInteger fixedSeed,
-                                      BigInteger firingLowerBound)
-            implements ModelPass {}
-
-    private record ShortageIdentityPass(
-                                        BigInteger fixedMissing,
-                                        BigInteger fixedExternal,
-                                        BigInteger fixedSeed,
-                                        BigInteger fixedFirings,
-                                        Map<TrinityPatternVariant, BigInteger> fixedCounts,
-                                        TrinityPatternVariant variant)
-            implements ModelPass {
-
-        private ShortageIdentityPass {
-            fixedCounts = Collections.unmodifiableMap(new LinkedHashMap<>(fixedCounts));
-        }
-    }
-
-    private record ShortageReservePass(
-                                       BigInteger fixedMissing,
-                                       BigInteger fixedExternal,
-                                       BigInteger fixedSeed,
-                                       BigInteger fixedFirings,
-                                       Map<TrinityPatternVariant, BigInteger> fixedCounts,
-                                       Map<AEKey, BigInteger> fixedReserves,
-                                       AEKey key)
-            implements ModelPass {
-
-        private ShortageReservePass {
-            fixedCounts = Collections.unmodifiableMap(new LinkedHashMap<>(fixedCounts));
-            fixedReserves = Collections.unmodifiableMap(new LinkedHashMap<>(fixedReserves));
-        }
-    }
-
-    /**
-     * Request-private structural template copied for each child objective pass. The base retains only stable variables
-     * and sparse conservation coefficients; every mutable bound and objective is reapplied to the copy.
-     */
     private record OrdinaryModelTemplate(
                                          ExpressionsBasedModel baseModel,
                                          int variableCount,
-                                         Map<TrinityPatternVariant, Integer> firingIndexes,
-                                         Map<AEKey, Integer> seedIndexes,
-                                         Map<AEKey, Integer> externalIndexes,
-                                         Map<AEKey, Integer> actualIndexes,
-                                         Map<AEKey, Integer> missingIndexes,
-                                         TrinityCycleObjectiveBounds objectiveBounds) {
-
-        private OrdinaryModelTemplate {
-            firingIndexes = Collections.unmodifiableMap(new LinkedHashMap<>(firingIndexes));
-            seedIndexes = Collections.unmodifiableMap(new LinkedHashMap<>(seedIndexes));
-            externalIndexes = Collections.unmodifiableMap(new LinkedHashMap<>(externalIndexes));
-            actualIndexes = Collections.unmodifiableMap(new LinkedHashMap<>(actualIndexes));
-            missingIndexes = Collections.unmodifiableMap(new LinkedHashMap<>(missingIndexes));
-        }
+                                         Object2IntMap<TrinityPatternVariant> firingIndexes,
+                                         Object2IntMap<AEKey> seedIndexes,
+                                         Object2IntMap<AEKey> externalIndexes, TrinityCycleObjectiveBounds objectiveBounds) {
 
         private ModelData forPass(TrinityCycleFeasibilityRequest request, ModelPass pass) {
             ExpressionsBasedModel model = this.baseModel.copy();
-            ArrayList<Variable> variables = new ArrayList<>(this.variableCount);
-            for (int index = 0; index < this.variableCount; index++) {
-                variables.add(model.getVariable(index));
-            }
-            LinkedHashMap<TrinityPatternVariant, Variable> firingVariables = new LinkedHashMap<>();
-            this.firingIndexes.forEach((variant, index) -> firingVariables.put(variant, model.getVariable(index)));
-            LinkedHashMap<AEKey, Variable> seedVariables = new LinkedHashMap<>();
-            this.seedIndexes.forEach((key, index) -> seedVariables.put(key, model.getVariable(index)));
-            LinkedHashMap<AEKey, Variable> externalVariables = new LinkedHashMap<>();
-            this.externalIndexes.forEach((key, index) -> externalVariables.put(key, model.getVariable(index)));
-            LinkedHashMap<AEKey, Variable> actualVariables = new LinkedHashMap<>();
-            this.actualIndexes.forEach((key, index) -> actualVariables.put(key, model.getVariable(index)));
-            LinkedHashMap<AEKey, Variable> missingVariables = new LinkedHashMap<>();
-            this.missingIndexes.forEach((key, index) -> missingVariables.put(key, model.getVariable(index)));
-
             BigInteger logicalUpper = request.ordinaryLogicalUpperBound().orElseThrow(() -> new IllegalArgumentException("A signed Trinity system cannot use the ordinary exact model"));
-            firingVariables.forEach((variant, variable) -> {
-                TrinityFiringBounds bounds = request.firingBounds().get(variant);
+            Object2IntMaps.fastForEach(this.firingIndexes, entry -> {
+                Variable variable = model.getVariable(entry.getIntValue());
+                TrinityFiringBounds bounds = request.firingBounds().get(entry.getKey());
                 variable.lower(bounds.lowerInclusive());
                 variable.upper(bounds.upperOr(logicalUpper));
             });
-            seedVariables.forEach((key, variable) -> {
+            Object2IntMaps.fastForEach(this.seedIndexes, entry -> {
+                Variable variable = model.getVariable(entry.getIntValue());
                 variable.lower(BigInteger.ZERO);
-                variable.upper(this.objectiveBounds.reserveUpperBound(request, key, logicalUpper));
+                variable.upper(this.objectiveBounds.reserveUpperBound(request, entry.getKey(), logicalUpper));
             });
-            externalVariables.forEach((key, variable) -> {
+            Object2IntMaps.fastForEach(this.externalIndexes, entry -> {
+                Variable variable = model.getVariable(entry.getIntValue());
                 variable.lower(BigInteger.ZERO);
-                variable.upper(this.objectiveBounds.reserveUpperBound(request, key, logicalUpper));
+                variable.upper(this.objectiveBounds.reserveUpperBound(request, entry.getKey(), logicalUpper));
             });
-            actualVariables.forEach((key, variable) -> {
-                BigInteger requiredUpper = this.objectiveBounds.reserveUpperBound(request, key, logicalUpper);
-                variable.lower(BigInteger.ZERO);
-                variable.upper(request.available().getOrDefault(key, BigInteger.ZERO).min(requiredUpper));
-            });
-            missingVariables.forEach((key, variable) -> {
-                variable.lower(BigInteger.ZERO);
-                variable.upper(this.objectiveBounds.reserveUpperBound(request, key, logicalUpper));
-            });
-
             Expression seedTotal = model.getExpression("seed_total");
             Expression externalTotal = model.getExpression("external_total");
             Expression firingTotal = model.getExpression("firing_total");
-            Expression missingTotal = Objects.requireNonNull(
-                    model.getExpression("missing_total"),
-                    "A Trinity ordinary model requires its missing-input total expression");
             seedTotal.lower(this.objectiveBounds.minimumFirstInternalInput(request)
                     .max(request.seedLowerBound()));
             externalTotal.lower(this.objectiveBounds.minimumFirstExternalInput(request));
-            firingTotal.lower(request.firingLowerBound());
+            firingTotal.lower(request.shortageDiagnostic() ? request.firingLowerBound().max(BigInteger.ONE) : request.firingLowerBound());
             request.fixedExternalTotal().ifPresent(externalTotal::level);
             switch (pass) {
                 case FeasibilityPass.INSTANCE -> {
@@ -1028,7 +629,7 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                     firingTotal.level(fixedFirings);
                     fixedCounts.forEach((fixedVariant, count) -> model
                             .addExpression("fixed_firing_" + request.variants().indexOf(fixedVariant))
-                            .set(firingVariables.get(fixedVariant), BigInteger.ONE)
+                            .set(model.getVariable(this.firingIndexes.getInt(fixedVariant)), BigInteger.ONE)
                             .level(count));
                     BigInteger identityUpper = request.firingBounds().get(variant).upperOr(
                             this.objectiveBounds.identityObjectiveUpperBound(
@@ -1039,142 +640,40 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
                                     fixedCounts,
                                     variant));
                     model.addExpression("identity_objective")
-                            .set(firingVariables.get(variant), BigInteger.ONE)
+                            .set(model.getVariable(this.firingIndexes.getInt(variant)), BigInteger.ONE)
                             .upper(identityUpper)
                             .weight(BigDecimal.ONE.negate());
                 }
-                case ShortageMissingPass.INSTANCE -> missingTotal.weight(BigDecimal.ONE);
-                case ShortageExternalPass(var fixedMissing) -> {
-                    missingTotal.level(fixedMissing);
-                    externalTotal.weight(BigDecimal.ONE);
-                }
-                case ShortageSeedPass(var fixedMissing, var fixedExternal, var seedLowerBound) -> {
-                    missingTotal.level(fixedMissing);
-                    externalTotal.level(fixedExternal);
-                    seedTotal.lower(this.objectiveBounds.minimumFirstInternalInput(request)
-                            .max(request.seedLowerBound())
-                            .max(seedLowerBound));
-                    seedTotal.weight(BigDecimal.ONE);
-                }
-                case ShortageFiringPass(var fixedMissing, var fixedExternal, var fixedSeed, var firingLowerBound) -> {
-                    missingTotal.level(fixedMissing);
-                    externalTotal.level(fixedExternal);
-                    seedTotal.level(fixedSeed);
-                    firingTotal.lower(firingLowerBound.max(request.firingLowerBound()).max(
-                            this.objectiveBounds.conservationFiringLowerBound(
-                                    request,
-                                    fixedExternal,
-                                    fixedSeed)));
-                    firingTotal.weight(BigDecimal.ONE);
-                }
-                case ShortageIdentityPass(var fixedMissing, var fixedExternal, var fixedSeed, var fixedFirings, var fixedCounts, var variant) -> {
-                    missingTotal.level(fixedMissing);
-                    externalTotal.level(fixedExternal);
-                    seedTotal.level(fixedSeed);
-                    firingTotal.level(fixedFirings);
-                    fixedCounts.forEach((fixedVariant, count) -> model
-                            .addExpression("fixed_shortage_firing_" + request.variants().indexOf(fixedVariant))
-                            .set(firingVariables.get(fixedVariant), BigInteger.ONE)
-                            .level(count));
-                    BigInteger identityUpper = request.firingBounds().get(variant).upperOr(
-                            this.objectiveBounds.identityObjectiveUpperBound(
-                                    request,
-                                    fixedExternal,
-                                    fixedSeed,
-                                    fixedFirings,
-                                    fixedCounts,
-                                    variant));
-                    model.addExpression("shortage_identity_objective")
-                            .set(firingVariables.get(variant), BigInteger.ONE)
-                            .upper(identityUpper)
-                            .weight(BigDecimal.ONE.negate());
-                }
-                case ShortageReservePass(var fixedMissing, var fixedExternal, var fixedSeed, var fixedFirings, var fixedCounts, var fixedReserves, var key) -> {
-                    missingTotal.level(fixedMissing);
-                    externalTotal.level(fixedExternal);
-                    seedTotal.level(fixedSeed);
-                    firingTotal.level(fixedFirings);
-                    fixedCounts.forEach((fixedVariant, count) -> model
-                            .addExpression("fixed_reserve_firing_" + request.variants().indexOf(fixedVariant))
-                            .set(firingVariables.get(fixedVariant), BigInteger.ONE)
-                            .level(count));
-                    fixedReserves.forEach((fixedKey, amount) -> requiredVariable(
-                            fixedKey,
-                            seedVariables,
-                            externalVariables).level(amount));
-                    requiredVariable(key, seedVariables, externalVariables).weight(BigDecimal.ONE);
-                }
             }
-            return new ModelData(
-                    model,
-                    List.copyOf(variables),
-                    Collections.unmodifiableMap(firingVariables),
-                    Collections.unmodifiableMap(seedVariables),
-                    Collections.unmodifiableMap(externalVariables),
-                    Collections.unmodifiableMap(actualVariables),
-                    Collections.unmodifiableMap(missingVariables));
-        }
-
-        private static Variable requiredVariable(
-                                                 AEKey key,
-                                                 Map<AEKey, Variable> seedVariables,
-                                                 Map<AEKey, Variable> externalVariables) {
-            Variable variable = seedVariables.get(key);
-            if (variable == null) {
-                variable = externalVariables.get(key);
-            }
-            if (variable == null) {
-                throw new IllegalArgumentException("A Trinity shortage reserve key has no model axis");
-            }
-            return variable;
+            return new ModelData(model, this);
         }
     }
 
-    private record ModelData(
-                             ExpressionsBasedModel model,
-                             List<Variable> variables,
-                             Map<TrinityPatternVariant, Variable> firingVariables,
-                             Map<AEKey, Variable> seedVariables,
-                             Map<AEKey, Variable> externalVariables,
-                             Map<AEKey, Variable> actualVariables,
-                             Map<AEKey, Variable> missingVariables) {
+    private record ModelData(ExpressionsBasedModel model, OrdinaryModelTemplate template) {
 
         private SolvedModel decode(List<BigInteger> values) {
-            LinkedHashMap<Variable, BigInteger> byVariable = new LinkedHashMap<>();
-            for (int index = 0; index < variables.size(); index++) {
-                byVariable.put(variables.get(index), values.get(index));
-            }
-            LinkedHashMap<TrinityPatternVariant, BigInteger> firings = new LinkedHashMap<>();
-            firingVariables.forEach((variant, variable) -> putPositive(firings, variant, byVariable.get(variable)));
-            return new SolvedModel(
-                    Collections.unmodifiableMap(firings),
-                    positiveAmounts(seedVariables, byVariable),
-                    positiveAmounts(externalVariables, byVariable),
-                    positiveAmounts(actualVariables, byVariable),
-                    positiveAmounts(missingVariables, byVariable));
+            Object2ObjectLinkedOpenHashMap<TrinityPatternVariant, BigInteger> firings = new Object2ObjectLinkedOpenHashMap<>();
+            Object2IntMaps.fastForEach(this.template.firingIndexes(), entry -> putPositive(firings, entry.getKey(), values.get(entry.getIntValue())));
+            return new SolvedModel(Collections.unmodifiableMap(firings),
+                    positiveAmounts(this.template.seedIndexes(), values),
+                    positiveAmounts(this.template.externalIndexes(), values));
         }
 
-        private static Map<AEKey, BigInteger> positiveAmounts(
-                                                              Map<AEKey, Variable> variables,
-                                                              Map<Variable, BigInteger> values) {
-            LinkedHashMap<AEKey, BigInteger> positive = new LinkedHashMap<>();
-            variables.forEach((key, variable) -> putPositive(positive, key, values.get(variable)));
+        private static Map<AEKey, BigInteger> positiveAmounts(Object2IntMap<AEKey> indexes, List<BigInteger> values) {
+            Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> positive = new Object2ObjectLinkedOpenHashMap<>();
+            Object2IntMaps.fastForEach(indexes, entry -> putPositive(positive, entry.getKey(), values.get(entry.getIntValue())));
             return Collections.unmodifiableMap(positive);
         }
 
         private static <K> void putPositive(Map<K, BigInteger> target, K key, BigInteger value) {
-            if (value.signum() > 0) {
-                target.put(key, value);
-            }
+            if (value.signum() > 0) target.put(key, value);
         }
     }
 
     private record SolvedModel(
                                Map<TrinityPatternVariant, BigInteger> firings,
                                Map<AEKey, BigInteger> modelSeed,
-                               Map<AEKey, BigInteger> externalInputs,
-                               Map<AEKey, BigInteger> actualInputs,
-                               Map<AEKey, BigInteger> missingInputs) {}
+                               Map<AEKey, BigInteger> externalInputs) {}
 
     private record SolvedPass(SolvedModel model, boolean objectiveProved) {}
 

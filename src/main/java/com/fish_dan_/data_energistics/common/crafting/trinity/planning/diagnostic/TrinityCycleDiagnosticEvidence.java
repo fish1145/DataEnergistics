@@ -176,6 +176,20 @@ public final class TrinityCycleDiagnosticEvidence {
         return this.localOrder;
     }
 
+    /**
+     * Returns immutable one-time prefix evidence; display-only callers must not multiply it by repetitions.
+     */
+    public List<TrinityVariantFiring> prefixOrder() {
+        return this.prefixOrder;
+    }
+
+    /**
+     * Returns immutable one-time suffix evidence, after all repeats; this does not expose an executable plan.
+     */
+    public List<TrinityVariantFiring> suffixOrder() {
+        return this.suffixOrder;
+    }
+
     public BigInteger repetitions() {
         return this.repetitions;
     }

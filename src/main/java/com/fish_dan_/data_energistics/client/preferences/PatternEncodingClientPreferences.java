@@ -21,18 +21,8 @@ import java.util.Optional;
  */
 public interface PatternEncodingClientPreferences {
 
-    int PRESENT_UPLOAD_ENABLED = 1;
-    int PRESENT_PATTERN_SOURCE_ENABLED = 1 << 1;
-    int PRESENT_LAST_WORKSTATION = 1 << 2;
-    int PRESENT_PREVIEW_PANEL = 1 << 3;
-
     /**
-     * Returns a bit mask describing which global values already exist in the local file.
-     */
-    int presentMask();
-
-    /**
-     * Returns the local upload preference, defaulting to enabled before migration.
+     * Returns the local upload preference, defaulting to enabled when absent.
      */
     boolean uploadEnabled();
 
@@ -42,7 +32,7 @@ public interface PatternEncodingClientPreferences {
     void setUploadEnabled(boolean enabled);
 
     /**
-     * Returns the local source-writing preference, defaulting to enabled before migration.
+     * Returns the local source-writing preference, defaulting to enabled when absent.
      */
     boolean patternSourceEnabled();
 
@@ -52,7 +42,7 @@ public interface PatternEncodingClientPreferences {
     void setPatternSourceEnabled(boolean enabled);
 
     /**
-     * Returns the last selected workstation, or {@code null} when explicitly cleared or not migrated.
+     * Returns the last selected workstation, or {@code null} when cleared or absent.
      */
     @Nullable
     ResourceLocation lastWorkstation();
@@ -86,14 +76,6 @@ public interface PatternEncodingClientPreferences {
      * Persists the provider-detail panel position without synchronizing it to the server.
      */
     void setProviderDetailPanelPosition(int relativeX, int relativeY);
-
-    /**
-     * Fills only fields that are still absent locally from one validated legacy server snapshot.
-     *
-     * @return a mask containing the fields that were filled
-     */
-    int applyMissingLegacyValues(int fieldMask, boolean uploadEnabled, boolean patternSourceEnabled,
-                                 @Nullable ResourceLocation lastWorkstation, int offsetX, int offsetY);
 
     /**
      * Selects the isolated server profile that subsequent statistic operations use.

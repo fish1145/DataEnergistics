@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.math.BigInteger;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -37,18 +37,15 @@ public record TrinityPatternVariant(
      * Copies all planner values and verifies the retained transition equation.
      */
     public TrinityPatternVariant {
-        if (patternIdentity == null || primaryOutput == null || ordinal < 0 ||
-                alternativeOrdinals == null || bindings == null ||
-                inputs == null || declaredOutputs == null || outputs == null || netChange == null ||
-                alternativeOrdinals.size() != bindings.size()) {
+        if (ordinal < 0 || alternativeOrdinals.size() != bindings.size()) {
             throw new IllegalArgumentException("A Trinity pattern variant requires one legal binding per input slot");
         }
         alternativeOrdinals = List.copyOf(alternativeOrdinals);
         bindings = List.copyOf(bindings);
         for (int slot = 0; slot < bindings.size(); slot++) {
             TrinityBoundPatternInput binding = bindings.get(slot);
-            Integer alternative = alternativeOrdinals.get(slot);
-            if (binding == null || alternative == null || binding.slotIndex() != slot ||
+            int alternative = alternativeOrdinals.get(slot);
+            if (binding.slotIndex() != slot ||
                     binding.alternativeIndex() != alternative) {
                 throw new IllegalArgumentException("A Trinity pattern variant binding order is inconsistent");
             }
@@ -73,29 +70,6 @@ public record TrinityPatternVariant(
     }
 
     /**
-     * Creates a synthetic variant whose supplied outputs are all pattern-declared outputs.
-     */
-    public TrinityPatternVariant(TrinityPatternIdentity patternIdentity,
-                                 AEKey primaryOutput,
-                                 int ordinal,
-                                 List<Integer> alternativeOrdinals,
-                                 List<TrinityBoundPatternInput> bindings,
-                                 Map<AEKey, BigInteger> inputs,
-                                 Map<AEKey, BigInteger> outputs,
-                                 Map<AEKey, BigInteger> netChange) {
-        this(
-                patternIdentity,
-                primaryOutput,
-                ordinal,
-                alternativeOrdinals,
-                bindings,
-                inputs,
-                outputs,
-                outputs,
-                netChange);
-    }
-
-    /**
      * Constructs one exact transition from its selected bindings and declared pattern outputs.
      *
      * @param patternIdentity     stable parent pattern semantics
@@ -112,12 +86,9 @@ public record TrinityPatternVariant(
                                                List<Integer> alternativeOrdinals,
                                                List<TrinityBoundPatternInput> bindings,
                                                List<GenericStack> declaredOutputs) {
-        if (alternativeOrdinals == null || bindings == null || declaredOutputs == null) {
-            throw new IllegalArgumentException("A Trinity pattern variant requires complete creation inputs");
-        }
-        LinkedHashMap<AEKey, BigInteger> inputs = new LinkedHashMap<>();
-        LinkedHashMap<AEKey, BigInteger> declared = new LinkedHashMap<>();
-        LinkedHashMap<AEKey, BigInteger> outputs = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> inputs = new Object2ObjectLinkedOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> declared = new Object2ObjectLinkedOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> outputs = new Object2ObjectLinkedOpenHashMap<>();
         for (TrinityBoundPatternInput binding : bindings) {
             merge(inputs, binding.template().what(), binding.consumedAmount());
             if (binding.remainingKey() != null) {
@@ -151,7 +122,7 @@ public record TrinityPatternVariant(
     }
 
     private static Map<AEKey, BigInteger> copyPositive(Map<AEKey, BigInteger> source, String role) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> copied = new Object2ObjectLinkedOpenHashMap<>();
         source.forEach((key, amount) -> {
             if (key == null || amount == null || amount.signum() <= 0) {
                 throw new IllegalArgumentException("Trinity pattern variant " + role + " must be positive");
@@ -162,7 +133,7 @@ public record TrinityPatternVariant(
     }
 
     private static Map<AEKey, BigInteger> copySignedNonZero(Map<AEKey, BigInteger> source) {
-        LinkedHashMap<AEKey, BigInteger> copied = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> copied = new Object2ObjectLinkedOpenHashMap<>();
         source.forEach((key, amount) -> {
             if (key == null || amount == null || amount.signum() == 0) {
                 throw new IllegalArgumentException("Trinity pattern variant net change must be non-zero");
@@ -174,7 +145,7 @@ public record TrinityPatternVariant(
 
     private static Map<AEKey, BigInteger> calculateNetChange(Map<AEKey, BigInteger> inputs,
                                                              Map<AEKey, BigInteger> outputs) {
-        LinkedHashMap<AEKey, BigInteger> net = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> net = new Object2ObjectLinkedOpenHashMap<>();
         inputs.forEach((key, amount) -> merge(net, key, amount.negate()));
         outputs.forEach((key, amount) -> merge(net, key, amount));
         net.entrySet().removeIf(entry -> entry.getValue().signum() == 0);

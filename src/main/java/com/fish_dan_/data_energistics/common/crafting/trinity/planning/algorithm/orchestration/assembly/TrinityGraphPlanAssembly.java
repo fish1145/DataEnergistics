@@ -43,36 +43,4 @@ public record TrinityGraphPlanAssembly(
                                        TrinityPlanQuality quality,
                                        Map<AEKey, BigInteger> retainedSeed,
                                        Map<AEKey, BigInteger> retainedSeedFinal,
-                                       int seedRefinementPasses) {
-
-    /**
-     * Compatibility constructor for exact assembly paths.
-     */
-    public TrinityGraphPlanAssembly(
-                                    Map<AEKey, BigInteger> initialInputs,
-                                    Map<TrinityPatternIdentity, BigInteger> patternFirings,
-                                    List<TrinityPlanStage> stages,
-                                    List<Integer> stageOrder,
-                                    List<TrinityCycleRepeatBlock> repeatBlocks,
-                                    Map<AEKey, BigInteger> minimumSeed,
-                                    Map<AEKey, BigInteger> netChange,
-                                    Map<AEKey, BigInteger> stackRequests,
-                                    int scheduleStates,
-                                    long mipNanos) {
-        this(
-                initialInputs,
-                patternFirings,
-                stages,
-                stageOrder,
-                repeatBlocks,
-                minimumSeed,
-                netChange,
-                stackRequests,
-                scheduleStates,
-                mipNanos,
-                TrinityPlanQuality.PROVED_OPTIMAL,
-                Map.of(),
-                Map.of(),
-                0);
-    }
-}
+                                       int seedRefinementPasses) {}

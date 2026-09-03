@@ -14,16 +14,19 @@ import appeng.api.inventories.InternalInventory;
 import appeng.api.stacks.AEItemKey;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 import appeng.util.inv.AppEngInternalInventory;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntAVLTreeSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectRBTreeMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.UUID;
 
 /**
@@ -38,14 +41,11 @@ import java.util.UUID;
 public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
     private static final int CURRENT_STATE_VERSION = 4;
-    private static final int LEGACY_V3_STATE_VERSION = 3;
+    private static final int POWER_OF_TWO_CAPACITY_STATE_VERSION = 3;
     private static final String AMOUNT_TAG = "amount";
     private static final String CORE_ID_TAG = "core_id";
     private static final String HOST_ID_TAG = "host_id";
     private static final String ITEMS_TAG = "items";
-    private static final String LEGACY_PATTERNS_TAG = "patterns";
-    private static final String LEGACY_PENDING_OUTPUTS_TAG = "pending_outputs";
-    private static final String LEGACY_QUEUES_TAG = "queues";
     private static final String PATTERN_CAPACITY_TAG = "pattern_capacity";
     private static final String PATTERN_REFUNDS_TAG = "patterns";
     private static final String PROTOTYPE_TAG = "prototype";
@@ -56,34 +56,6 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     private static final String STACK_TAG = "stack";
     private static final String VERSION_TAG = "version";
 
-    /**
-     * Identifies the validated top-level persistence shape and whether it must be rewritten canonically.
-     */
-    private enum PersistedSchema {
-
-        CURRENT(false),
-        CURRENT_UNVERSIONED(true),
-        LEGACY_V3(true);
-
-        /**
-         * Records whether the owning block entity must persist the canonical current schema after a successful load.
-         */
-        private final boolean rewriteRequired;
-
-        PersistedSchema(boolean rewriteRequired) {
-            this.rewriteRequired = rewriteRequired;
-        }
-
-        boolean rewriteRequired() {
-            return this.rewriteRequired;
-        }
-    }
-
-    /**
-     * Captures the persisted physical capacity and whether loading it requires a same-tier capacity migration.
-     */
-    private record PersistedCapacity(int value, boolean migrationRequired) {}
-
     private final int patternCapacity;
     private final PatternDecoder decoder;
     private final TrinityPatternRecipeIdLookup recipeIdResolvers;
@@ -92,35 +64,35 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     /**
      * Constant-time slot lookup for stable occupied-directory entries.
      */
-    private Map<Integer, CachedPattern> cachedPatterns = new HashMap<>();
+    private Int2ObjectMap<CachedPattern> cachedPatterns = new Int2ObjectOpenHashMap<>();
     /**
      * Slots retaining an encoded pattern, ordered for reload and persistence without a capacity scan.
      */
-    private TreeSet<Integer> occupiedPatternSlots = new TreeSet<>();
+    private IntAVLTreeSet occupiedPatternSlots = new IntAVLTreeSet();
     /**
      * Slots with at least one queued group, ordered to preserve deterministic execution.
      */
-    private TreeSet<Integer> queuedSlots = new TreeSet<>();
+    private IntAVLTreeSet queuedSlots = new IntAVLTreeSet();
     /**
      * Slots with at least one pending output route, ordered for sparse persistence and routing.
      */
-    private TreeSet<Integer> pendingOutputSlots = new TreeSet<>();
+    private IntAVLTreeSet pendingOutputSlots = new IntAVLTreeSet();
     /**
      * Per-host working physical slots combine queued inputs and pending outputs for sparse host scans.
      */
-    private Map<UUID, TreeSet<Integer>> workingSlotsByHost = new HashMap<>();
+    private Map<UUID, IntAVLTreeSet> workingSlotsByHost = new Object2ObjectOpenHashMap<>();
     /**
      * Per-host output slot indexes isolate sleeping routes after a movable core changes hosts.
      */
-    private Map<UUID, TreeSet<Integer>> pendingOutputSlotsByHost = new HashMap<>();
+    private Map<UUID, IntAVLTreeSet> pendingOutputSlotsByHost = new Object2ObjectOpenHashMap<>();
     /**
      * Installed patterns cleared for refund but not yet confirmed by an external destination.
      */
-    private List<PatternRefundEntry> patternRefundOutbox = new ArrayList<>();
+    private List<PatternRefundEntry> patternRefundOutbox = new ObjectArrayList<>();
     /**
      * Host-isolated FIFO entries cleared for refund but not yet confirmed by an external destination.
      */
-    private Map<UUID, ArrayList<RetainedRefundEntry>> retainedRefundOutboxByHost = new TreeMap<>();
+    private Map<UUID, ObjectArrayList<RetainedRefundEntry>> retainedRefundOutboxByHost = new Object2ObjectRBTreeMap<>();
     private final InternalInventory patternInventory = new PatternInventory();
 
     private UUID coreId;
@@ -170,7 +142,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         this.decoder = decoder;
         this.recipeIdResolvers = recipeIdResolvers;
         this.changeListener = changeListener;
-        this.slots = new ArrayList<>(patternCapacity);
+        this.slots = new ObjectArrayList<>(patternCapacity);
         for (int slot = 0; slot < patternCapacity; slot++) {
             this.slots.add(newSlot(slot));
         }
@@ -342,20 +314,20 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
     @Override
     public List<Integer> pendingOutputSlots(UUID hostId) {
-        TreeSet<Integer> slots = this.pendingOutputSlotsByHost.get(hostId);
+        IntAVLTreeSet slots = this.pendingOutputSlotsByHost.get(hostId);
         return slots == null ? List.of() : List.copyOf(slots);
     }
 
     @Override
     public List<Integer> workingSlots(UUID hostId) {
-        TreeSet<Integer> slots = this.workingSlotsByHost.get(hostId);
+        IntAVLTreeSet slots = this.workingSlotsByHost.get(hostId);
         return slots == null ? List.of() : List.copyOf(slots);
     }
 
     @Override
     public boolean isSlotWorking(UUID hostId, int slot) {
         checkSlot(slot);
-        TreeSet<Integer> slots = this.workingSlotsByHost.get(hostId);
+        IntAVLTreeSet slots = this.workingSlotsByHost.get(hostId);
         return slots != null && slots.contains(slot);
     }
 
@@ -371,7 +343,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
     @Override
     public boolean hasPendingRefund(UUID hostId) {
-        ArrayList<RetainedRefundEntry> entries = this.retainedRefundOutboxByHost.get(hostId);
+        ObjectArrayList<RetainedRefundEntry> entries = this.retainedRefundOutboxByHost.get(hostId);
         return entries != null && !entries.isEmpty();
     }
 
@@ -383,8 +355,8 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         if (hasWork()) {
             return new ReversiblePatternRefundTransaction(-1L, List.of(), List.of(), 0, true);
         }
-        ArrayList<PatternRefundSlot> capturedSlots = new ArrayList<>(this.occupiedPatternSlots.size());
-        ArrayList<PatternRefundEntry> offeredPatterns = new ArrayList<>(this.patternRefundOutbox);
+        ObjectArrayList<PatternRefundSlot> capturedSlots = new ObjectArrayList<>(this.occupiedPatternSlots.size());
+        ObjectArrayList<PatternRefundEntry> offeredPatterns = new ObjectArrayList<>(this.patternRefundOutbox);
         int outboxSize = offeredPatterns.size();
         for (int slot : this.occupiedPatternSlots) {
             TrinityPatternSlot patternSlot = this.slots.get(slot);
@@ -411,9 +383,6 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
     @Override
     public RefundTransaction prepareRefund(UUID hostId) {
-        if (hostId == null) {
-            throw new IllegalArgumentException("A host-scoped Trinity refund requires a host UUID");
-        }
         return beginRefund(captureRefundState(hostId));
     }
 
@@ -489,7 +458,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
      */
     public void writeRetainedWorkToTag(CompoundTag data, HolderLookup.Provider registries) {
         ensureNoActiveRefundTransaction();
-        TreeSet<Integer> retainedSlots = new TreeSet<>(this.queuedSlots);
+        IntAVLTreeSet retainedSlots = new IntAVLTreeSet(this.queuedSlots);
         retainedSlots.addAll(this.pendingOutputSlots);
         if (retainedSlots.isEmpty() &&
                 this.patternRefundOutbox.isEmpty() &&
@@ -515,11 +484,11 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     }
 
     /**
-     * Hydrates a pristine core and reports whether a validated legacy shape must be rewritten as the current schema.
+     * Hydrates a pristine core and reports a 3.1.3 upgrade or unavailable pattern work moved into the refund outbox.
      *
      * @param data       source block-entity state
      * @param registries item component registry access
-     * @return whether the accepted state used a legacy persistence shape
+     * @return whether the accepted state must be persisted in its current form
      */
     public boolean hydrateFromTagAndReportMigration(CompoundTag data, HolderLookup.Provider registries) {
         if (this.stateRevision != 0L || this.revision != 0L || !persistentSlots().isEmpty()) {
@@ -534,11 +503,11 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     }
 
     /**
-     * Restores an already-live core and reports whether the accepted state used a legacy persistence shape.
+     * Restores a live core and reports a 3.1.3 upgrade or unavailable pattern work moved into the refund outbox.
      *
      * @param data       source block-entity state
      * @param registries item component registry access
-     * @return whether the accepted state must be rewritten as the current schema
+     * @return whether the accepted state must be persisted in its current form
      */
     public boolean readFromTagAndReportMigration(CompoundTag data, HolderLookup.Provider registries) {
         return applyPersistedState(data, registries, true);
@@ -554,28 +523,28 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
             }
             return false;
         }
-        PersistedSchema schema = readPersistedSchema(data);
-        PersistedCapacity persistedCapacity = validatePersistedCapacity(data, schema);
+        int version = validatePersistedSchema(data);
+        int persistedCapacity = validatePersistedCapacity(data, version);
         UUID loadedId = data.getUUID(CORE_ID_TAG);
         boolean identityChanged = !this.coreId.equals(loadedId);
-        Map<Integer, TrinityPatternSlot> loadedSlots = readSlots(requiredCompoundList(data, SLOTS_TAG), registries, loadedId);
+        Int2ObjectMap<TrinityPatternSlot> loadedSlots = readSlots(requiredCompoundList(data, SLOTS_TAG), registries, loadedId);
         RefundOutbox loadedOutbox = readRefundOutbox(data, registries);
-        validatePersistedSlotBounds(loadedSlots, loadedOutbox, persistedCapacity.value());
+        validatePersistedSlotBounds(loadedSlots, loadedOutbox, persistedCapacity);
         InvalidPatternWorkMigration invalidPatternWorkMigration = migrateInvalidLoadedPatternWork(
                 loadedSlots,
                 loadedOutbox);
         loadedOutbox = invalidPatternWorkMigration.outbox();
 
-        TreeSet<Integer> loadedOccupiedSlots = occupiedSlots(loadedSlots.values());
-        TreeSet<Integer> changedPatternSlots = changedPatternSlots(loadedSlots, loadedOccupiedSlots);
+        IntAVLTreeSet loadedOccupiedSlots = occupiedSlots(loadedSlots.values());
+        IntAVLTreeSet changedPatternSlots = changedPatternSlots(loadedSlots, loadedOccupiedSlots);
         boolean patternDirectoryChanged = !changedPatternSlots.isEmpty();
         long nextDirectoryRevision = patternDirectoryChanged ? Math.incrementExact(this.revision) : this.revision;
         long nextStateRevision = Math.incrementExact(this.stateRevision);
         WorkIndexes loadedIndexes = createWorkIndexes(loadedSlots.values());
-        TreeSet<Integer> changedSlots = persistentSlots();
+        IntAVLTreeSet changedSlots = persistentSlots();
         changedSlots.addAll(loadedSlots.keySet());
-        TreeSet<Integer> changedWorkSlots = new TreeSet<>();
-        ArrayList<SlotApplication> slotApplications = new ArrayList<>(changedSlots.size());
+        IntAVLTreeSet changedWorkSlots = new IntAVLTreeSet();
+        ObjectArrayList<SlotApplication> slotApplications = new ObjectArrayList<>(changedSlots.size());
         for (int slot : changedSlots) {
             TrinityPatternSlot loadedSlot = loadedSlots.computeIfAbsent(slot, this::newDetachedSlot);
             TrinityPatternSlot targetSlot = this.slots.get(slot);
@@ -586,9 +555,9 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
             }
         }
 
-        Map<Integer, CachedPattern> nextCachedPatterns = new HashMap<>(this.cachedPatterns);
-        ArrayList<CachedRebind> preparedRebinds = new ArrayList<>(loadedOccupiedSlots.size());
-        TreeSet<Integer> changedRuntimeBindings = new TreeSet<>();
+        Int2ObjectMap<CachedPattern> nextCachedPatterns = new Int2ObjectOpenHashMap<>(this.cachedPatterns);
+        ObjectArrayList<CachedRebind> preparedRebinds = new ObjectArrayList<>(loadedOccupiedSlots.size());
+        IntAVLTreeSet changedRuntimeBindings = new IntAVLTreeSet();
         for (int slot : changedPatternSlots) {
             TrinityPatternSlot loadedSlot = loadedSlots.get(slot);
             if (loadedSlot.pattern().isEmpty()) {
@@ -621,7 +590,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         PatternCacheSnapshot nextPatternCacheSnapshot = this.patternCacheSnapshot;
         if (patternDirectoryChanged) {
             nextOccupiedSlotSnapshot = List.copyOf(loadedOccupiedSlots);
-            ArrayList<CachedPattern> orderedPatterns = new ArrayList<>(nextOccupiedSlotSnapshot.size());
+            ObjectArrayList<CachedPattern> orderedPatterns = new ObjectArrayList<>(nextOccupiedSlotSnapshot.size());
             for (int slot : nextOccupiedSlotSnapshot) {
                 CachedPattern cached = nextCachedPatterns.get(slot);
                 if (cached == null) {
@@ -659,16 +628,14 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
                 notifyChange(new TrinityPatternSlot.Change(slot, TrinityPatternSlot.ChangeKind.WORK));
             }
         }
-        return schema.rewriteRequired() ||
-                persistedCapacity.migrationRequired() ||
-                invalidPatternWorkMigration.migrated();
+        return version == POWER_OF_TWO_CAPACITY_STATE_VERSION || invalidPatternWorkMigration.migrated();
     }
 
-    private TreeSet<Integer> changedPatternSlots(Map<Integer, TrinityPatternSlot> loadedSlots,
-                                                 Set<Integer> loadedOccupiedSlots) {
-        TreeSet<Integer> changed = new TreeSet<>(this.occupiedPatternSlots);
+    private IntAVLTreeSet changedPatternSlots(Int2ObjectMap<TrinityPatternSlot> loadedSlots,
+                                              IntSet loadedOccupiedSlots) {
+        IntAVLTreeSet changed = new IntAVLTreeSet(this.occupiedPatternSlots);
         changed.addAll(loadedOccupiedSlots);
-        TreeSet<Integer> retained = new TreeSet<>(this.occupiedPatternSlots);
+        IntAVLTreeSet retained = new IntAVLTreeSet(this.occupiedPatternSlots);
         retained.retainAll(loadedOccupiedSlots);
         changed.removeAll(retained);
         for (int slot : retained) {
@@ -684,16 +651,16 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
      * any live core state is replaced.
      */
     private static InvalidPatternWorkMigration migrateInvalidLoadedPatternWork(
-                                                                               Map<Integer, TrinityPatternSlot> loadedSlots,
+                                                                               Int2ObjectMap<TrinityPatternSlot> loadedSlots,
                                                                                RefundOutbox loadedOutbox) {
-        ArrayList<InvalidPatternWorkCapture> captures = new ArrayList<>();
-        for (int slotIndex : new TreeSet<>(loadedSlots.keySet())) {
+        ObjectArrayList<InvalidPatternWorkCapture> captures = new ObjectArrayList<>();
+        for (int slotIndex : new IntAVLTreeSet(loadedSlots.keySet())) {
             TrinityPatternSlot slot = loadedSlots.get(slotIndex);
             if (!hasInvalidPatternWork(slot)) {
                 continue;
             }
             TrinityPatternSlot.WorkState work = slot.captureWorkState();
-            ArrayList<RetainedRefundOffer> offers = new ArrayList<>();
+            ObjectArrayList<RetainedRefundOffer> offers = new ObjectArrayList<>();
             appendWorkRefundOffers(slotIndex, work, null, offers);
             captures.add(new InvalidPatternWorkCapture(slot, offers));
         }
@@ -752,10 +719,10 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     }
 
     private RefundState captureRefundState(@Nullable UUID routeHostId) {
-        ArrayList<RetainedRefundOffer> offeredEntries = new ArrayList<>();
+        ObjectArrayList<RetainedRefundOffer> offeredEntries = new ObjectArrayList<>();
         appendRetainedOutboxOffers(routeHostId, offeredEntries);
         int existingOutboxEntryCount = offeredEntries.size();
-        ArrayList<TrinityPatternSlot.WorkState> capturedSlots = new ArrayList<>(this.patternCapacity);
+        ObjectArrayList<TrinityPatternSlot.WorkState> capturedSlots = new ObjectArrayList<>(this.patternCapacity);
         for (int slot = 0; slot < this.patternCapacity; slot++) {
             TrinityPatternSlot.WorkState captured = this.slots.get(slot).captureWorkState();
             capturedSlots.add(captured);
@@ -803,7 +770,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
     private void appendRetainedOutboxOffers(@Nullable UUID hostId, List<RetainedRefundOffer> offers) {
         if (hostId != null) {
-            ArrayList<RetainedRefundEntry> entries = this.retainedRefundOutboxByHost.get(hostId);
+            ObjectArrayList<RetainedRefundEntry> entries = this.retainedRefundOutboxByHost.get(hostId);
             if (entries != null) {
                 for (RetainedRefundEntry entry : entries) {
                     offers.add(new RetainedRefundOffer(hostId, entry));
@@ -811,27 +778,27 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
             }
             return;
         }
-        for (Map.Entry<UUID, ArrayList<RetainedRefundEntry>> group : this.retainedRefundOutboxByHost.entrySet()) {
+        for (Map.Entry<UUID, ObjectArrayList<RetainedRefundEntry>> group : this.retainedRefundOutboxByHost.entrySet()) {
             for (RetainedRefundEntry entry : group.getValue()) {
                 offers.add(new RetainedRefundOffer(group.getKey(), entry));
             }
         }
     }
 
-    private static Map<UUID, ArrayList<RetainedRefundEntry>> copyRetainedRefundOutbox(
-                                                                                      Map<UUID, ArrayList<RetainedRefundEntry>> source) {
-        TreeMap<UUID, ArrayList<RetainedRefundEntry>> copy = new TreeMap<>();
-        for (Map.Entry<UUID, ArrayList<RetainedRefundEntry>> group : source.entrySet()) {
-            copy.put(group.getKey(), new ArrayList<>(group.getValue()));
+    private static Map<UUID, ObjectArrayList<RetainedRefundEntry>> copyRetainedRefundOutbox(
+                                                                                            Map<UUID, ObjectArrayList<RetainedRefundEntry>> source) {
+        Object2ObjectRBTreeMap<UUID, ObjectArrayList<RetainedRefundEntry>> copy = new Object2ObjectRBTreeMap<>();
+        for (Map.Entry<UUID, ObjectArrayList<RetainedRefundEntry>> group : source.entrySet()) {
+            copy.put(group.getKey(), new ObjectArrayList<>(group.getValue()));
         }
         return copy;
     }
 
     private static void appendRetainedRefundEntries(
-                                                    Map<UUID, ArrayList<RetainedRefundEntry>> outbox,
+                                                    Map<UUID, ObjectArrayList<RetainedRefundEntry>> outbox,
                                                     List<RetainedRefundOffer> offers) {
         for (RetainedRefundOffer offer : offers) {
-            outbox.computeIfAbsent(offer.hostId(), ignored -> new ArrayList<>()).add(offer.entry());
+            outbox.computeIfAbsent(offer.hostId(), ignored -> new ObjectArrayList<>()).add(offer.entry());
         }
     }
 
@@ -845,7 +812,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     private void removeRetainedRefundEntriesFromTail(List<RetainedRefundOffer> offers) {
         for (int index = offers.size() - 1; index >= 0; index--) {
             RetainedRefundOffer offer = offers.get(index);
-            ArrayList<RetainedRefundEntry> entries = this.retainedRefundOutboxByHost.get(offer.hostId());
+            ObjectArrayList<RetainedRefundEntry> entries = this.retainedRefundOutboxByHost.get(offer.hostId());
             if (entries == null || entries.isEmpty()) {
                 throw new IllegalStateException("Missing Trinity retained refund outbox entry for host " + offer.hostId());
             }
@@ -878,7 +845,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     }
 
     private void removeDeliveredRetainedRefund(RetainedRefundOffer offer) {
-        ArrayList<RetainedRefundEntry> entries = this.retainedRefundOutboxByHost.get(offer.hostId());
+        ObjectArrayList<RetainedRefundEntry> entries = this.retainedRefundOutboxByHost.get(offer.hostId());
         if (entries == null || entries.isEmpty()) {
             throw new IllegalStateException("Missing delivered Trinity retained refund for host " + offer.hostId());
         }
@@ -894,7 +861,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     }
 
     private void replaceFirstRetainedRefund(RetainedRefundOffer offer, TrinityItemAmount remaining) {
-        ArrayList<RetainedRefundEntry> entries = this.retainedRefundOutboxByHost.get(offer.hostId());
+        ObjectArrayList<RetainedRefundEntry> entries = this.retainedRefundOutboxByHost.get(offer.hostId());
         if (entries == null || entries.isEmpty() || !entries.get(0).matches(offer.entry())) {
             throw new IllegalStateException("Trinity retained refund order changed for host " + offer.hostId());
         }
@@ -976,11 +943,11 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         return start;
     }
 
-    private Map<Integer, TrinityPatternSlot> readSlots(
-                                                       ListTag entries,
-                                                       HolderLookup.Provider registries,
-                                                       UUID loadedId) {
-        HashMap<Integer, TrinityPatternSlot> loaded = new HashMap<>();
+    private Int2ObjectMap<TrinityPatternSlot> readSlots(
+                                                        ListTag entries,
+                                                        HolderLookup.Provider registries,
+                                                        UUID loadedId) {
+        Int2ObjectOpenHashMap<TrinityPatternSlot> loaded = new Int2ObjectOpenHashMap<>();
         for (int index = 0; index < entries.size(); index++) {
             TrinityPatternSlot slot = TrinityPatternSlot.readFromTag(
                     entries.getCompound(index), this.decoder, this.recipeIdResolvers, change -> {}, registries);
@@ -1022,17 +989,15 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         }
     }
 
-    private PersistedCapacity validatePersistedCapacity(CompoundTag data, PersistedSchema schema) {
+    private int validatePersistedCapacity(CompoundTag data, int version) {
         if (!data.contains(PATTERN_CAPACITY_TAG, Tag.TAG_INT)) {
             throw new IllegalArgumentException("Persisted Trinity pattern core state is missing its capacity");
         }
         int persistedCapacity = data.getInt(PATTERN_CAPACITY_TAG);
-        if (persistedCapacity == this.patternCapacity) {
-            return new PersistedCapacity(persistedCapacity, false);
-        }
-        if (schema == PersistedSchema.LEGACY_V3 &&
-                TrinityPatternCoreTier.matchesLegacyCapacity(persistedCapacity, this.patternCapacity)) {
-            return new PersistedCapacity(persistedCapacity, true);
+        if (version == CURRENT_STATE_VERSION && persistedCapacity == this.patternCapacity ||
+                version == POWER_OF_TWO_CAPACITY_STATE_VERSION &&
+                        TrinityPatternCoreTier.matchesPowerOfTwoCapacity(persistedCapacity, this.patternCapacity)) {
+            return persistedCapacity;
         }
         throw new IllegalArgumentException(
                 "Persisted Trinity pattern core capacity " + persistedCapacity +
@@ -1040,9 +1005,9 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     }
 
     /**
-     * Ensures a migrated state preserves the old physical index range and leaves newly appended slots empty.
+     * Ensures every persisted slot and refund fits its saved capacity, including the pre-upgrade 3.1.3 index range.
      */
-    private static void validatePersistedSlotBounds(Map<Integer, TrinityPatternSlot> slots,
+    private static void validatePersistedSlotBounds(Int2ObjectMap<TrinityPatternSlot> slots,
                                                     RefundOutbox refundOutbox,
                                                     int persistedCapacity) {
         for (int slot : slots.keySet()) {
@@ -1068,9 +1033,6 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
     private static void writeCurrentSchemaHeader(CompoundTag data) {
         data.putInt(VERSION_TAG, CURRENT_STATE_VERSION);
-        data.remove(LEGACY_PATTERNS_TAG);
-        data.remove(LEGACY_QUEUES_TAG);
-        data.remove(LEGACY_PENDING_OUTPUTS_TAG);
     }
 
     private static void clearCoreStateTags(CompoundTag data) {
@@ -1079,73 +1041,29 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         data.remove(PATTERN_CAPACITY_TAG);
         data.remove(SLOTS_TAG);
         data.remove(REFUND_OUTBOX_TAG);
-        data.remove(LEGACY_PATTERNS_TAG);
-        data.remove(LEGACY_QUEUES_TAG);
-        data.remove(LEGACY_PENDING_OUTPUTS_TAG);
     }
 
-    private static PersistedSchema readPersistedSchema(CompoundTag data) {
-        boolean containsLegacyV1Lists = containsLegacyV1Lists(data);
-        if (data.contains(VERSION_TAG)) {
-            if (!data.contains(VERSION_TAG, Tag.TAG_INT)) {
-                throw new IllegalArgumentException("Persisted Trinity pattern core state version must be an integer");
-            }
-            int version = data.getInt(VERSION_TAG);
-            if (version == LEGACY_V3_STATE_VERSION) {
-                if (containsLegacyV1Lists) {
-                    throw new IllegalArgumentException(
-                            "Persisted V3 Trinity pattern core state contains legacy V1 fields");
-                }
-                requirePersistedSlots(data, "V3");
-                requireRefundOutbox(data, "V3");
-                return PersistedSchema.LEGACY_V3;
-            }
-            if (version == CURRENT_STATE_VERSION) {
-                if (containsLegacyV1Lists) {
-                    throw new IllegalArgumentException(
-                            "Persisted current Trinity pattern core state contains legacy V1 fields");
-                }
-                requirePersistedSlots(data, "current");
-                requireRefundOutbox(data, "current");
-                return PersistedSchema.CURRENT;
-            }
+    private static int validatePersistedSchema(CompoundTag data) {
+        if (!data.contains(VERSION_TAG, Tag.TAG_INT)) {
+            throw new IllegalArgumentException("Persisted Trinity pattern core state requires an integer version");
+        }
+        int version = data.getInt(VERSION_TAG);
+        if (version != POWER_OF_TWO_CAPACITY_STATE_VERSION && version != CURRENT_STATE_VERSION) {
             throw new IllegalArgumentException("Unsupported Trinity pattern core state version " + version);
         }
-
-        if (containsLegacyV1Lists) {
-            if (data.contains(SLOTS_TAG) || data.contains(REFUND_OUTBOX_TAG)) {
-                throw new IllegalArgumentException(
-                        "Persisted unversioned Trinity pattern core state mixes legacy V1 and current fields");
-            }
-            throw new IllegalArgumentException(
-                    "Unsupported unversioned V1 Trinity pattern core state; an explicit V1 decoder is required");
-        }
-        requirePersistedSlots(data, "unversioned current");
-        requireRefundOutbox(data, "unversioned current");
-        return PersistedSchema.CURRENT_UNVERSIONED;
-    }
-
-    private static void requirePersistedSlots(CompoundTag data, String schema) {
         if (!data.contains(SLOTS_TAG)) {
-            throw new IllegalArgumentException("Persisted " + schema + " Trinity pattern core state is missing slots");
+            throw new IllegalArgumentException("Persisted Trinity pattern core state is missing slots");
         }
-    }
-
-    private static void requireRefundOutbox(CompoundTag data, String schema) {
         if (!data.contains(REFUND_OUTBOX_TAG)) {
             throw new IllegalArgumentException(
-                    "Persisted " + schema + " Trinity pattern core state is missing its refund outbox");
+                    "Persisted Trinity pattern core state is missing its refund outbox");
         }
-    }
-
-    private static boolean containsLegacyV1Lists(CompoundTag data) {
-        return data.contains(LEGACY_PATTERNS_TAG) || data.contains(LEGACY_QUEUES_TAG) ||
-                data.contains(LEGACY_PENDING_OUTPUTS_TAG);
+        return version;
     }
 
     private static boolean containsCoreState(CompoundTag data) {
         return data.contains(VERSION_TAG) || data.contains(PATTERN_CAPACITY_TAG) || data.contains(SLOTS_TAG) ||
-                data.contains(REFUND_OUTBOX_TAG) || containsLegacyV1Lists(data);
+                data.contains(REFUND_OUTBOX_TAG);
     }
 
     private static ListTag requiredCompoundList(CompoundTag data, String tagName) {
@@ -1169,7 +1087,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         outbox.put(PATTERN_REFUNDS_TAG, patternEntries);
 
         ListTag retainedGroups = new ListTag();
-        for (Map.Entry<UUID, ArrayList<RetainedRefundEntry>> group : this.retainedRefundOutboxByHost.entrySet()) {
+        for (Map.Entry<UUID, ObjectArrayList<RetainedRefundEntry>> group : this.retainedRefundOutboxByHost.entrySet()) {
             if (group.getValue().isEmpty()) {
                 throw new IllegalStateException("Trinity retained refund outbox contains an empty host group");
             }
@@ -1197,13 +1115,13 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         requireExactKeys(outbox, "Trinity refund outbox", PATTERN_REFUNDS_TAG, RETAINED_REFUNDS_TAG);
 
         ListTag patternEntries = requiredCompoundList(outbox, PATTERN_REFUNDS_TAG);
-        ArrayList<PatternRefundEntry> patterns = new ArrayList<>(patternEntries.size());
+        ObjectArrayList<PatternRefundEntry> patterns = new ObjectArrayList<>(patternEntries.size());
         for (int index = 0; index < patternEntries.size(); index++) {
             patterns.add(readPatternRefundEntry(patternEntries.getCompound(index), registries));
         }
 
         ListTag retainedGroups = requiredCompoundList(outbox, RETAINED_REFUNDS_TAG);
-        TreeMap<UUID, ArrayList<RetainedRefundEntry>> retainedByHost = new TreeMap<>();
+        Object2ObjectRBTreeMap<UUID, ObjectArrayList<RetainedRefundEntry>> retainedByHost = new Object2ObjectRBTreeMap<>();
         for (int index = 0; index < retainedGroups.size(); index++) {
             CompoundTag groupData = retainedGroups.getCompound(index);
             requireExactKeys(groupData, "Trinity retained refund group", HOST_ID_TAG, ITEMS_TAG);
@@ -1215,7 +1133,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
             if (items.isEmpty()) {
                 throw new IllegalArgumentException("Trinity retained refund group must not be empty");
             }
-            ArrayList<RetainedRefundEntry> entries = new ArrayList<>(items.size());
+            ObjectArrayList<RetainedRefundEntry> entries = new ObjectArrayList<>(items.size());
             for (int itemIndex = 0; itemIndex < items.size(); itemIndex++) {
                 entries.add(readRetainedRefundEntry(items.getCompound(itemIndex), registries));
             }
@@ -1256,7 +1174,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     }
 
     private static void requireExactKeys(CompoundTag data, String description, String... requiredKeys) {
-        Set<String> actualKeys = new HashSet<>(data.getAllKeys());
+        Set<String> actualKeys = new ObjectOpenHashSet<>(data.getAllKeys());
         Set<String> expectedKeys = Set.of(requiredKeys);
         if (!actualKeys.equals(expectedKeys)) {
             throw new IllegalArgumentException(description + " has unexpected fields " + actualKeys);
@@ -1366,10 +1284,10 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         }
 
         TrinityPatternSlot.WorkState capturedWork = slot.captureWorkState();
-        ArrayList<RetainedRefundOffer> offers = new ArrayList<>();
+        ObjectArrayList<RetainedRefundOffer> offers = new ObjectArrayList<>();
         appendWorkRefundOffers(slotIndex, capturedWork, null, offers);
-        Map<UUID, ArrayList<RetainedRefundEntry>> previousOutbox = this.retainedRefundOutboxByHost;
-        Map<UUID, ArrayList<RetainedRefundEntry>> migratedOutbox = copyRetainedRefundOutbox(previousOutbox);
+        Map<UUID, ObjectArrayList<RetainedRefundEntry>> previousOutbox = this.retainedRefundOutboxByHost;
+        Map<UUID, ObjectArrayList<RetainedRefundEntry>> migratedOutbox = copyRetainedRefundOutbox(previousOutbox);
         appendRetainedRefundEntries(migratedOutbox, offers);
 
         this.retainedRefundOutboxByHost = migratedOutbox;
@@ -1411,7 +1329,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
     private void rebuildPatternCacheSnapshot() {
         this.occupiedPatternSlotSnapshot = List.copyOf(this.occupiedPatternSlots);
-        ArrayList<CachedPattern> orderedPatterns = new ArrayList<>(this.occupiedPatternSlotSnapshot.size());
+        ObjectArrayList<CachedPattern> orderedPatterns = new ObjectArrayList<>(this.occupiedPatternSlotSnapshot.size());
         for (int slot : this.occupiedPatternSlotSnapshot) {
             orderedPatterns.add(this.cachedPatterns.get(slot));
         }
@@ -1420,8 +1338,8 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
                 orderedPatterns);
     }
 
-    private TreeSet<Integer> persistentSlots() {
-        TreeSet<Integer> persistent = new TreeSet<>(this.occupiedPatternSlots);
+    private IntAVLTreeSet persistentSlots() {
+        IntAVLTreeSet persistent = new IntAVLTreeSet(this.occupiedPatternSlots);
         persistent.addAll(this.queuedSlots);
         persistent.addAll(this.pendingOutputSlots);
         return persistent;
@@ -1440,7 +1358,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
             this.pendingOutputSlots.add(slot);
             for (UUID hostId : patternSlot.pendingOutputHostIds()) {
                 this.pendingOutputSlotsByHost
-                        .computeIfAbsent(hostId, ignored -> new TreeSet<>())
+                        .computeIfAbsent(hostId, ignored -> new IntAVLTreeSet())
                         .add(slot);
             }
         } else {
@@ -1448,15 +1366,15 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         }
         Set<UUID> currentWorkHosts = patternSlot.workHostIds();
         for (UUID hostId : currentWorkHosts) {
-            this.workingSlotsByHost.computeIfAbsent(hostId, ignored -> new TreeSet<>()).add(slot);
+            this.workingSlotsByHost.computeIfAbsent(hostId, ignored -> new IntAVLTreeSet()).add(slot);
         }
         if (!previousWorkHosts.equals(currentWorkHosts)) {
             notifyChange(new TrinityPatternSlot.Change(slot, TrinityPatternSlot.ChangeKind.WORK));
         }
     }
 
-    private static Set<UUID> removeIndexedSlot(Map<UUID, TreeSet<Integer>> index, int slot) {
-        HashSet<UUID> removedHosts = new HashSet<>();
+    private static Set<UUID> removeIndexedSlot(Map<UUID, IntAVLTreeSet> index, int slot) {
+        ObjectOpenHashSet<UUID> removedHosts = new ObjectOpenHashSet<>();
         index.entrySet().removeIf(entry -> {
             if (!entry.getValue().remove(slot)) {
                 return false;
@@ -1472,10 +1390,10 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     }
 
     private WorkIndexes createWorkIndexes(Iterable<TrinityPatternSlot> sourceSlots) {
-        TreeSet<Integer> loadedQueuedSlots = new TreeSet<>();
-        TreeSet<Integer> loadedPendingOutputSlots = new TreeSet<>();
-        HashMap<UUID, TreeSet<Integer>> loadedWorkingSlotsByHost = new HashMap<>();
-        HashMap<UUID, TreeSet<Integer>> loadedPendingSlotsByHost = new HashMap<>();
+        IntAVLTreeSet loadedQueuedSlots = new IntAVLTreeSet();
+        IntAVLTreeSet loadedPendingOutputSlots = new IntAVLTreeSet();
+        Object2ObjectOpenHashMap<UUID, IntAVLTreeSet> loadedWorkingSlotsByHost = new Object2ObjectOpenHashMap<>();
+        Object2ObjectOpenHashMap<UUID, IntAVLTreeSet> loadedPendingSlotsByHost = new Object2ObjectOpenHashMap<>();
         for (TrinityPatternSlot patternSlot : sourceSlots) {
             int slot = patternSlot.index();
             if (patternSlot.hasQueuedWork()) {
@@ -1485,12 +1403,12 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
                 loadedPendingOutputSlots.add(slot);
                 for (UUID hostId : patternSlot.pendingOutputHostIds()) {
                     loadedPendingSlotsByHost
-                            .computeIfAbsent(hostId, ignored -> new TreeSet<>())
+                            .computeIfAbsent(hostId, ignored -> new IntAVLTreeSet())
                             .add(slot);
                 }
             }
             for (UUID hostId : patternSlot.workHostIds()) {
-                loadedWorkingSlotsByHost.computeIfAbsent(hostId, ignored -> new TreeSet<>()).add(slot);
+                loadedWorkingSlotsByHost.computeIfAbsent(hostId, ignored -> new IntAVLTreeSet()).add(slot);
             }
         }
         return new WorkIndexes(
@@ -1500,8 +1418,8 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
                 loadedPendingSlotsByHost);
     }
 
-    private static TreeSet<Integer> occupiedSlots(Iterable<TrinityPatternSlot> sourceSlots) {
-        TreeSet<Integer> occupied = new TreeSet<>();
+    private static IntAVLTreeSet occupiedSlots(Iterable<TrinityPatternSlot> sourceSlots) {
+        IntAVLTreeSet occupied = new IntAVLTreeSet();
         for (TrinityPatternSlot slot : sourceSlots) {
             if (!slot.pattern().isEmpty()) {
                 occupied.add(slot.index());
@@ -1597,9 +1515,6 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
             if (slot < 0) {
                 throw new IllegalArgumentException("Trinity retained refund slot must not be negative: " + slot);
             }
-            if (item == null) {
-                throw new IllegalArgumentException("Trinity retained refund entry requires an item amount");
-            }
         }
 
         private boolean matches(RetainedRefundEntry other) {
@@ -1610,26 +1525,16 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     /**
      * Associates a durable retained refund entry with the host that owns its retry queue.
      */
-    private record RetainedRefundOffer(UUID hostId, RetainedRefundEntry entry) {
-
-        private RetainedRefundOffer {
-            if (hostId == null) {
-                throw new IllegalArgumentException("Trinity retained refund offer requires a host UUID");
-            }
-            if (entry == null) {
-                throw new IllegalArgumentException("Trinity retained refund offer requires an entry");
-            }
-        }
-    }
+    private record RetainedRefundOffer(UUID hostId, RetainedRefundEntry entry) {}
 
     /**
      * Fully parsed, isolated durable refund queues that can be atomically applied to a core.
      */
     private record RefundOutbox(List<PatternRefundEntry> patterns,
-                                Map<UUID, ArrayList<RetainedRefundEntry>> retainedByHost) {
+                                Map<UUID, ObjectArrayList<RetainedRefundEntry>> retainedByHost) {
 
         private RefundOutbox {
-            patterns = new ArrayList<>(patterns);
+            patterns = new ObjectArrayList<>(patterns);
             retainedByHost = copyRetainedRefundOutbox(retainedByHost);
         }
     }
@@ -1647,10 +1552,10 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     /**
      * Detached sparse-index snapshot validated before an atomic load or refund restore mutates live state.
      */
-    private record WorkIndexes(TreeSet<Integer> queuedSlots,
-                               TreeSet<Integer> pendingOutputSlots,
-                               Map<UUID, TreeSet<Integer>> workingSlotsByHost,
-                               Map<UUID, TreeSet<Integer>> pendingSlotsByHost) {}
+    private record WorkIndexes(IntAVLTreeSet queuedSlots,
+                               IntAVLTreeSet pendingOutputSlots,
+                               Map<UUID, IntAVLTreeSet> workingSlotsByHost,
+                               Map<UUID, IntAVLTreeSet> pendingSlotsByHost) {}
 
     private record SlotApplication(TrinityPatternSlot target, TrinityPatternSlot loaded) {}
 
@@ -1825,7 +1730,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
                     return false;
                 }
             }
-            List<PatternRefundSlot> clearedSlots = new ArrayList<>(this.capturedSlots.size());
+            List<PatternRefundSlot> clearedSlots = new ObjectArrayList<>(this.capturedSlots.size());
             try {
                 appendPatternRefundEntries(this.offeredEntries.subList(
                         this.existingOutboxEntryCount, this.offeredEntries.size()));

@@ -6,7 +6,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 
 import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.math.BigInteger;
@@ -44,34 +43,6 @@ public record TrinityCycleFeasibilityRequest(
                                              boolean shortageDiagnostic,
                                              int shortageStateLimit,
                                              TrinityMipCoefficientTemplate coefficientTemplate) {
-
-    /**
-     * Compatibility constructor for executable feasibility requests without virtual diagnostic input.
-     */
-    public TrinityCycleFeasibilityRequest(
-                                          List<TrinityPatternVariant> variants,
-                                          Set<AEKey> internalKeys,
-                                          TrinityCycleDemand demand,
-                                          Map<AEKey, BigInteger> available,
-                                          Set<AEKey> producibleInputs,
-                                          Map<TrinityPatternVariant, TrinityFiringBounds> firingBounds,
-                                          Optional<BigInteger> fixedExternalTotal,
-                                          BigInteger seedLowerBound,
-                                          BigInteger firingLowerBound) {
-        this(
-                variants,
-                internalKeys,
-                demand,
-                available,
-                producibleInputs,
-                firingBounds,
-                fixedExternalTotal,
-                seedLowerBound,
-                firingLowerBound,
-                false,
-                0,
-                TrinityMipCoefficientTemplate.create(variants, new ObjectArrayList<>(internalKeys)));
-    }
 
     /** Uses the already normalized structural axes owned by the shared immutable template. */
     public TrinityCycleFeasibilityRequest {
@@ -196,10 +167,10 @@ public record TrinityCycleFeasibilityRequest(
     }
 
     /**
-     * Creates a diagnostic-only request whose finite reserve can be split into actual and virtual missing input.
-     * The returned request must never enter executable candidate search or scheduling. Its exactly verified solution
-     * may
-     * be scheduled only against a local synthetic inventory to produce non-executable diagnostic evidence.
+     * Creates a diagnostic request with a bounded solver-call budget and virtual reserve for finite inputs.
+     * Its candidate is not executable: scheduling must first validate it against a local synthetic inventory,
+     * then compare the chosen order's exact inputs with real stock. Only a fully verified zero-shortage result
+     * may return to executable planning; otherwise it remains diagnostic evidence.
      */
     public TrinityCycleFeasibilityRequest forShortageDiagnosis(int stateLimit) {
         return new TrinityCycleFeasibilityRequest(

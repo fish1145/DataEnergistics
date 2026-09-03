@@ -31,18 +31,22 @@ import appeng.crafting.CraftingLink;
 import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.hooks.ticking.TickHandler;
 import appeng.me.service.CraftingService;
+import it.unimi.dsi.fastutil.ints.Int2LongMap;
+import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectRBTreeMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
-import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
@@ -56,7 +60,7 @@ public final class TrinityDataCoreCraftingRuntime {
     private static final AtomicLong RUNTIME_GENERATION_SEQUENCE = new AtomicLong();
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int LEGACY_SCHEMA_VERSION = 1;
+    private static final int LONG_CAPACITY_SCHEMA_VERSION = 2;
     private static final int SCHEMA_VERSION = 3;
     private static final String CONTRIBUTIONS_TAG = "contributions";
     private static final String CONTRIBUTION_NAME_TAG = "name";
@@ -72,9 +76,9 @@ public final class TrinityDataCoreCraftingRuntime {
 
     private final TrinityDataCoreBlockEntity host;
     private final long runtimeGeneration = RUNTIME_GENERATION_SEQUENCE.updateAndGet(Math::incrementExact);
-    private final Map<String, TrinityDataCoreCpuContribution> externalContributions = new TreeMap<>();
-    private final NavigableMap<Integer, TrinityDataCoreVirtualCpu> retainedWorkers = new TreeMap<>();
-    private final NavigableMap<Integer, CompoundTag> pendingWorkerLogic = new TreeMap<>();
+    private final Map<String, TrinityDataCoreCpuContribution> externalContributions = new Object2ObjectRBTreeMap<>();
+    private final Int2ObjectAVLTreeMap<TrinityDataCoreVirtualCpu> retainedWorkers = new Int2ObjectAVLTreeMap<>();
+    private final Int2ObjectAVLTreeMap<CompoundTag> pendingWorkerLogic = new Int2ObjectAVLTreeMap<>();
     /**
      * Derived request lookup removes full-worker scans from network output routing.
      */
@@ -86,10 +90,10 @@ public final class TrinityDataCoreCraftingRuntime {
     /**
      * Event-selected workers replace the previous every-tick retained-worker scan.
      */
-    private final ArrayDeque<WorkerScheduleEntry> readyWorkers = new ArrayDeque<>();
-    private final Set<Integer> readyWorkerNumbers = new HashSet<>();
-    private final PriorityQueue<WorkerScheduleEntry> providerRetries = new PriorityQueue<>();
-    private final Map<Integer, Long> workerScheduleRevisions = new HashMap<>();
+    private final ObjectLinkedOpenHashSet<WorkerScheduleEntry> readyWorkers = new ObjectLinkedOpenHashSet<>();
+    private final IntSet readyWorkerNumbers = new IntOpenHashSet();
+    private final ObjectHeapPriorityQueue<WorkerScheduleEntry> providerRetries = new ObjectHeapPriorityQueue<>();
+    private final Int2LongMap workerScheduleRevisions = new Int2LongOpenHashMap();
     @Nullable
     private TrinityDataCoreVirtualCpu reservedCpu;
     private TrinityDataCoreCpuProfile profile = TrinityDataCoreCpuProfile.EMPTY;
@@ -208,9 +212,9 @@ public final class TrinityDataCoreCraftingRuntime {
         if (this.nextAvailableWorkerNumber <= this.profile.partitionCount()) {
             return true;
         }
-        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
-            if (entry.getKey() <= this.profile.partitionCount() &&
-                    !this.pendingWorkerLogic.containsKey(entry.getKey()) &&
+        for (Int2ObjectMap.Entry<TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.int2ObjectEntrySet()) {
+            if (entry.getIntKey() <= this.profile.partitionCount() &&
+                    !this.pendingWorkerLogic.containsKey(entry.getIntKey()) &&
                     entry.getValue().isReleasable()) {
                 return true;
             }
@@ -223,9 +227,9 @@ public final class TrinityDataCoreCraftingRuntime {
      */
     int occupiedWorkerCount() {
         int occupied = 0;
-        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
-            if (entry.getKey() <= this.profile.partitionCount() &&
-                    (this.pendingWorkerLogic.containsKey(entry.getKey()) || !entry.getValue().isReleasable())) {
+        for (Int2ObjectMap.Entry<TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.int2ObjectEntrySet()) {
+            if (entry.getIntKey() <= this.profile.partitionCount() &&
+                    (this.pendingWorkerLogic.containsKey(entry.getIntKey()) || !entry.getValue().isReleasable())) {
                 occupied++;
             }
         }
@@ -237,8 +241,8 @@ public final class TrinityDataCoreCraftingRuntime {
      */
     long recentOperationLoad() {
         long recentOperations = 0L;
-        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
-            if (entry.getKey() <= this.profile.partitionCount()) {
+        for (Int2ObjectMap.Entry<TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.int2ObjectEntrySet()) {
+            if (entry.getIntKey() <= this.profile.partitionCount()) {
                 recentOperations = Math.addExact(recentOperations, entry.getValue().getRecentOperationLoad());
             }
         }
@@ -253,7 +257,7 @@ public final class TrinityDataCoreCraftingRuntime {
         if (contribution.equals(this.externalContributions.get(checkedStructureName))) {
             return;
         }
-        Map<String, TrinityDataCoreCpuContribution> nextContributions = new TreeMap<>(this.externalContributions);
+        Map<String, TrinityDataCoreCpuContribution> nextContributions = new Object2ObjectRBTreeMap<>(this.externalContributions);
         nextContributions.put(checkedStructureName, contribution);
         TrinityDataCoreCpuProfile nextProfile = TrinityDataCoreCpuProfile.fromContributions(nextContributions);
         this.externalContributions.clear();
@@ -269,7 +273,7 @@ public final class TrinityDataCoreCraftingRuntime {
         if (!this.externalContributions.containsKey(checkedStructureName)) {
             return;
         }
-        Map<String, TrinityDataCoreCpuContribution> nextContributions = new TreeMap<>(this.externalContributions);
+        Map<String, TrinityDataCoreCpuContribution> nextContributions = new Object2ObjectRBTreeMap<>(this.externalContributions);
         nextContributions.remove(checkedStructureName);
         TrinityDataCoreCpuProfile nextProfile = TrinityDataCoreCpuProfile.fromContributions(nextContributions);
         this.externalContributions.clear();
@@ -289,13 +293,6 @@ public final class TrinityDataCoreCraftingRuntime {
      */
     public List<TrinityDataCoreVirtualCpu> publishedCpus() {
         return this.publishedCpus;
-    }
-
-    /**
-     * Compatibility alias used by the host's existing published CPU view contract.
-     */
-    public List<TrinityDataCoreVirtualCpu> partitions() {
-        return publishedCpus();
     }
 
     /**
@@ -494,15 +491,6 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     /**
-     * Retains the pre-Governor execution contract with deterministic hard limits.
-     */
-    public void tick(IEnergyService energyService,
-                     CraftingService craftingService,
-                     CraftingDispatchWindow dispatchWindow) {
-        tick(energyService, craftingService, dispatchWindow, CraftingDispatchBudget.legacyFixedHard());
-    }
-
-    /**
      * Inserts returned crafting outputs into retained workers.
      */
     public long insertIntoCpus(AEKey what, long amount, Actionable mode, long inserted) {
@@ -598,9 +586,9 @@ public final class TrinityDataCoreCraftingRuntime {
         data.put(CONTRIBUTIONS_TAG, contributionsTag);
 
         ListTag partitionsTag = new ListTag();
-        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
+        for (Int2ObjectMap.Entry<TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.int2ObjectEntrySet()) {
             TrinityDataCoreVirtualCpu cpu = entry.getValue();
-            CompoundTag pendingLogic = this.pendingWorkerLogic.get(entry.getKey());
+            CompoundTag pendingLogic = this.pendingWorkerLogic.get(entry.getIntKey());
             if (pendingLogic == null && !cpu.hasRetainedState()) {
                 continue;
             }
@@ -629,11 +617,11 @@ public final class TrinityDataCoreCraftingRuntime {
             return;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion < LEGACY_SCHEMA_VERSION || schemaVersion > SCHEMA_VERSION) {
+        if (schemaVersion != LONG_CAPACITY_SCHEMA_VERSION && schemaVersion != SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
-                    "Ignoring Trinity Data Core CPU runtime schema version {}; supported range is {} through {}",
+                    "Ignoring Trinity Data Core CPU runtime schema version {}; expected {} or {}",
                     schemaVersion,
-                    LEGACY_SCHEMA_VERSION,
+                    LONG_CAPACITY_SCHEMA_VERSION,
                     SCHEMA_VERSION);
             return;
         }
@@ -678,14 +666,14 @@ public final class TrinityDataCoreCraftingRuntime {
             return;
         }
 
-        var iterator = this.pendingWorkerLogic.entrySet().iterator();
+        var iterator = this.pendingWorkerLogic.int2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
-            Map.Entry<Integer, CompoundTag> entry = iterator.next();
-            TrinityDataCoreVirtualCpu worker = this.retainedWorkers.get(entry.getKey());
+            Int2ObjectMap.Entry<CompoundTag> entry = iterator.next();
+            TrinityDataCoreVirtualCpu worker = this.retainedWorkers.get(entry.getIntKey());
             if (worker == null) {
                 Data_Energistics.LOGGER.error(
                         "Cannot restore Trinity CPU worker {} because its runtime object is missing",
-                        entry.getKey());
+                        entry.getIntKey());
                 iterator.remove();
                 continue;
             }
@@ -694,7 +682,7 @@ public final class TrinityDataCoreCraftingRuntime {
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
                         "Rejecting invalid persisted logic for Trinity CPU worker {}",
-                        entry.getKey(),
+                        entry.getIntKey(),
                         exception);
                 worker.logic().discardPersistedState();
             }
@@ -792,13 +780,13 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     private void releaseReleasableWorkers() {
-        var iterator = this.retainedWorkers.entrySet().iterator();
+        var iterator = this.retainedWorkers.int2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
-            Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry = iterator.next();
-            if (!this.pendingWorkerLogic.containsKey(entry.getKey()) && entry.getValue().isReleasable()) {
-                this.waitingIndex.removeWorker(entry.getKey());
-                invalidateWorkerSchedule(entry.getKey());
-                makeWorkerNumberAvailable(entry.getKey());
+            Int2ObjectMap.Entry<TrinityDataCoreVirtualCpu> entry = iterator.next();
+            if (!this.pendingWorkerLogic.containsKey(entry.getIntKey()) && entry.getValue().isReleasable()) {
+                this.waitingIndex.removeWorker(entry.getIntKey());
+                invalidateWorkerSchedule(entry.getIntKey());
+                makeWorkerNumberAvailable(entry.getIntKey());
                 iterator.remove();
             }
         }
@@ -807,7 +795,7 @@ public final class TrinityDataCoreCraftingRuntime {
     private void drainProposalCompletions() {
         Integer workerNumber;
         while ((workerNumber = this.proposalCompletions.poll()) != null) {
-            TrinityDataCoreVirtualCpu worker = this.retainedWorkers.get(workerNumber);
+            TrinityDataCoreVirtualCpu worker = this.retainedWorkers.get(workerNumber.intValue());
             if (worker != null && isCurrentCpu(worker)) {
                 enqueueReady(workerNumber);
             }
@@ -815,8 +803,8 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     private void activateDueWorkerRetries(long currentTick) {
-        while (!this.providerRetries.isEmpty() && this.providerRetries.peek().retryAt() <= currentTick) {
-            WorkerScheduleEntry retry = this.providerRetries.remove();
+        while (!this.providerRetries.isEmpty() && this.providerRetries.first().retryAt() <= currentTick) {
+            WorkerScheduleEntry retry = this.providerRetries.dequeue();
             if (isCurrentSchedule(retry)) {
                 enqueueReady(retry.workerNumber());
             }
@@ -830,7 +818,7 @@ public final class TrinityDataCoreCraftingRuntime {
         if (this.readyWorkers.size() < 2) {
             return;
         }
-        List<WorkerScheduleEntry> ordered = new ArrayList<>(this.readyWorkers);
+        List<WorkerScheduleEntry> ordered = new ObjectArrayList<>(this.readyWorkers);
         ordered.sort((left, right) -> {
             boolean leftAfterCursor = left.workerNumber() >= this.nextWorkerTickStartNumber;
             boolean rightAfterCursor = right.workerNumber() >= this.nextWorkerTickStartNumber;
@@ -885,13 +873,13 @@ public final class TrinityDataCoreCraftingRuntime {
         }
         long revision = nextWorkerScheduleRevision(workerNumber);
         this.readyWorkerNumbers.add(workerNumber);
-        this.readyWorkers.addLast(new WorkerScheduleEntry(workerNumber, revision, -1L));
+        this.readyWorkers.add(new WorkerScheduleEntry(workerNumber, revision, -1L));
     }
 
     private void scheduleRetry(int workerNumber, long retryAt) {
         long revision = nextWorkerScheduleRevision(workerNumber);
         this.readyWorkerNumbers.remove(workerNumber);
-        this.providerRetries.add(new WorkerScheduleEntry(workerNumber, revision, retryAt));
+        this.providerRetries.enqueue(new WorkerScheduleEntry(workerNumber, revision, retryAt));
     }
 
     private void invalidateWorkerSchedule(int workerNumber) {
@@ -900,7 +888,7 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     private long nextWorkerScheduleRevision(int workerNumber) {
-        long revision = Math.incrementExact(this.workerScheduleRevisions.getOrDefault(workerNumber, 0L));
+        long revision = Math.incrementExact(this.workerScheduleRevisions.get(workerNumber));
         this.workerScheduleRevisions.put(workerNumber, revision);
         return revision;
     }
@@ -915,8 +903,8 @@ public final class TrinityDataCoreCraftingRuntime {
             return;
         }
         long currentTick = TickHandler.instance().getCurrentTick();
-        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
-            if (entry.getKey() > this.profile.partitionCount()) {
+        for (Int2ObjectMap.Entry<TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.int2ObjectEntrySet()) {
+            if (entry.getIntKey() > this.profile.partitionCount()) {
                 continue;
             }
             TrinityDataCoreVirtualCpu worker = entry.getValue();
@@ -945,14 +933,15 @@ public final class TrinityDataCoreCraftingRuntime {
             this.nextWorkerTickStartNumber = 1;
             return;
         }
-        Integer followingNumber = this.retainedWorkers.higherKey(workerNumber);
-        this.nextWorkerTickStartNumber = followingNumber != null ? followingNumber : this.retainedWorkers.firstKey();
+        var followingNumbers = this.retainedWorkers.keySet().iterator(workerNumber);
+        this.nextWorkerTickStartNumber = followingNumbers.hasNext() ?
+                followingNumbers.nextInt() : this.retainedWorkers.firstIntKey();
     }
 
     private void applyProfile(TrinityDataCoreCpuProfile nextProfile) {
         this.profile = nextProfile;
-        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
-            if (!nextProfile.active() || entry.getKey() > nextProfile.partitionCount()) {
+        for (Int2ObjectMap.Entry<TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.int2ObjectEntrySet()) {
+            if (!nextProfile.active() || entry.getIntKey() > nextProfile.partitionCount()) {
                 entry.getValue().logic().cancelPendingDispatch();
             }
         }
@@ -970,9 +959,9 @@ public final class TrinityDataCoreCraftingRuntime {
             this.reservedCpu.updateProfile(coordinatorProfile);
         }
 
-        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
-            if (entry.getKey() <= nextProfile.partitionCount()) {
-                entry.getValue().updateProfile(nextProfile.partition(entry.getKey()));
+        for (Int2ObjectMap.Entry<TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.int2ObjectEntrySet()) {
+            if (entry.getIntKey() <= nextProfile.partitionCount()) {
+                entry.getValue().updateProfile(nextProfile.partition(entry.getIntKey()));
             }
         }
         rebuildAvailableWorkerNumber();
@@ -1009,7 +998,7 @@ public final class TrinityDataCoreCraftingRuntime {
      */
     private void refreshWorkerWaiting(TrinityDataCoreVirtualCpu worker) {
         this.waitingIndex.removeWorker(worker.number());
-        Set<AEKey> workerKeys = new HashSet<>();
+        Set<AEKey> workerKeys = new ObjectOpenHashSet<>();
         worker.getAllWaitingFor(workerKeys);
         for (AEKey what : workerKeys) {
             this.waitingIndex.update(worker.number(), what, worker.getWaitingFor(what));
@@ -1033,10 +1022,10 @@ public final class TrinityDataCoreCraftingRuntime {
             return;
         }
 
-        List<TrinityDataCoreVirtualCpu> published = new ArrayList<>(this.retainedWorkers.size() + 1);
+        List<TrinityDataCoreVirtualCpu> published = new ObjectArrayList<>(this.retainedWorkers.size() + 1);
         published.add(coordinator);
-        for (Map.Entry<Integer, TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.entrySet()) {
-            if (entry.getKey() <= this.profile.partitionCount() && entry.getValue().isBusy()) {
+        for (Int2ObjectMap.Entry<TrinityDataCoreVirtualCpu> entry : this.retainedWorkers.int2ObjectEntrySet()) {
+            if (entry.getIntKey() <= this.profile.partitionCount() && entry.getValue().isBusy()) {
                 published.add(entry.getValue());
             }
         }
@@ -1082,7 +1071,7 @@ public final class TrinityDataCoreCraftingRuntime {
     private Map<String, TrinityDataCoreCpuContribution> readContributions(
                                                                           ListTag contributionsTag,
                                                                           int schemaVersion) {
-        Map<String, TrinityDataCoreCpuContribution> restored = new TreeMap<>();
+        Map<String, TrinityDataCoreCpuContribution> restored = new Object2ObjectRBTreeMap<>();
         for (int index = 0; index < contributionsTag.size(); index++) {
             CompoundTag contributionTag = contributionsTag.getCompound(index);
             try {
@@ -1108,7 +1097,7 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     private void restorePendingWorkers(ListTag partitionsTag, int schemaVersion) {
-        Set<Integer> seenWorkerNumbers = new HashSet<>();
+        IntSet seenWorkerNumbers = new IntOpenHashSet();
         for (int tagIndex = 0; tagIndex < partitionsTag.size(); tagIndex++) {
             CompoundTag partitionTag = partitionsTag.getCompound(tagIndex);
             try {
@@ -1159,21 +1148,12 @@ public final class TrinityDataCoreCraftingRuntime {
 
         int persistedIndex = data.getInt(PARTITION_INDEX_TAG);
         int workerCapacity = data.getInt(PARTITION_COUNT_TAG);
-        int workerNumber;
-        if (schemaVersion == LEGACY_SCHEMA_VERSION) {
-            if (persistedIndex < 0 || persistedIndex >= workerCapacity) {
-                throw new IllegalArgumentException("Legacy Trinity CPU partition index is out of range: " + persistedIndex);
-            }
-            workerNumber = Math.addExact(persistedIndex, 1);
-        } else {
-            if (persistedIndex <= 0 || persistedIndex > workerCapacity) {
-                throw new IllegalArgumentException("Trinity CPU worker number is out of range: " + persistedIndex);
-            }
-            workerNumber = persistedIndex;
+        if (persistedIndex <= 0 || persistedIndex > workerCapacity) {
+            throw new IllegalArgumentException("Trinity CPU worker number is out of range: " + persistedIndex);
         }
 
         return new TrinityDataCoreCpuPartitionProfile(
-                workerNumber,
+                persistedIndex,
                 workerCapacity,
                 readStorageCapacity(data, schemaVersion),
                 data.getInt(CO_PROCESSORS_TAG),
@@ -1247,11 +1227,11 @@ public final class TrinityDataCoreCraftingRuntime {
     }
 
     private static TrinityCpuStorageCapacity readStorageCapacity(CompoundTag data, int schemaVersion) {
-        if (schemaVersion < 3) {
+        if (schemaVersion == LONG_CAPACITY_SCHEMA_VERSION) {
             if (!data.contains(STORAGE_BYTES_TAG, Tag.TAG_LONG)) {
-                throw new IllegalArgumentException("Persisted legacy Trinity CPU storage capacity is missing");
+                throw new IllegalArgumentException("Persisted 3.1.3 Trinity CPU storage capacity is missing");
             }
-            return TrinityCpuStorageCapacity.fromLegacyLong(data.getLong(STORAGE_BYTES_TAG));
+            return TrinityCpuStorageCapacity.fromEncodedLong(data.getLong(STORAGE_BYTES_TAG));
         }
         if (!data.contains(STORAGE_UNLIMITED_TAG, Tag.TAG_BYTE)) {
             throw new IllegalArgumentException("Persisted Trinity CPU storage kind is missing");

@@ -1,0 +1,34 @@
+.plan-tree-root {
+    padding-all: 0px;
+}
+.plan-tree-root button .__button_text__ {
+    font-size: 6.5;
+    text-shadow: false;
+    text-color: #FF343548;
+    horizontal-align: center;
+    vertical-align: center;
+}
+.plan-tree-title {
+    font-size: 8;
+    text-color: #FF343548;
+    text-shadow: false;
+    adaptive-width: false;
+    adaptive-height: false;
+}
+.plan-tree-status {
+    font-size: 6.5;
+    text-color: #FF404052;
+    text-shadow: false;
+    adaptive-width: false;
+    adaptive-height: false;
+}
+.plan-tree-help {
+    font-size: 5.5;
+    text-color: #FF555568;
+    text-shadow: false;
+    adaptive-width: false;
+    adaptive-height: false;
+}
+.plan-tree-popup {
+    z-index: 500;
+}

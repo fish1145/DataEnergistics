@@ -29,14 +29,8 @@ public enum TrinityComputationNamespace {
     /** Sparse immutable conservation coefficients for one semantic cyclic component. */
     MIP_COEFFICIENT_TEMPLATE(RevisionDomain.SEMANTIC),
 
-    /** Legacy semantic namespace retained for lower-level cache lifecycle compatibility checks. */
-    COMPILED_GRAPH(RevisionDomain.SEMANTIC),
-
     /** Exact quantity and inventory request shared only while its calculation remains in flight. */
     REQUEST_IN_FLIGHT(RevisionDomain.PLANNING),
-
-    /** Legacy revision-bound namespace retained for lower-level cache lifecycle compatibility checks. */
-    SOLVED_PLAN(RevisionDomain.PLANNING),
 
     /** Provider capacity snapshot captured for one publication and capacity epoch. */
     CAPACITY_CAPTURE(RevisionDomain.DISPATCH),
