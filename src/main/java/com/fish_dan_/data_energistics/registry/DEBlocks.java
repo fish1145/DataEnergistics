@@ -77,7 +77,8 @@ public final class DEBlocks {
     public static final DeferredBlock<Block> DATA_ASYNCHRONOUS_PROCESSING_FACTORY = BLOCKS.registerBlock(
             "data_asynchronous_processing_factory",
             DataAsynchronousProcessingFactoryBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .noOcclusion());
 
     public static final DeferredBlock<Block> TRINITY_DATA_CORE = BLOCKS.registerBlock(
             "trinity_data_core",
