@@ -54,8 +54,6 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private static final int OUTPUT_Y = 6;
     private static final int MODE_ICON_X = OUTPUT_X - 18;
     private static final int MODE_ICON_Y = OUTPUT_Y + 18;
-    private static final int MODE_BUTTON_X = MODE_ICON_X - 1;
-    private static final int MODE_BUTTON_Y = MODE_ICON_Y - 1;
     private static final int PROGRESS_X = 151;
     private static final int FIRST_INPUT_Y = 6;
     private static final int SECOND_INPUT_Y = 24;
@@ -91,7 +89,7 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     @Override
     public void addWidgets(WidgetHolder widgets) {
         addMachineBackground(widgets);
-        addModeButton(widgets);
+        addModeIcon(widgets);
         if (this.view instanceof DataChargePressRecipeView.ChargerView chargerView) {
             addChargerWidgets(widgets, chargerView);
         } else if (this.view instanceof DataChargePressRecipeView.InscriberView inscriberView) {
@@ -258,40 +256,28 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
                 2_000, false, true, false);
     }
 
-    private void addModeButton(WidgetHolder widgets) {
+    private void addModeIcon(WidgetHolder widgets) {
         ModeIndicator indicator = getModeIndicator(this.view);
-        widgets.addTexture(STATES_TEXTURE, MODE_BUTTON_X, MODE_BUTTON_Y, 18, 20,
-                176, 128, 18, 20, 256, 256);
         widgets.addTexture(indicator.texture(), MODE_ICON_X, MODE_ICON_Y, 16, 16,
                 indicator.sourceX(), indicator.sourceY(), 16, 16,
                 indicator.textureSize(), indicator.textureSize());
-        widgets.addTooltipText(
-                List.of(
-                        Component.translatable("button.data_energistics.data_integrated_charger.machine_mode"),
-                        Component.translatable("button.data_energistics.data_integrated_charger.machine_mode." +
-                                indicator.translationKey())),
-                MODE_BUTTON_X,
-                MODE_BUTTON_Y,
-                18,
-                20);
     }
 
     private static ModeIndicator getModeIndicator(DataChargePressRecipeView view) {
         if (view instanceof DataChargePressRecipeView.PowderView) {
-            return new ModeIndicator(STATES_TEXTURE, 16, 224, 256, "powder");
+            return new ModeIndicator(STATES_TEXTURE, 16, 224, 256);
         }
         if (view instanceof DataChargePressRecipeView.CustomView) {
-            return new ModeIndicator(DATA_STATES_TEXTURE, 80, 80, 128, "crystal_growth");
+            return new ModeIndicator(DATA_STATES_TEXTURE, 80, 80, 128);
         }
         if (view instanceof DataChargePressRecipeView.InscriberView ||
                 view instanceof DataChargePressRecipeView.CircuitBoardView) {
-            return new ModeIndicator(DATA_STATES_TEXTURE, 96, 80, 128, "inscriber");
+            return new ModeIndicator(DATA_STATES_TEXTURE, 96, 80, 128);
         }
-        return new ModeIndicator(DATA_STATES_TEXTURE, 112, 80, 128, "charger");
+        return new ModeIndicator(DATA_STATES_TEXTURE, 112, 80, 128);
     }
 
-    private record ModeIndicator(ResourceLocation texture, int sourceX, int sourceY, int textureSize,
-                                 String translationKey) {}
+    private record ModeIndicator(ResourceLocation texture, int sourceX, int sourceY, int textureSize) {}
 
     private static final class FluidAmountTankWidget extends TankWidget {
 
