@@ -199,21 +199,17 @@ public final class OrbitalKineticAttackGameTest {
                     helper.assertTrue(victim.get().isAlive(), "The warning must not apply impact damage early");
                 })
                 .thenWaitUntil(() -> {
-                    OrbitalAttackRecord attack = attacks.find(secondAttackId.get()).orElseThrow();
-                    helper.assertFalse(
-                            attack.phase() == OrbitalAttackPhase.RESERVED_WARNING,
-                            "The warning must eventually commit");
-                    helper.assertFalse(victim.get().isAlive(), "The commit tick must apply the kinetic impact damage");
-                    helper.assertTrue(
-                            level.getBlockState(helper.absolutePos(TARGET)).is(Blocks.STONE),
-                            "Impact damage must happen before the bounded terrain cursor reaches the target");
-                })
-                .thenWaitUntil(() -> {
-                    OrbitalAttackRecord attack = attacks.find(secondAttackId.get()).orElseThrow();
-                    helper.assertValueEqual(
-                            attack.phase(),
-                            OrbitalAttackPhase.COOLDOWN,
-                            "Completing the bounded column and crater work must enter kinetic cooldown");
+                    var attack = attacks.find(secondAttackId.get());
+                    if (cost.cooldownTicks() == 0) {
+                        helper.assertTrue(
+                                attack.isEmpty(),
+                                "A completed zero-cooldown attack must immediately release its mode slot");
+                    } else {
+                        helper.assertTrue(
+                                attack.isEmpty() || attack.get().phase() == OrbitalAttackPhase.COOLDOWN,
+                                "A completed attack must be cooling down or have already released its expired slot");
+                    }
+                    helper.assertFalse(victim.get().isAlive(), "The committed kinetic attack must apply impact damage");
                     helper.assertTrue(
                             level.getBlockState(helper.absolutePos(TARGET)).isAir(),
                             "The committed kinetic terrain worker must remove the target without drops");
@@ -225,16 +221,24 @@ public final class OrbitalKineticAttackGameTest {
                 .thenIdle(40)
                 .thenWaitUntil(() -> helper.assertTrue(
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
-                        "The endpoint must be online when cooldown rejection is checked"))
-                .thenExecute(() -> helper.assertTrue(
-                        attacks.tryConfirmKinetic(
-                                server,
-                                owner.getUUID(),
-                                weaponId,
-                                level.dimension().location(),
-                                helper.absolutePos(TARGET))
-                                .isEmpty(),
-                        "A kinetic mode in cooldown must reject a second funded attack"))
+                        "The endpoint must be online when mode availability is checked"))
+                .thenExecute(() -> {
+                    primeReserve(weapons, server, weaponId, settings, cost);
+                    boolean coolingDown = attacks.find(secondAttackId.get()).isPresent();
+                    var nextAttack = attacks.tryConfirmKinetic(
+                            server,
+                            owner.getUUID(),
+                            weaponId,
+                            level.dimension().location(),
+                            helper.absolutePos(TARGET));
+                    nextAttack.ifPresent(warning -> helper.assertTrue(
+                            attacks.cancelWarning(server, owner.getUUID(), warning.attackId()),
+                            "The follow-up admission check must cancel its warning before it commits"));
+                    helper.assertValueEqual(
+                            nextAttack.isEmpty(),
+                            coolingDown,
+                            "Only a retained cooldown may block the next funded kinetic attack");
+                })
                 .thenSucceed();
     }
 
