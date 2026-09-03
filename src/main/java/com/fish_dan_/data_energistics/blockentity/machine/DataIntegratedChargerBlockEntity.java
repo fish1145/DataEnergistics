@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.block.machine.DataIntegratedChargerBlock;
 import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
+import com.fish_dan_.data_energistics.integration.recipe.EaeCircuitCutterRecipeCatalog;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
@@ -107,6 +108,11 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final double ENERGY_CAPACITY = 160_000.0D;
 
     private static final double BASE_OPERATION_ENERGY = 1_600.0D;
+    private static final int EAE_CRYSTAL_CUTTER_OUTPUT_COUNT = 4;
+    private static final int EAE_CRYSTAL_CUTTER_RESULT_COUNT = 5;
+    private static final int EAE_CRYSTAL_CUTTER_FLUID_AMOUNT = 750;
+    private static final int EAE_BLOCK_CUTTER_RESULT_COUNT = 14;
+    private static final int EAE_BLOCK_CUTTER_FLUID_AMOUNT = 1_050;
     private static final String STORAGE_TAG = "storage";
     private static final String STORAGE_SLOT_TAG = "Slot";
     private static final String STORAGE_COUNT_TAG = "DataEnergisticsCount";
@@ -127,6 +133,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(
             DEBlocks.DATA_INTEGRATED_CHARGER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new IntegratedChargerItemInventory();
+    private final EaeCircuitCutterRecipeCatalog eaeCircuitCutterRecipes = new EaeCircuitCutterRecipeCatalog();
     private boolean suppressAe2DefaultInventorySerialization;
     private final InternalInventory externalInput = createExternalInput();
     private final InternalInventory externalOutput = createExternalOutput();
@@ -638,6 +645,11 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             return null;
         }
 
+        DataChargePressOperation eaeCircuitCutterOperation = findEaeCircuitCutterOperation();
+        if (eaeCircuitCutterOperation != null) {
+            return eaeCircuitCutterOperation;
+        }
+
         List<ItemStack> inputs = new ObjectArrayList<>(ITEM_INPUT_SLOT_COUNT);
         for (int slot = 0; slot < ITEM_INPUT_SLOT_COUNT; slot++) {
             inputs.add(this.storage.getStackInSlot(slot));
@@ -664,6 +676,49 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             }
         }
         return null;
+    }
+
+    /**
+     * Mirrors EAE circuit-cutter block recipes in inscriber mode while replacing their output rates with the
+     * integrated charger's data-corrosion costs.
+     */
+    private @Nullable DataChargePressOperation findEaeCircuitCutterOperation() {
+        if (this.level == null) {
+            return null;
+        }
+
+        for (int inputSlot = 0; inputSlot < ITEM_INPUT_SLOT_COUNT; inputSlot++) {
+            ItemStack input = this.storage.getStackInSlot(inputSlot);
+            ItemStack cutterOutput = this.eaeCircuitCutterRecipes.findOutput(this.level, input);
+            if (cutterOutput == null) {
+                continue;
+            }
+
+            int resultCount = getEaeCircuitCutterResultCount(cutterOutput.getCount());
+            int fluidAmount = getEaeCircuitCutterFluidAmount(cutterOutput.getCount());
+            ItemStack result = cutterOutput.copyWithCount(resultCount);
+            if (findOutputSlot(result) < 0) {
+                continue;
+            }
+
+            for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+                if (DataChargePressRecipeSupport.matchesFluid(getFluidTank(tank, this.fluidTanks).getFluid(), fluidAmount)) {
+                    return new DataChargePressOperation(result, tank, fluidAmount,
+                            List.of(new DataChargePressRecipe.InputSlot(inputSlot, 1)));
+                }
+            }
+        }
+        return null;
+    }
+
+    static int getEaeCircuitCutterResultCount(int originalOutputCount) {
+        return originalOutputCount == EAE_CRYSTAL_CUTTER_OUTPUT_COUNT ?
+                EAE_CRYSTAL_CUTTER_RESULT_COUNT : EAE_BLOCK_CUTTER_RESULT_COUNT;
+    }
+
+    static int getEaeCircuitCutterFluidAmount(int originalOutputCount) {
+        return originalOutputCount == EAE_CRYSTAL_CUTTER_OUTPUT_COUNT ?
+                EAE_CRYSTAL_CUTTER_FLUID_AMOUNT : EAE_BLOCK_CUTTER_FLUID_AMOUNT;
     }
 
     private @Nullable DataChargePressOperation findCustomDataChargePressOperation() {

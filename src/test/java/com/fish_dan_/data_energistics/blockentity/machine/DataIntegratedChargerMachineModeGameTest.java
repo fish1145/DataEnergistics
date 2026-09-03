@@ -30,7 +30,24 @@ public final class DataIntegratedChargerMachineModeGameTest {
         helper.succeed();
     }
 
+    @TestHolder("data_integrated_charger_eae_circuit_cutter_rates")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void eaeCircuitCutterRatesFollowOriginalOutputCount(GameTestHelper helper) {
+        assertEquals(5, DataIntegratedChargerBlockEntity.getEaeCircuitCutterResultCount(4));
+        assertEquals(750, DataIntegratedChargerBlockEntity.getEaeCircuitCutterFluidAmount(4));
+        assertEquals(14, DataIntegratedChargerBlockEntity.getEaeCircuitCutterResultCount(9));
+        assertEquals(1_050, DataIntegratedChargerBlockEntity.getEaeCircuitCutterFluidAmount(9));
+        helper.succeed();
+    }
+
     private static void assertEquals(MachineMode expected, MachineMode actual) {
+        if (expected != actual) {
+            throw new GameTestAssertException("Expected " + expected + ", got " + actual);
+        }
+    }
+
+    private static void assertEquals(int expected, int actual) {
         if (expected != actual) {
             throw new GameTestAssertException("Expected " + expected + ", got " + actual);
         }
