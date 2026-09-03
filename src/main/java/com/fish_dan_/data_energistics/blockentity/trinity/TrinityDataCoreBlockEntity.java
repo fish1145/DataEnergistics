@@ -385,12 +385,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     public void serverTick() {
-        if (this.level == null || this.level.isClientSide()) {
+        Level currentLevel = this.level;
+        if (currentLevel == null || currentLevel.isClientSide()) {
             return;
         }
         long tickStartedAtNanos = System.nanoTime();
         try {
             tickServerState();
+            updateOnlineState(currentLevel);
         } catch (RuntimeException exception) {
             this.craftingRuntime.setPaused(true);
             notifyTrinityCpuChanged();
@@ -409,6 +411,16 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     @Override
     public long lastServerTickNanos() {
         return this.lastServerTickNanos;
+    }
+
+    private void updateOnlineState(Level level) {
+        // The host joins ME through its elected depot, not its unexposed main node.
+        boolean online = isStorageAvailable() && activeLeaseHatch() != null;
+        BlockState state = getBlockState();
+        if (state.getValue(DataRipperReassemblerBlock.LIT) != online) {
+            level.setBlock(this.worldPosition, state.setValue(DataRipperReassemblerBlock.LIT, online),
+                    Block.UPDATE_CLIENTS);
+        }
     }
 
     private void tickServerState() {

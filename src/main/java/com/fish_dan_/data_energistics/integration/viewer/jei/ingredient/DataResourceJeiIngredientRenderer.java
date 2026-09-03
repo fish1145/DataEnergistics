@@ -6,12 +6,15 @@ import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item.TooltipContext;
 import net.minecraft.world.item.TooltipFlag;
 
 import appeng.api.client.AEKeyRendering;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import mezz.jei.api.ingredients.IIngredientRenderer;
+import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -43,9 +46,22 @@ public final class DataResourceJeiIngredientRenderer implements IIngredientRende
         }
     }
 
+    /**
+     * JEI 19.x still requires this abstract entry point; forward it to the context-aware API.
+     *
+     * @deprecated use the context-aware overload
+     */
+    @SuppressWarnings("removal")
+    @Deprecated(forRemoval = true)
     @Override
     public List<Component> getTooltip(DataResourceJeiIngredient ingredient, TooltipFlag tooltipFlag) {
-        List<Component> tooltip = new ArrayList<>(AEKeyRendering.getTooltip(ingredient.key().aeKey()));
+        return getTooltip(ingredient, TooltipContext.EMPTY, null, tooltipFlag);
+    }
+
+    @Override
+    public List<Component> getTooltip(DataResourceJeiIngredient ingredient, TooltipContext tooltipContext,
+                                      @Nullable Player player, TooltipFlag tooltipFlag) {
+        List<Component> tooltip = new ObjectArrayList<>(AEKeyRendering.getTooltip(ingredient.key().aeKey()));
         tooltip.add(GenericStackDisplayHelper.createAmountTooltip(ingredient.asGenericStack()));
         return tooltip;
     }
