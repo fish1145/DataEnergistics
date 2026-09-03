@@ -81,6 +81,8 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
             addDataChargerRecipe(dataChargerView);
         } else if (view instanceof DataChargePressRecipeView.CircuitBoardView circuitBoardView) {
             addCircuitBoardRecipe(circuitBoardView.holder().value());
+        } else if (view instanceof DataChargePressRecipeView.EaeCircuitCutterView circuitCutterView) {
+            addEaeCircuitCutterRecipe(circuitCutterView);
         } else if (view instanceof DataChargePressRecipeView.CustomView customView) {
             addCustomRecipe(customView);
         }
@@ -100,6 +102,8 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
             addDataChargerWidgets(widgets, dataChargerView);
         } else if (this.view instanceof DataChargePressRecipeView.CircuitBoardView circuitBoardView) {
             addCircuitBoardWidgets(widgets, circuitBoardView.holder().value());
+        } else if (this.view instanceof DataChargePressRecipeView.EaeCircuitCutterView circuitCutterView) {
+            addEaeCircuitCutterWidgets(widgets, circuitCutterView);
         } else if (this.view instanceof DataChargePressRecipeView.CustomView customView) {
             addCustomWidgets(widgets, customView);
         }
@@ -130,6 +134,14 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
             this.inputs.add(EmiStack.of(fluidKey.getFluid(), DataChargePressRecipeSupport.DATA_CORROSION_AMOUNT));
         }
         this.outputs.add(EmiStack.of(DataChargePressRecipeSupport.getTripleResult(recipe)));
+    }
+
+    private void addEaeCircuitCutterRecipe(DataChargePressRecipeView.EaeCircuitCutterView view) {
+        this.inputs.add(EmiIngredient.of(view.input()));
+        if (DataChargePressRecipeSupport.getFluidInput(view.fluidAmount()).what() instanceof AEFluidKey fluidKey) {
+            this.inputs.add(EmiStack.of(fluidKey.getFluid(), view.fluidAmount()));
+        }
+        this.outputs.add(EmiStack.of(view.output()));
     }
 
     private void addCustomRecipe(DataChargePressRecipeView.CustomView view) {
@@ -192,6 +204,15 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         widgets.addSlot(EmiStack.of(DataChargePressRecipeSupport.getTripleResult(recipe)), OUTPUT_X, OUTPUT_Y)
                 .drawBack(false)
                 .recipeContext(this);
+    }
+
+    private void addEaeCircuitCutterWidgets(WidgetHolder widgets,
+                                             DataChargePressRecipeView.EaeCircuitCutterView view) {
+        widgets.addSlot(EmiIngredient.of(view.input()), FIRST_INPUT_X, FIRST_INPUT_Y).drawBack(false);
+        if (DataChargePressRecipeSupport.getFluidInput(view.fluidAmount()).what() instanceof AEFluidKey fluidKey) {
+            addFluidTank(widgets, fluidKey, view.fluidAmount());
+        }
+        widgets.addSlot(EmiStack.of(view.output()), OUTPUT_X, OUTPUT_Y).drawBack(false).recipeContext(this);
     }
 
     private void addCustomWidgets(WidgetHolder widgets, DataChargePressRecipeView.CustomView view) {
@@ -280,7 +301,8 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
             return new ModeIndicator(DATA_STATES_TEXTURE, 80, 80, 128, "crystal_growth");
         }
         if (view instanceof DataChargePressRecipeView.InscriberView ||
-                view instanceof DataChargePressRecipeView.CircuitBoardView) {
+                view instanceof DataChargePressRecipeView.CircuitBoardView ||
+                view instanceof DataChargePressRecipeView.EaeCircuitCutterView) {
             return new ModeIndicator(DATA_STATES_TEXTURE, 96, 80, 128, "inscriber");
         }
         return new ModeIndicator(DATA_STATES_TEXTURE, 112, 80, 128, "charger");

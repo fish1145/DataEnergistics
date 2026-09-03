@@ -123,6 +123,8 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
             setDataChargerRecipe(builder, dataChargerView);
         } else if (view instanceof DataChargePressRecipeView.CircuitBoardView circuitBoardView) {
             setCircuitBoardRecipe(builder, circuitBoardView);
+        } else if (view instanceof DataChargePressRecipeView.EaeCircuitCutterView circuitCutterView) {
+            setEaeCircuitCutterRecipe(builder, circuitCutterView);
         } else if (view instanceof DataChargePressRecipeView.CustomView customView) {
             setCustomRecipe(builder, customView);
         }
@@ -164,6 +166,13 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         addFluidInput(builder, DataChargePressRecipeSupport.getFluidInput());
         builder.addOutputSlot(OUTPUT_X, OUTPUT_Y)
                 .addItemStack(DataChargePressRecipeSupport.getTripleResult(recipe));
+    }
+
+    private static void setEaeCircuitCutterRecipe(IRecipeLayoutBuilder builder,
+                                                   DataChargePressRecipeView.EaeCircuitCutterView view) {
+        builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y).addIngredients(view.input());
+        addFluidInput(builder, DataChargePressRecipeSupport.getFluidInput(view.fluidAmount()));
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(view.output());
     }
 
     private static void setCustomRecipe(IRecipeLayoutBuilder builder, DataChargePressRecipeView.CustomView view) {
@@ -222,7 +231,8 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
             return this.crystalGrowthModeIcon;
         }
         if (recipe instanceof DataChargePressRecipeView.InscriberView ||
-                recipe instanceof DataChargePressRecipeView.CircuitBoardView) {
+                recipe instanceof DataChargePressRecipeView.CircuitBoardView ||
+                recipe instanceof DataChargePressRecipeView.EaeCircuitCutterView) {
             return this.inscriberModeIcon;
         }
         return this.chargerModeIcon;
@@ -236,7 +246,8 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
             return "crystal_growth";
         }
         if (recipe instanceof DataChargePressRecipeView.InscriberView ||
-                recipe instanceof DataChargePressRecipeView.CircuitBoardView) {
+                recipe instanceof DataChargePressRecipeView.CircuitBoardView ||
+                recipe instanceof DataChargePressRecipeView.EaeCircuitCutterView) {
             return "inscriber";
         }
         return "charger";

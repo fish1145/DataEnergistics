@@ -108,11 +108,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     public static final double ENERGY_CAPACITY = 160_000.0D;
 
     private static final double BASE_OPERATION_ENERGY = 1_600.0D;
-    private static final int EAE_CRYSTAL_CUTTER_OUTPUT_COUNT = 4;
-    private static final int EAE_CRYSTAL_CUTTER_RESULT_COUNT = 5;
-    private static final int EAE_CRYSTAL_CUTTER_FLUID_AMOUNT = 750;
-    private static final int EAE_BLOCK_CUTTER_RESULT_COUNT = 14;
-    private static final int EAE_BLOCK_CUTTER_FLUID_AMOUNT = 1_050;
     private static final String STORAGE_TAG = "storage";
     private static final String STORAGE_SLOT_TAG = "Slot";
     private static final String STORAGE_COUNT_TAG = "DataEnergisticsCount";
@@ -712,13 +707,11 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     static int getEaeCircuitCutterResultCount(int originalOutputCount) {
-        return originalOutputCount == EAE_CRYSTAL_CUTTER_OUTPUT_COUNT ?
-                EAE_CRYSTAL_CUTTER_RESULT_COUNT : EAE_BLOCK_CUTTER_RESULT_COUNT;
+        return EaeCircuitCutterRecipeCatalog.getIntegratedResultCount(originalOutputCount);
     }
 
     static int getEaeCircuitCutterFluidAmount(int originalOutputCount) {
-        return originalOutputCount == EAE_CRYSTAL_CUTTER_OUTPUT_COUNT ?
-                EAE_CRYSTAL_CUTTER_FLUID_AMOUNT : EAE_BLOCK_CUTTER_FLUID_AMOUNT;
+        return EaeCircuitCutterRecipeCatalog.getIntegratedFluidAmount(originalOutputCount);
     }
 
     private @Nullable DataChargePressOperation findCustomDataChargePressOperation() {

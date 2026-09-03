@@ -42,6 +42,11 @@ public final class EaeCircuitCutterRecipeCatalog {
     private static final Set<ResourceLocation> EXCLUDED_INPUT_IDS = Set.of(
             ResourceLocation.fromNamespaceAndPath("extendedae", "fishbig"),
             ResourceLocation.fromNamespaceAndPath("extendedae", "mddyue"));
+    private static final int CRYSTAL_CUTTER_OUTPUT_COUNT = 4;
+    private static final int CRYSTAL_CUTTER_RESULT_COUNT = 5;
+    private static final int CRYSTAL_CUTTER_FLUID_AMOUNT = 750;
+    private static final int BLOCK_CUTTER_RESULT_COUNT = 14;
+    private static final int BLOCK_CUTTER_FLUID_AMOUNT = 1_050;
 
     private long reloadEpoch = Long.MIN_VALUE;
     private @Nullable RecipeManager recipeManager;
@@ -58,7 +63,7 @@ public final class EaeCircuitCutterRecipeCatalog {
             return null;
         }
 
-        refresh(level);
+        refresh(level.getRecipeManager());
         for (CutterRecipe recipe : this.recipes) {
             if (recipe.input().test(stack)) {
                 return recipe.output().copy();
@@ -67,8 +72,25 @@ public final class EaeCircuitCutterRecipeCatalog {
         return null;
     }
 
-    private void refresh(Level level) {
-        RecipeManager currentRecipeManager = level.getRecipeManager();
+    /** Returns the cached, non-excluded cutter recipes for recipe-viewer integration. */
+    public List<CutterRecipe> recipes(RecipeManager recipeManager) {
+        refresh(recipeManager);
+        return this.recipes;
+    }
+
+    /** Returns the integrated charger's output count for the cutter recipe's original output count. */
+    public static int getIntegratedResultCount(int originalOutputCount) {
+        return originalOutputCount == CRYSTAL_CUTTER_OUTPUT_COUNT ?
+                CRYSTAL_CUTTER_RESULT_COUNT : BLOCK_CUTTER_RESULT_COUNT;
+    }
+
+    /** Returns the data-corrosion cost for the cutter recipe's original output count. */
+    public static int getIntegratedFluidAmount(int originalOutputCount) {
+        return originalOutputCount == CRYSTAL_CUTTER_OUTPUT_COUNT ?
+                CRYSTAL_CUTTER_FLUID_AMOUNT : BLOCK_CUTTER_FLUID_AMOUNT;
+    }
+
+    private void refresh(RecipeManager currentRecipeManager) {
         long currentReloadEpoch = RecipeReloadEpoch.current();
         if (this.recipeManager == currentRecipeManager && this.reloadEpoch == currentReloadEpoch) {
             return;
@@ -83,7 +105,7 @@ public final class EaeCircuitCutterRecipeCatalog {
                 }
 
                 CutterRecipe recipe = parseRecipe(holder.value(), holder.id());
-                if (recipe != null) {
+                if (recipe != null && hasBlockInput(recipe.input())) {
                     rebuiltRecipes.add(recipe);
                 }
             }
@@ -92,6 +114,15 @@ public final class EaeCircuitCutterRecipeCatalog {
         this.recipeManager = currentRecipeManager;
         this.reloadEpoch = currentReloadEpoch;
         this.recipes = List.copyOf(rebuiltRecipes);
+    }
+
+    private static boolean hasBlockInput(Ingredient ingredient) {
+        for (ItemStack stack : ingredient.getItems()) {
+            if (stack.getItem() instanceof BlockItem) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // The recipe manager exposes an erased RecipeType<?> for optional third-party recipes.
@@ -138,7 +169,7 @@ public final class EaeCircuitCutterRecipeCatalog {
             Data_Energistics.LOGGER.warn("Skipped EAE circuit-cutter recipe {} because its output is empty", recipeId);
             return null;
         }
-        return new CutterRecipe(ingredient, output.copy());
+        return new CutterRecipe(recipeId, ingredient, output.copy());
     }
 
     // Optional recipe serializers expose their codec through erased generic types.
@@ -154,5 +185,16 @@ public final class EaeCircuitCutterRecipeCatalog {
                 .orElse(null);
     }
 
-    private record CutterRecipe(Ingredient input, ItemStack output) {}
+    /** One EAE cutter input/output pair together with its source recipe id. */
+    public record CutterRecipe(ResourceLocation id, Ingredient input, ItemStack output) {
+
+        public CutterRecipe {
+            output = output.copy();
+        }
+
+        @Override
+        public ItemStack output() {
+            return this.output.copy();
+        }
+    }
 }
