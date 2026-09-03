@@ -44,12 +44,13 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private static final int WIDTH = BACKGROUND_WIDTH + 2;
     private static final int HEIGHT = 64;
     // Map top/middle/bottom recipe inputs to the first vertical column of the machine's 3x3 input grid.
-    private static final int FIRST_INPUT_X = 12;
-    private static final int SECOND_INPUT_X = 12;
-    private static final int THIRD_INPUT_X = 12;
+    private static final int FIRST_INPUT_X = 11;
+    private static final int SECOND_INPUT_X = 11;
+    private static final int THIRD_INPUT_X = 11;
     private static final int FLUID_X = 66;
     private static final int FLUID_Y = 7;
-    private static final int OUTPUT_X = 117;
+    private static final int OUTPUT_X = 111;
+    private static final int OUTPUT_Y = 6;
     private static final int PROGRESS_X = 151;
     private static final int FIRST_INPUT_Y = 7;
     private static final int SECOND_INPUT_Y = 25;
@@ -147,7 +148,7 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private void addChargerWidgets(WidgetHolder widgets, DataChargePressRecipeView.ChargerView view) {
         widgets.addSlot(EmiIngredient.of(view.holder().value().getIngredient()), FIRST_INPUT_X, FIRST_INPUT_Y)
                 .drawBack(false);
-        widgets.addSlot(EmiStack.of(view.holder().value().getResultItem()), OUTPUT_X, FIRST_INPUT_Y)
+        widgets.addSlot(EmiStack.of(view.holder().value().getResultItem()), OUTPUT_X, OUTPUT_Y)
                 .drawBack(false)
                 .recipeContext(this);
     }
@@ -156,14 +157,14 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         addOptionalInscriberWidget(widgets, recipe, recipe.getTopOptional(), FIRST_INPUT_X, FIRST_INPUT_Y);
         widgets.addSlot(EmiIngredient.of(recipe.getMiddleInput()), SECOND_INPUT_X, SECOND_INPUT_Y).drawBack(false);
         addOptionalInscriberWidget(widgets, recipe, recipe.getBottomOptional(), THIRD_INPUT_X, THIRD_INPUT_Y);
-        widgets.addSlot(EmiStack.of(recipe.getResultItem()), OUTPUT_X, FIRST_INPUT_Y)
+        widgets.addSlot(EmiStack.of(recipe.getResultItem()), OUTPUT_X, OUTPUT_Y)
                 .drawBack(false)
                 .recipeContext(this);
     }
 
     private void addPowderWidgets(WidgetHolder widgets, InscriberRecipe recipe) {
         widgets.addSlot(EmiIngredient.of(recipe.getMiddleInput()), SECOND_INPUT_X, SECOND_INPUT_Y).drawBack(false);
-        widgets.addSlot(EmiStack.of(recipe.getResultItem()), OUTPUT_X, FIRST_INPUT_Y)
+        widgets.addSlot(EmiStack.of(recipe.getResultItem()), OUTPUT_X, OUTPUT_Y)
                 .drawBack(false)
                 .recipeContext(this);
     }
@@ -171,7 +172,7 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private void addDataChargerWidgets(WidgetHolder widgets, DataChargePressRecipeView.DataChargerView view) {
         var recipe = view.holder().value();
         widgets.addSlot(EmiIngredient.of(recipe.getIngredient()), FIRST_INPUT_X, FIRST_INPUT_Y).drawBack(false);
-        widgets.addSlot(EmiStack.of(recipe.getResult()), OUTPUT_X, FIRST_INPUT_Y).drawBack(false).recipeContext(this);
+        widgets.addSlot(EmiStack.of(recipe.getResult()), OUTPUT_X, OUTPUT_Y).drawBack(false).recipeContext(this);
     }
 
     private void addCircuitBoardWidgets(WidgetHolder widgets, InscriberRecipe recipe) {
@@ -181,7 +182,7 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         if (DataChargePressRecipeSupport.getFluidInput().what() instanceof AEFluidKey fluidKey) {
             addFluidTank(widgets, fluidKey, DataChargePressRecipeSupport.DATA_CORROSION_AMOUNT);
         }
-        widgets.addSlot(EmiStack.of(DataChargePressRecipeSupport.getTripleResult(recipe)), OUTPUT_X, FIRST_INPUT_Y)
+        widgets.addSlot(EmiStack.of(DataChargePressRecipeSupport.getTripleResult(recipe)), OUTPUT_X, OUTPUT_Y)
                 .drawBack(false)
                 .recipeContext(this);
     }
@@ -192,7 +193,7 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         if (recipe.getFluidInput().what() instanceof AEFluidKey fluidKey) {
             addFluidTank(widgets, fluidKey, recipe.getFluidInput().amount());
         }
-        widgets.addSlot(EmiStack.of(recipe.getResult()), OUTPUT_X, FIRST_INPUT_Y).drawBack(false).recipeContext(this);
+        widgets.addSlot(EmiStack.of(recipe.getResult()), OUTPUT_X, OUTPUT_Y).drawBack(false).recipeContext(this);
     }
 
     private static void addCustomItemWidgets(WidgetHolder widgets, List<DataChargePressIngredient> inputs) {

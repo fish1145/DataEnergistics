@@ -41,12 +41,13 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
     private static final int WIDTH = BACKGROUND_WIDTH + 2;
     private static final int HEIGHT = 64;
     // Map top/middle/bottom recipe inputs to the first vertical column of the machine's 3x3 input grid.
-    private static final int FIRST_INPUT_X = 12;
-    private static final int SECOND_INPUT_X = 12;
-    private static final int THIRD_INPUT_X = 12;
+    private static final int FIRST_INPUT_X = 11;
+    private static final int SECOND_INPUT_X = 11;
+    private static final int THIRD_INPUT_X = 11;
     private static final int FLUID_X = 66;
     private static final int FLUID_Y = 7;
-    private static final int OUTPUT_X = 117;
+    private static final int OUTPUT_X = 111;
+    private static final int OUTPUT_Y = 6;
     private static final int PROGRESS_X = 151;
     private static final int FIRST_INPUT_Y = 7;
     private static final int SECOND_INPUT_Y = 25;
@@ -96,7 +97,7 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
 
     private static void setChargerRecipe(IRecipeLayoutBuilder builder, DataChargePressRecipeView.ChargerView view) {
         builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y).addIngredients(view.holder().value().getIngredient());
-        builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y).addItemStack(view.holder().value().getResultItem());
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(view.holder().value().getResultItem());
     }
 
     private static void setInscriberRecipe(IRecipeLayoutBuilder builder, DataChargePressRecipeView.InscriberView view) {
@@ -106,20 +107,20 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         builder.addInputSlot(SECOND_INPUT_X, SECOND_INPUT_Y).addIngredients(recipe.getMiddleInput());
         addOptionalInscriberIngredient(builder, recipe.getBottomOptional(), THIRD_INPUT_X, THIRD_INPUT_Y,
                 recipe.getProcessType());
-        builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y).addItemStack(recipe.getResultItem());
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(recipe.getResultItem());
     }
 
     private static void setPowderRecipe(IRecipeLayoutBuilder builder, DataChargePressRecipeView.PowderView view) {
         InscriberRecipe recipe = view.holder().value();
         builder.addInputSlot(SECOND_INPUT_X, SECOND_INPUT_Y).addIngredients(recipe.getMiddleInput());
-        builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y).addItemStack(recipe.getResultItem());
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(recipe.getResultItem());
     }
 
     private static void setDataChargerRecipe(IRecipeLayoutBuilder builder,
                                              DataChargePressRecipeView.DataChargerView view) {
         var recipe = view.holder().value();
         builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y).addIngredients(recipe.getIngredient());
-        builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y).addItemStack(recipe.getResult());
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(recipe.getResult());
     }
 
     private static void setCircuitBoardRecipe(IRecipeLayoutBuilder builder,
@@ -128,7 +129,7 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         builder.addInputSlot(SECOND_INPUT_X, SECOND_INPUT_Y).addItemStacks(withCount(recipe.getMiddleInput(),
                 DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT));
         addFluidInput(builder, DataChargePressRecipeSupport.getFluidInput());
-        builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y)
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y)
                 .addItemStack(DataChargePressRecipeSupport.getTripleResult(recipe));
     }
 
@@ -136,7 +137,7 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         var recipe = view.holder().value();
         addCustomItemInputs(builder, recipe.getInputs());
         addFluidInput(builder, recipe.getFluidInput());
-        builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y)
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y)
                 .addItemStack(recipe.getResult());
     }
 
