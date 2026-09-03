@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.client.screen.machine;
 
-import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
+import com.fish_dan_.data_energistics.client.widget.DataIntegratedChargerModeButton;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.machine.DataIntegratedChargerMenu;
 
@@ -35,6 +35,7 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
 
     private final ServerSettingToggleButton<YesNo> autoExportButton;
     private final OutputSideActionButton outputSidesButton;
+    private final DataIntegratedChargerModeButton modeButton;
     private final ProgressBar progressBar;
 
     public DataIntegratedChargerScreen(DataIntegratedChargerMenu menu, Inventory playerInventory, Component title,
@@ -44,6 +45,8 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
         this.addToLeftToolbar(this.autoExportButton);
         this.outputSidesButton = new OutputSideActionButton(button -> openOutputConfig());
         this.addToLeftToolbar(this.outputSidesButton);
+        this.modeButton = new DataIntegratedChargerModeButton(this.menu::sendSetMachineMode);
+        this.addToLeftToolbar(this.modeButton);
         this.progressBar = new ProgressBar(this.menu, style.getImage("progressBar"), ProgressBar.Direction.VERTICAL);
         this.widgets.add("progressBar", this.progressBar);
     }
@@ -70,6 +73,7 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
         this.autoExportButton.set(this.menu.getAutoExport());
         boolean autoExportEnabled = this.autoExportButton.getCurrentValue() == YesNo.YES;
         this.outputSidesButton.setVisibility(autoExportEnabled);
+        this.modeButton.setMode(this.menu.getMachineMode());
     }
 
     @Override
@@ -104,12 +108,6 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
         }
 
         super.renderSlot(guiGraphics, slot);
-        if (slot.isActive() && slot.getItem().isEmpty() &&
-                this.menu.getSlotSemantic(slot) == DataIntegratedChargerMenu.MACHINE_MODULE) {
-            DataEnergisticsIcon.getBlitter("BACKGROUND_BLOCK")
-                    .dest(slot.x, slot.y)
-                    .blit(guiGraphics);
-        }
     }
 
     @Override
