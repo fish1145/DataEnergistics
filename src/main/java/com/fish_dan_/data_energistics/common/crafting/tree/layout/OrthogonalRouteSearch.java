@@ -37,16 +37,7 @@ final class OrthogonalRouteSearch {
         List<Port> sources = terminals(sourcePorts, group, true, true);
         List<Port> targets = terminals(targetPorts, group, false, true);
         Candidate shortest = previous == null ? null : new Candidate(previous.points(), previous.metrics());
-        List<RawCandidate> quick = new ObjectArrayList<>();
-        for (Port source : sources) {
-            for (Port target : targets) {
-                for (List<Point> core : graph.quickPaths(source, target)) {
-                    RawCandidate candidate = rawCandidate(source, target, core, group, true, true);
-                    if (candidate == null) continue;
-                    quick.add(candidate);
-                }
-            }
-        }
+        List<RawCandidate> quick = quickCandidates(sources, targets, group, true);
         quick.sort(OrthogonalRouteSearch::compareRaw);
         for (RawCandidate candidate : quick) {
             if (shortest != null && compareRaw(candidate, shortest) >= 0) break;
@@ -58,6 +49,13 @@ final class OrthogonalRouteSearch {
         }
         if (shortest == null && !sources.isEmpty() && !targets.isEmpty()) shortest = search(sources, targets, group, true);
         if (shortest == null) {
+            List<RawCandidate> localFallback = quickCandidates(clearSources, clearTargets, group, false);
+            localFallback.sort(OrthogonalRouteSearch::compareRaw);
+            if (!localFallback.isEmpty()) {
+                RawCandidate fallback = localFallback.getFirst();
+                return new Choice(fallback.points(), new Metrics(fallback.length(), 0, fallback.bends(), 0),
+                        fallback.length(), false);
+            }
             RawCandidate fallback = searchRaw(clearSources, clearTargets, group, false);
             if (fallback == null) throw new IllegalStateException("No obstacle-free crafting-tree connection for " + group);
             return new Choice(fallback.points(), new Metrics(fallback.length(), 0, fallback.bends(), 0),
@@ -76,6 +74,26 @@ final class OrthogonalRouteSearch {
             if (measured != null && compare(measured.metrics(), best.metrics()) < 0) best = measured;
         }
         return new Choice(best.points(), best.metrics(), baseline, true);
+    }
+
+    private List<RawCandidate> quickCandidates(List<Port> sources, List<Port> targets,
+                                               CraftingPlanRouteGroup group, boolean respectReservations) {
+        List<RawCandidate> result = new ObjectArrayList<>();
+        for (Port source : sources) {
+            for (Port target : targets) {
+                addCandidates(result, source, target, graph.quickPaths(source, target), group, respectReservations);
+                addCandidates(result, source, target, graph.localChannelPaths(source, target), group, respectReservations);
+            }
+        }
+        return result;
+    }
+
+    private void addCandidates(List<RawCandidate> result, Port source, Port target, List<List<Point>> paths,
+                               CraftingPlanRouteGroup group, boolean respectReservations) {
+        for (List<Point> core : paths) {
+            RawCandidate candidate = rawCandidate(source, target, core, group, true, respectReservations);
+            if (candidate != null) result.add(candidate);
+        }
     }
 
     private List<Port> terminals(List<Port> ports, CraftingPlanRouteGroup group, boolean source,

@@ -197,6 +197,33 @@ final class OrthogonalRoutingGraph {
         return paths;
     }
 
+    /** Existing compressed tracks between facing ports; no dense X/Y product is generated. */
+    List<List<Point>> localChannelPaths(Port from, Port to) {
+        Point start = from.stub();
+        Point end = to.stub();
+        List<List<Point>> paths = new ObjectArrayList<>();
+        boolean horizontal = from.side() == Side.RIGHT && to.side() == Side.LEFT && start.x() < end.x() || from.side() == Side.LEFT && to.side() == Side.RIGHT && start.x() > end.x();
+        if (horizontal) {
+            int first = x.ceiling(Math.min(start.x(), end.x()) + OrthogonalSegmentReservations.EPSILON);
+            int last = x.floor(Math.max(start.x(), end.x()) - OrthogonalSegmentReservations.EPSILON);
+            for (int index = first; index <= last; index++) {
+                double lane = x.value(index);
+                paths.add(List.of(start, new Point(lane, start.y()), new Point(lane, end.y()), end));
+            }
+            return paths;
+        }
+        boolean vertical = from.side() == Side.BOTTOM && to.side() == Side.TOP && start.y() < end.y() || from.side() == Side.TOP && to.side() == Side.BOTTOM && start.y() > end.y();
+        if (vertical) {
+            int first = y.ceiling(Math.min(start.y(), end.y()) + OrthogonalSegmentReservations.EPSILON);
+            int last = y.floor(Math.max(start.y(), end.y()) - OrthogonalSegmentReservations.EPSILON);
+            for (int index = first; index <= last; index++) {
+                double lane = y.value(index);
+                paths.add(List.of(start, new Point(start.x(), lane), new Point(end.x(), lane), end));
+            }
+        }
+        return paths;
+    }
+
     static Port port(PlacedNode node, Side side, double fraction) {
         double tangentX = clean(node.x() + 6 + fraction * (node.width() - 12));
         double tangentY = clean(node.y() + 6 + fraction * (node.height() - 12));
