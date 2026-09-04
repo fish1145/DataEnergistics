@@ -373,6 +373,29 @@ final class TrinityCraftConfirmScreen extends AbstractContainerScreen<CraftConfi
     }
 
     @Override
+    public boolean mouseDragged(double mouseX,
+                                double mouseY,
+                                int button,
+                                double dragX,
+                                double dragY) {
+        if (this.modularUI != null &&
+                this.modularUI.getWidget().mouseDragged(mouseX, mouseY, button, dragX, dragY)) {
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (this.modularUI != null && this.modularUI.getDragHandler().isDragging()) {
+            this.modularUI.getWidget().mouseReleased(mouseX, mouseY, button);
+            setDragging(false);
+            return true;
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         TrinityCraftingCycleSummary summary = ((TrinityCraftConfirmMenuState) this.menu)
                 .data_energistics$cycleSummary();

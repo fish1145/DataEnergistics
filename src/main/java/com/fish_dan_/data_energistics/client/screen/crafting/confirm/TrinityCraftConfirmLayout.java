@@ -11,6 +11,8 @@ import java.util.List;
 final class TrinityCraftConfirmLayout {
 
     private static final int ROOT_CHILD_COUNT = 10;
+    private static final float TOP_LABEL_SHIFT = 1.0F;
+    private static final float BOTTOM_LABEL_SHIFT = 2.0F;
 
     private TrinityCraftConfirmLayout() {}
 
@@ -26,13 +28,28 @@ final class TrinityCraftConfirmLayout {
                 identify(child(children, 1, Button.class, "cancel action"), "trinity_craft_confirm_cancel"),
                 identify(child(children, 2, Button.class, "start action"), "trinity_craft_confirm_start"),
                 identify(child(children, 3, Button.class, "plan-tree action"), "trinity_craft_confirm_tree"),
-                identify(child(children, 4, Label.class, "plan heading"), "trinity_craft_confirm_heading"),
-                identify(child(children, 5, Label.class, "plan metrics"), "trinity_craft_confirm_metrics"),
+                identifyTopLabel(
+                        child(children, 4, Label.class, "plan heading"),
+                        "trinity_craft_confirm_heading",
+                        5),
+                identifyTopLabel(
+                        child(children, 5, Label.class, "plan metrics"),
+                        "trinity_craft_confirm_metrics",
+                        11),
                 identify(child(children, 6, Scroller.Vertical.class, "material scrollbar"),
                         "trinity_craft_confirm_scrollbar"),
-                identify(child(children, 7, Label.class, "planning status"), "trinity_craft_confirm_status"),
-                identify(child(children, 8, Label.class, "CPU statistics"), "trinity_craft_confirm_cpu_stats"),
-                identify(child(children, 9, Label.class, "diagnostic"), "trinity_craft_confirm_diagnostic"));
+                identifyBottomLabel(
+                        child(children, 7, Label.class, "planning status"),
+                        "trinity_craft_confirm_status",
+                        51),
+                identifyBottomLabel(
+                        child(children, 8, Label.class, "CPU statistics"),
+                        "trinity_craft_confirm_cpu_stats",
+                        40),
+                identifyBottomLabel(
+                        child(children, 9, Label.class, "diagnostic"),
+                        "trinity_craft_confirm_diagnostic",
+                        28));
     }
 
     private static <T extends UIElement> T child(List<UIElement> children,
@@ -50,6 +67,18 @@ final class TrinityCraftConfirmLayout {
     private static <T extends UIElement> T identify(T element, String id) {
         element.setId(id);
         return element;
+    }
+
+    private static Label identifyBottomLabel(Label label, String id, float authoredBottom) {
+        identify(label, id);
+        label.layout(layout -> layout.bottom(authoredBottom + BOTTOM_LABEL_SHIFT));
+        return label;
+    }
+
+    private static Label identifyTopLabel(Label label, String id, float authoredTop) {
+        identify(label, id);
+        label.layout(layout -> layout.top(authoredTop + TOP_LABEL_SHIFT));
+        return label;
     }
 
     record Layout(Button cpu,
