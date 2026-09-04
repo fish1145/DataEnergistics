@@ -84,20 +84,35 @@ public final class CraftingPlanRadialLayout {
                     .thenComparingInt(ViewNode::componentId).thenComparingInt(ViewNode::id));
             double maximumHeight = baseHeight;
             for (ViewNode node : ring) maximumHeight = Math.max(maximumHeight, 12 + 2D * portCounts.get(node.id()));
-            double radius = Math.max(previousRadius + cardWidth + ringGap,
-                    ring.size() * (Math.max(cardWidth, maximumHeight) + ringGap / 2) / TAU);
+            double maximumExtent = Math.max(cardWidth, maximumHeight);
+            double laneStep = Math.min(ringGap, maximumExtent * 0.35);
+            double radius = Math.max(previousRadius + maximumExtent + ringGap + laneStep,
+                    ring.size() * (maximumExtent + ringGap / 2) / TAU + laneStep);
+            Int2IntMap componentLanes = new Int2IntOpenHashMap();
+            componentLanes.defaultReturnValue(Integer.MIN_VALUE);
+            int componentIndex = 0;
+            for (ViewNode node : ring) {
+                if (componentLanes.get(node.componentId()) != Integer.MIN_VALUE) continue;
+                int lane = switch (componentIndex++ % 3) {
+                    case 1 -> -1;
+                    case 2 -> 1;
+                    default -> 0;
+                };
+                componentLanes.put(node.componentId(), lane);
+            }
             double offset = (entry.getIntKey() & 1) == 0 ? Math.PI / ring.size() : 0;
             for (int index = 0; index < ring.size(); index++) {
                 ViewNode node = ring.get(index);
                 double height = Math.max(baseHeight, 12 + 2D * portCounts.get(node.id()));
                 double angle = offset + TAU * index / ring.size();
-                double centerX = radius * Math.cos(angle);
-                double centerY = radius * Math.sin(angle);
+                double nodeRadius = radius + componentLanes.get(node.componentId()) * laneStep;
+                double centerX = nodeRadius * Math.cos(angle);
+                double centerY = nodeRadius * Math.sin(angle);
                 angles.put(node.id(), angle);
                 placed.put(node.id(), new PlacedNode(node, centerX - cardWidth / 2,
                         centerY - height / 2, cardWidth, height));
             }
-            previousRadius = radius + Math.max(cardWidth, maximumHeight) / 2;
+            previousRadius = radius + laneStep + maximumExtent / 2;
         }
         List<RadialRequest> requests = requests(graph, placed);
         resizeForPorts(requests, placed, cardWidth, baseHeight);
