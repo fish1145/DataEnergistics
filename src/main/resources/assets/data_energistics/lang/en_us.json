@@ -996,9 +996,13 @@
 	"gui.data_energistics.plan_tree.pref_missing": "Default missing filter",
 	"gui.data_energistics.plan_tree.pref_amounts": "Amounts in PNG",
 	"gui.data_energistics.plan_tree.pref_budget": "Initial auto-expansion",
+	"gui.data_energistics.plan_tree.pref_layout": "Layout mode",
 	"gui.data_energistics.plan_tree.pref_missing_value": "Default missing filter: %s",
 	"gui.data_energistics.plan_tree.pref_amounts_value": "Amounts in PNG: %s",
 	"gui.data_energistics.plan_tree.pref_budget_value": "Initially show: %s nodes",
+	"gui.data_energistics.plan_tree.pref_layout_value": "Layout: %s",
+	"gui.data_energistics.plan_tree.layout.layered": "Layered",
+	"gui.data_energistics.plan_tree.layout.radial": "Root-centered radial",
 	"gui.data_energistics.plan_tree.enabled": "On",
 	"gui.data_energistics.plan_tree.disabled": "Off",
 	"gui.data_energistics.plan_tree.missing.tooltip": "Keep missing/unresolved materials and all their explanation paths.",
@@ -1019,5 +1023,6 @@
 	"gui.data_energistics.plan_tree.export_svg_full.tooltip": "Vector export of the full plan without pixel-budget downscaling or changes to the view; transparent background.",
 	"gui.data_energistics.plan_tree.pref_missing.tooltip": "Toggle the missing-only default for newly opened plans.",
 	"gui.data_energistics.plan_tree.pref_amounts.tooltip": "Toggle exact-quantity labels in exported images.",
-	"gui.data_energistics.plan_tree.pref_budget.tooltip": "Only controls the first automatic view of a new plan, from 64 to 4096 nodes; complete cycles may slightly exceed it. Manual, recursive and expand-all actions are unrestricted."
+	"gui.data_energistics.plan_tree.pref_budget.tooltip": "Only controls the first automatic view of a new plan, from 64 to 4096 nodes; complete cycles may slightly exceed it. Manual, recursive and expand-all actions are unrestricted.",
+	"gui.data_energistics.plan_tree.pref_layout.tooltip": "Switch between the left-to-right layered layout and a root-centered radial layout with curved dependencies."
 }
