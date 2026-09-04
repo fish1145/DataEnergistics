@@ -11,7 +11,7 @@ import java.util.List;
 final class TrinityCraftConfirmLayout {
 
     private static final int ROOT_CHILD_COUNT = 10;
-    private static final float TOP_LABEL_SHIFT = 1.0F;
+    private static final float TOP_LABEL_SHIFT = 3.0F;
     private static final float BOTTOM_LABEL_SHIFT = 2.0F;
 
     private TrinityCraftConfirmLayout() {}
