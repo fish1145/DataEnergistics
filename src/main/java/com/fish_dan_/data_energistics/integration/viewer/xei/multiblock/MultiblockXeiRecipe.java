@@ -8,7 +8,6 @@ import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
 import net.minecraft.resources.ResourceLocation;
 
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import org.jspecify.annotations.Nullable;
 
 import java.util.function.BiConsumer;
@@ -50,18 +49,8 @@ public final class MultiblockXeiRecipe implements MultiblockRecipeViewSource {
     }
 
     private MultiblockXeiRecipe(ResourceLocation controllerId, MultiblockXeiUiFactory uiFactory) {
-        if (controllerId == null || uiFactory == null) {
-            throw new IllegalArgumentException("Multiblock XEI recipe arguments cannot be null");
-        }
         this.controllerId = controllerId;
         this.uiFactory = uiFactory;
-    }
-
-    /**
-     * Creates and publishes a fresh independently owned composition for one viewer cache entry.
-     */
-    public MultiblockXeiComposition createComposition(String idPrefix) {
-        return createComposition(idPrefix, (composition, change) -> {});
     }
 
     /**
@@ -70,9 +59,6 @@ public final class MultiblockXeiRecipe implements MultiblockRecipeViewSource {
     public MultiblockXeiComposition createComposition(
                                                       String idPrefix,
                                                       BiConsumer<MultiblockXeiComposition, MultiblockXeiComposition.RecipeChange> changeListener) {
-        if (changeListener == null) {
-            throw new IllegalArgumentException("Multiblock XEI recipe change listener cannot be null");
-        }
         MultiblockXeiComposition composition = this.uiFactory.create(
                 this.controllerId,
                 this.retainedSelection,
@@ -87,26 +73,10 @@ public final class MultiblockXeiRecipe implements MultiblockRecipeViewSource {
     }
 
     /**
-     * Creates the ModularUI while retaining its composition as the current typed source.
-     */
-    public ModularUI createModularUI(String idPrefix) {
-        return createComposition(idPrefix).modularUI();
-    }
-
-    /**
-     * Creates a ModularUI whose composition reports recipe-affecting live-view changes.
-     */
-    public ModularUI createModularUI(
-                                     String idPrefix,
-                                     BiConsumer<MultiblockXeiComposition, MultiblockXeiComposition.RecipeChange> changeListener) {
-        return createComposition(idPrefix, changeListener).modularUI();
-    }
-
-    /**
      * Returns whether a deferred viewer refresh still targets this recipe's active composition.
      */
     public boolean isActiveComposition(MultiblockXeiComposition composition) {
-        return composition != null && this.activeComposition == composition && composition.isActive();
+        return this.activeComposition == composition && composition.isActive();
     }
 
     @Override

@@ -3,6 +3,9 @@ package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.autobuild;
 import net.minecraft.network.chat.Component;
 
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -14,7 +17,7 @@ import java.util.function.UnaryOperator;
 final class AutoBuildAdjustmentRail {
 
     private final AutoBuildComposition.AdjustmentControls controls;
-    private List<AutoBuildComposition.Adjustment> adjustments = List.of();
+    private ObjectList<AutoBuildComposition.Adjustment> adjustments = ObjectLists.emptyList();
     private int adjustmentIndex;
     @Nullable
     private Component tooltipContext;
@@ -32,7 +35,7 @@ final class AutoBuildAdjustmentRail {
     }
 
     void setAdjustments(List<AutoBuildComposition.Adjustment> adjustments, @Nullable String retainedStableKey) {
-        this.adjustments = List.copyOf(adjustments);
+        this.adjustments = ObjectLists.unmodifiable(new ObjectArrayList<>(adjustments));
         this.adjustmentIndex = indexOf(retainedStableKey);
         refresh();
     }

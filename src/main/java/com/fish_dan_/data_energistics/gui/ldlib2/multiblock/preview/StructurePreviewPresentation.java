@@ -1,18 +1,14 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview;
 
 /**
- * Declares the two shared preview compositions without coupling the panel to a particular host or recipe viewer.
+ * Declares the hosted preview composition used by authored multiblock layouts.
  */
 public enum StructurePreviewPresentation {
 
     /**
      * Full hosted-window presentation with the canonical material strip.
      */
-    HOSTED(184, true),
-    /**
-     * Compact recipe-viewer presentation whose recipe slots are owned by the XEI composition.
-     */
-    XEI(158, false);
+    HOSTED(184);
 
     /**
      * Shared panel and scene width.
@@ -44,11 +40,9 @@ public enum StructurePreviewPresentation {
     public static final int MATERIAL_STRIP_HEIGHT = 24;
 
     private final int height;
-    private final boolean materialStrip;
 
-    StructurePreviewPresentation(int height, boolean materialStrip) {
+    StructurePreviewPresentation(int height) {
         this.height = height;
-        this.materialStrip = materialStrip;
     }
 
     /**
@@ -56,12 +50,5 @@ public enum StructurePreviewPresentation {
      */
     public int height() {
         return this.height;
-    }
-
-    /**
-     * Returns whether this composition owns and renders the canonical material strip.
-     */
-    public boolean hasMaterialStrip() {
-        return this.materialStrip;
     }
 }
