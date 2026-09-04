@@ -12,6 +12,8 @@ import it.unimi.dsi.fastutil.doubles.DoubleList;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -22,12 +24,20 @@ import java.util.Comparator;
 import java.util.List;
 
 /** Layout-worker bridge candidates: a vertical route detours over a deliberately omitted horizontal underpass. */
-public record CraftingPlanRouteCrossing(int bridgeSegmentId, int underSegmentId, double x, double y,
-                                        double bend, double radius, double gapHalfWidth) {
+public record CraftingPlanRouteCrossing(int bridgeSegmentId, double x, double y,
+                                        double bend, double radius, List<Underpass> underpasses) {
 
     public static final double MAX_RADIUS = 4;
     private static final double[] SPANS = { MAX_RADIUS, 3, 2 };
     private static final double GAP_HALF_WIDTH = 1.5;
+    private static final double DENSE_CLUSTER_GAP = 24;
+    private static final double DENSE_BRIDGE_BEND = 2 * MAX_RADIUS;
+
+    public CraftingPlanRouteCrossing {
+        underpasses = List.copyOf(underpasses);
+    }
+
+    public record Underpass(int segmentId, double x, double gapHalfWidth) {}
 
     static List<CraftingPlanRouteCrossing> find(List<PlacedNode> nodes, List<RoutedEdge> routes,
                                                 List<Segment> segments, List<Run> runs) {
@@ -76,15 +86,116 @@ public record CraftingPlanRouteCrossing(int bridgeSegmentId, int underSegmentId,
                                 segments, accepted, event.runId(), horizontalRun, event.x(), y);
                         if (crossing != null) {
                             result.add(crossing);
-                            accepted.add(crossing);
+                            if (crossing.radius() > 0) accepted.add(crossing);
                         }
                     }
                 }
             }
         }
+        result = mergeDenseCrossings(result, segments, runs, runBySegment, nodeIndex,
+                verticalByX, horizontalByY, junctions, accepted);
         result.sort(Comparator.comparingInt(CraftingPlanRouteCrossing::bridgeSegmentId)
                 .thenComparingDouble(CraftingPlanRouteCrossing::y));
         return List.copyOf(result);
+    }
+
+    private static List<CraftingPlanRouteCrossing> mergeDenseCrossings(
+                                                                       List<CraftingPlanRouteCrossing> crossings, List<Segment> segments, List<Run> runs, int[] runBySegment,
+                                                                       NodeIndex nodes, Double2ObjectAVLTreeMap<RunIntervals> verticalByX,
+                                                                       Double2ObjectAVLTreeMap<RunIntervals> horizontalByY, JunctionIndex junctions,
+                                                                       CrossingIndex accepted) {
+        var fallbackByBridge = new Int2ObjectOpenHashMap<ObjectArrayList<CraftingPlanRouteCrossing>>();
+        List<CraftingPlanRouteCrossing> result = new ObjectArrayList<>();
+        for (CraftingPlanRouteCrossing crossing : crossings) {
+            if (crossing.radius() > 0) result.add(crossing);
+            else fallbackByBridge.computeIfAbsent(crossing.bridgeSegmentId(), unused -> new ObjectArrayList<>()).add(crossing);
+        }
+        for (var entry : fallbackByBridge.int2ObjectEntrySet()) {
+            ObjectArrayList<CraftingPlanRouteCrossing> candidates = entry.getValue();
+            candidates.sort(Comparator.comparingDouble(CraftingPlanRouteCrossing::y));
+            for (int first = 0; first < candidates.size();) {
+                int end = first + 1;
+                while (end < candidates.size() && candidates.get(end).y() - candidates.get(end - 1).y() <= DENSE_CLUSTER_GAP) end++;
+                CraftingPlanRouteCrossing merged = end - first > 1 ? denseBridge(candidates.subList(first, end), entry.getIntKey(), segments, runs,
+                        runBySegment, nodes, verticalByX, horizontalByY, junctions, accepted) : null;
+                if (merged == null) result.addAll(candidates.subList(first, end));
+                else {
+                    result.add(merged);
+                    accepted.add(merged);
+                }
+                first = end;
+            }
+        }
+        return result;
+    }
+
+    private static @Nullable CraftingPlanRouteCrossing denseBridge(
+                                                                   List<CraftingPlanRouteCrossing> cluster, int bridgeSegmentId, List<Segment> segments, List<Run> runs,
+                                                                   int[] runBySegment, NodeIndex nodes, Double2ObjectAVLTreeMap<RunIntervals> verticalByX,
+                                                                   Double2ObjectAVLTreeMap<RunIntervals> horizontalByY, JunctionIndex junctions,
+                                                                   CrossingIndex accepted) {
+        CraftingPlanRouteCrossing first = cluster.getFirst();
+        CraftingPlanRouteCrossing last = cluster.getLast();
+        double centerY = (first.y() + last.y()) / 2;
+        double radius = (last.y() - first.y()) / 2 + MAX_RADIUS;
+        Segment bridgeSegment = segments.get(bridgeSegmentId);
+        if (!bridgeFits(bridgeSegment, centerY, radius)) return null;
+        int verticalRun = runBySegment[bridgeSegmentId];
+        if (junctions.near(verticalRun, centerY, radius + GAP_HALF_WIDTH)) return null;
+        for (int side = 1; side >= -1; side -= 2) {
+            double bend = side * DENSE_BRIDGE_BEND;
+            List<Underpass> underpasses = new ObjectArrayList<>(cluster.size());
+            IntSet allowedHorizontalRuns = new IntOpenHashSet();
+            boolean fits = true;
+            for (CraftingPlanRouteCrossing crossing : cluster) {
+                double gapX = bridgeX(first.x(), centerY, bend, radius, crossing.y());
+                for (Underpass underpass : crossing.underpasses()) {
+                    int horizontalRun = runBySegment[underpass.segmentId()];
+                    int underSegment = segmentAt(runs.get(horizontalRun), segments, gapX, true);
+                    if (underSegment < 0 || !gapFits(segments.get(underSegment), gapX)) {
+                        fits = false;
+                        break;
+                    }
+                    allowedHorizontalRuns.add(horizontalRun);
+                    underpasses.add(new Underpass(underSegment, gapX, underpass.gapHalfWidth()));
+                }
+                if (!fits) break;
+            }
+            if (!fits || denseBridgeBlocked(first.x(), centerY, bend, radius, verticalRun,
+                    allowedHorizontalRuns, nodes, verticalByX, horizontalByY, accepted))
+                continue;
+            return new CraftingPlanRouteCrossing(bridgeSegmentId, first.x(), centerY, bend, radius, underpasses);
+        }
+        return null;
+    }
+
+    private static boolean denseBridgeBlocked(
+                                              double x, double y, double bend, double radius, int verticalRun, IntSet allowedHorizontalRuns,
+                                              NodeIndex nodes, Double2ObjectAVLTreeMap<RunIntervals> verticalByX,
+                                              Double2ObjectAVLTreeMap<RunIntervals> horizontalByY, CrossingIndex accepted) {
+        double minX = Math.min(x, x + bend) - GAP_HALF_WIDTH;
+        double maxX = Math.max(x, x + bend) + GAP_HALF_WIDTH;
+        double minY = y - radius - GAP_HALF_WIDTH;
+        double maxY = y + radius + GAP_HALF_WIDTH;
+        if (nodes.intersects(minX, minY, maxX, maxY) || accepted.intersects(minX, minY, maxX, maxY)) return true;
+        for (var entry : verticalByX.tailMap(minX).double2ObjectEntrySet()) {
+            if (entry.getDoubleKey() > maxX) break;
+            if (entry.getValue().intersects(minY, maxY, verticalRun)) return true;
+        }
+        for (var entry : horizontalByY.tailMap(minY).double2ObjectEntrySet()) {
+            if (entry.getDoubleKey() > maxY) break;
+            if (entry.getValue().intersects(minX, maxX, allowedHorizontalRuns)) return true;
+        }
+        return false;
+    }
+
+    private static double bridgeX(double x, double y, double bend, double radius, double crossingY) {
+        if (crossingY <= y) {
+            double local = Math.sqrt(Math.clamp((crossingY - (y - radius)) / radius, 0, 1));
+            return x + bend * (2 * local - local * local);
+        }
+        double local = 1 - Math.sqrt(1 - Math.clamp((crossingY - y) / radius, 0, 1));
+        return x + bend * (1 - local * local);
     }
 
     private static JunctionIndex junctions(List<RoutedEdge> routes, List<Segment> segments, int[] runBySegment) {
@@ -129,8 +240,17 @@ public record CraftingPlanRouteCrossing(int bridgeSegmentId, int underSegmentId,
                 int underSegment = segmentAt(horizontal, segments, center, true);
                 if (underSegment < 0 || !gapFits(segments.get(underSegment), center)) continue;
                 if (blocked(nodes, verticalByX, horizontalByY, junctions, accepted, horizontalRun, verticalRun, x, y, bend, span)) continue;
-                return new CraftingPlanRouteCrossing(bridgeSegment, underSegment, x, y, bend, span, GAP_HALF_WIDTH);
+                return new CraftingPlanRouteCrossing(bridgeSegment, x, y, bend, span,
+                        List.of(new Underpass(underSegment, center, GAP_HALF_WIDTH)));
             }
+        }
+        // Dense channels may not have enough clearance for an arch. A zero-radius bridge still gives
+        // the horizontal underpass a finite gap, so the crossing cannot be mistaken for a junction.
+        int bridgeSegment = segmentAt(vertical, segments, y, false);
+        int underSegment = segmentAt(horizontal, segments, x, true);
+        if (bridgeSegment >= 0 && underSegment >= 0 && gapFits(segments.get(underSegment), x) && !junctions.near(verticalRun, y, GAP_HALF_WIDTH)) {
+            return new CraftingPlanRouteCrossing(bridgeSegment, x, y, 0, 0,
+                    List.of(new Underpass(underSegment, x, GAP_HALF_WIDTH)));
         }
         return null;
     }
@@ -231,12 +351,24 @@ public record CraftingPlanRouteCrossing(int bridgeSegmentId, int underSegmentId,
             return intersects(start, end, excluded, 0, spans.size());
         }
 
+        private boolean intersects(double start, double end, IntSet allowed) {
+            return intersects(start, end, allowed, 0, spans.size());
+        }
+
         private boolean intersects(double start, double end, int excluded, int first, int last) {
             if (first == last) return false;
             int middle = (first + last) >>> 1;
             if (maximumEnds[middle] <= start || spans.get(first).start() >= end) return false;
             Span span = spans.get(middle);
             return span.run() != excluded && span.start() < end && span.end() > start || intersects(start, end, excluded, first, middle) || intersects(start, end, excluded, middle + 1, last);
+        }
+
+        private boolean intersects(double start, double end, IntSet allowed, int first, int last) {
+            if (first == last) return false;
+            int middle = (first + last) >>> 1;
+            if (maximumEnds[middle] <= start || spans.get(first).start() >= end) return false;
+            Span span = spans.get(middle);
+            return !allowed.contains(span.run()) && span.start() < end && span.end() > start || intersects(start, end, allowed, first, middle) || intersects(start, end, allowed, middle + 1, last);
         }
 
         private record Span(int run, double start, double end) {}

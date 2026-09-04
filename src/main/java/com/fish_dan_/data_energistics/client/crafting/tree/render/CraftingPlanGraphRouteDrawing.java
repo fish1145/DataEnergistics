@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.crafting.tree.render;
 
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphDrawingFacts.RouteStyle;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteCrossing;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteCrossing.Underpass;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Run;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Segment;
@@ -52,8 +53,8 @@ public final class CraftingPlanGraphRouteDrawing {
     /** Tests the complete arrow footprint, including a tail that crosses a shared-membership boundary. */
     public static boolean blocksArrow(Run run, CraftingPlanRouteGeometry geometry, double tipDistance, double depth,
                                       Int2ObjectMap<? extends List<CraftingPlanRouteCrossing>> bridges,
-                                      Int2ObjectMap<? extends List<CraftingPlanRouteCrossing>> underpasses,
-                                      double styleScale) {
+                                      Int2ObjectMap<? extends List<Underpass>> underpasses,
+                                      double styleScale, double maximumBridgeRadius) {
         double start = Math.max(0, tipDistance - HIGHLIGHT_WIDTH * styleScale / 2);
         double end = tipDistance + depth + HIGHLIGHT_WIDTH * styleScale / 2;
         int first = segmentIndexAt(run, geometry, start);
@@ -67,31 +68,36 @@ public final class CraftingPlanGraphRouteDrawing {
         double high = Math.max(a, b);
         for (int index = first; index <= last; index++) {
             int segmentId = run.segmentIds().getInt(index);
-            List<CraftingPlanRouteCrossing> crossings = (vertical ? bridges : underpasses).get(segmentId);
+            if (!vertical) {
+                List<Underpass> gaps = underpasses.get(segmentId);
+                if (gaps != null && blocksUnderpassArrow(gaps, low, high, styleScale)) return true;
+                continue;
+            }
+            List<CraftingPlanRouteCrossing> crossings = bridges.get(segmentId);
             if (crossings == null) continue;
             int left = 0;
             int right = crossings.size();
             while (left < right) {
                 int middle = (left + right) >>> 1;
-                if (crossingBaseCoordinate(crossings.get(middle), vertical) < low - 2 * CraftingPlanRouteCrossing.MAX_RADIUS * styleScale) left = middle + 1;
+                if (crossings.get(middle).y() < low - maximumBridgeRadius * styleScale) left = middle + 1;
                 else right = middle;
             }
             for (int crossingIndex = left; crossingIndex < crossings.size(); crossingIndex++) {
                 CraftingPlanRouteCrossing crossing = crossings.get(crossingIndex);
-                if (crossingBaseCoordinate(crossing, vertical) > high + 2 * CraftingPlanRouteCrossing.MAX_RADIUS * styleScale) break;
-                double center = crossingCoordinate(crossing, vertical, styleScale);
-                double radius = styleScale * (vertical ? crossing.radius() : crossing.gapHalfWidth());
+                if (crossing.y() > high + maximumBridgeRadius * styleScale) break;
+                double center = crossing.y();
+                double radius = styleScale * crossing.radius();
                 if (center + radius >= low && center - radius <= high) return true;
             }
         }
         return false;
     }
 
-    private static double crossingCoordinate(CraftingPlanRouteCrossing crossing, boolean vertical, double styleScale) {
-        return vertical ? crossing.y() : crossing.x() + crossing.bend() * styleScale;
-    }
-
-    private static double crossingBaseCoordinate(CraftingPlanRouteCrossing crossing, boolean vertical) {
-        return vertical ? crossing.y() : crossing.x();
+    private static boolean blocksUnderpassArrow(List<Underpass> gaps, double low, double high, double styleScale) {
+        for (Underpass gap : gaps) {
+            double radius = gap.gapHalfWidth() * styleScale;
+            if (gap.x() + radius >= low && gap.x() - radius <= high) return true;
+        }
+        return false;
     }
 }

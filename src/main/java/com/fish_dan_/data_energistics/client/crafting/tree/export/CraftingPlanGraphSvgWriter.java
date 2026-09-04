@@ -12,6 +12,7 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Point;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteCrossing;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteCrossing.Underpass;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Run;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Segment;
@@ -117,20 +118,25 @@ final class CraftingPlanGraphSvgWriter {
         output.write("</defs>\n<g fill=\"none\" stroke-width=\"" + CraftingPlanGraphRouteDrawing.STROKE_WIDTH + "\" stroke-linecap=\"butt\" stroke-linejoin=\"round\">\n");
         CraftingPlanRouteGeometry geometry = this.layout.geometry();
         var bridges = new Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>>();
-        var underpasses = new Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>>();
+        var underpasses = new Int2ObjectOpenHashMap<ObjectList<Underpass>>();
+        double maximumBridgeRadius = 0;
         for (CraftingPlanRouteCrossing crossing : geometry.crossings()) {
             bridges.computeIfAbsent(crossing.bridgeSegmentId(), unused -> new ObjectArrayList<>()).add(crossing);
-            underpasses.computeIfAbsent(crossing.underSegmentId(), unused -> new ObjectArrayList<>()).add(crossing);
+            maximumBridgeRadius = Math.max(maximumBridgeRadius, crossing.radius());
+            for (Underpass underpass : crossing.underpasses()) {
+                underpasses.computeIfAbsent(underpass.segmentId(), unused -> new ObjectArrayList<>()).add(underpass);
+            }
         }
         bridges.values().forEach(crossings -> crossings.sort(Comparator.comparingDouble(CraftingPlanRouteCrossing::y)));
-        underpasses.values().forEach(crossings -> crossings.sort(Comparator.comparingDouble(crossing -> crossing.x() + crossing.bend())));
+        underpasses.values().forEach(gaps -> gaps.sort(Comparator.comparingDouble(Underpass::x)));
         for (Run run : geometry.runs()) {
             boolean crossed = false;
             for (int segmentId : run.segmentIds()) if (bridges.containsKey(segmentId) || underpasses.containsKey(segmentId)) {
                 crossed = true;
                 break;
             }
-            if (crossed) crossedRun(output, geometry, run, style(run.group()), bridges, underpasses);
+            if (crossed) crossedRun(output, geometry, run, style(run.group()), bridges, underpasses,
+                    maximumBridgeRadius);
             else run(output, run, style(run.group()));
         }
         for (int segmentId : geometry.terminalSegments()) {
@@ -195,13 +201,14 @@ final class CraftingPlanGraphSvgWriter {
 
     private static void crossedRun(Writer output, CraftingPlanRouteGeometry geometry, Run run, RouteStyle style,
                                    Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>> bridges,
-                                   Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>> underpasses) throws IOException {
+                                   Int2ObjectOpenHashMap<ObjectList<Underpass>> underpasses,
+                                   double maximumBridgeRadius) throws IOException {
         double length = Math.hypot(run.to().x() - run.from().x(), run.to().y() - run.from().y());
         int bands = CraftingPlanGraphRouteDrawing.bandCount(style, length, CraftingPlanGraphRouteDrawing.EXPORT_PIXEL_SCALE);
         for (int segmentId : run.segmentIds()) {
             Segment segment = geometry.segments().get(segmentId);
             ObjectList<CraftingPlanRouteCrossing> bridge = bridges.get(segmentId);
-            ObjectList<CraftingPlanRouteCrossing> underpass = underpasses.get(segmentId);
+            ObjectList<Underpass> underpass = underpasses.get(segmentId);
             if (bridge != null) {
                 bridges(output, segment, bridge, run, style, length, bands);
             } else if (underpass != null) {
@@ -220,7 +227,7 @@ final class CraftingPlanGraphSvgWriter {
             double y = run.from().y() + dy * fraction;
             double depth = Math.min(CraftingPlanGraphRouteDrawing.ARROW_SIZE, length * (1 - fraction));
             if (CraftingPlanGraphRouteDrawing.blocksArrow(run, geometry, fraction * length, depth,
-                    bridges, underpasses, 1))
+                    bridges, underpasses, 1, maximumBridgeRadius))
                 continue;
             arrow(output, new Point(x + dx / length * depth,
                     y + dy / length * depth), new Point(x, y),
@@ -230,24 +237,23 @@ final class CraftingPlanGraphSvgWriter {
 
     private static boolean blockedArrow(int segmentId,
                                         Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>> bridges,
-                                        Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>> underpasses,
+                                        Int2ObjectOpenHashMap<ObjectList<Underpass>> underpasses,
                                         double x, double y, double size) {
         ObjectList<CraftingPlanRouteCrossing> bridge = bridges.get(segmentId);
         if (bridge != null) for (CraftingPlanRouteCrossing crossing : bridge) if (Math.abs(y - crossing.y()) <= crossing.radius() + size) return true;
-        ObjectList<CraftingPlanRouteCrossing> underpass = underpasses.get(segmentId);
-        if (underpass != null) for (CraftingPlanRouteCrossing crossing : underpass) if (Math.abs(x - (crossing.x() + crossing.bend())) <= crossing.gapHalfWidth() + size) return true;
+        ObjectList<Underpass> underpass = underpasses.get(segmentId);
+        if (underpass != null) for (Underpass gap : underpass) if (Math.abs(x - gap.x()) <= gap.gapHalfWidth() + size) return true;
         return false;
     }
 
-    private static void underpasses(Writer output, Segment segment, ObjectList<CraftingPlanRouteCrossing> crossings,
+    private static void underpasses(Writer output, Segment segment, ObjectList<Underpass> underpasses,
                                     Run run, RouteStyle style, double length, int bands) throws IOException {
         boolean forward = segment.to().x() > segment.from().x();
         Point cursor = segment.from();
-        for (int index = forward ? 0 : crossings.size() - 1; index >= 0 && index < crossings.size(); index += forward ? 1 : -1) {
-            CraftingPlanRouteCrossing crossing = crossings.get(index);
-            double center = crossing.x() + crossing.bend();
-            Point entry = new Point(center + (forward ? -crossing.gapHalfWidth() : crossing.gapHalfWidth()), cursor.y());
-            Point exit = new Point(center + (forward ? crossing.gapHalfWidth() : -crossing.gapHalfWidth()), cursor.y());
+        for (int index = forward ? 0 : underpasses.size() - 1; index >= 0 && index < underpasses.size(); index += forward ? 1 : -1) {
+            Underpass underpass = underpasses.get(index);
+            Point entry = new Point(underpass.x() + (forward ? -underpass.gapHalfWidth() : underpass.gapHalfWidth()), cursor.y());
+            Point exit = new Point(underpass.x() + (forward ? underpass.gapHalfWidth() : -underpass.gapHalfWidth()), cursor.y());
             straightPiece(output, cursor, entry, run, style, length, bands);
             cursor = exit;
         }

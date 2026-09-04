@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Point;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteCrossing;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteCrossing.Underpass;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Run;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.Segment;
@@ -45,7 +46,8 @@ public final class CraftingPlanGraphRenderer {
     private final ObjectArrayList<RouteStyle> segmentStyles = new ObjectArrayList<>();
     private final ObjectArrayList<RouteStyle> runStyles = new ObjectArrayList<>();
     private final Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>> bridges = new Int2ObjectOpenHashMap<>();
-    private final Int2ObjectOpenHashMap<ObjectList<CraftingPlanRouteCrossing>> underpasses = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<ObjectList<Underpass>> underpasses = new Int2ObjectOpenHashMap<>();
+    private double maximumBridgeRadius;
     private final ObjectArrayList<NodeDrawing> nodeDrawings = new ObjectArrayList<>();
     private final ObjectArrayList<NodeDrawing> visibleNodes = new ObjectArrayList<>();
 
@@ -155,12 +157,16 @@ public final class CraftingPlanGraphRenderer {
         }
         this.bridges.clear();
         this.underpasses.clear();
+        this.maximumBridgeRadius = 0;
         for (CraftingPlanRouteCrossing crossing : layout.geometry().crossings()) {
+            this.maximumBridgeRadius = Math.max(this.maximumBridgeRadius, crossing.radius());
             this.bridges.computeIfAbsent(crossing.bridgeSegmentId(), unused -> new ObjectArrayList<>()).add(crossing);
-            this.underpasses.computeIfAbsent(crossing.underSegmentId(), unused -> new ObjectArrayList<>()).add(crossing);
+            for (Underpass underpass : crossing.underpasses()) {
+                this.underpasses.computeIfAbsent(underpass.segmentId(), unused -> new ObjectArrayList<>()).add(underpass);
+            }
         }
         this.bridges.values().forEach(crossings -> crossings.sort(Comparator.comparingDouble(CraftingPlanRouteCrossing::y)));
-        this.underpasses.values().forEach(crossings -> crossings.sort(Comparator.comparingDouble(CraftingPlanRouteCrossing::x)));
+        this.underpasses.values().forEach(gaps -> gaps.sort(Comparator.comparingDouble(Underpass::x)));
         this.nodeDrawings.clear();
         for (PlacedNode node : layout.nodes()) {
             AEKey key = key(node);
@@ -180,7 +186,7 @@ public final class CraftingPlanGraphRenderer {
         double dx = run.to().x() - run.from().x();
         double dy = run.to().y() - run.from().y();
         double length = Math.hypot(dx, dy);
-        double margin = styleScale * (2 * CraftingPlanRouteCrossing.MAX_RADIUS + CraftingPlanGraphRouteDrawing.ARROW_SIZE * 0.55 + CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH) + 0.5 / pixelScale;
+        double margin = styleScale * (this.maximumBridgeRadius + CraftingPlanGraphRouteDrawing.ARROW_SIZE * 0.55 + CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH) + 0.5 / pixelScale;
         if (!visible(Math.min(run.from().x(), run.to().x()) - margin,
                 Math.min(run.from().y(), run.to().y()) - margin, Math.abs(dx) + 2 * margin,
                 Math.abs(dy) + 2 * margin, viewport))
@@ -210,7 +216,7 @@ public final class CraftingPlanGraphRenderer {
             double depth = Math.min(styleScale * CraftingPlanGraphRouteDrawing.ARROW_SIZE, length * (1 - fraction));
             int segmentId = run.segmentIds().getInt(CraftingPlanGraphRouteDrawing.segmentIndexAt(run, geometry, fraction * length));
             if (CraftingPlanGraphRouteDrawing.blocksArrow(run, geometry, fraction * length, depth,
-                    this.bridges, this.underpasses, styleScale))
+                    this.bridges, this.underpasses, styleScale, this.maximumBridgeRadius))
                 continue;
             double width = styleScale * (highlightedSegments.contains(segmentId) ? CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH : CraftingPlanGraphRouteDrawing.STROKE_WIDTH);
             strokes.arrow(tipX + dx / length * depth,
@@ -224,7 +230,7 @@ public final class CraftingPlanGraphRenderer {
                              double offset, double runLength, int bands, float pixelScale, double styleScale,
                              @Nullable Bounds viewport, double viewportMargin) {
         ObjectList<CraftingPlanRouteCrossing> bridge = this.bridges.get(segmentId);
-        ObjectList<CraftingPlanRouteCrossing> underpass = this.underpasses.get(segmentId);
+        ObjectList<Underpass> underpass = this.underpasses.get(segmentId);
         if (bridge != null) {
             drawBridge(strokes, segment, style, width, offset, runLength, bands, pixelScale, styleScale, bridge, viewport,
                     viewportMargin);
@@ -262,16 +268,18 @@ public final class CraftingPlanGraphRenderer {
     private static void drawUnderpass(CraftingPlanGraphStrokes strokes, Segment segment, RouteStyle style, double width,
                                       double offset, double runLength, int bands,
                                       double styleScale,
-                                      ObjectList<CraftingPlanRouteCrossing> crossings, @Nullable Bounds viewport,
+                                      ObjectList<Underpass> underpasses, @Nullable Bounds viewport,
                                       double viewportMargin) {
         Point cursor = segment.from();
         boolean forward = segment.to().x() > segment.from().x();
-        int first = crossingStart(crossings, viewport == null ? Double.NEGATIVE_INFINITY : viewport.x() - viewportMargin, true);
-        int last = crossingEnd(crossings, viewport == null ? Double.POSITIVE_INFINITY : viewport.x() + viewport.width() + viewportMargin, true);
+        int first = underpassStart(underpasses,
+                viewport == null ? Double.NEGATIVE_INFINITY : viewport.x() - viewportMargin);
+        int last = underpassEnd(underpasses,
+                viewport == null ? Double.POSITIVE_INFINITY : viewport.x() + viewport.width() + viewportMargin);
         for (int index = forward ? first : last - 1; index >= first && index < last; index += forward ? 1 : -1) {
-            CraftingPlanRouteCrossing crossing = crossings.get(index);
-            double center = crossing.x() + crossing.bend() * styleScale;
-            double gap = crossing.gapHalfWidth() * styleScale;
+            Underpass underpass = underpasses.get(index);
+            double center = underpass.x();
+            double gap = underpass.gapHalfWidth() * styleScale;
             double near = center + (forward ? -gap : gap);
             double far = center + (forward ? gap : -gap);
             Point entry = new Point(near, segment.from().y());
@@ -290,8 +298,9 @@ public final class CraftingPlanGraphRenderer {
                                    double viewportMargin) {
         Point cursor = segment.from();
         boolean downward = segment.to().y() > segment.from().y();
-        int first = crossingStart(crossings, viewport == null ? Double.NEGATIVE_INFINITY : viewport.y() - viewportMargin, false);
-        int last = crossingEnd(crossings, viewport == null ? Double.POSITIVE_INFINITY : viewport.y() + viewport.height() + viewportMargin, false);
+        int first = crossingStart(crossings, viewport == null ? Double.NEGATIVE_INFINITY : viewport.y() - viewportMargin);
+        int last = crossingEnd(crossings,
+                viewport == null ? Double.POSITIVE_INFINITY : viewport.y() + viewport.height() + viewportMargin);
         for (int index = downward ? first : last - 1; index >= first && index < last; index += downward ? 1 : -1) {
             CraftingPlanRouteCrossing crossing = crossings.get(index);
             double radius = crossing.radius() * styleScale;
@@ -320,9 +329,9 @@ public final class CraftingPlanGraphRenderer {
         if (bridge != null) for (CraftingPlanRouteCrossing crossing : bridge) {
             if (Math.abs(y - crossing.y()) <= crossing.radius() * styleScale + size) return true;
         }
-        ObjectList<CraftingPlanRouteCrossing> underpass = this.underpasses.get(segmentId);
-        if (underpass != null) for (CraftingPlanRouteCrossing crossing : underpass) {
-            if (Math.abs(x - (crossing.x() + crossing.bend() * styleScale)) <= crossing.gapHalfWidth() * styleScale + size) return true;
+        ObjectList<Underpass> underpass = this.underpasses.get(segmentId);
+        if (underpass != null) for (Underpass gap : underpass) {
+            if (Math.abs(x - gap.x()) <= gap.gapHalfWidth() * styleScale + size) return true;
         }
         return false;
     }
@@ -342,24 +351,46 @@ public final class CraftingPlanGraphRenderer {
                 inverse * inverse * startY + 2 * inverse * local * controlY + local * local * endY);
     }
 
-    private static int crossingStart(ObjectList<CraftingPlanRouteCrossing> crossings, double coordinate, boolean horizontal) {
+    private static int underpassStart(ObjectList<Underpass> underpasses, double coordinate) {
+        int first = 0;
+        int last = underpasses.size();
+        while (first < last) {
+            int middle = (first + last) >>> 1;
+            if (underpasses.get(middle).x() < coordinate) first = middle + 1;
+            else last = middle;
+        }
+        return first;
+    }
+
+    private static int underpassEnd(ObjectList<Underpass> underpasses, double coordinate) {
+        int first = 0;
+        int last = underpasses.size();
+        while (first < last) {
+            int middle = (first + last) >>> 1;
+            if (underpasses.get(middle).x() <= coordinate) first = middle + 1;
+            else last = middle;
+        }
+        return first;
+    }
+
+    private static int crossingStart(ObjectList<CraftingPlanRouteCrossing> crossings, double coordinate) {
         int first = 0;
         int last = crossings.size();
         while (first < last) {
             int middle = (first + last) >>> 1;
-            double value = horizontal ? crossings.get(middle).x() : crossings.get(middle).y();
+            double value = crossings.get(middle).y();
             if (value < coordinate) first = middle + 1;
             else last = middle;
         }
         return first;
     }
 
-    private static int crossingEnd(ObjectList<CraftingPlanRouteCrossing> crossings, double coordinate, boolean horizontal) {
+    private static int crossingEnd(ObjectList<CraftingPlanRouteCrossing> crossings, double coordinate) {
         int first = 0;
         int last = crossings.size();
         while (first < last) {
             int middle = (first + last) >>> 1;
-            double value = horizontal ? crossings.get(middle).x() : crossings.get(middle).y();
+            double value = crossings.get(middle).y();
             if (value <= coordinate) first = middle + 1;
             else last = middle;
         }
