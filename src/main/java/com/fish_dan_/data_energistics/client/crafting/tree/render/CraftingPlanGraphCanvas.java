@@ -161,6 +161,7 @@ public final class CraftingPlanGraphCanvas extends GraphView {
             context.graphics.pose().pushPose();
             context.graphics.pose().translate(getPositionX(), getPositionY(), 0);
             renderer.draw(context.graphics, graphLayout, getLod(), true, selectedNode, highlighted, highlightedSegments,
+                    highlightedRoutes,
                     new Bounds(getOffsetX(), getOffsetY(), CraftingPlanGraphCanvas.this.getContentWidth() / getScale(), CraftingPlanGraphCanvas.this.getContentHeight() / getScale()),
                     getPixelScale(), getScale(), true);
             context.graphics.pose().popPose();

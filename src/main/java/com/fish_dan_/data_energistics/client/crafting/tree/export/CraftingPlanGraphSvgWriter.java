@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Layout;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Point;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.RoutedCurve;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteCrossing;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteCrossing.Underpass;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry;
@@ -129,6 +130,7 @@ final class CraftingPlanGraphSvgWriter {
         }
         bridges.values().forEach(crossings -> crossings.sort(Comparator.comparingDouble(CraftingPlanRouteCrossing::y)));
         underpasses.values().forEach(gaps -> gaps.sort(Comparator.comparingDouble(Underpass::x)));
+        for (RoutedCurve curve : this.layout.curves()) curve(output, curve, style(curve.group()));
         for (Run run : geometry.runs()) {
             boolean crossed = false;
             for (int segmentId : run.segmentIds()) if (bridges.containsKey(segmentId) || underpasses.containsKey(segmentId)) {
@@ -197,6 +199,70 @@ final class CraftingPlanGraphSvgWriter {
             arrow(output, interpolate(run.from(), run.to(), Math.min(1, fraction + CraftingPlanGraphRouteDrawing.ARROW_SIZE / length)),
                     interpolate(run.from(), run.to(), fraction), style.color(Math.min(bands - 1, (int) (fraction * bands))));
         }
+    }
+
+    private static void curve(Writer output, RoutedCurve curve, RouteStyle style) throws IOException {
+        double length = curveLength(curve);
+        int bands = CraftingPlanGraphRouteDrawing.bandCount(style, length,
+                CraftingPlanGraphRouteDrawing.EXPORT_PIXEL_SCALE);
+        if (bands == 1) cubicPath(output, new SvgCurve(curve.from(), curve.firstControl(),
+                curve.secondControl(), curve.to()), style.lineColor(), style.lineOpacity());
+        else for (int band = 0; band < bands; band++) {
+            cubicPath(output, subCurve(curve, band / (double) bands, (band + 1D) / bands),
+                    style.color(band), 1);
+        }
+        if (!style.materialFlow()) return;
+        double delta = Math.min(0.08, CraftingPlanGraphRouteDrawing.ARROW_SIZE / Math.max(length,
+                CraftingPlanGraphRouteDrawing.ARROW_SIZE));
+        arrow(output, cubic(curve, delta), curve.from(), style.color(0));
+        if (!CraftingPlanGraphRouteDrawing.hasInteriorArrows(style, length,
+                CraftingPlanGraphRouteDrawing.EXPORT_PIXEL_SCALE))
+            return;
+        int arrows = CraftingPlanGraphRouteDrawing.interiorArrowCount(length,
+                CraftingPlanGraphRouteDrawing.EXPORT_PIXEL_SCALE);
+        for (int index = 0; index < arrows; index++) {
+            double fraction = (index + 1D) / (arrows + 1);
+            arrow(output, cubic(curve, Math.min(1, fraction + delta)), cubic(curve, fraction),
+                    style.color(Math.min(bands - 1, (int) (fraction * bands))));
+        }
+    }
+
+    private static SvgCurve subCurve(RoutedCurve curve, double start, double end) {
+        SvgSplit endSplit = split(new SvgCurve(curve.from(), curve.firstControl(), curve.secondControl(), curve.to()), end);
+        if (start == 0) return endSplit.left();
+        return split(endSplit.left(), start / end).right();
+    }
+
+    private static SvgSplit split(SvgCurve curve, double fraction) {
+        Point a = interpolate(curve.from(), curve.firstControl(), fraction);
+        Point b = interpolate(curve.firstControl(), curve.secondControl(), fraction);
+        Point c = interpolate(curve.secondControl(), curve.to(), fraction);
+        Point d = interpolate(a, b, fraction);
+        Point e = interpolate(b, c, fraction);
+        Point middle = interpolate(d, e, fraction);
+        return new SvgSplit(new SvgCurve(curve.from(), a, d, middle),
+                new SvgCurve(middle, e, c, curve.to()));
+    }
+
+    private static void cubicPath(Writer output, SvgCurve curve, int color, double opacity) throws IOException {
+        output.write("<path d=\"M " + curve.from().x() + " " + curve.from().y() + " C " + curve.firstControl().x() + " " + curve.firstControl().y() + " " + curve.secondControl().x() + " " + curve.secondControl().y() + " " + curve.to().x() + " " + curve.to().y() + "\" stroke=\"" + color(color) + "\" stroke-opacity=\"" + opacity + "\"/>\n");
+    }
+
+    private static double curveLength(RoutedCurve curve) {
+        Point previous = curve.from();
+        double length = 0;
+        for (int step = 1; step <= 16; step++) {
+            Point next = cubic(curve, step / 16D);
+            length += Math.hypot(next.x() - previous.x(), next.y() - previous.y());
+            previous = next;
+        }
+        return length;
+    }
+
+    private static Point cubic(RoutedCurve curve, double fraction) {
+        double inverse = 1 - fraction;
+        return new Point(inverse * inverse * inverse * curve.from().x() + 3 * inverse * inverse * fraction * curve.firstControl().x() + 3 * inverse * fraction * fraction * curve.secondControl().x() + fraction * fraction * fraction * curve.to().x(),
+                inverse * inverse * inverse * curve.from().y() + 3 * inverse * inverse * fraction * curve.firstControl().y() + 3 * inverse * fraction * fraction * curve.secondControl().y() + fraction * fraction * fraction * curve.to().y());
     }
 
     private static void crossedRun(Writer output, CraftingPlanRouteGeometry geometry, Run run, RouteStyle style,
@@ -394,4 +460,8 @@ final class CraftingPlanGraphSvgWriter {
                                List<TextDrawing> labels) {}
 
     private record TextDrawing(String value, double x, double y, double width, int color) {}
+
+    private record SvgCurve(Point from, Point firstControl, Point secondControl, Point to) {}
+
+    private record SvgSplit(SvgCurve left, SvgCurve right) {}
 }

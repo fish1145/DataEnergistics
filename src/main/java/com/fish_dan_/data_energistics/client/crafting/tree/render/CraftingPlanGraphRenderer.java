@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Layout;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Point;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.RoutedCurve;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteCrossing;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteCrossing.Underpass;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry;
@@ -63,10 +64,16 @@ public final class CraftingPlanGraphRenderer {
     public void draw(GuiGraphics graphics, Layout layout, GraphViewLod lod,
                      boolean showAmounts, int selectedNodeId, IntSet highlighted,
                      CraftingPlanSegmentSelection highlightedSegments,
+                     IntSet highlightedRoutes,
                      @Nullable Bounds viewport, float pixelScale, float contentZoom, boolean screenPixelStyles) {
         prepare(layout);
         double styleScale = screenPixelStyles ? Math.min(1, 1 / contentZoom) : 1;
         CraftingPlanGraphStrokes strokes = new CraftingPlanGraphStrokes(graphics, pixelScale, viewport);
+        for (int routeId = 0; routeId < layout.curves().size(); routeId++) {
+            RoutedCurve curve = layout.curves().get(routeId);
+            drawCurve(strokes, curve, this.routeStyles.computeIfAbsent(curve.group().style(), this.facts::route),
+                    highlightedRoutes.contains(routeId), pixelScale, styleScale, viewport, lod);
+        }
         CraftingPlanRouteGeometry geometry = layout.geometry();
         for (int runId = 0; runId < geometry.runs().size(); runId++) {
             drawRun(strokes, geometry, geometry.runs().get(runId), this.runStyles.get(runId), highlightedSegments,
@@ -138,6 +145,68 @@ public final class CraftingPlanGraphRenderer {
             }
             graphics.pose().popPose();
         }
+    }
+
+    private static void drawCurve(CraftingPlanGraphStrokes strokes, RoutedCurve curve, RouteStyle style,
+                                  boolean highlighted, float pixelScale, double styleScale,
+                                  @Nullable Bounds viewport, GraphViewLod lod) {
+        double minX = Math.min(Math.min(curve.from().x(), curve.to().x()),
+                Math.min(curve.firstControl().x(), curve.secondControl().x()));
+        double minY = Math.min(Math.min(curve.from().y(), curve.to().y()),
+                Math.min(curve.firstControl().y(), curve.secondControl().y()));
+        double maxX = Math.max(Math.max(curve.from().x(), curve.to().x()),
+                Math.max(curve.firstControl().x(), curve.secondControl().x()));
+        double maxY = Math.max(Math.max(curve.from().y(), curve.to().y()),
+                Math.max(curve.firstControl().y(), curve.secondControl().y()));
+        if (!visible(minX, minY, maxX - minX, maxY - minY, viewport)) return;
+        double length = curveLength(curve);
+        int steps = Math.clamp((int) Math.ceil(length * pixelScale / 6), 12, 512);
+        int bands = CraftingPlanGraphRouteDrawing.bandCount(style, length, pixelScale);
+        double width = styleScale * (highlighted ? CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH : CraftingPlanGraphRouteDrawing.STROKE_WIDTH);
+        Point previous = curve.from();
+        for (int step = 1; step <= steps; step++) {
+            double fraction = step / (double) steps;
+            Point next = cubic(curve, fraction);
+            int color = bands == 1 ? style.lineColor() : style.color(Math.min(bands - 1, (int) (fraction * bands)));
+            strokes.line(previous.x(), previous.y(), next.x(), next.y(), width, color);
+            previous = next;
+        }
+        if (lod == GraphViewLod.BLOCK || !style.materialFlow()) return;
+        double arrowSize = styleScale * CraftingPlanGraphRouteDrawing.ARROW_SIZE;
+        Point terminalTail = cubic(curve, Math.min(1, arrowSize * 1.5 / Math.max(length, arrowSize)));
+        strokes.arrow(terminalTail.x(), terminalTail.y(), curve.from().x(), curve.from().y(),
+                arrowSize, width, style.color(0));
+        if (!CraftingPlanGraphRouteDrawing.hasInteriorArrows(style, length, pixelScale)) return;
+        int arrows = CraftingPlanGraphRouteDrawing.interiorArrowCount(length, pixelScale);
+        double delta = Math.min(0.08, arrowSize / Math.max(length, arrowSize));
+        for (int index = 0; index < arrows; index++) {
+            double fraction = (index + 1D) / (arrows + 1);
+            Point tip = cubic(curve, fraction);
+            Point tail = cubic(curve, Math.min(1, fraction + delta));
+            strokes.arrow(tail.x(), tail.y(), tip.x(), tip.y(), arrowSize, width,
+                    style.color(Math.min(bands - 1, (int) (fraction * bands))));
+        }
+    }
+
+    private static double curveLength(RoutedCurve curve) {
+        Point previous = curve.from();
+        double length = 0;
+        for (int step = 1; step <= 16; step++) {
+            Point next = cubic(curve, step / 16D);
+            length += Math.hypot(next.x() - previous.x(), next.y() - previous.y());
+            previous = next;
+        }
+        return length;
+    }
+
+    private static Point cubic(RoutedCurve curve, double fraction) {
+        double inverse = 1 - fraction;
+        double first = inverse * inverse * inverse;
+        double second = 3 * inverse * inverse * fraction;
+        double third = 3 * inverse * fraction * fraction;
+        double last = fraction * fraction * fraction;
+        return new Point(first * curve.from().x() + second * curve.firstControl().x() + third * curve.secondControl().x() + last * curve.to().x(),
+                first * curve.from().y() + second * curve.firstControl().y() + third * curve.secondControl().y() + last * curve.to().y());
     }
 
     private void prepare(Layout layout) {

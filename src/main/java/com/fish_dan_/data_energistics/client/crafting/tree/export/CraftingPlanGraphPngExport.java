@@ -168,7 +168,7 @@ public final class CraftingPlanGraphPngExport {
                 Bounds tile = new Bounds(originX, originY, (tileWidth + TILE_GUARD * 2) / (double) PIXEL_SCALE,
                         (rows + TILE_GUARD * 2) / (double) PIXEL_SCALE);
                 renderer.draw(graphics, layout, GraphViewLod.FULL, showAmounts, -1, IntSets.emptySet(),
-                        CraftingPlanSegmentSelection.NONE, tile, PIXEL_SCALE, 1, false);
+                        CraftingPlanSegmentSelection.NONE, IntSets.emptySet(), tile, PIXEL_SCALE, 1, false);
                 graphics.flush();
                 images.add(capture.download());
             }
