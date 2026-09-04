@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.api.entrypoint;
 
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.dynamic.DynamicCraftingOutputRegistry;
+import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityRegistry;
 import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdRegistry;
 import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchRegistry;
@@ -27,6 +28,11 @@ public interface DataEnergisticsRegistry {
      * @return pattern-provider lifecycle declaration facet
      */
     PatternProviderRegistry patternProviders();
+
+    /**
+     * @return external machine remaining-capacity declaration facet
+     */
+    CraftingMachineCapacityRegistry craftingMachineCapacities();
 
     /**
      * @return adaptive pattern-provider definition facet

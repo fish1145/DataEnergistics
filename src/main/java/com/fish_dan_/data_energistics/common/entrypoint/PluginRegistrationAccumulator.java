@@ -6,6 +6,8 @@ import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsRegistry;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.dynamic.DynamicCraftingOutputRegistry;
+import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityRegistration;
+import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityRegistry;
 import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
@@ -40,6 +42,8 @@ final class PluginRegistrationAccumulator {
     private final Map<String, UniversalTerminalRegistration> universalTerminals = new LinkedHashMap<>();
     private final Map<ResourceLocation, PatternProviderRegistration> patternProviders = new LinkedHashMap<>();
     private final Map<ProviderIdentityDescriptor, ResourceLocation> patternProviderIdentities = new LinkedHashMap<>();
+    private final Map<ResourceLocation, CraftingMachineCapacityRegistration> craftingMachineCapacities = new LinkedHashMap<>();
+    private final Map<ResourceLocation, ResourceLocation> craftingMachineCapacityTypes = new LinkedHashMap<>();
     private final Map<ResourceLocation, AdaptivePatternProviderRegistration> adaptivePatternProviders = new LinkedHashMap<>();
     private final Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers = new LinkedHashMap<>();
     private final Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms = new LinkedHashMap<>();
@@ -75,10 +79,20 @@ final class PluginRegistrationAccumulator {
         }
         for (PatternProviderRegistration registration : staging.patternProviders.values()) {
             ProviderIdentityDescriptor identity = registration.metadata().providerIdentity();
-            @Nullable
-            ResourceLocation existingId = this.patternProviderIdentities.get(identity);
-            if (existingId != null) {
+            if (this.patternProviderIdentities.containsKey(identity)) {
+                ResourceLocation existingId = this.patternProviderIdentities.get(identity);
                 throw new IllegalStateException("Duplicate pattern provider identity '" + identity + "' from " + staging.description() + "; already registered as '" + existingId + "'");
+            }
+        }
+        for (ResourceLocation registrationId : staging.craftingMachineCapacities.keySet()) {
+            if (this.craftingMachineCapacities.containsKey(registrationId)) {
+                throw new IllegalStateException("Duplicate crafting machine capacity registration ID '" + registrationId + "' from " + staging.description());
+            }
+        }
+        for (CraftingMachineCapacityRegistration registration : staging.craftingMachineCapacities.values()) {
+            if (this.craftingMachineCapacityTypes.containsKey(registration.blockEntityTypeId())) {
+                ResourceLocation existingId = this.craftingMachineCapacityTypes.get(registration.blockEntityTypeId());
+                throw new IllegalStateException("Duplicate crafting machine capacity block-entity type '" + registration.blockEntityTypeId() + "' from " + staging.description() + "; already registered as '" + existingId + "'");
             }
         }
         for (ResourceLocation registrationId : staging.adaptivePatternProviders.keySet()) {
@@ -111,6 +125,9 @@ final class PluginRegistrationAccumulator {
         this.patternProviders.putAll(staging.patternProviders);
         staging.patternProviders.values().forEach(registration -> this.patternProviderIdentities.put(
                 registration.metadata().providerIdentity(), registration.metadata().registrationId()));
+        this.craftingMachineCapacities.putAll(staging.craftingMachineCapacities);
+        staging.craftingMachineCapacities.values().forEach(registration -> this.craftingMachineCapacityTypes.put(
+                registration.blockEntityTypeId(), registration.registrationId()));
         this.adaptivePatternProviders.putAll(staging.adaptivePatternProviders);
         this.trinityPatternRecipeIdResolvers.putAll(staging.trinityPatternRecipeIdResolvers);
         this.trinityPatternSearchTerms.putAll(staging.trinityPatternSearchTerms);
@@ -127,6 +144,7 @@ final class PluginRegistrationAccumulator {
         DataEnergisticsRegistrySnapshot snapshot = new DataEnergisticsRegistrySnapshot(
                 List.copyOf(this.universalTerminals.values()),
                 List.copyOf(this.patternProviders.values()),
+                List.copyOf(this.craftingMachineCapacities.values()),
                 List.copyOf(this.adaptivePatternProviders.values()),
                 this.trinityPatternRecipeIdResolvers,
                 this.trinityPatternSearchTerms,
@@ -155,6 +173,7 @@ final class PluginRegistrationAccumulator {
         private final String pluginClassName;
         private final Map<String, UniversalTerminalRegistration> universalTerminals = new LinkedHashMap<>();
         private final Map<ResourceLocation, PatternProviderRegistration> patternProviders = new LinkedHashMap<>();
+        private final Map<ResourceLocation, CraftingMachineCapacityRegistration> craftingMachineCapacities = new LinkedHashMap<>();
         private final Map<ResourceLocation, AdaptivePatternProviderRegistration> adaptivePatternProviders = new LinkedHashMap<>();
         private final Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers = new LinkedHashMap<>();
         private final Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms = new LinkedHashMap<>();
@@ -162,6 +181,7 @@ final class PluginRegistrationAccumulator {
         private final Map<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters = new LinkedHashMap<>();
         private final UniversalTerminalRegistry universalTerminalRegistry = new StagedUniversalTerminalRegistry();
         private final PatternProviderRegistry patternProviderRegistry = new StagedPatternProviderRegistry();
+        private final CraftingMachineCapacityRegistry craftingMachineCapacityRegistry = new StagedCraftingMachineCapacityRegistry();
         private final AdaptivePatternProviderRegistry adaptivePatternProviderRegistry = new StagedAdaptivePatternProviderRegistry();
         private final TrinityPatternRecipeIdRegistry trinityPatternRecipeIdRegistry = new StagedTrinityPatternRecipeIdRegistry();
         private final TrinityPatternSearchRegistry trinityPatternSearchRegistry = new StagedTrinityPatternSearchRegistry();
@@ -186,6 +206,11 @@ final class PluginRegistrationAccumulator {
         @Override
         public PatternProviderRegistry patternProviders() {
             return this.patternProviderRegistry;
+        }
+
+        @Override
+        public CraftingMachineCapacityRegistry craftingMachineCapacities() {
+            return this.craftingMachineCapacityRegistry;
         }
 
         @Override
@@ -223,6 +248,7 @@ final class PluginRegistrationAccumulator {
             this.state = State.DISCARDED;
             this.universalTerminals.clear();
             this.patternProviders.clear();
+            this.craftingMachineCapacities.clear();
             this.adaptivePatternProviders.clear();
             this.trinityPatternRecipeIdResolvers.clear();
             this.trinityPatternSearchTerms.clear();
@@ -310,6 +336,33 @@ final class PluginRegistrationAccumulator {
                 }
                 if (patternProviders.putIfAbsent(registrationId, registration) != null) {
                     throw new IllegalStateException("Duplicate pattern provider registration ID '" + registrationId + "' in " + description());
+                }
+            }
+        }
+
+        /** Stages machine-capacity declarations by registration ID and exact block-entity type. */
+        private final class StagedCraftingMachineCapacityRegistry implements CraftingMachineCapacityRegistry {
+
+            @Override
+            public void register(CraftingMachineCapacityRegistration registration) {
+                requireOpen();
+                CraftingMachineCapacityRegistration staged = requireStagedValue(
+                        registration, "Crafting machine capacity registration");
+                ResourceLocation registrationId = requireStagedValue(
+                        staged.registrationId(), "Crafting machine capacity registration ID");
+                ResourceLocation blockEntityTypeId = requireStagedValue(
+                        staged.blockEntityTypeId(), "Crafting machine block-entity type ID");
+                for (CraftingMachineCapacityRegistration existing : craftingMachineCapacities.values()) {
+                    if (existing.blockEntityTypeId().equals(blockEntityTypeId)) {
+                        throw new IllegalStateException(
+                                "Duplicate crafting machine capacity block-entity type '" + blockEntityTypeId +
+                                        "' in " + description());
+                    }
+                }
+                if (craftingMachineCapacities.putIfAbsent(registrationId, staged) != null) {
+                    throw new IllegalStateException(
+                            "Duplicate crafting machine capacity registration ID '" + registrationId +
+                                    "' in " + description());
                 }
             }
         }

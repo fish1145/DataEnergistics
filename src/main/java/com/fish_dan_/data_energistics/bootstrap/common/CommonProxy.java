@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.common.crafting.dynamic.DynamicCraftingOut
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsRegistrySnapshot;
+import com.fish_dan_.data_energistics.common.entrypoint.machine.CraftingMachineCapacityAdapters;
 import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
@@ -76,6 +77,7 @@ public class CommonProxy {
             UniversalTerminalAdapters.install(snapshot.universalTerminalRegistrations());
             VirtualCraftingOutputAdapters.install(snapshot.virtualCraftingOutputAdapters());
             DynamicCraftingOutputAdapters.install(snapshot.dynamicCraftingOutputAdapters());
+            CraftingMachineCapacityAdapters.install(snapshot.craftingMachineCapacityRegistrations());
             PatternProviderRuntimeBindings.install(snapshot.patternProviderRegistrations());
             AdaptivePatternProviderResolver.install(snapshot.adaptivePatternProviderRegistrations());
             DEUpgrades.init();

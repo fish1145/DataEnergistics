@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.entrypoint;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputAdapter;
 import com.fish_dan_.data_energistics.api.crafting.dynamic.DynamicCraftingOutputAdapter;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistration;
+import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityRegistration;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdLookup;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolver;
@@ -28,6 +29,7 @@ public final class DataEnergisticsRegistrySnapshot {
 
     private final List<UniversalTerminalRegistration> universalTerminalRegistrations;
     private final List<PatternProviderRegistration> patternProviderRegistrations;
+    private final List<CraftingMachineCapacityRegistration> craftingMachineCapacityRegistrations;
     private final List<AdaptivePatternProviderRegistration> adaptivePatternProviderRegistrations;
     private final TrinityPatternRecipeIdResolvers trinityPatternRecipes;
     private final List<TrinityPatternSearchTermRegistration> trinityPatternSearchTermRegistrations;
@@ -39,6 +41,7 @@ public final class DataEnergisticsRegistrySnapshot {
      */
     DataEnergisticsRegistrySnapshot(List<UniversalTerminalRegistration> universalTerminalRegistrations,
                                     List<PatternProviderRegistration> patternProviderRegistrations,
+                                    List<CraftingMachineCapacityRegistration> craftingMachineCapacityRegistrations,
                                     List<AdaptivePatternProviderRegistration> adaptivePatternProviderRegistrations,
                                     Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers,
                                     Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms,
@@ -46,6 +49,7 @@ public final class DataEnergisticsRegistrySnapshot {
                                     Map<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters) {
         this.universalTerminalRegistrations = List.copyOf(universalTerminalRegistrations);
         this.patternProviderRegistrations = List.copyOf(patternProviderRegistrations);
+        this.craftingMachineCapacityRegistrations = List.copyOf(craftingMachineCapacityRegistrations);
         this.adaptivePatternProviderRegistrations = List.copyOf(adaptivePatternProviderRegistrations);
         this.trinityPatternRecipes = new TrinityPatternRecipeIdResolvers(trinityPatternRecipeIdResolvers);
         this.trinityPatternSearchTermRegistrations = List.copyOf(trinityPatternSearchTerms.values());
@@ -65,6 +69,13 @@ public final class DataEnergisticsRegistrySnapshot {
      */
     public List<PatternProviderRegistration> patternProviderRegistrations() {
         return this.patternProviderRegistrations;
+    }
+
+    /**
+     * @return machine-capacity declarations in deterministic plugin and declaration order
+     */
+    public List<CraftingMachineCapacityRegistration> craftingMachineCapacityRegistrations() {
+        return this.craftingMachineCapacityRegistrations;
     }
 
     /**
