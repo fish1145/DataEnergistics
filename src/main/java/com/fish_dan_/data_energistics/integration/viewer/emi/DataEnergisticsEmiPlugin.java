@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.integration.viewer.emi;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewers;
 import com.fish_dan_.data_energistics.client.screen.crafting.CraftingPlanTreeScreen;
+import com.fish_dan_.data_energistics.client.screen.crafting.confirm.TrinityCraftConfirmScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.integration.viewer.emi.entrypoint.DataEnergisticsEmiEntrypointLoader;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.CraftingPlanEmiIngredientViewer;
@@ -109,6 +110,10 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addGenericStackProvider(new PatternEncodingGenericStackEmiProvider());
         CraftingPlanIngredientViewers.register("emi", new CraftingPlanEmiIngredientViewer());
         registry.addScreenBoundsProvider(CraftingPlanTreeScreen.class, screen -> {
+            var panel = screen.panelBounds();
+            return new Bounds(panel.getX(), panel.getY(), panel.getWidth(), panel.getHeight());
+        });
+        registry.addScreenBoundsProvider(TrinityCraftConfirmScreen.class, screen -> {
             var panel = screen.panelBounds();
             return new Bounds(panel.getX(), panel.getY(), panel.getWidth(), panel.getHeight());
         });

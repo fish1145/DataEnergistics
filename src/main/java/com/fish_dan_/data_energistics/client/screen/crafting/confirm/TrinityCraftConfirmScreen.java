@@ -17,6 +17,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ComponentRenderUtils;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Inventory;
@@ -43,8 +44,8 @@ import java.util.List;
 import java.util.Objects;
 
 /** NBT-authored crafting confirmation page used while the current Grid publishes a Trinity CPU. */
-final class TrinityCraftConfirmScreen extends AbstractContainerScreen<CraftConfirmMenu>
-                                      implements GenericStackLookupScreen, TrinityCraftConfirmPresentationState {
+public final class TrinityCraftConfirmScreen extends AbstractContainerScreen<CraftConfirmMenu>
+                                             implements GenericStackLookupScreen, TrinityCraftConfirmPresentationState {
 
     private static final int AUTHORED_WIDTH = 256;
     private static final int AUTHORED_HEIGHT = 256;
@@ -436,6 +437,11 @@ final class TrinityCraftConfirmScreen extends AbstractContainerScreen<CraftConfi
     @Override
     public @Nullable StackWithBounds dataEnergistics$getGenericStackUnderMouse(double mouseX, double mouseY) {
         return getStackUnderMouse(mouseX, mouseY);
+    }
+
+    /** Returns the current on-screen GUI rectangle for recipe-viewer display bounds. */
+    public Rect2i panelBounds() {
+        return new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight);
     }
 
     @Override
