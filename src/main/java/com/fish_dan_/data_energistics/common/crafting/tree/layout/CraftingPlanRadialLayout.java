@@ -34,6 +34,9 @@ import java.util.List;
 public final class CraftingPlanRadialLayout {
 
     private static final Side[] SIDES = Side.values();
+    private static final int[] COLLISION_DIRECTION_X = { 1, 1, 0, -1, -1, -1, 0, 1 };
+    private static final int[] COLLISION_DIRECTION_Y = { 0, 1, 1, 1, 0, -1, -1, -1 };
+    private static final int[] COLLISION_DIRECTION_ORDER = { 0, 1, 7, 2, 6, 3, 5, 4 };
 
     private CraftingPlanRadialLayout() {}
 
@@ -208,11 +211,123 @@ public final class CraftingPlanRadialLayout {
                 y[index] += moveY[index];
             }
         }
+        resolveCollisions(x, y, width, height, root, nodeGap);
         for (int index = 0; index < count; index++) {
             ViewNode node = ordered.get(index);
             placed.put(node.id(), new PlacedNode(node, x[index] - width[index] / 2,
                     y[index] - height[index] / 2, width[index], height[index]));
         }
+    }
+
+    private static void resolveCollisions(double[] x, double[] y, double[] width, double[] height,
+                                          int root, double gap) {
+        int count = x.length;
+        IntList sweep = new IntArrayList(count);
+        for (int index = 0; index < count; index++) sweep.add(index);
+        for (int pass = 0; pass < 64; pass++) {
+            sweep.sort((first, second) -> {
+                int result = Double.compare(x[first] - width[first] / 2, x[second] - width[second] / 2);
+                return result != 0 ? result : Integer.compare(first, second);
+            });
+            int collisions = 0;
+            for (int position = 0; position < count; position++) {
+                int first = sweep.getInt(position);
+                double firstRight = x[first] + width[first] / 2 + gap;
+                for (int next = position + 1; next < count; next++) {
+                    int second = sweep.getInt(next);
+                    if (x[second] - width[second] / 2 >= firstRight) break;
+                    double dx = x[second] - x[first];
+                    double dy = y[second] - y[first];
+                    double requiredX = (width[first] + width[second]) / 2 + gap;
+                    double requiredY = (height[first] + height[second]) / 2 + gap;
+                    double overlapX = requiredX - Math.abs(dx);
+                    double overlapY = requiredY - Math.abs(dy);
+                    if (overlapX <= 0 || overlapY <= 0) continue;
+                    collisions++;
+                    if (overlapX / requiredX <= overlapY / requiredY) {
+                        double direction = dx == 0 ? (((first ^ second) & 1) == 0 ? 1 : -1) : Math.copySign(1, dx);
+                        separate(x, first, second, root, direction * (overlapX + 0.001));
+                    } else {
+                        double direction = dy == 0 ? (((first ^ second) & 1) == 0 ? -1 : 1) : Math.copySign(1, dy);
+                        separate(y, first, second, root, direction * (overlapY + 0.001));
+                    }
+                }
+            }
+            if (collisions == 0) return;
+        }
+        placeRemainingCollisions(x, y, width, height, root, gap);
+    }
+
+    private static void separate(double[] coordinate, int first, int second, int root, double distance) {
+        if (first == root) {
+            coordinate[second] += distance;
+        } else if (second == root) {
+            coordinate[first] -= distance;
+        } else {
+            coordinate[first] -= distance / 2;
+            coordinate[second] += distance / 2;
+        }
+    }
+
+    private static void placeRemainingCollisions(double[] x, double[] y, double[] width, double[] height,
+                                                 int root, double gap) {
+        IntList order = new IntArrayList(x.length);
+        for (int index = 0; index < x.length; index++) order.add(index);
+        order.sort((first, second) -> {
+            if (first == second) return 0;
+            if (first == root) return -1;
+            if (second == root) return 1;
+            int result = Double.compare(x[first] * x[first] + y[first] * y[first],
+                    x[second] * x[second] + y[second] * y[second]);
+            return result != 0 ? result : Integer.compare(first, second);
+        });
+        IntList fixed = new IntArrayList(x.length);
+        for (int position = 0; position < order.size(); position++) {
+            int index = order.getInt(position);
+            if (!collides(x[index], y[index], width[index], height[index], fixed, x, y, width, height, gap)) {
+                fixed.add(index);
+                continue;
+            }
+            double baseX = x[index];
+            double baseY = y[index];
+            double step = Math.max(width[index], height[index]) + gap;
+            double farthestX = 0;
+            for (int other : fixed) {
+                farthestX = Math.max(farthestX,
+                        Math.abs(x[other] - baseX) + (width[index] + width[other]) / 2 + gap);
+            }
+            int maximumShell = (int) Math.ceil(farthestX / step) + 2;
+            double angle = Math.atan2(baseY, baseX);
+            int preferred = Math.floorMod((int) Math.round(angle / (Math.PI / 4)), 8);
+            boolean placed = false;
+            for (int shell = 1; shell <= maximumShell && !placed; shell++) {
+                for (int offset : COLLISION_DIRECTION_ORDER) {
+                    int direction = (preferred + offset) & 7;
+                    double candidateX = baseX + COLLISION_DIRECTION_X[direction] * shell * step;
+                    double candidateY = baseY + COLLISION_DIRECTION_Y[direction] * shell * step;
+                    if (collides(candidateX, candidateY, width[index], height[index],
+                            fixed, x, y, width, height, gap))
+                        continue;
+                    x[index] = candidateX;
+                    y[index] = candidateY;
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) x[index] = baseX + (maximumShell + 1D) * step;
+            fixed.add(index);
+        }
+    }
+
+    private static boolean collides(double candidateX, double candidateY, double candidateWidth,
+                                    double candidateHeight, IntList fixed, double[] x, double[] y,
+                                    double[] width, double[] height, double gap) {
+        for (int other : fixed) {
+            if (Math.abs(candidateX - x[other]) < (candidateWidth + width[other]) / 2 + gap && Math.abs(candidateY - y[other]) < (candidateHeight + height[other]) / 2 + gap) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Int2IntMap depths(ViewGraph graph, Int2ObjectMap<ViewNode> nodes) {
