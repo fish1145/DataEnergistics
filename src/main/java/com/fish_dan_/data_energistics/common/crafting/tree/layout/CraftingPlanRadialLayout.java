@@ -12,11 +12,9 @@ import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGrap
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewGraph;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewNode;
 
-import it.unimi.dsi.fastutil.ints.Int2DoubleMap;
-import it.unimi.dsi.fastutil.ints.Int2DoubleOpenHashMap;
+import it.unimi.dsi.fastutil.booleans.BooleanArrayList;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
@@ -27,15 +25,15 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-/** Root-centered radial placement with direct cubic semantic connections and no orthogonal channel state. */
+/** Root-anchored scattered placement with direct cubic semantic connections and no orthogonal channel state. */
 public final class CraftingPlanRadialLayout {
 
-    private static final double TAU = 2 * Math.PI;
+    private static final Side[] SIDES = Side.values();
 
     private CraftingPlanRadialLayout() {}
 
@@ -46,76 +44,38 @@ public final class CraftingPlanRadialLayout {
         }
         double cardWidth = compact ? 72 : 84;
         double baseHeight = compact ? 30 : 36;
-        double ringGap = compact ? 28 : 42;
+        double scatterGap = compact ? 28 : 42;
         Int2ObjectMap<ViewNode> nodeById = new Int2ObjectOpenHashMap<>();
         for (ViewNode node : graph.nodes()) nodeById.put(node.id(), node);
         Int2IntMap depths = depths(graph, nodeById);
         Int2IntMap portCounts = portCounts(graph);
-        Int2ObjectMap<List<ViewNode>> rings = new Int2ObjectAVLTreeMap<>();
-        Int2ObjectMap<IntList> incoming = new Int2ObjectOpenHashMap<>();
-        for (ViewEdge edge : graph.edges()) {
-            incoming.computeIfAbsent(edge.target(), unused -> new IntArrayList()).add(edge.source());
-        }
-        for (ViewNode node : graph.nodes()) {
-            rings.computeIfAbsent(depths.get(node.id()), unused -> new ObjectArrayList<>()).add(node);
-        }
-        for (List<ViewNode> ring : rings.values()) {
-            ring.sort(Comparator.comparingInt(ViewNode::componentId).thenComparingInt(ViewNode::id));
-        }
         Int2ObjectMap<PlacedNode> placed = new Int2ObjectOpenHashMap<>();
-        Int2DoubleMap angles = new Int2DoubleOpenHashMap();
         ViewNode root = nodeById.get(graph.rootId());
         double rootHeight = Math.max(baseHeight, 12 + 2D * portCounts.get(root.id()));
         placed.put(root.id(), new PlacedNode(root, -cardWidth / 2, -rootHeight / 2, cardWidth, rootHeight));
-        angles.put(root.id(), 0);
-        double previousRadius = Math.max(cardWidth, rootHeight) / 2;
-        for (var entry : rings.int2ObjectEntrySet()) {
-            List<ViewNode> ring = entry.getValue();
-            if (entry.getIntKey() == 0) ring = ring.stream().filter(node -> node.id() != root.id()).toList();
-            if (ring.isEmpty()) continue;
-            ring = new ObjectArrayList<>(ring);
-            Int2DoubleMap componentAngles = new Int2DoubleOpenHashMap();
-            for (ViewNode node : ring) {
-                if (!componentAngles.containsKey(node.componentId())) {
-                    componentAngles.put(node.componentId(), parentAngle(node, incoming, angles));
-                }
-            }
-            ring.sort(Comparator.comparingDouble((ViewNode node) -> componentAngles.get(node.componentId()))
-                    .thenComparingInt(ViewNode::componentId).thenComparingInt(ViewNode::id));
-            double maximumHeight = baseHeight;
-            for (ViewNode node : ring) maximumHeight = Math.max(maximumHeight, 12 + 2D * portCounts.get(node.id()));
-            double maximumExtent = Math.max(cardWidth, maximumHeight);
-            double laneStep = Math.min(ringGap, maximumExtent * 0.35);
-            double radius = Math.max(previousRadius + maximumExtent + ringGap + laneStep,
-                    ring.size() * (maximumExtent + ringGap / 2) / TAU + laneStep);
-            Int2IntMap componentLanes = new Int2IntOpenHashMap();
-            componentLanes.defaultReturnValue(Integer.MIN_VALUE);
-            int componentIndex = 0;
-            for (ViewNode node : ring) {
-                if (componentLanes.get(node.componentId()) != Integer.MIN_VALUE) continue;
-                int lane = switch (componentIndex++ % 3) {
-                    case 1 -> -1;
-                    case 2 -> 1;
-                    default -> 0;
-                };
-                componentLanes.put(node.componentId(), lane);
-            }
-            double offset = (entry.getIntKey() & 1) == 0 ? Math.PI / ring.size() : 0;
-            for (int index = 0; index < ring.size(); index++) {
-                ViewNode node = ring.get(index);
-                double height = Math.max(baseHeight, 12 + 2D * portCounts.get(node.id()));
-                double angle = offset + TAU * index / ring.size();
-                double nodeRadius = radius + componentLanes.get(node.componentId()) * laneStep;
-                double centerX = nodeRadius * Math.cos(angle);
-                double centerY = nodeRadius * Math.sin(angle);
-                angles.put(node.id(), angle);
-                placed.put(node.id(), new PlacedNode(node, centerX - cardWidth / 2,
-                        centerY - height / 2, cardWidth, height));
-            }
-            previousRadius = radius + laneStep + maximumExtent / 2;
+        List<ViewNode> placementOrder = new ObjectArrayList<>(graph.nodes());
+        placementOrder.sort(Comparator.comparingInt((ViewNode node) -> depths.get(node.id()))
+                .thenComparingInt(ViewNode::componentId).thenComparingInt(ViewNode::id));
+        double occupiedArea = 0;
+        double innerRadius = Math.max(cardWidth, rootHeight) / 2 + scatterGap;
+        double goldenAngle = Math.PI * (3 - Math.sqrt(5));
+        int position = 1;
+        for (ViewNode node : placementOrder) {
+            if (node.id() == root.id()) continue;
+            double height = Math.max(baseHeight, 12 + 2D * portCounts.get(node.id()));
+            occupiedArea += (cardWidth + scatterGap) * (height + scatterGap);
+            double radius = innerRadius + Math.sqrt(occupiedArea / Math.PI);
+            double angle = goldenAngle * position + Math.floorMod(node.componentId(), 11) * 0.017;
+            double centerX = radius * Math.cos(angle);
+            double centerY = radius * Math.sin(angle);
+            placed.put(node.id(), new PlacedNode(node, centerX - cardWidth / 2,
+                    centerY - height / 2, cardWidth, height));
+            position++;
         }
         List<RadialRequest> requests = requests(graph, placed);
         resizeForPorts(requests, placed, cardWidth, baseHeight);
+        relax(graph, placed, graph.rootId(), compact);
+        requests = requests(graph, placed);
         List<RoutedEdge> edges = new ObjectArrayList<>(requests.size());
         List<RoutedCurve> curves = new ObjectArrayList<>(requests.size());
         for (RadialRequest request : requests) {
@@ -129,22 +89,130 @@ public final class CraftingPlanRadialLayout {
         return shift(placed, edges, curves, compact ? 12 : 18);
     }
 
-    private static double parentAngle(ViewNode node, Int2ObjectMap<IntList> incoming, Int2DoubleMap angles) {
-        IntList parents = incoming.get(node.id());
-        if (parents == null) return node.id();
-        double x = 0;
-        double y = 0;
-        int count = 0;
-        for (int parent : parents) {
-            if (!angles.containsKey(parent)) continue;
-            double angle = angles.get(parent);
-            x += Math.cos(angle);
-            y += Math.sin(angle);
-            count++;
+    private static void relax(ViewGraph graph, Int2ObjectMap<PlacedNode> placed, int rootId, boolean compact) {
+        List<ViewNode> ordered = new ObjectArrayList<>(graph.nodes());
+        ordered.sort(Comparator.comparingInt(ViewNode::id));
+        int count = ordered.size();
+        Int2IntMap indexById = new Int2IntOpenHashMap(count);
+        indexById.defaultReturnValue(-1);
+        double[] x = new double[count];
+        double[] y = new double[count];
+        double[] width = new double[count];
+        double[] height = new double[count];
+        double[] moveX = new double[count];
+        double[] moveY = new double[count];
+        int[] degree = new int[count];
+        for (int index = 0; index < count; index++) {
+            ViewNode node = ordered.get(index);
+            PlacedNode placement = placed.get(node.id());
+            indexById.put(node.id(), index);
+            x[index] = placement.x() + placement.width() / 2;
+            y[index] = placement.y() + placement.height() / 2;
+            width[index] = placement.width();
+            height[index] = placement.height();
         }
-        if (count == 0) return node.id();
-        double angle = Math.atan2(y, x);
-        return angle < 0 ? angle + TAU : angle;
+        int root = indexById.get(rootId);
+        double nodeGap = compact ? 10 : 16;
+        double edgeGap = compact ? 34 : 46;
+        IntList springSources = new IntArrayList(graph.edges().size());
+        IntList springTargets = new IntArrayList(graph.edges().size());
+        var cyclicSprings = new BooleanArrayList(graph.edges().size());
+        for (ViewEdge edge : graph.edges()) {
+            int source = indexById.get(edge.source());
+            int target = indexById.get(edge.target());
+            if (source == target) continue;
+            springSources.add(source);
+            springTargets.add(target);
+            cyclicSprings.add(edge.cyclic());
+            degree[source]++;
+            degree[target]++;
+        }
+        int iterations = Math.clamp(48 - count / 24, 28, 42);
+        double initialStep = compact ? 42 : 56;
+        for (int iteration = 0; iteration < iterations; iteration++) {
+            if (Thread.currentThread().isInterrupted()) return;
+            Arrays.fill(moveX, 0);
+            Arrays.fill(moveY, 0);
+            for (int first = 0; first < count; first++) {
+                for (int second = first + 1; second < count; second++) {
+                    double dx = x[second] - x[first];
+                    double dy = y[second] - y[first];
+                    double distanceSquared = dx * dx + dy * dy;
+                    if (distanceSquared < 0.0001) {
+                        dx = ((ordered.get(first).id() ^ ordered.get(second).id()) & 1) == 0 ? 1 : -1;
+                        dy = 1;
+                        distanceSquared = 2;
+                    }
+                    double distance = Math.sqrt(distanceSquared);
+                    double requiredX = (width[first] + width[second]) / 2 + nodeGap;
+                    double requiredY = (height[first] + height[second]) / 2 + nodeGap;
+                    double range = 3 * Math.max(requiredX, requiredY);
+                    if (distance < range) {
+                        double force = 1.8 * (1 - distance / range);
+                        double fx = dx / distance * force;
+                        double fy = dy / distance * force;
+                        moveX[first] -= fx;
+                        moveY[first] -= fy;
+                        moveX[second] += fx;
+                        moveY[second] += fy;
+                    }
+                    double overlapX = requiredX - Math.abs(dx);
+                    double overlapY = requiredY - Math.abs(dy);
+                    if (overlapX <= 0 || overlapY <= 0) continue;
+                    if (overlapX / requiredX <= overlapY / requiredY) {
+                        double force = Math.min(18, 1 + overlapX * 0.24);
+                        double fx = Math.copySign(force, dx);
+                        moveX[first] -= fx;
+                        moveX[second] += fx;
+                    } else {
+                        double force = Math.min(18, 1 + overlapY * 0.24);
+                        double fy = Math.copySign(force, dy);
+                        moveY[first] -= fy;
+                        moveY[second] += fy;
+                    }
+                }
+            }
+            for (int spring = 0; spring < springSources.size(); spring++) {
+                int source = springSources.getInt(spring);
+                int target = springTargets.getInt(spring);
+                double dx = x[target] - x[source];
+                double dy = y[target] - y[source];
+                double distance = Math.max(1, Math.hypot(dx, dy));
+                double ux = dx / distance;
+                double uy = dy / distance;
+                double separation = Math.abs(ux) * (width[source] + width[target]) / 2 + Math.abs(uy) * (height[source] + height[target]) / 2;
+                double desired = separation + edgeGap * (cyclicSprings.getBoolean(spring) ? 1.25 : 1);
+                double force = Math.clamp((distance - desired) * 0.045, -5, 24);
+                double fx = ux * force;
+                double fy = uy * force;
+                double sourceScale = 1 / Math.sqrt(degree[source]);
+                double targetScale = 1 / Math.sqrt(degree[target]);
+                moveX[source] += fx * sourceScale;
+                moveY[source] += fy * sourceScale;
+                moveX[target] -= fx * targetScale;
+                moveY[target] -= fy * targetScale;
+            }
+            double progress = iteration / (iterations - 1D);
+            double cooling = 1 - progress;
+            double maximumStep = 4 + initialStep * cooling * cooling;
+            for (int index = 0; index < count; index++) {
+                if (index == root) continue;
+                moveX[index] -= x[index] * 0.003;
+                moveY[index] -= y[index] * 0.003;
+                double length = Math.hypot(moveX[index], moveY[index]);
+                if (length > maximumStep) {
+                    moveX[index] *= maximumStep / length;
+                    moveY[index] *= maximumStep / length;
+                }
+                x[index] += moveX[index];
+                y[index] += moveY[index];
+            }
+        }
+        for (int index = 0; index < count; index++) {
+            ViewNode node = ordered.get(index);
+            placed.put(node.id(), new PlacedNode(node, x[index] - width[index] / 2,
+                    y[index] - height[index] / 2, width[index], height[index]));
+        }
     }
 
     private static Int2IntMap depths(ViewGraph graph, Int2ObjectMap<ViewNode> nodes) {
@@ -160,8 +228,7 @@ public final class CraftingPlanRadialLayout {
         int maximum = 0;
         while (!pending.isEmpty()) {
             int source = pending.dequeueInt();
-            IntList targets = outgoing.get(source);
-            if (targets == null) continue;
+            IntList targets = outgoing.getOrDefault(source, IntLists.emptyList());
             int depth = result.get(source) + 1;
             for (int target : targets) {
                 if (depth >= result.get(target)) continue;
@@ -194,7 +261,7 @@ public final class CraftingPlanRadialLayout {
         }
         Int2ObjectMap<int[]> counts = new Int2ObjectOpenHashMap<>();
         for (PortIntent intent : intents) {
-            counts.computeIfAbsent(intent.node.id(), unused -> new int[Side.values().length])[intent.side.ordinal()]++;
+            counts.computeIfAbsent(intent.node.id(), unused -> new int[SIDES.length])[intent.sideOrdinal]++;
         }
         for (var entry : counts.int2ObjectEntrySet()) {
             PlacedNode node = nodes.get(entry.getIntKey());
@@ -246,8 +313,8 @@ public final class CraftingPlanRadialLayout {
                 PortIntent source = intent(intents, nodes.get(edge.source()), nodes.get(edge.target()), true, group);
                 PortIntent target = intent(intents, nodes.get(edge.target()), nodes.get(edge.source()), false, group);
                 if (edge.source() == edge.target()) {
-                    source.forced = Side.RIGHT;
-                    target.forced = Side.TOP;
+                    source.forcedSideOrdinal = Side.RIGHT.ordinal();
+                    target.forcedSideOrdinal = Side.TOP.ordinal();
                 }
                 result.add(new RadialRequest(edge.source(), edge.target(), edge.cyclic(),
                         IntLists.unmodifiable(entry.getValue()), group, source, target));
@@ -271,8 +338,8 @@ public final class CraftingPlanRadialLayout {
     private static void assignPorts(Iterable<PortIntent> intents) {
         Object2ObjectMap<NodeSide, List<PortIntent>> sides = new Object2ObjectLinkedOpenHashMap<>();
         for (PortIntent intent : intents) {
-            intent.side = intent.forced == null ? side(intent) : intent.forced;
-            sides.computeIfAbsent(new NodeSide(intent.node.id(), intent.side), unused -> new ObjectArrayList<>()).add(intent);
+            intent.sideOrdinal = intent.forcedSideOrdinal < 0 ? side(intent).ordinal() : intent.forcedSideOrdinal;
+            sides.computeIfAbsent(new NodeSide(intent.node.id(), intent.side()), unused -> new ObjectArrayList<>()).add(intent);
         }
         for (var entry : sides.object2ObjectEntrySet()) {
             Side side = entry.getKey().side();
@@ -280,7 +347,9 @@ public final class CraftingPlanRadialLayout {
             entry.getValue().sort(Comparator.comparingDouble((PortIntent intent) -> (horizontal ? intent.x : intent.y) / intent.count).thenComparingInt(intent -> intent.ordinal));
             for (int index = 0; index < entry.getValue().size(); index++) {
                 PortIntent intent = entry.getValue().get(index);
-                intent.point = port(intent.node, side, (index + 1D) / (entry.getValue().size() + 1D));
+                Point point = port(intent.node, side, (index + 1D) / (entry.getValue().size() + 1D));
+                intent.pointX = point.x();
+                intent.pointY = point.y();
             }
         }
     }
@@ -305,12 +374,12 @@ public final class CraftingPlanRadialLayout {
     }
 
     private static Curve curve(RadialRequest request, int routeId, Iterable<PlacedNode> nodes) {
-        Point from = request.sourceIntent().point;
-        Point to = request.targetIntent().point;
+        Point from = request.sourceIntent().point();
+        Point to = request.targetIntent().point();
         if (request.source() == request.target()) {
             double reach = Math.max(request.sourceIntent().node.width(), request.sourceIntent().node.height()) + 36 + 4D * (routeId & 3);
-            Vector first = outward(request.sourceIntent().side);
-            Vector second = outward(request.targetIntent().side);
+            Vector first = outward(request.sourceIntent().side());
+            Vector second = outward(request.targetIntent().side());
             return new Curve(from, new Point(from.x() + first.x() * reach, from.y() + first.y() * reach),
                     new Point(to.x() + second.x() * reach, to.y() + second.y() * reach), to);
         }
@@ -318,8 +387,8 @@ public final class CraftingPlanRadialLayout {
         double dy = to.y() - from.y();
         double length = Math.hypot(dx, dy);
         double handle = Math.min(120, length * 0.38);
-        Vector first = outward(request.sourceIntent().side);
-        Vector second = outward(request.targetIntent().side);
+        Vector first = outward(request.sourceIntent().side());
+        Vector second = outward(request.targetIntent().side());
         Curve candidate = new Curve(from, from, to, to);
         for (int attempt = 0; attempt < 6; attempt++) {
             double bow = Math.min(length * 0.42, (request.cyclic() ? 36 : 12) + attempt * 18D);
@@ -425,13 +494,22 @@ public final class CraftingPlanRadialLayout {
         private double x;
         private double y;
         private int count;
-        private @Nullable Side forced;
-        private @Nullable Side side;
-        private @Nullable Point point;
+        private int forcedSideOrdinal = -1;
+        private int sideOrdinal;
+        private double pointX;
+        private double pointY;
 
         private PortIntent(PlacedNode node, int ordinal) {
             this.node = node;
             this.ordinal = ordinal;
+        }
+
+        private Side side() {
+            return SIDES[sideOrdinal];
+        }
+
+        private Point point() {
+            return new Point(pointX, pointY);
         }
     }
 }
