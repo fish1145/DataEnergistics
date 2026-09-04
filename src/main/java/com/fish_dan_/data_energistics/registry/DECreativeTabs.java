@@ -128,6 +128,8 @@ public final class DECreativeTabs {
                         output.accept(DEItems.REDSTONE_TUNING_CARD);
                         output.accept(DEItems.SOLIDIFIED_OBSIDIAN);
                         output.accept(DEItems.DATA_DUST);
+                        output.accept(DEItems.AMETHYST_DUST);
+                        output.accept(DEItems.DATA_RESIDUAL_CRYSTAL);
                         output.accept(DEItems.OBSIDIAN_DUST);
                         output.accept(DEFluids.ENDER_BUCKET);
                         output.accept(DEFluids.DATA_CORROSION_LIQUID_BUCKET);
