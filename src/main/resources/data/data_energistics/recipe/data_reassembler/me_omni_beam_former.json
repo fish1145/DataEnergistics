@@ -1,0 +1,52 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "ae2:light_p2p_tunnel",
+				"count": 6
+			},
+			{
+				"item": "ae2:light_detector",
+				"count": 16
+			},
+			{
+				"item": "ae2:wireless_receiver",
+				"count": 4
+			},
+			{
+				"item": "ae2:quartz_vibrant_glass",
+				"count": 4
+			},
+			{
+				"item": "ae2:formation_core",
+				"count": 5
+			},
+			{
+				"item": "ae2:annihilation_core",
+				"count": 5
+			},
+			{
+				"tag": "ae2:lumen_paint_balls",
+				"count": 21
+			},
+			{
+				"item": "data_energistics:me_beam_former"
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:ender",
+				"amount": 2475
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:me_omni_beam_former",
+				"count": 1
+			}
+		]
+	}
+}

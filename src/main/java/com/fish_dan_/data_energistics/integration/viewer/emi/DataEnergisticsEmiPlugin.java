@@ -71,6 +71,10 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final ResourceLocation AE2_CHARGER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
     private static final ResourceLocation AE2_CONDENSER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath("ae2", "condenser");
+    private static final ResourceLocation EAE_CRYSTAL_ASSEMBLER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath(
+            "extendedae", "assembler");
+    private static final ResourceLocation AAE_REACTION_CHAMBER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath(
+            "advanced_ae", "reaction");
     private static final ResourceLocation RECIPE_TYPE_NAME_SOURCE_ID = Data_Energistics.id("emi_recipe_type_names");
     private static final ConverterRegistration CONVERTER_REGISTRATION = new ConverterRegistration();
 
@@ -156,6 +160,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
                 .map(DataRipperReassemblerEmiRecipe::new)
                 .forEach(consumer));
+        registry.addDeferredRecipes(consumer -> registerExternalFactoryWorkstations(registry));
         registerRecipeCategory(
                 registry,
                 DataChargerEmiRecipe.CATEGORY,
@@ -249,6 +254,18 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
 
         registry.addWorkstation(ae2ChargerCategory, EmiStack.of(DEBlocks.DATA_CHARGER.get()));
         registry.addWorkstation(ae2ChargerCategory, EmiStack.of(DEBlocks.EXTENDED_DATA_CHARGER.get()));
+    }
+
+    private static void registerExternalFactoryWorkstations(EmiRegistry registry) {
+        registerExternalFactoryWorkstation(registry, EAE_CRYSTAL_ASSEMBLER_CATEGORY_ID);
+        registerExternalFactoryWorkstation(registry, AAE_REACTION_CHAMBER_CATEGORY_ID);
+    }
+
+    private static void registerExternalFactoryWorkstation(EmiRegistry registry, ResourceLocation categoryId) {
+        EmiRecipeCategory category = findCategoryById(categoryId);
+        if (category != null) {
+            registry.addWorkstation(category, EmiStack.of(DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get()));
+        }
     }
 
     private static EmiRecipeCategory findCategoryById(ResourceLocation categoryId) {

@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.block.ResonanceCrystalBlock;
 import com.fish_dan_.data_energistics.block.ResonanceCrystalClusterBlock;
 import com.fish_dan_.data_energistics.block.TuningForkBaseBlock;
 import com.fish_dan_.data_energistics.block.TuningForkBlock;
+import com.fish_dan_.data_energistics.block.beam.BeamFormerBlock;
 import com.fish_dan_.data_energistics.block.decor.DollBlock;
 import com.fish_dan_.data_energistics.block.explosive.DataNukeBlock;
 import com.fish_dan_.data_energistics.block.explosive.TntConfigurableBlock;
@@ -31,6 +32,7 @@ import com.fish_dan_.data_energistics.block.worldgen.DataCrystalBuddingBlock;
 import com.fish_dan_.data_energistics.block.worldgen.DataMysteriousCubeBlock;
 import com.fish_dan_.data_energistics.block.worldgen.EnderCohesionMeteoriteBlock;
 import com.fish_dan_.data_energistics.block.worldgen.ResidualDataOreBlock;
+import com.fish_dan_.data_energistics.common.beam.BeamDeviceKind;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.common.resonance.TuningForkVariant;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreTier;
@@ -51,6 +53,13 @@ import appeng.block.networking.EnergyCellBlock;
 public final class DEBlocks {
 
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Data_Energistics.MODID);
+
+    public static final DeferredBlock<BeamFormerBlock> ME_BEAM_FORMER = BLOCKS.registerBlock(
+            "me_beam_former", properties -> new BeamFormerBlock(properties, BeamDeviceKind.DIRECTIONAL),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).noOcclusion());
+    public static final DeferredBlock<BeamFormerBlock> ME_OMNI_BEAM_FORMER = BLOCKS.registerBlock(
+            "me_omni_beam_former", properties -> new BeamFormerBlock(properties, BeamDeviceKind.OMNI),
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).noOcclusion());
 
     public static final DeferredBlock<Block> DATA_SOLAR_PANEL = BLOCKS.registerBlock(
             "me_solar_panel",
@@ -77,7 +86,8 @@ public final class DEBlocks {
     public static final DeferredBlock<Block> DATA_ASYNCHRONOUS_PROCESSING_FACTORY = BLOCKS.registerBlock(
             "data_asynchronous_processing_factory",
             DataAsynchronousProcessingFactoryBlock::new,
-            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .noOcclusion());
 
     public static final DeferredBlock<Block> TRINITY_DATA_CORE = BLOCKS.registerBlock(
             "trinity_data_core",

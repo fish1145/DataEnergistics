@@ -11,7 +11,7 @@
 	},
 	"slots": {
 		"DATA_INTEGRATED_CHARGER_INPUT_LEFT": {
-			"left": 35,
+			"left": 17,
 			"top": 22,
 			"grid": "VERTICAL"
 		},
@@ -20,16 +20,25 @@
 			"top": 22,
 			"grid": "VERTICAL"
 		},
-		"DATA_INTEGRATED_CHARGER_FLUID": {
+		"DATA_INTEGRATED_CHARGER_INPUT_MIDDLE": {
+			"left": 35,
+			"top": 22,
+			"grid": "VERTICAL"
+		},
+		"DATA_INTEGRATED_CHARGER_FLUID_1": {
 			"left": 71,
 			"top": 22
 		},
-		"DATA_INTEGRATED_CHARGER_MODULE": {
+		"DATA_INTEGRATED_CHARGER_FLUID_2": {
+			"left": 71,
+			"top": 40
+		},
+		"DATA_INTEGRATED_CHARGER_FLUID_3": {
 			"left": 71,
 			"top": 58
 		},
 		"MACHINE_OUTPUT": {
-			"left": 108,
+			"left": 117,
 			"top": 22,
 			"grid": "BREAK_AFTER_2COLS"
 		},
@@ -77,7 +86,7 @@
 	},
 	"widgets": {
 		"progressBar": {
-			"left": 147,
+			"left": 156,
 			"top": 39
 		},
 		"toolbox": {
