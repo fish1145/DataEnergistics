@@ -22,7 +22,8 @@ import appeng.api.stacks.KeyCounter;
  * @param machine         exact live block entity matched by the registration
  * @param patternDetails  exact pattern being considered for dispatch
  * @param prototype       read-only exact per-craft input prototype
- * @param requestedCrafts positive maximum number of logical crafts currently eligible for this target
+ * @param requestedCrafts positive number of logical crafts currently eligible for this target; larger reported
+ *                        capacities are safely limited to this value
  */
 public record CraftingMachineCapacityContext(Level level,
                                              BlockPos machinePosition,

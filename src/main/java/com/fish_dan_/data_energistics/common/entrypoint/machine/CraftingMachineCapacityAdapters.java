@@ -39,6 +39,10 @@ public final class CraftingMachineCapacityAdapters {
         }
         Object2ObjectMap<ResourceLocation, CraftingMachineCapacityRegistration> indexed = new Object2ObjectLinkedOpenHashMap<>(declarations.size());
         for (CraftingMachineCapacityRegistration declaration : declarations) {
+            if (!BuiltInRegistries.BLOCK_ENTITY_TYPE.containsKey(declaration.blockEntityTypeId())) {
+                throw new IllegalStateException(
+                        "Unknown crafting machine capacity block-entity type: " + declaration.blockEntityTypeId());
+            }
             CraftingMachineCapacityRegistration existing = indexed.putIfAbsent(
                     declaration.blockEntityTypeId(), declaration);
             if (existing != null) {
@@ -86,12 +90,7 @@ public final class CraftingMachineCapacityAdapters {
                 return null;
             }
             long remaining = resolved.get().remainingLogicalCrafts();
-            if (remaining > requestedCrafts) {
-                throw new IllegalArgumentException(
-                        "Crafting machine capacity exceeds the requested logical craft count: " + remaining +
-                                " > " + requestedCrafts);
-            }
-            return new Observation(registration.scope(), remaining);
+            return new Observation(registration.scope(), Math.min(remaining, requestedCrafts));
         } catch (RuntimeException | LinkageError exception) {
             Data_Energistics.LOGGER.error(
                     "Crafting machine capacity adapter {} failed for type {} at {} {} side {} and pattern {}; treating the target as full",
