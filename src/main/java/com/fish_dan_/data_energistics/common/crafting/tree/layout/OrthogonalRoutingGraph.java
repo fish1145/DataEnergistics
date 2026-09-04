@@ -18,6 +18,7 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -102,6 +103,7 @@ final class OrthogonalRoutingGraph {
             xs.add(point.x());
             ys.add(point.y());
         }
+        addInterColumnTracks(nodes, xs);
         x = new OrthogonalRoutingAxis(xs);
         y = new OrthogonalRoutingAxis(ys);
         Int2ObjectMap<IntList> rowPoints = new Int2ObjectOpenHashMap<>();
@@ -246,6 +248,26 @@ final class OrthogonalRoutingGraph {
         return SIDES;
     }
 
+    private static void addInterColumnTracks(List<PlacedNode> nodes, DoubleSortedSet coordinates) {
+        List<Column> columns = new ObjectArrayList<>(nodes.size());
+        for (PlacedNode node : nodes) {
+            columns.add(new Column(clean(node.x() - CLEARANCE), clean(node.x() + node.width() + CLEARANCE)));
+        }
+        columns.sort(Comparator.comparingDouble(Column::left).thenComparingDouble(Column::right));
+        double right = columns.getFirst().right();
+        for (int index = 1; index < columns.size(); index++) {
+            Column column = columns.get(index);
+            if (column.left() <= right) {
+                right = Math.max(right, column.right());
+                continue;
+            }
+            for (int lane = 1; lane <= 64; lane++) {
+                coordinates.add(clean(right + (column.left() - right) * lane / 65));
+            }
+            right = column.right();
+        }
+    }
+
     private static void adjacent(int @Nullable [] coordinates, int position, int fixed, boolean horizontal, LongSet result) {
         if (coordinates == null) return;
         int found = Arrays.binarySearch(coordinates, position);
@@ -271,4 +293,6 @@ final class OrthogonalRoutingGraph {
     }
 
     record Port(int nodeId, Side side, Point anchor, Point stub) {}
+
+    private record Column(double left, double right) {}
 }

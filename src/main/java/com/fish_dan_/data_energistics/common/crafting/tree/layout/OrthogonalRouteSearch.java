@@ -29,6 +29,19 @@ final class OrthogonalRouteSearch {
         maximumDetour = 2 * nodeGap;
     }
 
+    @Nullable
+    Choice fixedChannel(Port source, Port target, double lane, CraftingPlanRouteGroup group) {
+        if (!graph.terminalClear(source) || !graph.terminalClear(target)) return null;
+        List<Point> core = source.side() == CraftingPlanGraphLayout.Side.RIGHT || source.side() == CraftingPlanGraphLayout.Side.LEFT ? List.of(source.stub(), new Point(lane, source.stub().y()),
+                new Point(lane, target.stub().y()), target.stub()) :
+                List.of(source.stub(), new Point(source.stub().x(), lane),
+                        new Point(target.stub().x(), lane), target.stub());
+        RawCandidate raw = rawCandidate(source, target, core, group, true, true);
+        if (raw == null) return null;
+        Candidate candidate = measure(raw, group);
+        return candidate == null ? null : new Choice(candidate.points(), candidate.metrics(), candidate.metrics().length(), true);
+    }
+
     Choice route(List<Port> sourcePorts, List<Port> targetPorts, CraftingPlanRouteGroup group,
                  @Nullable Choice previous, boolean improveCrossings) {
         List<Port> clearSources = terminals(sourcePorts, group, true, false);

@@ -19,14 +19,18 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntHeapPriorityQueue;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntLists;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.concurrent.CancellationException;
 
 /** Ports follow final card positions; only chosen finite paths occupy the shared routing scene. */
@@ -47,6 +51,7 @@ final class CraftingPlanEdgeRouter {
         var reservations = new OrthogonalSegmentReservations(scene.x, scene.y);
         var search = new OrthogonalRouteSearch(scene, reservations, spacing.cellGap());
         Int2IntMap depths = routingDepths(graph);
+        double[] channelLanes = channelLanes(requests, depths, scene.x);
         List<Request> ordered = new ObjectArrayList<>(requests);
         ordered.sort(Comparator.comparingInt((Request request) -> depths.get(request.edge().source()))
                 .thenComparingInt(request -> depths.get(request.edge().target()))
@@ -54,7 +59,10 @@ final class CraftingPlanEdgeRouter {
         Choice[] choices = new Choice[requests.size()];
         for (Request request : ordered) {
             if (Thread.currentThread().isInterrupted()) throw new CancellationException();
-            Choice choice = search.route(request.source().ports, request.target().ports, request.group(), null, false);
+            Choice choice = channelChoice(search, request, channelLanes[request.id()]);
+            if (choice == null) {
+                choice = search.route(request.source().ports, request.target().ports, request.group(), null, false);
+            }
             choices[request.id()] = choice;
             if (choice.reserved()) reservations.reserve(choice.points(), request.group());
         }
@@ -123,6 +131,68 @@ final class CraftingPlanEdgeRouter {
             }
         }
         return depths;
+    }
+
+    private static @Nullable Choice channelChoice(OrthogonalRouteSearch search, Request request, double lane) {
+        if (Double.isNaN(lane)) return null;
+        PlacedNode sourceNode = request.source().node;
+        PlacedNode targetNode = request.target().node;
+        boolean forward = sourceNode.x() < targetNode.x();
+        Port source = request.source().port(forward ? Side.RIGHT : Side.LEFT);
+        Port target = request.target().port(forward ? Side.LEFT : Side.RIGHT);
+        return search.fixedChannel(source, target, lane, request.group());
+    }
+
+    private static double[] channelLanes(List<Request> requests, Int2IntMap depths, OrthogonalRoutingAxis xAxis) {
+        double[] lanes = new double[requests.size()];
+        Arrays.fill(lanes, Double.NaN);
+        Int2ObjectMap<List<Request>> byBoundary = new Int2ObjectOpenHashMap<>();
+        for (Request request : requests) {
+            int sourceDepth = depths.get(request.edge().source());
+            if (sourceDepth == Integer.MAX_VALUE || depths.get(request.edge().target()) != sourceDepth + 1) continue;
+            if (request.source().node.x() == request.target().node.x()) continue;
+            byBoundary.computeIfAbsent(sourceDepth, unused -> new ObjectArrayList<>()).add(request);
+        }
+        int[] trackByRequest = new int[requests.size()];
+        for (List<Request> boundary : byBoundary.values()) {
+            boundary.sort(Comparator.comparingDouble(CraftingPlanEdgeRouter::intervalStart)
+                    .thenComparingDouble(CraftingPlanEdgeRouter::intervalEnd).thenComparingInt(Request::id));
+            var active = new PriorityQueue<ActiveTrack>(Comparator.comparingDouble(ActiveTrack::end)
+                    .thenComparingInt(ActiveTrack::track));
+            var free = new IntHeapPriorityQueue();
+            int trackCount = 0;
+            for (Request request : boundary) {
+                double start = intervalStart(request);
+                while (!active.isEmpty() && active.peek().end() <= start) free.enqueue(active.remove().track());
+                int track = free.isEmpty() ? trackCount++ : free.dequeueInt();
+                trackByRequest[request.id()] = track;
+                active.add(new ActiveTrack(track, intervalEnd(request)));
+            }
+            for (Request request : boundary) {
+                PlacedNode source = request.source().node;
+                PlacedNode target = request.target().node;
+                double low = Math.min(source.x() + source.width(), target.x() + target.width()) + OrthogonalRoutingGraph.CLEARANCE;
+                double high = Math.max(source.x(), target.x()) - OrthogonalRoutingGraph.CLEARANCE;
+                if (low >= high) continue;
+                int first = xAxis.ceiling(low + OrthogonalSegmentReservations.EPSILON);
+                int last = xAxis.floor(high - OrthogonalSegmentReservations.EPSILON);
+                int available = last - first + 1;
+                if (available <= 0 || trackByRequest[request.id()] >= available) continue;
+                int index = trackCount <= available ? first + (int) ((long) (trackByRequest[request.id()] + 1) * available / (trackCount + 1)) : first + trackByRequest[request.id()];
+                lanes[request.id()] = xAxis.value(Math.min(last, index));
+            }
+        }
+        return lanes;
+    }
+
+    private static double intervalStart(Request request) {
+        return Math.min(request.source().node.y() + request.source().node.height() / 2,
+                request.target().node.y() + request.target().node.height() / 2);
+    }
+
+    private static double intervalEnd(Request request) {
+        return Math.max(request.source().node.y() + request.source().node.height() / 2,
+                request.target().node.y() + request.target().node.height() / 2);
     }
 
     private static List<Request> requests(ViewGraph graph, Int2ObjectMap<PlacedNode> nodes,
@@ -223,6 +293,8 @@ final class CraftingPlanEdgeRouter {
     private record Request(int id, ViewEdge edge, IntList originals, CraftingPlanRouteGroup group,
                            PortIntent source, PortIntent target, double distance) {}
 
+    private record ActiveTrack(int track, double end) {}
+
     private static final class PortIntent {
 
         private final PlacedNode node;
@@ -235,6 +307,10 @@ final class CraftingPlanEdgeRouter {
         private PortIntent(PlacedNode node, int ordinal) {
             this.node = node;
             this.ordinal = ordinal;
+        }
+
+        private Port port(Side side) {
+            return ports.get(side.ordinal());
         }
     }
 }
