@@ -39,6 +39,10 @@ final class CommonCapabilityRegistrar {
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 DEBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(AECapabilities.IN_WORLD_GRID_NODE_HOST, DEBlockEntities.ME_BEAM_FORMER.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(AECapabilities.IN_WORLD_GRID_NODE_HOST, DEBlockEntities.ME_OMNI_BEAM_FORMER.get(),
+                (blockEntity, context) -> blockEntity);
         event.registerBlockEntity(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 DEBlockEntities.TUNING_FORK_BASE_BLOCK_ENTITY.get(),
