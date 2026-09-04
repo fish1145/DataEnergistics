@@ -619,7 +619,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                                                                    long providerId,
                                                                    ObjectList<PatternContainer> providers) {
         ItemStack encodedPattern = this.encodedPatternSlot.getItem();
+        ServerPlayer serverPlayer = (ServerPlayer) this.getPlayer();
         var uploadContext = PatternProviderSyncHelper.createPatternUploadContext(
+                serverPlayer,
                 this,
                 data_energistics$getPreferenceSession(),
                 providerId);
@@ -627,9 +629,11 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 providers,
                 encodedPattern,
                 uploadContext);
+        if (transferResult.hasWarning()) {
+            this.getPlayer().sendSystemMessage(transferResult.warningMessageOrThrow());
+        }
         if (transferResult.rejected()) {
-            this.getPlayer().sendSystemMessage(Component.translatable(
-                    transferResult.rejection().messageKeyOrThrow()));
+            this.getPlayer().sendSystemMessage(transferResult.rejectionMessageOrThrow());
             return;
         }
         if (transferResult.duplicateFound()) {
@@ -642,14 +646,15 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
         ItemStack remainder = transferResult.remainder();
         if (!transferResult.transferred()) {
+            if (transferResult.hasWarning()) {
+                dataEnergistics$syncPatternProvidersFromNetwork();
+            }
             return;
         }
 
         this.encodedPatternSlot.set(remainder.isEmpty() ? ItemStack.EMPTY : remainder);
-        if (this.getPlayer() instanceof ServerPlayer serverPlayer) {
-            PatternUploadRecorder.record(serverPlayer, this, transferResult.committedTarget(),
-                    PatternUploadSource.DATA_ENERGISTICS);
-        }
+        PatternUploadRecorder.record(serverPlayer, this, transferResult.committedTarget(),
+                PatternUploadSource.DATA_ENERGISTICS);
         dataEnergistics$syncPatternProvidersFromNetwork();
     }
 

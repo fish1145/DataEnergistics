@@ -4,8 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderBatchAccess;
 import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderDisplayHelper;
 import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderHost;
-import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderPostCommitContext;
-import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderPostCommitHook;
+import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderWorkstationSource;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderMetadata;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
 import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderIdentitySource;
@@ -25,10 +24,12 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
+import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.inventories.InternalInventory;
@@ -244,136 +245,11 @@ public final class PatternProviderSyncHelper {
         }
     }
 
-    private static ItemStack transferEncodedPatternToProvider(PatternContainer container, ItemStack encodedPattern) {
-        if (encodedPattern.isEmpty() || !PatternDetailsHelper.isEncodedPattern(encodedPattern)) {
-            return encodedPattern;
-        }
-
-        var patternInventory = container.getTerminalPatternInventory();
-        if (patternInventory.size() <= 0) {
-            return encodedPattern;
-        }
-
-        long matchingCountBefore = countMatchingEncodedPatterns(patternInventory, encodedPattern);
-        ItemStack reportedRemainder;
-        try {
-            reportedRemainder = patternInventory.addItems(encodedPattern.copy(), false);
-        } catch (RuntimeException exception) {
-            LOGGER.error("Failed to insert encoded pattern into {}; checking the target inventory for committed patterns",
-                    container, exception);
-            int committedCount = countCommittedPatternDelta(
-                    matchingCountBefore, patternInventory, encodedPattern);
-            if (committedCount <= 0) {
-                return encodedPattern;
-            }
-
-            notifyCommittedPatternUpload(container, encodedPattern, committedCount);
-            return createRemainderAfterCommit(encodedPattern, committedCount);
-        }
-
-        int reportedCommittedCount = countReportedPatternCommit(encodedPattern, reportedRemainder);
-        int committedCount = countCommittedPatternDelta(
-                matchingCountBefore, patternInventory, encodedPattern);
-        if (reportedCommittedCount != committedCount) {
-            LOGGER.warn("Pattern provider {} reported {} of {} patterns committed, but its inventory changed by {}; " +
-                    "using the inventory delta as the committed count",
-                    container, reportedCommittedCount, encodedPattern.getCount(), committedCount);
-        }
-        if (committedCount <= 0) {
-            return encodedPattern;
-        }
-
-        notifyCommittedPatternUpload(container, encodedPattern, committedCount);
-        return createRemainderAfterCommit(encodedPattern, committedCount);
-    }
-
-    private static long countMatchingEncodedPatterns(InternalInventory inventory, ItemStack encodedPattern) {
-        long matchingCount = 0;
-        for (int slot = 0; slot < inventory.size(); slot++) {
-            ItemStack stack = inventory.getStackInSlot(slot);
-            if (!stack.isEmpty() && ItemStack.isSameItemSameComponents(stack, encodedPattern)) {
-                matchingCount += stack.getCount();
-            }
-        }
-        return matchingCount;
-    }
-
-    private static int countReportedPatternCommit(ItemStack encodedPattern, ItemStack reportedRemainder) {
-        int boundedRemainderCount = Math.min(encodedPattern.getCount(), reportedRemainder.getCount());
-        return encodedPattern.getCount() - boundedRemainderCount;
-    }
-
-    private static int countCommittedPatternDelta(long matchingCountBefore, InternalInventory inventory,
-                                                  ItemStack encodedPattern) {
-        long matchingCountAfter = countMatchingEncodedPatterns(inventory, encodedPattern);
-        long positiveDelta = Math.max(0, matchingCountAfter - matchingCountBefore);
-        return (int) Math.min(encodedPattern.getCount(), positiveDelta);
-    }
-
-    private static ItemStack createRemainderAfterCommit(ItemStack encodedPattern, int committedCount) {
-        if (committedCount >= encodedPattern.getCount()) {
-            return ItemStack.EMPTY;
-        }
-
-        ItemStack remainder = encodedPattern.copy();
-        remainder.shrink(committedCount);
-        return remainder;
-    }
-
-    private static void notifyCommittedPatternUpload(PatternContainer container,
-                                                     ItemStack encodedPattern,
-                                                     int committedCount) {
-        if (container instanceof PatternProviderLogicHost providerHost) {
-            try {
-                providerHost.getLogic().updatePatterns();
-            } catch (RuntimeException exception) {
-                LOGGER.error("Failed to update patterns after committing {} encoded patterns to {}",
-                        committedCount, container, exception);
-            }
-            try {
-                providerHost.saveChanges();
-            } catch (RuntimeException exception) {
-                LOGGER.error("Failed to save pattern provider after committing {} encoded patterns to {}",
-                        committedCount, container, exception);
-            }
-        }
-
-        Optional<ResolvedProviderBinding> resolved;
-        try {
-            resolved = PatternProviderRuntimeBindings.resolve(container);
-        } catch (RuntimeException exception) {
-            LOGGER.error("Failed to resolve a post-commit provider plugin after committing {} encoded patterns to {}",
-                    committedCount, container, exception);
-            return;
-        }
-        if (resolved.isEmpty()) {
-            return;
-        }
-        ResolvedProviderBinding binding = resolved.get();
-        PatternProviderPostCommitHook hook = binding.registration().postCommitHook();
-        if (hook == null) {
-            return;
-        }
-        try {
-            hook.afterCommit(new PatternProviderPostCommitContext(
-                    container,
-                    binding.identity(),
-                    encodedPattern,
-                    committedCount));
-        } catch (RuntimeException exception) {
-            LOGGER.error(
-                    "Pattern provider post-commit hook '{}' failed after committing {} encoded patterns to identity {}",
-                    binding.registration().metadata().registrationId(),
-                    committedCount,
-                    binding.identity(),
-                    exception);
-        }
-    }
-
     /**
      * Captures the server-owned context used to attribute a successful upload without filtering its target.
      */
     public static PatternUploadContext createPatternUploadContext(
+                                                                  ServerPlayer player,
                                                                   PatternEncodingPreviewMenu previewMenu,
                                                                   PatternEncodingPreferenceSession session,
                                                                   long providerId) {
@@ -390,6 +266,7 @@ public final class PatternProviderSyncHelper {
                     rankingContext,
                     providerId);
             return new PatternUploadContext(
+                    player,
                     mode,
                     rankingContext,
                     preferredWorkstation);
@@ -402,7 +279,7 @@ public final class PatternProviderSyncHelper {
         }
         PatternEncodingRankingContext rankingContext = persistedContext == null ? fixedContext : persistedContext;
         session.setRankingContext(rankingContext);
-        return new PatternUploadContext(mode, rankingContext, null);
+        return new PatternUploadContext(player, mode, rankingContext, null);
     }
 
     @Nullable
@@ -430,12 +307,14 @@ public final class PatternProviderSyncHelper {
         }
 
         PreparationResult preparation = preparePatternUploads(containers, uploadContext);
-        if (preparation.rejection() != PatternUploadRejection.NONE) {
-            return TransferResult.rejected(encodedPattern, preparation.rejection());
+        if (preparation.rejected()) {
+            return TransferResult.rejected(encodedPattern, preparation.rejectionMessageOrThrow());
         }
-        List<PreparedPatternUpload> preparedUploads = preparation.uploads();
+        ObjectList<PreparedPatternUpload> preparedUploads = preparation.uploads();
         if (preparedUploads.isEmpty()) {
-            return TransferResult.rejected(encodedPattern, PatternUploadRejection.TARGET_UNAVAILABLE);
+            return TransferResult.rejected(
+                    encodedPattern,
+                    Component.translatable("message.data_energistics.pattern_provider.target_unavailable"));
         }
 
         if (containsEquivalentEncodedPattern(preparedUploads, encodedPattern)) {
@@ -444,40 +323,111 @@ public final class PatternProviderSyncHelper {
                     false,
                     true,
                     null,
-                    PatternUploadRejection.NONE);
+                    null,
+                    null);
         }
+
+        IPatternDetails patternDetails = PatternDetailsHelper.decodePattern(
+                encodedPattern,
+                uploadContext.player().level());
+        if (patternDetails == null) {
+            return TransferResult.rejected(
+                    encodedPattern,
+                    Component.translatable("message.data_energistics.pattern_provider.target_unavailable"));
+        }
+        EncodedPatternRecipeReference recipeReference = EncodedPatternRecipeReference.get(encodedPattern);
+        ResourceLocation recipeTypeId = recipeReference == null ? null : recipeReference.recipeTypeId();
 
         ItemStack remainder = encodedPattern.copy();
         boolean transferred = false;
+        boolean eligibleLeafAttempted = false;
+        boolean indeterminateMutation = false;
         PatternUploadTarget firstCommittedTarget = null;
+        @Nullable
+        Component firstWorkstationRejection = null;
         for (PreparedPatternUpload preparedUpload : preparedUploads) {
             if (remainder.isEmpty()) {
                 break;
             }
 
+            PatternProviderUploadWorkstations.Preparation workstationPreparation;
+            try {
+                workstationPreparation = PatternProviderUploadWorkstations.prepare(
+                        uploadContext.player(),
+                        preparedUpload.container(),
+                        preparedUpload.providerIdentity(),
+                        preparedUpload.workstationSource(),
+                        patternDetails,
+                        recipeTypeId,
+                        remainder.getCount());
+            } catch (RuntimeException exception) {
+                LOGGER.error(
+                        "Could not prepare pattern upload workstations for provider {}; skipping this leaf",
+                        preparedUpload.container(),
+                        exception);
+                if (firstWorkstationRejection == null) {
+                    firstWorkstationRejection = Component.translatable(
+                            "message.data_energistics.pattern_provider.target_unavailable");
+                }
+                continue;
+            }
+            if (workstationPreparation.rejected()) {
+                if (firstWorkstationRejection == null) {
+                    firstWorkstationRejection = workstationPreparation.rejectionMessageOrThrow();
+                }
+                continue;
+            }
             PatternContainer container = preparedUpload.container();
-            ItemStack nextRemainder = transferEncodedPatternToProvider(container, remainder);
-            if (nextRemainder.getCount() != remainder.getCount()) {
+            PatternProviderUploadCommit.Result providerTransfer = PatternProviderUploadCommit.attempt(
+                    container,
+                    remainder,
+                    workstationPreparation.changes());
+            if (providerTransfer.failed()) {
+                if (firstWorkstationRejection == null) {
+                    firstWorkstationRejection = Component.translatable(
+                            "message.data_energistics.pattern_provider.target_unavailable");
+                }
+                continue;
+            }
+            eligibleLeafAttempted = true;
+            if (providerTransfer.indeterminate()) {
+                indeterminateMutation = true;
+                break;
+            }
+            if (providerTransfer.committedCount() > 0) {
                 transferred = true;
                 if (firstCommittedTarget == null) {
                     firstCommittedTarget = preparedUpload.target();
                 }
             }
-            remainder = nextRemainder;
+            remainder = providerTransfer.remainder();
         }
 
+        if (indeterminateMutation) {
+            return new TransferResult(
+                    transferred ? remainder : encodedPattern,
+                    transferred,
+                    false,
+                    firstCommittedTarget,
+                    null,
+                    Component.translatable("message.data_energistics.pattern_provider.upload_state_unknown"));
+        }
+        if (!transferred && !eligibleLeafAttempted && firstWorkstationRejection != null) {
+            return TransferResult.rejected(encodedPattern, firstWorkstationRejection);
+        }
         return new TransferResult(
                 transferred ? remainder : encodedPattern,
                 transferred,
                 false,
                 firstCommittedTarget,
-                PatternUploadRejection.NONE);
+                null,
+                null);
     }
 
     private static PreparationResult preparePatternUploads(
                                                            List<PatternContainer> containers,
                                                            PatternUploadContext uploadContext) {
-        List<PreparedPatternUpload> preparedUploads = new ObjectArrayList<>(containers.size());
+        ObjectList<PreparedPatternUpload> preparedUploads = new ObjectArrayList<>(containers.size());
         for (PatternContainer container : containers) {
             try {
                 ProviderResolution provider = resolveProvider(container);
@@ -485,17 +435,22 @@ public final class PatternProviderSyncHelper {
                         container,
                         provider.identity(),
                         uploadContext.resolvedWorkstation());
-                preparedUploads.add(new PreparedPatternUpload(container, target));
+                preparedUploads.add(new PreparedPatternUpload(
+                        container,
+                        target,
+                        provider.identity(),
+                        PatternProviderRuntimeBindings.resolveWorkstationSource(provider.identity())));
             } catch (RuntimeException exception) {
                 LOGGER.error("Could not resolve a typed upload target for {}; rejecting the group before inventory mutation",
                         container, exception);
-                return new PreparationResult(List.of(), PatternUploadRejection.TARGET_UNAVAILABLE);
+                return PreparationResult.rejected(Component.translatable(
+                        "message.data_energistics.pattern_provider.target_unavailable"));
             }
         }
-        return new PreparationResult(List.copyOf(preparedUploads), PatternUploadRejection.NONE);
+        return PreparationResult.accepted(ObjectLists.unmodifiable(preparedUploads));
     }
 
-    private static boolean containsEquivalentEncodedPattern(List<PreparedPatternUpload> preparedUploads,
+    private static boolean containsEquivalentEncodedPattern(ObjectList<PreparedPatternUpload> preparedUploads,
                                                             ItemStack encodedPattern) {
         for (PreparedPatternUpload preparedUpload : preparedUploads) {
             PatternContainer container = preparedUpload.container();
@@ -512,17 +467,40 @@ public final class PatternProviderSyncHelper {
     }
 
     private record PreparedPatternUpload(PatternContainer container,
-                                         PatternUploadTarget target) {}
+                                         PatternUploadTarget target,
+                                         ProviderIdentity providerIdentity,
+                                         @Nullable PatternProviderWorkstationSource workstationSource) {}
 
-    private record PreparationResult(List<PreparedPatternUpload> uploads,
-                                     PatternUploadRejection rejection) {}
+    private record PreparationResult(ObjectList<PreparedPatternUpload> uploads,
+                                     @Nullable Component rejectionMessage) {
+
+        private static PreparationResult accepted(ObjectList<PreparedPatternUpload> uploads) {
+            return new PreparationResult(uploads, null);
+        }
+
+        private static PreparationResult rejected(Component message) {
+            return new PreparationResult(ObjectLists.emptyList(), message);
+        }
+
+        private boolean rejected() {
+            return this.rejectionMessage != null;
+        }
+
+        private Component rejectionMessageOrThrow() {
+            if (this.rejectionMessage == null) {
+                throw new IllegalStateException("Successful pattern upload preparation has no rejection message");
+            }
+            return this.rejectionMessage;
+        }
+    }
 
     /**
      * Result of one upload attempt, including the first inventory that actually accepted a pattern.
      */
     public record TransferResult(ItemStack remainder, boolean transferred, boolean duplicateFound,
                                  @Nullable PatternUploadTarget firstCommittedTarget,
-                                 PatternUploadRejection rejection) {
+                                 @Nullable Component rejectionMessage,
+                                 @Nullable Component warningMessage) {
 
         public TransferResult {
             if ((transferred && firstCommittedTarget == null) ||
@@ -530,17 +508,40 @@ public final class PatternProviderSyncHelper {
                 throw new IllegalArgumentException(
                         "A pattern upload result must expose one committed target exactly when a transfer occurred");
             }
-            if (transferred && (duplicateFound || rejection != PatternUploadRejection.NONE)) {
+            if (transferred && (duplicateFound || rejectionMessage != null)) {
                 throw new IllegalArgumentException(
                         "A committed pattern upload cannot also be a duplicate or rejection");
             }
-            if (duplicateFound && rejection != PatternUploadRejection.NONE) {
+            if (duplicateFound && rejectionMessage != null) {
                 throw new IllegalArgumentException("A duplicate pattern upload cannot also be rejected");
+            }
+            if (warningMessage != null && (duplicateFound || rejectionMessage != null)) {
+                throw new IllegalArgumentException("An indeterminate pattern upload cannot be a duplicate or rejection");
             }
         }
 
         public boolean rejected() {
-            return this.rejection != PatternUploadRejection.NONE;
+            return this.rejectionMessage != null;
+        }
+
+        /** Returns the user-visible rejection after {@link #rejected()} established the result variant. */
+        public Component rejectionMessageOrThrow() {
+            if (this.rejectionMessage == null) {
+                throw new IllegalStateException("Successful pattern upload result has no rejection message");
+            }
+            return this.rejectionMessage.copy();
+        }
+
+        public boolean hasWarning() {
+            return this.warningMessage != null;
+        }
+
+        /** Returns the user-visible warning after {@link #hasWarning()} established the result variant. */
+        public Component warningMessageOrThrow() {
+            if (this.warningMessage == null) {
+                throw new IllegalStateException("Pattern upload result has no warning message");
+            }
+            return this.warningMessage.copy();
         }
 
         /**
@@ -554,49 +555,24 @@ public final class PatternProviderSyncHelper {
         }
 
         private static TransferResult noTransfer(ItemStack remainder) {
-            return new TransferResult(remainder, false, false, null, PatternUploadRejection.NONE);
+            return new TransferResult(remainder, false, false, null, null, null);
         }
 
-        private static TransferResult rejected(ItemStack remainder, PatternUploadRejection rejection) {
-            return new TransferResult(remainder, false, false, null, rejection);
+        private static TransferResult rejected(ItemStack remainder, Component rejectionMessage) {
+            return new TransferResult(remainder, false, false, null, rejectionMessage, null);
         }
     }
 
     /**
      * Server-owned context used to attribute one committed upload after inventory mutation.
      */
-    public record PatternUploadContext(EncodingMode mode,
+    public record PatternUploadContext(ServerPlayer player,
+                                       EncodingMode mode,
                                        @Nullable PatternEncodingRankingContext rankingContext,
                                        @Nullable ResourceLocation resolvedWorkstation) {
 
         public boolean processing() {
             return this.mode == EncodingMode.PROCESSING;
-        }
-    }
-
-    /**
-     * Explicit reason why a provider upload was rejected before inventory mutation.
-     */
-    public enum PatternUploadRejection {
-
-        NONE(null),
-        TARGET_UNAVAILABLE("message.data_energistics.pattern_provider.target_unavailable");
-
-        @Nullable
-        private final String messageKey;
-
-        PatternUploadRejection(@Nullable String messageKey) {
-            this.messageKey = messageKey;
-        }
-
-        /**
-         * Returns the localized rejection key after the caller has established that this is not {@link #NONE}.
-         */
-        public String messageKeyOrThrow() {
-            if (this.messageKey == null) {
-                throw new IllegalStateException("The successful upload state has no rejection message");
-            }
-            return this.messageKey;
         }
     }
 
