@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.integration.viewer.xei.recipe;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.blockentity.machine.DataIntegratedChargerBlockEntity.MachineMode;
 import com.fish_dan_.data_energistics.integration.recipe.EaeCircuitCutterRecipeCatalog;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
@@ -28,6 +30,64 @@ public sealed interface DataChargePressRecipeView permits DataChargePressRecipeV
                                                   DataChargePressRecipeView.EaeCircuitCutterView {
 
     ResourceLocation id();
+
+    /** Returns the machine mode required to execute this exact viewer recipe variant. */
+    default MachineMode machineMode() {
+        return switch (this) {
+            case PowderView ignored -> MachineMode.POWDER;
+            case CustomView ignored -> MachineMode.CRYSTAL_GROWTH;
+            case ChargerView ignored -> MachineMode.CHARGER;
+            case DataChargerView ignored -> MachineMode.CHARGER;
+            case InscriberView ignored -> MachineMode.INSCRIBER;
+            case IntegratedChargerView ignored -> MachineMode.INSCRIBER;
+            case CircuitBoardView ignored -> MachineMode.INSCRIBER;
+            case EaeCircuitCutterView ignored -> MachineMode.INSCRIBER;
+        };
+    }
+
+    /**
+     * Returns a stable, globally unique processing-pattern identity including this unified view's recipe family.
+     */
+    default ResourceLocation patternRecipeId() {
+        ResourceLocation sourceId;
+        String family;
+        switch (this) {
+            case ChargerView view -> {
+                sourceId = view.holder().id();
+                family = "charger";
+            }
+            case InscriberView view -> {
+                sourceId = view.holder().id();
+                family = "inscriber";
+            }
+            case PowderView view -> {
+                sourceId = view.holder().id();
+                family = "powder";
+            }
+            case DataChargerView view -> {
+                sourceId = view.holder().id();
+                family = "data_charger";
+            }
+            case IntegratedChargerView view -> {
+                sourceId = view.holder().id();
+                family = "integrated_charger";
+            }
+            case CircuitBoardView view -> {
+                sourceId = view.holder().id();
+                family = "circuit_board";
+            }
+            case CustomView view -> {
+                sourceId = view.holder().id();
+                family = "crystal_growth";
+            }
+            case EaeCircuitCutterView view -> {
+                sourceId = view.recipe().id();
+                family = "eae_circuit_cutter";
+            }
+        }
+        return Data_Energistics.id(
+                "data_charge_press/" + family + "/" + sourceId.getNamespace() + "/" + sourceId.getPath());
+    }
 
     /**
      * Builds the viewer entries from exactly the recipe families that the data integrated charger can execute.

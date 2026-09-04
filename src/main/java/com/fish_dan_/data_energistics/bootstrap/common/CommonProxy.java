@@ -9,6 +9,8 @@ import com.fish_dan_.data_energistics.common.crafting.dynamic.DynamicCraftingOut
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsRegistrySnapshot;
+import com.fish_dan_.data_energistics.common.entrypoint.machine.CraftingMachineCapacityAdapters;
+import com.fish_dan_.data_energistics.common.entrypoint.machine.PatternUploadWorkstationAdapters;
 import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
@@ -76,7 +78,11 @@ public class CommonProxy {
             UniversalTerminalAdapters.install(snapshot.universalTerminalRegistrations());
             VirtualCraftingOutputAdapters.install(snapshot.virtualCraftingOutputAdapters());
             DynamicCraftingOutputAdapters.install(snapshot.dynamicCraftingOutputAdapters());
-            PatternProviderRuntimeBindings.install(snapshot.patternProviderRegistrations());
+            CraftingMachineCapacityAdapters.install(snapshot.craftingMachineCapacityRegistrations());
+            PatternUploadWorkstationAdapters.install(snapshot.patternUploadWorkstationRegistrations());
+            PatternProviderRuntimeBindings.install(
+                    snapshot.patternProviderRegistrations(),
+                    snapshot.patternProviderWorkstationSourceRegistrations());
             AdaptivePatternProviderResolver.install(snapshot.adaptivePatternProviderRegistrations());
             DEUpgrades.init();
             if (ModFlags.isCuriosLoaded()) {

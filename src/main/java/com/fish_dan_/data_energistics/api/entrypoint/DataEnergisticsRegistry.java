@@ -2,6 +2,10 @@ package com.fish_dan_.data_energistics.api.entrypoint;
 
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.dynamic.DynamicCraftingOutputRegistry;
+import com.fish_dan_.data_energistics.api.registry.machine.CraftingMachineRegistry;
+import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityRegistration;
+import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityRegistry;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationRegistration;
 import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdRegistry;
 import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchRegistry;
@@ -27,6 +31,40 @@ public interface DataEnergisticsRegistry {
      * @return pattern-provider lifecycle declaration facet
      */
     PatternProviderRegistry patternProviders();
+
+    /**
+     * @return 3.2 capacity-only machine declaration facet
+     *
+     * @deprecated Use {@link #craftingMachines()}; removed in 3.3.0.
+     */
+    @Deprecated(since = "3.2.0")
+    CraftingMachineCapacityRegistry craftingMachineCapacities();
+
+    /**
+     * Returns the complete external crafting-machine declaration facet.
+     *
+     * <p>
+     * Data Energistics overrides this method with the shared staging registry. The default keeps third-party 3.2
+     * registrar implementations source-compatible for capacity declarations; those legacy implementations cannot
+     * accept the newly added upload capability.
+     * </p>
+     */
+    default CraftingMachineRegistry craftingMachines() {
+        CraftingMachineCapacityRegistry capacities = this.craftingMachineCapacities();
+        return new CraftingMachineRegistry() {
+
+            @Override
+            public void registerCapacity(CraftingMachineCapacityRegistration registration) {
+                capacities.register(registration);
+            }
+
+            @Override
+            public void registerPatternUploadWorkstation(PatternUploadWorkstationRegistration registration) {
+                throw new UnsupportedOperationException(
+                        "This legacy Data Energistics registrar does not support pattern upload workstations");
+            }
+        };
+    }
 
     /**
      * @return adaptive pattern-provider definition facet

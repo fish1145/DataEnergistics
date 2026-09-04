@@ -89,7 +89,9 @@ public final class EmiMultiblockPatternTransferHandler<T extends PatternEncoding
             return false;
         }
         PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(
-                context.getScreenHandler(), rankingContext);
+                context.getScreenHandler(),
+                rankingContext,
+                EmiPatternTransferContextBridge.resolveRecipeId(null, recipe));
         return true;
     }
 

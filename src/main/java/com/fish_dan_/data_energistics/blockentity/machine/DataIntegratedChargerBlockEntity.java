@@ -1,6 +1,13 @@
 package com.fish_dan_.data_energistics.blockentity.machine;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationCompatibility;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationContext;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationInspection;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationInspectionContext;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationPreparation;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationVariant;
 import com.fish_dan_.data_energistics.block.machine.DataIntegratedChargerBlock;
 import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
@@ -9,6 +16,7 @@ import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipeInput;
+import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerPatternModeResolver;
 import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
@@ -21,6 +29,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
@@ -126,6 +135,15 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String PROCESSING_MODE_TAG = "processing_mode";
     private static final String MACHINE_MODE_TAG = "machine_mode";
     private static final String LEGACY_MODULE_REFUND_TAG = "legacy_module_refund";
+    private static final ResourceLocation DATA_CHARGE_PRESS_RECIPE_TYPE_ID = Data_Energistics.id("data_charge_press");
+    private static final PatternUploadWorkstationVariant CHARGER_UPLOAD_VARIANT = createUploadVariant(
+            MachineMode.CHARGER, "charger");
+    private static final PatternUploadWorkstationVariant CRYSTAL_GROWTH_UPLOAD_VARIANT = createUploadVariant(
+            MachineMode.CRYSTAL_GROWTH, "crystal_growth");
+    private static final PatternUploadWorkstationVariant INSCRIBER_UPLOAD_VARIANT = createUploadVariant(
+            MachineMode.INSCRIBER, "inscriber");
+    private static final PatternUploadWorkstationVariant POWDER_UPLOAD_VARIANT = createUploadVariant(
+            MachineMode.POWDER, "powder");
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(
             DEBlocks.DATA_INTEGRATED_CHARGER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new IntegratedChargerItemInventory();
@@ -313,7 +331,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public boolean setMachineMode(MachineMode mode) {
-        if (mode == null || this.machineMode == mode) {
+        if (this.machineMode == mode) {
             return false;
         }
         this.machineMode = mode;
@@ -322,6 +340,56 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         saveChanges();
         markForClientUpdate();
         return true;
+    }
+
+    /** Describes the current mode and its compatibility with the encoded pattern without changing machine state. */
+    public PatternUploadWorkstationInspection inspectPatternUpload(
+                                                                   PatternUploadWorkstationInspectionContext context) {
+        PatternUploadWorkstationCompatibility compatibility = PatternUploadWorkstationCompatibility.UNKNOWN;
+        if (context.patternDetails() != null) {
+            int matchingModes = DataIntegratedChargerPatternModeResolver.resolveModeMask(
+                    context.level(), context.patternDetails(), context.recipeId());
+            if (matchingModes == 0) {
+                if (DATA_CHARGE_PRESS_RECIPE_TYPE_ID.equals(context.recipeTypeId()) ||
+                        DataIntegratedChargerPatternModeResolver.isStableRecipeId(context.recipeId())) {
+                    compatibility = PatternUploadWorkstationCompatibility.INCOMPATIBLE;
+                }
+            } else if (Integer.bitCount(matchingModes) != 1) {
+                compatibility = PatternUploadWorkstationCompatibility.INCOMPATIBLE;
+            } else {
+                MachineMode requiredMode = MachineMode.values()[Integer.numberOfTrailingZeros(matchingModes)];
+                compatibility = requiredMode == this.machineMode ?
+                        PatternUploadWorkstationCompatibility.COMPATIBLE :
+                        PatternUploadWorkstationCompatibility.INCOMPATIBLE;
+            }
+        }
+        return PatternUploadWorkstationInspection.variant(uploadVariant(this.machineMode), compatibility);
+    }
+
+    /** Validates that this machine is already in the unique mode required by the exact server-side recipe. */
+    public PatternUploadWorkstationPreparation preparePatternUpload(PatternUploadWorkstationContext context) {
+        int matchingModes = DataIntegratedChargerPatternModeResolver.resolveModeMask(
+                context.level(), context.patternDetails(), context.recipeId());
+        if (matchingModes == 0) {
+            if (DATA_CHARGE_PRESS_RECIPE_TYPE_ID.equals(context.recipeTypeId()) ||
+                    DataIntegratedChargerPatternModeResolver.isStableRecipeId(context.recipeId())) {
+                return PatternUploadWorkstationPreparation.rejected(Component.translatable(
+                        "message.data_energistics.data_integrated_charger.pattern_mode_unresolved"));
+            }
+            return PatternUploadWorkstationPreparation.pass();
+        }
+        if (Integer.bitCount(matchingModes) != 1) {
+            return PatternUploadWorkstationPreparation.rejected(Component.translatable(
+                    "message.data_energistics.data_integrated_charger.pattern_mode_ambiguous"));
+        }
+        MachineMode requiredMode = MachineMode.values()[Integer.numberOfTrailingZeros(matchingModes)];
+        if (requiredMode != this.machineMode) {
+            return PatternUploadWorkstationPreparation.rejected(Component.translatable(
+                    "message.data_energistics.data_integrated_charger.pattern_mode_mismatch",
+                    modeDisplayName(requiredMode),
+                    modeDisplayName(this.machineMode)));
+        }
+        return PatternUploadWorkstationPreparation.accepted();
     }
 
     public void serverTick() {
@@ -1480,6 +1548,31 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             return null;
         }
         return new GenericStack(AEFluidKey.of(fluid), fluid.getAmount());
+    }
+
+    private static PatternUploadWorkstationVariant createUploadVariant(MachineMode mode, String name) {
+        return new PatternUploadWorkstationVariant(
+                Data_Energistics.id("data_integrated_charger/" + name),
+                modeDisplayName(mode));
+    }
+
+    private static PatternUploadWorkstationVariant uploadVariant(MachineMode mode) {
+        return switch (mode) {
+            case CHARGER -> CHARGER_UPLOAD_VARIANT;
+            case CRYSTAL_GROWTH -> CRYSTAL_GROWTH_UPLOAD_VARIANT;
+            case INSCRIBER -> INSCRIBER_UPLOAD_VARIANT;
+            case POWDER -> POWDER_UPLOAD_VARIANT;
+        };
+    }
+
+    private static Component modeDisplayName(MachineMode mode) {
+        String name = switch (mode) {
+            case CHARGER -> "charger";
+            case CRYSTAL_GROWTH -> "crystal_growth";
+            case INSCRIBER -> "inscriber";
+            case POWDER -> "powder";
+        };
+        return Component.translatable("button.data_energistics.data_integrated_charger.machine_mode." + name);
     }
 
     public enum MachineMode {

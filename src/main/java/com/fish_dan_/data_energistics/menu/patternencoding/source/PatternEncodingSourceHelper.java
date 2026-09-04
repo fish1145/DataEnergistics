@@ -93,6 +93,25 @@ public final class PatternEncodingSourceHelper {
         return PatternDetailsHelper.encodeProcessingPattern(normalizedInputs, normalizedOutputs);
     }
 
+    /** Returns whether either processing inventory contains a wrapped non-item/non-fluid AE key. */
+    public static boolean requiresProcessingPatternNormalization(ConfigInventory inputs, ConfigInventory outputs) {
+        return containsWrappedCustomKey(inputs) || containsWrappedCustomKey(outputs);
+    }
+
+    private static boolean containsWrappedCustomKey(ConfigInventory inventory) {
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            GenericStack stack = inventory.getStack(slot);
+            if (stack == null || !(stack.what() instanceof AEItemKey itemKey)) {
+                continue;
+            }
+            GenericStack wrapped = GenericStack.unwrapItemStack(itemKey.toStack());
+            if (wrapped != null && DEAE2Keys.isCustomKey(wrapped.what())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Nullable
     private static List<@Nullable GenericStack> normalizeProcessingPatternInventory(
                                                                                     ConfigInventory inventory,
@@ -217,6 +236,17 @@ public final class PatternEncodingSourceHelper {
         }
         PatternEncodingRankingContext context = session.rankingContext();
         return context == null ? null : context.recipeTypeId();
+    }
+
+    /** Resolves the stable processing recipe identity that should be appended to the next encoded pattern. */
+    @Nullable
+    public static ResourceLocation resolveProcessingPatternRecipeId(
+                                                                    PatternEncodingPreviewMenu previewMenu,
+                                                                    PatternEncodingPreferenceSession session) {
+        if (previewMenu.data_energistics$getEncodingMode() != EncodingMode.PROCESSING) {
+            return null;
+        }
+        return session.recipeId();
     }
 
     /**

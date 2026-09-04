@@ -34,6 +34,17 @@ public record MachineTargetId(String stableIdentity) {
                 "block|" + dimension.location() + "|" + position.asLong() + "|" + side.getName());
     }
 
+    /**
+     * Builds the provider-independent identity of one complete external block entity, shared by every input face.
+     *
+     * @param dimension dimension containing the target
+     * @param position  target block position
+     * @return stable physical block-entity identity
+     */
+    public static MachineTargetId forBlockEntity(ResourceKey<Level> dimension, BlockPos position) {
+        return new MachineTargetId("block|" + dimension.location() + "|" + position.asLong());
+    }
+
     public MachineTargetId {
         if (stableIdentity == null || stableIdentity.isBlank()) {
             throw new IllegalArgumentException("Machine target identity must not be blank");
