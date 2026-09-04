@@ -332,6 +332,7 @@
 	"gui.data_energistics.craft_confirm.feature.planning": "规划中",
 	"gui.data_energistics.craft_confirm.feature.standard": "普通",
 	"gui.data_energistics.craft_confirm.heading": "%s · %s · %s",
+	"gui.data_energistics.craft_confirm.heading.diagnostic": "%s · %s",
 	"gui.data_energistics.craft_confirm.metrics": "%sB · 计算 %s",
 	"gui.data_energistics.craft_confirm.metrics.planning": "—B · 计算中",
 	"gui.data_energistics.craft_confirm.progress.counter": "%s · 状态 %s/%s · 求解 %s",

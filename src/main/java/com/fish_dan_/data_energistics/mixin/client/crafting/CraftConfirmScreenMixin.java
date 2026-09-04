@@ -142,7 +142,7 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                             quantityMode,
                             bytes,
                             planningTime));
-            this.setTextContent("cpu_status", state.data_energistics$diagnostic());
+            this.setTextContent("cpu_status", dataEnergistics$diagnosticText(state));
         } else if (state.data_energistics$isTrinityOnly()) {
             String titleKey = state.data_energistics$hasDynamicMaterialWarning() ?
                     "gui.data_energistics.trinity_planning.dynamic_title" :
@@ -151,7 +151,7 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                     TEXT_ID_DIALOG_TITLE,
                     Component.translatable(titleKey, quantityMode, bytes, planningTime));
             if (state.data_energistics$hasDiagnostic()) {
-                this.setTextContent("cpu_status", state.data_energistics$diagnostic());
+                this.setTextContent("cpu_status", dataEnergistics$diagnosticText(state));
             }
         } else if (state.data_energistics$hasDiagnostic()) {
             this.setTextContent(
@@ -160,8 +160,16 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                             "gui.data_energistics.trinity_planning.diagnostic_title",
                             quantityMode,
                             planningTime));
-            this.setTextContent("cpu_status", state.data_energistics$diagnostic());
+            this.setTextContent("cpu_status", dataEnergistics$diagnosticText(state));
         }
+    }
+
+    @Unique
+    private static Component dataEnergistics$diagnosticText(TrinityCraftConfirmMenuState state) {
+        Component detail = state.data_energistics$diagnosticDetail();
+        return detail.getString().isEmpty() ?
+                state.data_energistics$diagnostic() :
+                state.data_energistics$diagnostic().copy().append(detail);
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)

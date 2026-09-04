@@ -147,6 +147,10 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Unique
     public Component dataEnergistics$diagnostic = Component.empty();
 
+    @GuiSync(802)
+    @Unique
+    public Component dataEnergistics$diagnosticDetail = Component.empty();
+
     @GuiSync(796)
     @Unique
     public boolean dataEnergistics$ae2FallbackEstimate;
@@ -219,6 +223,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         this.dataEnergistics$dynamicMaterialWarning = false;
         this.dataEnergistics$hasDiagnostic = false;
         this.dataEnergistics$diagnostic = Component.empty();
+        this.dataEnergistics$diagnosticDetail = Component.empty();
         this.dataEnergistics$ae2FallbackEstimate = false;
         this.dataEnergistics$planningNanos = 0L;
 
@@ -229,36 +234,40 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             this.dataEnergistics$planningNanos = plan.statistics().planningNanos();
             if (!plan.diagnostics().isEmpty()) {
                 this.dataEnergistics$hasDiagnostic = true;
-                this.dataEnergistics$diagnostic = dataEnergistics$formatDiagnostic(plan.diagnostics().getFirst());
+                DiagnosticText text = dataEnergistics$formatDiagnostic(plan.diagnostics().getFirst());
+                this.dataEnergistics$diagnostic = text.message();
+                this.dataEnergistics$diagnosticDetail = text.detail();
             }
         } else if (this.result instanceof TrinityDiagnosedCraftingPlan diagnosed) {
             this.dataEnergistics$hasDiagnostic = true;
-            this.dataEnergistics$diagnostic = dataEnergistics$formatDiagnostic(diagnosed.diagnostic());
+            DiagnosticText text = dataEnergistics$formatDiagnostic(diagnosed.diagnostic());
+            this.dataEnergistics$diagnostic = text.message();
+            this.dataEnergistics$diagnosticDetail = text.detail();
             this.dataEnergistics$ae2FallbackEstimate = diagnosed.ae2FallbackEstimate();
             this.dataEnergistics$planningNanos = diagnosed.calculationNanos();
         }
     }
 
     @Unique
-    private static Component dataEnergistics$formatDiagnostic(TrinityPlanningDiagnostic diagnostic) {
+    private static DiagnosticText dataEnergistics$formatDiagnostic(TrinityPlanningDiagnostic diagnostic) {
         Component message = diagnostic.message();
-        Component exactShortage = diagnostic.inputShortage()
-                .<Component>map(shortage -> message.copy().append(
-                        Component.translatable(
-                                "gui.data_energistics.trinity_planning.diagnostic.input_shortage_detail",
-                                shortage.key().getDisplayName(),
-                                shortage.missing(),
-                                shortage.available(),
-                                shortage.required())
-                                .withStyle(dataEnergistics$diagnosticDetailColor(diagnostic))))
-                .orElse(message);
-        if (diagnostic.inputShortage().isPresent() || diagnostic.partialPlan().isEmpty() ||
+        var exactShortage = diagnostic.inputShortage();
+        if (exactShortage.isPresent()) {
+            var shortage = exactShortage.orElseThrow();
+            return new DiagnosticText(message, Component.translatable(
+                    "gui.data_energistics.trinity_planning.diagnostic.input_shortage_detail",
+                    shortage.key().getDisplayName(),
+                    shortage.missing(),
+                    shortage.available(),
+                    shortage.required()).withStyle(dataEnergistics$diagnosticDetailColor(diagnostic)));
+        }
+        if (diagnostic.partialPlan().isEmpty() ||
                 diagnostic.partialPlan().orElseThrow().inputRequirements().isEmpty()) {
-            return exactShortage;
+            return new DiagnosticText(message, Component.empty());
         }
         TrinityPlanningDiagnostic.PartialPlan partial = diagnostic.partialPlan().orElseThrow();
         var first = partial.inputRequirements().entrySet().iterator().next();
-        return message.copy().append(Component.translatable(
+        return new DiagnosticText(message, Component.translatable(
                 "gui.data_energistics.trinity_planning.diagnostic.input_shortage_summary",
                 partial.inputRequirements().size(),
                 first.getKey().getDisplayName(),
@@ -275,6 +284,9 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             default -> ChatFormatting.RED;
         };
     }
+
+    @Unique
+    private record DiagnosticText(Component message, Component detail) {}
 
     @WrapOperation(
                    method = "broadcastChanges",
@@ -632,6 +644,11 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Override
     public Component data_energistics$diagnostic() {
         return this.dataEnergistics$diagnostic;
+    }
+
+    @Override
+    public Component data_energistics$diagnosticDetail() {
+        return this.dataEnergistics$diagnosticDetail;
     }
 
     @Inject(method = "broadcastChanges", at = @At("TAIL"))

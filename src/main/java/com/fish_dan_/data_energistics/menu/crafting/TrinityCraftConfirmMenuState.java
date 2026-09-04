@@ -103,4 +103,7 @@ public interface TrinityCraftConfirmMenuState {
      * @return synchronized player-facing diagnostic
      */
     Component data_energistics$diagnostic();
+
+    /** @return optional localized detail previously appended to the diagnostic in parentheses */
+    Component data_energistics$diagnosticDetail();
 }

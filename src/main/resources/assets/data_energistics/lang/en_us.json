@@ -332,6 +332,7 @@
 	"gui.data_energistics.craft_confirm.feature.planning": "Planning",
 	"gui.data_energistics.craft_confirm.feature.standard": "Standard",
 	"gui.data_energistics.craft_confirm.heading": "%s · %s · %s",
+	"gui.data_energistics.craft_confirm.heading.diagnostic": "%s · %s",
 	"gui.data_energistics.craft_confirm.metrics": "%sB · Calc %s",
 	"gui.data_energistics.craft_confirm.metrics.planning": "—B · Calculating",
 	"gui.data_energistics.craft_confirm.progress.counter": "%s · states %s/%s · solves %s",

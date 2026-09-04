@@ -60,6 +60,7 @@ final class TrinityCraftConfirmScreen extends AbstractContainerScreen<CraftConfi
     private int savedFirstVisibleRow;
     private boolean restoreMaterialScroll;
     private Component statusTooltip = Component.empty();
+    private Component cpuStatsTooltip = Component.empty();
     private Component diagnosticTooltip = Component.empty();
 
     TrinityCraftConfirmScreen(CraftConfirmMenu menu,
@@ -166,18 +167,36 @@ final class TrinityCraftConfirmScreen extends AbstractContainerScreen<CraftConfi
 
         currentLayout.heading().setText(heading(state, plan));
         currentLayout.metrics().setText(metrics(state, plan, summary));
-        Component status = TrinityCraftConfirmProgressText.status(state, plan, hasTrinityCpu);
+        Component cpuStatistics = cpuStatistics(hasTrinityCpu);
+        Component status;
+        Component statusTooltip;
+        Component cpuStats;
+        Component cpuStatsTooltip;
+        Component diagnostic;
+        if (state.data_energistics$hasDiagnostic()) {
+            status = cpuStatistics;
+            statusTooltip = cpuStatistics;
+            cpuStats = Component.translatable(TRANSLATION_PREFIX + "diagnostic", state.data_energistics$diagnostic());
+            cpuStatsTooltip = cpuStats;
+            diagnostic = state.data_energistics$diagnosticDetail();
+        } else {
+            status = TrinityCraftConfirmProgressText.status(state, plan, hasTrinityCpu);
+            statusTooltip = plan == null ? TrinityCraftConfirmProgressText.tooltip(state) : status;
+            cpuStats = cpuStatistics;
+            cpuStatsTooltip = cpuStatistics;
+            diagnostic = Component.translatable(TRANSLATION_PREFIX + "diagnostic.none");
+        }
         currentLayout.status().setText(status);
-        Component nextStatusTooltip = plan == null ? TrinityCraftConfirmProgressText.tooltip(state) : status;
-        if (!Objects.equals(this.statusTooltip, nextStatusTooltip)) {
-            this.statusTooltip = nextStatusTooltip;
-            currentLayout.status().style(style -> style.tooltips(nextStatusTooltip));
+        if (!Objects.equals(this.statusTooltip, statusTooltip)) {
+            this.statusTooltip = statusTooltip;
+            currentLayout.status().style(style -> style.tooltips(statusTooltip));
         }
         currentLayout.cpu().setText(cpuButtonText(hasTrinityCpu));
-        currentLayout.cpuStats().setText(cpuStatistics(hasTrinityCpu));
-        Component diagnostic = state.data_energistics$hasDiagnostic() ?
-                Component.translatable(TRANSLATION_PREFIX + "diagnostic", state.data_energistics$diagnostic()) :
-                Component.translatable(TRANSLATION_PREFIX + "diagnostic.none");
+        currentLayout.cpuStats().setText(cpuStats);
+        if (!Objects.equals(this.cpuStatsTooltip, cpuStatsTooltip)) {
+            this.cpuStatsTooltip = cpuStatsTooltip;
+            currentLayout.cpuStats().style(style -> style.tooltips(cpuStatsTooltip));
+        }
         currentLayout.diagnostic().setText(diagnostic);
         if (!Objects.equals(this.diagnosticTooltip, diagnostic)) {
             this.diagnosticTooltip = diagnostic;
@@ -197,9 +216,6 @@ final class TrinityCraftConfirmScreen extends AbstractContainerScreen<CraftConfi
         boolean delegatedToAe2 = progress != null && progress.phase() == TrinityPlanningProgressPhase.DELEGATED_TO_AE2;
         Component family = state.data_energistics$isAe2FallbackEstimate() || delegatedToAe2 ?
                 Component.literal("AE2") : Component.literal("Trinity");
-        Component mode = Component.translatable(state.data_energistics$quantityMode() == CraftingQuantityMode.NET_NEW ?
-                "gui.data_energistics.trinity_quantity.net_new" :
-                "gui.data_energistics.trinity_quantity.final_total");
         String feature;
         if (plan == null) {
             feature = "planning";
@@ -212,11 +228,18 @@ final class TrinityCraftConfirmScreen extends AbstractContainerScreen<CraftConfi
         } else {
             feature = "standard";
         }
+        Component featureText = Component.translatable(TRANSLATION_PREFIX + "feature." + feature);
+        if (state.data_energistics$hasDiagnostic()) {
+            return Component.translatable(TRANSLATION_PREFIX + "heading.diagnostic", family, featureText);
+        }
+        Component mode = Component.translatable(state.data_energistics$quantityMode() == CraftingQuantityMode.NET_NEW ?
+                "gui.data_energistics.trinity_quantity.net_new" :
+                "gui.data_energistics.trinity_quantity.final_total");
         return Component.translatable(
                 TRANSLATION_PREFIX + "heading",
                 family,
                 mode,
-                Component.translatable(TRANSLATION_PREFIX + "feature." + feature));
+                featureText);
     }
 
     private static Component metrics(TrinityCraftConfirmMenuState state,
