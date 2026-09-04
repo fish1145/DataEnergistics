@@ -72,7 +72,6 @@ public class Data_Energistics {
         return FMLEnvironment.dist.isClient();
     }
 
-    @Nullable
     public static ResourceLocation id(String path) {
         if (path.isBlank()) {
             return ResourceLocation.fromNamespaceAndPath(MODID, "");
