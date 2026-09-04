@@ -60,6 +60,7 @@ import dev.emi.emi.api.widget.Bounds;
 import dev.emi.emi.recipe.special.EmiAnvilEnchantRecipe;
 import dev.emi.emi.registry.EmiRecipes;
 import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -136,9 +137,6 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addWorkstation(TimeShiftEmiRecipe.CATEGORY, EmiStack.of(DEItems.RADIX_CONTAINMENT_SPHERE.get()));
         registry.addCategory(TrinityMultiblockEmiRecipe.CATEGORY);
         registry.addRecipe(new TrinityMultiblockEmiRecipe());
-        registry.addWorkstation(
-                TrinityMultiblockEmiRecipe.CATEGORY,
-                EmiStack.of(DEBlocks.TRINITY_DATA_CORE.get()));
         registry.getRecipeManager().getAllRecipesFor(DERecipes.RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_TYPE.get()).stream()
                 .map(RadixContainmentSphereRightClickEmiRecipe::new)
                 .forEach(registry::addRecipe);
@@ -268,6 +266,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         }
     }
 
+    @Nullable
     private static EmiRecipeCategory findCategoryById(ResourceLocation categoryId) {
         return EmiRecipes.categories.stream()
                 .filter(category -> category.getId().equals(categoryId))

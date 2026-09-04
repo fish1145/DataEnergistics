@@ -9,7 +9,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
+import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
@@ -41,13 +41,14 @@ public final class AutoBuildComposition {
                 this.preview.panel(),
                 this.elements.layerScroller(),
                 "structure preview");
-        this.preview.panel().useAutoBuildComposition(geometry);
+        this.preview.panel().useAuthoredComposition(geometry, builder.candidateSelectionVisible);
 
         this.materialGrid = new AutoBuildMaterialGrid(
                 builder.requireMaterialGridId(),
                 geometry.materialGrid(),
-                builder.requireAmountFormatter());
-        this.materialGrid.bindScrollbar(this.elements.materialScroller());
+                builder.requireAmountFormatter(),
+                builder.materialRole,
+                this.elements.materialScroller());
         addBefore(
                 this.elements.materialsMount(),
                 this.materialGrid,
@@ -83,23 +84,20 @@ public final class AutoBuildComposition {
     }
 
     /**
-     * Binds host-specific structure navigation and submission callbacks without exposing the internal control tree.
+     * Binds host-specific structure navigation callbacks without exposing the internal control tree.
      */
-    public void bindActions(Actions actions) {
-        configureButton(this.elements.structureControls().previous(), actions.previousStructure());
-        configureButton(this.elements.structureControls().next(), actions.nextStructure());
-        configureButton(this.elements.confirmControls().button(), actions.confirm());
+    public void bindStructureActions(StructureActions actions) {
+        configureButton(this.elements.structureControls().previous(), actions.previous());
+        configureButton(this.elements.structureControls().next(), actions.next());
     }
 
     /**
-     * Localizes the editor-authored headings while leaving their geometry host-defined.
+     * Localizes the editor-authored adjustment headings while leaving their geometry host-defined.
      */
-    public void setHeadings(Component adjustmentContext,
-                            Component adjustmentValue,
-                            Component confirm) {
+    public void setAdjustmentHeadings(Component adjustmentContext,
+                                      Component adjustmentValue) {
         this.elements.adjustmentControls().contextTitle().setText(adjustmentContext);
         this.elements.adjustmentControls().valueTitle().setText(adjustmentValue);
-        this.elements.confirmControls().title().setText(confirm);
     }
 
     /**
@@ -147,22 +145,11 @@ public final class AutoBuildComposition {
         this.adjustmentRail.setTooltipFactories(contextLabel, previous, next);
     }
 
-    /**
-     * Updates the structure-navigation and confirmation tooltips.
-     */
-    public void setActionTooltips(Component previousStructure,
-                                  Component nextStructure,
-                                  Component confirm) {
+    /** Updates the structure-navigation tooltips. */
+    public void setStructureTooltips(Component previousStructure,
+                                     Component nextStructure) {
         setTooltip(this.elements.structureControls().previous(), previousStructure);
         setTooltip(this.elements.structureControls().next(), nextStructure);
-        setTooltip(this.elements.confirmControls().button(), confirm);
-    }
-
-    /**
-     * Enables submission only while the host-side protocol permits a new action.
-     */
-    public void setConfirmActive(boolean active) {
-        this.elements.confirmControls().button().setActive(active);
     }
 
     private static void configureButton(Button button, Runnable action) {
@@ -202,6 +189,8 @@ public final class AutoBuildComposition {
         private String materialGridId;
         @Nullable
         private LongFunction<String> amountFormatter;
+        private IngredientIO materialRole = IngredientIO.NONE;
+        private boolean candidateSelectionVisible = true;
 
         private Builder(StructurePreviewUi preview, Elements elements) {
             this.preview = preview;
@@ -222,6 +211,23 @@ public final class AutoBuildComposition {
         public Builder materials(String materialGridId, LongFunction<String> amountFormatter) {
             this.materialGridId = materialGridId;
             this.amountFormatter = amountFormatter;
+            this.materialRole = IngredientIO.NONE;
+            return this;
+        }
+
+        /**
+         * Publishes the fixed authored material grid as XEI recipe inputs while retaining its amount labels.
+         */
+        public Builder recipeInputs(String materialGridId, LongFunction<String> amountFormatter) {
+            this.materialGridId = materialGridId;
+            this.amountFormatter = amountFormatter;
+            this.materialRole = IngredientIO.INPUT;
+            return this;
+        }
+
+        /** Removes candidate-selection controls for a read-only authored composition. */
+        public Builder withoutCandidateSelection() {
+            this.candidateSelectionVisible = false;
             return this;
         }
 
@@ -257,9 +263,8 @@ public final class AutoBuildComposition {
     /**
      * Host callbacks for the controls whose business meaning is not part of the generic composition.
      */
-    public record Actions(Runnable previousStructure,
-                          Runnable nextStructure,
-                          Runnable confirm) {}
+    public record StructureActions(Runnable previous,
+                                   Runnable next) {}
 
     /**
      * One stable adjustment entry whose operations own their host-specific selection updates.
@@ -311,8 +316,7 @@ public final class AutoBuildComposition {
                            UIElement materialsMount,
                            Scroller.Vertical materialScroller,
                            StructureControls structureControls,
-                           AdjustmentControls adjustmentControls,
-                           ConfirmControls confirmControls) {}
+                           AdjustmentControls adjustmentControls) {}
 
     /**
      * Structure navigation elements authored by the host layout.
@@ -332,9 +336,4 @@ public final class AutoBuildComposition {
                                      Label valueTitle,
                                      Label valueValue,
                                      Button nextValue) {}
-
-    /**
-     * Submission icon and its independently authored title.
-     */
-    public record ConfirmControls(Button button, TextElement title) {}
 }

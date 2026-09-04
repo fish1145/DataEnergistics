@@ -18,9 +18,10 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.function.BiConsumer;
@@ -67,6 +68,7 @@ final class TrinityDataCoreAutoBuildPanel {
     private final BiConsumer<Long, TrinityAutoBuildSubmission> hostedAutoBuildAction;
     private final LongPredicate hostedAutoBuildPending;
     private final AutoBuildComposition composition;
+    private final Button confirmButton;
     private TrinityAutoBuildDraft draft;
 
     static Layout requireLayout(UIElement root) {
@@ -216,14 +218,17 @@ final class TrinityDataCoreAutoBuildPanel {
         this.hostedAutoBuildAction = hostedAutoBuildAction;
         this.hostedAutoBuildPending = hostedAutoBuildPending;
         this.composition = composition;
-        this.composition.bindActions(new AutoBuildComposition.Actions(
+        this.confirmButton = layout.confirmButton();
+        this.composition.bindStructureActions(new AutoBuildComposition.StructureActions(
                 () -> selectRelativeStructure(-1),
-                () -> selectRelativeStructure(1),
-                this::submit));
-        this.composition.setHeadings(
+                () -> selectRelativeStructure(1)));
+        this.composition.setAdjustmentHeadings(
                 Component.translatable(AUTO_BUILD_TRANSLATION_PREFIX + "context"),
-                Component.translatable(AUTO_BUILD_TRANSLATION_PREFIX + "value"),
-                Component.translatable("screen.data_energistics.multiblock_auto_build.confirm"));
+                Component.translatable(AUTO_BUILD_TRANSLATION_PREFIX + "value"));
+        this.confirmButton.setText(Component.empty());
+        this.confirmButton.setOnClick(event -> submit());
+        layout.confirmTitle().setText(Component.translatable(
+                "screen.data_energistics.multiblock_auto_build.confirm"));
         this.composition.setAdjustmentTooltips(
                 Component.translatable(AUTO_BUILD_TRANSLATION_PREFIX + "context"),
                 label -> Component.translatable(PREVIEW_TRANSLATION_PREFIX + "previous", label),
@@ -236,7 +241,7 @@ final class TrinityDataCoreAutoBuildPanel {
 
     private void screenTick() {
         long generation = this.context.generation();
-        this.composition.setConfirmActive(
+        this.confirmButton.setActive(
                 this.context.canSendServerAction() && !this.hostedAutoBuildPending.test(generation));
     }
 
@@ -296,7 +301,7 @@ final class TrinityDataCoreAutoBuildPanel {
     }
 
     private void rebuildAdjustmentContexts(@Nullable String retainedContextId) {
-        List<AutoBuildComposition.Adjustment> contexts = new ArrayList<>();
+        ObjectList<AutoBuildComposition.Adjustment> contexts = new ObjectArrayList<>();
         PreviewTierDomain tierDomain = this.draft.activeTierDomain();
         contexts.add(new AutoBuildComposition.Adjustment(
                 "tier:" + tierDomain.id(),
@@ -327,14 +332,20 @@ final class TrinityDataCoreAutoBuildPanel {
     }
 
     private void refreshStructureNavigationTooltips() {
-        this.composition.setActionTooltips(
+        this.composition.setStructureTooltips(
                 Component.translatable(
                         PREVIEW_TRANSLATION_PREFIX + "previous",
                         structureTitle(relativeStructureKey(-1))),
                 Component.translatable(
                         PREVIEW_TRANSLATION_PREFIX + "next",
-                        structureTitle(relativeStructureKey(1))),
-                Component.translatable("screen.data_energistics.multiblock_auto_build.confirm"));
+                        structureTitle(relativeStructureKey(1))));
+        setTooltip(this.confirmButton, Component.translatable(
+                "screen.data_energistics.multiblock_auto_build.confirm"));
+    }
+
+    private static void setTooltip(Button button, Component tooltip) {
+        button.text.style(style -> style.tooltips(tooltip));
+        button.style(style -> style.tooltips(tooltip));
     }
 
     private String relativeStructureKey(int direction) {
@@ -402,8 +413,7 @@ final class TrinityDataCoreAutoBuildPanel {
                             this.previousValueButton,
                             this.valueTitleLabel,
                             this.valueValueLabel,
-                            this.nextValueButton),
-                    new AutoBuildComposition.ConfirmControls(this.confirmButton, this.confirmTitle));
+                            this.nextValueButton));
         }
 
         AutoBuildComposition.PreviewGeometry geometry() {

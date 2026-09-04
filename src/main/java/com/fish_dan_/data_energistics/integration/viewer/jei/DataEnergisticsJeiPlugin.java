@@ -168,7 +168,6 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         registration.addRecipeCatalyst(DEBlocks.DATA_INTEGRATED_CHARGER.get(), DataChargePressRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.EXTENDED_DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
-        registration.addRecipeCatalyst(DEBlocks.TRINITY_DATA_CORE.get(), TrinityMultiblockJeiCategory.RECIPE_TYPE);
         registerDataChargerCatalysts(registration, DataChargerRecipeCategory.RECIPE_TYPE);
     }
 
@@ -400,9 +399,6 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
      */
     TrinityMultiblockJeiCategory installTrinityMultiblockCategory(
                                                                   TrinityMultiblockJeiCategory category) {
-        if (category == null) {
-            throw new IllegalArgumentException("Trinity multiblock JEI category cannot be null");
-        }
         if (this.trinityMultiblockCategory != null) {
             throw new IllegalStateException("Trinity multiblock JEI category was already registered");
         }

@@ -29,6 +29,7 @@ public final class DataEnergisticsTextureEditorResources {
 
     private static final String TRINITY_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/trinity_data_core/";
     private static final String AUTO_BUILD_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/autobuild/";
+    private static final String CRAFTING_REPORT_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/craftingreport/";
     private static final String GUI_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/";
     private static final String BACKPACK_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/backpack/";
     private static final String MODEL_TEXTURE_ROOT = Data_Energistics.MODID + ":textures/guis/model/";
@@ -113,6 +114,7 @@ public final class DataEnergisticsTextureEditorResources {
     private static void registerTextureAssets(BuiltinResourceProvider<IGuiTexture> provider) {
         provider.addResource("autobuild_build", autobuildSprite("build.png"));
         provider.addResource("autobuild_detailed_adjustment", autobuildSprite("detailed_adjustment.png"));
+        provider.addResource("autobuild_jei_detailed_adjustment", autobuildSprite("jei_detailed_adjustment.png"));
         provider.addResource("autobuild_detailed_material_stats", autobuildSprite("detailed_material_stats.png"));
         provider.addResource("autobuild_structure_switch", autobuildSprite("structure_switch.png"));
         provider.addResource("autobuild_structure_view", autobuildSprite("structure_view.png"));
@@ -129,6 +131,16 @@ public final class DataEnergisticsTextureEditorResources {
         provider.addResource("backpack_right_side_of_the_inventory", backpackSprite("right_side_of_the_inventory.png"));
         provider.addResource("backpack_top_left", backpackSprite("top_left.png"));
         provider.addResource("backpack_top_right", backpackSprite("top_right.png"));
+        provider.addResource("craftingreport_background", craftingReportSprite("craftingreport.png"));
+        provider.addResource("craftingreport_big_scroller", craftingReportSprite("big_scroller.png"));
+        provider.addResource("craftingreport_big_scroller_disabled", craftingReportSprite("big_scroller_disabled.png"));
+        provider.addResource("craftingreport_big_scroller_highlighted", craftingReportSprite("big_scroller_highlighted.png"));
+        provider.addResource("craftingreport_button", craftingReportSprite("button.png"));
+        provider.addResource("craftingreport_button_disabled", craftingReportSprite("button_disabled.png"));
+        provider.addResource("craftingreport_button_highlighted", craftingReportSprite("button_highlighted.png"));
+        provider.addResource("craftingreport_button_1", craftingReportSprite("button_1.png"));
+        provider.addResource("craftingreport_button_disabled_1", craftingReportSprite("button_disabled_1.png"));
+        provider.addResource("craftingreport_button_highlighted_1", craftingReportSprite("button_highlighted_1.png"));
         provider.addResource("gui_back", guiSprite("back.png"));
         provider.addResource("gui_background", guiSprite("background.png"));
         provider.addResource("gui_button", guiSprite("botton.png"));
@@ -203,6 +215,16 @@ public final class DataEnergisticsTextureEditorResources {
      */
     private static SpriteTexture autobuildSprite(String fileName) {
         return SpriteTexture.of(AUTO_BUILD_TEXTURE_ROOT + fileName);
+    }
+
+    /**
+     * Creates an editable LDLib2 SpriteTexture for the crafting-report GUI assets.
+     *
+     * @param fileName asset file under the crafting-report GUI texture directory
+     * @return SpriteTexture pointing at the mod asset
+     */
+    private static SpriteTexture craftingReportSprite(String fileName) {
+        return SpriteTexture.of(CRAFTING_REPORT_TEXTURE_ROOT + fileName);
     }
 
     /**

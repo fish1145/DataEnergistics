@@ -25,11 +25,12 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.styletemplate.Sprites;
 import dev.vfyjxf.taffy.style.FlexDirection;
 import dev.vfyjxf.taffy.style.TaffyPosition;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 
@@ -97,14 +98,12 @@ public final class StructurePreviewPanel extends UIElement {
 
     private final String idPrefix;
     private final StructurePreviewSession session;
-    private final StructurePreviewPresentation presentation;
     private final StructurePreviewSceneElement scene;
     private final ItemSlot selectedBlockSlot;
     private final PreviewCandidateColumn candidateColumn;
     private final PreviewLayerSelector layerSelector;
     private final UIElement recipeControls;
     private final ScrollerView repeatControls;
-    @Nullable
     private final PreviewMaterialStrip materials;
     private Consumer<PreviewSelection> selectionChangeListener = selection -> {};
     private boolean selectionChangeListenerRegistered;
@@ -113,18 +112,11 @@ public final class StructurePreviewPanel extends UIElement {
     private boolean sceneBindingReleased;
 
     StructurePreviewPanel(String idPrefix, StructurePreviewSession session) {
-        this(idPrefix, session, StructurePreviewPresentation.HOSTED);
-    }
-
-    StructurePreviewPanel(String idPrefix,
-                          StructurePreviewSession session,
-                          StructurePreviewPresentation presentation) {
-        if (idPrefix == null || idPrefix.isBlank() || session == null || presentation == null) {
-            throw new IllegalArgumentException("Structure preview panel arguments cannot be null or blank");
+        if (idPrefix.isBlank()) {
+            throw new IllegalArgumentException("Structure preview panel id prefix cannot be blank");
         }
         this.idPrefix = idPrefix;
         this.session = session;
-        this.presentation = presentation;
         this.scene = createScene();
         this.selectedBlockSlot = createSelectedBlockSlot();
         this.candidateColumn = new PreviewCandidateColumn(
@@ -135,18 +127,21 @@ public final class StructurePreviewPanel extends UIElement {
         this.layerSelector = createLayerSelector();
         this.repeatControls = createRepeatControls();
         this.recipeControls = createRecipeControls();
-        this.materials = presentation.hasMaterialStrip() ? createMaterials() : null;
+        this.materials = createMaterials();
 
         setId(idPrefix);
         layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .width(StructurePreviewPresentation.WIDTH)
-                .height(presentation.height()));
+                .height(StructurePreviewPresentation.HOSTED.height()));
         style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
-        addChildren(this.scene, this.selectedBlockSlot, this.candidateColumn, this.layerSelector, this.recipeControls);
-        if (this.materials != null) {
-            addChild(this.materials);
-        }
+        addChildren(
+                this.scene,
+                this.selectedBlockSlot,
+                this.candidateColumn,
+                this.layerSelector,
+                this.recipeControls,
+                this.materials);
         refreshRepeatControls();
         refreshMaterials();
         refreshSelectedBlockSlot();
@@ -167,19 +162,9 @@ public final class StructurePreviewPanel extends UIElement {
     }
 
     /**
-     * Returns the immutable composition that determines panel height and material ownership.
-     */
-    public StructurePreviewPresentation presentation() {
-        return this.presentation;
-    }
-
-    /**
      * Installs the sole listener notified after recipe-affecting controls replace the retained selection.
      */
     public void setSelectionChangeListener(Consumer<PreviewSelection> selectionChangeListener) {
-        if (selectionChangeListener == null) {
-            throw new IllegalArgumentException("Structure preview selection listener cannot be null");
-        }
         if (this.selectionChangeListenerRegistered) {
             throw new IllegalStateException("Structure preview selection listener can only be registered once");
         }
@@ -248,13 +233,6 @@ public final class StructurePreviewPanel extends UIElement {
     }
 
     /**
-     * Selects the next logical layer through the same refresh path used by the visible control.
-     */
-    public void nextLayer() {
-        this.layerSelector.nextLayer();
-    }
-
-    /**
      * Selects one exact zero-based logical layer through the visible selector state.
      */
     public void showLayer(int layerIndex) {
@@ -277,11 +255,8 @@ public final class StructurePreviewPanel extends UIElement {
      * </p>
      */
     @ApiStatus.Internal
-    public void useAutoBuildComposition(AutoBuildComposition.PreviewGeometry geometry) {
-        PreviewMaterialStrip materialStrip = this.materials;
-        if (this.presentation != StructurePreviewPresentation.HOSTED || materialStrip == null) {
-            throw new IllegalStateException("Only a hosted structure preview can use the automatic-build composition");
-        }
+    public void useAuthoredComposition(AutoBuildComposition.PreviewGeometry geometry,
+                                       boolean candidateSelectionVisible) {
         layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(geometry.panel().left())
@@ -304,10 +279,10 @@ public final class StructurePreviewPanel extends UIElement {
                 .width(geometry.selectedBlock().width())
                 .height(geometry.selectedBlock().height()));
         this.selectedBlockSlot.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
-        this.candidateColumn.setDisplay(true);
+        this.candidateColumn.setDisplay(candidateSelectionVisible);
         detachIntegratedControl(this.layerSelector, "layer selector");
         detachIntegratedControl(this.recipeControls, "recipe controls");
-        detachIntegratedControl(materialStrip, "material strip");
+        detachIntegratedControl(this.materials, "material strip");
     }
 
     private void detachIntegratedControl(UIElement control, String description) {
@@ -317,9 +292,6 @@ public final class StructurePreviewPanel extends UIElement {
     }
 
     void bindScene(StructurePreviewSceneBinding binding) {
-        if (binding == null) {
-            throw new IllegalArgumentException("Structure preview scene binding cannot be null");
-        }
         if (this.sceneBinding != null) {
             throw new IllegalStateException("Structure preview scene can only be bound once");
         }
@@ -340,7 +312,7 @@ public final class StructurePreviewPanel extends UIElement {
             try {
                 binding.release();
             } catch (RuntimeException | Error releaseFailure) {
-                failure = mergeFailures(failure, releaseFailure);
+                failure = releaseFailure;
             }
         }
         try {
@@ -379,7 +351,7 @@ public final class StructurePreviewPanel extends UIElement {
                 .width(18)
                 .height(18));
         slot.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> {
-            List<Component> tooltip = selectedBlockTooltip();
+            ObjectList<Component> tooltip = selectedBlockTooltip();
             if (!tooltip.isEmpty()) {
                 event.hoverTooltips = new HoverTooltips(tooltip, null, null, null);
             }
@@ -514,9 +486,7 @@ public final class StructurePreviewPanel extends UIElement {
     }
 
     private void refreshMaterials() {
-        if (this.materials != null) {
-            this.materials.setMaterials(this.session.recipeView().inputs());
-        }
+        this.materials.setMaterials(this.session.recipeView().inputs());
     }
 
     private void refreshRepeatControls() {
@@ -573,12 +543,12 @@ public final class StructurePreviewPanel extends UIElement {
         return domain.option(value).label();
     }
 
-    private List<Component> selectedBlockTooltip() {
+    private ObjectList<Component> selectedBlockTooltip() {
         PreviewCellSnapshot selected = this.session.selectedCell();
         if (selected == null) {
-            return List.of(Component.translatable(TRANSLATION_PREFIX + "selected_block.none"));
+            return ObjectLists.singleton(Component.translatable(TRANSLATION_PREFIX + "selected_block.none"));
         }
-        List<Component> tooltip = new ArrayList<>();
+        ObjectList<Component> tooltip = new ObjectArrayList<>();
         tooltip.add(Component.translatable(
                 TRANSLATION_PREFIX + "selected_block.position",
                 selected.relativePosition().toShortString()));
@@ -594,7 +564,7 @@ public final class StructurePreviewPanel extends UIElement {
                     .<Component>map(key -> key.getDisplayName().copy())
                     .orElseGet(() -> Component.translatable("block.minecraft.air")));
         }
-        return List.copyOf(tooltip);
+        return ObjectLists.unmodifiable(tooltip);
     }
 
     private SubstructurePreviewSpec activeSubstructure() {

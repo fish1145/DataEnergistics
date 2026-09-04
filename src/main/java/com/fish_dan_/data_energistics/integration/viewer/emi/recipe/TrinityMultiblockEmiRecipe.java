@@ -56,9 +56,6 @@ public final class TrinityMultiblockEmiRecipe extends ModularUIEMIRecipe impleme
      */
     public TrinityMultiblockEmiRecipe(MultiblockXeiRecipe recipe) {
         super(TrinityMultiblockEmiRecipe::createModularUI);
-        if (recipe == null) {
-            throw new IllegalArgumentException("Trinity multiblock EMI recipe source cannot be null");
-        }
         this.recipe = recipe;
     }
 
