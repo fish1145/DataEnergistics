@@ -8,7 +8,12 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPl
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway.TrinityDiagnosedCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressChannel;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressMeasure;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressPhase;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityCraftingRequestContext;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningProgressContext;
 import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalHostAccessor;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;
@@ -21,6 +26,7 @@ import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanSes
 import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanTreeRequest;
 import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanTreeResult;
 import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanTreeSession;
+import com.fish_dan_.data_energistics.network.trinity.crafting.progress.TrinityCraftConfirmPlanningProgressPayload;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 
@@ -162,6 +168,27 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
 
     @Unique
     private @Nullable TrinityCraftingCycleSummary dataEnergistics$cycleSummary;
+
+    @Unique
+    private @Nullable TrinityPlanningProgressChannel dataEnergistics$planningProgressChannel;
+
+    @Unique
+    private @Nullable TrinityPlanningProgressSnapshot dataEnergistics$clientPlanningProgress;
+
+    @Unique
+    private long dataEnergistics$clientPlanningProgressRevision = -1L;
+
+    @Unique
+    private long dataEnergistics$clientPlanningProgressSequence = -1L;
+
+    @Unique
+    private long dataEnergistics$planningProgressSequence;
+
+    @Unique
+    private long dataEnergistics$lastPlanningProgressTick = Long.MIN_VALUE;
+
+    @Unique
+    private @Nullable TrinityPlanningProgressSnapshot dataEnergistics$lastSentPlanningProgress;
 
     protected CraftConfirmMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
         super(menuType, id, playerInventory, host);
@@ -324,7 +351,12 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Unique
     private void dataEnergistics$beginPlanRevision() {
         if (this.isServerSide()) {
+            dataEnergistics$closePlanningProgress();
             this.dataEnergistics$planRevision = Math.incrementExact(this.dataEnergistics$planRevision);
+            this.dataEnergistics$planningProgressChannel = new TrinityPlanningProgressChannel();
+            this.dataEnergistics$planningProgressSequence = 0L;
+            this.dataEnergistics$lastPlanningProgressTick = Long.MIN_VALUE;
+            this.dataEnergistics$lastSentPlanningProgress = null;
         }
         dataEnergistics$clearPlanReadiness();
     }
@@ -356,6 +388,9 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
         this.dataEnergistics$planningNanos = 0L;
         this.dataEnergistics$cycleSummaryRevision = -1L;
         this.dataEnergistics$cycleSummary = null;
+        this.dataEnergistics$clientPlanningProgress = null;
+        this.dataEnergistics$clientPlanningProgressRevision = -1L;
+        this.dataEnergistics$clientPlanningProgressSequence = -1L;
         ((CraftConfirmMenu) (Object) this).setPlan(null);
         this.dataEnergistics$treeReady = false;
         if (this.dataEnergistics$treeSession != null) this.dataEnergistics$treeSession.closeIfOwnedBy(this);
@@ -380,7 +415,11 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
 
     @ModifyReturnValue(method = "getActionSrc", at = @At("RETURN"))
     private IActionSource dataEnergistics$attachQuantityContext(IActionSource original) {
-        return TrinityCraftingRequestContext.attach(original, data_energistics$quantityMode());
+        IActionSource quantityContext = TrinityCraftingRequestContext.attach(original, data_energistics$quantityMode());
+        TrinityPlanningProgressChannel progress = this.dataEnergistics$planningProgressChannel;
+        return this.isServerSide() && progress != null ?
+                TrinityPlanningProgressContext.attach(quantityContext, progress) :
+                quantityContext;
     }
 
     @WrapOperation(
@@ -442,6 +481,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             throw new IllegalArgumentException("A crafting request amount must be positive");
         }
         if (this.job != null) {
+            dataEnergistics$closePlanningProgress();
             this.job.cancel(true);
         }
 
@@ -493,6 +533,78 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     }
 
     @Override
+    public void data_energistics$receivePlanningProgress(long revision,
+                                                         long sequence,
+                                                         TrinityPlanningProgressSnapshot snapshot) {
+        if (revision != this.dataEnergistics$planRevision ||
+                this.dataEnergistics$clientPlanningProgressRevision == revision &&
+                        sequence <= this.dataEnergistics$clientPlanningProgressSequence) {
+            return;
+        }
+        this.dataEnergistics$clientPlanningProgressRevision = revision;
+        this.dataEnergistics$clientPlanningProgressSequence = sequence;
+        this.dataEnergistics$clientPlanningProgress = snapshot;
+    }
+
+    @Override
+    public @Nullable TrinityPlanningProgressSnapshot data_energistics$planningProgress() {
+        return this.dataEnergistics$clientPlanningProgressRevision == this.dataEnergistics$planRevision ?
+                this.dataEnergistics$clientPlanningProgress : null;
+    }
+
+    @Inject(method = "broadcastChanges", at = @At("TAIL"))
+    private void dataEnergistics$syncPlanningProgress(CallbackInfo ci) {
+        if (!this.isServerSide()) {
+            return;
+        }
+        TrinityPlanningProgressChannel channel = this.dataEnergistics$planningProgressChannel;
+        if (channel == null || channel.closed()) {
+            return;
+        }
+        if (this.result != null && this.job == null && !dataEnergistics$terminalPlanningPhase(channel.latest())) {
+            TrinityPlanningProgressPhase phase = this.result instanceof TrinityCraftingPlan ?
+                    TrinityPlanningProgressPhase.READY :
+                    this.result instanceof TrinityDiagnosedCraftingPlan ?
+                            TrinityPlanningProgressPhase.DIAGNOSTIC :
+                            TrinityPlanningProgressPhase.DELEGATED_TO_AE2;
+            channel.publish(TrinityPlanningProgressSnapshot.withoutUnits(phase, TrinityPlanningProgressMeasure.NONE));
+        }
+        TrinityPlanningProgressSnapshot snapshot = channel.latest();
+        if (snapshot == null || snapshot == this.dataEnergistics$lastSentPlanningProgress) {
+            return;
+        }
+        long currentTick = this.getPlayer().level().getGameTime();
+        boolean phaseChanged = this.dataEnergistics$lastSentPlanningProgress == null ||
+                this.dataEnergistics$lastSentPlanningProgress.phase() != snapshot.phase();
+        boolean terminal = dataEnergistics$terminalPlanningPhase(snapshot);
+        if (!phaseChanged && !terminal && currentTick - this.dataEnergistics$lastPlanningProgressTick < 2L) {
+            return;
+        }
+        this.dataEnergistics$planningProgressSequence = Math.incrementExact(this.dataEnergistics$planningProgressSequence);
+        PacketDistributor.sendToPlayer((ServerPlayer) this.getPlayer(), new TrinityCraftConfirmPlanningProgressPayload(
+                this.containerId,
+                this.dataEnergistics$planRevision,
+                this.dataEnergistics$planningProgressSequence,
+                snapshot));
+        this.dataEnergistics$lastSentPlanningProgress = snapshot;
+        this.dataEnergistics$lastPlanningProgressTick = currentTick;
+    }
+
+    @Unique
+    private static boolean dataEnergistics$terminalPlanningPhase(@Nullable TrinityPlanningProgressSnapshot snapshot) {
+        return snapshot != null && snapshot.phase().terminal();
+    }
+
+    @Unique
+    private void dataEnergistics$closePlanningProgress() {
+        TrinityPlanningProgressChannel channel = this.dataEnergistics$planningProgressChannel;
+        if (channel != null) {
+            channel.close();
+            this.dataEnergistics$planningProgressChannel = null;
+        }
+    }
+
+    @Override
     public long data_energistics$planningNanos() {
         return this.dataEnergistics$planningNanos;
     }
@@ -524,7 +636,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
 
     @Inject(method = "broadcastChanges", at = @At("TAIL"))
     private void dataEnergistics$preparePlanTreeSession(CallbackInfo ci) {
-        if (!isServerSide() || getPlayer().containerMenu != (Object) this) return;
+        if (!isServerSide() || getPlayer().containerMenu != this) return;
         CraftConfirmMenu self = (CraftConfirmMenu) (Object) this;
         IGrid grid = getGrid();
         ICraftingCPU restore = this.dataEnergistics$restoreTreeCpu;
@@ -570,7 +682,7 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
             sendClientAction("dataEnergisticsPlanTree", this.dataEnergistics$planRevision);
             return;
         }
-        if (!this.dataEnergistics$treeReady || !this.dataEnergistics$hasTrinityCpu || this.dataEnergistics$treeSession == null || getPlayer().containerMenu != (Object) this || !isValidMenu()) return;
+        if (!this.dataEnergistics$treeReady || !this.dataEnergistics$hasTrinityCpu || this.dataEnergistics$treeSession == null || getPlayer().containerMenu != this || !isValidMenu()) return;
         IGrid grid = getGrid();
         if (grid == null || grid.getCraftingService().getCpus().stream().noneMatch(cpu -> cpu instanceof TrinityDataCoreVirtualCpu)) return;
         this.dataEnergistics$treeSession.selectCpu(this, this.selectedCpu);
@@ -607,5 +719,19 @@ public abstract class CraftConfirmMenuMixin extends AEBaseMenu implements Trinit
     @Inject(method = "removed", at = @At("TAIL"))
     private void dataEnergistics$releasePlanTreeSession(Player player, CallbackInfo ci) {
         if (this.dataEnergistics$treeSession != null) this.dataEnergistics$treeSession.closeIfOwnedBy(this);
+    }
+
+    @Inject(method = "removed", at = @At("HEAD"))
+    private void dataEnergistics$closePlanningProgressBeforeRemoval(Player player, CallbackInfo ci) {
+        if (this.isServerSide()) {
+            dataEnergistics$closePlanningProgress();
+        }
+    }
+
+    @Inject(method = "goBack", at = @At("HEAD"))
+    private void dataEnergistics$closePlanningProgressBeforeGoingBack(CallbackInfo ci) {
+        if (this.isServerSide()) {
+            dataEnergistics$closePlanningProgress();
+        }
     }
 }

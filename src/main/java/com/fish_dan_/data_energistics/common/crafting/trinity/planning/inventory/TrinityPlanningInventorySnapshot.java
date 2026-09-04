@@ -1,6 +1,10 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory;
 
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressMeasure;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressPhase;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
 
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
@@ -38,9 +42,16 @@ public record TrinityPlanningInventorySnapshot(
     public static TrinityPlanningInventorySnapshot capture(
                                                            Collection<AEKey> keys,
                                                            MEStorage liveInventory,
-                                                           IActionSource actionSource) {
+                                                           IActionSource actionSource,
+                                                           TrinityPlanningProgressReporter progress) {
         Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> finiteAmounts = new Object2ObjectLinkedOpenHashMap<>();
         ObjectOpenHashSet<AEKey> unlimitedKeys = new ObjectOpenHashSet<>();
+        int totalKeys = keys.size();
+        progress.publish(totalKeys == 0 ?
+                TrinityPlanningProgressSnapshot.withoutUnits(
+                        TrinityPlanningProgressPhase.CAPTURING_INPUT,
+                        TrinityPlanningProgressMeasure.NONE) :
+                TrinityPlanningProgressSnapshot.exact(TrinityPlanningProgressPhase.CAPTURING_INPUT, 0, totalKeys));
         int sentinelProbes = 0;
         for (AEKey key : keys) {
             sentinelProbes = Math.incrementExact(sentinelProbes);
@@ -59,6 +70,12 @@ public record TrinityPlanningInventorySnapshot(
                 }
             } catch (RuntimeException exception) {
                 throw new CaptureException(key, exception);
+            }
+            if ((sentinelProbes & 31) == 0 || sentinelProbes == totalKeys) {
+                progress.publish(TrinityPlanningProgressSnapshot.exact(
+                        TrinityPlanningProgressPhase.CAPTURING_INPUT,
+                        sentinelProbes,
+                        totalKeys));
             }
         }
         return new TrinityPlanningInventorySnapshot(
