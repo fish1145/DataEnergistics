@@ -121,7 +121,7 @@ public record CraftingPlanRouteGeometry(List<Segment> segments, List<Run> runs, 
                     path.group(), List.copyOf(ranges)));
         }
         return new Layout(nodes, routes, bounds, new CraftingPlanRouteGeometry(segments, runs, terminals,
-                CraftingPlanRouteCrossing.find(nodes, routes, segments, runs)));
+                CraftingPlanRouteCrossing.find(nodes, routes, segments, runs)), List.of());
     }
 
     private static double normalize(double coordinate) {

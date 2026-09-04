@@ -35,7 +35,8 @@ public final class CraftingPlanGraphLayout {
 
     public static Layout layout(ViewGraph graph, boolean compact) {
         if (graph.nodes().isEmpty()) {
-            return new Layout(List.of(), List.of(), new Bounds(0, 0, 0, 0), CraftingPlanRouteGeometry.EMPTY);
+            return new Layout(List.of(), List.of(), new Bounds(0, 0, 0, 0),
+                    CraftingPlanRouteGeometry.EMPTY, List.of());
         }
         Spacing spacing = compact ? Spacing.COMPACT : Spacing.RELAXED;
         // Retain the perimeter calculation's virtual axes, then publish upright cards with rank along X.
@@ -485,11 +486,27 @@ public final class CraftingPlanGraphLayout {
     public record RoutedEdge(int source, int target, boolean cyclic, IntList originalEdgeIds,
                              CraftingPlanRouteGroup group, List<SegmentRange> segmentRanges) {}
 
-    public record Layout(List<PlacedNode> nodes, List<RoutedEdge> edges, Bounds bounds, CraftingPlanRouteGeometry geometry) {
+    public record RoutedCurve(int source, int target, boolean cyclic, IntList originalEdgeIds,
+                              CraftingPlanRouteGroup group, Point from, Point firstControl,
+                              Point secondControl, Point to) {}
+
+    public record Layout(List<PlacedNode> nodes, List<RoutedEdge> edges, Bounds bounds,
+                         CraftingPlanRouteGeometry geometry, List<RoutedCurve> curves) {
 
         public Layout {
             nodes = List.copyOf(nodes);
             edges = List.copyOf(edges);
+            curves = List.copyOf(curves);
+            if (!curves.isEmpty()) {
+                if (edges.size() != curves.size()) throw new IllegalArgumentException("Radial route index is incomplete");
+                for (int routeId = 0; routeId < edges.size(); routeId++) {
+                    RoutedEdge edge = edges.get(routeId);
+                    RoutedCurve curve = curves.get(routeId);
+                    if (edge.source() != curve.source() || edge.target() != curve.target() || !edge.group().equals(curve.group())) {
+                        throw new IllegalArgumentException("Radial route index mismatch at " + routeId);
+                    }
+                }
+            }
         }
     }
 
