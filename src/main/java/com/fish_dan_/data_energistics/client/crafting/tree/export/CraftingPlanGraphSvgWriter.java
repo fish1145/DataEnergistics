@@ -270,11 +270,26 @@ final class CraftingPlanGraphSvgWriter {
             Point exit = new Point(crossing.x(), crossing.y() + (downward ? crossing.radius() : -crossing.radius()));
             straightPiece(output, cursor, entry, run, style, length, bands);
             Point middle = new Point(crossing.x() + crossing.bend(), crossing.y());
+            if (crossing.radius() > CraftingPlanRouteCrossing.MAX_RADIUS) {
+                Point upper = new Point(middle.x(), entry.y());
+                Point lower = new Point(middle.x(), exit.y());
+                bridgeLeg(output, entry, upper, run, style, length, bands);
+                straightPiece(output, upper, lower, run, style, length, bands);
+                bridgeLeg(output, lower, exit, run, style, length, bands);
+                cursor = exit;
+                continue;
+            }
             curvePiece(output, entry, new Point(middle.x(), entry.y()), middle, run, style, length, bands);
             curvePiece(output, middle, new Point(middle.x(), exit.y()), exit, run, style, length, bands);
             cursor = exit;
         }
         straightPiece(output, cursor, segment.to(), run, style, length, bands);
+    }
+
+    private static void bridgeLeg(Writer output, Point from, Point to, Run run, RouteStyle style,
+                                  double length, int bands) throws IOException {
+        int color = bands == 1 ? style.lineColor() : style.color(Math.min(bands - 1, (int) (distance(run, from) / length * bands)));
+        line(output, from, to, color, bands == 1 ? style.lineOpacity() : 1);
     }
 
     private static void straightPiece(Writer output, Point from, Point to, Run run, RouteStyle style,

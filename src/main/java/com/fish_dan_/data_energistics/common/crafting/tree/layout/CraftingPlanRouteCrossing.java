@@ -148,7 +148,7 @@ public record CraftingPlanRouteCrossing(int bridgeSegmentId, double x, double y,
             IntSet allowedHorizontalRuns = new IntOpenHashSet();
             boolean fits = true;
             for (CraftingPlanRouteCrossing crossing : cluster) {
-                double gapX = bridgeX(first.x(), centerY, bend, radius, crossing.y());
+                double gapX = first.x() + bend;
                 for (Underpass underpass : crossing.underpasses()) {
                     int horizontalRun = runBySegment[underpass.segmentId()];
                     int underSegment = segmentAt(runs.get(horizontalRun), segments, gapX, true);
@@ -187,15 +187,6 @@ public record CraftingPlanRouteCrossing(int bridgeSegmentId, double x, double y,
             if (entry.getValue().intersects(minX, maxX, allowedHorizontalRuns)) return true;
         }
         return false;
-    }
-
-    private static double bridgeX(double x, double y, double bend, double radius, double crossingY) {
-        if (crossingY <= y) {
-            double local = Math.sqrt(Math.clamp((crossingY - (y - radius)) / radius, 0, 1));
-            return x + bend * (2 * local - local * local);
-        }
-        double local = 1 - Math.sqrt(1 - Math.clamp((crossingY - y) / radius, 0, 1));
-        return x + bend * (1 - local * local);
     }
 
     private static JunctionIndex junctions(List<RoutedEdge> routes, List<Segment> segments, int[] runBySegment) {

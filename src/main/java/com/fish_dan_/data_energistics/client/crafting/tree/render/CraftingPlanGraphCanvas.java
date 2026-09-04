@@ -101,11 +101,9 @@ public final class CraftingPlanGraphCanvas extends GraphView {
     }
 
     public Rect2i iconBounds(PlacedNode node) {
-        float rasterScale = Math.min(1, 1 / getScale());
-        Vector2f position = this.surface.localToWorld(new Vector2f(
-                this.surface.getPositionX() + (float) node.x() + 6 * rasterScale,
-                this.surface.getPositionY() + (float) node.y() + 7 * rasterScale));
-        Vector2f size = this.surface.localToWorldNormal(new Vector2f(16 * rasterScale, 16 * rasterScale));
+        Vector2f position = this.surface.localToWorld(new Vector2f(this.surface.getPositionX() + (float) node.x() + 6,
+                this.surface.getPositionY() + (float) node.y() + 7));
+        Vector2f size = this.surface.localToWorldNormal(new Vector2f(16, 16));
         return new Rect2i((int) Math.floor(position.x), (int) Math.floor(position.y),
                 Math.max(1, (int) Math.ceil(size.x)), Math.max(1, (int) Math.ceil(size.y)));
     }

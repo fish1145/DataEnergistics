@@ -66,7 +66,6 @@ public final class CraftingPlanGraphRenderer {
                      @Nullable Bounds viewport, float pixelScale, float contentZoom, boolean screenPixelStyles) {
         prepare(layout);
         double styleScale = screenPixelStyles ? Math.min(1, 1 / contentZoom) : 1;
-        float rasterScale = screenPixelStyles ? Math.min(1, 1 / contentZoom) : 1;
         CraftingPlanGraphStrokes strokes = new CraftingPlanGraphStrokes(graphics, pixelScale, viewport);
         CraftingPlanRouteGeometry geometry = layout.geometry();
         for (int runId = 0; runId < geometry.runs().size(); runId++) {
@@ -119,25 +118,22 @@ public final class CraftingPlanGraphRenderer {
             graphics.flush();
             graphics.pose().pushPose();
             graphics.pose().translate(node.x(), node.y(), 0);
-            graphics.pose().scale(rasterScale, rasterScale, 1);
-            double contentWidth = node.width() / rasterScale;
-            double contentHeight = node.height() / rasterScale;
             AEKeyRendering.drawInGui(Minecraft.getInstance(), graphics, 6, 7, drawing.key());
-            smallText(graphics, drawing.name(), 27, 5, contentWidth - 32, CraftingPlanGraphPalette.TEXT);
+            smallText(graphics, drawing.name(), 27, 5, node.width() - 32, CraftingPlanGraphPalette.TEXT);
             if (lod == GraphViewLod.FULL) {
                 List<CycleMark> cycles = this.facts.node(node.id());
                 boolean embeddedCount = showAmounts && node.embeddedProcessId() != null;
-                double badgeWidth = embeddedCount ? (contentWidth - 18) / 2 : contentWidth - 12;
-                if (showAmounts) smallText(graphics, drawing.amount(), 27, 15, contentWidth - 32,
+                double badgeWidth = embeddedCount ? (node.width() - 18) / 2 : node.width() - 12;
+                if (showAmounts) smallText(graphics, drawing.amount(), 27, 15, node.width() - 32,
                         drawing.missing() ? CraftingPlanGraphPalette.MISSING : CraftingPlanGraphPalette.ACCENT);
-                if (embeddedCount) smallText(graphics, drawing.embeddedAmount(), 6, contentHeight - 9,
-                        cycles.isEmpty() ? contentWidth - 20 : contentWidth - badgeWidth - 18, CraftingPlanGraphPalette.MUTED_TEXT);
+                if (embeddedCount) smallText(graphics, drawing.embeddedAmount(), 6, node.height() - 9,
+                        cycles.isEmpty() ? node.width() - 20 : node.width() - badgeWidth - 18, CraftingPlanGraphPalette.MUTED_TEXT);
                 if (!cycles.isEmpty()) {
-                    smallText(graphics, this.facts.label(node.id()), contentWidth - badgeWidth - 6, contentHeight - 9,
+                    smallText(graphics, this.facts.label(node.id()), node.width() - badgeWidth - 6, node.height() - 9,
                             badgeWidth, CraftingPlanGraphPalette.TEXT);
                 } else if (node.viewNode().expandable()) {
                     smallText(graphics, node.viewNode().collapsed() ? "+" : "−",
-                            contentWidth - 9, contentHeight - 9, 8, CraftingPlanGraphPalette.FRAME);
+                            node.width() - 9, node.height() - 9, 8, CraftingPlanGraphPalette.FRAME);
                 }
             }
             graphics.pose().popPose();
@@ -307,6 +303,19 @@ public final class CraftingPlanGraphRenderer {
             Point exit = new Point(crossing.x(), crossing.y() + (downward ? radius : -radius));
             drawPiece(strokes, cursor, entry, style, width, offset + Math.abs(cursor.y() - segment.from().y()),
                     offset + Math.abs(entry.y() - segment.from().y()), runLength, bands);
+            if (radius > CraftingPlanRouteCrossing.MAX_RADIUS) {
+                Point upper = new Point(crossing.x() + crossing.bend(), entry.y());
+                Point lower = new Point(crossing.x() + crossing.bend(), exit.y());
+                double entryOffset = offset + Math.abs(entry.y() - segment.from().y());
+                double exitOffset = offset + Math.abs(exit.y() - segment.from().y());
+                strokes.line(entry.x(), entry.y(), upper.x(), upper.y(), width,
+                        bridgeColor(style, bands, entryOffset, runLength));
+                drawPiece(strokes, upper, lower, style, width, entryOffset, exitOffset, runLength, bands);
+                strokes.line(lower.x(), lower.y(), exit.x(), exit.y(), width,
+                        bridgeColor(style, bands, exitOffset, runLength));
+                cursor = exit;
+                continue;
+            }
             Point previous = entry;
             int steps = Math.clamp(2 * (int) Math.ceil(2 * Math.sqrt(radius * pixelScale)), 4, 128);
             for (int step = 1; step <= steps; step++) {
@@ -320,6 +329,10 @@ public final class CraftingPlanGraphRenderer {
         }
         drawPiece(strokes, cursor, segment.to(), style, width, offset + Math.abs(cursor.y() - segment.from().y()),
                 offset + Math.abs(segment.to().y() - segment.from().y()), runLength, bands);
+    }
+
+    private static int bridgeColor(RouteStyle style, int bands, double offset, double runLength) {
+        return bands == 1 ? style.lineColor() : style.color(Math.min(bands - 1, (int) (offset / runLength * bands)));
     }
 
     private boolean blocksArrow(int segmentId, double x, double y, double size) {
