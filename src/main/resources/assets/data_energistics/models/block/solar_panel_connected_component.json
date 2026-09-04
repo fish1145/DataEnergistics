@@ -3,6 +3,7 @@
 	"render_type": "minecraft:cutout",
 	"textures": {
 		"panel": "data_energistics:block/solar_panel/me_solar_panel_off",
+		"connection": "data_energistics:block/solar_panel/solar_panel_connection",
 		"particle": "#panel"
 	}
 }
