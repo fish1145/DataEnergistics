@@ -48,6 +48,7 @@ final class TrinityCraftConfirmScreen extends AbstractContainerScreen<CraftConfi
 
     private static final int AUTHORED_WIDTH = 256;
     private static final int AUTHORED_HEIGHT = 256;
+    private static final float HEADER_FONT_SIZE = 7.0F;
     private static final String TRANSLATION_PREFIX = "gui.data_energistics.craft_confirm.";
 
     private @Nullable Authored pendingAuthored;
@@ -83,6 +84,8 @@ final class TrinityCraftConfirmScreen extends AbstractContainerScreen<CraftConfi
         Authored authored = this.pendingAuthored == null ? loadAuthored() : this.pendingAuthored;
         this.pendingAuthored = null;
         this.layout = authored.layout();
+        this.layout.heading().textStyle(style -> style.fontSize(HEADER_FONT_SIZE));
+        this.layout.metrics().textStyle(style -> style.fontSize(HEADER_FONT_SIZE));
         this.layout.heading().setOverflowVisible(false);
         this.layout.metrics().setOverflowVisible(false);
         this.layout.status().setOverflowVisible(false);
