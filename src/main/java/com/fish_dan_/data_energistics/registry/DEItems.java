@@ -250,6 +250,8 @@ public final class DEItems {
             () -> Upgrades.createUpgradeCardItem(new Item.Properties()));
     public static final DeferredItem<Item> SOLIDIFIED_OBSIDIAN = ITEMS.registerSimpleItem("solidified_obsidian");
     public static final DeferredItem<Item> DATA_DUST = ITEMS.registerSimpleItem("data_dust");
+    public static final DeferredItem<Item> AMETHYST_DUST = ITEMS.registerSimpleItem("amethyst_dust");
+    public static final DeferredItem<Item> DATA_RESIDUAL_CRYSTAL = ITEMS.registerSimpleItem("data_residual_crystal");
     public static final DeferredItem<Item> OBSIDIAN_DUST = ITEMS.registerSimpleItem("obsidian_dust");
     public static final DeferredItem<Item> DATA_CARRIER = ITEMS.register("data_carrier",
             () -> new BiologyDataCarrierItem(new Item.Properties(), false));

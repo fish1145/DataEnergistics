@@ -33,7 +33,7 @@ public class DispersingDataEntity extends Entity {
 
     private static final EntityDataAccessor<Integer> TEXTURE_VARIANT = SynchedEntityData.defineId(DispersingDataEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_AMOUNT = SynchedEntityData.defineId(DispersingDataEntity.class, EntityDataSerializers.INT);
-    public static final int MAX_DATA_AMOUNT = 16;
+    public static final int MAX_DATA_AMOUNT = 8;
     private static final int LIFETIME_TICKS = 1200;
     private static final double DRIFT_STRENGTH = 0.015D;
     private static final double VERTICAL_DRIFT = 0.01D;
@@ -43,6 +43,7 @@ public class DispersingDataEntity extends Entity {
     private static final double ATTRACTION_STRENGTH = 0.012D;
     private static final int MAX_LIQUID_ESCAPE_DISTANCE = 64;
     private int age;
+    private int pendingDataOverflow;
 
     public DispersingDataEntity(EntityType<? extends DispersingDataEntity> entityType, Level level) {
         super(entityType, level);
@@ -68,7 +69,8 @@ public class DispersingDataEntity extends Entity {
         this.setDeltaMovement(this.getDeltaMovement().scale(0.92D).add(drift).add(attraction));
         this.move(MoverType.SELF, this.getDeltaMovement());
 
-        if (this.level() instanceof ServerLevel) {
+        if (this.level() instanceof ServerLevel serverLevel) {
+            this.releasePendingDataOverflow(serverLevel);
             this.mergeNearbyData();
             if (++this.age >= LIFETIME_TICKS) {
                 this.discard();
@@ -166,14 +168,16 @@ public class DispersingDataEntity extends Entity {
         if (tag.contains("TextureVariant")) {
             this.setTextureVariant(tag.getInt("TextureVariant"));
         }
-        this.setDataAmount(tag.contains("DataAmount") ? tag.getInt("DataAmount") : 1);
+        int dataAmount = tag.contains("DataAmount") ? tag.getInt("DataAmount") : 1;
+        this.pendingDataOverflow = Math.max(0, dataAmount - MAX_DATA_AMOUNT);
+        this.setDataAmount(dataAmount);
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
         tag.putInt("Age", this.age);
         tag.putInt("TextureVariant", this.getTextureVariant());
-        tag.putInt("DataAmount", this.getDataAmount());
+        tag.putInt("DataAmount", this.getDataAmount() + this.pendingDataOverflow);
     }
 
     @Override
@@ -234,6 +238,10 @@ public class DispersingDataEntity extends Entity {
     }
 
     public static boolean spawnAt(ServerLevel level, BlockPos pos, RandomSource random) {
+        return spawnAt(level, pos, random, 1);
+    }
+
+    private static boolean spawnAt(ServerLevel level, BlockPos pos, RandomSource random, int dataAmount) {
         DispersingDataEntity entity = DEEntities.DISPERSING_DATA.get().create(level);
         if (entity == null) {
             return false;
@@ -245,11 +253,23 @@ public class DispersingDataEntity extends Entity {
         double z = spawnPos.getZ() + 0.35D + random.nextDouble() * 0.3D;
         entity.setPos(x, y, z);
         entity.setTextureVariant(random.nextInt(4));
+        entity.setDataAmount(dataAmount);
         entity.setDeltaMovement(
                 (random.nextDouble() - 0.5D) * 0.08D,
                 0.01D + random.nextDouble() * 0.03D,
                 (random.nextDouble() - 0.5D) * 0.08D);
         return level.addFreshEntity(entity);
+    }
+
+    private void releasePendingDataOverflow(ServerLevel level) {
+        if (this.pendingDataOverflow <= 0) {
+            return;
+        }
+
+        int amountToRelease = Math.min(this.pendingDataOverflow, MAX_DATA_AMOUNT);
+        if (spawnAt(level, this.blockPosition(), this.random, amountToRelease)) {
+            this.pendingDataOverflow -= amountToRelease;
+        }
     }
 
     private static BlockPos findSpawnPos(ServerLevel level, BlockPos pos) {
