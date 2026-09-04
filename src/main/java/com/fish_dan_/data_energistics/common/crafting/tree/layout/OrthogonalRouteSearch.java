@@ -31,15 +31,17 @@ final class OrthogonalRouteSearch {
 
     Choice route(List<Port> sourcePorts, List<Port> targetPorts, CraftingPlanRouteGroup group,
                  @Nullable Choice previous, boolean improveCrossings) {
-        List<Port> sources = terminals(sourcePorts, group, true);
-        List<Port> targets = terminals(targetPorts, group, false);
-        if (sources.isEmpty() || targets.isEmpty()) throw new IllegalStateException("No safe crafting-tree node port");
+        List<Port> clearSources = terminals(sourcePorts, group, true, false);
+        List<Port> clearTargets = terminals(targetPorts, group, false, false);
+        if (clearSources.isEmpty() || clearTargets.isEmpty()) throw new IllegalStateException("No safe crafting-tree node port");
+        List<Port> sources = terminals(sourcePorts, group, true, true);
+        List<Port> targets = terminals(targetPorts, group, false, true);
         Candidate shortest = previous == null ? null : new Candidate(previous.points(), previous.metrics());
         List<RawCandidate> quick = new ObjectArrayList<>();
         for (Port source : sources) {
             for (Port target : targets) {
                 for (List<Point> core : graph.quickPaths(source, target)) {
-                    RawCandidate candidate = rawCandidate(source, target, core, group, true);
+                    RawCandidate candidate = rawCandidate(source, target, core, group, true, true);
                     if (candidate == null) continue;
                     quick.add(candidate);
                 }
@@ -54,11 +56,16 @@ final class OrthogonalRouteSearch {
                 break;
             }
         }
-        if (shortest == null) shortest = search(sources, targets, group);
-        if (shortest == null) throw new IllegalStateException("No obstacle-free crafting-tree connection for " + group);
+        if (shortest == null && !sources.isEmpty() && !targets.isEmpty()) shortest = search(sources, targets, group, true);
+        if (shortest == null) {
+            RawCandidate fallback = searchRaw(clearSources, clearTargets, group, false);
+            if (fallback == null) throw new IllegalStateException("No obstacle-free crafting-tree connection for " + group);
+            return new Choice(fallback.points(), new Metrics(fallback.length(), 0, fallback.bends(), 0),
+                    fallback.length(), false);
+        }
         double baseline = shortest.metrics().length();
         if (!improveCrossings || shortest.metrics().crossings() == 0) {
-            return new Choice(shortest.points(), shortest.metrics(), baseline);
+            return new Choice(shortest.points(), shortest.metrics(), baseline, true);
         }
         double limit = baseline + Math.min(baseline * 0.25, maximumDetour);
         Candidate best = shortest;
@@ -68,20 +75,28 @@ final class OrthogonalRouteSearch {
             Candidate measured = measure(candidate, group);
             if (measured != null && compare(measured.metrics(), best.metrics()) < 0) best = measured;
         }
-        return new Choice(best.points(), best.metrics(), baseline);
+        return new Choice(best.points(), best.metrics(), baseline, true);
     }
 
-    private List<Port> terminals(List<Port> ports, CraftingPlanRouteGroup group, boolean source) {
+    private List<Port> terminals(List<Port> ports, CraftingPlanRouteGroup group, boolean source,
+                                 boolean respectReservations) {
         List<Port> result = new ObjectArrayList<>(4);
         for (Port port : ports) {
             Point from = source ? port.anchor() : port.stub();
             Point to = source ? port.stub() : port.anchor();
-            if (graph.terminalClear(port) && reservations.available(from, to, group)) result.add(port);
+            if (graph.terminalClear(port) && (!respectReservations || reservations.available(from, to, group))) result.add(port);
         }
         return result;
     }
 
-    private @Nullable Candidate search(List<Port> sources, List<Port> targets, CraftingPlanRouteGroup group) {
+    private @Nullable Candidate search(List<Port> sources, List<Port> targets, CraftingPlanRouteGroup group,
+                                       boolean respectReservations) {
+        RawCandidate candidate = searchRaw(sources, targets, group, respectReservations);
+        return candidate == null ? null : measure(candidate, group);
+    }
+
+    private @Nullable RawCandidate searchRaw(List<Port> sources, List<Port> targets, CraftingPlanRouteGroup group,
+                                             boolean respectReservations) {
         List<Long2ObjectMap<Label>> labels = new ObjectArrayList<>(4);
         for (int heading = 0; heading < 4; heading++) labels.add(new Long2ObjectOpenHashMap<>());
         Comparator<Label> order = Comparator.comparingDouble((Label label) -> label.estimate)
@@ -102,13 +117,11 @@ final class OrthogonalRouteSearch {
             Point current = graph.point(label.point);
             for (Port target : targets) {
                 if (label.point != graph.key(target.stub())) continue;
-                RawCandidate candidate = rawCandidate(label.source, target, reconstruct(label), group, false);
-                if (candidate != null) {
-                    Candidate measured = measure(candidate, group);
-                    if (measured != null) return measured;
-                }
+                RawCandidate candidate = rawCandidate(label.source, target, reconstruct(label), group,
+                        false, respectReservations);
+                if (candidate != null) return candidate;
             }
-            for (long next : graph.neighbors(label.point, targets, reservations, group)) {
+            for (long next : graph.neighbors(label.point, targets, reservations, group, respectReservations)) {
                 Point to = graph.point(next);
                 int direction = heading(current, to);
                 if (direction == (label.heading + 2) % 4) continue;
@@ -139,7 +152,8 @@ final class OrthogonalRouteSearch {
     }
 
     private @Nullable RawCandidate rawCandidate(Port source, Port target, List<Point> core,
-                                                CraftingPlanRouteGroup group, boolean validateCore) {
+                                                CraftingPlanRouteGroup group, boolean validateCore,
+                                                boolean respectReservations) {
         if (validateCore) {
             for (int index = 1; index < core.size(); index++) {
                 Point from = core.get(index - 1);
@@ -158,7 +172,7 @@ final class OrthogonalRouteSearch {
         for (int index = 1; index < points.size(); index++) {
             Point from = points.get(index - 1);
             Point to = points.get(index);
-            if (validateCore && !reservations.available(from, to, group)) return null;
+            if (validateCore && respectReservations && !reservations.available(from, to, group)) return null;
             int direction = heading(from, to);
             if (previousHeading >= 0 && direction != previousHeading) bends++;
             previousHeading = direction;
@@ -267,7 +281,7 @@ final class OrthogonalRouteSearch {
         return length == 0 ? Integer.compare(left.bends(), right.metrics().bends()) : length;
     }
 
-    record Choice(List<Point> points, Metrics metrics, double baselineLength) {}
+    record Choice(List<Point> points, Metrics metrics, double baselineLength, boolean reserved) {}
 
     private record Candidate(List<Point> points, Metrics metrics) {}
 

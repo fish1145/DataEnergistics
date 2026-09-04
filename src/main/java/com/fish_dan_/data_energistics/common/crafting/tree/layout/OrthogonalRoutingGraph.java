@@ -134,7 +134,7 @@ final class OrthogonalRoutingGraph {
 
     /** Bounded-degree visibility expansion; projections stop at the first obstacle face. */
     LongSet neighbors(long key, List<Port> goals, OrthogonalSegmentReservations reservations,
-                      CraftingPlanRouteGroup group) {
+                      CraftingPlanRouteGroup group, boolean respectReservations) {
         int px = OrthogonalRoutingAxis.x(key);
         int py = OrthogonalRoutingAxis.y(key);
         LongSet candidates = new LongOpenHashSet(16);
@@ -156,7 +156,7 @@ final class OrthogonalRoutingGraph {
                 next = key(to);
             }
             if (next == key) continue;
-            if (reservations.available(from, to, group)) {
+            if (!respectReservations || reservations.available(from, to, group)) {
                 result.add(next);
             } else {
                 conflict = true;
@@ -170,7 +170,7 @@ final class OrthogonalRoutingGraph {
                     OrthogonalRoutingAxis.point(px, y.floor(from.y() - LANE)),
                     OrthogonalRoutingAxis.point(px, y.ceiling(from.y() + LANE)) }) {
                 Point to = point(next);
-                if (next != key && !result.contains(next) && clear(from, to) && reservations.available(from, to, group)) {
+                if (next != key && !result.contains(next) && clear(from, to) && (!respectReservations || reservations.available(from, to, group))) {
                     result.add(next);
                 }
             }

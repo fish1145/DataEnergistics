@@ -13,8 +13,11 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.OrthogonalRout
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewEdge;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewGraph;
 
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntLists;
@@ -43,21 +46,24 @@ final class CraftingPlanEdgeRouter {
         var scene = new OrthogonalRoutingGraph(nodes, ports);
         var reservations = new OrthogonalSegmentReservations(scene.x, scene.y);
         var search = new OrthogonalRouteSearch(scene, reservations, spacing.cellGap());
-        List<Request> localFirst = new ObjectArrayList<>(requests);
-        localFirst.sort(Comparator.comparingDouble(Request::distance).thenComparingInt(Request::id));
+        Int2IntMap depths = routingDepths(graph);
+        List<Request> ordered = new ObjectArrayList<>(requests);
+        ordered.sort(Comparator.comparingInt((Request request) -> depths.get(request.edge().source()))
+                .thenComparingInt(request -> depths.get(request.edge().target()))
+                .thenComparingDouble(Request::distance).thenComparingInt(Request::id));
         Choice[] choices = new Choice[requests.size()];
-        for (Request request : localFirst) {
+        for (Request request : ordered) {
             if (Thread.currentThread().isInterrupted()) throw new CancellationException();
             Choice choice = search.route(request.source().ports, request.target().ports, request.group(), null, false);
             choices[request.id()] = choice;
-            reservations.reserve(choice.points(), request.group());
+            if (choice.reserved()) reservations.reserve(choice.points(), request.group());
         }
         int remainingRefinements = MAXIMUM_REFINEMENTS;
         for (int pass = 0; pass < 2 && remainingRefinements > 0; pass++) {
             boolean changed = false;
             List<Request> refinements = new ObjectArrayList<>();
-            for (Request request : localFirst) {
-                if (choices[request.id()].metrics().crossings() > 0) refinements.add(request);
+            for (Request request : ordered) {
+                if (choices[request.id()].reserved() && choices[request.id()].metrics().crossings() > 0) refinements.add(request);
             }
             refinements.sort(Comparator.comparingInt((Request request) -> choices[request.id()].metrics().crossings()).reversed()
                     .thenComparingDouble(Request::distance).thenComparingInt(Request::id));
@@ -76,13 +82,13 @@ final class CraftingPlanEdgeRouter {
                     continue;
                 }
                 Choice candidate = search.route(request.source().ports, request.target().ports, request.group(),
-                        new Choice(previous.points(), previousMetrics, previous.baselineLength()), true);
+                        new Choice(previous.points(), previousMetrics, previous.baselineLength(), true), true);
                 double limit = candidate.baselineLength() + Math.min(candidate.baselineLength() * 0.25, 2 * spacing.cellGap());
                 if (previousMetrics.length() > limit + OrthogonalSegmentReservations.EPSILON || OrthogonalRouteSearch.compare(candidate.metrics(), previousMetrics) < 0) {
                     choices[request.id()] = candidate;
                     changed = true;
                 }
-                reservations.reserve(choices[request.id()].points(), request.group());
+                if (choices[request.id()].reserved()) reservations.reserve(choices[request.id()].points(), request.group());
             }
             remainingRefinements -= count;
             if (!changed) break;
@@ -93,6 +99,30 @@ final class CraftingPlanEdgeRouter {
                     request.edge().cyclic(), request.originals(), request.group()));
         }
         return assemble(nodes, paths, spacing.boundaryPadding());
+    }
+
+    private static Int2IntMap routingDepths(ViewGraph graph) {
+        Int2ObjectMap<IntList> outgoing = new Int2ObjectOpenHashMap<>();
+        for (ViewEdge edge : graph.edges()) {
+            outgoing.computeIfAbsent(edge.source(), unused -> new IntArrayList()).add(edge.target());
+        }
+        Int2IntMap depths = new Int2IntOpenHashMap();
+        depths.defaultReturnValue(Integer.MAX_VALUE);
+        depths.put(graph.rootId(), 0);
+        var pending = new IntArrayFIFOQueue();
+        pending.enqueue(graph.rootId());
+        while (!pending.isEmpty()) {
+            int source = pending.dequeueInt();
+            IntList targets = outgoing.get(source);
+            if (targets == null) continue;
+            int depth = depths.get(source) + 1;
+            for (int target : targets) {
+                if (depth >= depths.get(target)) continue;
+                depths.put(target, depth);
+                pending.enqueue(target);
+            }
+        }
+        return depths;
     }
 
     private static List<Request> requests(ViewGraph graph, Int2ObjectMap<PlacedNode> nodes,
