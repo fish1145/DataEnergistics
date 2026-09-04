@@ -52,9 +52,10 @@ public final class CraftingPlanGraphRouteDrawing {
     /** Tests the complete arrow footprint, including a tail that crosses a shared-membership boundary. */
     public static boolean blocksArrow(Run run, CraftingPlanRouteGeometry geometry, double tipDistance, double depth,
                                       Int2ObjectMap<? extends List<CraftingPlanRouteCrossing>> bridges,
-                                      Int2ObjectMap<? extends List<CraftingPlanRouteCrossing>> underpasses) {
-        double start = Math.max(0, tipDistance - HIGHLIGHT_WIDTH / 2);
-        double end = tipDistance + depth + HIGHLIGHT_WIDTH / 2;
+                                      Int2ObjectMap<? extends List<CraftingPlanRouteCrossing>> underpasses,
+                                      double styleScale) {
+        double start = Math.max(0, tipDistance - HIGHLIGHT_WIDTH * styleScale / 2);
+        double end = tipDistance + depth + HIGHLIGHT_WIDTH * styleScale / 2;
         int first = segmentIndexAt(run, geometry, start);
         int last = segmentIndexAt(run, geometry, end);
         boolean vertical = run.from().x() == run.to().x();
@@ -72,21 +73,25 @@ public final class CraftingPlanGraphRouteDrawing {
             int right = crossings.size();
             while (left < right) {
                 int middle = (left + right) >>> 1;
-                if (crossingCoordinate(crossings.get(middle), vertical) < low - CraftingPlanRouteCrossing.MAX_RADIUS) left = middle + 1;
+                if (crossingBaseCoordinate(crossings.get(middle), vertical) < low - 2 * CraftingPlanRouteCrossing.MAX_RADIUS * styleScale) left = middle + 1;
                 else right = middle;
             }
             for (int crossingIndex = left; crossingIndex < crossings.size(); crossingIndex++) {
                 CraftingPlanRouteCrossing crossing = crossings.get(crossingIndex);
-                double center = crossingCoordinate(crossing, vertical);
-                if (center > high + CraftingPlanRouteCrossing.MAX_RADIUS) break;
-                double radius = vertical ? crossing.radius() : crossing.gapHalfWidth();
+                if (crossingBaseCoordinate(crossing, vertical) > high + 2 * CraftingPlanRouteCrossing.MAX_RADIUS * styleScale) break;
+                double center = crossingCoordinate(crossing, vertical, styleScale);
+                double radius = styleScale * (vertical ? crossing.radius() : crossing.gapHalfWidth());
                 if (center + radius >= low && center - radius <= high) return true;
             }
         }
         return false;
     }
 
-    private static double crossingCoordinate(CraftingPlanRouteCrossing crossing, boolean vertical) {
-        return vertical ? crossing.y() : crossing.x() + crossing.bend();
+    private static double crossingCoordinate(CraftingPlanRouteCrossing crossing, boolean vertical, double styleScale) {
+        return vertical ? crossing.y() : crossing.x() + crossing.bend() * styleScale;
+    }
+
+    private static double crossingBaseCoordinate(CraftingPlanRouteCrossing crossing, boolean vertical) {
+        return vertical ? crossing.y() : crossing.x();
     }
 }

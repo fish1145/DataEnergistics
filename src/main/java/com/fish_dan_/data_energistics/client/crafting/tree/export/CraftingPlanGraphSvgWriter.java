@@ -219,7 +219,9 @@ final class CraftingPlanGraphSvgWriter {
             double x = run.from().x() + dx * fraction;
             double y = run.from().y() + dy * fraction;
             double depth = Math.min(CraftingPlanGraphRouteDrawing.ARROW_SIZE, length * (1 - fraction));
-            if (CraftingPlanGraphRouteDrawing.blocksArrow(run, geometry, fraction * length, depth, bridges, underpasses)) continue;
+            if (CraftingPlanGraphRouteDrawing.blocksArrow(run, geometry, fraction * length, depth,
+                    bridges, underpasses, 1))
+                continue;
             arrow(output, new Point(x + dx / length * depth,
                     y + dy / length * depth), new Point(x, y),
                     style.color(Math.min(bands - 1, (int) (fraction * bands))));

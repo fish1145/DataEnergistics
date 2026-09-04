@@ -101,9 +101,11 @@ public final class CraftingPlanGraphCanvas extends GraphView {
     }
 
     public Rect2i iconBounds(PlacedNode node) {
-        Vector2f position = this.surface.localToWorld(new Vector2f(this.surface.getPositionX() + (float) node.x() + 6,
-                this.surface.getPositionY() + (float) node.y() + 7));
-        Vector2f size = this.surface.localToWorldNormal(new Vector2f(16, 16));
+        float rasterScale = Math.min(1, 1 / getScale());
+        Vector2f position = this.surface.localToWorld(new Vector2f(
+                this.surface.getPositionX() + (float) node.x() + 6 * rasterScale,
+                this.surface.getPositionY() + (float) node.y() + 7 * rasterScale));
+        Vector2f size = this.surface.localToWorldNormal(new Vector2f(16 * rasterScale, 16 * rasterScale));
         return new Rect2i((int) Math.floor(position.x), (int) Math.floor(position.y),
                 Math.max(1, (int) Math.ceil(size.x)), Math.max(1, (int) Math.ceil(size.y)));
     }
@@ -162,7 +164,7 @@ public final class CraftingPlanGraphCanvas extends GraphView {
             context.graphics.pose().translate(getPositionX(), getPositionY(), 0);
             renderer.draw(context.graphics, graphLayout, getLod(), true, selectedNode, highlighted, highlightedSegments,
                     new Bounds(getOffsetX(), getOffsetY(), CraftingPlanGraphCanvas.this.getContentWidth() / getScale(), CraftingPlanGraphCanvas.this.getContentHeight() / getScale()),
-                    getPixelScale());
+                    getPixelScale(), getScale(), true);
             context.graphics.pose().popPose();
         }
 

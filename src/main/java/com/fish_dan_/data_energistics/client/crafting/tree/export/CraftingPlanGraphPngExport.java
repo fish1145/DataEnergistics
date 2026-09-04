@@ -167,7 +167,8 @@ public final class CraftingPlanGraphPngExport {
                 // This is only tile-local clipping; every tile keeps the identical full-layout coordinate system.
                 Bounds tile = new Bounds(originX, originY, (tileWidth + TILE_GUARD * 2) / (double) PIXEL_SCALE,
                         (rows + TILE_GUARD * 2) / (double) PIXEL_SCALE);
-                renderer.draw(graphics, layout, GraphViewLod.FULL, showAmounts, -1, IntSets.emptySet(), CraftingPlanSegmentSelection.NONE, tile, PIXEL_SCALE);
+                renderer.draw(graphics, layout, GraphViewLod.FULL, showAmounts, -1, IntSets.emptySet(),
+                        CraftingPlanSegmentSelection.NONE, tile, PIXEL_SCALE, 1, false);
                 graphics.flush();
                 images.add(capture.download());
             }
