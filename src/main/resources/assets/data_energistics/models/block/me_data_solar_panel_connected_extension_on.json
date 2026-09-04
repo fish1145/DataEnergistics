@@ -1,4 +1,6 @@
 {
 	"parent": "data_energistics:block/solar_panel_connected_extension",
-	"textures": { "panel": "data_energistics:block/solar_panel/me_data_solar_panel_on" }
+	"textures": {
+		"panel": "data_energistics:block/solar_panel/me_data_solar_panel_on"
+	}
 }
