@@ -16,9 +16,10 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.GraphView;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import dev.vfyjxf.taffy.style.TaffyPosition;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
-import it.unimi.dsi.fastutil.ints.IntSets;
 import org.joml.Vector2f;
 import org.jspecify.annotations.Nullable;
 
@@ -32,7 +33,10 @@ public final class CraftingPlanGraphCanvas extends GraphView {
     private @Nullable CraftingPlanGraphRenderer renderer;
     private @Nullable Layout graphLayout;
     private int selectedNode = -1;
-    private IntSet highlighted = IntSets.emptySet();
+    private final Int2ObjectMap<IntArrayList> incidentRoutes = new Int2ObjectOpenHashMap<>();
+    private final IntOpenHashSet highlighted = new IntOpenHashSet();
+    private final IntOpenHashSet highlightedRoutes = new IntOpenHashSet();
+    private final CraftingPlanSegmentSelection highlightedSegments = new CraftingPlanSegmentSelection();
     private int highlightedNode = -1;
 
     public CraftingPlanGraphCanvas() {
@@ -53,15 +57,23 @@ public final class CraftingPlanGraphCanvas extends GraphView {
         this.graph = null;
         this.renderer = null;
         this.graphLayout = null;
+        this.incidentRoutes.clear();
         this.selectedNode = -1;
         this.highlightedNode = -1;
-        this.highlighted = IntSets.emptySet();
+        this.highlighted.clear();
+        this.highlightedRoutes.clear();
+        this.highlightedSegments.clear();
     }
 
     public void show(CraftingPlanGraph graph, Layout layout) {
+        boolean presentationChanged = this.graph != graph || this.graphLayout != layout;
         if (this.graph != graph) this.renderer = new CraftingPlanGraphRenderer(graph);
         this.graph = graph;
         this.graphLayout = layout;
+        if (presentationChanged) {
+            indexRoutes(layout);
+            rebuildHighlight(this.highlightedNode);
+        }
         this.surface.layout(style -> style.width((float) layout.bounds().width()).height((float) layout.bounds().height()));
     }
 
@@ -113,13 +125,7 @@ public final class CraftingPlanGraphCanvas extends GraphView {
     public void highlight(@Nullable PlacedNode node) {
         if ((node == null ? -1 : node.id()) == this.highlightedNode) return;
         this.highlightedNode = node == null ? -1 : node.id();
-        if (node == null || this.graph == null) {
-            this.highlighted = IntSets.emptySet();
-            return;
-        }
-        IntOpenHashSet ids = new IntOpenHashSet();
-        this.graph.cycles().stream().filter(cycle -> cycle.nodeIds().contains(node.id())).forEach(cycle -> ids.addAll(cycle.nodeIds()));
-        this.highlighted = ids;
+        rebuildHighlight(this.highlightedNode);
     }
 
     @Override
@@ -154,15 +160,51 @@ public final class CraftingPlanGraphCanvas extends GraphView {
             if (renderer == null || graphLayout == null) return;
             context.graphics.pose().pushPose();
             context.graphics.pose().translate(getPositionX(), getPositionY(), 0);
-            renderer.draw(context.graphics, graphLayout, getLod(), true, selectedNode, highlighted,
+            renderer.draw(context.graphics, graphLayout, getLod(), true, selectedNode, highlighted, highlightedSegments,
+                    highlightedRoutes,
                     new Bounds(getOffsetX(), getOffsetY(), CraftingPlanGraphCanvas.this.getContentWidth() / getScale(), CraftingPlanGraphCanvas.this.getContentHeight() / getScale()),
-                    getPixelScale());
+                    getPixelScale(), getScale(), true);
             context.graphics.pose().popPose();
         }
 
         @Override
         public void appendExtraAreas(List<Rect2i> areas) {
             // This logical surface can be much larger than the screen; its parent owns the exclusion viewport.
+        }
+    }
+
+    private void indexRoutes(Layout layout) {
+        this.incidentRoutes.clear();
+        for (int routeId = 0; routeId < layout.edges().size(); routeId++) {
+            var route = layout.edges().get(routeId);
+            this.incidentRoutes.computeIfAbsent(route.source(), unused -> new IntArrayList()).add(routeId);
+            if (route.target() != route.source()) {
+                this.incidentRoutes.computeIfAbsent(route.target(), unused -> new IntArrayList()).add(routeId);
+            }
+        }
+    }
+
+    private void rebuildHighlight(int nodeId) {
+        this.highlighted.clear();
+        this.highlightedRoutes.clear();
+        this.highlightedSegments.clear();
+        if (nodeId < 0 || this.graph == null || this.graphLayout == null) return;
+        for (var cycle : this.graph.cycles()) {
+            if (cycle.nodeIds().contains(nodeId)) this.highlighted.addAll(cycle.nodeIds());
+        }
+        if (this.highlighted.isEmpty()) {
+            IntArrayList routes = this.incidentRoutes.get(nodeId);
+            if (routes != null) this.highlightedRoutes.addAll(routes);
+        } else {
+            for (int routeId = 0; routeId < this.graphLayout.edges().size(); routeId++) {
+                var route = this.graphLayout.edges().get(routeId);
+                if (this.highlighted.contains(route.source()) && this.highlighted.contains(route.target())) {
+                    this.highlightedRoutes.add(routeId);
+                }
+            }
+        }
+        for (int routeId : this.highlightedRoutes) {
+            for (var range : this.graphLayout.edges().get(routeId).segmentRanges()) this.highlightedSegments.add(range);
         }
     }
 }
