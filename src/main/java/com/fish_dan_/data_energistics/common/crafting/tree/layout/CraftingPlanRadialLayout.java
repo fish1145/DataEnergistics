@@ -86,7 +86,7 @@ public final class CraftingPlanRadialLayout {
                     request.originals(), request.group(), curve.from(), curve.firstControl(),
                     curve.secondControl(), curve.to()));
         }
-        return shift(placed, edges, curves, compact ? 12 : 18);
+        return shift(placed, edges, curves, graph.rootId(), compact ? 12 : 18);
     }
 
     private static void relax(ViewGraph graph, Int2ObjectMap<PlacedNode> placed, int rootId, boolean compact) {
@@ -433,7 +433,7 @@ public final class CraftingPlanRadialLayout {
     }
 
     private static Layout shift(Int2ObjectMap<PlacedNode> placed, List<RoutedEdge> edges,
-                                List<RoutedCurve> curves, double padding) {
+                                List<RoutedCurve> curves, int rootId, double padding) {
         double minX = Double.POSITIVE_INFINITY;
         double minY = Double.POSITIVE_INFINITY;
         double maxX = Double.NEGATIVE_INFINITY;
@@ -452,6 +452,13 @@ public final class CraftingPlanRadialLayout {
                 maxY = Math.max(maxY, point.y());
             }
         }
+        Point root = center(placed.get(rootId));
+        double horizontalExtent = Math.max(root.x() - minX, maxX - root.x());
+        double verticalExtent = Math.max(root.y() - minY, maxY - root.y());
+        minX = root.x() - horizontalExtent;
+        minY = root.y() - verticalExtent;
+        maxX = root.x() + horizontalExtent;
+        maxY = root.y() + verticalExtent;
         double dx = padding - minX;
         double dy = padding - minY;
         List<PlacedNode> nodes = new ObjectArrayList<>(placed.size());
