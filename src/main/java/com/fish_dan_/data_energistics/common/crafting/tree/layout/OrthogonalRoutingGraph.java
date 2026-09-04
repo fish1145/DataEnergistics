@@ -261,8 +261,9 @@ final class OrthogonalRoutingGraph {
                 right = Math.max(right, column.right());
                 continue;
             }
-            for (int lane = 1; lane <= 64; lane++) {
-                coordinates.add(clean(right + (column.left() - right) * lane / 65));
+            int lanes = Math.max(2, (int) Math.floor((column.left() - right) / 2) - 1);
+            for (int lane = 1; lane <= lanes; lane++) {
+                coordinates.add(clean(right + (column.left() - right) * lane / (lanes + 1)));
             }
             right = column.right();
         }

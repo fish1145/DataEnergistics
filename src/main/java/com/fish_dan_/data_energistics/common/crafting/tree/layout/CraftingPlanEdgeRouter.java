@@ -40,7 +40,7 @@ final class CraftingPlanEdgeRouter {
 
     private CraftingPlanEdgeRouter() {}
 
-    static Layout route(ViewGraph graph, List<PlacedNode> nodes, Spacing spacing) {
+    static Layout route(ViewGraph graph, List<PlacedNode> nodes, Spacing spacing, Int2IntMap nodeRanks) {
         Int2ObjectMap<PlacedNode> nodeById = new Int2ObjectOpenHashMap<>();
         for (PlacedNode node : nodes) nodeById.put(node.id(), node);
         Object2ObjectMap<PortKey, PortIntent> intents = new Object2ObjectLinkedOpenHashMap<>();
@@ -51,7 +51,7 @@ final class CraftingPlanEdgeRouter {
         var reservations = new OrthogonalSegmentReservations(scene.x, scene.y);
         var search = new OrthogonalRouteSearch(scene, reservations, spacing.cellGap());
         Int2IntMap depths = routingDepths(graph);
-        double[] channelLanes = channelLanes(requests, depths, scene.x);
+        double[] channelLanes = channelLanes(requests, nodeRanks, scene.x);
         List<Request> ordered = new ObjectArrayList<>(requests);
         ordered.sort(Comparator.comparingInt((Request request) -> depths.get(request.edge().source()))
                 .thenComparingInt(request -> depths.get(request.edge().target()))
@@ -143,15 +143,16 @@ final class CraftingPlanEdgeRouter {
         return search.fixedChannel(source, target, lane, request.group());
     }
 
-    private static double[] channelLanes(List<Request> requests, Int2IntMap depths, OrthogonalRoutingAxis xAxis) {
+    private static double[] channelLanes(List<Request> requests, Int2IntMap ranks, OrthogonalRoutingAxis xAxis) {
         double[] lanes = new double[requests.size()];
         Arrays.fill(lanes, Double.NaN);
         Int2ObjectMap<List<Request>> byBoundary = new Int2ObjectOpenHashMap<>();
         for (Request request : requests) {
-            int sourceDepth = depths.get(request.edge().source());
-            if (sourceDepth == Integer.MAX_VALUE || depths.get(request.edge().target()) != sourceDepth + 1) continue;
+            int sourceRank = ranks.get(request.edge().source());
+            int targetRank = ranks.get(request.edge().target());
+            if (Math.abs(sourceRank - targetRank) != 1) continue;
             if (request.source().node.x() == request.target().node.x()) continue;
-            byBoundary.computeIfAbsent(sourceDepth, unused -> new ObjectArrayList<>()).add(request);
+            byBoundary.computeIfAbsent(Math.min(sourceRank, targetRank), unused -> new ObjectArrayList<>()).add(request);
         }
         int[] trackByRequest = new int[requests.size()];
         for (List<Request> boundary : byBoundary.values()) {

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.tree.layout;
 
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGeometry.SegmentRange;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGroup.Style;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Process;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewEdge;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView.ViewGraph;
@@ -21,6 +22,7 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Comparator;
@@ -123,7 +125,10 @@ public final class CraftingPlanGraphLayout {
                 improveCycle(group, graph.rootId(), attachments, score, placed, compact, cellWidth, cellHeight, spacing);
             }
         }
-        return CraftingPlanEdgeRouter.route(graph, new ObjectArrayList<>(placed.values()), spacing);
+        Int2IntMap channelTracks = channelTracks(graph, placed, nodeRanks);
+        positionDepth(layers, spacing, channelTracks);
+        for (Group group : groups.values()) placeNodes(group, compact, cellWidth, cellHeight, spacing, placed);
+        return CraftingPlanEdgeRouter.route(graph, new ObjectArrayList<>(placed.values()), spacing, nodeRanks);
     }
 
     private static void orderCycle(Group group, Int2ObjectMap<ViewNode> nodes, Int2ObjectMap<IntList> outgoing) {
@@ -217,6 +222,52 @@ public final class CraftingPlanGraphLayout {
         double width = Math.max(0, layer.size() - 1) * spacing.groupGap();
         for (Group group : layer) width += group.width;
         return width;
+    }
+
+    private static Int2IntMap channelTracks(ViewGraph graph, Int2ObjectMap<PlacedNode> nodes, Int2IntMap ranks) {
+        Int2ObjectMap<List<ChannelEvent>> events = new Int2ObjectOpenHashMap<>();
+        var styles = CraftingPlanRouteGroup.indexStyles(graph.source());
+        for (ViewEdge edge : graph.edges()) {
+            int sourceRank = ranks.get(edge.source());
+            int targetRank = ranks.get(edge.target());
+            if (Math.abs(sourceRank - targetRank) != 1) continue;
+            var distinct = new ObjectOpenHashSet<Style>();
+            for (int original : edge.originalEdgeIds()) distinct.add(styles.get(original));
+            double sourceY = nodes.get(edge.source()).y() + nodes.get(edge.source()).height() / 2;
+            double targetY = nodes.get(edge.target()).y() + nodes.get(edge.target()).height() / 2;
+            List<ChannelEvent> boundary = events.computeIfAbsent(Math.min(sourceRank, targetRank),
+                    unused -> new ObjectArrayList<>());
+            for (int index = 0; index < distinct.size(); index++) {
+                boundary.add(new ChannelEvent(Math.min(sourceY, targetY), 1));
+                boundary.add(new ChannelEvent(Math.max(sourceY, targetY), -1));
+            }
+        }
+        Int2IntMap result = new Int2IntOpenHashMap();
+        for (var entry : events.int2ObjectEntrySet()) {
+            entry.getValue().sort(Comparator.comparingDouble(ChannelEvent::coordinate)
+                    .thenComparing(Comparator.comparingInt(ChannelEvent::delta).reversed()));
+            int active = 0;
+            int maximum = 0;
+            for (ChannelEvent event : entry.getValue()) {
+                active += event.delta();
+                maximum = Math.max(maximum, active);
+            }
+            result.put(entry.getIntKey(), maximum);
+        }
+        return result;
+    }
+
+    private static void positionDepth(Int2ObjectMap<List<Group>> layers, Spacing spacing, Int2IntMap channelTracks) {
+        double depth = spacing.routingPadding();
+        for (var entry : layers.int2ObjectEntrySet()) {
+            double height = 0;
+            for (Group group : entry.getValue()) {
+                group.depth = depth;
+                height = Math.max(height, group.height);
+            }
+            double gap = Math.max(2 * spacing.routingPadding(), 2D * (channelTracks.get(entry.getIntKey()) + 1));
+            depth += height + gap;
+        }
     }
 
     private static void improveLayers(Int2ObjectMap<List<Group>> layers, CraftingPlanLayoutOrderScore score,
@@ -432,6 +483,8 @@ public final class CraftingPlanGraphLayout {
     }
 
     private record Slot(int row, int column) {}
+
+    private record ChannelEvent(double coordinate, int delta) {}
 
     private static final class Group {
 
