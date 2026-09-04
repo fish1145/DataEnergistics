@@ -14,14 +14,17 @@ import net.minecraft.core.Direction;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
+import com.lowdragmc.lowdraglib2.client.scene.FBOWorldSceneRenderer;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scene;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.utils.data.BlockInfo;
 import com.lowdragmc.lowdraglib2.utils.virtuallevel.TrackedDummyWorld;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.opengl.GL11;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,13 +42,12 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
     private static final double DEFAULT_CAMERA_DISTANCE_SCALE = 0.7;
     /** Looks slightly below the geometric center so the structure is framed higher in the preview. */
     private static final double DEFAULT_CAMERA_TARGET_LOWERING_SCALE = 0.1;
+    /** Supersamples compact structure previews before linearly downscaling them into GUI pixels. */
+    private static final double RENDER_SUPERSAMPLE_SCALE = 2.0;
 
     @Override
     public StructurePreviewSceneBinding bind(StructurePreviewSceneElement scene,
                                              BiConsumer<BlockPos, Direction> selectionConsumer) {
-        if (scene == null || selectionConsumer == null) {
-            throw new IllegalArgumentException("Structure preview scene binding arguments cannot be null");
-        }
         if (!scene.hasParent()) {
             throw new IllegalStateException("Structure preview scene must belong to an element tree before binding");
         }
@@ -69,6 +71,7 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
                     .setRenderSelect(true)
                     .setRenderFacing(false)
                     .setShowHoverBlockTips(true)
+                    .setBeforeWorldRender(ignored -> clientScene.applyFboFilter())
                     .useCacheBuffer();
             return binding;
         } catch (RuntimeException | Error failure) {
@@ -125,9 +128,6 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
 
         @Override
         public void refresh(StructurePreviewSnapshot snapshot, PreviewViewState viewState) {
-            if (snapshot == null || viewState == null) {
-                throw new IllegalArgumentException("Structure preview scene refresh arguments cannot be null");
-            }
             if (this.released) {
                 throw new IllegalStateException("Released structure preview scene binding cannot be refreshed");
             }
@@ -170,9 +170,9 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
             }
             this.viewportWidth = width;
             this.viewportHeight = height;
-            double guiScale = Minecraft.getInstance().getWindow().getGuiScale();
-            int renderWidth = Math.max(width, (int) Math.ceil(width * guiScale));
-            int renderHeight = Math.max(height, (int) Math.ceil(height * guiScale));
+            double renderScale = Minecraft.getInstance().getWindow().getGuiScale() * RENDER_SUPERSAMPLE_SCALE;
+            int renderWidth = Math.max(width, (int) Math.ceil(width * renderScale));
+            int renderHeight = Math.max(height, (int) Math.ceil(height * renderScale));
             this.scene.createScene(this.world, true, Size.of(renderWidth, renderHeight))
                     .setTickWorld(false)
                     .setDraggable(true)
@@ -200,13 +200,9 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
             this.viewportWidth = 0;
             this.viewportHeight = 0;
 
-            Throwable failure = null;
             UIElement parent = this.scene.getParent();
-            if (parent != null && parent != this.shell) {
-                failure = mergeFailures(
-                        failure,
-                        new IllegalStateException("Structure preview client scene left its owning shell"));
-            }
+            Throwable failure = parent != null && parent != this.shell ?
+                    new IllegalStateException("Structure preview client scene left its owning shell") : null;
             failure = runCleanup(failure, this.scene::clearSelectionCallback);
             failure = runCleanup(failure, this.scene::clearInteraction);
             if (!this.scene.rendererReleaseAttempted()) {
@@ -291,6 +287,8 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
      */
     static class ClientScene extends Scene {
 
+        @Nullable
+        private RenderTarget filteredFbo;
         private boolean rendererReleaseAttempted;
 
         ClientScene() {
@@ -303,7 +301,7 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
             try {
                 super.onRemoved();
             } catch (RuntimeException | Error removalFailure) {
-                failure = mergeFailures(failure, removalFailure);
+                failure = removalFailure;
             }
             failure = runCleanup(failure, this::releaseRendererOnce);
             rethrow(failure);
@@ -329,6 +327,18 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
             return this.rendererReleaseAttempted;
         }
 
+        void applyFboFilter() {
+            if (!(this.renderer instanceof FBOWorldSceneRenderer fboRenderer)) {
+                return;
+            }
+            RenderTarget fbo = fboRenderer.getFbo();
+            if (fbo == null || fbo == this.filteredFbo) {
+                return;
+            }
+            fbo.setFilterMode(GL11.GL_LINEAR);
+            this.filteredFbo = fbo;
+        }
+
         void releaseRendererOnce() {
             if (this.rendererReleaseAttempted) {
                 return;
@@ -341,6 +351,7 @@ public final class LdlibStructurePreviewSceneBinder implements StructurePreviewS
          * Isolated physical release hook used by the once guard and direct client lifecycle tests.
          */
         protected void releaseRendererNow() {
+            this.filteredFbo = null;
             super.releaseRendererResource();
         }
     }

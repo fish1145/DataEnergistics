@@ -84,7 +84,6 @@ public final class MultiblockXeiComposition implements MultiblockRecipeViewSourc
         this.composition = AutoBuildComposition.builder(this.previewUi, layout.elements())
                 .geometry(layout.geometry())
                 .recipeInputs(idPrefix + MATERIAL_GRID_SUFFIX, TrinityAmountFormatter::format)
-                .withoutCandidateSelection()
                 .build();
         this.composition.bindStructureActions(new AutoBuildComposition.StructureActions(
                 () -> selectRelativeStructure(-1),
