@@ -59,8 +59,7 @@ public final class DataChargePressRecipeSupport {
     }
 
     /**
-     * Powder recipes use the inscriber's center input alone. They run in the integrated machine only while its
-     * module slot is empty, leaving installed inscriber modules for recipes that need a press or an additional input.
+     * Powder recipes use the inscriber's center input alone. The integrated machine exposes them only in powder mode.
      */
     public static boolean isPowderRecipe(InscriberRecipe recipe) {
         return recipe.getProcessType() == InscriberProcessType.INSCRIBE && !recipe.getMiddleInput().isEmpty() &&

@@ -1,0 +1,84 @@
+{
+	"variants": {
+		"facing=south,status=off": {
+			"model": "data_energistics:block/me_beam_former",
+			"y": 180
+		},
+		"facing=south,status=on": {
+			"model": "data_energistics:block/me_beam_former",
+			"y": 180
+		},
+		"facing=south,status=beaming": {
+			"model": "data_energistics:block/me_beam_former",
+			"y": 180
+		},
+
+		"facing=north,status=off": {
+			"model": "data_energistics:block/me_beam_former"
+		},
+		"facing=north,status=on": {
+			"model": "data_energistics:block/me_beam_former"
+		},
+		"facing=north,status=beaming": {
+			"model": "data_energistics:block/me_beam_former"
+		},
+
+		"facing=west,status=off": {
+			"model": "data_energistics:block/me_beam_former",
+			"y": 270
+		},
+		"facing=west,status=on": {
+			"model": "data_energistics:block/me_beam_former",
+			"y": 270
+		},
+		"facing=west,status=beaming": {
+			"model": "data_energistics:block/me_beam_former",
+			"y": 270
+		},
+
+		"facing=east,status=off": {
+			"model": "data_energistics:block/me_beam_former",
+			"y": 90
+		},
+		"facing=east,status=on": {
+			"model": "data_energistics:block/me_beam_former",
+			"y": 90
+		},
+		"facing=east,status=beaming": {
+			"model": "data_energistics:block/me_beam_former",
+			"y": 90
+		},
+
+		"facing=up,status=off": {
+			"model": "data_energistics:block/me_beam_former",
+			"x": -90,
+			"y": 180
+		},
+		"facing=up,status=on": {
+			"model": "data_energistics:block/me_beam_former",
+			"x": -90,
+			"y": 180
+		},
+		"facing=up,status=beaming": {
+			"model": "data_energistics:block/me_beam_former",
+			"x": -90,
+			"y": 180
+		},
+
+		"facing=down,status=off": {
+			"model": "data_energistics:block/me_beam_former",
+			"x": 90,
+			"y": 180
+		},
+		"facing=down,status=on": {
+			"model": "data_energistics:block/me_beam_former",
+			"x": 90,
+			"y": 180
+		},
+		"facing=down,status=beaming": {
+			"model": "data_energistics:block/me_beam_former",
+			"x": 90,
+			"y": 180
+		}
+	}
+}

@@ -1,0 +1,60 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:data_framework",
+				"count": 4
+			},
+			{
+				"item": "ae2:vibration_chamber",
+				"count": 3
+			},
+			{
+				"tag": "data_energistics:interface",
+				"count": 2
+			},
+			{
+				"item": "ae2:inscriber",
+				"count": 21
+			},
+			{
+				"item": "data_energistics:data_storage_component_16m",
+				"count": 2
+			},
+			{
+				"item": "ae2:crafting_terminal"
+			},
+			{
+				"item": "data_energistics:complexified_biochips",
+				"count": 2
+			},
+			{
+				"item": "data_energistics:singularity_block",
+				"count": 24
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 56
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:ender",
+				"amount": 4723
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 175860
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:data_asynchronous_processing_factory"
+			}
+		]
+	}
+}

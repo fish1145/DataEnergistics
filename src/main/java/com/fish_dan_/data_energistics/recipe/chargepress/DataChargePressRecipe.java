@@ -52,8 +52,7 @@ public final class DataChargePressRecipe implements Recipe<DataChargePressRecipe
 
     @Override
     public boolean matches(DataChargePressRecipeInput input, Level level) {
-        return getModule().test(input.module()) && matchesFluid(input.fluid()) &&
-                !findMatchingInputSlots(input.items()).isEmpty();
+        return getModule().test(input.module()) && matchesMachineInputs(input.items(), input.fluid());
     }
 
     @Override
@@ -103,6 +102,11 @@ public final class DataChargePressRecipe implements Recipe<DataChargePressRecipe
             return List.copyOf(matches);
         }
         return List.of();
+    }
+
+    /** Matches the consumable inputs after a machine has already selected its crystal-growth mode. */
+    public boolean matchesMachineInputs(List<ItemStack> items, FluidStack fluid) {
+        return matchesFluid(fluid) && !findMatchingInputSlots(items).isEmpty();
     }
 
     private boolean findMatchingInputSlots(List<ItemStack> inputs, int ingredientIndex, boolean[] usedSlots,

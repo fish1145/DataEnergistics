@@ -1,11 +1,15 @@
 package com.fish_dan_.data_energistics.integration.viewer.xei.recipe;
 
+import com.fish_dan_.data_energistics.integration.recipe.EaeCircuitCutterRecipeCatalog;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
+import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerRecipe;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 
@@ -20,7 +24,8 @@ import java.util.List;
 public sealed interface DataChargePressRecipeView permits DataChargePressRecipeView.ChargerView,
                                                   DataChargePressRecipeView.InscriberView, DataChargePressRecipeView.CircuitBoardView,
                                                   DataChargePressRecipeView.PowderView, DataChargePressRecipeView.DataChargerView,
-                                                  DataChargePressRecipeView.CustomView {
+                                                  DataChargePressRecipeView.IntegratedChargerView, DataChargePressRecipeView.CustomView,
+                                                  DataChargePressRecipeView.EaeCircuitCutterView {
 
     ResourceLocation id();
 
@@ -50,8 +55,17 @@ public sealed interface DataChargePressRecipeView permits DataChargePressRecipeV
         recipeManager.getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get()).stream()
                 .map(DataChargerView::new)
                 .forEach(views::add);
+
+        recipeManager.getAllRecipesFor(DERecipes.DATA_INTEGRATED_CHARGER_TYPE.get()).stream()
+                .map(IntegratedChargerView::new)
+                .forEach(views::add);
         recipeManager.getAllRecipesFor(DERecipes.DATA_CHARGE_PRESS_TYPE.get()).stream()
                 .map(CustomView::new)
+                .forEach(views::add);
+
+        EaeCircuitCutterRecipeCatalog cutterCatalog = new EaeCircuitCutterRecipeCatalog();
+        cutterCatalog.recipes(recipeManager).stream()
+                .map(EaeCircuitCutterView::new)
                 .forEach(views::add);
 
         return views;
@@ -97,6 +111,15 @@ public sealed interface DataChargePressRecipeView permits DataChargePressRecipeV
         }
     }
 
+    /** A multi-input recipe performed by the integrated charger's inscribing mode. */
+    record IntegratedChargerView(RecipeHolder<DataIntegratedChargerRecipe> holder) implements DataChargePressRecipeView {
+
+        @Override
+        public ResourceLocation id() {
+            return this.holder.id().withSuffix("/data_integrated_charger");
+        }
+    }
+
     /** The fluid-backed, three-board form automatically derived from an inscriber JSON recipe. */
     record CircuitBoardView(RecipeHolder<InscriberRecipe> holder) implements DataChargePressRecipeView {
 
@@ -118,6 +141,28 @@ public sealed interface DataChargePressRecipeView permits DataChargePressRecipeV
         @Override
         public ResourceLocation id() {
             return this.holder.id();
+        }
+    }
+
+    /** An ExtendedAE circuit-cutter recipe adapted to the integrated charger's inscriber mode. */
+    record EaeCircuitCutterView(EaeCircuitCutterRecipeCatalog.CutterRecipe recipe) implements DataChargePressRecipeView {
+
+        @Override
+        public ResourceLocation id() {
+            return this.recipe.id().withSuffix("/eae_circuit_cutter");
+        }
+
+        public Ingredient input() {
+            return this.recipe.input();
+        }
+
+        public ItemStack output() {
+            return this.recipe.output().copyWithCount(
+                    EaeCircuitCutterRecipeCatalog.getIntegratedResultCount(this.recipe.output().getCount()));
+        }
+
+        public int fluidAmount() {
+            return EaeCircuitCutterRecipeCatalog.getIntegratedFluidAmount(this.recipe.output().getCount());
         }
     }
 }

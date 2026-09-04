@@ -1,0 +1,28 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABC", "DED", "FBA"],
+	"key": {
+		"A": {
+			"item": "data_energistics:data_framework"
+		},
+		"B": {
+			"item": "ae2:quartz_vibrant_glass"
+		},
+		"C": {
+			"item": "ae2:annihilation_core"
+		},
+		"D": {
+			"tag": "c:gems/data_crystal"
+		},
+		"E": {
+			"item": "ae2:crafting_unit"
+		},
+		"F": {
+			"item": "ae2:formation_core"
+		}
+	},
+	"result": {
+		"id": "data_energistics:empty_trinity_unit",
+		"count": 1
+	}
+}
