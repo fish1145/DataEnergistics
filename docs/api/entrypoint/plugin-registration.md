@@ -41,6 +41,7 @@ public final class ExampleDataEnergisticsPlugin implements DataEnergisticsPlugin
 | --- | --- |
 | `universalTerminals()` | Universal Terminal 定义 |
 | `patternProviders()` | provider 元数据、factory 和 lifecycle callback |
+| `craftingMachines()` | 外部机器容量观察与样板上传事务 |
 | `adaptivePatternProviders()` | adaptive provider definition |
 | `trinityPatternRecipes()` | Trinity pattern recipe-ID resolver |
 | `virtualCrafting()` | virtual crafting output adapter |
@@ -56,6 +57,8 @@ public final class ExampleDataEnergisticsPlugin implements DataEnergisticsPlugin
 - 重复 Universal Terminal 持久化名称；
 - 重复 pattern-provider registration ID；
 - 两项 pattern-provider registration 使用相同 identity descriptor；
+- 两项 pattern-provider workstation source 使用相同 identity descriptor；
+- 同一机器能力重复注册 block-entity type；
 - 重复 adaptive-provider registration ID；
 - 重复 Trinity resolver ID；
 - 同一 virtual-output adapter 实例重复注册。

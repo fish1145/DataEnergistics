@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.ae2.patternprovider;
 
 import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderBatchAccess;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
-import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityScope;
+import com.fish_dan_.data_energistics.api.registry.machine.CraftingMachineScope;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
@@ -459,7 +459,7 @@ public final class PatternProviderBatching {
                                                    Level level,
                                                    BlockPos machinePosition,
                                                    Direction inputSide) {
-        return observation != null && observation.scope() == CraftingMachineCapacityScope.BLOCK_ENTITY ?
+        return observation != null && observation.scope() == CraftingMachineScope.BLOCK_ENTITY ?
                 MachineTargetId.forBlockEntity(level.dimension(), machinePosition) :
                 MachineTargetId.forBlockTarget(level.dimension(), machinePosition, inputSide);
     }

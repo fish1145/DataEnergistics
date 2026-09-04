@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.common.entrypoint.machine;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.registry.machine.CraftingMachineScope;
 import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacity;
 import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityContext;
 import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityRegistration;
-import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityScope;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -90,7 +90,7 @@ public final class CraftingMachineCapacityAdapters {
                 return null;
             }
             long remaining = resolved.get().remainingLogicalCrafts();
-            return new Observation(registration.scope(), Math.min(remaining, requestedCrafts));
+            return new Observation(registration.machineScope(), Math.min(remaining, requestedCrafts));
         } catch (RuntimeException | LinkageError exception) {
             Data_Energistics.LOGGER.error(
                     "Crafting machine capacity adapter {} failed for type {} at {} {} side {} and pattern {}; treating the target as full",
@@ -101,10 +101,10 @@ public final class CraftingMachineCapacityAdapters {
                     inputSide,
                     patternDetails.getDefinition(),
                     exception);
-            return new Observation(registration.scope(), 0L);
+            return new Observation(registration.machineScope(), 0L);
         }
     }
 
     /** Applicable registered capacity and the identity scope used for shared-machine accounting. */
-    public record Observation(CraftingMachineCapacityScope scope, long remainingLogicalCrafts) {}
+    public record Observation(CraftingMachineScope scope, long remainingLogicalCrafts) {}
 }

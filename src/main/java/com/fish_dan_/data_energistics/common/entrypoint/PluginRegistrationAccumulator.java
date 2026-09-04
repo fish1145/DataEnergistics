@@ -6,10 +6,13 @@ import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsRegistry;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.dynamic.DynamicCraftingOutputRegistry;
+import com.fish_dan_.data_energistics.api.registry.machine.CraftingMachineRegistry;
 import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityRegistration;
 import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityRegistry;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationRegistration;
 import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderWorkstationSourceRegistration;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdRegistry;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolver;
@@ -21,12 +24,11 @@ import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegist
 
 import net.minecraft.resources.ResourceLocation;
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.jspecify.annotations.Nullable;
-
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Common-setup registry accumulator with one isolated transaction per plugin.
@@ -39,16 +41,20 @@ import java.util.Map;
  */
 final class PluginRegistrationAccumulator {
 
-    private final Map<String, UniversalTerminalRegistration> universalTerminals = new LinkedHashMap<>();
-    private final Map<ResourceLocation, PatternProviderRegistration> patternProviders = new LinkedHashMap<>();
-    private final Map<ProviderIdentityDescriptor, ResourceLocation> patternProviderIdentities = new LinkedHashMap<>();
-    private final Map<ResourceLocation, CraftingMachineCapacityRegistration> craftingMachineCapacities = new LinkedHashMap<>();
-    private final Map<ResourceLocation, ResourceLocation> craftingMachineCapacityTypes = new LinkedHashMap<>();
-    private final Map<ResourceLocation, AdaptivePatternProviderRegistration> adaptivePatternProviders = new LinkedHashMap<>();
-    private final Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers = new LinkedHashMap<>();
-    private final Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms = new LinkedHashMap<>();
-    private final List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters = new ArrayList<>();
-    private final Map<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters = new LinkedHashMap<>();
+    private final Object2ObjectMap<String, UniversalTerminalRegistration> universalTerminals = new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2ObjectMap<ResourceLocation, PatternProviderRegistration> patternProviders = new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2ObjectMap<ProviderIdentityDescriptor, ResourceLocation> patternProviderIdentities = new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2ObjectMap<ResourceLocation, PatternProviderWorkstationSourceRegistration> patternProviderWorkstationSources = new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2ObjectMap<ProviderIdentityDescriptor, ResourceLocation> patternProviderWorkstationSourceIdentities = new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2ObjectMap<ResourceLocation, CraftingMachineCapacityRegistration> craftingMachineCapacities = new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2ObjectMap<ResourceLocation, ResourceLocation> craftingMachineCapacityTypes = new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2ObjectMap<ResourceLocation, PatternUploadWorkstationRegistration> patternUploadWorkstations = new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2ObjectMap<ResourceLocation, ResourceLocation> patternUploadWorkstationTypes = new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2ObjectMap<ResourceLocation, AdaptivePatternProviderRegistration> adaptivePatternProviders = new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2ObjectMap<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers = new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2ObjectMap<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms = new Object2ObjectLinkedOpenHashMap<>();
+    private final ObjectList<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters = new ObjectArrayList<>();
+    private final Object2ObjectMap<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters = new Object2ObjectLinkedOpenHashMap<>();
     private volatile boolean frozen;
 
     /**
@@ -84,6 +90,22 @@ final class PluginRegistrationAccumulator {
                 throw new IllegalStateException("Duplicate pattern provider identity '" + identity + "' from " + staging.description() + "; already registered as '" + existingId + "'");
             }
         }
+        for (ResourceLocation registrationId : staging.patternProviderWorkstationSources.keySet()) {
+            if (this.patternProviderWorkstationSources.containsKey(registrationId)) {
+                throw new IllegalStateException(
+                        "Duplicate pattern provider workstation source registration ID '" + registrationId +
+                                "' from " + staging.description());
+            }
+        }
+        for (PatternProviderWorkstationSourceRegistration registration : staging.patternProviderWorkstationSources.values()) {
+            if (this.patternProviderWorkstationSourceIdentities.containsKey(registration.providerIdentity())) {
+                ResourceLocation existingId = this.patternProviderWorkstationSourceIdentities.get(
+                        registration.providerIdentity());
+                throw new IllegalStateException(
+                        "Duplicate pattern provider workstation source identity '" + registration.providerIdentity() +
+                                "' from " + staging.description() + "; already registered as '" + existingId + "'");
+            }
+        }
         for (ResourceLocation registrationId : staging.craftingMachineCapacities.keySet()) {
             if (this.craftingMachineCapacities.containsKey(registrationId)) {
                 throw new IllegalStateException("Duplicate crafting machine capacity registration ID '" + registrationId + "' from " + staging.description());
@@ -93,6 +115,21 @@ final class PluginRegistrationAccumulator {
             if (this.craftingMachineCapacityTypes.containsKey(registration.blockEntityTypeId())) {
                 ResourceLocation existingId = this.craftingMachineCapacityTypes.get(registration.blockEntityTypeId());
                 throw new IllegalStateException("Duplicate crafting machine capacity block-entity type '" + registration.blockEntityTypeId() + "' from " + staging.description() + "; already registered as '" + existingId + "'");
+            }
+        }
+        for (ResourceLocation registrationId : staging.patternUploadWorkstations.keySet()) {
+            if (this.patternUploadWorkstations.containsKey(registrationId)) {
+                throw new IllegalStateException(
+                        "Duplicate pattern upload workstation registration ID '" + registrationId + "' from " +
+                                staging.description());
+            }
+        }
+        for (PatternUploadWorkstationRegistration registration : staging.patternUploadWorkstations.values()) {
+            if (this.patternUploadWorkstationTypes.containsKey(registration.blockEntityTypeId())) {
+                ResourceLocation existingId = this.patternUploadWorkstationTypes.get(registration.blockEntityTypeId());
+                throw new IllegalStateException(
+                        "Duplicate pattern upload workstation block-entity type '" + registration.blockEntityTypeId() +
+                                "' from " + staging.description() + "; already registered as '" + existingId + "'");
             }
         }
         for (ResourceLocation registrationId : staging.adaptivePatternProviders.keySet()) {
@@ -125,8 +162,14 @@ final class PluginRegistrationAccumulator {
         this.patternProviders.putAll(staging.patternProviders);
         staging.patternProviders.values().forEach(registration -> this.patternProviderIdentities.put(
                 registration.metadata().providerIdentity(), registration.metadata().registrationId()));
+        this.patternProviderWorkstationSources.putAll(staging.patternProviderWorkstationSources);
+        staging.patternProviderWorkstationSources.values().forEach(registration -> this.patternProviderWorkstationSourceIdentities.put(
+                registration.providerIdentity(), registration.registrationId()));
         this.craftingMachineCapacities.putAll(staging.craftingMachineCapacities);
         staging.craftingMachineCapacities.values().forEach(registration -> this.craftingMachineCapacityTypes.put(
+                registration.blockEntityTypeId(), registration.registrationId()));
+        this.patternUploadWorkstations.putAll(staging.patternUploadWorkstations);
+        staging.patternUploadWorkstations.values().forEach(registration -> this.patternUploadWorkstationTypes.put(
                 registration.blockEntityTypeId(), registration.registrationId()));
         this.adaptivePatternProviders.putAll(staging.adaptivePatternProviders);
         this.trinityPatternRecipeIdResolvers.putAll(staging.trinityPatternRecipeIdResolvers);
@@ -142,10 +185,12 @@ final class PluginRegistrationAccumulator {
     DataEnergisticsRegistrySnapshot freeze() {
         this.requireOpen();
         DataEnergisticsRegistrySnapshot snapshot = new DataEnergisticsRegistrySnapshot(
-                List.copyOf(this.universalTerminals.values()),
-                List.copyOf(this.patternProviders.values()),
-                List.copyOf(this.craftingMachineCapacities.values()),
-                List.copyOf(this.adaptivePatternProviders.values()),
+                this.universalTerminals.values(),
+                this.patternProviders.values(),
+                this.patternProviderWorkstationSources.values(),
+                this.craftingMachineCapacities.values(),
+                this.patternUploadWorkstations.values(),
+                this.adaptivePatternProviders.values(),
                 this.trinityPatternRecipeIdResolvers,
                 this.trinityPatternSearchTerms,
                 this.virtualCraftingOutputAdapters,
@@ -171,17 +216,20 @@ final class PluginRegistrationAccumulator {
         private final PluginRegistrationAccumulator owner;
         private final String owningModId;
         private final String pluginClassName;
-        private final Map<String, UniversalTerminalRegistration> universalTerminals = new LinkedHashMap<>();
-        private final Map<ResourceLocation, PatternProviderRegistration> patternProviders = new LinkedHashMap<>();
-        private final Map<ResourceLocation, CraftingMachineCapacityRegistration> craftingMachineCapacities = new LinkedHashMap<>();
-        private final Map<ResourceLocation, AdaptivePatternProviderRegistration> adaptivePatternProviders = new LinkedHashMap<>();
-        private final Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers = new LinkedHashMap<>();
-        private final Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms = new LinkedHashMap<>();
-        private final List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters = new ArrayList<>();
-        private final Map<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters = new LinkedHashMap<>();
+        private final Object2ObjectMap<String, UniversalTerminalRegistration> universalTerminals = new Object2ObjectLinkedOpenHashMap<>();
+        private final Object2ObjectMap<ResourceLocation, PatternProviderRegistration> patternProviders = new Object2ObjectLinkedOpenHashMap<>();
+        private final Object2ObjectMap<ResourceLocation, PatternProviderWorkstationSourceRegistration> patternProviderWorkstationSources = new Object2ObjectLinkedOpenHashMap<>();
+        private final Object2ObjectMap<ResourceLocation, CraftingMachineCapacityRegistration> craftingMachineCapacities = new Object2ObjectLinkedOpenHashMap<>();
+        private final Object2ObjectMap<ResourceLocation, PatternUploadWorkstationRegistration> patternUploadWorkstations = new Object2ObjectLinkedOpenHashMap<>();
+        private final Object2ObjectMap<ResourceLocation, AdaptivePatternProviderRegistration> adaptivePatternProviders = new Object2ObjectLinkedOpenHashMap<>();
+        private final Object2ObjectMap<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers = new Object2ObjectLinkedOpenHashMap<>();
+        private final Object2ObjectMap<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms = new Object2ObjectLinkedOpenHashMap<>();
+        private final ObjectList<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters = new ObjectArrayList<>();
+        private final Object2ObjectMap<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters = new Object2ObjectLinkedOpenHashMap<>();
         private final UniversalTerminalRegistry universalTerminalRegistry = new StagedUniversalTerminalRegistry();
         private final PatternProviderRegistry patternProviderRegistry = new StagedPatternProviderRegistry();
-        private final CraftingMachineCapacityRegistry craftingMachineCapacityRegistry = new StagedCraftingMachineCapacityRegistry();
+        private final CraftingMachineRegistry craftingMachineRegistry = new StagedCraftingMachineRegistry();
+        private final CraftingMachineCapacityRegistry craftingMachineCapacityRegistry = this.craftingMachineRegistry::registerCapacity;
         private final AdaptivePatternProviderRegistry adaptivePatternProviderRegistry = new StagedAdaptivePatternProviderRegistry();
         private final TrinityPatternRecipeIdRegistry trinityPatternRecipeIdRegistry = new StagedTrinityPatternRecipeIdRegistry();
         private final TrinityPatternSearchRegistry trinityPatternSearchRegistry = new StagedTrinityPatternSearchRegistry();
@@ -208,6 +256,12 @@ final class PluginRegistrationAccumulator {
             return this.patternProviderRegistry;
         }
 
+        @Override
+        public CraftingMachineRegistry craftingMachines() {
+            return this.craftingMachineRegistry;
+        }
+
+        @Deprecated(since = "3.2.0")
         @Override
         public CraftingMachineCapacityRegistry craftingMachineCapacities() {
             return this.craftingMachineCapacityRegistry;
@@ -248,7 +302,9 @@ final class PluginRegistrationAccumulator {
             this.state = State.DISCARDED;
             this.universalTerminals.clear();
             this.patternProviders.clear();
+            this.patternProviderWorkstationSources.clear();
             this.craftingMachineCapacities.clear();
+            this.patternUploadWorkstations.clear();
             this.adaptivePatternProviders.clear();
             this.trinityPatternRecipeIdResolvers.clear();
             this.trinityPatternSearchTerms.clear();
@@ -338,20 +394,39 @@ final class PluginRegistrationAccumulator {
                     throw new IllegalStateException("Duplicate pattern provider registration ID '" + registrationId + "' in " + description());
                 }
             }
-        }
-
-        /** Stages machine-capacity declarations by registration ID and exact block-entity type. */
-        private final class StagedCraftingMachineCapacityRegistry implements CraftingMachineCapacityRegistry {
 
             @Override
-            public void register(CraftingMachineCapacityRegistration registration) {
+            public void registerWorkstationSource(PatternProviderWorkstationSourceRegistration registration) {
+                requireOpen();
+                PatternProviderWorkstationSourceRegistration staged = requireStagedValue(
+                        registration, "Pattern provider workstation source registration");
+                ResourceLocation registrationId = staged.registrationId();
+                ProviderIdentityDescriptor providerIdentity = staged.providerIdentity();
+                for (PatternProviderWorkstationSourceRegistration existing : patternProviderWorkstationSources.values()) {
+                    if (existing.providerIdentity().equals(providerIdentity)) {
+                        throw new IllegalStateException(
+                                "Duplicate pattern provider workstation source identity '" + providerIdentity +
+                                        "' in " + description());
+                    }
+                }
+                if (patternProviderWorkstationSources.putIfAbsent(registrationId, staged) != null) {
+                    throw new IllegalStateException(
+                            "Duplicate pattern provider workstation source registration ID '" + registrationId +
+                                    "' in " + description());
+                }
+            }
+        }
+
+        /** Stages machine declarations by capability-specific registration ID and exact block-entity type. */
+        private final class StagedCraftingMachineRegistry implements CraftingMachineRegistry {
+
+            @Override
+            public void registerCapacity(CraftingMachineCapacityRegistration registration) {
                 requireOpen();
                 CraftingMachineCapacityRegistration staged = requireStagedValue(
                         registration, "Crafting machine capacity registration");
-                ResourceLocation registrationId = requireStagedValue(
-                        staged.registrationId(), "Crafting machine capacity registration ID");
-                ResourceLocation blockEntityTypeId = requireStagedValue(
-                        staged.blockEntityTypeId(), "Crafting machine block-entity type ID");
+                ResourceLocation registrationId = staged.registrationId();
+                ResourceLocation blockEntityTypeId = staged.blockEntityTypeId();
                 for (CraftingMachineCapacityRegistration existing : craftingMachineCapacities.values()) {
                     if (existing.blockEntityTypeId().equals(blockEntityTypeId)) {
                         throw new IllegalStateException(
@@ -362,6 +437,27 @@ final class PluginRegistrationAccumulator {
                 if (craftingMachineCapacities.putIfAbsent(registrationId, staged) != null) {
                     throw new IllegalStateException(
                             "Duplicate crafting machine capacity registration ID '" + registrationId +
+                                    "' in " + description());
+                }
+            }
+
+            @Override
+            public void registerPatternUploadWorkstation(PatternUploadWorkstationRegistration registration) {
+                requireOpen();
+                PatternUploadWorkstationRegistration staged = requireStagedValue(
+                        registration, "Pattern upload workstation registration");
+                ResourceLocation registrationId = staged.registrationId();
+                ResourceLocation blockEntityTypeId = staged.blockEntityTypeId();
+                for (PatternUploadWorkstationRegistration existing : patternUploadWorkstations.values()) {
+                    if (existing.blockEntityTypeId().equals(blockEntityTypeId)) {
+                        throw new IllegalStateException(
+                                "Duplicate pattern upload workstation block-entity type '" + blockEntityTypeId +
+                                        "' in " + description());
+                    }
+                }
+                if (patternUploadWorkstations.putIfAbsent(registrationId, staged) != null) {
+                    throw new IllegalStateException(
+                            "Duplicate pattern upload workstation registration ID '" + registrationId +
                                     "' in " + description());
                 }
             }

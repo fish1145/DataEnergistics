@@ -53,6 +53,7 @@ registry.patternProviders().registerFactory(metadata, context ->
 
 ```java
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderWorkstationSourceRegistration;
 
 PatternProviderRegistration registration = new PatternProviderRegistration(
         metadata,
@@ -65,6 +66,16 @@ registry.patternProviders().register(registration);
 
 `factory`、`menuOpenAdapter`、`postCommitHook` 可以分别为 `null`，但三者不能全为 `null`。metadata-only declaration 会立即抛出 `IllegalArgumentException`。
 
-同一冻结快照中，`registrationId` 和 `providerIdentity` 都必须唯一。重复任一项会使当前插件的整个 staging transaction 失败，而不是覆盖已有声明。
+标准 AE2 邻接关系无法描述的 custom/remote provider 通过独立声明补充 topology，不改变 `PatternProviderRegistration` 的 3.2 record 形状：
+
+```java
+registry.patternProviders().registerWorkstationSource(
+        new PatternProviderWorkstationSourceRegistration(
+                ResourceLocation.fromNamespaceAndPath("example_mod", "remote_provider_routes"),
+                metadata.providerIdentity(),
+                context -> resolveRemoteWorkstations(context)));
+```
+
+同一类声明的 `registrationId` 和 `providerIdentity` 都必须唯一。provider behavior 与 workstation source 可以使用同一个 identity family，但两个 workstation source 不能重复声明该 identity。冲突会使当前插件的整个 staging transaction 失败，而不是覆盖已有声明。
 
 运行时 identity 和 counted factory 说明见[运行时绑定与 counted dispatch](runtime-and-counted-dispatch.md)，回调结果语义见[菜单和提交回调](callbacks.md)。

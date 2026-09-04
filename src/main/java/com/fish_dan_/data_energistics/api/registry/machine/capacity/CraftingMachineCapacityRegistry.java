@@ -1,6 +1,12 @@
 package com.fish_dan_.data_energistics.api.registry.machine.capacity;
 
-/** Common-setup declaration facet for external crafting-machine remaining capacity. */
+/**
+ * Legacy capacity-only registration facet retained through 3.2.x.
+ *
+ * @deprecated Use {@code DataEnergisticsRegistry.craftingMachines()} and
+ *             {@code CraftingMachineRegistry.registerCapacity}; this alias is removed in 3.3.0.
+ */
+@Deprecated(since = "3.2.0")
 public interface CraftingMachineCapacityRegistry {
 
     /**

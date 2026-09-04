@@ -1,6 +1,12 @@
 package com.fish_dan_.data_energistics.api.registry.machine.capacity;
 
-/** Defines whether one registered capacity pool is shared by a complete block entity or isolated per input face. */
+/**
+ * Capacity-pool identity retained through 3.2.x.
+ *
+ * @deprecated New machine capabilities use {@code CraftingMachineScope}; capacity registrations keep this return
+ *             type until 3.3.0 for binary compatibility.
+ */
+@Deprecated(since = "3.2.0")
 public enum CraftingMachineCapacityScope {
     /** Every provider and input face reaching the same block entity consumes one shared capacity pool. */
     BLOCK_ENTITY,

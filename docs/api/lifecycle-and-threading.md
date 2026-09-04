@@ -30,6 +30,9 @@ Data Energistics 把“声明扩展”和“运行扩展”分成两个阶段。
 | `PatternProviderFactory` | live provider 绑定时调用；`PatternProviderFactoryContext` 只在该回调期间有效，不得保留 |
 | `PatternProviderMenuOpenAdapter` | 使用 `ServerPlayer` 的服务端菜单请求 |
 | `PatternProviderPostCommitHook` | 服务端已确认真实 inventory delta 之后；只能观察，不能 veto 或改写提交 |
+| `PatternProviderWorkstationSource` | server thread；为 exact provider leaf 返回当前真实工作站路线；不得返回 UI 分组或缓存的 display 目标 |
+| `CraftingMachineCapacityAdapter` | server thread；capacity capture 与提交前重验只读，不得预留或消耗资源 |
+| `PatternUploadWorkstationAdapter` | server thread；prepare 只构造可逆 change，runtime 在 provider 写入前 apply，并按真实 delta complete/rollback；mutation 后 delta 不可证明时走 completeIndeterminate |
 | `VirtualCraftingOutputAdapter` | 必须无状态；不得检查 CPU、provider、grid、world 或 crafting job |
 | `AdaptivePatternProviderDefinition` | 接收候选 `ItemStack`；不得保留或修改它；文档未承诺固定线程或调用次数 |
 | `TrinityPatternRecipeIdResolver` | 冻结 resolver 快照中的运行时查询；应无副作用且结果确定 |
@@ -40,6 +43,6 @@ Data Energistics 把“声明扩展”和“运行扩展”分成两个阶段。
 ## 可变对象与所有权
 
 - `ItemStack` 是可变对象。只有契约明确转移所有权时才可保存；否则复制或只读访问。
-- `PatternProviderFactoryContext`、菜单 context 和 post-commit context 是一次调用的事实快照，不是长期 host 句柄。
+- `PatternProviderFactoryContext`、菜单、post-commit、workstation source 和 machine upload context 都是一次调用的事实快照，不是长期 host 句柄。
 - Counted dispatch 的 prototype 在 prepare/capacity 阶段必须只读；所有权规则详见[counted dispatch 契约](crafting/counted-dispatch-contract.md)。
 - 对外部回调抛出的运行时异常，Data Energistics 会按各扩展点的约定记录并隔离；集成仍应 fail fast，并提供包含自身注册 ID 的可诊断日志。

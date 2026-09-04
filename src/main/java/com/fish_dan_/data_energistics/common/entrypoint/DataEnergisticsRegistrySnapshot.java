@@ -4,7 +4,9 @@ import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutpu
 import com.fish_dan_.data_energistics.api.crafting.dynamic.DynamicCraftingOutputAdapter;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityRegistration;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationRegistration;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderWorkstationSourceRegistration;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdLookup;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolver;
 import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchTermRegistration;
@@ -13,6 +15,11 @@ import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResol
 
 import net.minecraft.resources.ResourceLocation;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -27,34 +34,45 @@ import java.util.Map;
  */
 public final class DataEnergisticsRegistrySnapshot {
 
-    private final List<UniversalTerminalRegistration> universalTerminalRegistrations;
-    private final List<PatternProviderRegistration> patternProviderRegistrations;
-    private final List<CraftingMachineCapacityRegistration> craftingMachineCapacityRegistrations;
-    private final List<AdaptivePatternProviderRegistration> adaptivePatternProviderRegistrations;
+    private final ObjectList<UniversalTerminalRegistration> universalTerminalRegistrations;
+    private final ObjectList<PatternProviderRegistration> patternProviderRegistrations;
+    private final ObjectList<PatternProviderWorkstationSourceRegistration> patternProviderWorkstationSourceRegistrations;
+    private final ObjectList<CraftingMachineCapacityRegistration> craftingMachineCapacityRegistrations;
+    private final ObjectList<PatternUploadWorkstationRegistration> patternUploadWorkstationRegistrations;
+    private final ObjectList<AdaptivePatternProviderRegistration> adaptivePatternProviderRegistrations;
     private final TrinityPatternRecipeIdResolvers trinityPatternRecipes;
-    private final List<TrinityPatternSearchTermRegistration> trinityPatternSearchTermRegistrations;
-    private final List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters;
-    private final List<DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters;
+    private final ObjectList<TrinityPatternSearchTermRegistration> trinityPatternSearchTermRegistrations;
+    private final ObjectList<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters;
+    private final ObjectList<DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters;
 
     /**
      * Freezes all registration values without retaining a mutable staging collection.
      */
-    DataEnergisticsRegistrySnapshot(List<UniversalTerminalRegistration> universalTerminalRegistrations,
-                                    List<PatternProviderRegistration> patternProviderRegistrations,
-                                    List<CraftingMachineCapacityRegistration> craftingMachineCapacityRegistrations,
-                                    List<AdaptivePatternProviderRegistration> adaptivePatternProviderRegistrations,
+    DataEnergisticsRegistrySnapshot(Collection<UniversalTerminalRegistration> universalTerminalRegistrations,
+                                    Collection<PatternProviderRegistration> patternProviderRegistrations,
+                                    Collection<PatternProviderWorkstationSourceRegistration> patternProviderWorkstationSourceRegistrations,
+                                    Collection<CraftingMachineCapacityRegistration> craftingMachineCapacityRegistrations,
+                                    Collection<PatternUploadWorkstationRegistration> patternUploadWorkstationRegistrations,
+                                    Collection<AdaptivePatternProviderRegistration> adaptivePatternProviderRegistrations,
                                     Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers,
                                     Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms,
-                                    List<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters,
+                                    Collection<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters,
                                     Map<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters) {
-        this.universalTerminalRegistrations = List.copyOf(universalTerminalRegistrations);
-        this.patternProviderRegistrations = List.copyOf(patternProviderRegistrations);
-        this.craftingMachineCapacityRegistrations = List.copyOf(craftingMachineCapacityRegistrations);
-        this.adaptivePatternProviderRegistrations = List.copyOf(adaptivePatternProviderRegistrations);
+        this.universalTerminalRegistrations = immutableList(universalTerminalRegistrations);
+        this.patternProviderRegistrations = immutableList(patternProviderRegistrations);
+        this.patternProviderWorkstationSourceRegistrations = immutableList(
+                patternProviderWorkstationSourceRegistrations);
+        this.craftingMachineCapacityRegistrations = immutableList(craftingMachineCapacityRegistrations);
+        this.patternUploadWorkstationRegistrations = immutableList(patternUploadWorkstationRegistrations);
+        this.adaptivePatternProviderRegistrations = immutableList(adaptivePatternProviderRegistrations);
         this.trinityPatternRecipes = new TrinityPatternRecipeIdResolvers(trinityPatternRecipeIdResolvers);
-        this.trinityPatternSearchTermRegistrations = List.copyOf(trinityPatternSearchTerms.values());
-        this.virtualCraftingOutputAdapters = List.copyOf(virtualCraftingOutputAdapters);
-        this.dynamicCraftingOutputAdapters = List.copyOf(dynamicCraftingOutputAdapters.values());
+        this.trinityPatternSearchTermRegistrations = immutableList(trinityPatternSearchTerms.values());
+        this.virtualCraftingOutputAdapters = immutableList(virtualCraftingOutputAdapters);
+        this.dynamicCraftingOutputAdapters = immutableList(dynamicCraftingOutputAdapters.values());
+    }
+
+    private static <T> ObjectList<T> immutableList(Collection<T> values) {
+        return ObjectLists.unmodifiable(new ObjectArrayList<>(values));
     }
 
     /**
@@ -72,10 +90,24 @@ public final class DataEnergisticsRegistrySnapshot {
     }
 
     /**
+     * @return custom provider workstation sources in deterministic plugin and declaration order
+     */
+    public List<PatternProviderWorkstationSourceRegistration> patternProviderWorkstationSourceRegistrations() {
+        return this.patternProviderWorkstationSourceRegistrations;
+    }
+
+    /**
      * @return machine-capacity declarations in deterministic plugin and declaration order
      */
     public List<CraftingMachineCapacityRegistration> craftingMachineCapacityRegistrations() {
         return this.craftingMachineCapacityRegistrations;
+    }
+
+    /**
+     * @return workstation upload declarations in deterministic plugin and declaration order
+     */
+    public List<PatternUploadWorkstationRegistration> patternUploadWorkstationRegistrations() {
+        return this.patternUploadWorkstationRegistrations;
     }
 
     /**

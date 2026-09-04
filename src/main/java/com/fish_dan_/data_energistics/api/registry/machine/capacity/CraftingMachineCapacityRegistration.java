@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.api.registry.machine.capacity;
 
+import com.fish_dan_.data_energistics.api.registry.machine.CraftingMachineScope;
+
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Objects;
@@ -22,6 +24,25 @@ public record CraftingMachineCapacityRegistration(ResourceLocation registrationI
         Objects.requireNonNull(blockEntityTypeId, "Crafting machine block-entity type ID");
         Objects.requireNonNull(scope, "Crafting machine capacity scope");
         Objects.requireNonNull(adapter, "Crafting machine capacity adapter");
+    }
+
+    /** Creates a declaration using the shared machine capability scope introduced for new integrations. */
+    public CraftingMachineCapacityRegistration(ResourceLocation registrationId,
+                                               ResourceLocation blockEntityTypeId,
+                                               CraftingMachineScope scope,
+                                               CraftingMachineCapacityAdapter adapter) {
+        this(
+                registrationId,
+                blockEntityTypeId,
+                scope == CraftingMachineScope.BLOCK_ENTITY ?
+                        CraftingMachineCapacityScope.BLOCK_ENTITY : CraftingMachineCapacityScope.INPUT_SIDE,
+                adapter);
+    }
+
+    /** Returns the shared machine capability scope without exposing the 3.2 compatibility enum to new code. */
+    public CraftingMachineScope machineScope() {
+        return this.scope == CraftingMachineCapacityScope.BLOCK_ENTITY ?
+                CraftingMachineScope.BLOCK_ENTITY : CraftingMachineScope.INPUT_SIDE;
     }
 
     /** Creates a registration whose capacity is shared by every face of one block entity. */
