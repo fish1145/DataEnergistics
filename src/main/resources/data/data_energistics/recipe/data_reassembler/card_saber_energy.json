@@ -20,6 +20,20 @@
 			{
 				"item": "ae2:light_detector",
 				"count": 46
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 7
+			},
+			{
+				"item": "ae2:singularity",
+				"count": 5
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 768
 			}
 		]
 	},

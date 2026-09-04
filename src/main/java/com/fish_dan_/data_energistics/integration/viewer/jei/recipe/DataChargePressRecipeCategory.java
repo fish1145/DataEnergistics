@@ -1,9 +1,11 @@
 package com.fish_dan_.data_energistics.integration.viewer.jei.recipe;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.integration.viewer.jei.ui.JeiIconDrawable;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataChargePressRecipeView;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressIngredient;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
+import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.client.gui.GuiGraphics;
@@ -14,9 +16,11 @@ import net.minecraft.world.item.crafting.Ingredient;
 
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.GenericStack;
+import appeng.client.gui.Icon;
 import appeng.recipes.handlers.InscriberProcessType;
 import appeng.recipes.handlers.InscriberRecipe;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
+import mezz.jei.api.gui.builder.ITooltipBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.drawable.IDrawableAnimated;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
@@ -34,29 +38,38 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
 
     public static final RecipeType<DataChargePressRecipeView> RECIPE_TYPE = RecipeType.create(
             Data_Energistics.MODID, "data_charge_press", DataChargePressRecipeView.class);
-    private static final int LEFT_CROP = 25;
+    // Keep recipe content in machine coordinates while shifting only the background five pixels forward.
+    private static final int LEFT_CROP = 5;
     private static final int TOP_CROP = 15;
-    private static final int WIDTH = 131;
+    private static final int BACKGROUND_WIDTH = 160;
+    private static final int WIDTH = BACKGROUND_WIDTH + 2;
     private static final int HEIGHT = 64;
-    // Map the AE2 top/middle/bottom inputs to the left input column: 0, 1, then 2.
-    private static final int FIRST_INPUT_X = 9;
-    private static final int SECOND_INPUT_X = 9;
-    private static final int THIRD_INPUT_X = 9;
-    private static final int FLUID_X = 46;
+    // Map top/middle/bottom recipe inputs to the first vertical column of the machine's 3x3 input grid.
+    private static final int FIRST_INPUT_X = 11;
+    private static final int SECOND_INPUT_X = 11;
+    private static final int THIRD_INPUT_X = 11;
+    private static final int FLUID_X = 66;
     private static final int FLUID_Y = 7;
-    private static final int MODULE_X = 45;
-    private static final int OUTPUT_X = 82;
-    private static final int PROGRESS_X = 122;
+    private static final int OUTPUT_X = 111;
+    private static final int OUTPUT_Y = 6;
+    private static final int MODE_ICON_X = OUTPUT_X - 24;
+    private static final int MODE_ICON_Y = OUTPUT_Y + 30;
+    private static final int PROGRESS_X = 151;
     private static final int FIRST_INPUT_Y = 6;
     private static final int SECOND_INPUT_Y = 24;
     private static final int THIRD_INPUT_Y = 42;
-    private static final int MODULE_Y = 42;
     private static final int PROGRESS_Y = 24;
     private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath(
             "ae2", "textures/guis/data_integrated_charger.png");
+    private static final ResourceLocation DATA_STATES_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+            Data_Energistics.MODID, "textures/guis/states.png");
 
     private final IDrawable background;
     private final IDrawableAnimated progress;
+    private final IDrawable powderModeIcon;
+    private final IDrawable crystalGrowthModeIcon;
+    private final IDrawable inscriberModeIcon;
+    private final IDrawable chargerModeIcon;
 
     public DataChargePressRecipeCategory(IGuiHelper guiHelper) {
         super(
@@ -65,9 +78,19 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
                 guiHelper.createDrawableItemLike(DEBlocks.DATA_INTEGRATED_CHARGER.get()),
                 WIDTH,
                 HEIGHT);
-        this.background = guiHelper.createDrawable(TEXTURE, LEFT_CROP, TOP_CROP, WIDTH, HEIGHT);
+        this.background = guiHelper.createDrawable(TEXTURE, LEFT_CROP, TOP_CROP, BACKGROUND_WIDTH, HEIGHT);
         this.progress = guiHelper.drawableBuilder(TEXTURE, 176, 0, 6, 18)
                 .buildAnimated(200, IDrawableAnimated.StartDirection.BOTTOM, false);
+        this.powderModeIcon = new JeiIconDrawable(Icon.PLACEMENT_ITEM);
+        this.crystalGrowthModeIcon = guiHelper.drawableBuilder(DATA_STATES_TEXTURE, 80, 80, 16, 16)
+                .setTextureSize(128, 128)
+                .build();
+        this.inscriberModeIcon = guiHelper.drawableBuilder(DATA_STATES_TEXTURE, 96, 80, 16, 16)
+                .setTextureSize(128, 128)
+                .build();
+        this.chargerModeIcon = guiHelper.drawableBuilder(DATA_STATES_TEXTURE, 112, 80, 16, 16)
+                .setTextureSize(128, 128)
+                .build();
     }
 
     @Override
@@ -75,6 +98,18 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
                      double mouseX, double mouseY) {
         this.background.draw(guiGraphics);
         this.progress.draw(guiGraphics, PROGRESS_X, PROGRESS_Y);
+        getModeIcon(recipe).draw(guiGraphics, MODE_ICON_X, MODE_ICON_Y);
+    }
+
+    @Override
+    public void getTooltip(ITooltipBuilder tooltip, DataChargePressRecipeView recipe,
+                           IRecipeSlotsView recipeSlotsView, double mouseX, double mouseY) {
+        if (mouseX >= MODE_ICON_X && mouseX < MODE_ICON_X + 16 &&
+                mouseY >= MODE_ICON_Y && mouseY < MODE_ICON_Y + 16) {
+            tooltip.add(Component.translatable("button.data_energistics.data_integrated_charger.machine_mode"));
+            tooltip.add(Component.translatable("button.data_energistics.data_integrated_charger.machine_mode." +
+                    getModeTranslationKey(recipe)));
+        }
     }
 
     @Override
@@ -87,8 +122,12 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
             setPowderRecipe(builder, powderView);
         } else if (view instanceof DataChargePressRecipeView.DataChargerView dataChargerView) {
             setDataChargerRecipe(builder, dataChargerView);
+        } else if (view instanceof DataChargePressRecipeView.IntegratedChargerView integratedChargerView) {
+            setIntegratedChargerRecipe(builder, integratedChargerView);
         } else if (view instanceof DataChargePressRecipeView.CircuitBoardView circuitBoardView) {
             setCircuitBoardRecipe(builder, circuitBoardView);
+        } else if (view instanceof DataChargePressRecipeView.EaeCircuitCutterView circuitCutterView) {
+            setEaeCircuitCutterRecipe(builder, circuitCutterView);
         } else if (view instanceof DataChargePressRecipeView.CustomView customView) {
             setCustomRecipe(builder, customView);
         }
@@ -96,9 +135,7 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
 
     private static void setChargerRecipe(IRecipeLayoutBuilder builder, DataChargePressRecipeView.ChargerView view) {
         builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y).addIngredients(view.holder().value().getIngredient());
-        addModuleCatalyst(builder, DataChargePressRecipeSupport.CHARGER_MODULES,
-                "recipe.data_energistics.data_charge_press.charger_module");
-        builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y).addItemStack(view.holder().value().getResultItem());
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(view.holder().value().getResultItem());
     }
 
     private static void setInscriberRecipe(IRecipeLayoutBuilder builder, DataChargePressRecipeView.InscriberView view) {
@@ -108,28 +145,43 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         builder.addInputSlot(SECOND_INPUT_X, SECOND_INPUT_Y).addIngredients(recipe.getMiddleInput());
         addOptionalInscriberIngredient(builder, recipe.getBottomOptional(), THIRD_INPUT_X, THIRD_INPUT_Y,
                 recipe.getProcessType());
-        addModuleCatalyst(builder, DataChargePressRecipeSupport.INSCRIBER_MODULES,
-                "recipe.data_energistics.data_charge_press.inscriber_module");
-        builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y).addItemStack(recipe.getResultItem());
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(recipe.getResultItem());
     }
 
     private static void setPowderRecipe(IRecipeLayoutBuilder builder, DataChargePressRecipeView.PowderView view) {
         InscriberRecipe recipe = view.holder().value();
         builder.addInputSlot(SECOND_INPUT_X, SECOND_INPUT_Y).addIngredients(recipe.getMiddleInput());
-        builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y).addItemStack(recipe.getResultItem());
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(recipe.getResultItem());
     }
 
     private static void setDataChargerRecipe(IRecipeLayoutBuilder builder,
                                              DataChargePressRecipeView.DataChargerView view) {
         var recipe = view.holder().value();
         builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y).addIngredients(recipe.getIngredient());
-        builder.addSlot(RecipeIngredientRole.CATALYST, MODULE_X, MODULE_Y)
-                .addIngredients(DataChargePressRecipeSupport.DATA_CHARGER_MODULES).addRichTooltipCallback((slotView, tooltip) -> {
-                    tooltip.add(Component.translatable("recipe.data_energistics.data_charge_press.data_charger_module"));
-                    tooltip.add(Component.translatable("recipe.data_energistics.data_charger.cost", recipe.getDataFlow(),
-                            formatPower(recipe.getPower())));
-                });
-        builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y).addItemStack(recipe.getResult());
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(recipe.getResult());
+    }
+
+    private static void setIntegratedChargerRecipe(IRecipeLayoutBuilder builder,
+                                                   DataChargePressRecipeView.IntegratedChargerView view) {
+        addIntegratedChargerItemInputs(builder, view.holder().value().getInputs());
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(view.holder().value().getResult());
+    }
+
+    private static void addIntegratedChargerItemInputs(IRecipeLayoutBuilder builder,
+                                                       List<DataChargePressIngredient> inputs) {
+        for (int index = 0; index < inputs.size(); index++) {
+            var input = inputs.get(index);
+            switch (index) {
+                case 0 -> builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y)
+                        .addItemStacks(withCount(input.ingredient(), input.count()));
+                case 1 -> builder.addInputSlot(SECOND_INPUT_X, SECOND_INPUT_Y)
+                        .addItemStacks(withCount(input.ingredient(), input.count()));
+                case 2 -> builder.addInputSlot(THIRD_INPUT_X, THIRD_INPUT_Y)
+                        .addItemStacks(withCount(input.ingredient(), input.count()));
+                default -> throw new IllegalArgumentException(
+                        "Data integrated charger recipes support at most " + DataIntegratedChargerRecipe.MAX_ITEM_INPUT_COUNT + " item inputs");
+            }
+        }
     }
 
     private static void setCircuitBoardRecipe(IRecipeLayoutBuilder builder,
@@ -138,18 +190,22 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         builder.addInputSlot(SECOND_INPUT_X, SECOND_INPUT_Y).addItemStacks(withCount(recipe.getMiddleInput(),
                 DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT));
         addFluidInput(builder, DataChargePressRecipeSupport.getFluidInput());
-        addModuleCatalyst(builder, DataChargePressRecipeSupport.INSCRIBER_MODULES,
-                "recipe.data_energistics.data_charge_press.inscriber_module");
-        builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y)
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y)
                 .addItemStack(DataChargePressRecipeSupport.getTripleResult(recipe));
+    }
+
+    private static void setEaeCircuitCutterRecipe(IRecipeLayoutBuilder builder,
+                                                  DataChargePressRecipeView.EaeCircuitCutterView view) {
+        builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y).addIngredients(view.input());
+        addFluidInput(builder, DataChargePressRecipeSupport.getFluidInput(view.fluidAmount()));
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(view.output());
     }
 
     private static void setCustomRecipe(IRecipeLayoutBuilder builder, DataChargePressRecipeView.CustomView view) {
         var recipe = view.holder().value();
         addCustomItemInputs(builder, recipe.getInputs());
         addFluidInput(builder, recipe.getFluidInput());
-        addModuleCatalyst(builder, recipe.getModule());
-        builder.addOutputSlot(OUTPUT_X, FIRST_INPUT_Y)
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y)
                 .addItemStack(recipe.getResult());
     }
 
@@ -177,15 +233,6 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         builder.addSlot(role, x, y).addIngredients(ingredient);
     }
 
-    private static void addModuleCatalyst(IRecipeLayoutBuilder builder, Ingredient module, String tooltipKey) {
-        builder.addSlot(RecipeIngredientRole.CATALYST, MODULE_X, MODULE_Y)
-                .addIngredients(module).addRichTooltipCallback((slotView, tooltip) -> tooltip.add(Component.translatable(tooltipKey)));
-    }
-
-    private static void addModuleCatalyst(IRecipeLayoutBuilder builder, Ingredient module) {
-        builder.addSlot(RecipeIngredientRole.CATALYST, MODULE_X, MODULE_Y).addIngredients(module);
-    }
-
     private static void addFluidInput(IRecipeLayoutBuilder builder, GenericStack fluidInput) {
         if (fluidInput.what() instanceof AEFluidKey fluidKey) {
             builder.addInputSlot(FLUID_X, FLUID_Y)
@@ -202,7 +249,35 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         }).toList();
     }
 
-    private static String formatPower(double power) {
-        return Math.rint(power) == power ? Long.toString((long) power) : Double.toString(power);
+    private IDrawable getModeIcon(DataChargePressRecipeView recipe) {
+        if (recipe instanceof DataChargePressRecipeView.PowderView) {
+            return this.powderModeIcon;
+        }
+        if (recipe instanceof DataChargePressRecipeView.CustomView) {
+            return this.crystalGrowthModeIcon;
+        }
+        if (recipe instanceof DataChargePressRecipeView.InscriberView ||
+                recipe instanceof DataChargePressRecipeView.IntegratedChargerView ||
+                recipe instanceof DataChargePressRecipeView.CircuitBoardView ||
+                recipe instanceof DataChargePressRecipeView.EaeCircuitCutterView) {
+            return this.inscriberModeIcon;
+        }
+        return this.chargerModeIcon;
+    }
+
+    private static String getModeTranslationKey(DataChargePressRecipeView recipe) {
+        if (recipe instanceof DataChargePressRecipeView.PowderView) {
+            return "powder";
+        }
+        if (recipe instanceof DataChargePressRecipeView.CustomView) {
+            return "crystal_growth";
+        }
+        if (recipe instanceof DataChargePressRecipeView.InscriberView ||
+                recipe instanceof DataChargePressRecipeView.IntegratedChargerView ||
+                recipe instanceof DataChargePressRecipeView.CircuitBoardView ||
+                recipe instanceof DataChargePressRecipeView.EaeCircuitCutterView) {
+            return "inscriber";
+        }
+        return "charger";
     }
 }
