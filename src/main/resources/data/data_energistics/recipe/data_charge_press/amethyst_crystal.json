@@ -1,0 +1,18 @@
+{
+	"type": "data_energistics:data_charge_press",
+	"inputs": [
+		{
+			"item": "minecraft:amethyst_shard",
+			"count": 16
+		},
+		{
+			"item": "data_energistics:amethyst_dust",
+			"count": 16
+		}
+	],
+	"fluid_amount": 250,
+	"result": {
+		"id": "minecraft:amethyst_shard",
+		"count": 72
+	}
+}
