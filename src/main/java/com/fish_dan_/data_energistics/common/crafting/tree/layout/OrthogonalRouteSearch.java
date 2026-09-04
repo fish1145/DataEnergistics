@@ -103,7 +103,10 @@ final class OrthogonalRouteSearch {
             for (Port target : targets) {
                 if (label.point != graph.key(target.stub())) continue;
                 RawCandidate candidate = rawCandidate(label.source, target, reconstruct(label), group, false);
-                if (candidate != null) return measure(candidate, group);
+                if (candidate != null) {
+                    Candidate measured = measure(candidate, group);
+                    if (measured != null) return measured;
+                }
             }
             for (long next : graph.neighbors(label.point, targets, reservations, group)) {
                 Point to = graph.point(next);
@@ -148,6 +151,7 @@ final class OrthogonalRouteSearch {
         points.add(source.anchor());
         for (Point point : core) if (!append(points, point)) return null;
         if (!append(points, target.anchor())) return null;
+        eraseCollinearLoops(points);
         double length = 0;
         int bends = 0;
         int previousHeading = -1;
@@ -161,6 +165,55 @@ final class OrthogonalRouteSearch {
             length += distance(from, to);
         }
         return new RawCandidate(points, length, bends);
+    }
+
+    /** Removes a detour between two visits to the same finite corridor using only already verified subsegments. */
+    private static void eraseCollinearLoops(List<Point> points) {
+        boolean changed;
+        do {
+            changed = false;
+            outer:
+            for (int first = 0; first + 1 < points.size(); first++) {
+                Point firstStart = points.get(first);
+                Point firstEnd = points.get(first + 1);
+                for (int second = first + 2; second + 1 < points.size(); second++) {
+                    Point secondStart = points.get(second);
+                    Point secondEnd = points.get(second + 1);
+                    Point splice = splicePoint(firstStart, firstEnd, secondStart, secondEnd);
+                    if (splice == null) continue;
+                    List<Point> simplified = new ObjectArrayList<>(points.size() - (second - first));
+                    for (int index = 0; index <= first; index++) simplified.add(points.get(index));
+                    if (!simplified.getLast().equals(splice)) simplified.add(splice);
+                    for (int index = second + 1; index < points.size(); index++) {
+                        Point point = points.get(index);
+                        if (!simplified.getLast().equals(point)) simplified.add(point);
+                    }
+                    points.clear();
+                    points.addAll(simplified);
+                    changed = true;
+                    break outer;
+                }
+            }
+        } while (changed);
+    }
+
+    private static @Nullable Point splicePoint(Point firstStart, Point firstEnd,
+                                               Point secondStart, Point secondEnd) {
+        boolean horizontal = firstStart.y() == firstEnd.y();
+        if (horizontal != (secondStart.y() == secondEnd.y())) return null;
+        if (horizontal && firstStart.y() != secondStart.y() || !horizontal && firstStart.x() != secondStart.x()) return null;
+        double firstLow = horizontal ? Math.min(firstStart.x(), firstEnd.x()) : Math.min(firstStart.y(), firstEnd.y());
+        double firstHigh = horizontal ? Math.max(firstStart.x(), firstEnd.x()) : Math.max(firstStart.y(), firstEnd.y());
+        double secondLow = horizontal ? Math.min(secondStart.x(), secondEnd.x()) : Math.min(secondStart.y(), secondEnd.y());
+        double secondHigh = horizontal ? Math.max(secondStart.x(), secondEnd.x()) : Math.max(secondStart.y(), secondEnd.y());
+        double low = Math.max(firstLow, secondLow);
+        double high = Math.min(firstHigh, secondHigh);
+        if (low >= high) return null;
+        double firstDirection = horizontal ? firstEnd.x() - firstStart.x() : firstEnd.y() - firstStart.y();
+        double secondDirection = horizontal ? secondEnd.x() - secondStart.x() : secondEnd.y() - secondStart.y();
+        boolean sameDirection = Math.signum(firstDirection) == Math.signum(secondDirection);
+        double coordinate = secondDirection > 0 == sameDirection ? low : high;
+        return horizontal ? new Point(coordinate, firstStart.y()) : new Point(firstStart.x(), coordinate);
     }
 
     private @Nullable Candidate measure(RawCandidate candidate, CraftingPlanRouteGroup group) {
