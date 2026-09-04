@@ -40,6 +40,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 import appeng.api.config.Actionable;
 import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.ids.AEComponents;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
@@ -506,8 +507,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
             ItemStack encodedPattern = this.dataEnergistics$invokeEncodePattern();
             if (this.mode == EncodingMode.PROCESSING && encodedPattern != null &&
-                    AEItems.PROCESSING_PATTERN.is(encodedPattern)) {
-                encodedPattern = dataEnergistics$encodeProcessingPatternWithGenericStacks();
+                    AEItems.PROCESSING_PATTERN.is(encodedPattern) &&
+                    dataEnergistics$requiresProcessingPatternNormalization()) {
+                encodedPattern = dataEnergistics$patchProcessingPatternWithGenericStacks(encodedPattern);
             }
             if (encodedPattern == null) {
                 this.dataEnergistics$invokeClearPattern();
@@ -516,16 +518,6 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 ci.cancel();
                 return;
             }
-
-            EncodedPatternDynamicOutput.apply(
-                    encodedPattern,
-                    this.mode == EncodingMode.PROCESSING && this.dataEnergistics$processingOutputSameItem);
-            EncodedPatternRecipeReference.applyProcessingRecipeType(
-                    encodedPattern,
-                    PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
-                            this,
-                            data_energistics$getPreferenceSession(),
-                            this));
 
             ItemStack encodeOutput = this.encodedPatternSlot.getItem();
             if (!encodeOutput.isEmpty() && !PatternDetailsHelper.isEncodedPattern(encodeOutput) && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
@@ -543,6 +535,16 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             }
 
             this.encodedPatternSlot.set(encodedPattern);
+            ItemStack finalPattern = this.encodedPatternSlot.getItem();
+            EncodedPatternDynamicOutput.apply(
+                    finalPattern,
+                    this.mode == EncodingMode.PROCESSING && this.dataEnergistics$processingOutputSameItem);
+            EncodedPatternRecipeReference.applyProcessingRecipeType(
+                    finalPattern,
+                    PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
+                            this,
+                            data_energistics$getPreferenceSession(),
+                            this));
             encodedSuccessfully = true;
             PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
             PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
@@ -560,15 +562,34 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Unique
+    private boolean dataEnergistics$requiresProcessingPatternNormalization() {
+        if (!(this.getHost() instanceof IPatternTerminalMenuHost host)) {
+            return false;
+        }
+        return PatternEncodingSourceHelper.requiresProcessingPatternNormalization(
+                host.getLogic().getEncodedInputInv(),
+                host.getLogic().getEncodedOutputInv());
+    }
+
+    @Unique
     @Nullable
-    private ItemStack dataEnergistics$encodeProcessingPatternWithGenericStacks() {
+    private ItemStack dataEnergistics$patchProcessingPatternWithGenericStacks(ItemStack encodedPattern) {
         if (!(this.getHost() instanceof IPatternTerminalMenuHost host)) {
             return null;
         }
-
-        return PatternEncodingSourceHelper.encodeProcessingPattern(
+        ItemStack normalized = PatternEncodingSourceHelper.encodeProcessingPattern(
                 host.getLogic().getEncodedInputInv(),
                 host.getLogic().getEncodedOutputInv());
+        if (normalized == null) {
+            return null;
+        }
+        var processing = normalized.get(AEComponents.ENCODED_PROCESSING_PATTERN);
+        if (processing == null) {
+            throw new IllegalStateException("Normalized processing pattern is missing its encoded component");
+        }
+        ItemStack result = encodedPattern.copy();
+        result.set(AEComponents.ENCODED_PROCESSING_PATTERN, processing);
+        return result;
     }
 
     @Override

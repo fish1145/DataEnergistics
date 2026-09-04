@@ -194,17 +194,18 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 return;
             }
 
+            encodedPatternInv.setItemDirect(0, encodedPattern);
+            ItemStack finalPattern = encodedPatternInv.getStackInSlot(0);
             EncodedPatternDynamicOutput.apply(
-                    encodedPattern,
+                    finalPattern,
                     this.mode == EncodingMode.PROCESSING &&
                             ((PatternOutputMatchMenu) this).data_energistics$isProcessingOutputSameItem());
             EncodedPatternRecipeReference.applyProcessingRecipeType(
-                    encodedPattern,
+                    finalPattern,
                     PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
                             this,
                             data_energistics$getPreferenceSession(),
                             this));
-            encodedPatternInv.setItemDirect(0, encodedPattern);
             encodedSuccessfully = true;
         } finally {
             if (handoffStarted) {

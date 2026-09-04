@@ -7,7 +7,6 @@ import net.minecraft.world.level.Level;
 
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.stacks.AEItemKey;
-import appeng.core.definitions.AEItems;
 import appeng.parts.encoding.EncodingMode;
 import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
@@ -151,13 +150,12 @@ public final class PatternEncodingPreferenceSession {
         var reference = EncodedPatternRecipeReference.get(stack);
         if (reference != null) {
             setRankingContext(PatternEncodingRankingContext.of(reference.recipeTypeId()));
-            return reference.encodingMode();
         }
-        if (AEItems.PROCESSING_PATTERN.is(stack)) {
+        EncodingMode encodingMode = EncodedPatternRecipeReference.encodingMode(stack);
+        if (reference == null && encodingMode == EncodingMode.PROCESSING) {
             setRankingContext(null);
-            return EncodingMode.PROCESSING;
         }
-        return null;
+        return encodingMode;
     }
 
     /**

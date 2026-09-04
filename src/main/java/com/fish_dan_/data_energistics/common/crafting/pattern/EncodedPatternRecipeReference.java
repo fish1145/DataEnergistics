@@ -67,14 +67,20 @@ public record EncodedPatternRecipeReference(Kind kind, ResourceLocation id) {
         };
     }
 
-    /** Returns the editor mode restored by AE2 when this pattern is loaded. */
-    public EncodingMode encodingMode() {
-        return switch (this.kind) {
-            case CRAFTING_RECIPE -> EncodingMode.CRAFTING;
-            case SMITHING_RECIPE -> EncodingMode.SMITHING_TABLE;
-            case STONECUTTING_RECIPE -> EncodingMode.STONECUTTING;
-            case PROCESSING_RECIPE_TYPE -> EncodingMode.PROCESSING;
-        };
+    /**
+     * Resolves editor mode from the pattern's actual AE encoding component, independently of DE recipe metadata.
+     */
+    public static @Nullable EncodingMode encodingMode(ItemStack encodedPattern) {
+        if (encodedPattern.has(AEComponents.ENCODED_CRAFTING_PATTERN)) {
+            return EncodingMode.CRAFTING;
+        }
+        if (encodedPattern.has(AEComponents.ENCODED_SMITHING_TABLE_PATTERN)) {
+            return EncodingMode.SMITHING_TABLE;
+        }
+        if (encodedPattern.has(AEComponents.ENCODED_STONECUTTING_PATTERN)) {
+            return EncodingMode.STONECUTTING;
+        }
+        return encodedPattern.has(AEComponents.ENCODED_PROCESSING_PATTERN) ? EncodingMode.PROCESSING : null;
     }
 
     public enum Kind {
