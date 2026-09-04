@@ -194,6 +194,24 @@
 			"y": 112,
 			"width": 16,
 			"height": 16
-		}
+		},
+      "DATA_INTEGRATED_CHARGER_1": {
+        "x":80,
+        "y": 80,
+        "width": 16,
+        "height": 16
+      },
+      "DATA_INTEGRATED_CHARGER_2": {
+        "x": 96,
+        "y": 80,
+        "width": 16,
+        "height": 16
+      },
+      "DATA_INTEGRATED_CHARGER_3": {
+        "x": 112,
+        "y": 80,
+        "width": 16,
+        "height": 16
+      }
 	}
 }

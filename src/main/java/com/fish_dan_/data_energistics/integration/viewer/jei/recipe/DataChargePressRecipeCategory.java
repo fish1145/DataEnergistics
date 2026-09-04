@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.integration.viewer.jei.ui.JeiIconDrawable;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataChargePressRecipeView;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressIngredient;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
+import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.client.gui.GuiGraphics;
@@ -121,6 +122,8 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
             setPowderRecipe(builder, powderView);
         } else if (view instanceof DataChargePressRecipeView.DataChargerView dataChargerView) {
             setDataChargerRecipe(builder, dataChargerView);
+        } else if (view instanceof DataChargePressRecipeView.IntegratedChargerView integratedChargerView) {
+            setIntegratedChargerRecipe(builder, integratedChargerView);
         } else if (view instanceof DataChargePressRecipeView.CircuitBoardView circuitBoardView) {
             setCircuitBoardRecipe(builder, circuitBoardView);
         } else if (view instanceof DataChargePressRecipeView.EaeCircuitCutterView circuitCutterView) {
@@ -156,6 +159,29 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         var recipe = view.holder().value();
         builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y).addIngredients(recipe.getIngredient());
         builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(recipe.getResult());
+    }
+
+    private static void setIntegratedChargerRecipe(IRecipeLayoutBuilder builder,
+                                                   DataChargePressRecipeView.IntegratedChargerView view) {
+        addIntegratedChargerItemInputs(builder, view.holder().value().getInputs());
+        builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(view.holder().value().getResult());
+    }
+
+    private static void addIntegratedChargerItemInputs(IRecipeLayoutBuilder builder,
+                                                        List<DataChargePressIngredient> inputs) {
+        for (int index = 0; index < inputs.size(); index++) {
+            var input = inputs.get(index);
+            switch (index) {
+                case 0 -> builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y)
+                        .addItemStacks(withCount(input.ingredient(), input.count()));
+                case 1 -> builder.addInputSlot(SECOND_INPUT_X, SECOND_INPUT_Y)
+                        .addItemStacks(withCount(input.ingredient(), input.count()));
+                case 2 -> builder.addInputSlot(THIRD_INPUT_X, THIRD_INPUT_Y)
+                        .addItemStacks(withCount(input.ingredient(), input.count()));
+                default -> throw new IllegalArgumentException(
+                        "Data integrated charger recipes support at most " + DataIntegratedChargerRecipe.MAX_ITEM_INPUT_COUNT + " item inputs");
+            }
+        }
     }
 
     private static void setCircuitBoardRecipe(IRecipeLayoutBuilder builder,
@@ -231,6 +257,7 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
             return this.crystalGrowthModeIcon;
         }
         if (recipe instanceof DataChargePressRecipeView.InscriberView ||
+                recipe instanceof DataChargePressRecipeView.IntegratedChargerView ||
                 recipe instanceof DataChargePressRecipeView.CircuitBoardView ||
                 recipe instanceof DataChargePressRecipeView.EaeCircuitCutterView) {
             return this.inscriberModeIcon;
@@ -246,6 +273,7 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
             return "crystal_growth";
         }
         if (recipe instanceof DataChargePressRecipeView.InscriberView ||
+                recipe instanceof DataChargePressRecipeView.IntegratedChargerView ||
                 recipe instanceof DataChargePressRecipeView.CircuitBoardView ||
                 recipe instanceof DataChargePressRecipeView.EaeCircuitCutterView) {
             return "inscriber";

@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipeInput;
+import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
@@ -488,6 +489,19 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return false;
     }
 
+    private boolean processIntegratedChargerRecipeOperation() {
+        DataIntegratedChargerOperation operation = findIntegratedChargerRecipeOperation();
+        if (operation == null || !consumeOperationEnergy()) {
+            return false;
+        }
+
+        for (DataIntegratedChargerRecipe.InputSlot inputSlot : operation.inputSlots()) {
+            consume(inputSlot.slot(), inputSlot.count());
+        }
+        addToOutput(operation.result());
+        return true;
+    }
+
     /** Runs the dedicated crystal-growth recipes unlocked by the Not So Mysterious Cube module. */
     private boolean processCrystalGrowthOperation() {
         DataChargePressOperation operation = findCustomDataChargePressOperation();
@@ -526,6 +540,10 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private boolean processInscriberOperation() {
         if (this.level == null) {
             return false;
+        }
+
+        if (processIntegratedChargerRecipeOperation()) {
+            return true;
         }
 
         DataChargePressOperation dataChargePressOperation = findDataChargePressOperation();
@@ -776,6 +794,27 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return null;
     }
 
+    private @Nullable DataIntegratedChargerOperation findIntegratedChargerRecipeOperation() {
+        if (this.level == null) {
+            return null;
+        }
+
+        List<ItemStack> inputs = new ObjectArrayList<>(ITEM_INPUT_SLOT_COUNT);
+        for (int slot = 0; slot < ITEM_INPUT_SLOT_COUNT; slot++) {
+            inputs.add(this.storage.getStackInSlot(slot));
+        }
+        for (RecipeHolder<DataIntegratedChargerRecipe> holder : this.level.getRecipeManager()
+                .getAllRecipesFor(DERecipes.DATA_INTEGRATED_CHARGER_TYPE.get())) {
+            DataIntegratedChargerRecipe recipe = holder.value();
+            List<DataIntegratedChargerRecipe.InputSlot> inputSlots = recipe.findMatchingInputSlots(inputs);
+            ItemStack result = recipe.getResult();
+            if (!inputSlots.isEmpty() && findOutputSlot(result) >= 0) {
+                return new DataIntegratedChargerOperation(result, inputSlots);
+            }
+        }
+        return null;
+    }
+
     private boolean chargeAePower(ItemStack stack) {
         if (!(stack.getItem() instanceof appeng.api.implementations.items.IAEItemPowerStorage powerStorage)) {
             return false;
@@ -884,9 +923,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean canProcessChargerOperation() {
-        if (findCustomDataChargePressOperation() != null) {
-            return true;
-        }
         if (canProcessDataChargerRecipeOperation()) {
             return true;
         }
@@ -923,6 +959,10 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private boolean canProcessInscriberOperation() {
         if (this.level == null || !canConsumeOperationEnergy()) {
             return false;
+        }
+
+        if (findIntegratedChargerRecipeOperation() != null) {
+            return true;
         }
 
         if (findDataChargePressOperation() != null) {
@@ -1464,6 +1504,9 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private record DataChargePressOperation(ItemStack result, int fluidTank, int fluidAmount,
                                             List<DataChargePressRecipe.InputSlot> inputSlots) {}
+
+    private record DataIntegratedChargerOperation(ItemStack result,
+                                                  List<DataIntegratedChargerRecipe.InputSlot> inputSlots) {}
 
     private final class StorageFilter implements IAEItemFilter {
 

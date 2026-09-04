@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.integration.viewer.xei.recipe;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
+import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerRecipe;
 import com.fish_dan_.data_energistics.integration.recipe.EaeCircuitCutterRecipeCatalog;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
@@ -23,7 +24,8 @@ import java.util.List;
 public sealed interface DataChargePressRecipeView permits DataChargePressRecipeView.ChargerView,
                                                   DataChargePressRecipeView.InscriberView, DataChargePressRecipeView.CircuitBoardView,
                                                   DataChargePressRecipeView.PowderView, DataChargePressRecipeView.DataChargerView,
-                                                  DataChargePressRecipeView.CustomView, DataChargePressRecipeView.EaeCircuitCutterView {
+                                                  DataChargePressRecipeView.IntegratedChargerView, DataChargePressRecipeView.CustomView,
+                                                  DataChargePressRecipeView.EaeCircuitCutterView {
 
     ResourceLocation id();
 
@@ -52,6 +54,10 @@ public sealed interface DataChargePressRecipeView permits DataChargePressRecipeV
 
         recipeManager.getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get()).stream()
                 .map(DataChargerView::new)
+                .forEach(views::add);
+
+        recipeManager.getAllRecipesFor(DERecipes.DATA_INTEGRATED_CHARGER_TYPE.get()).stream()
+                .map(IntegratedChargerView::new)
                 .forEach(views::add);
         recipeManager.getAllRecipesFor(DERecipes.DATA_CHARGE_PRESS_TYPE.get()).stream()
                 .map(CustomView::new)
@@ -98,6 +104,15 @@ public sealed interface DataChargePressRecipeView permits DataChargePressRecipeV
 
     /** A data charger recipe performed by a data charger module. */
     record DataChargerView(RecipeHolder<DataChargerRecipe> holder) implements DataChargePressRecipeView {
+
+        @Override
+        public ResourceLocation id() {
+            return this.holder.id().withSuffix("/data_integrated_charger");
+        }
+    }
+
+    /** A multi-input recipe performed by the integrated charger's inscribing mode. */
+    record IntegratedChargerView(RecipeHolder<DataIntegratedChargerRecipe> holder) implements DataChargePressRecipeView {
 
         @Override
         public ResourceLocation id() {

@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataChargePressRecipeView;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressIngredient;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
+import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.client.gui.GuiGraphics;
@@ -79,6 +80,8 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
             addPowderRecipe(powderView.holder().value());
         } else if (view instanceof DataChargePressRecipeView.DataChargerView dataChargerView) {
             addDataChargerRecipe(dataChargerView);
+        } else if (view instanceof DataChargePressRecipeView.IntegratedChargerView integratedChargerView) {
+            addIntegratedChargerRecipe(integratedChargerView);
         } else if (view instanceof DataChargePressRecipeView.CircuitBoardView circuitBoardView) {
             addCircuitBoardRecipe(circuitBoardView.holder().value());
         } else if (view instanceof DataChargePressRecipeView.EaeCircuitCutterView circuitCutterView) {
@@ -100,6 +103,8 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
             addPowderWidgets(widgets, powderView.holder().value());
         } else if (this.view instanceof DataChargePressRecipeView.DataChargerView dataChargerView) {
             addDataChargerWidgets(widgets, dataChargerView);
+        } else if (this.view instanceof DataChargePressRecipeView.IntegratedChargerView integratedChargerView) {
+            addIntegratedChargerWidgets(widgets, integratedChargerView);
         } else if (this.view instanceof DataChargePressRecipeView.CircuitBoardView circuitBoardView) {
             addCircuitBoardWidgets(widgets, circuitBoardView.holder().value());
         } else if (this.view instanceof DataChargePressRecipeView.EaeCircuitCutterView circuitCutterView) {
@@ -124,6 +129,12 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private void addDataChargerRecipe(DataChargePressRecipeView.DataChargerView view) {
         var recipe = view.holder().value();
         this.inputs.add(EmiIngredient.of(recipe.getIngredient()));
+        this.outputs.add(EmiStack.of(recipe.getResult()));
+    }
+
+    private void addIntegratedChargerRecipe(DataChargePressRecipeView.IntegratedChargerView view) {
+        var recipe = view.holder().value();
+        recipe.getInputs().forEach(input -> this.inputs.add(EmiIngredient.of(input.ingredient(), input.count())));
         this.outputs.add(EmiStack.of(recipe.getResult()));
     }
 
@@ -191,6 +202,23 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     private void addDataChargerWidgets(WidgetHolder widgets, DataChargePressRecipeView.DataChargerView view) {
         var recipe = view.holder().value();
         widgets.addSlot(EmiIngredient.of(recipe.getIngredient()), FIRST_INPUT_X, FIRST_INPUT_Y).drawBack(false);
+        widgets.addSlot(EmiStack.of(recipe.getResult()), OUTPUT_X, OUTPUT_Y).drawBack(false).recipeContext(this);
+    }
+
+    private void addIntegratedChargerWidgets(WidgetHolder widgets,
+                                             DataChargePressRecipeView.IntegratedChargerView view) {
+        var recipe = view.holder().value();
+        for (int index = 0; index < recipe.getInputs().size(); index++) {
+            var input = recipe.getInputs().get(index);
+            int y = switch (index) {
+                case 0 -> FIRST_INPUT_Y;
+                case 1 -> SECOND_INPUT_Y;
+                case 2 -> THIRD_INPUT_Y;
+                default -> throw new IllegalArgumentException(
+                        "Data integrated charger recipes support at most " + DataIntegratedChargerRecipe.MAX_ITEM_INPUT_COUNT + " item inputs");
+            };
+            widgets.addSlot(EmiIngredient.of(input.ingredient(), input.count()), FIRST_INPUT_X, y).drawBack(false);
+        }
         widgets.addSlot(EmiStack.of(recipe.getResult()), OUTPUT_X, OUTPUT_Y).drawBack(false).recipeContext(this);
     }
 
@@ -301,6 +329,7 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
             return new ModeIndicator(DATA_STATES_TEXTURE, 80, 80, 128, "crystal_growth");
         }
         if (view instanceof DataChargePressRecipeView.InscriberView ||
+                view instanceof DataChargePressRecipeView.IntegratedChargerView ||
                 view instanceof DataChargePressRecipeView.CircuitBoardView ||
                 view instanceof DataChargePressRecipeView.EaeCircuitCutterView) {
             return new ModeIndicator(DATA_STATES_TEXTURE, 96, 80, 128, "inscriber");
