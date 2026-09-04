@@ -60,6 +60,7 @@ public final class CraftingPlanGraphLayout {
                 groups.get(target).parents.add(source);
             }
         }
+        Int2IntMap portCounts = portCounts(graph);
         outgoing.values().forEach(neighbors -> neighbors.sort(IntComparators.NATURAL_COMPARATOR));
         for (Group group : groups.values()) {
             group.nodes.sort(Comparator.comparingInt((ViewNode node) -> node.id() == graph.rootId() ? 0 : 1)
@@ -68,7 +69,7 @@ public final class CraftingPlanGraphLayout {
             if (group.cyclic) {
                 orderCycle(group, nodeById, outgoing);
             }
-            configureSlots(group, cellWidth, cellHeight, spacing);
+            configureSlots(group, cellWidth, cellHeight, spacing, portCounts);
         }
         IntHeapPriorityQueue ready = new IntHeapPriorityQueue();
         for (Group group : groups.values()) {
@@ -154,7 +155,12 @@ public final class CraftingPlanGraphLayout {
         group.nodes.addAll(ordered);
     }
 
-    private static void configureSlots(Group group, double cellWidth, double cellHeight, Spacing spacing) {
+    private static void configureSlots(Group group, double cellWidth, double cellHeight, Spacing spacing,
+                                       Int2IntMap portCounts) {
+        group.cellWidth = cellWidth;
+        for (ViewNode node : group.nodes) {
+            group.cellWidth = Math.max(group.cellWidth, 12 + 2D * portCounts.get(node.id()));
+        }
         int count = group.nodes.size();
         int columns;
         int rows;
@@ -163,7 +169,7 @@ public final class CraftingPlanGraphLayout {
             rows = 1;
         } else {
             // Allocate perimeter slots dynamically, balancing physical width/height rather than assuming a cycle size.
-            columns = Math.max(2, (int) Math.ceil((count + 4) * (cellHeight + spacing.cellGap()) / (2 * (cellWidth + cellHeight + 2 * spacing.cellGap()))));
+            columns = Math.max(2, (int) Math.ceil((count + 4) * (cellHeight + spacing.cellGap()) / (2 * (group.cellWidth + cellHeight + 2 * spacing.cellGap()))));
             rows = Math.max(2, (count - 2 * columns + 5) / 2);
         }
         for (int column = 0; column < columns && group.slots.size() < count; column++) {
@@ -178,8 +184,25 @@ public final class CraftingPlanGraphLayout {
         for (int row = rows - 2; row > 0 && group.slots.size() < count; row--) {
             group.slots.add(new Slot(row, 0));
         }
-        group.width = 2 * spacing.componentPadding() + columns * cellWidth + (columns - 1) * spacing.cellGap();
+        group.width = 2 * spacing.componentPadding() + columns * group.cellWidth + (columns - 1) * spacing.cellGap();
         group.height = 2 * spacing.componentPadding() + rows * cellHeight + (rows - 1) * spacing.cellGap();
+    }
+
+    private static Int2IntMap portCounts(ViewGraph graph) {
+        var styles = CraftingPlanRouteGroup.indexStyles(graph.source());
+        var ports = new ObjectOpenHashSet<NodePort>();
+        for (ViewEdge edge : graph.edges()) {
+            var edgeStyles = new ObjectOpenHashSet<Style>();
+            for (int original : edge.originalEdgeIds()) edgeStyles.add(styles.get(original));
+            for (Style style : edgeStyles) {
+                int destination = style.materialFlow() ? edge.source() : edge.target();
+                ports.add(new NodePort(edge.source(), true, style, destination));
+                ports.add(new NodePort(edge.target(), false, style, destination));
+            }
+        }
+        var counts = new Int2IntOpenHashMap();
+        for (NodePort port : ports) counts.addTo(port.node(), 1);
+        return counts;
     }
 
     private static void placeNodes(Group group, boolean compact, double cellWidth, double cellHeight, Spacing spacing,
@@ -193,9 +216,10 @@ public final class CraftingPlanGraphLayout {
                                   Spacing spacing, Int2ObjectMap<PlacedNode> placed) {
         ViewNode node = group.nodes.get(index);
         Slot slot = group.slots.get(index);
-        double width = node.sourceNode() instanceof Process ? compact ? 36 : 40 : node.embeddedProcessId() != null ? cellWidth : compact ? 30 : 32;
+        double slotWidth = Math.max(cellWidth, group.cellWidth);
+        double width = slotWidth;
         double height = node.sourceNode() instanceof Process ? cellHeight : compact ? 72 : 80;
-        double nodeX = spacing.componentPadding() + slot.column() * (cellWidth + spacing.cellGap()) + (cellWidth - width) / 2;
+        double nodeX = spacing.componentPadding() + slot.column() * (slotWidth + spacing.cellGap());
         double nodeY = spacing.componentPadding() + slot.row() * (cellHeight + spacing.cellGap());
         placed.put(node.id(), new PlacedNode(node, group.depth + nodeY, group.cross + nodeX, height, width));
     }
@@ -486,6 +510,8 @@ public final class CraftingPlanGraphLayout {
 
     private record ChannelEvent(double coordinate, int delta) {}
 
+    private record NodePort(int node, boolean source, Style style, int destination) {}
+
     private static final class Group {
 
         private final int id;
@@ -498,6 +524,7 @@ public final class CraftingPlanGraphLayout {
         private boolean cyclic;
         private double width;
         private double height;
+        private double cellWidth;
         private double cross;
         private double depth;
 
