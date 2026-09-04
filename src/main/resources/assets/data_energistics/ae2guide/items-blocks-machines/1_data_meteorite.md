@@ -110,7 +110,7 @@ All five Data Crystal mother rocks preserve their own tier when mined with Silk 
 </GameScene>
 
 Dispersing Manifest Binary are mining digital meteorites (drop rates as shown in the table above) and mining residual data ores (guaranteed to drop 1~3).
-Nearby Dispersing Manifest Binary attract and merge automatically. Their names show the contained amount, up to 16 Binary units per entity. At 16 units, the entity is about 2.52 times its base size.
+Nearby Dispersing Manifest Binary attract and merge automatically. Their names show the contained amount, up to 8 Binary units per entity. At 8 units, the entity is about 2 times its base size.
 > ⚠ if you leave it alone for a minute, it will fade away  
 > 
 When he appears in the world, you need to use it

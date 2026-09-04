@@ -1,0 +1,52 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:empty_trinity_unit",
+				"count": 9
+			},
+			{
+				"item": "data_energistics:me_digital_storage_core_64k"
+			},
+			{
+				"item": "data_energistics:data_storage_component_64k"
+			},
+			{
+				"item": "ae2:cell_component_64k"
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 24
+			},
+			{
+				"item": "data_energistics:data_residual_crystal",
+				"count": 8
+			},
+			{
+				"tag": "data_energistics:specialized_carrier"
+			},
+			{
+				"item": "data_energistics:complexified_biochips",
+				"count": 4
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 12625
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:manifest_binary",
+			"amount": 57
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:me_digital_storage_core_256k"
+			}
+		]
+	}
+}

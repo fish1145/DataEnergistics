@@ -1,0 +1,53 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:empty_trinity_unit",
+				"count": 9
+			},
+			{
+				"item": "data_energistics:me_digital_merged_storage_core_64k"
+			},
+			{
+				"item": "ae2:64k_crafting_storage"
+			},
+			{
+				"item": "ae2:crafting_accelerator",
+				"count": 12
+			},
+			{
+				"item": "data_energistics:data_storage_component_64k"
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 24
+			},
+			{
+				"item": "data_energistics:singularity_block",
+				"count": 8
+			},
+			{
+				"item": "data_energistics:data_residual_crystal",
+				"count": 10
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 15652
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:manifest_binary",
+			"amount": 65
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:me_digital_merged_storage_core_256k"
+			}
+		]
+	}
+}

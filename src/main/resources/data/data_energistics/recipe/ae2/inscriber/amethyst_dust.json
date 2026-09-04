@@ -1,0 +1,13 @@
+{
+	"type": "ae2:inscriber",
+	"mode": "inscribe",
+	"ingredients": {
+		"middle": {
+			"item": "minecraft:amethyst_shard"
+		}
+	},
+	"result": {
+		"id": "data_energistics:amethyst_dust",
+		"count": 1
+	}
+}
