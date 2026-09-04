@@ -3,7 +3,7 @@
 `registry.craftingMachines()` 为一个 block-entity machine 暴露彼此独立的两类能力：
 
 - remaining capacity：补充普通 inventory insertion 无法表达的 queue、parallel slot 或内部容量；
-- pattern upload workstation：在 exact provider leaf 真正接受样板时，事务性调整机器模式、配方槽、端口或其他机器自有状态。
+- pattern upload workstation：只读描述 live machine variant，并在 exact provider leaf 真正接受样板时验证或事务性调整配方槽、端口等机器自有状态。
 
 注册其中一项不会强制注册另一项，也不会要求机器本身实现 pattern provider。
 
@@ -41,6 +41,8 @@ registry.craftingMachines().registerPatternUploadWorkstation(
                 context -> prepareAlloyMode(context)));
 ```
 
+`PatternUploadWorkstationAdapter` 仍是 functional interface；简单 adapter 只实现 `prepare(...)`。需要让 live machine mode 参与上传面板分组时，使用普通实现类同时覆盖只读的 `inspect(...)` default method。inspection 不得修改机器或创建事务。
+
 `PatternUploadWorkstationContext` 给 adapter 完整但短生命周期的服务端事实：
 
 - `player()`：发起上传的 `ServerPlayer`；
@@ -49,19 +51,47 @@ registry.craftingMachines().registerPatternUploadWorkstation(
 - `patternDetails()`：由服务端当前世界解码的 `IPatternDetails`；
 - `patternDetails().getDefinition()`：immutable `AEItemKey`，保留编码物品与全部 data components，避免为每个工作站复制 `ItemStack`；
 - `recipeTypeId()`：可空的、从最终 encoded pattern 恢复或推导出的 recipe-type/category hint；crafting、smithing、stonecutting 和 processing 都可能提供，只能辅助定位候选，必须用 `patternDetails()` 和当前服务端配方再次验证；
+- `recipeId()`：可空的 stable processing recipe ID；它独立于按 recipe type 统计的 provider history，用于锁定具体 server recipe，但仍必须与 `patternDetails()` 完整内容一致；
 - `requestedPatternCount()`：仍等待当前 leaf 的正数数量。
 
 这些对象只能在同步 callback 内检查。不要保存 player、level、provider、block entity 或 decoded pattern。需要跨越 inventory mutation 的状态，只能压缩进返回的 `PreparedPatternUploadChange`。
 
-## 三种 prepare 结果
+## 四种 prepare 结果
 
 `PatternUploadWorkstationPreparation` 明确区分：
 
 - `pass()`：该已注册 machine type 不处理当前 pattern，普通上传继续；
+- `accepted()`：机器识别该 pattern，当前 live variant 已经兼容，不需要修改机器；
 - `rejected(Component)`：机器识别该 pattern，但不能安全配置；当前 leaf 被跳过，全部 leaf 都拒绝时把原因发送给玩家；
 - `prepared(change)`：返回一个可逆、一次性的 machine change。
 
 不要把“无法识别”当成 rejection，否则一个 provider 同时连接多种机器时，无关机器会阻止合法上传。不要根据客户端传来的模式、viewer display name 或机器当前模式猜测；应使用当前 server recipes 和 decoded pattern contents 验证。
+
+## Live variant 与上传面板分组
+
+`inspect(PatternUploadWorkstationInspectionContext)` 可以返回稳定的 `PatternUploadWorkstationVariant` 和当前 pattern compatibility：
+
+inspection context 同样提供 `player()`、exact `provider()`、`providerIdentity()` 和实际 machine route；只有尚未编码时 `patternDetails()` 允许为空，且 inspection 始终只读。这样第三方 adapter 可以按权限、供应器类型或稳定身份描述 live variant，而不必等到 `prepare(...)` 才发现上下文不足。
+
+- `UNKNOWN`：没有 encoded pattern 或信息不足；仍按 variant 分组，但不标 exact；
+- `COMPATIBLE`：当前 live variant 可以执行服务端验证后的 pattern；该组优先显示；
+- `INCOMPATIBLE`：机器识别 pattern，但当前 variant 不匹配；单独分组且不标 exact。
+
+aggregation key 同时包含原 provider group、排序后的 variant IDs 和 compatibility。多个 provider 分别连接不同模式机器时会形成不同上传行；一个 provider leaf 同时连接多个模式时只形成一个 mixed row，不能把同一个 pattern inventory 伪装成两个可独立路由的 leaf。
+
+点击上传时不会信任 panel snapshot，而是重新解析该 leaf 的全部 actual routes。只要一个实际可接收工作站返回 mismatch/rejection，整个 leaf 就不可用；同一 leaf 的所有工作站都兼容后才允许写 pattern inventory。
+
+Data Integrated Charger 使用该规则只验证当前模式，不会因上传样板而自动切换任意机器模式。
+
+## Stable processing recipe ID
+
+viewer transfer 会把具体 processing recipe ID 与 recipe type 分开保存：
+
+- recipe type 继续作为 provider ranking 和点击历史的聚合键；
+- recipe ID 追加到最终 encoded pattern，用于精确配方和模式解析；
+- Data Integrated Charger 的统一类别 ID 包含 recipe family 与 source recipe ID，JEI/EMI 生成相同值；
+- 服务端先以 stable ID 查找当前 recipe，再验证完整 inputs/outputs；过期或伪造 ID不能直接决定模式；
+- 旧样板没有 recipe ID 时继续使用 content-only fallback，唯一模式仍可上传，跨模式歧义仍拒绝。
 
 ## 事务顺序
 

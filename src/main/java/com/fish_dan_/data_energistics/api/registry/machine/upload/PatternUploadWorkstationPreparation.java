@@ -14,9 +14,15 @@ import java.util.Objects;
  * </p>
  */
 public sealed interface PatternUploadWorkstationPreparation
-                                                            permits PatternUploadWorkstationPreparation.Pass,
+                                                            permits PatternUploadWorkstationPreparation.Accepted,
+                                                            PatternUploadWorkstationPreparation.Pass,
                                                             PatternUploadWorkstationPreparation.Prepared,
                                                             PatternUploadWorkstationPreparation.Rejected {
+
+    /** Returns the shared result for a recognized compatible pattern that needs no machine mutation. */
+    static PatternUploadWorkstationPreparation accepted() {
+        return Accepted.INSTANCE;
+    }
 
     /** Returns the shared result used when the adapter does not apply to this pattern. */
     static PatternUploadWorkstationPreparation pass() {
@@ -31,6 +37,11 @@ public sealed interface PatternUploadWorkstationPreparation
     /** Creates an authoritative rejection with a user-visible reason. */
     static PatternUploadWorkstationPreparation rejected(Component message) {
         return new Rejected(message);
+    }
+
+    /** The machine recognizes the pattern and its live state is already compatible. */
+    enum Accepted implements PatternUploadWorkstationPreparation {
+        INSTANCE
     }
 
     /** The registered machine type does not handle this exact pattern. */

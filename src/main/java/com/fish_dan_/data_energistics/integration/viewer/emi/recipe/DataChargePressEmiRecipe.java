@@ -91,6 +91,11 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
         }
     }
 
+    /** Returns the same stable processing-pattern identity used by JEI transfer. */
+    public ResourceLocation patternRecipeId() {
+        return this.view.patternRecipeId();
+    }
+
     @Override
     public void addWidgets(WidgetHolder widgets) {
         addMachineBackground(widgets);
@@ -322,19 +327,12 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     }
 
     private static ModeIndicator getModeIndicator(DataChargePressRecipeView view) {
-        if (view instanceof DataChargePressRecipeView.PowderView) {
-            return new ModeIndicator(STATES_TEXTURE, 16, 224, 256, "powder");
-        }
-        if (view instanceof DataChargePressRecipeView.CustomView) {
-            return new ModeIndicator(DATA_STATES_TEXTURE, 80, 80, 128, "crystal_growth");
-        }
-        if (view instanceof DataChargePressRecipeView.InscriberView ||
-                view instanceof DataChargePressRecipeView.IntegratedChargerView ||
-                view instanceof DataChargePressRecipeView.CircuitBoardView ||
-                view instanceof DataChargePressRecipeView.EaeCircuitCutterView) {
-            return new ModeIndicator(DATA_STATES_TEXTURE, 96, 80, 128, "inscriber");
-        }
-        return new ModeIndicator(DATA_STATES_TEXTURE, 112, 80, 128, "charger");
+        return switch (view.machineMode()) {
+            case CHARGER -> new ModeIndicator(DATA_STATES_TEXTURE, 112, 80, 128, "charger");
+            case CRYSTAL_GROWTH -> new ModeIndicator(DATA_STATES_TEXTURE, 80, 80, 128, "crystal_growth");
+            case INSCRIBER -> new ModeIndicator(DATA_STATES_TEXTURE, 96, 80, 128, "inscriber");
+            case POWDER -> new ModeIndicator(STATES_TEXTURE, 16, 224, 256, "powder");
+        };
     }
 
     private record ModeIndicator(ResourceLocation texture, int sourceX, int sourceY, int textureSize,

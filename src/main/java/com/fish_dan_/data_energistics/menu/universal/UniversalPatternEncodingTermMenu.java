@@ -200,12 +200,16 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                     finalPattern,
                     this.mode == EncodingMode.PROCESSING &&
                             ((PatternOutputMatchMenu) this).data_energistics$isProcessingOutputSameItem());
-            EncodedPatternRecipeReference.applyProcessingRecipeType(
+            EncodedPatternRecipeReference.applyProcessingRecipeMetadata(
                     finalPattern,
                     PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
                             this,
                             data_energistics$getPreferenceSession(),
-                            this));
+                            this),
+                    PatternEncodingSourceHelper.resolveProcessingPatternRecipeId(
+                            this,
+                            data_energistics$getPreferenceSession()));
+            syncPatternProvidersIfNeeded(true);
             encodedSuccessfully = true;
         } finally {
             if (handoffStarted) {
@@ -626,15 +630,19 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 grid,
                 PatternProviderSyncTracker.capturePublicationVersion(grid),
                 this.getPlayer().level().getGameTime(),
-                data_energistics$getPreferenceSession().rankingContext());
+                data_energistics$getPreferenceSession().rankingContext(),
+                data_energistics$getEncodedPatternDefinition());
     }
 
     private void syncPatternProvidersFromNetwork(
                                                  IGrid grid,
                                                  PatternProviderSyncTracker.PublicationVersion publication,
                                                  long currentTick,
-                                                 @Nullable PatternEncodingRankingContext rankingContext) {
+                                                 @Nullable PatternEncodingRankingContext rankingContext,
+                                                 @Nullable AEItemKey encodedPatternDefinition) {
         this.syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
+                (ServerPlayer) this.getPlayer(),
+                encodedPatternDefinition,
                 grid,
                 this.syncedPatternProviderIds,
                 this.syncedPatternProvidersById,
@@ -644,7 +652,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         this.patternProviderSyncTracker.refreshed(
                 publication,
                 currentTick,
-                rankingContext);
+                rankingContext,
+                encodedPatternDefinition);
         this.lastPreferenceRevision = data_energistics$getPreferenceSession().revision();
     }
 
@@ -657,12 +666,14 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
         var publication = PatternProviderSyncTracker.capturePublicationVersion(grid);
         PatternEncodingRankingContext rankingContext = data_energistics$getPreferenceSession().rankingContext();
+        AEItemKey encodedPatternDefinition = data_energistics$getEncodedPatternDefinition();
         long currentTick = this.getPlayer().level().getGameTime();
         long preferenceRevision = data_energistics$getPreferenceSession().revision();
         if (!force && preferenceRevision == this.lastPreferenceRevision && !this.patternProviderSyncTracker.needsRefresh(
                 publication,
                 currentTick,
-                rankingContext)) {
+                rankingContext,
+                encodedPatternDefinition)) {
             return;
         }
 
@@ -670,7 +681,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 grid,
                 publication,
                 currentTick,
-                rankingContext);
+                rankingContext,
+                encodedPatternDefinition);
     }
 
     private void clearSyncedPatternProviders() {

@@ -33,6 +33,8 @@ import org.jspecify.annotations.Nullable;
  * @param patternDetails        server-decoded pattern semantics
  * @param recipeTypeId          optional recipe-type/category hint derived from the final encoded pattern; adapters
  *                              must validate it against {@code patternDetails}
+ * @param recipeId              optional stable processing recipe identity captured from the viewer transfer;
+ *                              adapters must validate it against current server recipes and {@code patternDetails}
  * @param requestedPatternCount positive number of encoded patterns still awaiting this leaf
  */
 public record PatternUploadWorkstationContext(ServerPlayer player,
@@ -44,6 +46,7 @@ public record PatternUploadWorkstationContext(ServerPlayer player,
                                               BlockEntity workstation,
                                               IPatternDetails patternDetails,
                                               @Nullable ResourceLocation recipeTypeId,
+                                              @Nullable ResourceLocation recipeId,
                                               int requestedPatternCount) {
 
     public PatternUploadWorkstationContext {

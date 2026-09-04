@@ -250,34 +250,20 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
     }
 
     private IDrawable getModeIcon(DataChargePressRecipeView recipe) {
-        if (recipe instanceof DataChargePressRecipeView.PowderView) {
-            return this.powderModeIcon;
-        }
-        if (recipe instanceof DataChargePressRecipeView.CustomView) {
-            return this.crystalGrowthModeIcon;
-        }
-        if (recipe instanceof DataChargePressRecipeView.InscriberView ||
-                recipe instanceof DataChargePressRecipeView.IntegratedChargerView ||
-                recipe instanceof DataChargePressRecipeView.CircuitBoardView ||
-                recipe instanceof DataChargePressRecipeView.EaeCircuitCutterView) {
-            return this.inscriberModeIcon;
-        }
-        return this.chargerModeIcon;
+        return switch (recipe.machineMode()) {
+            case CHARGER -> this.chargerModeIcon;
+            case CRYSTAL_GROWTH -> this.crystalGrowthModeIcon;
+            case INSCRIBER -> this.inscriberModeIcon;
+            case POWDER -> this.powderModeIcon;
+        };
     }
 
     private static String getModeTranslationKey(DataChargePressRecipeView recipe) {
-        if (recipe instanceof DataChargePressRecipeView.PowderView) {
-            return "powder";
-        }
-        if (recipe instanceof DataChargePressRecipeView.CustomView) {
-            return "crystal_growth";
-        }
-        if (recipe instanceof DataChargePressRecipeView.InscriberView ||
-                recipe instanceof DataChargePressRecipeView.IntegratedChargerView ||
-                recipe instanceof DataChargePressRecipeView.CircuitBoardView ||
-                recipe instanceof DataChargePressRecipeView.EaeCircuitCutterView) {
-            return "inscriber";
-        }
-        return "charger";
+        return switch (recipe.machineMode()) {
+            case CHARGER -> "charger";
+            case CRYSTAL_GROWTH -> "crystal_growth";
+            case INSCRIBER -> "inscriber";
+            case POWDER -> "powder";
+        };
     }
 }

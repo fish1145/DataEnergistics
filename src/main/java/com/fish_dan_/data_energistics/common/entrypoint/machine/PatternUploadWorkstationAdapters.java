@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.common.entrypoint.machine;
 
 import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationContext;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationInspection;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationInspectionContext;
 import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationPreparation;
 import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationRegistration;
 
@@ -57,6 +59,14 @@ public final class PatternUploadWorkstationAdapters {
                 registration.adapter().prepare(context),
                 "Pattern upload workstation adapter returned null");
         return preparation;
+    }
+
+    /** Invokes one read-only live-variant inspection at the untrusted plugin callback boundary. */
+    public static PatternUploadWorkstationInspection inspect(PatternUploadWorkstationRegistration registration,
+                                                             PatternUploadWorkstationInspectionContext context) {
+        return Objects.requireNonNull(
+                registration.adapter().inspect(context),
+                "Pattern upload workstation adapter returned null inspection");
     }
 
     private static void requireInstalled() {

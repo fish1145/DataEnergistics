@@ -19,10 +19,10 @@ public record EncodedPatternRecipeReference(Kind kind, ResourceLocation id) {
     private static final ResourceLocation STONECUTTING_RECIPE_TYPE = ResourceLocation.withDefaultNamespace(
             "stonecutting");
 
-    /** Writes or removes the processing recipe type beside the pattern's output-match metadata. */
-    public static void applyProcessingRecipeType(
-                                                 ItemStack encodedPattern,
-                                                 @Nullable ResourceLocation recipeTypeId) {
+    /** Atomically replaces the optional processing recipe type and stable recipe identity. */
+    public static void applyProcessingRecipeMetadata(ItemStack encodedPattern,
+                                                     @Nullable ResourceLocation recipeTypeId,
+                                                     @Nullable ResourceLocation recipeId) {
         if (encodedPattern.isEmpty()) {
             throw new IllegalArgumentException("Cannot mark an empty encoded pattern");
         }
@@ -31,6 +31,17 @@ public record EncodedPatternRecipeReference(Kind kind, ResourceLocation id) {
         } else {
             encodedPattern.set(DEDataComponents.PROCESSING_PATTERN_RECIPE_TYPE, recipeTypeId);
         }
+        if (recipeId == null) {
+            encodedPattern.remove(DEDataComponents.PROCESSING_PATTERN_RECIPE_ID);
+        } else {
+            encodedPattern.set(DEDataComponents.PROCESSING_PATTERN_RECIPE_ID, recipeId);
+        }
+    }
+
+    /** Returns the stable processing recipe identity appended by a successful viewer transfer, if present. */
+    public static @Nullable ResourceLocation getProcessingRecipeId(ItemStack encodedPattern) {
+        return encodedPattern.isEmpty() ? null :
+                encodedPattern.get(DEDataComponents.PROCESSING_PATTERN_RECIPE_ID);
     }
 
     /**

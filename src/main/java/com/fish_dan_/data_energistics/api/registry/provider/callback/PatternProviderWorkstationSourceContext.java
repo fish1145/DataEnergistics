@@ -15,13 +15,16 @@ import org.jspecify.annotations.Nullable;
  * @param player                player who requested the upload
  * @param provider              exact provider leaf whose inventory may receive the pattern
  * @param providerIdentity      stable identity of the provider leaf
- * @param patternDetails        server-decoded pattern semantics
+ * @param patternDetails        server-decoded pattern semantics, or {@code null} during pattern-less panel grouping
  * @param recipeTypeId          optional recipe-type/category hint derived from the final encoded pattern
- * @param requestedPatternCount positive number of encoded patterns still awaiting this provider leaf
+ * @param recipeId              optional stable processing recipe identity captured from the viewer transfer
+ * @param requestedPatternCount number of encoded patterns still awaiting this provider leaf, or zero during
+ *                              pattern-less panel grouping
  */
 public record PatternProviderWorkstationSourceContext(ServerPlayer player,
                                                       PatternContainer provider,
                                                       PatternProviderIdentity providerIdentity,
-                                                      IPatternDetails patternDetails,
+                                                      @Nullable IPatternDetails patternDetails,
                                                       @Nullable ResourceLocation recipeTypeId,
+                                                      @Nullable ResourceLocation recipeId,
                                                       int requestedPatternCount) {}

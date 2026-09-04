@@ -2,9 +2,12 @@ package com.fish_dan_.data_energistics.blockentity.machine;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationCompatibility;
 import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationContext;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationInspection;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationInspectionContext;
 import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationPreparation;
-import com.fish_dan_.data_energistics.api.registry.machine.upload.PreparedPatternUploadChange;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationVariant;
 import com.fish_dan_.data_energistics.block.machine.DataIntegratedChargerBlock;
 import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
@@ -133,6 +136,14 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String MACHINE_MODE_TAG = "machine_mode";
     private static final String LEGACY_MODULE_REFUND_TAG = "legacy_module_refund";
     private static final ResourceLocation DATA_CHARGE_PRESS_RECIPE_TYPE_ID = Data_Energistics.id("data_charge_press");
+    private static final PatternUploadWorkstationVariant CHARGER_UPLOAD_VARIANT = createUploadVariant(
+            MachineMode.CHARGER, "charger");
+    private static final PatternUploadWorkstationVariant CRYSTAL_GROWTH_UPLOAD_VARIANT = createUploadVariant(
+            MachineMode.CRYSTAL_GROWTH, "crystal_growth");
+    private static final PatternUploadWorkstationVariant INSCRIBER_UPLOAD_VARIANT = createUploadVariant(
+            MachineMode.INSCRIBER, "inscriber");
+    private static final PatternUploadWorkstationVariant POWDER_UPLOAD_VARIANT = createUploadVariant(
+            MachineMode.POWDER, "powder");
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(
             DEBlocks.DATA_INTEGRATED_CHARGER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new IntegratedChargerItemInventory();
@@ -331,20 +342,37 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return true;
     }
 
-    /**
-     * Prepares a reversible mode transition for one provider upload targeting this machine.
-     *
-     * <p>
-     * Recipe matching uses only current server recipes and the decoded pattern contents. Viewer metadata and the
-     * machine's current mode never decide an ambiguous match.
-     * </p>
-     */
+    /** Describes the current mode and its compatibility with the encoded pattern without changing machine state. */
+    public PatternUploadWorkstationInspection inspectPatternUpload(
+                                                                   PatternUploadWorkstationInspectionContext context) {
+        PatternUploadWorkstationCompatibility compatibility = PatternUploadWorkstationCompatibility.UNKNOWN;
+        if (context.patternDetails() != null) {
+            int matchingModes = DataIntegratedChargerPatternModeResolver.resolveModeMask(
+                    context.level(), context.patternDetails(), context.recipeId());
+            if (matchingModes == 0) {
+                if (DATA_CHARGE_PRESS_RECIPE_TYPE_ID.equals(context.recipeTypeId()) ||
+                        DataIntegratedChargerPatternModeResolver.isStableRecipeId(context.recipeId())) {
+                    compatibility = PatternUploadWorkstationCompatibility.INCOMPATIBLE;
+                }
+            } else if (Integer.bitCount(matchingModes) != 1) {
+                compatibility = PatternUploadWorkstationCompatibility.INCOMPATIBLE;
+            } else {
+                MachineMode requiredMode = MachineMode.values()[Integer.numberOfTrailingZeros(matchingModes)];
+                compatibility = requiredMode == this.machineMode ?
+                        PatternUploadWorkstationCompatibility.COMPATIBLE :
+                        PatternUploadWorkstationCompatibility.INCOMPATIBLE;
+            }
+        }
+        return PatternUploadWorkstationInspection.variant(uploadVariant(this.machineMode), compatibility);
+    }
+
+    /** Validates that this machine is already in the unique mode required by the exact server-side recipe. */
     public PatternUploadWorkstationPreparation preparePatternUpload(PatternUploadWorkstationContext context) {
         int matchingModes = DataIntegratedChargerPatternModeResolver.resolveModeMask(
-                context.level(),
-                context.patternDetails());
+                context.level(), context.patternDetails(), context.recipeId());
         if (matchingModes == 0) {
-            if (DATA_CHARGE_PRESS_RECIPE_TYPE_ID.equals(context.recipeTypeId())) {
+            if (DATA_CHARGE_PRESS_RECIPE_TYPE_ID.equals(context.recipeTypeId()) ||
+                    DataIntegratedChargerPatternModeResolver.isStableRecipeId(context.recipeId())) {
                 return PatternUploadWorkstationPreparation.rejected(Component.translatable(
                         "message.data_energistics.data_integrated_charger.pattern_mode_unresolved"));
             }
@@ -354,8 +382,14 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             return PatternUploadWorkstationPreparation.rejected(Component.translatable(
                     "message.data_energistics.data_integrated_charger.pattern_mode_ambiguous"));
         }
-        return PatternUploadWorkstationPreparation.prepared(
-                new MachineModePatternUploadChange(MachineMode.values()[Integer.numberOfTrailingZeros(matchingModes)]));
+        MachineMode requiredMode = MachineMode.values()[Integer.numberOfTrailingZeros(matchingModes)];
+        if (requiredMode != this.machineMode) {
+            return PatternUploadWorkstationPreparation.rejected(Component.translatable(
+                    "message.data_energistics.data_integrated_charger.pattern_mode_mismatch",
+                    modeDisplayName(requiredMode),
+                    modeDisplayName(this.machineMode)));
+        }
+        return PatternUploadWorkstationPreparation.accepted();
     }
 
     public void serverTick() {
@@ -1516,6 +1550,31 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return new GenericStack(AEFluidKey.of(fluid), fluid.getAmount());
     }
 
+    private static PatternUploadWorkstationVariant createUploadVariant(MachineMode mode, String name) {
+        return new PatternUploadWorkstationVariant(
+                Data_Energistics.id("data_integrated_charger/" + name),
+                modeDisplayName(mode));
+    }
+
+    private static PatternUploadWorkstationVariant uploadVariant(MachineMode mode) {
+        return switch (mode) {
+            case CHARGER -> CHARGER_UPLOAD_VARIANT;
+            case CRYSTAL_GROWTH -> CRYSTAL_GROWTH_UPLOAD_VARIANT;
+            case INSCRIBER -> INSCRIBER_UPLOAD_VARIANT;
+            case POWDER -> POWDER_UPLOAD_VARIANT;
+        };
+    }
+
+    private static Component modeDisplayName(MachineMode mode) {
+        String name = switch (mode) {
+            case CHARGER -> "charger";
+            case CRYSTAL_GROWTH -> "crystal_growth";
+            case INSCRIBER -> "inscriber";
+            case POWDER -> "powder";
+        };
+        return Component.translatable("button.data_energistics.data_integrated_charger.machine_mode." + name);
+    }
+
     public enum MachineMode {
 
         POWDER,
@@ -1543,71 +1602,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
 
     private record DataIntegratedChargerOperation(ItemStack result,
                                                   List<DataIntegratedChargerRecipe.InputSlot> inputSlots) {}
-
-    /** Keeps a failed provider insertion from changing the selected mode or destroying in-progress work. */
-    private final class MachineModePatternUploadChange implements PreparedPatternUploadChange {
-
-        private final MachineMode targetMode;
-        private final MachineMode previousMachineMode = DataIntegratedChargerBlockEntity.this.machineMode;
-        private final MachineMode previousProcessingMode = DataIntegratedChargerBlockEntity.this.processingMode;
-        private final int previousProgress = DataIntegratedChargerBlockEntity.this.progress;
-        private UploadChangeState state = UploadChangeState.PREPARED;
-
-        private MachineModePatternUploadChange(MachineMode targetMode) {
-            this.targetMode = targetMode;
-        }
-
-        @Override
-        public void apply() {
-            requireState(UploadChangeState.PREPARED);
-            DataIntegratedChargerBlockEntity.this.machineMode = this.targetMode;
-            DataIntegratedChargerBlockEntity.this.processingMode = this.targetMode;
-            this.state = UploadChangeState.APPLIED;
-        }
-
-        @Override
-        public void complete(long ignoredCommittedPatternCount) {
-            requireState(UploadChangeState.APPLIED);
-            finishAppliedMode();
-        }
-
-        @Override
-        public void completeIndeterminate() {
-            requireState(UploadChangeState.APPLIED);
-            finishAppliedMode();
-        }
-
-        private void finishAppliedMode() {
-            if (this.previousMachineMode != this.targetMode || this.previousProcessingMode != this.targetMode) {
-                DataIntegratedChargerBlockEntity.this.progress = 0;
-                DataIntegratedChargerBlockEntity.this.saveChanges();
-                DataIntegratedChargerBlockEntity.this.markForClientUpdate();
-            }
-            this.state = UploadChangeState.FINISHED;
-        }
-
-        @Override
-        public void rollback() {
-            requireState(UploadChangeState.APPLIED);
-            DataIntegratedChargerBlockEntity.this.machineMode = this.previousMachineMode;
-            DataIntegratedChargerBlockEntity.this.processingMode = this.previousProcessingMode;
-            DataIntegratedChargerBlockEntity.this.progress = this.previousProgress;
-            this.state = UploadChangeState.FINISHED;
-        }
-
-        private void requireState(UploadChangeState expected) {
-            if (this.state != expected) {
-                throw new IllegalStateException(
-                        "Pattern upload mode change is " + this.state + " instead of " + expected);
-            }
-        }
-    }
-
-    private enum UploadChangeState {
-        PREPARED,
-        APPLIED,
-        FINISHED
-    }
 
     private final class StorageFilter implements IAEItemFilter {
 

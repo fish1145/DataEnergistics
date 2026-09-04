@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderBatchAccess;
 import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderDisplayHelper;
 import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatternProviderHost;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationCompatibility;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationVariant;
 import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderWorkstationSource;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderMetadata;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
@@ -75,6 +77,8 @@ public final class PatternProviderSyncHelper {
      * context annotates and orders the snapshot but never removes providers from it.
      */
     public static PatternEncodingPreviewMenu.SyncedPatternProviderList collectSyncedPatternProviders(
+                                                                                                     ServerPlayer player,
+                                                                                                     @Nullable AEItemKey encodedPatternDefinition,
                                                                                                      @Nullable IGrid grid,
                                                                                                      Reference2LongMap<PatternContainer> syncedPatternProviderIds,
                                                                                                      Long2ObjectMap<ObjectList<PatternContainer>> syncedProviderTargetsById,
@@ -89,8 +93,9 @@ public final class PatternProviderSyncHelper {
         ObjectList<PatternProviderAggregationEntry> discoveredProviders = new ObjectArrayList<>();
         ReferenceSet<PatternContainer> activeProviders = new ReferenceOpenHashSet<>();
         ReferenceSet<PatternContainer> discoveredProviderSet = new ReferenceOpenHashSet<>();
+        ProviderPatternContext patternContext = resolveProviderPatternContext(player, encodedPatternDefinition);
         collectDirectPatternProviders(grid, syncedPatternProviderIds, nextIdSupplier, discoveredProviders, activeProviders,
-                discoveredProviderSet, rankingContext);
+                discoveredProviderSet, rankingContext, patternContext);
 
         for (var machineClass : grid.getMachineClasses()) {
             var patternContainerClass = asPatternContainerClass(machineClass);
@@ -100,7 +105,7 @@ public final class PatternProviderSyncHelper {
 
             for (var container : grid.getMachines(patternContainerClass)) {
                 addProviderIfVisible(container, syncedPatternProviderIds, nextIdSupplier, discoveredProviders, activeProviders,
-                        discoveredProviderSet, rankingContext);
+                        discoveredProviderSet, rankingContext, patternContext);
             }
         }
 
@@ -108,6 +113,26 @@ public final class PatternProviderSyncHelper {
 
         return aggregateSyncedPatternProviders(
                 discoveredProviders, syncedProviderTargetsById, leafClickCounts, rankingContext);
+    }
+
+    private static ProviderPatternContext resolveProviderPatternContext(
+                                                                        ServerPlayer player,
+                                                                        @Nullable AEItemKey encodedPatternDefinition) {
+        if (encodedPatternDefinition == null) {
+            return new ProviderPatternContext(player, null, null, null);
+        }
+        ItemStack encodedPattern = encodedPatternDefinition.getReadOnlyStack();
+        IPatternDetails patternDetails;
+        try {
+            patternDetails = PatternDetailsHelper.decodePattern(encodedPatternDefinition, player.level());
+        } catch (RuntimeException exception) {
+            LOGGER.error("Could not decode the current pattern while grouping upload workstations", exception);
+            patternDetails = null;
+        }
+        EncodedPatternRecipeReference recipeReference = EncodedPatternRecipeReference.get(encodedPattern);
+        ResourceLocation recipeTypeId = recipeReference == null ? null : recipeReference.recipeTypeId();
+        ResourceLocation recipeId = EncodedPatternRecipeReference.getProcessingRecipeId(encodedPattern);
+        return new ProviderPatternContext(player, patternDetails, recipeTypeId, recipeId);
     }
 
     private static PatternEncodingPreviewMenu.SyncedPatternProviderList aggregateSyncedPatternProviders(
@@ -255,12 +280,15 @@ public final class PatternProviderSyncHelper {
                                                                   long providerId) {
         EncodingMode mode = previewMenu.data_energistics$getEncodingMode();
         EncodedPatternRecipeReference recipeReference = previewMenu.data_energistics$getEncodedPatternRecipeReference();
+        AEItemKey encodedPatternDefinition = previewMenu.data_energistics$getEncodedPatternDefinition();
+        ResourceLocation persistedRecipeId = encodedPatternDefinition == null ? null :
+                EncodedPatternRecipeReference.getProcessingRecipeId(encodedPatternDefinition.getReadOnlyStack());
         PatternEncodingRankingContext persistedContext = recipeReference == null ? null :
                 PatternEncodingRankingContext.of(recipeReference.recipeTypeId());
         if (mode == EncodingMode.PROCESSING) {
             PatternEncodingRankingContext rankingContext = persistedContext == null ? session.rankingContext() :
                     persistedContext;
-            session.setRankingContext(rankingContext);
+            session.setRecipeContext(rankingContext, persistedRecipeId);
             ResourceLocation preferredWorkstation = resolveSyncedProviderWorkstation(
                     previewMenu.data_energistics$getSyncedPatternProviderState(),
                     rankingContext,
@@ -337,6 +365,7 @@ public final class PatternProviderSyncHelper {
         }
         EncodedPatternRecipeReference recipeReference = EncodedPatternRecipeReference.get(encodedPattern);
         ResourceLocation recipeTypeId = recipeReference == null ? null : recipeReference.recipeTypeId();
+        ResourceLocation recipeId = EncodedPatternRecipeReference.getProcessingRecipeId(encodedPattern);
 
         ItemStack remainder = encodedPattern.copy();
         boolean transferred = false;
@@ -359,6 +388,7 @@ public final class PatternProviderSyncHelper {
                         preparedUpload.workstationSource(),
                         patternDetails,
                         recipeTypeId,
+                        recipeId,
                         remainder.getCount());
             } catch (RuntimeException exception) {
                 LOGGER.error(
@@ -598,11 +628,12 @@ public final class PatternProviderSyncHelper {
                                                       List<PatternProviderAggregationEntry> discoveredProviders,
                                                       ReferenceSet<PatternContainer> activeProviders,
                                                       ReferenceSet<PatternContainer> discoveredProviderSet,
-                                                      @Nullable PatternEncodingRankingContext rankingContext) {
+                                                      @Nullable PatternEncodingRankingContext rankingContext,
+                                                      ProviderPatternContext patternContext) {
         try {
             for (var providerHost : grid.getMachines(PatternProviderLogicHost.class)) {
                 addProviderIfVisible(providerHost, syncedPatternProviderIds, nextIdSupplier, discoveredProviders,
-                        activeProviders, discoveredProviderSet, rankingContext);
+                        activeProviders, discoveredProviderSet, rankingContext, patternContext);
             }
         } catch (RuntimeException exception) {
             LOGGER.error("Failed to enumerate direct pattern providers from the active grid", exception);
@@ -616,7 +647,8 @@ public final class PatternProviderSyncHelper {
                                              List<PatternProviderAggregationEntry> discoveredProviders,
                                              ReferenceSet<PatternContainer> activeProviders,
                                              ReferenceSet<PatternContainer> discoveredProviderSet,
-                                             @Nullable PatternEncodingRankingContext rankingContext) {
+                                             @Nullable PatternEncodingRankingContext rankingContext,
+                                             ProviderPatternContext patternContext) {
         if (!container.isVisibleInTerminal() || discoveredProviderSet.contains(container)) {
             return;
         }
@@ -662,6 +694,25 @@ public final class PatternProviderSyncHelper {
                 exactContextMatch = false;
                 supportedRecipeTypeIds = List.of();
                 matchingWorkstationIds = List.of();
+            }
+            PatternProviderUploadWorkstations.Inspection workstationInspection = PatternProviderUploadWorkstations.inspect(
+                    patternContext.player(),
+                    container,
+                    identity,
+                    PatternProviderRuntimeBindings.resolveWorkstationSource(identity),
+                    patternContext.patternDetails(),
+                    patternContext.recipeTypeId(),
+                    patternContext.recipeId());
+            if (workstationInspection.classified()) {
+                aggregationKey = PatternProviderAggregationKey.WorkstationVariants.from(
+                        aggregationKey,
+                        workstationInspection);
+                displayName = decorateWorkstationVariants(displayName, workstationInspection.variants());
+                exactContextMatch = switch (workstationInspection.compatibility()) {
+                    case COMPATIBLE -> true;
+                    case INCOMPATIBLE -> false;
+                    case UNKNOWN -> exactContextMatch;
+                };
             }
             openable = provider.binding() != null &&
                     provider.binding().registration().menuOpenAdapter() != null ||
@@ -745,6 +796,11 @@ public final class PatternProviderSyncHelper {
 
     private record ProviderResolution(ProviderIdentity identity,
                                       @Nullable ResolvedProviderBinding binding) {}
+
+    private record ProviderPatternContext(ServerPlayer player,
+                                          @Nullable IPatternDetails patternDetails,
+                                          @Nullable ResourceLocation recipeTypeId,
+                                          @Nullable ResourceLocation recipeId) {}
 
     private record ProviderPresentation(Component displayName,
                                         ResourceLocation iconItemId,
@@ -858,6 +914,28 @@ public final class PatternProviderSyncHelper {
                     part.dimensionId(), part.blockPos(), part.mount().direction());
             default -> PatternEncodingPreviewMenu.SyncedPatternProviderLeafLocation.unlocated();
         };
+    }
+
+    private static Component decorateWorkstationVariants(
+                                                         Component providerName,
+                                                         ObjectList<PatternUploadWorkstationVariant> variants) {
+        if (variants.size() == 1) {
+            return Component.translatable(
+                    "screen.data_energistics.pattern_provider.workstation_variant",
+                    providerName,
+                    variants.getFirst().displayName());
+        }
+        var variantNames = Component.empty();
+        for (int index = 0; index < variants.size(); index++) {
+            if (index > 0) {
+                variantNames.append(Component.literal(", "));
+            }
+            variantNames.append(variants.get(index).displayName());
+        }
+        return Component.translatable(
+                "screen.data_energistics.pattern_provider.workstation_variants",
+                providerName,
+                variantNames);
     }
 
     /**
@@ -1166,6 +1244,26 @@ public final class PatternProviderSyncHelper {
 
             private static NetworkGroup from(PatternContainerGroup terminalGroup) {
                 return new NetworkGroup(terminalGroup.icon(), terminalGroup.name(), terminalGroup.tooltip());
+            }
+        }
+
+        record WorkstationVariants(PatternProviderAggregationKey base,
+                                   ObjectList<ResourceLocation> variantIds,
+                                   PatternUploadWorkstationCompatibility compatibility)
+                implements PatternProviderAggregationKey {
+
+            public WorkstationVariants {
+                variantIds = ObjectLists.unmodifiable(variantIds);
+            }
+
+            private static WorkstationVariants from(
+                                                    PatternProviderAggregationKey base,
+                                                    PatternProviderUploadWorkstations.Inspection inspection) {
+                ObjectList<ResourceLocation> variantIds = new ObjectArrayList<>(inspection.variants().size());
+                for (PatternUploadWorkstationVariant variant : inspection.variants()) {
+                    variantIds.add(variant.id());
+                }
+                return new WorkstationVariants(base, variantIds, inspection.compatibility());
             }
         }
 

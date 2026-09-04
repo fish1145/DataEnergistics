@@ -60,7 +60,10 @@ public abstract class RecipeTransferUtilMixin {
             EncodingMode transferMode = PatternEncodingViewerContext.resolveEncodingMode(recipe, false);
             PatternEncodingSourceHelper.rememberTransferSource(menu, transferMode, rankingContext);
             if (transferMode == EncodingMode.PROCESSING) {
-                PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, rankingContext);
+                PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(
+                        menu,
+                        rankingContext,
+                        JeiPatternTransferContextBridge.resolveRecipeId(recipeLayout));
             } else {
                 PatternEncodingPreferencesClient.captureTransferredRecipe(menu, transferMode);
             }

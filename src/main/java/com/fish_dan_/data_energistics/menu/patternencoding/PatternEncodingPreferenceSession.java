@@ -38,6 +38,8 @@ public final class PatternEncodingPreferenceSession {
     @Nullable
     private PatternEncodingRankingContext rankingContext;
     @Nullable
+    private ResourceLocation recipeId;
+    @Nullable
     private AEItemKey observedEncodedPattern;
     @Nullable
     private ResourceLocation confirmedWorkstation;
@@ -121,10 +123,22 @@ public final class PatternEncodingPreferenceSession {
      * Sets the exact context used by subsequent provider-history snapshots.
      */
     public void setRankingContext(@Nullable PatternEncodingRankingContext context) {
-        if (Objects.equals(this.rankingContext, context)) {
+        setRecipeContext(context, null);
+    }
+
+    /** Returns the stable processing recipe identity captured from the current viewer transfer, if any. */
+    public @Nullable ResourceLocation recipeId() {
+        return this.recipeId;
+    }
+
+    /** Replaces the recipe type and optional stable processing recipe identity as one revision. */
+    public void setRecipeContext(@Nullable PatternEncodingRankingContext context,
+                                 @Nullable ResourceLocation recipeId) {
+        if (Objects.equals(this.rankingContext, context) && Objects.equals(this.recipeId, recipeId)) {
             return;
         }
         this.rankingContext = context;
+        this.recipeId = recipeId;
         incrementRevision();
     }
 
@@ -148,12 +162,16 @@ public final class PatternEncodingPreferenceSession {
         }
         var stack = definition.getReadOnlyStack();
         var reference = EncodedPatternRecipeReference.get(stack);
+        ResourceLocation restoredRecipeId = EncodedPatternRecipeReference.getProcessingRecipeId(stack);
         if (reference != null) {
-            setRankingContext(PatternEncodingRankingContext.of(reference.recipeTypeId()));
+            setRecipeContext(
+                    PatternEncodingRankingContext.of(reference.recipeTypeId()),
+                    reference.kind() == EncodedPatternRecipeReference.Kind.PROCESSING_RECIPE_TYPE ?
+                            restoredRecipeId : null);
         }
         EncodingMode encodingMode = EncodedPatternRecipeReference.encodingMode(stack);
         if (reference == null && encodingMode == EncodingMode.PROCESSING) {
-            setRankingContext(null);
+            setRecipeContext(null, restoredRecipeId);
         }
         return encodingMode;
     }
@@ -292,6 +310,7 @@ public final class PatternEncodingPreferenceSession {
      */
     public void clear() {
         this.rankingContext = null;
+        this.recipeId = null;
         this.observedEncodedPattern = null;
         this.confirmedWorkstation = null;
         this.deferredSnapshotMode = null;

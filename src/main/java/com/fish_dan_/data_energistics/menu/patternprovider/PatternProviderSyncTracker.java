@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
 import appeng.api.networking.IGrid;
+import appeng.api.stacks.AEItemKey;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
@@ -28,24 +29,29 @@ public final class PatternProviderSyncTracker {
     private long refreshedTick = Long.MIN_VALUE;
     @Nullable
     private PatternEncodingRankingContext rankingContext;
+    @Nullable
+    private AEItemKey encodedPatternDefinition;
     private boolean dirty = true;
 
     /**
      * Determines whether the cached menu rows are stale.
      *
-     * @param currentPublication    current grid-local provider publication identity
-     * @param currentTick           server game time used only for conservative presentation validation
-     * @param currentRankingContext current exact recipe-type context
+     * @param currentPublication       current grid-local provider publication identity
+     * @param currentTick              server game time used only for conservative presentation validation
+     * @param currentRankingContext    current exact recipe-type context
+     * @param currentPatternDefinition current encoded pattern and appended metadata
      * @return {@code true} when provider discovery must run
      */
     public boolean needsRefresh(
                                 PublicationVersion currentPublication,
                                 long currentTick,
-                                @Nullable PatternEncodingRankingContext currentRankingContext) {
+                                @Nullable PatternEncodingRankingContext currentRankingContext,
+                                @Nullable AEItemKey currentPatternDefinition) {
         return this.dirty ||
                 this.publicationScope != currentPublication.scope() ||
                 this.providerRevision != currentPublication.revision() ||
                 !Objects.equals(this.rankingContext, currentRankingContext) ||
+                !Objects.equals(this.encodedPatternDefinition, currentPatternDefinition) ||
                 currentTick - this.refreshedTick >= CONSISTENCY_REFRESH_INTERVAL_TICKS;
     }
 
@@ -55,11 +61,13 @@ public final class PatternProviderSyncTracker {
     public void refreshed(
                           PublicationVersion currentPublication,
                           long currentTick,
-                          @Nullable PatternEncodingRankingContext currentRankingContext) {
+                          @Nullable PatternEncodingRankingContext currentRankingContext,
+                          @Nullable AEItemKey currentPatternDefinition) {
         this.publicationScope = currentPublication.scope();
         this.providerRevision = currentPublication.revision();
         this.refreshedTick = currentTick;
         this.rankingContext = currentRankingContext;
+        this.encodedPatternDefinition = currentPatternDefinition;
         this.dirty = false;
     }
 
@@ -71,6 +79,7 @@ public final class PatternProviderSyncTracker {
         this.providerRevision = Long.MIN_VALUE;
         this.refreshedTick = Long.MIN_VALUE;
         this.rankingContext = null;
+        this.encodedPatternDefinition = null;
         this.dirty = true;
     }
 

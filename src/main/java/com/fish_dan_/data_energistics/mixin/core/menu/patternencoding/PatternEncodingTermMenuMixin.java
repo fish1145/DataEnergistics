@@ -539,12 +539,16 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             EncodedPatternDynamicOutput.apply(
                     finalPattern,
                     this.mode == EncodingMode.PROCESSING && this.dataEnergistics$processingOutputSameItem);
-            EncodedPatternRecipeReference.applyProcessingRecipeType(
+            EncodedPatternRecipeReference.applyProcessingRecipeMetadata(
                     finalPattern,
                     PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
                             this,
                             data_energistics$getPreferenceSession(),
-                            this));
+                            this),
+                    PatternEncodingSourceHelper.resolveProcessingPatternRecipeId(
+                            this,
+                            data_energistics$getPreferenceSession()));
+            dataEnergistics$forceSyncPatternProviders();
             encodedSuccessfully = true;
             PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
             PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
@@ -1224,12 +1228,14 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
         var publication = PatternProviderSyncTracker.capturePublicationVersion(grid);
         PatternEncodingRankingContext rankingContext = data_energistics$getPreferenceSession().rankingContext();
+        AEItemKey encodedPatternDefinition = data_energistics$getEncodedPatternDefinition();
         long currentTick = this.getPlayer().level().getGameTime();
         long preferenceRevision = data_energistics$getPreferenceSession().revision();
         if (preferenceRevision == this.dataEnergistics$lastPreferenceRevision && !this.dataEnergistics$patternProviderSyncTracker.needsRefresh(
                 publication,
                 currentTick,
-                rankingContext)) {
+                rankingContext,
+                encodedPatternDefinition)) {
             return;
         }
 
@@ -1237,7 +1243,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 grid,
                 publication,
                 currentTick,
-                rankingContext);
+                rankingContext,
+                encodedPatternDefinition);
     }
 
     @Unique
@@ -1268,7 +1275,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 grid,
                 PatternProviderSyncTracker.capturePublicationVersion(grid),
                 this.getPlayer().level().getGameTime(),
-                data_energistics$getPreferenceSession().rankingContext());
+                data_energistics$getPreferenceSession().rankingContext(),
+                data_energistics$getEncodedPatternDefinition());
     }
 
     @Unique
@@ -1276,8 +1284,11 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                                                                  IGrid grid,
                                                                  PatternProviderSyncTracker.PublicationVersion publication,
                                                                  long currentTick,
-                                                                 @Nullable PatternEncodingRankingContext rankingContext) {
+                                                                 @Nullable PatternEncodingRankingContext rankingContext,
+                                                                 @Nullable AEItemKey encodedPatternDefinition) {
         this.dataEnergistics$syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
+                (ServerPlayer) this.getPlayer(),
+                encodedPatternDefinition,
                 grid,
                 this.dataEnergistics$syncedPatternProviderIds,
                 this.dataEnergistics$syncedPatternProvidersById,
@@ -1287,7 +1298,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         this.dataEnergistics$patternProviderSyncTracker.refreshed(
                 publication,
                 currentTick,
-                rankingContext);
+                rankingContext,
+                encodedPatternDefinition);
         this.dataEnergistics$lastPreferenceRevision = data_energistics$getPreferenceSession().revision();
     }
 

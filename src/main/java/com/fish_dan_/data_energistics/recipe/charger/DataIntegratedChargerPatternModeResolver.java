@@ -1,13 +1,14 @@
 package com.fish_dan_.data_energistics.recipe.charger;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.machine.DataIntegratedChargerBlockEntity.MachineMode;
 import com.fish_dan_.data_energistics.common.recipe.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.integration.recipe.EaeCircuitCutterRecipeCatalog;
+import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataChargePressRecipeView;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressIngredient;
-import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
-import com.fish_dan_.data_energistics.registry.DERecipes;
 
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -18,7 +19,6 @@ import appeng.api.ids.AEComponents;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import appeng.recipes.AERecipeTypes;
 import appeng.recipes.handlers.InscriberProcessType;
 import appeng.recipes.handlers.InscriberRecipe;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -27,6 +27,8 @@ import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectLists;
@@ -37,9 +39,10 @@ import java.util.List;
 /** Resolves the unique integrated-charger mode represented by exact server-decoded processing-pattern contents. */
 public final class DataIntegratedChargerPatternModeResolver {
 
-    private static final EaeCircuitCutterRecipeCatalog EAE_CIRCUIT_CUTTER_RECIPES = new EaeCircuitCutterRecipeCatalog();
+    private static final String STABLE_RECIPE_PATH_PREFIX = "data_charge_press/";
     private static final int MAX_CACHED_PATTERNS = 2_048;
     private static final Object2IntMap<AEItemKey> MODE_MASKS = new Object2IntOpenHashMap<>();
+    private static final Object2ObjectMap<ResourceLocation, DataChargePressRecipeView> RECIPE_VIEWS = new Object2ObjectLinkedOpenHashMap<>();
     private static @Nullable RecipeManager cachedRecipeManager;
     private static long cachedReloadEpoch = Long.MIN_VALUE;
 
@@ -49,10 +52,16 @@ public final class DataIntegratedChargerPatternModeResolver {
 
     private DataIntegratedChargerPatternModeResolver() {}
 
+    /** Returns whether an ID belongs to the stable unified Data Integrated Charger recipe namespace. */
+    public static boolean isStableRecipeId(@Nullable ResourceLocation recipeId) {
+        return recipeId != null && recipeId.getNamespace().equals(Data_Energistics.MODID) &&
+                recipeId.getPath().startsWith(STABLE_RECIPE_PATH_PREFIX);
+    }
+
     /** Releases server-owned recipe and pattern references when the server stops. */
     public static void clearCache() {
         MODE_MASKS.clear();
-        EAE_CIRCUIT_CUTTER_RECIPES.clearCache();
+        RECIPE_VIEWS.clear();
         cachedRecipeManager = null;
         cachedReloadEpoch = Long.MIN_VALUE;
     }
@@ -63,10 +72,13 @@ public final class DataIntegratedChargerPatternModeResolver {
      * <p>
      * Multiple recipes within the same mode retain one bit. Matches spanning different modes retain multiple bits so
      * the caller can reject the ambiguous upload instead of guessing from viewer metadata or current machine state.
-     * Results are cached by immutable pattern definition until the recipe manager or reload epoch changes.
+     * A stable recipe ID may select one exact current recipe only after its contents also match. Results are cached by
+     * immutable pattern definition until the recipe manager or reload epoch changes.
      * </p>
      */
-    public static int resolveModeMask(ServerLevel level, IPatternDetails patternDetails) {
+    public static int resolveModeMask(ServerLevel level,
+                                      IPatternDetails patternDetails,
+                                      @Nullable ResourceLocation recipeId) {
         if (patternDetails.getDefinition().get(AEComponents.ENCODED_PROCESSING_PATTERN) == null) {
             return 0;
         }
@@ -74,6 +86,7 @@ public final class DataIntegratedChargerPatternModeResolver {
         long reloadEpoch = RecipeReloadEpoch.current();
         if (cachedRecipeManager != recipeManager || cachedReloadEpoch != reloadEpoch) {
             MODE_MASKS.clear();
+            rebuildRecipeViews(recipeManager);
             cachedRecipeManager = recipeManager;
             cachedReloadEpoch = reloadEpoch;
         }
@@ -82,8 +95,22 @@ public final class DataIntegratedChargerPatternModeResolver {
         if (cached >= 0) {
             return cached;
         }
+        PatternSignature signature = PatternSignature.capture(patternDetails);
+        if (signature == null) {
+            return 0;
+        }
 
-        int resolved = computeModeMask(recipeManager, patternDetails);
+        int resolved = 0;
+        if (recipeId != null) {
+            DataChargePressRecipeView view = RECIPE_VIEWS.get(recipeId);
+            if (view != null && matchesView(signature, view)) {
+                resolved = mask(view.machineMode());
+            }
+        }
+        if (resolved == 0) {
+            resolved = computeModeMask(signature);
+        }
+
         if (MODE_MASKS.size() >= MAX_CACHED_PATTERNS) {
             MODE_MASKS.clear();
         }
@@ -91,64 +118,68 @@ public final class DataIntegratedChargerPatternModeResolver {
         return resolved;
     }
 
-    private static int computeModeMask(RecipeManager recipeManager, IPatternDetails patternDetails) {
-        PatternSignature signature = PatternSignature.capture(patternDetails);
-        if (signature == null) {
-            return 0;
+    private static void rebuildRecipeViews(RecipeManager recipeManager) {
+        RECIPE_VIEWS.clear();
+        for (DataChargePressRecipeView view : DataChargePressRecipeView.fromRecipeManager(recipeManager)) {
+            ResourceLocation recipeId = view.patternRecipeId();
+            DataChargePressRecipeView existing = RECIPE_VIEWS.putIfAbsent(recipeId, view);
+            if (existing != null) {
+                throw new IllegalStateException("Duplicate Data Integrated Charger stable recipe ID: " + recipeId);
+            }
         }
+    }
 
+    private static int computeModeMask(PatternSignature signature) {
         int modeMask = 0;
-        for (var holder : recipeManager.getAllRecipesFor(AERecipeTypes.CHARGER)) {
-            var recipe = holder.value();
-            if (matchesSingleItem(signature, recipe.getIngredient(), 1L, null, recipe.getResultItem())) {
-                modeMask |= mask(MachineMode.CHARGER);
-            }
-        }
-        for (var holder : recipeManager.getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get())) {
-            DataChargerRecipe recipe = holder.value();
-            if (matchesSingleItem(signature, recipe.getIngredient(), 1L, null, recipe.getResult())) {
-                modeMask |= mask(MachineMode.CHARGER);
-            }
-        }
-        for (var holder : recipeManager.getAllRecipesFor(DERecipes.DATA_INTEGRATED_CHARGER_TYPE.get())) {
-            DataIntegratedChargerRecipe recipe = holder.value();
-            if (matches(signature, requirements(recipe.getInputs()), null, recipe.getResult())) {
-                modeMask |= mask(MachineMode.INSCRIBER);
-                if (ambiguous(modeMask)) {
-                    return modeMask;
-                }
-            }
-        }
-        for (var holder : recipeManager.getAllRecipesFor(DERecipes.DATA_CHARGE_PRESS_TYPE.get())) {
-            DataChargePressRecipe recipe = holder.value();
-            if (matches(signature, requirements(recipe.getInputs()), recipe.getFluidInput(), recipe.getResult())) {
-                modeMask |= mask(MachineMode.CRYSTAL_GROWTH);
-                if (ambiguous(modeMask)) {
-                    return modeMask;
-                }
-            }
-        }
-        for (var holder : recipeManager.getAllRecipesFor(AERecipeTypes.INSCRIBER)) {
-            modeMask |= resolveInscriberMode(signature, holder.value());
-            if (ambiguous(modeMask)) {
-                return modeMask;
-            }
-        }
-        for (var recipe : EAE_CIRCUIT_CUTTER_RECIPES.recipes(recipeManager)) {
-            ItemStack sourceOutput = recipe.output();
-            ItemStack integratedOutput = sourceOutput.copyWithCount(
-                    EaeCircuitCutterRecipeCatalog.getIntegratedResultCount(sourceOutput.getCount()));
-            GenericStack fluid = DataChargePressRecipeSupport.getFluidInput(
-                    EaeCircuitCutterRecipeCatalog.getIntegratedFluidAmount(sourceOutput.getCount()));
-            if (matchesSingleItem(signature, recipe.input(), 1L, fluid,
-                    integratedOutput)) {
-                modeMask |= mask(MachineMode.INSCRIBER);
+        for (DataChargePressRecipeView view : RECIPE_VIEWS.values()) {
+            if (matchesView(signature, view)) {
+                modeMask |= mask(view.machineMode());
                 if (ambiguous(modeMask)) {
                     return modeMask;
                 }
             }
         }
         return modeMask;
+    }
+
+    private static boolean matchesView(PatternSignature signature, DataChargePressRecipeView view) {
+        return switch (view) {
+            case DataChargePressRecipeView.ChargerView charger -> {
+                var recipe = charger.holder().value();
+                yield matchesSingleItem(signature, recipe.getIngredient(), 1L, null, recipe.getResultItem());
+            }
+            case DataChargePressRecipeView.InscriberView inscriber -> resolveInscriberMode(signature, inscriber.holder().value()) == mask(MachineMode.INSCRIBER);
+            case DataChargePressRecipeView.PowderView powder -> resolveInscriberMode(signature, powder.holder().value()) == mask(MachineMode.POWDER);
+            case DataChargePressRecipeView.DataChargerView dataCharger -> {
+                var recipe = dataCharger.holder().value();
+                yield matchesSingleItem(signature, recipe.getIngredient(), 1L, null, recipe.getResult());
+            }
+            case DataChargePressRecipeView.IntegratedChargerView integrated -> {
+                var recipe = integrated.holder().value();
+                yield matches(signature, requirements(recipe.getInputs()), null, recipe.getResult());
+            }
+            case DataChargePressRecipeView.CircuitBoardView circuitBoard -> {
+                InscriberRecipe recipe = circuitBoard.holder().value();
+                yield matchesSingleItem(
+                        signature,
+                        recipe.getMiddleInput(),
+                        DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT,
+                        DataChargePressRecipeSupport.getFluidInput(),
+                        DataChargePressRecipeSupport.getTripleResult(recipe));
+            }
+            case DataChargePressRecipeView.CustomView custom -> {
+                var recipe = custom.holder().value();
+                yield matches(signature, requirements(recipe.getInputs()), recipe.getFluidInput(), recipe.getResult());
+            }
+            case DataChargePressRecipeView.EaeCircuitCutterView circuitCutter -> {
+                ItemStack sourceOutput = circuitCutter.recipe().output();
+                ItemStack integratedOutput = sourceOutput.copyWithCount(
+                        EaeCircuitCutterRecipeCatalog.getIntegratedResultCount(sourceOutput.getCount()));
+                GenericStack fluid = DataChargePressRecipeSupport.getFluidInput(
+                        EaeCircuitCutterRecipeCatalog.getIntegratedFluidAmount(sourceOutput.getCount()));
+                yield matchesSingleItem(signature, circuitCutter.recipe().input(), 1L, fluid, integratedOutput);
+            }
+        };
     }
 
     private static int resolveInscriberMode(PatternSignature signature, InscriberRecipe recipe) {

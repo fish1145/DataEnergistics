@@ -238,6 +238,17 @@ public final class PatternEncodingSourceHelper {
         return context == null ? null : context.recipeTypeId();
     }
 
+    /** Resolves the stable processing recipe identity that should be appended to the next encoded pattern. */
+    @Nullable
+    public static ResourceLocation resolveProcessingPatternRecipeId(
+                                                                    PatternEncodingPreviewMenu previewMenu,
+                                                                    PatternEncodingPreferenceSession session) {
+        if (previewMenu.data_energistics$getEncodingMode() != EncodingMode.PROCESSING) {
+            return null;
+        }
+        return session.recipeId();
+    }
+
     /**
      * Verifies that a client ranking context describes the current recipe mode.
      * Fixed vanilla modes are derived entirely on the server; processing contexts carry only a viewer recipe type.

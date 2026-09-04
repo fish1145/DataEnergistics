@@ -32,7 +32,7 @@ Data Energistics 把“声明扩展”和“运行扩展”分成两个阶段。
 | `PatternProviderPostCommitHook` | 服务端已确认真实 inventory delta 之后；只能观察，不能 veto 或改写提交 |
 | `PatternProviderWorkstationSource` | server thread；为 exact provider leaf 返回当前真实工作站路线；不得返回 UI 分组或缓存的 display 目标 |
 | `CraftingMachineCapacityAdapter` | server thread；capacity capture 与提交前重验只读，不得预留或消耗资源 |
-| `PatternUploadWorkstationAdapter` | server thread；prepare 只构造可逆 change，runtime 在 provider 写入前 apply，并按真实 delta complete/rollback；mutation 后 delta 不可证明时走 completeIndeterminate |
+| `PatternUploadWorkstationAdapter` | server thread；inspect 只读描述 live variant；prepare 验证或构造可逆 change；runtime 在 provider 写入前 apply，并按真实 delta complete/rollback；mutation 后 delta 不可证明时走 completeIndeterminate |
 | `VirtualCraftingOutputAdapter` | 必须无状态；不得检查 CPU、provider、grid、world 或 crafting job |
 | `AdaptivePatternProviderDefinition` | 接收候选 `ItemStack`；不得保留或修改它；文档未承诺固定线程或调用次数 |
 | `TrinityPatternRecipeIdResolver` | 冻结 resolver 快照中的运行时查询；应无副作用且结果确定 |

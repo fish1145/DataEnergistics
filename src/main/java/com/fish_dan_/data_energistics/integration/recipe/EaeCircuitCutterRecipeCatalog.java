@@ -83,13 +83,6 @@ public final class EaeCircuitCutterRecipeCatalog {
         return this.recipes;
     }
 
-    /** Releases recipe-manager and decoded-recipe references when the owning cache leaves server scope. */
-    public void clearCache() {
-        this.reloadEpoch = Long.MIN_VALUE;
-        this.recipeManager = null;
-        this.recipes = List.of();
-    }
-
     /** Returns the integrated charger's output count for the cutter recipe's original output count. */
     public static int getIntegratedResultCount(int originalOutputCount) {
         return originalOutputCount == CRYSTAL_CUTTER_OUTPUT_COUNT ?
