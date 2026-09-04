@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.crafting.tree.preferences;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanLayoutMode;
 
 import net.neoforged.fml.loading.FMLPaths;
 
@@ -17,9 +18,10 @@ import java.nio.file.StandardCopyOption;
 
 /** Client-local presentation preferences, never synchronized to or persisted by a server. */
 public record CraftingPlanTreePreferences(int autoExpandBudget, boolean compact, boolean missingOnly,
-                                          boolean screenshotAmounts) {
+                                          boolean screenshotAmounts, CraftingPlanLayoutMode layoutMode) {
 
-    public static final CraftingPlanTreePreferences DEFAULT = new CraftingPlanTreePreferences(256, false, false, false);
+    public static final CraftingPlanTreePreferences DEFAULT = new CraftingPlanTreePreferences(256, false, false,
+            false, CraftingPlanLayoutMode.LAYERED);
 
     public CraftingPlanTreePreferences {
         if (autoExpandBudget < 64 || autoExpandBudget > 4096) throw new IllegalArgumentException("Plan-tree budget outside [64, 4096]");
@@ -36,7 +38,8 @@ public record CraftingPlanTreePreferences(int autoExpandBudget, boolean compact,
             JsonObject json = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
             return new CraftingPlanTreePreferences(json.get("autoExpandBudget").getAsInt(),
                     json.get("compact").getAsBoolean(), json.get("missingOnly").getAsBoolean(),
-                    json.get("screenshotAmounts").getAsBoolean());
+                    json.get("screenshotAmounts").getAsBoolean(),
+                    CraftingPlanLayoutMode.valueOf(json.get("layoutMode").getAsString()));
         } catch (IOException | RuntimeException failure) {
             Data_Energistics.LOGGER.warn("Cannot read plan-tree preferences at {}; using defaults without overwriting the file", path, failure);
             return DEFAULT;
@@ -54,6 +57,7 @@ public record CraftingPlanTreePreferences(int autoExpandBudget, boolean compact,
             json.addProperty("compact", this.compact);
             json.addProperty("missingOnly", this.missingOnly);
             json.addProperty("screenshotAmounts", this.screenshotAmounts);
+            json.addProperty("layoutMode", this.layoutMode.name());
             temporary = Files.createTempFile(target.getParent(), "crafting-plan-tree-", ".tmp");
             Files.writeString(temporary, new GsonBuilder().setPrettyPrinting().create().toJson(json), StandardCharsets.UTF_8);
             try {

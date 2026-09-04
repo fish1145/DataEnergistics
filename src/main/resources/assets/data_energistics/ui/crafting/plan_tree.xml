@@ -24,5 +24,6 @@
         <button id="pref_missing" class="plan-tree-popup"/>
         <button id="pref_amounts" class="plan-tree-popup"/>
         <button id="pref_budget" class="plan-tree-popup"/>
+        <button id="pref_layout" class="plan-tree-popup"/>
     </root>
 </ui>

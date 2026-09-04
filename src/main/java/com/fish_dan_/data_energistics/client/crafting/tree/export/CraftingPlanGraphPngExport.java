@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.client.crafting.tree.export;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphRenderer;
+import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanGraphRouteDrawing;
+import com.fish_dan_.data_energistics.client.crafting.tree.render.CraftingPlanSegmentSelection;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Bounds;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Layout;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
@@ -29,7 +31,7 @@ import java.util.function.Consumer;
 /** Fixed-density tiled capture with bounded working memory, independent of the complete PNG's dimensions. */
 public final class CraftingPlanGraphPngExport {
 
-    private static final int PIXEL_SCALE = 4;
+    private static final int PIXEL_SCALE = (int) CraftingPlanGraphRouteDrawing.EXPORT_PIXEL_SCALE;
     private static final int TILE_SIDE = 2048;
     private static final int TILE_GUARD = 2;
     private static final int TILES_PER_CAPTURE = 8;
@@ -165,7 +167,8 @@ public final class CraftingPlanGraphPngExport {
                 // This is only tile-local clipping; every tile keeps the identical full-layout coordinate system.
                 Bounds tile = new Bounds(originX, originY, (tileWidth + TILE_GUARD * 2) / (double) PIXEL_SCALE,
                         (rows + TILE_GUARD * 2) / (double) PIXEL_SCALE);
-                renderer.draw(graphics, layout, GraphViewLod.FULL, showAmounts, -1, IntSets.emptySet(), tile, PIXEL_SCALE);
+                renderer.draw(graphics, layout, GraphViewLod.FULL, showAmounts, -1, IntSets.emptySet(),
+                        CraftingPlanSegmentSelection.NONE, IntSets.emptySet(), tile, PIXEL_SCALE, 1, false);
                 graphics.flush();
                 images.add(capture.download());
             }
