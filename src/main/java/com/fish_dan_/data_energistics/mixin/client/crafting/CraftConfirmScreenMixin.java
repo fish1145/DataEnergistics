@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.client.crafting.confirm.presentation.Trini
 import com.fish_dan_.data_energistics.client.crafting.confirm.table.TrinityCraftConfirmCycleBarRenderer;
 import com.fish_dan_.data_energistics.client.crafting.tree.CraftingPlanTreeEntry;
 import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
+import com.fish_dan_.data_energistics.client.screen.crafting.confirm.TrinityCraftConfirmScreenRouter;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.client.util.TrinityDurationFormatter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
@@ -109,7 +110,11 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
 
     @Inject(method = "updateBeforeRender", at = @At("TAIL"))
     private void dataEnergistics$placePlanningMetadata(CallbackInfo ci) {
-        CraftingPlanTreeEntry.refresh((CraftConfirmScreen) (Object) this);
+        CraftConfirmScreen screen = (CraftConfirmScreen) (Object) this;
+        if (TrinityCraftConfirmScreenRouter.replaceSynchronizedNativeScreen(screen)) {
+            return;
+        }
+        CraftingPlanTreeEntry.refresh(screen);
         TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
         dataEnergistics$refreshCyclePage(state);
         this.start.active = this.start.active && state.data_energistics$isPlanReady();

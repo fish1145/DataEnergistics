@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.crafting.tree.CraftingPlanTreeEntry;
+import com.fish_dan_.data_energistics.client.screen.crafting.confirm.TrinityCraftConfirmScreenRouter;
 import com.fish_dan_.data_energistics.client.screen.patternencoding.PatternEncodingScreenRouter;
 import com.fish_dan_.data_energistics.client.screen.terminal.Ae2TerminalKeyOverlay;
 import com.fish_dan_.data_energistics.client.screen.terminal.UniversalTerminalScreenHook;
@@ -19,7 +20,10 @@ final class ClientScreenEventHandler {
     }
 
     static void onScreenOpening(ScreenEvent.Opening event) {
-        Screen replacement = PatternEncodingScreenRouter.routeOpeningScreen(event.getCurrentScreen());
+        Screen replacement = TrinityCraftConfirmScreenRouter.routeOpeningScreen(event.getCurrentScreen());
+        if (replacement == null) {
+            replacement = PatternEncodingScreenRouter.routeOpeningScreen(event.getCurrentScreen());
+        }
         if (replacement != null) {
             event.setNewScreen(replacement);
         }
