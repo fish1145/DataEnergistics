@@ -1,13 +1,14 @@
 {
-	"type": "minecraft:crafting_shapeless",
-	"ingredients": [
-		{
-			"tag": "c:dusts/amethyst"
-		},
-		{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["PA"],
+	"key": {
+		"P": {
 			"item": "minecraft:paper"
+		},
+		"A": {
+			"tag": "c:dusts/amethyst"
 		}
-	],
+	},
 	"result": {
 		"id": "data_energistics:order_package",
 		"count": 1
