@@ -97,6 +97,7 @@ final class OrthogonalRouteSearch {
 
     private @Nullable RawCandidate searchRaw(List<Port> sources, List<Port> targets, CraftingPlanRouteGroup group,
                                              boolean respectReservations) {
+        SearchWindow window = SearchWindow.around(sources, targets, maximumDetour);
         List<Long2ObjectMap<Label>> labels = new ObjectArrayList<>(4);
         for (int heading = 0; heading < 4; heading++) labels.add(new Long2ObjectOpenHashMap<>());
         Comparator<Label> order = Comparator.comparingDouble((Label label) -> label.estimate)
@@ -107,7 +108,7 @@ final class OrthogonalRouteSearch {
         for (Port source : sources) {
             double length = distance(source.anchor(), source.stub());
             Label label = new Label(graph.key(source.stub()), heading(source.anchor(), source.stub()), source,
-                    null, length, length + heuristic(source.stub(), targets), 0, ordinal++);
+                    null, length, length, length + heuristic(source.stub(), targets), 0, ordinal++);
             if (retain(label, labels)) pending.enqueue(label);
         }
         while (!pending.isEmpty()) {
@@ -125,9 +126,11 @@ final class OrthogonalRouteSearch {
                 Point to = graph.point(next);
                 int direction = heading(current, to);
                 if (direction == (label.heading + 2) % 4) continue;
-                double length = label.length + distance(current, to);
-                Label candidate = new Label(next, direction, label.source, label, length,
-                        length + heuristic(to, targets), label.bends + (direction == label.heading ? 0 : 1), ordinal++);
+                double edgeLength = distance(current, to);
+                double length = label.length + edgeLength;
+                double cost = label.cost + edgeLength + 4 * window.outsideLength(current, to);
+                Label candidate = new Label(next, direction, label.source, label, length, cost,
+                        cost + heuristic(to, targets), label.bends + (direction == label.heading ? 0 : 1), ordinal++);
                 if (retain(candidate, labels)) pending.enqueue(candidate);
             }
         }
@@ -137,7 +140,7 @@ final class OrthogonalRouteSearch {
     private static boolean retain(Label candidate, List<Long2ObjectMap<Label>> index) {
         Long2ObjectMap<Label> labels = index.get(candidate.heading);
         Label existing = labels.get(candidate.point);
-        if (existing != null && (existing.length < candidate.length - EPSILON || Math.abs(existing.length - candidate.length) <= EPSILON && existing.bends <= candidate.bends)) return false;
+        if (existing != null && (existing.cost < candidate.cost - EPSILON || Math.abs(existing.cost - candidate.cost) <= EPSILON && existing.bends <= candidate.bends)) return false;
         if (existing != null) existing.active = false;
         labels.put(candidate.point, candidate);
         return true;
@@ -287,6 +290,44 @@ final class OrthogonalRouteSearch {
 
     private record RawCandidate(List<Point> points, double length, int bends) {}
 
+    private record SearchWindow(double minX, double minY, double maxX, double maxY) {
+
+        private static SearchWindow around(List<Port> sources, List<Port> targets, double padding) {
+            double minX = Double.POSITIVE_INFINITY;
+            double minY = Double.POSITIVE_INFINITY;
+            double maxX = Double.NEGATIVE_INFINITY;
+            double maxY = Double.NEGATIVE_INFINITY;
+            for (Port port : sources) {
+                minX = Math.min(minX, port.anchor().x());
+                minY = Math.min(minY, port.anchor().y());
+                maxX = Math.max(maxX, port.anchor().x());
+                maxY = Math.max(maxY, port.anchor().y());
+            }
+            for (Port port : targets) {
+                minX = Math.min(minX, port.anchor().x());
+                minY = Math.min(minY, port.anchor().y());
+                maxX = Math.max(maxX, port.anchor().x());
+                maxY = Math.max(maxY, port.anchor().y());
+            }
+            return new SearchWindow(minX - padding, minY - padding, maxX + padding, maxY + padding);
+        }
+
+        private double outsideLength(Point from, Point to) {
+            if (from.y() == to.y()) {
+                double length = Math.abs(to.x() - from.x());
+                if (from.y() < minY || from.y() > maxY) return length;
+                return length - overlap(from.x(), to.x(), minX, maxX);
+            }
+            double length = Math.abs(to.y() - from.y());
+            if (from.x() < minX || from.x() > maxX) return length;
+            return length - overlap(from.y(), to.y(), minY, maxY);
+        }
+
+        private static double overlap(double first, double second, double minimum, double maximum) {
+            return Math.max(0, Math.min(Math.max(first, second), maximum) - Math.max(Math.min(first, second), minimum));
+        }
+    }
+
     private static final class Label {
 
         private final long point;
@@ -294,18 +335,20 @@ final class OrthogonalRouteSearch {
         private final Port source;
         private final @Nullable Label previous;
         private final double length;
+        private final double cost;
         private final double estimate;
         private final int bends;
         private final long ordinal;
         private boolean active = true;
 
         private Label(long point, int heading, Port source, @Nullable Label previous, double length,
-                      double estimate, int bends, long ordinal) {
+                      double cost, double estimate, int bends, long ordinal) {
             this.point = point;
             this.heading = heading;
             this.source = source;
             this.previous = previous;
             this.length = length;
+            this.cost = cost;
             this.estimate = estimate;
             this.bends = bends;
             this.ordinal = ordinal;
