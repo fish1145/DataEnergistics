@@ -13,6 +13,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+
 import org.jspecify.annotations.Nullable;
 
 public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipperReassemblerBlockEntity {
@@ -51,7 +52,7 @@ public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipp
     @Nullable
     @Override
     protected RecipeHolder<DataRipperReassemblerRecipe> getAdditionalProcessingRecipeById(Level level,
-                                                                                            ResourceLocation recipeId) {
+                                                                                          ResourceLocation recipeId) {
         return this.externalRecipeCatalog.recipeById(level, recipeId);
     }
 

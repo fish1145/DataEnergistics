@@ -1187,8 +1187,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     /**
      * Supplies machine-specific recipes that have been normalized to the data reassembler contract.
      *
-     * <p>The base machine only returns its native data reassembler recipes. Specializations may add
-     * recipes from compatible external machines without duplicating processing, reservation, or output logic.</p>
+     * <p>
+     * The base machine only returns its native data reassembler recipes. Specializations may add
+     * recipes from compatible external machines without duplicating processing, reservation, or output logic.
+     * </p>
      */
     protected Iterable<RecipeHolder<DataRipperReassemblerRecipe>> getAdditionalProcessingRecipes(Level level) {
         return List.of();
@@ -1197,10 +1199,12 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     /**
      * Resolves an active machine-specific recipe after its normalized identifier was persisted.
      *
-     * <p>Returning {@code null} means that the active recipe is no longer available after a reload.</p>
+     * <p>
+     * Returning {@code null} means that the active recipe is no longer available after a reload.
+     * </p>
      */
     protected @Nullable RecipeHolder<DataRipperReassemblerRecipe> getAdditionalProcessingRecipeById(Level level,
-                                                                                                       ResourceLocation recipeId) {
+                                                                                                    ResourceLocation recipeId) {
         return null;
     }
 

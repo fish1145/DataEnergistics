@@ -6,13 +6,6 @@ import com.fish_dan_.data_energistics.recipe.reassembler.DataReassemblerItemOutp
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.JsonOps;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -30,6 +23,13 @@ import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.JsonOps;
+import com.mojang.serialization.MapCodec;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -40,8 +40,10 @@ import java.util.Map;
 /**
  * Normalizes supported third-party machine recipes for the asynchronous factory without loading their classes.
  *
- * <p>The external recipe codec is used only after its recipe type has been registered. This keeps the factory
- * loadable when either optional mod is absent while still respecting recipes added by data packs.</p>
+ * <p>
+ * The external recipe codec is used only after its recipe type has been registered. This keeps the factory
+ * loadable when either optional mod is absent while still respecting recipes added by data packs.
+ * </p>
  */
 public final class ExternalFactoryRecipeCatalog {
 
@@ -109,14 +111,14 @@ public final class ExternalFactoryRecipeCatalog {
         MapCodec codec = serializer.codec();
         DataResult<JsonElement> encoded = (DataResult<JsonElement>) codec.codec().encodeStart(JsonOps.INSTANCE, recipe);
         return encoded.resultOrPartial(error -> Data_Energistics.LOGGER.warn(
-                        "Skipped external factory recipe {} because its codec could not encode it: {}", recipeId, error))
+                "Skipped external factory recipe {} because its codec could not encode it: {}", recipeId, error))
                 .filter(JsonObject.class::isInstance)
                 .map(JsonObject.class::cast)
                 .orElse(null);
     }
 
     private static @Nullable List<DataRipperReassemblerIngredient> parseItemInputs(JsonObject serialized,
-                                                                                     ResourceLocation recipeId) {
+                                                                                   ResourceLocation recipeId) {
         JsonElement rawInputs = serialized.get("input_items");
         if (!(rawInputs instanceof JsonArray inputArray)) {
             Data_Energistics.LOGGER.warn("Skipped external factory recipe {} because it has no input_items array", recipeId);
@@ -155,7 +157,7 @@ public final class ExternalFactoryRecipeCatalog {
     }
 
     private static @Nullable List<List<GenericStack>> parseFluidVariants(JsonObject serialized,
-                                                                           ResourceLocation recipeId) {
+                                                                         ResourceLocation recipeId) {
         JsonElement rawFluidInput = serialized.get("input_fluid");
         if (rawFluidInput == null || rawFluidInput.isJsonNull()) {
             return List.of(List.of());
@@ -199,7 +201,7 @@ public final class ExternalFactoryRecipeCatalog {
     }
 
     private static @Nullable OutputDefinition parseCrystalAssemblerOutput(JsonObject serialized,
-                                                                            ResourceLocation recipeId) {
+                                                                          ResourceLocation recipeId) {
         JsonElement rawOutput = serialized.get("output");
         if (rawOutput == null) {
             Data_Energistics.LOGGER.warn("Skipped external factory recipe {} because it has no output", recipeId);
@@ -214,7 +216,7 @@ public final class ExternalFactoryRecipeCatalog {
     }
 
     private static @Nullable OutputDefinition parseReactionChamberOutput(JsonObject serialized,
-                                                                           ResourceLocation recipeId) {
+                                                                         ResourceLocation recipeId) {
         JsonElement rawOutput = serialized.get("output");
         if (rawOutput == null) {
             Data_Energistics.LOGGER.warn("Skipped external factory recipe {} because it has no output", recipeId);
@@ -241,10 +243,10 @@ public final class ExternalFactoryRecipeCatalog {
     }
 
     private static List<RecipeHolder<DataRipperReassemblerRecipe>> createVariants(ResourceLocation sourceRecipeId,
-                                                                                     ExternalRecipeSource source,
-                                                                                     List<DataRipperReassemblerIngredient> itemInputs,
-                                                                                     List<List<GenericStack>> fluidVariants,
-                                                                                     OutputDefinition outputs) {
+                                                                                  ExternalRecipeSource source,
+                                                                                  List<DataRipperReassemblerIngredient> itemInputs,
+                                                                                  List<List<GenericStack>> fluidVariants,
+                                                                                  OutputDefinition outputs) {
         List<RecipeHolder<DataRipperReassemblerRecipe>> variants = new ArrayList<>(fluidVariants.size());
         for (int variantIndex = 0; variantIndex < fluidVariants.size(); variantIndex++) {
             try {
@@ -273,7 +275,9 @@ public final class ExternalFactoryRecipeCatalog {
     }
 
     private enum ExternalRecipeSource {
+
         EAE_CRYSTAL_ASSEMBLER(ResourceLocation.fromNamespaceAndPath("extendedae", "crystal_assembler"), "eae_crystal") {
+
             @Override
             List<RecipeHolder<DataRipperReassemblerRecipe>> adapt(ResourceLocation recipeId, JsonObject serialized) {
                 List<DataRipperReassemblerIngredient> itemInputs = parseItemInputs(serialized, recipeId);
@@ -284,6 +288,7 @@ public final class ExternalFactoryRecipeCatalog {
             }
         },
         AAE_REACTION_CHAMBER(ResourceLocation.fromNamespaceAndPath("advanced_ae", "reaction"), "aae_reaction") {
+
             @Override
             List<RecipeHolder<DataRipperReassemblerRecipe>> adapt(ResourceLocation recipeId, JsonObject serialized) {
                 List<DataRipperReassemblerIngredient> itemInputs = parseItemInputs(serialized, recipeId);
