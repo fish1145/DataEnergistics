@@ -1,0 +1,39 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"tag": "data_energistics:me_emitters"
+			},
+			{
+				"item": "data_energistics:me_beam_former_part"
+			},
+			{
+				"item": "ae2:quartz_vibrant_glass",
+				"count": 2
+			},
+			{
+				"item": "ae2:charged_staff"
+			},
+			{
+				"tag": "ae2:covered_dense_cable"
+			},
+			{
+				"item": "data_energistics:fluix_aggregate_crystal_processor",
+				"count": 8
+			},
+			{
+				"item": "minecraft:amethyst_shard",
+				"count": 4
+			}
+		]
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:me_beam_former",
+				"count": 1
+			}
+		]
+	}
+}
