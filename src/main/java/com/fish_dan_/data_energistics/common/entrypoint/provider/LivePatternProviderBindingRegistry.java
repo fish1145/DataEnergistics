@@ -2,10 +2,13 @@ package com.fish_dan_.data_energistics.common.entrypoint.provider;
 
 import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderBatchAccess;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderAdapter;
+import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderWorkstationSource;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderWorkstationSourceRegistration;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
 import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderFactory;
 import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderFactoryContext;
+import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderIdentity;
 import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderIdentitySource;
 import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderRuntimeLink;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
@@ -15,13 +18,15 @@ import com.fish_dan_.data_energistics.common.pattern.ProviderIdentityResolver;
 
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.helpers.patternprovider.PatternContainer;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -30,19 +35,23 @@ import java.util.Optional;
  */
 final class LivePatternProviderBindingRegistry {
 
-    private final Map<ProviderIdentityDescriptor, PatternProviderRegistration> registrationsByIdentity;
+    private final Object2ObjectMap<ProviderIdentityDescriptor, PatternProviderRegistration> registrationsByIdentity;
+    private final Object2ObjectMap<ProviderIdentityDescriptor, PatternProviderWorkstationSource> workstationSourcesByIdentity;
     private final ProviderIdentityResolver identityResolver;
-    private final Map<CraftingProviderId, ICraftingProvider> publications = new HashMap<>();
-    private final Map<CraftingProviderId, ProviderAdapterState> adaptersByPublication = new HashMap<>();
-    private final Map<ICraftingProvider, ProviderAdapterState> adaptersByProvider = new IdentityHashMap<>();
+    private final Object2ObjectMap<CraftingProviderId, ICraftingProvider> publications = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<CraftingProviderId, ProviderAdapterState> adaptersByPublication = new Object2ObjectOpenHashMap<>();
+    private final Reference2ObjectMap<ICraftingProvider, ProviderAdapterState> adaptersByProvider = new Reference2ObjectOpenHashMap<>();
 
-    LivePatternProviderBindingRegistry(List<PatternProviderRegistration> registrations) {
-        this(registrations, ProviderIdentityResolver.create());
+    LivePatternProviderBindingRegistry(List<PatternProviderRegistration> registrations,
+                                       List<PatternProviderWorkstationSourceRegistration> workstationSources) {
+        this(registrations, workstationSources, ProviderIdentityResolver.create());
     }
 
     LivePatternProviderBindingRegistry(List<PatternProviderRegistration> registrations,
+                                       List<PatternProviderWorkstationSourceRegistration> workstationSources,
                                        ProviderIdentityResolver identityResolver) {
-        LinkedHashMap<ProviderIdentityDescriptor, PatternProviderRegistration> indexed = new LinkedHashMap<>();
+        Object2ObjectMap<ProviderIdentityDescriptor, PatternProviderRegistration> indexed = new Object2ObjectLinkedOpenHashMap<>(
+                registrations.size());
         for (PatternProviderRegistration registration : registrations) {
             ProviderIdentityDescriptor descriptor = registration.metadata().providerIdentity();
             PatternProviderRegistration existing = indexed.putIfAbsent(descriptor, registration);
@@ -50,7 +59,20 @@ final class LivePatternProviderBindingRegistry {
                 throw new IllegalStateException("Duplicate frozen pattern provider identity: " + descriptor);
             }
         }
-        this.registrationsByIdentity = Map.copyOf(indexed);
+        this.registrationsByIdentity = Object2ObjectMaps.unmodifiable(indexed);
+        Object2ObjectMap<ProviderIdentityDescriptor, PatternProviderWorkstationSource> indexedSources = new Object2ObjectLinkedOpenHashMap<>(
+                workstationSources.size());
+        for (PatternProviderWorkstationSourceRegistration registration : workstationSources) {
+            PatternProviderWorkstationSource existing = indexedSources.putIfAbsent(
+                    registration.providerIdentity(),
+                    registration.source());
+            if (existing != null) {
+                throw new IllegalStateException(
+                        "Duplicate frozen pattern provider workstation source identity: " +
+                                registration.providerIdentity());
+            }
+        }
+        this.workstationSourcesByIdentity = Object2ObjectMaps.unmodifiable(indexedSources);
         this.identityResolver = identityResolver;
     }
 
@@ -138,6 +160,12 @@ final class LivePatternProviderBindingRegistry {
 
     public Optional<ResolvedProviderBinding> resolve(PatternContainer container) {
         return this.resolveIdentity(null, container);
+    }
+
+    @Nullable
+    public PatternProviderWorkstationSource resolveWorkstationSource(PatternProviderIdentity identity) {
+        Optional<ProviderIdentityDescriptor> descriptor = identity.descriptor();
+        return descriptor.isEmpty() ? null : this.workstationSourcesByIdentity.get(descriptor.get());
     }
 
     public void clear() {

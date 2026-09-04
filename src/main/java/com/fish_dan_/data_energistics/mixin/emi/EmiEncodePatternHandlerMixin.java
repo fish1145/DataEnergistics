@@ -83,7 +83,10 @@ public abstract class EmiEncodePatternHandlerMixin {
         PatternEncodingSourceHelper.rememberTransferSource(menu, transferMode, rankingContext);
         PatternEncodingSourceHelper.rememberDataRipperTransferMetadata(menu, transferMode, holder, emiRecipe);
         if (transferMode == EncodingMode.PROCESSING) {
-            PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, rankingContext);
+            PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(
+                    menu,
+                    rankingContext,
+                    EmiPatternTransferContextBridge.resolveRecipeId(holder, emiRecipe));
         } else {
             PatternEncodingPreferencesClient.captureTransferredRecipe(menu, transferMode);
         }

@@ -31,6 +31,10 @@
 - [运行时绑定与 counted dispatch](pattern-provider/runtime-and-counted-dispatch.md)
 - [菜单和提交回调](pattern-provider/callbacks.md)
 
+### Crafting Machine
+
+- [容量与样板上传事务](crafting-machine/registration-and-pattern-upload.md)
+
 ### Adaptive Pattern Provider
 
 - [注册 definition](adaptive-pattern-provider/registration.md)

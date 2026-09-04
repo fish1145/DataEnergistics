@@ -41,3 +41,15 @@
 - 把文档中标记为 stable、persisted、canonical 的值当作协议字段维护；不要从显示名或类名推导这些值。
 - 对返回 `Optional` 或 `@Nullable` 的扩展点遵守其“未匹配”语义，不使用异常表达普通未匹配。
 - 在升级 Data Energistics 或 AE2 时，重新编译并验证运行时回调；API 类型稳定不等于上游 Minecraft/NeoForge/AE2 类型永远不变。
+
+## 3.2.x 到 3.3.0 的弃用窗口
+
+3.2 已公开的 API 保留到 3.3.0。当前弃用项只做薄委托，不复制运行状态：
+
+- Data Energistics 提供的 `craftingMachineCapacities()` 与 `craftingMachines()` 共享同一个 staging transaction；
+- `CraftingMachineCapacityRegistry.register(...)` 委托到 `CraftingMachineRegistry.registerCapacity(...)`；
+- `CraftingMachineCapacityScope` 继续作为 `CraftingMachineCapacityRegistration.scope()` 的二进制返回类型，新代码使用 `machineScope()`；
+
+新增 provider workstation source 使用独立 registration，因此 `PatternProviderRegistration` 的四个 record components、构造器和相等性语义在 3.2.x 保持不变。新增 registrar 方法提供 legacy default：正常运行时由 Data Energistics staging 覆盖；自行实现 registrar interface 的旧代码仍能编译和运行原能力，但不能在未升级实现时使用新增能力。
+
+这些兼容入口计划在 3.3.0 移除。3.2.x 内不得让它们分叉出独立注册表、不同校验或不同运行行为。
