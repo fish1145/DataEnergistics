@@ -79,7 +79,7 @@ public final class CraftingPlanGraphRenderer {
                 RouteStyle style = this.segmentStyles.get(segmentId);
                 double width = styleScale * (highlightedSegments.contains(segmentId) ? CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH : CraftingPlanGraphRouteDrawing.STROKE_WIDTH);
                 double arrowSize = styleScale * CraftingPlanGraphRouteDrawing.ARROW_SIZE;
-                if (blocksArrow(segmentId, segment.from().x(), segment.from().y(), arrowSize, styleScale)) continue;
+                if (blocksArrow(segmentId, segment.from().x(), segment.from().y(), arrowSize)) continue;
                 // Layout routes encode demand, so this terminal marker points along actual material flow.
                 strokes.arrow(segment.to().x(), segment.to().y(), segment.from().x(), segment.from().y(),
                         arrowSize, width, style.color(0));
@@ -186,7 +186,7 @@ public final class CraftingPlanGraphRenderer {
         double dx = run.to().x() - run.from().x();
         double dy = run.to().y() - run.from().y();
         double length = Math.hypot(dx, dy);
-        double margin = styleScale * (this.maximumBridgeRadius + CraftingPlanGraphRouteDrawing.ARROW_SIZE * 0.55 + CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH) + 0.5 / pixelScale;
+        double margin = this.maximumBridgeRadius + styleScale * (CraftingPlanGraphRouteDrawing.ARROW_SIZE * 0.55 + CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH) + 0.5 / pixelScale;
         if (!visible(Math.min(run.from().x(), run.to().x()) - margin,
                 Math.min(run.from().y(), run.to().y()) - margin, Math.abs(dx) + 2 * margin,
                 Math.abs(dy) + 2 * margin, viewport))
@@ -205,7 +205,7 @@ public final class CraftingPlanGraphRenderer {
             Segment segment = geometry.segments().get(segmentId);
             double width = styleScale * (highlightedSegments.contains(segmentId) ? CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH : CraftingPlanGraphRouteDrawing.STROKE_WIDTH);
             drawSegment(strokes, segmentId, segment, style, width, distanceFromRun(run, segment.from()), length, bands,
-                    pixelScale, styleScale, viewport, margin);
+                    pixelScale, viewport, margin);
         }
         if (lod == GraphViewLod.BLOCK || !CraftingPlanGraphRouteDrawing.hasInteriorArrows(style, length, pixelScale)) return;
         int arrows = CraftingPlanGraphRouteDrawing.interiorArrowCount(length, pixelScale);
@@ -227,15 +227,15 @@ public final class CraftingPlanGraphRenderer {
     }
 
     private void drawSegment(CraftingPlanGraphStrokes strokes, int segmentId, Segment segment, RouteStyle style, double width,
-                             double offset, double runLength, int bands, float pixelScale, double styleScale,
+                             double offset, double runLength, int bands, float pixelScale,
                              @Nullable Bounds viewport, double viewportMargin) {
         ObjectList<CraftingPlanRouteCrossing> bridge = this.bridges.get(segmentId);
         ObjectList<Underpass> underpass = this.underpasses.get(segmentId);
         if (bridge != null) {
-            drawBridge(strokes, segment, style, width, offset, runLength, bands, pixelScale, styleScale, bridge, viewport,
+            drawBridge(strokes, segment, style, width, offset, runLength, bands, pixelScale, bridge, viewport,
                     viewportMargin);
         } else if (underpass != null) {
-            drawUnderpass(strokes, segment, style, width, offset, runLength, bands, styleScale,
+            drawUnderpass(strokes, segment, style, width, offset, runLength, bands,
                     underpass, viewport, viewportMargin);
         } else {
             drawPiece(strokes, segment.from(), segment.to(), style, width, offset,
@@ -267,7 +267,6 @@ public final class CraftingPlanGraphRenderer {
 
     private static void drawUnderpass(CraftingPlanGraphStrokes strokes, Segment segment, RouteStyle style, double width,
                                       double offset, double runLength, int bands,
-                                      double styleScale,
                                       ObjectList<Underpass> underpasses, @Nullable Bounds viewport,
                                       double viewportMargin) {
         Point cursor = segment.from();
@@ -279,7 +278,7 @@ public final class CraftingPlanGraphRenderer {
         for (int index = forward ? first : last - 1; index >= first && index < last; index += forward ? 1 : -1) {
             Underpass underpass = underpasses.get(index);
             double center = underpass.x();
-            double gap = underpass.gapHalfWidth() * styleScale;
+            double gap = underpass.gapHalfWidth();
             double near = center + (forward ? -gap : gap);
             double far = center + (forward ? gap : -gap);
             Point entry = new Point(near, segment.from().y());
@@ -293,7 +292,7 @@ public final class CraftingPlanGraphRenderer {
     }
 
     private static void drawBridge(CraftingPlanGraphStrokes strokes, Segment segment, RouteStyle style, double width,
-                                   double offset, double runLength, int bands, float pixelScale, double styleScale,
+                                   double offset, double runLength, int bands, float pixelScale,
                                    ObjectList<CraftingPlanRouteCrossing> crossings, @Nullable Bounds viewport,
                                    double viewportMargin) {
         Point cursor = segment.from();
@@ -303,7 +302,7 @@ public final class CraftingPlanGraphRenderer {
                 viewport == null ? Double.POSITIVE_INFINITY : viewport.y() + viewport.height() + viewportMargin);
         for (int index = downward ? first : last - 1; index >= first && index < last; index += downward ? 1 : -1) {
             CraftingPlanRouteCrossing crossing = crossings.get(index);
-            double radius = crossing.radius() * styleScale;
+            double radius = crossing.radius();
             Point entry = new Point(crossing.x(), crossing.y() + (downward ? -radius : radius));
             Point exit = new Point(crossing.x(), crossing.y() + (downward ? radius : -radius));
             drawPiece(strokes, cursor, entry, style, width, offset + Math.abs(cursor.y() - segment.from().y()),
@@ -311,8 +310,7 @@ public final class CraftingPlanGraphRenderer {
             Point previous = entry;
             int steps = Math.clamp(2 * (int) Math.ceil(2 * Math.sqrt(radius * pixelScale)), 4, 128);
             for (int step = 1; step <= steps; step++) {
-                Point next = bridgePoint(crossing, downward ? step / (double) steps : 1 - step / (double) steps,
-                        styleScale);
+                Point next = bridgePoint(crossing, downward ? step / (double) steps : 1 - step / (double) steps);
                 drawPiece(strokes, previous, next, style, width,
                         offset + Math.abs(previous.y() - segment.from().y()),
                         offset + Math.abs(next.y() - segment.from().y()), runLength, bands);
@@ -324,22 +322,22 @@ public final class CraftingPlanGraphRenderer {
                 offset + Math.abs(segment.to().y() - segment.from().y()), runLength, bands);
     }
 
-    private boolean blocksArrow(int segmentId, double x, double y, double size, double styleScale) {
+    private boolean blocksArrow(int segmentId, double x, double y, double size) {
         ObjectList<CraftingPlanRouteCrossing> bridge = this.bridges.get(segmentId);
         if (bridge != null) for (CraftingPlanRouteCrossing crossing : bridge) {
-            if (Math.abs(y - crossing.y()) <= crossing.radius() * styleScale + size) return true;
+            if (Math.abs(y - crossing.y()) <= crossing.radius() + size) return true;
         }
         ObjectList<Underpass> underpass = this.underpasses.get(segmentId);
         if (underpass != null) for (Underpass gap : underpass) {
-            if (Math.abs(x - gap.x()) <= gap.gapHalfWidth() * styleScale + size) return true;
+            if (Math.abs(x - gap.x()) <= gap.gapHalfWidth() + size) return true;
         }
         return false;
     }
 
-    private static Point bridgePoint(CraftingPlanRouteCrossing crossing, double fraction, double styleScale) {
+    private static Point bridgePoint(CraftingPlanRouteCrossing crossing, double fraction) {
         double local = fraction <= 0.5 ? fraction * 2 : (fraction - 0.5) * 2;
-        double bend = crossing.bend() * styleScale;
-        double radius = crossing.radius() * styleScale;
+        double bend = crossing.bend();
+        double radius = crossing.radius();
         double startX = fraction <= 0.5 ? crossing.x() : crossing.x() + bend;
         double controlX = crossing.x() + bend;
         double endX = fraction <= 0.5 ? crossing.x() + bend : crossing.x();

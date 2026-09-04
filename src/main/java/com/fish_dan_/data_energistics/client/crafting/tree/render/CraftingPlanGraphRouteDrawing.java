@@ -70,7 +70,7 @@ public final class CraftingPlanGraphRouteDrawing {
             int segmentId = run.segmentIds().getInt(index);
             if (!vertical) {
                 List<Underpass> gaps = underpasses.get(segmentId);
-                if (gaps != null && blocksUnderpassArrow(gaps, low, high, styleScale)) return true;
+                if (gaps != null && blocksUnderpassArrow(gaps, low, high)) return true;
                 continue;
             }
             List<CraftingPlanRouteCrossing> crossings = bridges.get(segmentId);
@@ -79,23 +79,23 @@ public final class CraftingPlanGraphRouteDrawing {
             int right = crossings.size();
             while (left < right) {
                 int middle = (left + right) >>> 1;
-                if (crossings.get(middle).y() < low - maximumBridgeRadius * styleScale) left = middle + 1;
+                if (crossings.get(middle).y() < low - maximumBridgeRadius) left = middle + 1;
                 else right = middle;
             }
             for (int crossingIndex = left; crossingIndex < crossings.size(); crossingIndex++) {
                 CraftingPlanRouteCrossing crossing = crossings.get(crossingIndex);
-                if (crossing.y() > high + maximumBridgeRadius * styleScale) break;
+                if (crossing.y() > high + maximumBridgeRadius) break;
                 double center = crossing.y();
-                double radius = styleScale * crossing.radius();
+                double radius = crossing.radius();
                 if (center + radius >= low && center - radius <= high) return true;
             }
         }
         return false;
     }
 
-    private static boolean blocksUnderpassArrow(List<Underpass> gaps, double low, double high, double styleScale) {
+    private static boolean blocksUnderpassArrow(List<Underpass> gaps, double low, double high) {
         for (Underpass gap : gaps) {
-            double radius = gap.gapHalfWidth() * styleScale;
+            double radius = gap.gapHalfWidth();
             if (gap.x() + radius >= low && gap.x() - radius <= high) return true;
         }
         return false;
