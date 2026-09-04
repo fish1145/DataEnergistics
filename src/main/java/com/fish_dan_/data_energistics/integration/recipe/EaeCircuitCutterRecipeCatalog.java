@@ -3,11 +3,6 @@ package com.fish_dan_.data_energistics.integration.recipe;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.recipe.RecipeReloadEpoch;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.JsonOps;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
@@ -19,6 +14,12 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.JsonOps;
+import com.mojang.serialization.MapCodec;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -28,9 +29,11 @@ import java.util.Set;
 /**
  * Caches block inputs accepted by ExtendedAE's circuit cutter without loading ExtendedAE recipe classes.
  *
- * <p>The circuit cutter's recipe implementation uses its own execution context instead of the usual recipe-matching
+ * <p>
+ * The circuit cutter's recipe implementation uses its own execution context instead of the usual recipe-matching
  * method. Encoding its registered recipe codec lets this catalog honor data-pack changes while keeping the integrated
- * charger loadable when ExtendedAE is absent.</p>
+ * charger loadable when ExtendedAE is absent.
+ * </p>
  */
 public final class EaeCircuitCutterRecipeCatalog {
 
@@ -55,7 +58,9 @@ public final class EaeCircuitCutterRecipeCatalog {
     /**
      * Returns the output of the non-excluded EAE circuit-cutter recipe accepting the supplied block item.
      *
-     * <p>The catalog is refreshed only after the recipe manager or recipe-reload epoch changes.</p>
+     * <p>
+     * The catalog is refreshed only after the recipe manager or recipe-reload epoch changes.
+     * </p>
      */
     public @Nullable ItemStack findOutput(Level level, ItemStack stack) {
         if (stack.isEmpty() || !(stack.getItem() instanceof BlockItem) ||
@@ -179,7 +184,7 @@ public final class EaeCircuitCutterRecipeCatalog {
         MapCodec codec = serializer.codec();
         DataResult<JsonElement> encoded = (DataResult<JsonElement>) codec.codec().encodeStart(JsonOps.INSTANCE, recipe);
         return encoded.resultOrPartial(error -> Data_Energistics.LOGGER.warn(
-                        "Skipped EAE circuit-cutter recipe {} because its codec could not encode it: {}", recipeId, error))
+                "Skipped EAE circuit-cutter recipe {} because its codec could not encode it: {}", recipeId, error))
                 .filter(JsonObject.class::isInstance)
                 .map(JsonObject.class::cast)
                 .orElse(null);

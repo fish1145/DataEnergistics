@@ -242,7 +242,8 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     /**
-     * @deprecated The integrated charger now exposes three fluid menus. Use {@link #getFluidMenuInventory(int)} instead.
+     * @deprecated The integrated charger now exposes three fluid menus. Use {@link #getFluidMenuInventory(int)}
+     *             instead.
      */
     @Deprecated
     public ConfigMenuInventory getFluidMenuInventory() {
@@ -1482,6 +1483,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public enum MachineMode {
+
         POWDER,
         CRYSTAL_GROWTH,
         CHARGER,

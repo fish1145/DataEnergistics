@@ -168,7 +168,7 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
     }
 
     private static void addIntegratedChargerItemInputs(IRecipeLayoutBuilder builder,
-                                                        List<DataChargePressIngredient> inputs) {
+                                                       List<DataChargePressIngredient> inputs) {
         for (int index = 0; index < inputs.size(); index++) {
             var input = inputs.get(index);
             switch (index) {
@@ -195,7 +195,7 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
     }
 
     private static void setEaeCircuitCutterRecipe(IRecipeLayoutBuilder builder,
-                                                   DataChargePressRecipeView.EaeCircuitCutterView view) {
+                                                  DataChargePressRecipeView.EaeCircuitCutterView view) {
         builder.addInputSlot(FIRST_INPUT_X, FIRST_INPUT_Y).addIngredients(view.input());
         addFluidInput(builder, DataChargePressRecipeSupport.getFluidInput(view.fluidAmount()));
         builder.addOutputSlot(OUTPUT_X, OUTPUT_Y).addItemStack(view.output());
@@ -280,5 +280,4 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
         }
         return "charger";
     }
-
 }

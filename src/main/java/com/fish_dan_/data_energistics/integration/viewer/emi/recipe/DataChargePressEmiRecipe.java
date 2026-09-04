@@ -235,7 +235,7 @@ public final class DataChargePressEmiRecipe extends BasicEmiRecipe {
     }
 
     private void addEaeCircuitCutterWidgets(WidgetHolder widgets,
-                                             DataChargePressRecipeView.EaeCircuitCutterView view) {
+                                            DataChargePressRecipeView.EaeCircuitCutterView view) {
         widgets.addSlot(EmiIngredient.of(view.input()), FIRST_INPUT_X, FIRST_INPUT_Y).drawBack(false);
         if (DataChargePressRecipeSupport.getFluidInput(view.fluidAmount()).what() instanceof AEFluidKey fluidKey) {
             addFluidTank(widgets, fluidKey, view.fluidAmount());
