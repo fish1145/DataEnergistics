@@ -43,6 +43,7 @@ final class OrthogonalSegmentReservations {
     @Nullable
     Metrics measure(List<Point> points, CraftingPlanRouteGroup group) {
         List<Leg> legs = legs(points);
+        if (selfOverlaps(legs)) return null;
         double length = 0;
         double shared = 0;
         int bends = 0;
@@ -72,6 +73,17 @@ final class OrthogonalSegmentReservations {
             }
         }
         return new Metrics(length, intersectionScratch.size(), bends, shared);
+    }
+
+    private static boolean selfOverlaps(List<Leg> legs) {
+        for (int first = 0; first < legs.size(); first++) {
+            Leg left = legs.get(first);
+            for (int second = first + 1; second < legs.size(); second++) {
+                Leg right = legs.get(second);
+                if (left.alongX() == right.alongX() && left.fixed() == right.fixed() && Math.max(left.low(), right.low()) < Math.min(left.high(), right.high())) return true;
+            }
+        }
+        return false;
     }
 
     boolean available(Point from, Point to, CraftingPlanRouteGroup group) {

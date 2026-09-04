@@ -35,20 +35,24 @@ final class OrthogonalRouteSearch {
         List<Port> targets = terminals(targetPorts, group, false);
         if (sources.isEmpty() || targets.isEmpty()) throw new IllegalStateException("No safe crafting-tree node port");
         Candidate shortest = previous == null ? null : new Candidate(previous.points(), previous.metrics());
-        List<RawCandidate> quick = improveCrossings ? new ObjectArrayList<>() : List.of();
-        RawCandidate shortestRaw = null;
+        List<RawCandidate> quick = new ObjectArrayList<>();
         for (Port source : sources) {
             for (Port target : targets) {
                 for (List<Point> core : graph.quickPaths(source, target)) {
                     RawCandidate candidate = rawCandidate(source, target, core, group, true);
                     if (candidate == null) continue;
-                    if (improveCrossings) quick.add(candidate);
-                    if (shortestRaw == null || compareRaw(candidate, shortestRaw) < 0) shortestRaw = candidate;
+                    quick.add(candidate);
                 }
             }
         }
-        if (shortestRaw != null && (shortest == null || compareRaw(shortestRaw, shortest) < 0)) {
-            shortest = measure(shortestRaw, group);
+        quick.sort(OrthogonalRouteSearch::compareRaw);
+        for (RawCandidate candidate : quick) {
+            if (shortest != null && compareRaw(candidate, shortest) >= 0) break;
+            Candidate measured = measure(candidate, group);
+            if (measured != null) {
+                shortest = measured;
+                break;
+            }
         }
         if (shortest == null) shortest = search(sources, targets, group);
         if (shortest == null) throw new IllegalStateException("No obstacle-free crafting-tree connection for " + group);
@@ -58,7 +62,6 @@ final class OrthogonalRouteSearch {
         }
         double limit = baseline + Math.min(baseline * 0.25, maximumDetour);
         Candidate best = shortest;
-        quick.sort(OrthogonalRouteSearch::compareRaw);
         int measuredPaths = 0;
         for (RawCandidate candidate : quick) {
             if (candidate.length() > limit + EPSILON || measuredPaths++ == MAXIMUM_MEASURED_QUICK_PATHS) break;
