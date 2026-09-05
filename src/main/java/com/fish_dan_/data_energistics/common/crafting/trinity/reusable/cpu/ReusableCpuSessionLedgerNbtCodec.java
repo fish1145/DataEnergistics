@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.pe
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.DynamicOutput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.OutputContract;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.RemoteCustodyEvidence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.SessionSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Snapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Submission;
@@ -56,6 +57,20 @@ public final class ReusableCpuSessionLedgerNbtCodec {
             uncertain.add(entry);
         }
         tag.put("uncertain_sessions", uncertain);
+        ListTag evidence = new ListTag();
+        for (RemoteCustodyEvidence claim : snapshot.remoteEvidence()) {
+            CompoundTag entry = new CompoundTag();
+            entry.putUUID("session", claim.sessionId());
+            entry.putUUID("job", claim.jobId());
+            entry.putString("target", claim.targetIdentity());
+            entry.putUUID("loaded_epoch", claim.loadedEpoch());
+            entry.putLong("revision", claim.revision());
+            entry.putLong("accepted", claim.accepted());
+            entry.putBoolean("acknowledged", claim.settlementAcknowledged());
+            entry.putString("reason", claim.reason());
+            evidence.add(entry);
+        }
+        tag.put("remote_evidence", evidence);
         ListTag sessions = new ListTag();
         for (SessionSnapshot session : snapshot.sessions()) {
             CompoundTag entry = new CompoundTag();
@@ -128,6 +143,13 @@ public final class ReusableCpuSessionLedgerNbtCodec {
         UUID owner = uuid(tag, "owner");
         ObjectOpenHashSet<UUID> replanning = new ObjectOpenHashSet<>();
         ObjectOpenHashSet<UUID> uncertain = new ObjectOpenHashSet<>();
+        List<RemoteCustodyEvidence> evidence = new ObjectArrayList<>();
+        for (Tag value : list(tag, "remote_evidence")) {
+            CompoundTag entry = (CompoundTag) value;
+            evidence.add(new RemoteCustodyEvidence(uuid(entry, "session"), uuid(entry, "job"), string(entry, "target"),
+                    uuid(entry, "loaded_epoch"), number(entry, "revision"), number(entry, "accepted"), bool(entry, "acknowledged"),
+                    string(entry, "reason")));
+        }
         for (Tag value : list(tag, "replanning_jobs")) {
             if (!replanning.add(uuid((CompoundTag) value, "job"))) {
                 throw new IllegalArgumentException("Duplicate reusable CPU recovery job");
@@ -179,7 +201,7 @@ public final class ReusableCpuSessionLedgerNbtCodec {
                     TrinityBoundInputSnapshotCodec.read(list(entry, "bindings"), registries), submissions,
                     number(entry, "next_sequence"), bool(entry, "closing"), optionalString(entry, "settlement").orElse(null)));
         }
-        return ReusableCpuSessionLedger.restore(new Snapshot(owner, sessions, replanning, uncertain));
+        return ReusableCpuSessionLedger.restore(new Snapshot(owner, sessions, replanning, uncertain, evidence));
     }
 
     private static CompoundTag writeWork(Work work, HolderLookup.Provider registries) {

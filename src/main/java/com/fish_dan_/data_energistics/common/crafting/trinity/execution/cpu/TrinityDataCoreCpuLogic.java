@@ -401,7 +401,7 @@ final class TrinityDataCoreCpuLogic {
         }
         this.cantStoreItems = false;
         IGrid reusableGrid = this.cpu.grid();
-        if (reusableGrid != null && this.reusableLedger.hasUnsettled()) {
+        if (reusableGrid != null) {
             this.reusableDispatch.synchronize(craftingProviderPublications((CraftingService) reusableGrid.getCraftingService()), currentTick);
         }
         if (this.job == null) {
@@ -448,7 +448,7 @@ final class TrinityDataCoreCpuLogic {
 
     private boolean readyForDispatch(long currentTick) {
         if (!this.cpu.isOnline() || !this.cpu.isActive() || this.job == null || this.job.suspended || this.quarantinedReusableState != null ||
-                this.reusableLedger.hasUncertainOwnership() || this.reusableMutationDepth != 0) {
+                this.reusableLedger.hasUncertainOwnership() || !this.reusableDispatch.custodyCovered() || this.reusableMutationDepth != 0) {
             return false;
         }
         if (this.job.link.isCanceled() ||
@@ -3419,6 +3419,9 @@ final class TrinityDataCoreCpuLogic {
             return TrinityWorkerSchedulingHint.waitingEvent();
         }
         TrinityDataCoreExecutingCraftingJob currentJob = this.job;
+        if (!this.reusableDispatch.custodyCovered()) {
+            return TrinityWorkerSchedulingHint.retryAt(Math.addExact(currentTick, 20L));
+        }
         if (this.reusableLedger.hasUnsettled()) {
             return TrinityWorkerSchedulingHint.retryAt(Math.addExact(currentTick, this.reusableLedger.hasUncertainOwnership() ? 20L : 1L));
         }
@@ -3568,6 +3571,7 @@ final class TrinityDataCoreCpuLogic {
      * @param registries registry lookup
      */
     void readFromTag(CompoundTag data, HolderLookup.Provider registries) {
+        this.reusableDispatch.resetObservation();
         discardPersistedState();
         readReusableLedger(data, registries);
         if (!data.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
@@ -3874,7 +3878,7 @@ final class TrinityDataCoreCpuLogic {
 
     private void storeItems() {
         Preconditions.checkState(this.job == null, "CPU should not have a job while dumping inventory");
-        if (this.quarantinedReusableState != null || this.reusableLedger.hasUncertainOwnership()) return;
+        if (this.quarantinedReusableState != null || this.reusableLedger.hasUncertainOwnership() || !this.reusableDispatch.custodyCovered()) return;
         if (this.inventory.list.isEmpty() && this.exactWorkingInventory.isEmpty()) {
             return;
         }
@@ -4153,10 +4157,7 @@ final class TrinityDataCoreCpuLogic {
         return () -> {
             dynamic.run();
             progress.run();
-            withdrawal.waiting.forEach((key, amount) -> {
-                currentJob.waitingFor.list.remove(key, amount.longValueExact());
-                postChange(key);
-            });
+            withdrawal.waiting.forEach((key, amount) -> currentJob.waitingFor.extract(key, amount.longValueExact(), Actionable.MODULATE));
         };
     }
 

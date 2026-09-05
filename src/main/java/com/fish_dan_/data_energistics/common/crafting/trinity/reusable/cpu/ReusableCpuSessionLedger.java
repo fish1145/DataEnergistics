@@ -102,6 +102,7 @@ public final class ReusableCpuSessionLedger {
         private final Long2ObjectLinkedOpenHashMap<Submission> submissions = new Long2ObjectLinkedOpenHashMap<>();
         private final LongLinkedOpenHashSet pending = new LongLinkedOpenHashSet();
         private long nextSequence;
+        private long acceptedCount;
         private boolean closing;
         private @Nullable String settlementFingerprint;
 
@@ -143,6 +144,10 @@ public final class ReusableCpuSessionLedger {
             return nextSequence;
         }
 
+        public long acceptedCount() {
+            return acceptedCount;
+        }
+
         public boolean closing() {
             return closing;
         }
@@ -171,6 +176,17 @@ public final class ReusableCpuSessionLedger {
 
     public record SubmissionEntry(long sequence, Submission submission) {}
 
+    /** Evidence from a visible executor, never an invented local session or permission to adopt its assets. */
+    public record RemoteCustodyEvidence(UUID sessionId, UUID jobId, String targetIdentity, UUID loadedEpoch,
+                                        long revision, long accepted, boolean settlementAcknowledged, String reason) {
+
+        public RemoteCustodyEvidence {
+            if (targetIdentity.isBlank() || reason.isBlank() || revision < 0 || accepted < 0) {
+                throw new IllegalArgumentException("Invalid remote reusable custody evidence");
+            }
+        }
+    }
+
     /** Complete immutable metadata for one session, including any genuine local escrow. */
     public record SessionSnapshot(UUID id, UUID jobId, Target target, AEItemKey pattern,
                                   TrinityPatternIdentity publication, List<TrinityBoundPatternInput> bindings,
@@ -186,12 +202,14 @@ public final class ReusableCpuSessionLedger {
         }
     }
 
-    public record Snapshot(UUID owner, List<SessionSnapshot> sessions, Set<UUID> replanningJobs, Set<UUID> uncertainSessions) {
+    public record Snapshot(UUID owner, List<SessionSnapshot> sessions, Set<UUID> replanningJobs, Set<UUID> uncertainSessions,
+                           List<RemoteCustodyEvidence> remoteEvidence) {
 
         public Snapshot {
             sessions = List.copyOf(sessions);
             replanningJobs = Set.copyOf(replanningJobs);
             uncertainSessions = Set.copyOf(uncertainSessions);
+            remoteEvidence = List.copyOf(remoteEvidence);
         }
     }
 
@@ -199,6 +217,7 @@ public final class ReusableCpuSessionLedger {
     private final Object2ObjectLinkedOpenHashMap<UUID, Session> sessions = new Object2ObjectLinkedOpenHashMap<>();
     private final Set<UUID> replanningJobs = new ObjectOpenHashSet<>();
     private final Set<UUID> uncertainSessions = new ObjectOpenHashSet<>();
+    private final Object2ObjectLinkedOpenHashMap<UUID, RemoteCustodyEvidence> remoteEvidence = new Object2ObjectLinkedOpenHashMap<>();
 
     public ReusableCpuSessionLedger(UUID owner) {
         this.owner = owner;
@@ -221,7 +240,7 @@ public final class ReusableCpuSessionLedger {
     }
 
     public boolean hasUnsettled() {
-        return !uncertainSessions.isEmpty() || sessions.values().stream().anyMatch(session -> !session.settled());
+        return hasUncertainOwnership() || sessions.values().stream().anyMatch(session -> !session.settled());
     }
 
     public boolean hasUnsettled(UUID jobId) {
@@ -241,7 +260,16 @@ public final class ReusableCpuSessionLedger {
     }
 
     public boolean hasUncertainOwnership() {
-        return !uncertainSessions.isEmpty();
+        return !uncertainSessions.isEmpty() || !remoteEvidence.isEmpty();
+    }
+
+    /** Retains the first observed fork even if the executor later unloads or publishes a different revision. */
+    public boolean retainRemoteEvidence(RemoteCustodyEvidence evidence) {
+        return remoteEvidence.putIfAbsent(evidence.sessionId(), evidence) == null;
+    }
+
+    public boolean hasRemoteEvidence() {
+        return !remoteEvidence.isEmpty();
     }
 
     public void markUncertain(UUID sessionId) {
@@ -270,7 +298,9 @@ public final class ReusableCpuSessionLedger {
             throw new IllegalStateException("Cannot prepare a transferred or closing reusable submission");
         }
         long sequence = session.nextSequence;
+        long accepted = Math.addExact(session.acceptedCount, submission.count());
         session.nextSequence = Math.incrementExact(sequence);
+        session.acceptedCount = accepted;
         session.submissions.put(sequence, submission);
         session.pending.add(sequence);
         return sequence;
@@ -285,6 +315,7 @@ public final class ReusableCpuSessionLedger {
         }
         session.submissions.remove(sequence);
         session.pending.remove(sequence);
+        session.acceptedCount -= submission.count();
         return submission.escrow();
     }
 
@@ -400,13 +431,17 @@ public final class ReusableCpuSessionLedger {
     public Snapshot snapshot() {
         return new Snapshot(owner, sessions.values().stream().map(session -> new SessionSnapshot(session.id, session.jobId,
                 session.target, session.pattern, session.publication, session.bindings, session.submissions(),
-                session.nextSequence, session.closing, session.settlementFingerprint)).toList(), replanningJobs, uncertainSessions);
+                session.nextSequence, session.closing, session.settlementFingerprint)).toList(), replanningJobs, uncertainSessions,
+                List.copyOf(remoteEvidence.values()));
     }
 
     public static ReusableCpuSessionLedger restore(Snapshot snapshot) {
         ReusableCpuSessionLedger result = new ReusableCpuSessionLedger(snapshot.owner());
         result.replanningJobs.addAll(snapshot.replanningJobs());
         result.uncertainSessions.addAll(snapshot.uncertainSessions());
+        for (RemoteCustodyEvidence evidence : snapshot.remoteEvidence()) {
+            if (!result.retainRemoteEvidence(evidence)) throw new IllegalArgumentException("Duplicate remote custody evidence");
+        }
         for (SessionSnapshot saved : snapshot.sessions()) {
             Session session = result.open(saved.id(), saved.jobId(), saved.target(), saved.pattern(), saved.publication(), saved.bindings());
             long previous = -1L;
@@ -416,6 +451,7 @@ public final class ReusableCpuSessionLedger {
                 }
                 previous = entry.sequence();
                 session.submissions.put(entry.sequence(), entry.submission());
+                session.acceptedCount = Math.addExact(session.acceptedCount, entry.submission().count());
                 if (saved.settlementFingerprint() == null && entry.submission().completed() < entry.submission().count()) {
                     session.pending.add(entry.sequence());
                 }

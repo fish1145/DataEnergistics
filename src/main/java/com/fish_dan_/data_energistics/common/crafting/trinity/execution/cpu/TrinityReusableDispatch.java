@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingCustodyCensus;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingProviderAdapter;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.SlotStack;
@@ -17,6 +18,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityBorrowingTransaction;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution.Work;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.RemoteCustodyEvidence;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Session;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Submission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.SubmissionEntry;
@@ -56,13 +58,29 @@ final class TrinityReusableDispatch {
 
     private record Located(Session session, Endpoint endpoint, ReusableCraftingSessionView view) {}
 
+    private record CensusStamp(UUID epoch, long revision) {}
+
     private final TrinityDataCoreCpuLogic owner;
     private final Object2ObjectOpenHashMap<UUID, Endpoint> locations = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectOpenHashMap<UUID, String> reported = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectOpenHashMap<CraftingProviderId, CensusStamp> checkedCustody = new Object2ObjectOpenHashMap<>();
     private @Nullable UUID ledgerOwner;
+    private boolean custodyCovered = true;
 
     TrinityReusableDispatch(TrinityDataCoreCpuLogic owner) {
         this.owner = owner;
+    }
+
+    boolean custodyCovered() {
+        return custodyCovered;
+    }
+
+    void resetObservation() {
+        locations.clear();
+        reported.clear();
+        checkedCustody.clear();
+        ledgerOwner = null;
+        custodyCovered = false;
     }
 
     Result dispatch(TrinityDataCoreExecutingCraftingJob job, Work work, IPatternDetails pattern,
@@ -241,10 +259,11 @@ final class TrinityReusableDispatch {
     void synchronize(CraftingProviderPublicationIndex index, long tick) {
         ReusableCpuSessionLedger ledger = owner.reusableLedger();
         if (!ledger.owner().equals(ledgerOwner)) {
-            locations.clear();
-            reported.clear();
+            resetObservation();
             ledgerOwner = ledger.owner();
         }
+        checkVisibleCustody(index, ledger);
+        if (ledger.hasRemoteEvidence()) return;
         List<Located> found = new ObjectArrayList<>();
         for (Session session : ledger.sessions()) {
             if (session.settled()) continue;
@@ -256,7 +275,7 @@ final class TrinityReusableDispatch {
                         !view.targetIdentity().equals(session.target().persistentIdentity())) {
                     throw new IllegalStateException("Reusable endpoint returned a different custody identity");
                 }
-                long known = session.submissions().stream().mapToLong(value -> value.submission().count()).reduce(0L, Math::addExact);
+                long known = session.acceptedCount();
                 if (known != view.accepted()) throw new IllegalStateException("CPU and reusable endpoint disagree about accepted work");
                 for (SubmissionEntry entry : session.pendingSubmissions()) {
                     var receipt = endpoint.adapter().reusableReceipt(session.id(), entry.sequence()).orElseThrow();
@@ -312,6 +331,48 @@ final class TrinityReusableDispatch {
             }
         }
         return null;
+    }
+
+    /** Covers current visible providers, not forgotten or unloaded sources outside this Grid's publication set. */
+    private void checkVisibleCustody(CraftingProviderPublicationIndex index, ReusableCpuSessionLedger ledger) {
+        custodyCovered = true;
+        List<CraftingProviderId> current = index.providerIds();
+        checkedCustody.keySet().retainAll(current);
+        for (CraftingProviderId id : current) {
+            ICraftingProvider provider = index.resolveLiveProvider(id);
+            if (provider == null) {
+                custodyCovered = false;
+                continue;
+            }
+            var adapter = CountedCraftingProviderAdapters.reusableAdapter(provider);
+            if (adapter == null) continue;
+            try {
+                ReusableCraftingCustodyCensus census = adapter.reusableCustody(ledger.ownerIdentity());
+                custodyCovered &= census.complete();
+                CensusStamp stamp = new CensusStamp(census.loadedEpoch(), census.revision());
+                if (stamp.equals(checkedCustody.get(id))) continue;
+                for (var claim : census.sessions()) {
+                    if (!claim.cpuOwner().equals(ledger.ownerIdentity())) {
+                        throw new IllegalStateException("Reusable custody census included an unrelated CPU owner");
+                    }
+                    Session local = ledger.session(claim.sessionId());
+                    String reason = local == null ? "UNKNOWN_SESSION" :
+                            !local.jobId().equals(claim.jobId()) || !local.target().persistentIdentity().equals(claim.targetIdentity()) ? "IDENTITY_MISMATCH" :
+                                    local.acceptedCount() != claim.accepted() ? "ACCEPTED_WORK_DIVERGENCE" :
+                                            claim.settlementAcknowledged() && !local.settled() ? "REMOTE_ACK_WITHOUT_LOCAL_SETTLEMENT" : null;
+                    if (reason != null && ledger.retainRemoteEvidence(new RemoteCustodyEvidence(claim.sessionId(), claim.jobId(), claim.targetIdentity(),
+                            census.loadedEpoch(), census.revision(), claim.accepted(), claim.settlementAcknowledged(), reason))) {
+                        owner.cpu().markDirty();
+                        Data_Energistics.LOGGER.error("Trinity CPU {} quarantined visible remote custody {} at {}: {}; no inventory was adopted or refunded",
+                                owner.cpu().number(), claim.sessionId(), claim.targetIdentity(), reason);
+                    }
+                }
+                checkedCustody.put(id, stamp);
+            } catch (RuntimeException failure) {
+                custodyCovered = false;
+                report(id.toString(), failure);
+            }
+        }
     }
 
     /** A blocked incompatible firing may need a real tool held by this job, not additional network material. */
