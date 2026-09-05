@@ -106,7 +106,7 @@
 		"guideme.GuideNavBarRowMixin",
 		"jei.JeiEncodePatternTransferHandlerMixin",
 		"neoecoae.NeoECOAEClientMixin",
-		"viewer.jei.RecipeTransferUtilMixin"
+		"viewer.jei.RecipeTransferServiceMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
