@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Pro
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityCachedComputation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationNamespace;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationValue;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -26,9 +27,6 @@ final class CachedDispatchProposalCandidatePlanner implements DispatchProposalCa
     private final Supplier<TrinityComputationCache> cache;
 
     CachedDispatchProposalCandidatePlanner(Supplier<TrinityComputationCache> cache) {
-        if (cache == null) {
-            throw new IllegalArgumentException("Dispatch proposal candidate planning requires a cache");
-        }
         this.cache = cache;
     }
 
@@ -36,9 +34,6 @@ final class CachedDispatchProposalCandidatePlanner implements DispatchProposalCa
     public DispatchProposalCandidatePlan plan(
                                               CraftingDispatchProposalRequest request,
                                               BooleanSupplier lifecycleActive) {
-        if (request == null || lifecycleActive == null) {
-            throw new IllegalArgumentException("Dispatch proposal candidate planning requires a request and lifecycle");
-        }
         CandidateKey key = new CandidateKey(
                 request.capacity().key(),
                 request.capacity().snapshots(),
@@ -51,8 +46,9 @@ final class CachedDispatchProposalCandidatePlanner implements DispatchProposalCa
                     key.captureKey().capacityEpoch(),
                     key,
                     lifecycleActive,
+                    ignored -> {},
                     () -> TrinityCachedComputation.cacheable(calculate(key)))
-                    .map(value -> value.value())
+                    .map(TrinityComputationValue::value)
                     .orElseGet(() -> new DispatchProposalCandidatePlan(List.of()));
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -122,9 +118,6 @@ final class CachedDispatchProposalCandidatePlanner implements DispatchProposalCa
                                 CraftingDispatchCursor cursor) {
 
         private CandidateKey {
-            if (captureKey == null || remainingCrafts == null || cursor == null) {
-                throw new IllegalArgumentException("Dispatch proposal candidate cache key must be complete");
-            }
             snapshots = List.copyOf(snapshots);
             if (remainingCrafts.signum() <= 0) {
                 throw new IllegalArgumentException("Dispatch proposal candidate work must be positive");

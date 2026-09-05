@@ -6,6 +6,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /**
  * Shares immutable Trinity calculations while they have active subscribers, retains completed values within a server
@@ -73,6 +74,31 @@ public interface TrinityComputationCache extends AutoCloseable {
                 revision,
                 key,
                 () -> true,
+                ignored -> {},
+                calculation).orElseThrow(
+                        () -> new IllegalStateException(
+                                "An unconditional Trinity inline computation was not admitted"));
+    }
+
+    /**
+     * Runs or joins one inline calculation and reports whether this caller joined an existing retained/in-flight
+     * entry before it starts waiting.
+     */
+    default <K, V> TrinityComputationValue<V> computeInlineObserved(
+                                                                    long gridScope,
+                                                                    TrinityComputationNamespace namespace,
+                                                                    long revision,
+                                                                    K key,
+                                                                    Consumer<Boolean> cacheSelection,
+                                                                    Callable<TrinityCachedComputation<V>> calculation)
+                                                                                                                       throws InterruptedException, ExecutionException {
+        return computeInlineIfActive(
+                gridScope,
+                namespace,
+                revision,
+                key,
+                () -> true,
+                cacheSelection,
                 calculation).orElseThrow(
                         () -> new IllegalStateException(
                                 "An unconditional Trinity inline computation was not admitted"));
@@ -87,6 +113,7 @@ public interface TrinityComputationCache extends AutoCloseable {
      * @param revision        publication revision, or {@link #SEMANTIC_REVISION} for semantic namespaces
      * @param key             complete immutable semantic key
      * @param lifecycleActive true while the caller may still publish work for this Grid
+     * @param cacheSelection  receives true when this caller joined an existing entry, before waiting for its result
      * @param calculation     bottom-level pure calculation executed only by the active miss owner
      * @param <K>             key type
      * @param <V>             result type
@@ -100,6 +127,7 @@ public interface TrinityComputationCache extends AutoCloseable {
                                                                       long revision,
                                                                       K key,
                                                                       BooleanSupplier lifecycleActive,
+                                                                      Consumer<Boolean> cacheSelection,
                                                                       Callable<TrinityCachedComputation<V>> calculation)
                                                                                                                          throws InterruptedException, ExecutionException;
 

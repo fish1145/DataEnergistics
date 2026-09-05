@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /**
  * Access-order LRU implementation with pinned in-flight entries and lifecycle-aware bypass tasks.
@@ -52,6 +53,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
                                                                              long revision,
                                                                              K key,
                                                                              BooleanSupplier lifecycleActive,
+                                                                             Consumer<Boolean> cacheSelection,
                                                                              Callable<TrinityCachedComputation<V>> calculation)
                                                                                                                                 throws InterruptedException, ExecutionException {
         validateKey(gridScope, namespace, revision);
@@ -116,6 +118,7 @@ final class BoundedTrinityComputationCache implements TrinityComputationCache {
 
         V value;
         try {
+            cacheSelection.accept(cacheHit);
             if (!cacheHit) {
                 entry.execution.run();
             }
