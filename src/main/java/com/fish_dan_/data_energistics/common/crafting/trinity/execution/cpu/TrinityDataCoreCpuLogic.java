@@ -3642,6 +3642,7 @@ final class TrinityDataCoreCpuLogic {
      */
     boolean recoverIdleInventory(BiFunction<AEKey, Long, Long> recovery) {
         Preconditions.checkState(this.job == null, "CPU should not have a job while recovering inventory");
+        if (this.quarantinedReusableState != null || this.reusableLedger.hasUncertainOwnership()) return false;
         recoverVirtualCompletions();
         for (var entry : this.inventory.list) {
             long available = entry.getLongValue();
