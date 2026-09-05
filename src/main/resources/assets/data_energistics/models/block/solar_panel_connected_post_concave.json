@@ -1,0 +1,26 @@
+{
+	"parent": "data_energistics:block/solar_panel_connected_component",
+	"elements": [
+		{
+			"from": [0, 4, 0],
+			"to": [1, 5, 1],
+			"faces": {
+				"up": { "uv": [0, 0, 0.5, 0.5], "texture": "#connection" }
+			}
+		},
+		{
+			"from": [1, 4, 0],
+			"to": [2, 5, 2],
+			"faces": {
+				"up": { "uv": [0.5, 0.5, 1, 1], "texture": "#connection" }
+			}
+		},
+		{
+			"from": [0, 4, 1],
+			"to": [1, 5, 2],
+			"faces": {
+				"up": { "uv": [0.5, 0.5, 1, 1], "texture": "#connection" }
+			}
+		}
+	]
+}

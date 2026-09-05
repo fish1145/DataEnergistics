@@ -6,6 +6,8 @@ import com.fish_dan_.data_energistics.menu.machine.DataSolarPanelMenu;
 import appeng.client.gui.Icon;
 import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
+import appeng.core.localization.InGameTooltip;
+import appeng.util.Platform;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
@@ -35,6 +37,9 @@ public class DataSolarPanelScreen extends UpgradeableScreen<DataSolarPanelMenu> 
         this.setTextContent("generation", Component.translatable(
                 "screen.data_energistics.me_solar_panel.generation",
                 this.menu.generatedPower));
+        this.setTextContent("storage", InGameTooltip.Stored.text(
+                Platform.formatPower(this.menu.currentPower, false),
+                Platform.formatPower(this.menu.maxPower, false)));
         this.redstoneControlButton.setState(this.menu.redstoneControlled);
     }
 }

@@ -11,6 +11,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
+import org.jspecify.annotations.Nullable;
 import snownee.jade.api.BlockAccessor;
 import snownee.jade.api.IBlockComponentProvider;
 import snownee.jade.api.IServerDataProvider;
@@ -53,13 +54,12 @@ public class DataSolarPanelJadeProvider implements IBlockComponentProvider, ISer
         }
 
         data.putBoolean(TAG_ONLINE, solarPanel.isOnline());
-        if (solarPanel.getAEMaxPower() > 0) {
-            data.putDouble(TAG_CURRENT_POWER, solarPanel.getAECurrentPower());
-            data.putDouble(TAG_MAX_POWER, solarPanel.getAEMaxPower());
-        }
+        var storage = solarPanel.getEnergyStorageSnapshot();
+        data.putDouble(TAG_CURRENT_POWER, storage.stored());
+        data.putDouble(TAG_MAX_POWER, storage.capacity());
     }
 
-    private DataSolarPanelBlockEntity resolveSolarPanel(BlockAccessor accessor) {
+    private @Nullable DataSolarPanelBlockEntity resolveSolarPanel(BlockAccessor accessor) {
         if (!(accessor.getBlockState().getBlock() instanceof DataSolarPanelBlock)) {
             return null;
         }
