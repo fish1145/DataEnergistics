@@ -3,16 +3,18 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern.physical;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
 
-import net.minecraft.world.Container;
-import net.minecraft.world.inventory.Slot;
-
-import appeng.api.inventories.InternalInventory;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+
+import appeng.api.inventories.InternalInventory;
+
+import net.minecraft.world.Container;
+import net.minecraft.world.inventory.Slot;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 /**

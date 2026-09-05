@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.common.multiblock.preview.catalog;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.SubstructurePreviewSpec;
 
+import appeng.api.stacks.AEItemKey;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-
-import appeng.api.stacks.AEItemKey;
 
 import java.util.ArrayList;
 import java.util.Collections;

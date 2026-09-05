@@ -2,11 +2,12 @@ package com.fish_dan_.data_energistics.common.crafting.pattern;
 
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
+import appeng.api.ids.AEComponents;
+import appeng.parts.encoding.EncodingMode;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.api.ids.AEComponents;
-import appeng.parts.encoding.EncodingMode;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -19,10 +20,10 @@ public record EncodedPatternRecipeReference(Kind kind, ResourceLocation id) {
     private static final ResourceLocation STONECUTTING_RECIPE_TYPE = ResourceLocation.withDefaultNamespace(
             "stonecutting");
 
-    /** Writes or removes the processing recipe type beside the pattern's output-match metadata. */
-    public static void applyProcessingRecipeType(
-                                                 ItemStack encodedPattern,
-                                                 @Nullable ResourceLocation recipeTypeId) {
+    /** Atomically replaces the optional processing recipe type and stable recipe identity. */
+    public static void applyProcessingRecipeMetadata(ItemStack encodedPattern,
+                                                     @Nullable ResourceLocation recipeTypeId,
+                                                     @Nullable ResourceLocation recipeId) {
         if (encodedPattern.isEmpty()) {
             throw new IllegalArgumentException("Cannot mark an empty encoded pattern");
         }
@@ -31,6 +32,17 @@ public record EncodedPatternRecipeReference(Kind kind, ResourceLocation id) {
         } else {
             encodedPattern.set(DEDataComponents.PROCESSING_PATTERN_RECIPE_TYPE, recipeTypeId);
         }
+        if (recipeId == null) {
+            encodedPattern.remove(DEDataComponents.PROCESSING_PATTERN_RECIPE_ID);
+        } else {
+            encodedPattern.set(DEDataComponents.PROCESSING_PATTERN_RECIPE_ID, recipeId);
+        }
+    }
+
+    /** Returns the stable processing recipe identity appended by a successful viewer transfer, if present. */
+    public static @Nullable ResourceLocation getProcessingRecipeId(ItemStack encodedPattern) {
+        return encodedPattern.isEmpty() ? null :
+                encodedPattern.get(DEDataComponents.PROCESSING_PATTERN_RECIPE_ID);
     }
 
     /**
@@ -67,14 +79,20 @@ public record EncodedPatternRecipeReference(Kind kind, ResourceLocation id) {
         };
     }
 
-    /** Returns the editor mode restored by AE2 when this pattern is loaded. */
-    public EncodingMode encodingMode() {
-        return switch (this.kind) {
-            case CRAFTING_RECIPE -> EncodingMode.CRAFTING;
-            case SMITHING_RECIPE -> EncodingMode.SMITHING_TABLE;
-            case STONECUTTING_RECIPE -> EncodingMode.STONECUTTING;
-            case PROCESSING_RECIPE_TYPE -> EncodingMode.PROCESSING;
-        };
+    /**
+     * Resolves editor mode from the pattern's actual AE encoding component, independently of DE recipe metadata.
+     */
+    public static @Nullable EncodingMode encodingMode(ItemStack encodedPattern) {
+        if (encodedPattern.has(AEComponents.ENCODED_CRAFTING_PATTERN)) {
+            return EncodingMode.CRAFTING;
+        }
+        if (encodedPattern.has(AEComponents.ENCODED_SMITHING_TABLE_PATTERN)) {
+            return EncodingMode.SMITHING_TABLE;
+        }
+        if (encodedPattern.has(AEComponents.ENCODED_STONECUTTING_PATTERN)) {
+            return EncodingMode.STONECUTTING;
+        }
+        return encodedPattern.has(AEComponents.ENCODED_PROCESSING_PATTERN) ? EncodingMode.PROCESSING : null;
     }
 
     public enum Kind {

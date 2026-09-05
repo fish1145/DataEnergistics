@@ -1,0 +1,12 @@
+{
+	"type": "minecraft:smelting",
+	"ingredient": {
+		"item": "data_energistics:residual_data_ore"
+	},
+	"result": {
+		"id": "data_energistics:data_residual_crystal",
+		"count": 1
+	},
+	"experience": 0.5,
+	"cookingtime": 200
+}

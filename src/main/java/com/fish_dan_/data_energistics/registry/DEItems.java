@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.block.TuningForkBlock;
 import com.fish_dan_.data_energistics.item.TuningForkBlockItem;
+import com.fish_dan_.data_energistics.item.beam.BeamBindingToolItem;
 import com.fish_dan_.data_energistics.item.carrier.BiologyDataCarrierItem;
 import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
 import com.fish_dan_.data_energistics.item.cell.DataStorageComponentItem;
@@ -32,6 +33,13 @@ import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.part.DataSanctumInterfacePart;
 import com.fish_dan_.data_energistics.part.MeSolarPanelPart;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
+import com.fish_dan_.data_energistics.part.beam.BeamFormerPart;
+
+import appeng.api.stacks.GenericStack;
+import appeng.api.upgrades.Upgrades;
+import appeng.block.networking.EnergyCellBlockItem;
+import appeng.items.parts.PartItem;
+import appeng.items.storage.StorageTier;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.tags.BlockTags;
@@ -48,12 +56,6 @@ import net.neoforged.neoforge.common.SimpleTier;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
-
-import appeng.api.stacks.GenericStack;
-import appeng.api.upgrades.Upgrades;
-import appeng.block.networking.EnergyCellBlockItem;
-import appeng.items.parts.PartItem;
-import appeng.items.storage.StorageTier;
 
 import java.util.List;
 
@@ -205,6 +207,12 @@ public final class DEItems {
     public static final DeferredItem<PartItem<AdaptivePatternProviderPart>> ADAPTIVE_PATTERN_PROVIDER_PART = ITEMS.register(
             "adaptive_pattern_provider_part",
             () -> new PartItem<>(new Item.Properties(), AdaptivePatternProviderPart.class, AdaptivePatternProviderPart::new));
+    public static final DeferredItem<BlockItem> ME_BEAM_FORMER = ITEMS.registerSimpleBlockItem(DEBlocks.ME_BEAM_FORMER);
+    public static final DeferredItem<BlockItem> ME_OMNI_BEAM_FORMER = ITEMS.registerSimpleBlockItem(DEBlocks.ME_OMNI_BEAM_FORMER);
+    public static final DeferredItem<PartItem<BeamFormerPart>> ME_BEAM_FORMER_PART = ITEMS.register(
+            "me_beam_former_part", () -> new PartItem<>(new Item.Properties(), BeamFormerPart.class, BeamFormerPart::new));
+    public static final DeferredItem<BeamBindingToolItem> BEAM_BINDING_TOOL = ITEMS.register(
+            "beam_binding_tool", () -> new BeamBindingToolItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<PartItem<MeSolarPanelPart>> ME_SOLAR_PANEL_PART = ITEMS.register(
             "me_solar_panel_part",
             () -> new PartItem<>(new Item.Properties(), MeSolarPanelPart.class, MeSolarPanelPart::new));
@@ -261,6 +269,8 @@ public final class DEItems {
             () -> Upgrades.createUpgradeCardItem(new Item.Properties()));
     public static final DeferredItem<Item> SOLIDIFIED_OBSIDIAN = ITEMS.registerSimpleItem("solidified_obsidian");
     public static final DeferredItem<Item> DATA_DUST = ITEMS.registerSimpleItem("data_dust");
+    public static final DeferredItem<Item> AMETHYST_DUST = ITEMS.registerSimpleItem("amethyst_dust");
+    public static final DeferredItem<Item> DATA_RESIDUAL_CRYSTAL = ITEMS.registerSimpleItem("data_residual_crystal");
     public static final DeferredItem<Item> OBSIDIAN_DUST = ITEMS.registerSimpleItem("obsidian_dust");
     public static final DeferredItem<Item> DATA_CARRIER = ITEMS.register("data_carrier",
             () -> new BiologyDataCarrierItem(new Item.Properties(), false));

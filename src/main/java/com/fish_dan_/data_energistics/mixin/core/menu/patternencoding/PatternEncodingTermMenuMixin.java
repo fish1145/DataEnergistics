@@ -28,18 +28,9 @@ import com.fish_dan_.data_energistics.mixin.configuration.DataEnergisticsEarlyCo
 import com.fish_dan_.data_energistics.network.patternencoding.MultiblockPatternTransferPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
 
-import net.minecraft.nbt.TagParser;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.PacketDistributor;
-
 import appeng.api.config.Actionable;
 import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.ids.AEComponents;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
@@ -57,6 +48,17 @@ import appeng.menu.slot.RestrictedInputSlot;
 import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
+
+import net.minecraft.nbt.TagParser;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.network.PacketDistributor;
+
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectList;
@@ -506,8 +508,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
             ItemStack encodedPattern = this.dataEnergistics$invokeEncodePattern();
             if (this.mode == EncodingMode.PROCESSING && encodedPattern != null &&
-                    AEItems.PROCESSING_PATTERN.is(encodedPattern)) {
-                encodedPattern = dataEnergistics$encodeProcessingPatternWithGenericStacks();
+                    AEItems.PROCESSING_PATTERN.is(encodedPattern) &&
+                    dataEnergistics$requiresProcessingPatternNormalization()) {
+                encodedPattern = dataEnergistics$patchProcessingPatternWithGenericStacks(encodedPattern);
             }
             if (encodedPattern == null) {
                 this.dataEnergistics$invokeClearPattern();
@@ -516,16 +519,6 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 ci.cancel();
                 return;
             }
-
-            EncodedPatternDynamicOutput.apply(
-                    encodedPattern,
-                    this.mode == EncodingMode.PROCESSING && this.dataEnergistics$processingOutputSameItem);
-            EncodedPatternRecipeReference.applyProcessingRecipeType(
-                    encodedPattern,
-                    PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
-                            this,
-                            data_energistics$getPreferenceSession(),
-                            this));
 
             ItemStack encodeOutput = this.encodedPatternSlot.getItem();
             if (!encodeOutput.isEmpty() && !PatternDetailsHelper.isEncodedPattern(encodeOutput) && !AEItems.BLANK_PATTERN.is(encodeOutput)) {
@@ -543,6 +536,20 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
             }
 
             this.encodedPatternSlot.set(encodedPattern);
+            ItemStack finalPattern = this.encodedPatternSlot.getItem();
+            EncodedPatternDynamicOutput.apply(
+                    finalPattern,
+                    this.mode == EncodingMode.PROCESSING && this.dataEnergistics$processingOutputSameItem);
+            EncodedPatternRecipeReference.applyProcessingRecipeMetadata(
+                    finalPattern,
+                    PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
+                            this,
+                            data_energistics$getPreferenceSession(),
+                            this),
+                    PatternEncodingSourceHelper.resolveProcessingPatternRecipeId(
+                            this,
+                            data_energistics$getPreferenceSession()));
+            dataEnergistics$forceSyncPatternProviders();
             encodedSuccessfully = true;
             PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
             PatternEncodingSourceHelper.writePendingTransferKeyOutput(this.getPlayer(), null);
@@ -560,15 +567,34 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
     }
 
     @Unique
+    private boolean dataEnergistics$requiresProcessingPatternNormalization() {
+        if (!(this.getHost() instanceof IPatternTerminalMenuHost host)) {
+            return false;
+        }
+        return PatternEncodingSourceHelper.requiresProcessingPatternNormalization(
+                host.getLogic().getEncodedInputInv(),
+                host.getLogic().getEncodedOutputInv());
+    }
+
+    @Unique
     @Nullable
-    private ItemStack dataEnergistics$encodeProcessingPatternWithGenericStacks() {
+    private ItemStack dataEnergistics$patchProcessingPatternWithGenericStacks(ItemStack encodedPattern) {
         if (!(this.getHost() instanceof IPatternTerminalMenuHost host)) {
             return null;
         }
-
-        return PatternEncodingSourceHelper.encodeProcessingPattern(
+        ItemStack normalized = PatternEncodingSourceHelper.encodeProcessingPattern(
                 host.getLogic().getEncodedInputInv(),
                 host.getLogic().getEncodedOutputInv());
+        if (normalized == null) {
+            return null;
+        }
+        var processing = normalized.get(AEComponents.ENCODED_PROCESSING_PATTERN);
+        if (processing == null) {
+            throw new IllegalStateException("Normalized processing pattern is missing its encoded component");
+        }
+        ItemStack result = encodedPattern.copy();
+        result.set(AEComponents.ENCODED_PROCESSING_PATTERN, processing);
+        return result;
     }
 
     @Override
@@ -598,7 +624,9 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                                                                    long providerId,
                                                                    ObjectList<PatternContainer> providers) {
         ItemStack encodedPattern = this.encodedPatternSlot.getItem();
+        ServerPlayer serverPlayer = (ServerPlayer) this.getPlayer();
         var uploadContext = PatternProviderSyncHelper.createPatternUploadContext(
+                serverPlayer,
                 this,
                 data_energistics$getPreferenceSession(),
                 providerId);
@@ -606,9 +634,11 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 providers,
                 encodedPattern,
                 uploadContext);
+        if (transferResult.hasWarning()) {
+            this.getPlayer().sendSystemMessage(transferResult.warningMessageOrThrow());
+        }
         if (transferResult.rejected()) {
-            this.getPlayer().sendSystemMessage(Component.translatable(
-                    transferResult.rejection().messageKeyOrThrow()));
+            this.getPlayer().sendSystemMessage(transferResult.rejectionMessageOrThrow());
             return;
         }
         if (transferResult.duplicateFound()) {
@@ -621,14 +651,15 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
         ItemStack remainder = transferResult.remainder();
         if (!transferResult.transferred()) {
+            if (transferResult.hasWarning()) {
+                dataEnergistics$syncPatternProvidersFromNetwork();
+            }
             return;
         }
 
         this.encodedPatternSlot.set(remainder.isEmpty() ? ItemStack.EMPTY : remainder);
-        if (this.getPlayer() instanceof ServerPlayer serverPlayer) {
-            PatternUploadRecorder.record(serverPlayer, this, transferResult.committedTarget(),
-                    PatternUploadSource.DATA_ENERGISTICS);
-        }
+        PatternUploadRecorder.record(serverPlayer, this, transferResult.committedTarget(),
+                PatternUploadSource.DATA_ENERGISTICS);
         dataEnergistics$syncPatternProvidersFromNetwork();
     }
 
@@ -1198,12 +1229,14 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
 
         var publication = PatternProviderSyncTracker.capturePublicationVersion(grid);
         PatternEncodingRankingContext rankingContext = data_energistics$getPreferenceSession().rankingContext();
+        AEItemKey encodedPatternDefinition = data_energistics$getEncodedPatternDefinition();
         long currentTick = this.getPlayer().level().getGameTime();
         long preferenceRevision = data_energistics$getPreferenceSession().revision();
         if (preferenceRevision == this.dataEnergistics$lastPreferenceRevision && !this.dataEnergistics$patternProviderSyncTracker.needsRefresh(
                 publication,
                 currentTick,
-                rankingContext)) {
+                rankingContext,
+                encodedPatternDefinition)) {
             return;
         }
 
@@ -1211,7 +1244,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 grid,
                 publication,
                 currentTick,
-                rankingContext);
+                rankingContext,
+                encodedPatternDefinition);
     }
 
     @Unique
@@ -1242,7 +1276,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 grid,
                 PatternProviderSyncTracker.capturePublicationVersion(grid),
                 this.getPlayer().level().getGameTime(),
-                data_energistics$getPreferenceSession().rankingContext());
+                data_energistics$getPreferenceSession().rankingContext(),
+                data_energistics$getEncodedPatternDefinition());
     }
 
     @Unique
@@ -1250,8 +1285,11 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                                                                  IGrid grid,
                                                                  PatternProviderSyncTracker.PublicationVersion publication,
                                                                  long currentTick,
-                                                                 @Nullable PatternEncodingRankingContext rankingContext) {
+                                                                 @Nullable PatternEncodingRankingContext rankingContext,
+                                                                 @Nullable AEItemKey encodedPatternDefinition) {
         this.dataEnergistics$syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
+                (ServerPlayer) this.getPlayer(),
+                encodedPatternDefinition,
                 grid,
                 this.dataEnergistics$syncedPatternProviderIds,
                 this.dataEnergistics$syncedPatternProvidersById,
@@ -1261,7 +1299,8 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
         this.dataEnergistics$patternProviderSyncTracker.refreshed(
                 publication,
                 currentTick,
-                rankingContext);
+                rankingContext,
+                encodedPatternDefinition);
         this.dataEnergistics$lastPreferenceRevision = data_energistics$getPreferenceSession().revision();
     }
 

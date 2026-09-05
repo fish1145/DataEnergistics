@@ -9,13 +9,7 @@ import com.fish_dan_.data_energistics.part.DataRipperPart;
 import com.fish_dan_.data_energistics.part.DataSanctumInterfacePart;
 import com.fish_dan_.data_energistics.part.MeSolarPanelPart;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
-
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.ItemLike;
-import net.minecraft.world.level.block.Blocks;
+import com.fish_dan_.data_energistics.part.beam.BeamFormerPart;
 
 import appeng.api.parts.PartModels;
 import appeng.api.storage.StorageCells;
@@ -24,6 +18,13 @@ import appeng.blockentity.AEBaseBlockEntity;
 import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEItems;
 import appeng.items.parts.PartModelsHelper;
+
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ItemLike;
+import net.minecraft.world.level.block.Blocks;
 
 public final class DEUpgrades {
 
@@ -45,6 +46,8 @@ public final class DEUpgrades {
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_ENERGY_CELL_BLOCK_ENTITY.get(), DEBlocks.DATA_ENERGY_CELL.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.TRINITY_DATA_CORE_BLOCK_ENTITY.get(), DEBlocks.TRINITY_DATA_CORE.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DEBlocks.DATA_DISTRIBUTION_TOWER.get().asItem());
+        AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.ME_BEAM_FORMER.get(), DEItems.ME_BEAM_FORMER.get());
+        AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.ME_OMNI_BEAM_FORMER.get(), DEItems.ME_OMNI_BEAM_FORMER.get());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), DEBlocks.DATA_MIMETIC_FIELD.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(), DEBlocks.DATA_TELEPORT_ANCHOR.get().asItem());
         AEBaseBlockEntity.registerBlockEntityItem(DEBlockEntities.DATA_SANCTUM_BLOCK_ENTITY.get(), DEBlocks.DATA_SANCTUM.get().asItem());
@@ -59,6 +62,9 @@ public final class DEUpgrades {
         Upgrades.add(AEItems.ENERGY_CARD, DEItems.DATA_RIPPER.get(), 8, "item.data_energistics.data_ripper");
         Upgrades.add(AEItems.SPEED_CARD, DEItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
         Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.ME_BEAM_FORMER_PART.get(), 3, "item.data_energistics.me_beam_former_part");
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.ME_BEAM_FORMER.get(), 3, "block.data_energistics.me_beam_former");
+        Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.ME_OMNI_BEAM_FORMER.get(), 3, "block.data_energistics.me_omni_beam_former");
         Upgrades.add(AEItems.INVERTER_CARD, DEItems.DATA_RIPPER.get(), 5, "item.data_energistics.data_ripper");
         Upgrades.add(AEItems.ENERGY_CARD, DEItems.PORTABLE_DIGITAL_STORAGE_CELL_1K.get(), 3,
                 "item.data_energistics.portable_digital_storage_cell_1k");
@@ -199,6 +205,7 @@ public final class DEUpgrades {
     }
 
     public static void registerPartModels() {
+        PartModels.registerModels(PartModelsHelper.createModels(BeamFormerPart.class));
         PartModels.registerModels(
                 PartModelsHelper.createModels(DataRipperPart.class));
         PartModels.registerModels(

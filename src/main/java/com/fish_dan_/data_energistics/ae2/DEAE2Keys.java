@@ -7,11 +7,11 @@ import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
 import com.fish_dan_.data_energistics.ae2.key.ManifestBinaryKeyType;
 
-import net.neoforged.neoforge.registries.IRegistryExtension;
-import net.neoforged.neoforge.registries.RegisterEvent;
-
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
+
+import net.neoforged.neoforge.registries.IRegistryExtension;
+import net.neoforged.neoforge.registries.RegisterEvent;
 
 import java.util.List;
 

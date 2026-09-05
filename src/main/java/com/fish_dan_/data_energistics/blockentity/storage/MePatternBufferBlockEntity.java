@@ -8,6 +8,8 @@ import com.fish_dan_.data_energistics.common.compartment.MapBackedCompartmentSto
 import com.fish_dan_.data_energistics.common.compartment.PatternBufferCompartmentPart;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
+import appeng.api.stacks.AEKey;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -15,7 +17,6 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
 import java.util.ArrayList;

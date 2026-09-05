@@ -3,13 +3,6 @@ package com.fish_dan_.data_energistics.client.screen.patternencoding;
 import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.StackWithBounds;
@@ -19,6 +12,14 @@ import appeng.items.misc.WrappedGenericStack;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.menu.slot.FakeSlot;
 import appeng.parts.encoding.EncodingMode;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

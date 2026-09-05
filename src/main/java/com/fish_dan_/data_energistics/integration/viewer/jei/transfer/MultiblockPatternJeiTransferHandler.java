@@ -6,13 +6,14 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.Multiblo
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 
+import appeng.util.ConfigInventory;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 
-import appeng.util.ConfigInventory;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;

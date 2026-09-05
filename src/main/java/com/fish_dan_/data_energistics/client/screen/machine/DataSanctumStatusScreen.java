@@ -4,12 +4,12 @@ import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.client.widget.DataSanctumModeButton;
 import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumStatusMenu;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
 import appeng.client.gui.style.ScreenStyle;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
 
 public class DataSanctumStatusScreen extends AEBaseScreen<DataSanctumStatusMenu> {
 

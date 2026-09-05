@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.common.trinity.pattern;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdLookup;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolution;
 
+import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -10,7 +12,6 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayDeque;

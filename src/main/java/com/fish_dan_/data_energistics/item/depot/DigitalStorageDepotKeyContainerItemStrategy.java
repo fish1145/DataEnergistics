@@ -2,12 +2,6 @@ package com.fish_dan_.data_energistics.item.depot;
 
 import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.behaviors.ContainerItemStrategies;
 import appeng.api.behaviors.ContainerItemStrategy;
 import appeng.api.config.Actionable;
@@ -15,6 +9,13 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
 import appeng.util.CowMap;
+
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.ItemStack;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;

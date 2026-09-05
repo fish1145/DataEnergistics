@@ -19,6 +19,7 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.Trini
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
+
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
 import java.math.BigInteger;

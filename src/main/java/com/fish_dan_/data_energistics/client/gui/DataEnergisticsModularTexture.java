@@ -2,10 +2,6 @@ package com.fish_dan_.data_energistics.client.gui;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-
 import com.lowdragmc.lowdraglib2.configurator.annotation.Configurable;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
@@ -13,6 +9,10 @@ import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.TransformTexture;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegisterClient;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 
 /**
  * Editable Data Energistics texture composition exposed by the LDLib2 UI Editor.

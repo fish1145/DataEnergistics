@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.mixin.core.patternprovider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingProviderRevision;
 
 import appeng.me.service.helpers.NetworkCraftingProviders;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

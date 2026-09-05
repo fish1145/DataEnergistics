@@ -9,17 +9,19 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankin
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
+
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import appeng.menu.me.items.PatternEncodingTermMenu;
-import appeng.parts.encoding.EncodingMode;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -29,6 +31,7 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.jspecify.annotations.Nullable;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -43,6 +46,7 @@ public record PatternEncodingPreferencesSyncPayload(
                                                     int previewPanelOffsetX,
                                                     int previewPanelOffsetY,
                                                     @Nullable PatternEncodingRankingContext rankingContext,
+                                                    @Nullable ResourceLocation recipeId,
                                                     List<LeafStatistic> statistics)
         implements CustomPacketPayload {
 
@@ -68,6 +72,12 @@ public record PatternEncodingPreferencesSyncPayload(
         statistics = List.copyOf(statistics);
         if (statistics.size() > MAX_STATISTICS) {
             throw new IllegalArgumentException("Pattern preference statistics exceed " + MAX_STATISTICS);
+        }
+        if (recipeId != null && recipeId.toString().getBytes(StandardCharsets.UTF_8).length >
+                PatternEncodingRankingContext.MAX_RESOURCE_LOCATION_BYTES) {
+            throw new IllegalArgumentException(
+                    "Stable processing recipe ID exceeds " +
+                            PatternEncodingRankingContext.MAX_RESOURCE_LOCATION_BYTES + " UTF-8 bytes");
         }
         ObjectSet<String> seen = new ObjectOpenHashSet<>();
         for (LeafStatistic statistic : statistics) {
@@ -103,6 +113,7 @@ public record PatternEncodingPreferencesSyncPayload(
                 decoded.previewPanelOffsetX,
                 decoded.previewPanelOffsetY,
                 decoded.rankingContext,
+                decoded.recipeId,
                 decoded.statistics);
     }
 
@@ -114,6 +125,7 @@ public record PatternEncodingPreferencesSyncPayload(
         buffer.writeInt(this.previewPanelOffsetX);
         buffer.writeInt(this.previewPanelOffsetY);
         writeContext(buffer, this.rankingContext);
+        writeRecipeId(buffer, this.recipeId);
         buffer.writeVarInt(this.statistics.size());
         for (LeafStatistic statistic : this.statistics) {
             buffer.writeUtf(statistic.providerDigest(), MAX_DIGEST_LENGTH);
@@ -151,6 +163,12 @@ public record PatternEncodingPreferencesSyncPayload(
                     payload.containerId);
             return;
         }
+        if (payload.recipeId != null && previewMenu.data_energistics$getEncodingMode() != EncodingMode.PROCESSING) {
+            Data_Energistics.LOGGER.warn(
+                    "Rejected stable processing recipe ID outside processing mode for container {}",
+                    payload.containerId);
+            return;
+        }
         if (payload.rankingContext == null && !payload.statistics.isEmpty()) {
             Data_Energistics.LOGGER.warn("Rejected pattern preference statistics without a ranking context for container {}",
                     payload.containerId);
@@ -164,7 +182,8 @@ public record PatternEncodingPreferencesSyncPayload(
         }
 
         PatternEncodingRankingContext previousRankingContext = session.rankingContext();
-        session.setRankingContext(payload.rankingContext);
+        ResourceLocation previousRecipeId = session.recipeId();
+        session.setRecipeContext(payload.rankingContext, payload.recipeId);
         previewMenu.data_energistics$refreshSyncedPatternProviders();
 
         ObjectSet<String> visibleLeafDigests = new ObjectOpenHashSet<>();
@@ -177,7 +196,7 @@ public record PatternEncodingPreferencesSyncPayload(
             if (!visibleLeafDigests.contains(statistic.providerDigest())) {
                 Data_Energistics.LOGGER.warn("Rejected pattern preference statistic for non-visible provider leaf {}",
                         statistic.providerDigest());
-                session.setRankingContext(previousRankingContext);
+                session.setRecipeContext(previousRankingContext, previousRecipeId);
                 previewMenu.data_energistics$refreshSyncedPatternProviders();
                 return;
             }
@@ -230,6 +249,25 @@ public record PatternEncodingPreferencesSyncPayload(
         return PatternEncodingRankingContextCodec.readNullable(buffer);
     }
 
+    private static void writeRecipeId(RegistryFriendlyByteBuf buffer, @Nullable ResourceLocation recipeId) {
+        buffer.writeBoolean(recipeId != null);
+        if (recipeId != null) {
+            buffer.writeUtf(recipeId.toString(), PatternEncodingRankingContext.MAX_RESOURCE_LOCATION_BYTES);
+        }
+    }
+
+    private static @Nullable ResourceLocation readRecipeId(RegistryFriendlyByteBuf buffer) {
+        if (!buffer.readBoolean()) {
+            return null;
+        }
+        String encoded = buffer.readUtf(PatternEncodingRankingContext.MAX_RESOURCE_LOCATION_BYTES);
+        ResourceLocation recipeId = ResourceLocation.tryParse(encoded);
+        if (recipeId == null) {
+            throw new IllegalArgumentException("Invalid stable processing recipe ID: " + encoded);
+        }
+        return recipeId;
+    }
+
     private static Decoded readPayload(RegistryFriendlyByteBuf buffer) {
         int containerId = buffer.readVarInt();
         long sequence = buffer.readVarLong();
@@ -238,6 +276,7 @@ public record PatternEncodingPreferencesSyncPayload(
         int previewPanelOffsetX = buffer.readInt();
         int previewPanelOffsetY = buffer.readInt();
         PatternEncodingRankingContext rankingContext = readContext(buffer);
+        ResourceLocation recipeId = readRecipeId(buffer);
         List<LeafStatistic> statistics = readStatistics(buffer);
         requireFullyConsumed(buffer);
         return new Decoded(
@@ -248,6 +287,7 @@ public record PatternEncodingPreferencesSyncPayload(
                 previewPanelOffsetX,
                 previewPanelOffsetY,
                 rankingContext,
+                recipeId,
                 statistics);
     }
 
@@ -277,5 +317,6 @@ public record PatternEncodingPreferencesSyncPayload(
                            int previewPanelOffsetX,
                            int previewPanelOffsetY,
                            @Nullable PatternEncodingRankingContext rankingContext,
+                           @Nullable ResourceLocation recipeId,
                            List<LeafStatistic> statistics) {}
 }

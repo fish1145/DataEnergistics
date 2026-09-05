@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.item.cell;
 
+import appeng.api.implementations.items.IStorageComponent;
+
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-
-import appeng.api.implementations.items.IStorageComponent;
 
 public class DataStorageComponentItem extends Item implements IStorageComponent {
 

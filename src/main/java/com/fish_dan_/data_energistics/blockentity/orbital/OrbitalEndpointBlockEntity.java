@@ -6,6 +6,11 @@ import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
+import appeng.api.networking.GridFlags;
+import appeng.api.orientation.BlockOrientation;
+import appeng.api.util.AECableType;
+import appeng.blockentity.grid.AENetworkedBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -15,10 +20,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.networking.GridFlags;
-import appeng.api.orientation.BlockOrientation;
-import appeng.api.util.AECableType;
-import appeng.blockentity.grid.AENetworkedBlockEntity;
 import org.jspecify.annotations.Nullable;
 
 import java.util.EnumSet;

@@ -1,40 +1,27 @@
 package com.fish_dan_.data_energistics.blockentity.machine;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationCompatibility;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationContext;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationInspection;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationInspectionContext;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationPreparation;
+import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationVariant;
 import com.fish_dan_.data_energistics.block.machine.DataIntegratedChargerBlock;
 import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.common.capability.AdjacentBlockCapabilityCache;
+import com.fish_dan_.data_energistics.integration.recipe.EaeCircuitCutterRecipeCatalog;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
-import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeInput;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipeInput;
+import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerPatternModeResolver;
+import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DERecipes;
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
-import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.ItemHandlerHelper;
 
 import appeng.api.AECapabilities;
 import appeng.api.behaviors.GenericInternalInventory;
@@ -74,6 +61,29 @@ import appeng.util.inv.CombinedInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
+
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
@@ -83,18 +93,21 @@ import java.util.Set;
 
 /**
  * An integrated, buffered front-end for AE2 charger and inscriber recipes plus data charger recipes.
- * The installed machine block selects the active recipe family.
+ * The selected machine mode determines the active recipe family.
  */
 public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEntity
                                               implements InternalInventoryHost, IConfigurableObject, IUpgradeableObject {
 
-    public static final int ITEM_INPUT_SLOT_COUNT = 6;
+    public static final int ITEM_INPUT_SLOT_COUNT = 9;
     public static final int ITEM_OUTPUT_SLOT_COUNT = 6;
-    // Preserve output and module indexes from the original eight-input layout.
-    // This keeps previously saved output and module stacks in place as the two inputs are retired.
-    public static final int ITEM_OUTPUT_START_SLOT = 8;
-    public static final int MACHINE_MODULE_SLOT = ITEM_OUTPUT_START_SLOT + ITEM_OUTPUT_SLOT_COUNT;
-    public static final int STORAGE_SLOTS = MACHINE_MODULE_SLOT + 1;
+    public static final int FLUID_TANK_COUNT = 3;
+    // Keep the new inputs contiguous while retaining a dedicated legacy-module refund slot.
+    public static final int ITEM_OUTPUT_START_SLOT = ITEM_INPUT_SLOT_COUNT;
+    public static final int LEGACY_MACHINE_MODULE_SLOT = ITEM_OUTPUT_START_SLOT + ITEM_OUTPUT_SLOT_COUNT;
+    /** @deprecated Module items are refunded from this legacy slot; select modes through the menu button. */
+    @Deprecated
+    public static final int MACHINE_MODULE_SLOT = LEGACY_MACHINE_MODULE_SLOT;
+    public static final int STORAGE_SLOTS = LEGACY_MACHINE_MODULE_SLOT + 1;
     public static final int ITEM_SLOT_CAPACITY = 512;
     public static final int FLUID_CAPACITY = 512_000;
     public static final int MAX_SPEED_CARDS = 4;
@@ -110,35 +123,48 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private static final String STORAGE_SLOT_TAG = "Slot";
     private static final String STORAGE_COUNT_TAG = "DataEnergisticsCount";
     private static final String UPGRADES_TAG = "upgrades";
+    /** Single-tank key used by layouts written before the three-tank upgrade. */
     private static final String FLUID_TAG = "fluid";
+    private static final String FLUID_TANKS_TAG = "fluid_tanks";
+    private static final String STORAGE_LAYOUT_VERSION_TAG = "storage_layout_version";
+    private static final int STORAGE_LAYOUT_VERSION = 2;
+    private static final int PREVIOUS_ITEM_OUTPUT_START_SLOT = 8;
+    private static final int PREVIOUS_LEGACY_MACHINE_MODULE_SLOT = 14;
     private static final String CONFIG_TAG = "config";
     private static final String OUTPUT_SIDES_TAG = "output_sides";
     private static final String PROGRESS_TAG = "progress";
     private static final String PROCESSING_MODE_TAG = "processing_mode";
-    private static final ResourceLocation AE2_INSCRIBER = ResourceLocation.fromNamespaceAndPath("ae2", "inscriber");
-    private static final ResourceLocation AE2_CHARGER = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
-    private static final ResourceLocation EXTENDED_AE_INSCRIBER = ResourceLocation.fromNamespaceAndPath("extendedae", "ex_inscriber");
-    private static final ResourceLocation EXTENDED_AE_CHARGER = ResourceLocation.fromNamespaceAndPath("extendedae", "ex_charger");
-    private static final ResourceLocation DATA_CHARGER = ResourceLocation.fromNamespaceAndPath("data_energistics", "data_charger");
-    private static final ResourceLocation EXTENDED_DATA_CHARGER = ResourceLocation.fromNamespaceAndPath(
-            "data_energistics", "extended_data_charger");
+    private static final String MACHINE_MODE_TAG = "machine_mode";
+    private static final String LEGACY_MODULE_REFUND_TAG = "legacy_module_refund";
+    private static final ResourceLocation DATA_CHARGE_PRESS_RECIPE_TYPE_ID = Data_Energistics.id("data_charge_press");
+    private static final PatternUploadWorkstationVariant CHARGER_UPLOAD_VARIANT = createUploadVariant(
+            MachineMode.CHARGER, "charger");
+    private static final PatternUploadWorkstationVariant CRYSTAL_GROWTH_UPLOAD_VARIANT = createUploadVariant(
+            MachineMode.CRYSTAL_GROWTH, "crystal_growth");
+    private static final PatternUploadWorkstationVariant INSCRIBER_UPLOAD_VARIANT = createUploadVariant(
+            MachineMode.INSCRIBER, "inscriber");
+    private static final PatternUploadWorkstationVariant POWDER_UPLOAD_VARIANT = createUploadVariant(
+            MachineMode.POWDER, "powder");
     private final IUpgradeInventory upgrades = UpgradeInventories.forMachine(
             DEBlocks.DATA_INTEGRATED_CHARGER.get(), UPGRADE_SLOTS, this::onUpgradesChanged);
     private final AppEngInternalInventory storage = new IntegratedChargerItemInventory();
+    private final EaeCircuitCutterRecipeCatalog eaeCircuitCutterRecipes = new EaeCircuitCutterRecipeCatalog();
     private boolean suppressAe2DefaultInventorySerialization;
     private final InternalInventory externalInput = createExternalInput();
     private final InternalInventory externalOutput = createExternalOutput();
     private final InternalInventory externalInventory = new CombinedInternalInventory(this.externalInput, this.externalOutput);
-    private final FluidTank fluidTank = new IntegratedFluidTank();
+    private final List<FluidTank> fluidTanks = createFluidTanks();
     private final IFluidHandler externalFluidInput = new FluidInputHandler();
-    private final GenericStackInv fluidMenuInventory = createFluidMenuInventory();
+    private final List<GenericStackInv> fluidMenuInventories = createFluidMenuInventories();
     private final ConfigManager configManager = new ConfigManager(this::onConfigChanged);
-    private boolean syncingFluidMenu;
+    private boolean syncingFluidMenus;
     private final Set<Direction> outputSides = EnumSet.allOf(Direction.class);
     private @Nullable AdjacentBlockCapabilityCache<GenericInternalInventory> adjacentGenericInventories;
     private @Nullable AdjacentBlockCapabilityCache<IItemHandler> adjacentItemHandlers;
     private int progress;
-    private MachineMode processingMode = MachineMode.NONE;
+    private MachineMode machineMode = MachineMode.POWDER;
+    private MachineMode processingMode = MachineMode.POWDER;
+    private ItemStack pendingLegacyModuleRefund = ItemStack.EMPTY;
 
     public DataIntegratedChargerBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(DEBlockEntities.DATA_INTEGRATED_CHARGER_BLOCK_ENTITY.get(), blockPos, blockState);
@@ -149,13 +175,13 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
                 .setIdlePowerUsage(0.0D);
         this.configManager.registerSetting(Settings.AUTO_EXPORT, YesNo.NO);
         this.storage.setFilter(new StorageFilter());
-        for (int slot = 0; slot < MACHINE_MODULE_SLOT; slot++) {
+        for (int slot = 0; slot < LEGACY_MACHINE_MODULE_SLOT; slot++) {
             this.storage.setMaxStackSize(slot, ITEM_SLOT_CAPACITY);
         }
-        this.storage.setMaxStackSize(MACHINE_MODULE_SLOT, 1);
+        this.storage.setMaxStackSize(LEGACY_MACHINE_MODULE_SLOT, 1);
         this.setPowerSides(connectableSides);
         updateEnergyCapacity();
-        syncMenuFluidFromTank();
+        syncMenuFluidsFromTanks();
     }
 
     @Override
@@ -211,20 +237,40 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return this.externalInventory;
     }
 
+    public FluidTank getFluidTank(int tank) {
+        return getFluidTank(tank, this.fluidTanks);
+    }
+
+    /**
+     * @deprecated The integrated charger now exposes three fluid tanks. Use {@link #getFluidTank(int)} instead.
+     */
+    @Deprecated
     public FluidTank getFluidTank() {
-        return this.fluidTank;
+        return getFluidTank(0);
     }
 
     public IFluidHandler getExternalFluidHandler() {
         return this.externalFluidInput;
     }
 
+    public ConfigMenuInventory getFluidMenuInventory(int tank) {
+        if (tank < 0 || tank >= this.fluidMenuInventories.size()) {
+            throw new IndexOutOfBoundsException("Invalid Data Integrated Charger fluid tank: " + tank);
+        }
+        return this.fluidMenuInventories.get(tank).createMenuWrapper();
+    }
+
+    /**
+     * @deprecated The integrated charger now exposes three fluid menus. Use {@link #getFluidMenuInventory(int)}
+     *             instead.
+     */
+    @Deprecated
     public ConfigMenuInventory getFluidMenuInventory() {
-        return this.fluidMenuInventory.createMenuWrapper();
+        return getFluidMenuInventory(0);
     }
 
     public int getFluidCapacity() {
-        return this.fluidTank.getCapacity();
+        return FLUID_CAPACITY;
     }
 
     public boolean isAutoExportEnabled() {
@@ -282,8 +328,69 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     public MachineMode getMachineMode() {
-        ItemStack module = this.storage.getStackInSlot(MACHINE_MODULE_SLOT);
-        return module.isEmpty() ? MachineMode.POWDER : getMachineMode(module);
+        return this.machineMode;
+    }
+
+    public boolean setMachineMode(MachineMode mode) {
+        if (this.machineMode == mode) {
+            return false;
+        }
+        this.machineMode = mode;
+        this.processingMode = mode;
+        resetProgress();
+        saveChanges();
+        markForClientUpdate();
+        return true;
+    }
+
+    /** Describes the current mode and its compatibility with the encoded pattern without changing machine state. */
+    public PatternUploadWorkstationInspection inspectPatternUpload(
+                                                                   PatternUploadWorkstationInspectionContext context) {
+        PatternUploadWorkstationCompatibility compatibility = PatternUploadWorkstationCompatibility.UNKNOWN;
+        if (context.patternDetails() != null) {
+            int matchingModes = DataIntegratedChargerPatternModeResolver.resolveModeMask(
+                    context.level(), context.patternDetails(), context.recipeId());
+            if (matchingModes == 0) {
+                if (DATA_CHARGE_PRESS_RECIPE_TYPE_ID.equals(context.recipeTypeId()) ||
+                        DataIntegratedChargerPatternModeResolver.isStableRecipeId(context.recipeId())) {
+                    compatibility = PatternUploadWorkstationCompatibility.INCOMPATIBLE;
+                }
+            } else if (Integer.bitCount(matchingModes) != 1) {
+                compatibility = PatternUploadWorkstationCompatibility.INCOMPATIBLE;
+            } else {
+                MachineMode requiredMode = MachineMode.values()[Integer.numberOfTrailingZeros(matchingModes)];
+                compatibility = requiredMode == this.machineMode ?
+                        PatternUploadWorkstationCompatibility.COMPATIBLE :
+                        PatternUploadWorkstationCompatibility.INCOMPATIBLE;
+            }
+        }
+        return PatternUploadWorkstationInspection.variant(uploadVariant(this.machineMode), compatibility);
+    }
+
+    /** Validates that this machine is already in the unique mode required by the exact server-side recipe. */
+    public PatternUploadWorkstationPreparation preparePatternUpload(PatternUploadWorkstationContext context) {
+        int matchingModes = DataIntegratedChargerPatternModeResolver.resolveModeMask(
+                context.level(), context.patternDetails(), context.recipeId());
+        if (matchingModes == 0) {
+            if (DATA_CHARGE_PRESS_RECIPE_TYPE_ID.equals(context.recipeTypeId()) ||
+                    DataIntegratedChargerPatternModeResolver.isStableRecipeId(context.recipeId())) {
+                return PatternUploadWorkstationPreparation.rejected(Component.translatable(
+                        "message.data_energistics.data_integrated_charger.pattern_mode_unresolved"));
+            }
+            return PatternUploadWorkstationPreparation.pass();
+        }
+        if (Integer.bitCount(matchingModes) != 1) {
+            return PatternUploadWorkstationPreparation.rejected(Component.translatable(
+                    "message.data_energistics.data_integrated_charger.pattern_mode_ambiguous"));
+        }
+        MachineMode requiredMode = MachineMode.values()[Integer.numberOfTrailingZeros(matchingModes)];
+        if (requiredMode != this.machineMode) {
+            return PatternUploadWorkstationPreparation.rejected(Component.translatable(
+                    "message.data_energistics.data_integrated_charger.pattern_mode_mismatch",
+                    modeDisplayName(requiredMode),
+                    modeDisplayName(this.machineMode)));
+        }
+        return PatternUploadWorkstationPreparation.accepted();
     }
 
     public void serverTick() {
@@ -291,8 +398,8 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             return;
         }
 
+        boolean changed = refundLegacyModule();
         refillEnergyCache();
-        boolean changed = false;
         MachineMode mode = getMachineMode();
         if (mode != this.processingMode) {
             this.processingMode = mode;
@@ -312,7 +419,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
                         case INSCRIBER -> processInscriberOperation();
                         case CRYSTAL_GROWTH -> processCrystalGrowthOperation();
                         case POWDER -> processPowderOperation();
-                        case NONE -> false;
                     };
                     if (!completed) {
                         break;
@@ -340,6 +446,8 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             dropStack(level, pos, this.storage.getStackInSlot(slot));
             this.storage.setItemDirect(slot, ItemStack.EMPTY);
         }
+        dropStack(level, pos, this.pendingLegacyModuleRefund);
+        this.pendingLegacyModuleRefund = ItemStack.EMPTY;
         for (int slot = 0; slot < this.upgrades.size(); slot++) {
             dropStack(level, pos, this.upgrades.getStackInSlot(slot));
             this.upgrades.setItemDirect(slot, ItemStack.EMPTY);
@@ -352,7 +460,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         super.loadTag(data, registries);
         this.storage.readFromNBT(data, STORAGE_TAG, registries);
         this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
-        this.fluidTank.readFromNBT(registries, data.getCompound(FLUID_TAG));
+        loadFluidTanks(data, registries);
         if (data.contains(CONFIG_TAG)) {
             this.configManager.readFromNBT(data.getCompound(CONFIG_TAG), registries);
         }
@@ -363,8 +471,14 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             this.outputSides.addAll(EnumSet.allOf(Direction.class));
         }
         this.progress = Math.max(0, data.getInt(PROGRESS_TAG));
-        this.processingMode = readProcessingMode(data.getString(PROCESSING_MODE_TAG));
-        syncMenuFluidFromTank();
+        this.machineMode = data.contains(MACHINE_MODE_TAG) ?
+                readMachineMode(data.getString(MACHINE_MODE_TAG)) : readMachineMode(data.getString(PROCESSING_MODE_TAG));
+        this.processingMode = this.machineMode;
+        this.pendingLegacyModuleRefund = data.contains(LEGACY_MODULE_REFUND_TAG, Tag.TAG_COMPOUND) ?
+                ItemStack.parseOptional(registries, data.getCompound(LEGACY_MODULE_REFUND_TAG)) : ItemStack.EMPTY;
+        migrateLegacyStorageLayout(data);
+        moveLegacyModuleToRefundQueue();
+        syncMenuFluidsFromTanks();
         updateEnergyCapacity();
     }
 
@@ -379,13 +493,22 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         }
         this.storage.writeToNBT(data, STORAGE_TAG, registries);
         this.upgrades.writeToNBT(data, UPGRADES_TAG, registries);
-        data.put(FLUID_TAG, this.fluidTank.writeToNBT(registries, new CompoundTag()));
+        ListTag fluidTanksTag = new ListTag();
+        for (FluidTank tank : this.fluidTanks) {
+            fluidTanksTag.add(tank.writeToNBT(registries, new CompoundTag()));
+        }
+        data.remove(FLUID_TAG);
+        data.put(FLUID_TANKS_TAG, fluidTanksTag);
+        data.putInt(STORAGE_LAYOUT_VERSION_TAG, STORAGE_LAYOUT_VERSION);
         CompoundTag config = new CompoundTag();
         this.configManager.writeToNBT(config, registries);
         data.put(CONFIG_TAG, config);
         data.put(OUTPUT_SIDES_TAG, createOutputSidesTag(this.outputSides));
         data.putInt(PROGRESS_TAG, this.progress);
-        data.putString(PROCESSING_MODE_TAG, this.processingMode.name());
+        data.putString(MACHINE_MODE_TAG, this.machineMode.name());
+        if (!this.pendingLegacyModuleRefund.isEmpty()) {
+            data.put(LEGACY_MODULE_REFUND_TAG, this.pendingLegacyModuleRefund.saveOptional(registries));
+        }
     }
 
     @Override
@@ -403,18 +526,13 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     public void clearContent() {
         super.clearContent();
         this.storage.clear();
-        this.fluidTank.setFluid(FluidStack.EMPTY);
-    }
-
-    public static boolean isSupportedMachineModule(ItemStack stack) {
-        return getMachineMode(stack) != MachineMode.NONE;
+        for (FluidTank tank : this.fluidTanks) {
+            tank.setFluid(FluidStack.EMPTY);
+        }
+        this.pendingLegacyModuleRefund = ItemStack.EMPTY;
     }
 
     private boolean processChargerOperation() {
-        DataChargePressOperation customOperation = findCustomDataChargePressOperation();
-        if (customOperation != null) {
-            return processDataChargePressOperation(customOperation);
-        }
         if (processDataChargerRecipeOperation()) {
             return true;
         }
@@ -441,6 +559,19 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return false;
     }
 
+    private boolean processIntegratedChargerRecipeOperation() {
+        DataIntegratedChargerOperation operation = findIntegratedChargerRecipeOperation();
+        if (operation == null || !consumeOperationEnergy()) {
+            return false;
+        }
+
+        for (DataIntegratedChargerRecipe.InputSlot inputSlot : operation.inputSlots()) {
+            consume(inputSlot.slot(), inputSlot.count());
+        }
+        addToOutput(operation.result());
+        return true;
+    }
+
     /** Runs the dedicated crystal-growth recipes unlocked by the Not So Mysterious Cube module. */
     private boolean processCrystalGrowthOperation() {
         DataChargePressOperation operation = findCustomDataChargePressOperation();
@@ -448,10 +579,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean processDataChargerRecipeOperation() {
-        if (!isDataChargerModule(this.storage.getStackInSlot(MACHINE_MODULE_SLOT))) {
-            return false;
-        }
-
         for (int inputSlot = 0; inputSlot < ITEM_INPUT_SLOT_COUNT; inputSlot++) {
             ItemStack input = this.storage.getStackInSlot(inputSlot);
             DataChargerRecipe recipe = findDataChargerRecipe(input);
@@ -483,6 +610,10 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private boolean processInscriberOperation() {
         if (this.level == null) {
             return false;
+        }
+
+        if (processIntegratedChargerRecipeOperation()) {
+            return true;
         }
 
         DataChargePressOperation dataChargePressOperation = findDataChargePressOperation();
@@ -572,13 +703,14 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
      * Executes data charge press operations before their normal AE2 machine recipes.
      */
     private boolean processDataChargePressOperation(DataChargePressOperation operation) {
-        if (this.fluidTank.drain(operation.fluidAmount(), IFluidHandler.FluidAction.SIMULATE)
+        FluidTank fluidTank = getFluidTank(operation.fluidTank(), this.fluidTanks);
+        if (fluidTank.drain(operation.fluidAmount(), IFluidHandler.FluidAction.SIMULATE)
                 .getAmount() != operation.fluidAmount() ||
                 !consumeOperationEnergy()) {
             return false;
         }
 
-        FluidStack drained = this.fluidTank.drain(
+        FluidStack drained = fluidTank.drain(
                 operation.fluidAmount(), IFluidHandler.FluidAction.EXECUTE);
         if (drained.getAmount() != operation.fluidAmount()) {
             return false;
@@ -596,13 +728,14 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             return null;
         }
 
+        DataChargePressOperation eaeCircuitCutterOperation = findEaeCircuitCutterOperation();
+        if (eaeCircuitCutterOperation != null) {
+            return eaeCircuitCutterOperation;
+        }
+
         List<ItemStack> inputs = new ObjectArrayList<>(ITEM_INPUT_SLOT_COUNT);
         for (int slot = 0; slot < ITEM_INPUT_SLOT_COUNT; slot++) {
             inputs.add(this.storage.getStackInSlot(slot));
-        }
-        if (!DataChargePressRecipeSupport.INSCRIBER_MODULES.test(this.storage.getStackInSlot(MACHINE_MODULE_SLOT)) ||
-                !DataChargePressRecipeSupport.matchesFluid(this.fluidTank.getFluid())) {
-            return null;
         }
         for (RecipeHolder<InscriberRecipe> holder : this.level.getRecipeManager()
                 .getAllRecipesFor(AERecipeTypes.INSCRIBER)) {
@@ -615,12 +748,58 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             ItemStack result = DataChargePressRecipeSupport.getTripleResult(recipe);
             if (materialSlot >= 0 && inputs.get(materialSlot).getCount() >=
                     DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT && findOutputSlot(result) >= 0) {
-                return new DataChargePressOperation(result, DataChargePressRecipeSupport.DATA_CORROSION_AMOUNT,
-                        List.of(new DataChargePressRecipe.InputSlot(materialSlot,
-                                DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT)));
+                for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+                    if (DataChargePressRecipeSupport.matchesFluid(getFluidTank(tank, this.fluidTanks).getFluid())) {
+                        return new DataChargePressOperation(result, tank,
+                                DataChargePressRecipeSupport.DATA_CORROSION_AMOUNT,
+                                List.of(new DataChargePressRecipe.InputSlot(materialSlot,
+                                        DataChargePressRecipeSupport.CIRCUIT_BOARD_MATERIAL_COUNT)));
+                    }
+                }
             }
         }
         return null;
+    }
+
+    /**
+     * Mirrors EAE circuit-cutter block recipes in inscriber mode while replacing their output rates with the
+     * integrated charger's data-corrosion costs.
+     */
+    private @Nullable DataChargePressOperation findEaeCircuitCutterOperation() {
+        if (this.level == null) {
+            return null;
+        }
+
+        for (int inputSlot = 0; inputSlot < ITEM_INPUT_SLOT_COUNT; inputSlot++) {
+            ItemStack input = this.storage.getStackInSlot(inputSlot);
+            ItemStack cutterOutput = this.eaeCircuitCutterRecipes.findOutput(this.level, input);
+            if (cutterOutput == null) {
+                continue;
+            }
+
+            int resultCount = getEaeCircuitCutterResultCount(cutterOutput.getCount());
+            int fluidAmount = getEaeCircuitCutterFluidAmount(cutterOutput.getCount());
+            ItemStack result = cutterOutput.copyWithCount(resultCount);
+            if (findOutputSlot(result) < 0) {
+                continue;
+            }
+
+            for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+                if (DataChargePressRecipeSupport.matchesFluid(getFluidTank(tank, this.fluidTanks).getFluid(), fluidAmount)) {
+                    return new DataChargePressOperation(result, tank, fluidAmount,
+                            List.of(new DataChargePressRecipe.InputSlot(inputSlot, 1)));
+                }
+            }
+        }
+        return null;
+    }
+
+    static int getEaeCircuitCutterResultCount(int originalOutputCount) {
+        return EaeCircuitCutterRecipeCatalog.getIntegratedResultCount(originalOutputCount);
+    }
+
+    static int getEaeCircuitCutterFluidAmount(int originalOutputCount) {
+        return EaeCircuitCutterRecipeCatalog.getIntegratedFluidAmount(originalOutputCount);
     }
 
     private @Nullable DataChargePressOperation findCustomDataChargePressOperation() {
@@ -632,20 +811,18 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         for (int slot = 0; slot < ITEM_INPUT_SLOT_COUNT; slot++) {
             inputs.add(this.storage.getStackInSlot(slot));
         }
-        DataChargePressRecipeInput input = new DataChargePressRecipeInput(
-                inputs,
-                this.fluidTank.getFluid(),
-                this.storage.getStackInSlot(MACHINE_MODULE_SLOT));
         for (RecipeHolder<DataChargePressRecipe> holder : this.level.getRecipeManager()
                 .getAllRecipesFor(DERecipes.DATA_CHARGE_PRESS_TYPE.get())) {
             DataChargePressRecipe recipe = holder.value();
-            if (!recipe.matches(input, this.level)) {
-                continue;
-            }
             List<DataChargePressRecipe.InputSlot> inputSlots = recipe.findMatchingInputSlots(inputs);
             ItemStack result = recipe.getResult();
-            if (!inputSlots.isEmpty() && findOutputSlot(result) >= 0) {
-                return new DataChargePressOperation(result, recipe.getFluidAmount(), inputSlots);
+            if (inputSlots.isEmpty() || findOutputSlot(result) < 0) {
+                continue;
+            }
+            for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+                if (recipe.matchesMachineInputs(inputs, getFluidTank(tank, this.fluidTanks).getFluid())) {
+                    return new DataChargePressOperation(result, tank, recipe.getFluidAmount(), inputSlots);
+                }
             }
         }
         return null;
@@ -682,6 +859,27 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
                 .getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get())) {
             if (holder.value().matches(recipeInput, this.level)) {
                 return holder.value();
+            }
+        }
+        return null;
+    }
+
+    private @Nullable DataIntegratedChargerOperation findIntegratedChargerRecipeOperation() {
+        if (this.level == null) {
+            return null;
+        }
+
+        List<ItemStack> inputs = new ObjectArrayList<>(ITEM_INPUT_SLOT_COUNT);
+        for (int slot = 0; slot < ITEM_INPUT_SLOT_COUNT; slot++) {
+            inputs.add(this.storage.getStackInSlot(slot));
+        }
+        for (RecipeHolder<DataIntegratedChargerRecipe> holder : this.level.getRecipeManager()
+                .getAllRecipesFor(DERecipes.DATA_INTEGRATED_CHARGER_TYPE.get())) {
+            DataIntegratedChargerRecipe recipe = holder.value();
+            List<DataIntegratedChargerRecipe.InputSlot> inputSlots = recipe.findMatchingInputSlots(inputs);
+            ItemStack result = recipe.getResult();
+            if (!inputSlots.isEmpty() && findOutputSlot(result) >= 0) {
+                return new DataIntegratedChargerOperation(result, inputSlots);
             }
         }
         return null;
@@ -787,7 +985,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
             case INSCRIBER -> canProcessInscriberOperation();
             case CRYSTAL_GROWTH -> canProcessCrystalGrowthOperation();
             case POWDER -> canProcessPowderOperation();
-            case NONE -> false;
         };
     }
 
@@ -796,9 +993,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean canProcessChargerOperation() {
-        if (findCustomDataChargePressOperation() != null) {
-            return true;
-        }
         if (canProcessDataChargerRecipeOperation()) {
             return true;
         }
@@ -823,10 +1017,6 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     }
 
     private boolean canProcessDataChargerRecipeOperation() {
-        if (!isDataChargerModule(this.storage.getStackInSlot(MACHINE_MODULE_SLOT))) {
-            return false;
-        }
-
         for (int inputSlot = 0; inputSlot < ITEM_INPUT_SLOT_COUNT; inputSlot++) {
             DataChargerRecipe recipe = findDataChargerRecipe(this.storage.getStackInSlot(inputSlot));
             if (recipe != null && canProcessDataChargerRecipe(recipe)) {
@@ -839,6 +1029,10 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
     private boolean canProcessInscriberOperation() {
         if (this.level == null || !canConsumeOperationEnergy()) {
             return false;
+        }
+
+        if (findIntegratedChargerRecipeOperation() != null) {
+            return true;
         }
 
         if (findDataChargePressOperation() != null) {
@@ -1186,12 +1380,81 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return tag;
     }
 
-    private static MachineMode readProcessingMode(String serializedMode) {
+    private static MachineMode readMachineMode(String serializedMode) {
         try {
             return MachineMode.valueOf(serializedMode);
         } catch (IllegalArgumentException ignored) {
-            return MachineMode.NONE;
+            return MachineMode.POWDER;
         }
+    }
+
+    private void loadFluidTanks(CompoundTag data, HolderLookup.Provider registries) {
+        if (data.contains(FLUID_TANKS_TAG, Tag.TAG_LIST)) {
+            ListTag tanksTag = data.getList(FLUID_TANKS_TAG, Tag.TAG_COMPOUND);
+            for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+                CompoundTag tankTag = tank < tanksTag.size() ? tanksTag.getCompound(tank) : new CompoundTag();
+                getFluidTank(tank, this.fluidTanks).readFromNBT(registries, tankTag);
+            }
+            return;
+        }
+
+        // Single-tank worlds retain their fluid in the first visible input tank.
+        getFluidTank(0, this.fluidTanks).readFromNBT(registries, data.getCompound(FLUID_TAG));
+        for (int tank = 1; tank < FLUID_TANK_COUNT; tank++) {
+            getFluidTank(tank, this.fluidTanks).setFluid(FluidStack.EMPTY);
+        }
+    }
+
+    private void migrateLegacyStorageLayout(CompoundTag data) {
+        if (data.getInt(STORAGE_LAYOUT_VERSION_TAG) >= STORAGE_LAYOUT_VERSION) {
+            return;
+        }
+
+        boolean migrated = false;
+        ItemStack legacyModule = this.storage.getStackInSlot(PREVIOUS_LEGACY_MACHINE_MODULE_SLOT);
+        if (!legacyModule.isEmpty()) {
+            queueLegacyModuleRefund(legacyModule);
+            this.storage.setItemDirect(PREVIOUS_LEGACY_MACHINE_MODULE_SLOT, ItemStack.EMPTY);
+            migrated = true;
+        }
+
+        // Slot 8 was the first output in the six-input layout and becomes the ninth input in this layout.
+        ItemStack displacedOutput = this.storage.getStackInSlot(PREVIOUS_ITEM_OUTPUT_START_SLOT);
+        if (!displacedOutput.isEmpty()) {
+            this.storage.setItemDirect(PREVIOUS_ITEM_OUTPUT_START_SLOT, ItemStack.EMPTY);
+            this.storage.setItemDirect(PREVIOUS_LEGACY_MACHINE_MODULE_SLOT, displacedOutput);
+            migrated = true;
+        }
+        if (migrated) {
+            setChanged();
+        }
+    }
+
+    private void moveLegacyModuleToRefundQueue() {
+        ItemStack legacyModule = this.storage.getStackInSlot(LEGACY_MACHINE_MODULE_SLOT);
+        if (legacyModule.isEmpty()) {
+            return;
+        }
+        queueLegacyModuleRefund(legacyModule);
+        this.storage.setItemDirect(LEGACY_MACHINE_MODULE_SLOT, ItemStack.EMPTY);
+        setChanged();
+    }
+
+    private void queueLegacyModuleRefund(ItemStack legacyModule) {
+        if (!this.pendingLegacyModuleRefund.isEmpty()) {
+            throw new IllegalStateException("Data Integrated Charger has multiple pending legacy module refunds");
+        }
+        this.pendingLegacyModuleRefund = legacyModule.copy();
+    }
+
+    private boolean refundLegacyModule() {
+        if (this.pendingLegacyModuleRefund.isEmpty() || this.level == null || this.level.isClientSide()) {
+            return false;
+        }
+        Block.popResource(this.level, this.worldPosition, this.pendingLegacyModuleRefund.copy());
+        this.pendingLegacyModuleRefund = ItemStack.EMPTY;
+        setChanged();
+        return true;
     }
 
     private void dropStack(Level level, BlockPos pos, ItemStack stack) {
@@ -1217,45 +1480,68 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return new CombinedInternalInventory(outputs);
     }
 
-    private GenericStackInv createFluidMenuInventory() {
-        var inventory = new GenericStackInv(
-                Set.of(AEKeyType.fluids()), this::syncTankFromMenuFluid, GenericStackInv.Mode.STORAGE, 1);
-        inventory.setCapacity(AEKeyType.fluids(), FLUID_CAPACITY);
-        return inventory;
+    private List<FluidTank> createFluidTanks() {
+        List<FluidTank> tanks = new ObjectArrayList<>(FLUID_TANK_COUNT);
+        for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+            tanks.add(new IntegratedFluidTank());
+        }
+        return tanks;
     }
 
-    private void syncMenuFluidFromTank() {
-        if (this.syncingFluidMenu) {
+    private List<GenericStackInv> createFluidMenuInventories() {
+        List<GenericStackInv> inventories = new ObjectArrayList<>(FLUID_TANK_COUNT);
+        for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+            int fluidTank = tank;
+            var inventory = new GenericStackInv(Set.of(AEKeyType.fluids()),
+                    () -> syncTankFromMenuFluid(fluidTank), GenericStackInv.Mode.STORAGE, 1);
+            inventory.setCapacity(AEKeyType.fluids(), FLUID_CAPACITY);
+            inventories.add(inventory);
+        }
+        return inventories;
+    }
+
+    private void syncMenuFluidsFromTanks() {
+        if (this.syncingFluidMenus) {
             return;
         }
 
-        this.syncingFluidMenu = true;
+        this.syncingFluidMenus = true;
         try {
-            this.fluidMenuInventory.setStack(0, createFluidGenericStack(this.fluidTank.getFluid()));
+            for (int tank = 0; tank < FLUID_TANK_COUNT; tank++) {
+                this.fluidMenuInventories.get(tank).setStack(0,
+                        createFluidGenericStack(getFluidTank(tank, this.fluidTanks).getFluid()));
+            }
         } finally {
-            this.syncingFluidMenu = false;
+            this.syncingFluidMenus = false;
         }
     }
 
-    private void syncTankFromMenuFluid() {
-        if (this.syncingFluidMenu) {
+    private void syncTankFromMenuFluid(int tank) {
+        if (this.syncingFluidMenus) {
             return;
         }
 
-        this.syncingFluidMenu = true;
+        this.syncingFluidMenus = true;
         try {
-            GenericStack stack = this.fluidMenuInventory.getStack(0);
+            GenericStack stack = this.fluidMenuInventories.get(tank).getStack(0);
             if (stack == null || !(stack.what() instanceof AEFluidKey fluidKey) || stack.amount() <= 0) {
-                this.fluidTank.setFluid(FluidStack.EMPTY);
+                getFluidTank(tank, this.fluidTanks).setFluid(FluidStack.EMPTY);
             } else {
                 int amount = (int) Math.min(FLUID_CAPACITY, stack.amount());
-                this.fluidTank.setFluid(fluidKey.toStack(amount));
+                getFluidTank(tank, this.fluidTanks).setFluid(fluidKey.toStack(amount));
             }
             saveChanges();
             markForClientUpdate();
         } finally {
-            this.syncingFluidMenu = false;
+            this.syncingFluidMenus = false;
         }
+    }
+
+    private static FluidTank getFluidTank(int tank, List<FluidTank> tanks) {
+        if (tank < 0 || tank >= tanks.size()) {
+            throw new IndexOutOfBoundsException("Invalid Data Integrated Charger fluid tank: " + tank);
+        }
+        return tanks.get(tank);
     }
 
     private static @Nullable GenericStack createFluidGenericStack(FluidStack fluid) {
@@ -1265,48 +1551,64 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
         return new GenericStack(AEFluidKey.of(fluid), fluid.getAmount());
     }
 
-    private static MachineMode getMachineMode(ItemStack stack) {
-        if (stack.isEmpty()) {
-            return MachineMode.NONE;
-        }
-        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        if (AE2_INSCRIBER.equals(id) || EXTENDED_AE_INSCRIBER.equals(id)) {
-            return MachineMode.INSCRIBER;
-        }
-        if (DataChargePressRecipeSupport.CRYSTAL_GROWTH_MODULES.test(stack)) {
-            return MachineMode.CRYSTAL_GROWTH;
-        }
-        if (AE2_CHARGER.equals(id) || EXTENDED_AE_CHARGER.equals(id) || isDataChargerModule(stack)) {
-            return MachineMode.CHARGER;
-        }
-        return MachineMode.NONE;
+    private static PatternUploadWorkstationVariant createUploadVariant(MachineMode mode, String name) {
+        return new PatternUploadWorkstationVariant(
+                Data_Energistics.id("data_integrated_charger/" + name),
+                modeDisplayName(mode));
     }
 
-    private static boolean isDataChargerModule(ItemStack stack) {
-        if (stack.isEmpty()) {
-            return false;
-        }
-        ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        return DATA_CHARGER.equals(id) || EXTENDED_DATA_CHARGER.equals(id) ||
-                DataChargePressRecipeSupport.DATA_CHARGER_MODULES.test(stack);
+    private static PatternUploadWorkstationVariant uploadVariant(MachineMode mode) {
+        return switch (mode) {
+            case CHARGER -> CHARGER_UPLOAD_VARIANT;
+            case CRYSTAL_GROWTH -> CRYSTAL_GROWTH_UPLOAD_VARIANT;
+            case INSCRIBER -> INSCRIBER_UPLOAD_VARIANT;
+            case POWDER -> POWDER_UPLOAD_VARIANT;
+        };
+    }
+
+    private static Component modeDisplayName(MachineMode mode) {
+        String name = switch (mode) {
+            case CHARGER -> "charger";
+            case CRYSTAL_GROWTH -> "crystal_growth";
+            case INSCRIBER -> "inscriber";
+            case POWDER -> "powder";
+        };
+        return Component.translatable("button.data_energistics.data_integrated_charger.machine_mode." + name);
     }
 
     public enum MachineMode {
-        NONE,
-        CHARGER,
-        INSCRIBER,
+
+        POWDER,
         CRYSTAL_GROWTH,
-        POWDER
+        CHARGER,
+        INSCRIBER;
+
+        public MachineMode next() {
+            return switch (this) {
+                case POWDER -> CRYSTAL_GROWTH;
+                case CRYSTAL_GROWTH -> INSCRIBER;
+                case INSCRIBER -> CHARGER;
+                case CHARGER -> POWDER;
+            };
+        }
+
+        public static MachineMode fromOrdinal(int ordinal) {
+            MachineMode[] modes = values();
+            return ordinal >= 0 && ordinal < modes.length ? modes[ordinal] : POWDER;
+        }
     }
 
-    private record DataChargePressOperation(ItemStack result, int fluidAmount,
+    private record DataChargePressOperation(ItemStack result, int fluidTank, int fluidAmount,
                                             List<DataChargePressRecipe.InputSlot> inputSlots) {}
+
+    private record DataIntegratedChargerOperation(ItemStack result,
+                                                  List<DataIntegratedChargerRecipe.InputSlot> inputSlots) {}
 
     private final class StorageFilter implements IAEItemFilter {
 
         @Override
         public boolean allowInsert(InternalInventory inventory, int slot, ItemStack stack) {
-            return slot < ITEM_INPUT_SLOT_COUNT || slot == MACHINE_MODULE_SLOT && isSupportedMachineModule(stack);
+            return slot < ITEM_INPUT_SLOT_COUNT;
         }
     }
 
@@ -1331,7 +1633,7 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         protected void onContentsChanged() {
-            syncMenuFluidFromTank();
+            syncMenuFluidsFromTanks();
             saveChanges();
             markForClientUpdate();
         }
@@ -1341,27 +1643,34 @@ public class DataIntegratedChargerBlockEntity extends AENetworkedPoweredBlockEnt
 
         @Override
         public int getTanks() {
-            return 1;
+            return FLUID_TANK_COUNT;
         }
 
         @Override
         public FluidStack getFluidInTank(int tank) {
-            return tank == 0 ? fluidTank.getFluid() : FluidStack.EMPTY;
+            return tank >= 0 && tank < FLUID_TANK_COUNT ? getFluidTank(tank, fluidTanks).getFluid() : FluidStack.EMPTY;
         }
 
         @Override
         public int getTankCapacity(int tank) {
-            return tank == 0 ? fluidTank.getCapacity() : 0;
+            return tank >= 0 && tank < FLUID_TANK_COUNT ? getFluidTank(tank, fluidTanks).getCapacity() : 0;
         }
 
         @Override
         public boolean isFluidValid(int tank, FluidStack stack) {
-            return tank == 0 && fluidTank.isFluidValid(stack);
+            return tank >= 0 && tank < FLUID_TANK_COUNT && getFluidTank(tank, fluidTanks).isFluidValid(stack);
         }
 
         @Override
         public int fill(FluidStack resource, FluidAction action) {
-            return fluidTank.fill(resource, action);
+            int filled = 0;
+            for (FluidTank tank : fluidTanks) {
+                if (filled >= resource.getAmount()) {
+                    break;
+                }
+                filled += tank.fill(resource.copyWithAmount(resource.getAmount() - filled), action);
+            }
+            return filled;
         }
 
         @Override

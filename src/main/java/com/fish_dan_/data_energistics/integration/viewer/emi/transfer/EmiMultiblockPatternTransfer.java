@@ -7,10 +7,11 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.material.Preview
 import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.EmiMultiblockRecipeId;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 
+import appeng.util.ConfigInventory;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
-import appeng.util.ConfigInventory;
 import dev.emi.emi.api.recipe.EmiRecipe;
 import org.jspecify.annotations.Nullable;
 

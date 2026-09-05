@@ -2,12 +2,14 @@ package com.fish_dan_.data_energistics.client.crafting.tree;
 
 import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanSessionTransfer;
 
-import net.minecraft.client.gui.components.Button;
+import appeng.client.gui.me.crafting.CraftConfirmScreen;
+import appeng.client.gui.style.WidgetStyle;
+import appeng.client.gui.widgets.AE2Button;
+
 import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.client.event.ScreenEvent;
-
-import appeng.client.gui.me.crafting.CraftConfirmScreen;
 
 /** Adds one independently positioned action between the native cancel/start controls. */
 public final class CraftingPlanTreeEntry {
@@ -22,15 +24,22 @@ public final class CraftingPlanTreeEntry {
         for (var listener : screen.children()) if (listener instanceof EntryButton button) button.refresh();
     }
 
-    private static final class EntryButton extends Button {
+    private static final class EntryButton extends AE2Button {
 
         private final CraftConfirmScreen screen;
+        private final WidgetStyle cancelStyle;
+        private final WidgetStyle startStyle;
+        private final Tooltip readyTooltip;
+        private final Tooltip loadingTooltip;
 
         private EntryButton(CraftConfirmScreen screen) {
-            super(screen.getGuiLeft() + (screen.getXSize() - 80) / 2, screen.getGuiTop() + screen.getYSize() - 25,
-                    80, 20, Component.translatable("gui.data_energistics.plan_tree.open"),
-                    button -> ((CraftingPlanSessionTransfer) screen.getMenu()).data_energistics$openPlanTree(), DEFAULT_NARRATION);
+            super(0, 0, 80, 20, Component.translatable("gui.data_energistics.plan_tree.open"),
+                    button -> ((CraftingPlanSessionTransfer) screen.getMenu()).data_energistics$openPlanTree());
             this.screen = screen;
+            this.cancelStyle = screen.getStyle().getWidget("cancel");
+            this.startStyle = screen.getStyle().getWidget("start");
+            this.readyTooltip = Tooltip.create(getMessage());
+            this.loadingTooltip = Tooltip.create(Component.translatable("gui.data_energistics.plan_tree.loading"));
             refresh();
         }
 
@@ -38,9 +47,13 @@ public final class CraftingPlanTreeEntry {
             CraftingPlanSessionTransfer state = (CraftingPlanSessionTransfer) this.screen.getMenu();
             this.visible = state.data_energistics$hasTrinityCpu();
             this.active = this.visible && state.data_energistics$isTreeReady();
-            setX(this.screen.getGuiLeft() + (this.screen.getXSize() - 80) / 2);
-            setY(this.screen.getGuiTop() + this.screen.getYSize() - 25);
-            setTooltip(Tooltip.create(Component.translatable(this.active ? "gui.data_energistics.plan_tree.open" : "gui.data_energistics.plan_tree.loading")));
+            Rect2i bounds = new Rect2i(this.screen.getGuiLeft(), this.screen.getGuiTop(), this.screen.getXSize(), this.screen.getYSize());
+            var cancel = this.cancelStyle.resolve(bounds);
+            var start = this.startStyle.resolve(bounds);
+            // Center the whole button in the native action gap, not the asymmetrical screen background.
+            setX((cancel.getX() + this.cancelStyle.getWidth() + start.getX() - getWidth()) / 2);
+            setY(start.getY());
+            setTooltip(this.active ? this.readyTooltip : this.loadingTooltip);
         }
     }
 }

@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResp
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
+import appeng.core.definitions.AEBlocks;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -17,8 +19,6 @@ import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
-
-import appeng.core.definitions.AEBlocks;
 
 import java.util.ArrayDeque;
 import java.util.List;

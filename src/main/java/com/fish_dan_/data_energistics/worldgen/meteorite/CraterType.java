@@ -15,7 +15,7 @@ public enum CraterType {
 
     private final Block filler;
 
-    private CraterType(Block filler) {
+    CraterType(Block filler) {
         this.filler = filler;
     }
 

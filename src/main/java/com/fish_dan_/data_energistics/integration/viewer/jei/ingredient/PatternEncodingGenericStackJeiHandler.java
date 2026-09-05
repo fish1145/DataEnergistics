@@ -2,10 +2,11 @@ package com.fish_dan_.data_energistics.integration.viewer.jei.ingredient;
 
 import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
 
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.StackWithBounds;
+
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+
 import mezz.jei.api.gui.builder.IClickableIngredientFactory;
 import mezz.jei.api.gui.handlers.IGuiContainerHandler;
 import mezz.jei.api.runtime.IClickableIngredient;

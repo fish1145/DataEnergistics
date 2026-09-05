@@ -12,11 +12,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDat
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuProfile;
 import com.fish_dan_.data_energistics.common.crafting.trinity.serialization.TrinityBigIntegerEncoding;
 
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-
 import appeng.api.config.Actionable;
 import appeng.api.config.CpuSelectionMode;
 import appeng.api.networking.IGrid;
@@ -31,6 +26,12 @@ import appeng.crafting.CraftingLink;
 import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.hooks.ticking.TickHandler;
 import appeng.me.service.CraftingService;
+
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+
 import it.unimi.dsi.fastutil.ints.Int2LongMap;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;

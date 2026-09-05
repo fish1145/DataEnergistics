@@ -1,15 +1,15 @@
 package com.fish_dan_.data_energistics.ae2.key;
 
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
-import appeng.api.stacks.GenericStack;
 
 import java.util.List;
 

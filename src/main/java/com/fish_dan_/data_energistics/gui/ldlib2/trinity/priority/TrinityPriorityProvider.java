@@ -8,9 +8,10 @@ import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiRoot;
 import com.fish_dan_.data_energistics.gui.ldlib2.priority.PriorityControl;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
 
+import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
+
 import net.minecraft.network.chat.Component;
 
-import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import org.jetbrains.annotations.ApiStatus;
 
 import java.util.function.BiPredicate;

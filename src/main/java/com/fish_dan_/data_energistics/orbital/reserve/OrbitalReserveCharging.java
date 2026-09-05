@@ -7,12 +7,12 @@ import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointAvailabili
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 
-import net.minecraft.server.MinecraftServer;
-
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.security.IActionSource;
+
+import net.minecraft.server.MinecraftServer;
 
 import java.util.Comparator;
 import java.util.Optional;

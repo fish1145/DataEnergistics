@@ -9,6 +9,7 @@ import appeng.api.crafting.IPatternDetails;
 import appeng.api.ids.AEComponents;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;

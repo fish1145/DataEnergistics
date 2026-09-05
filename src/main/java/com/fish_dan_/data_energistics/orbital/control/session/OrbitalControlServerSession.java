@@ -9,11 +9,12 @@ import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalControlMen
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlDraft;
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlSessionSnapshot;
 
+import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolder;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolder;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;

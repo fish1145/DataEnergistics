@@ -2,12 +2,13 @@ package com.fish_dan_.data_energistics.ae2.key;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
+
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 

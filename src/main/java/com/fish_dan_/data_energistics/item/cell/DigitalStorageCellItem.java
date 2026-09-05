@@ -4,6 +4,12 @@ import com.fish_dan_.data_energistics.ae2.dataflow.DigitalStorageCellTooltip;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
+import appeng.api.storage.StorageCells;
+import appeng.api.storage.cells.CellState;
+import appeng.items.contents.CellConfig;
+import appeng.items.storage.BasicStorageCell;
+import appeng.util.ConfigInventory;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -13,12 +19,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
-
-import appeng.api.storage.StorageCells;
-import appeng.api.storage.cells.CellState;
-import appeng.items.contents.CellConfig;
-import appeng.items.storage.BasicStorageCell;
-import appeng.util.ConfigInventory;
 
 import java.util.List;
 import java.util.Optional;

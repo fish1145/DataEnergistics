@@ -3,12 +3,12 @@ package com.fish_dan_.data_energistics.client.screen.machine;
 import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.menu.machine.DataSolarPanelMenu;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-
 import appeng.client.gui.Icon;
 import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
 
 public class DataSolarPanelScreen extends UpgradeableScreen<DataSolarPanelMenu> {
 

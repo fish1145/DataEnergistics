@@ -1,13 +1,13 @@
 package com.fish_dan_.data_energistics.common.trinity.pattern;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.helpers.patternprovider.PatternContainer;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 
 import java.util.List;
 import java.util.UUID;

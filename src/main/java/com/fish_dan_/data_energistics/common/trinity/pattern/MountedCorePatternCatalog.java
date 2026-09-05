@@ -5,13 +5,14 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityCraftingBatc
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCore.CachedPattern;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternCore.PatternCacheSnapshot;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.ItemStack;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

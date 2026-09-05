@@ -5,11 +5,6 @@ import com.fish_dan_.data_energistics.client.widget.DataRipperSettingToggleButto
 import com.fish_dan_.data_energistics.common.dataripper.DataRipperPowerUtils;
 import com.fish_dan_.data_energistics.menu.machine.DataRipperMenu;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-
 import appeng.api.config.YesNo;
 import appeng.api.upgrades.Upgrades;
 import appeng.client.gui.AEBaseScreen;
@@ -19,6 +14,11 @@ import appeng.client.gui.widgets.ToolboxPanel;
 import appeng.core.localization.GuiText;
 import appeng.menu.SlotSemantics;
 import appeng.menu.slot.AppEngSlot;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.registry;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.TuningForkBaseBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.TuningForkBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.beam.BeamFormerBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.decor.DollBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataAsynchronousProcessingFactoryBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataChargerBlockEntity;
@@ -31,19 +32,34 @@ import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEn
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityPatternCoreBlockEntity;
 
+import appeng.blockentity.networking.EnergyCellBlockEntity;
+
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-import appeng.blockentity.networking.EnergyCellBlockEntity;
-
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class DEBlockEntities {
 
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, Data_Energistics.MODID);
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BeamFormerBlockEntity>> ME_BEAM_FORMER = BLOCK_ENTITY_TYPES.register(
+            "me_beam_former", () -> {
+                var type = BlockEntityType.Builder.of(BeamFormerBlockEntity::new, DEBlocks.ME_BEAM_FORMER.get()).build(null);
+                DEBlocks.ME_BEAM_FORMER.get().setBlockEntity(BeamFormerBlockEntity.class, type, null,
+                        (level, pos, state, beam) -> beam.serverTick());
+                return type;
+            });
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BeamFormerBlockEntity>> ME_OMNI_BEAM_FORMER = BLOCK_ENTITY_TYPES.register(
+            "me_omni_beam_former", () -> {
+                var type = BlockEntityType.Builder.of(BeamFormerBlockEntity::new, DEBlocks.ME_OMNI_BEAM_FORMER.get()).build(null);
+                DEBlocks.ME_OMNI_BEAM_FORMER.get().setBlockEntity(BeamFormerBlockEntity.class, type, null,
+                        (level, pos, state, beam) -> beam.serverTick());
+                return type;
+            });
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DataSolarPanelBlockEntity>> DATA_SOLAR_PANEL_BLOCK_ENTITY = BLOCK_ENTITY_TYPES.register(
             "me_solar_panel",

@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.orbital.control.ui;
 
-import net.minecraft.network.chat.Component;
-
 import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
@@ -15,6 +13,9 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
+
+import net.minecraft.network.chat.Component;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 /** Shared LDLib2 palette and component construction for the terminal, console and compact HUD. */

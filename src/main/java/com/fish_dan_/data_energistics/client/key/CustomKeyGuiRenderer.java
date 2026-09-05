@@ -6,15 +6,15 @@ import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
 
+import appeng.api.client.AEKeyRendering;
+import appeng.api.stacks.AEKey;
+import appeng.client.gui.style.Blitter;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.InventoryMenu;
-
-import appeng.api.client.AEKeyRendering;
-import appeng.api.stacks.AEKey;
-import appeng.client.gui.style.Blitter;
 
 public final class CustomKeyGuiRenderer {
 

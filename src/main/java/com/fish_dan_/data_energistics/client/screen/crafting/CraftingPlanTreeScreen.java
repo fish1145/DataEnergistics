@@ -16,6 +16,8 @@ import com.fish_dan_.data_energistics.client.util.TrinityDurationFormatter;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Layout;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanLayoutMode;
+import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRadialLayout;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Material;
 import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanGraphView;
@@ -24,14 +26,6 @@ import com.fish_dan_.data_energistics.gui.ldlib2.crafting.tree.CraftingPlanTreeU
 import com.fish_dan_.data_energistics.menu.crafting.tree.CraftingPlanTreeMenu;
 import com.fish_dan_.data_energistics.network.crafting.tree.action.CraftingPlanTreeActionPayload.Action;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-
-import appeng.api.stacks.GenericStack;
-import appeng.client.gui.StackWithBounds;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
@@ -41,6 +35,16 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+
+import appeng.api.stacks.GenericStack;
+import appeng.client.gui.StackWithBounds;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import org.joml.Vector2f;
@@ -63,6 +67,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
     private CraftingPlanTreePreferences preferences = CraftingPlanTreePreferences.load();
     private boolean missingOnly = this.preferences.missingOnly();
     private boolean compact = this.preferences.compact();
+    private CraftingPlanLayoutMode layoutMode = this.preferences.layoutMode();
     private final Map<String, Button> buttons = new Object2ObjectLinkedOpenHashMap<>();
     private @Nullable ModularUI modularUI;
     private @Nullable CraftingPlanGraphCanvas canvas;
@@ -141,7 +146,8 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         place(button(ui, "replan"), (this.imageWidth - 80) / 2F, this.imageHeight - 27, 80, 20);
         place(button(ui, "start"), this.imageWidth - 86, this.imageHeight - 27, 80, 20);
         int popupX = Math.max(6, this.imageWidth - 190);
-        String[] popup = { "export_visible", "export_full", "export_svg_visible", "export_svg_full", "pref_missing", "pref_amounts", "pref_budget" };
+        String[] popup = { "export_visible", "export_full", "export_svg_visible", "export_svg_full",
+                "pref_missing", "pref_amounts", "pref_budget", "pref_layout" };
         for (int i = 0; i < popup.length; i++) {
             Button button = button(ui, popup[i]);
             place(button, popupX, 44 + (i < 4 ? i : i - 4) * 22, 180, 20);
@@ -219,27 +225,36 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         this.buttons.get("export_svg_full").setOnClick(event -> export(true, true));
         this.buttons.get("pref_missing").setOnClick(event -> {
             this.preferences = new CraftingPlanTreePreferences(this.preferences.autoExpandBudget(), this.compact,
-                    !this.preferences.missingOnly(), this.preferences.screenshotAmounts());
+                    !this.preferences.missingOnly(), this.preferences.screenshotAmounts(), this.layoutMode);
             this.preferences.save();
             updateLabels();
         });
         this.buttons.get("pref_amounts").setOnClick(event -> {
             this.preferences = new CraftingPlanTreePreferences(this.preferences.autoExpandBudget(), this.compact,
-                    this.preferences.missingOnly(), !this.preferences.screenshotAmounts());
+                    this.preferences.missingOnly(), !this.preferences.screenshotAmounts(), this.layoutMode);
             this.preferences.save();
             updateLabels();
         });
         this.buttons.get("pref_budget").setOnClick(event -> {
             int budget = this.preferences.autoExpandBudget() >= 4096 ? 64 : this.preferences.autoExpandBudget() * 2;
-            this.preferences = new CraftingPlanTreePreferences(budget, this.compact, this.preferences.missingOnly(), this.preferences.screenshotAmounts());
+            this.preferences = new CraftingPlanTreePreferences(budget, this.compact,
+                    this.preferences.missingOnly(), this.preferences.screenshotAmounts(), this.layoutMode);
             this.preferences.save();
+            updateLabels();
+        });
+        this.buttons.get("pref_layout").setOnClick(event -> {
+            this.layoutMode = this.layoutMode == CraftingPlanLayoutMode.LAYERED ? CraftingPlanLayoutMode.RADIAL : CraftingPlanLayoutMode.LAYERED;
+            savePreferences();
+            this.exportLayout = null;
+            this.fitPending = true;
+            schedule(UnaryOperator.identity(), false);
             updateLabels();
         });
     }
 
     private void savePreferences() {
         this.preferences = new CraftingPlanTreePreferences(this.preferences.autoExpandBudget(), this.compact,
-                this.preferences.missingOnly(), this.preferences.screenshotAmounts());
+                this.preferences.missingOnly(), this.preferences.screenshotAmounts(), this.layoutMode);
         this.preferences.save();
     }
 
@@ -251,6 +266,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         this.buttons.get("pref_missing").setDisplay(this.preferencesOpen);
         this.buttons.get("pref_amounts").setDisplay(this.preferencesOpen);
         this.buttons.get("pref_budget").setDisplay(this.preferencesOpen);
+        this.buttons.get("pref_layout").setDisplay(this.preferencesOpen);
     }
 
     private void schedule(UnaryOperator<Selection> fold, boolean reset) {
@@ -260,6 +276,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         CraftingPlanGraph graph = this.graph;
         boolean missing = this.missingOnly;
         boolean dense = this.compact;
+        CraftingPlanLayoutMode mode = this.layoutMode;
         int budget = this.preferences.autoExpandBudget();
         this.localStatus = text("layout_loading");
         if (reset || this.requestedSelection == null) {
@@ -273,8 +290,7 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         // must not discard a preceding expand action, even while the initial projection is still being built.
         this.requestedSelection = this.requestedSelection.thenApplyAsync(fold, this.layoutExecutor);
         this.pending = this.requestedSelection.thenApplyAsync(selection -> new Prepared(selection.projection(),
-                CraftingPlanGraphLayout.layout(
-                        selection.projection().visible(selection.expansion(), missing), dense)),
+                layout(selection.projection().visible(selection.expansion(), missing), dense, mode)),
                 this.layoutExecutor);
     }
 
@@ -392,6 +408,8 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         this.buttons.get("pref_missing").setText(Component.translatable("gui.data_energistics.plan_tree.pref_missing_value", text(this.preferences.missingOnly() ? "enabled" : "disabled")));
         this.buttons.get("pref_amounts").setText(Component.translatable("gui.data_energistics.plan_tree.pref_amounts_value", text(this.preferences.screenshotAmounts() ? "enabled" : "disabled")));
         this.buttons.get("pref_budget").setText(Component.translatable("gui.data_energistics.plan_tree.pref_budget_value", this.preferences.autoExpandBudget()));
+        this.buttons.get("pref_layout").setText(Component.translatable(
+                "gui.data_energistics.plan_tree.pref_layout_value", text("layout." + this.layoutMode.name().toLowerCase(Locale.ROOT))));
     }
 
     @Override
@@ -512,10 +530,11 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
         }
         Prepared prepared = this.prepared;
         boolean dense = this.compact;
+        CraftingPlanLayoutMode mode = this.layoutMode;
         this.exportingFull = true;
         this.localStatus = text("export_loading");
         this.pending = CompletableFuture.supplyAsync(() -> new Prepared(prepared.projection(),
-                CraftingPlanGraphLayout.layout(prepared.projection().visible(Expansion.empty(), false), dense)), this.layoutExecutor);
+                layout(prepared.projection().visible(Expansion.empty(), false), dense, mode)), this.layoutExecutor);
     }
 
     public Rect2i panelBounds() {
@@ -584,6 +603,11 @@ public final class CraftingPlanTreeScreen extends AbstractContainerScreen<Crafti
 
     private static Component text(String suffix) {
         return Component.translatable("gui.data_energistics.plan_tree." + suffix);
+    }
+
+    private static Layout layout(CraftingPlanGraphView.ViewGraph graph, boolean compact,
+                                 CraftingPlanLayoutMode mode) {
+        return mode == CraftingPlanLayoutMode.RADIAL ? CraftingPlanRadialLayout.layout(graph, compact) : CraftingPlanGraphLayout.layout(graph, compact);
     }
 
     private record Selection(CraftingPlanGraphView projection, Expansion expansion) {}

@@ -13,16 +13,6 @@ import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRe
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipeInput;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.TagParser;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
-
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
@@ -33,6 +23,17 @@ import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
+
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.TagParser;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
+
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.logging.log4j.Logger;
@@ -91,6 +92,25 @@ public final class PatternEncodingSourceHelper {
         }
 
         return PatternDetailsHelper.encodeProcessingPattern(normalizedInputs, normalizedOutputs);
+    }
+
+    /** Returns whether either processing inventory contains a wrapped non-item/non-fluid AE key. */
+    public static boolean requiresProcessingPatternNormalization(ConfigInventory inputs, ConfigInventory outputs) {
+        return containsWrappedCustomKey(inputs) || containsWrappedCustomKey(outputs);
+    }
+
+    private static boolean containsWrappedCustomKey(ConfigInventory inventory) {
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            GenericStack stack = inventory.getStack(slot);
+            if (stack == null || !(stack.what() instanceof AEItemKey itemKey)) {
+                continue;
+            }
+            GenericStack wrapped = GenericStack.unwrapItemStack(itemKey.toStack());
+            if (wrapped != null && DEAE2Keys.isCustomKey(wrapped.what())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Nullable
@@ -217,6 +237,17 @@ public final class PatternEncodingSourceHelper {
         }
         PatternEncodingRankingContext context = session.rankingContext();
         return context == null ? null : context.recipeTypeId();
+    }
+
+    /** Resolves the stable processing recipe identity that should be appended to the next encoded pattern. */
+    @Nullable
+    public static ResourceLocation resolveProcessingPatternRecipeId(
+                                                                    PatternEncodingPreviewMenu previewMenu,
+                                                                    PatternEncodingPreferenceSession session) {
+        if (previewMenu.data_energistics$getEncodingMode() != EncodingMode.PROCESSING) {
+            return null;
+        }
+        return session.recipeId();
     }
 
     /**

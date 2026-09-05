@@ -4,11 +4,6 @@ import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumLargeInterfaceMenu;
 import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumLargeInterfaceMenu.PageSlotTarget;
 
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-
 import appeng.api.config.FuzzyMode;
 import appeng.api.config.Settings;
 import appeng.client.gui.Icon;
@@ -20,6 +15,11 @@ import appeng.client.gui.widgets.SettingToggleButton;
 import appeng.client.gui.widgets.ToggleButton;
 import appeng.core.definitions.AEItems;
 import appeng.core.localization.ButtonToolTips;
+
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
 
 import java.util.ArrayList;
 import java.util.List;

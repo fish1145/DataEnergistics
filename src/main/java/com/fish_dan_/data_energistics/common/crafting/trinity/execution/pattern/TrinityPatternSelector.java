@@ -3,15 +3,15 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern
 import com.fish_dan_.data_energistics.common.crafting.trinity.pattern.binding.TrinityPatternBindingEnumerator;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.Level;
-
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsTooltip;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
+
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
 
 import java.math.BigInteger;
 import java.util.ArrayList;

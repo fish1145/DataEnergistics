@@ -5,10 +5,10 @@ import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeId
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolution;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolver;
 
-import net.minecraft.resources.ResourceLocation;
-
 import appeng.api.ids.AEComponents;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
+
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

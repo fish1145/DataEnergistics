@@ -20,6 +20,14 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternSlot;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityRefundDelivery;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
+import appeng.api.crafting.IPatternDetails;
+import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.inventories.InternalInventory;
+import appeng.blockentity.AEBaseBlockEntity;
+import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
+import appeng.crafting.CraftingEvent;
+import appeng.menu.AutoCraftingMenu;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
@@ -38,13 +46,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
-import appeng.api.crafting.IPatternDetails;
-import appeng.api.crafting.PatternDetailsHelper;
-import appeng.api.inventories.InternalInventory;
-import appeng.blockentity.AEBaseBlockEntity;
-import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
-import appeng.crafting.CraftingEvent;
-import appeng.menu.AutoCraftingMenu;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

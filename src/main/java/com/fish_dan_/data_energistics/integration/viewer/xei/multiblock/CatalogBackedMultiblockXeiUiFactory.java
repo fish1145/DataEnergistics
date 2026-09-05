@@ -22,9 +22,6 @@ final class CatalogBackedMultiblockXeiUiFactory implements MultiblockXeiUiFactor
     CatalogBackedMultiblockXeiUiFactory(MultiblockPreviewCatalog catalog,
                                         StructurePreviewUiFactory previewFactory,
                                         boolean logicalClient) {
-        if (catalog == null || previewFactory == null) {
-            throw new IllegalArgumentException("Multiblock XEI factory arguments cannot be null");
-        }
         this.catalog = catalog;
         this.previewFactory = previewFactory;
         this.logicalClient = logicalClient;
@@ -34,8 +31,8 @@ final class CatalogBackedMultiblockXeiUiFactory implements MultiblockXeiUiFactor
     public MultiblockXeiComposition create(ResourceLocation controllerId,
                                            @Nullable PreviewSelection retainedSelection,
                                            String idPrefix) {
-        if (controllerId == null || idPrefix == null || idPrefix.isBlank()) {
-            throw new IllegalArgumentException("Multiblock XEI composition arguments cannot be null or blank");
+        if (idPrefix.isBlank()) {
+            throw new IllegalArgumentException("Multiblock XEI composition id prefix cannot be blank");
         }
         if (retainedSelection != null && !controllerId.equals(retainedSelection.controllerId())) {
             throw new IllegalArgumentException("Retained multiblock XEI selection belongs to another controller");

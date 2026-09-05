@@ -3,11 +3,12 @@ package com.fish_dan_.data_energistics.blockentity.tower.network.domain;
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyAccessSnapshot;
 
-import net.minecraft.core.BlockPos;
-
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridService;
+
+import net.minecraft.core.BlockPos;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;

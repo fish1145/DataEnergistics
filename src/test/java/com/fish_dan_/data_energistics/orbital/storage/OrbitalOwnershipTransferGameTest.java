@@ -12,6 +12,12 @@ import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
+import appeng.api.config.Actionable;
+import appeng.api.networking.IGrid;
+import appeng.api.networking.security.IActionSource;
+import appeng.blockentity.storage.DriveBlockEntity;
+import appeng.core.definitions.AEBlocks;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -28,12 +34,6 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 import net.neoforged.testframework.gametest.ExtendedGameTestHelper;
 import net.neoforged.testframework.gametest.GameTestPlayer;
-
-import appeng.api.config.Actionable;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.security.IActionSource;
-import appeng.blockentity.storage.DriveBlockEntity;
-import appeng.core.definitions.AEBlocks;
 
 import java.util.Optional;
 import java.util.UUID;

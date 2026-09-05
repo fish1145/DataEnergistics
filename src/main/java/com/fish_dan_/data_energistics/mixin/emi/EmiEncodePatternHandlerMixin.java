@@ -7,13 +7,14 @@ import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternEnc
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.crafting.RecipeHolder;
-
 import appeng.integration.modules.emi.AbstractRecipeHandler;
 import appeng.integration.modules.emi.EmiEncodePatternHandler;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.crafting.RecipeHolder;
+
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import dev.emi.emi.api.recipe.EmiRecipe;
@@ -83,7 +84,10 @@ public abstract class EmiEncodePatternHandlerMixin {
         PatternEncodingSourceHelper.rememberTransferSource(menu, transferMode, rankingContext);
         PatternEncodingSourceHelper.rememberDataRipperTransferMetadata(menu, transferMode, holder, emiRecipe);
         if (transferMode == EncodingMode.PROCESSING) {
-            PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(menu, rankingContext);
+            PatternEncodingPreferencesClient.captureTransferredProcessingRecipe(
+                    menu,
+                    rankingContext,
+                    EmiPatternTransferContextBridge.resolveRecipeId(holder, emiRecipe));
         } else {
             PatternEncodingPreferencesClient.captureTransferredRecipe(menu, transferMode);
         }

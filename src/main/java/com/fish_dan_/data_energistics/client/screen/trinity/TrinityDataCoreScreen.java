@@ -3,16 +3,16 @@ package com.fish_dan_.data_energistics.client.screen.trinity;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenu;
 
+import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
-
-import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 
 import java.util.LinkedHashSet;
 import java.util.Set;

@@ -4,6 +4,13 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.powered.PoweredEnergyItem;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumMenuHost;
 
+import appeng.api.implementations.blockentities.IChestOrDrive;
+import appeng.api.networking.IGridNode;
+import appeng.api.storage.MEStorage;
+import appeng.api.storage.cells.CellState;
+import appeng.api.storage.cells.StorageCell;
+import appeng.client.render.tesr.CellLedRenderer;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -24,12 +31,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 
-import appeng.api.implementations.blockentities.IChestOrDrive;
-import appeng.api.networking.IGridNode;
-import appeng.api.storage.MEStorage;
-import appeng.api.storage.cells.CellState;
-import appeng.api.storage.cells.StorageCell;
-import appeng.client.render.tesr.CellLedRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import org.joml.Matrix4f;
 import org.jspecify.annotations.Nullable;

@@ -7,9 +7,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.api.stacks.AEKey;
+
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;

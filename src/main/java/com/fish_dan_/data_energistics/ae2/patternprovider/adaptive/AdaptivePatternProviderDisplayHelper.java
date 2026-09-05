@@ -1,14 +1,14 @@
 package com.fish_dan_.data_energistics.ae2.patternprovider.adaptive;
 
+import appeng.api.implementations.blockentities.PatternContainerGroup;
+import appeng.api.stacks.AEItemKey;
+import appeng.core.localization.GuiText;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-
-import appeng.api.implementations.blockentities.PatternContainerGroup;
-import appeng.api.stacks.AEItemKey;
-import appeng.core.localization.GuiText;
 
 import java.util.ArrayList;
 import java.util.List;

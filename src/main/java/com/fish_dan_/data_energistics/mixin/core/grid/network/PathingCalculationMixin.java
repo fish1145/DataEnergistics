@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.grid.VirtualGridNode;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.me.pathfinding.PathingCalculation;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;

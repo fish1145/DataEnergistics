@@ -3,16 +3,16 @@ package com.fish_dan_.data_energistics.recipe.chargepress;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.registry.DEFluids;
 
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.GenericStack;
+import appeng.recipes.handlers.InscriberProcessType;
+import appeng.recipes.handlers.InscriberRecipe;
+
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.neoforged.neoforge.fluids.FluidStack;
-
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.GenericStack;
-import appeng.recipes.handlers.InscriberProcessType;
-import appeng.recipes.handlers.InscriberRecipe;
 
 /** Derives three-board data charge press operations directly from AE2 inscriber recipes. */
 public final class DataChargePressRecipeSupport {
@@ -59,8 +59,7 @@ public final class DataChargePressRecipeSupport {
     }
 
     /**
-     * Powder recipes use the inscriber's center input alone. They run in the integrated machine only while its
-     * module slot is empty, leaving installed inscriber modules for recipes that need a press or an additional input.
+     * Powder recipes use the inscriber's center input alone. The integrated machine exposes them only in powder mode.
      */
     public static boolean isPowderRecipe(InscriberRecipe recipe) {
         return recipe.getProcessType() == InscriberProcessType.INSCRIBE && !recipe.getMiddleInput().isEmpty() &&

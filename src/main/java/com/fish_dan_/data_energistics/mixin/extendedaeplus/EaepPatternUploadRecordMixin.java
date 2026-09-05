@@ -2,10 +2,11 @@ package com.fish_dan_.data_energistics.mixin.extendedaeplus;
 
 import com.fish_dan_.data_energistics.integration.ae.extendedaeplus.EaepPatternUploadScope;
 
+import appeng.helpers.patternprovider.PatternContainer;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 
-import appeng.helpers.patternprovider.PatternContainer;
 import com.extendedae_plus.util.uploadPattern.ExtendedAEPatternUploadUtil;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

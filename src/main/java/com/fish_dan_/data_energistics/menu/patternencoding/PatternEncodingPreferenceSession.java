@@ -2,13 +2,13 @@ package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import com.fish_dan_.data_energistics.common.crafting.pattern.EncodedPatternRecipeReference;
 
+import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.stacks.AEItemKey;
+import appeng.parts.encoding.EncodingMode;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 
-import appeng.api.crafting.PatternDetailsHelper;
-import appeng.api.stacks.AEItemKey;
-import appeng.core.definitions.AEItems;
-import appeng.parts.encoding.EncodingMode;
 import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMaps;
@@ -38,6 +38,8 @@ public final class PatternEncodingPreferenceSession {
     private long revision;
     @Nullable
     private PatternEncodingRankingContext rankingContext;
+    @Nullable
+    private ResourceLocation recipeId;
     @Nullable
     private AEItemKey observedEncodedPattern;
     @Nullable
@@ -122,10 +124,22 @@ public final class PatternEncodingPreferenceSession {
      * Sets the exact context used by subsequent provider-history snapshots.
      */
     public void setRankingContext(@Nullable PatternEncodingRankingContext context) {
-        if (Objects.equals(this.rankingContext, context)) {
+        setRecipeContext(context, null);
+    }
+
+    /** Returns the stable processing recipe identity captured from the current viewer transfer, if any. */
+    public @Nullable ResourceLocation recipeId() {
+        return this.recipeId;
+    }
+
+    /** Replaces the recipe type and optional stable processing recipe identity as one revision. */
+    public void setRecipeContext(@Nullable PatternEncodingRankingContext context,
+                                 @Nullable ResourceLocation recipeId) {
+        if (Objects.equals(this.rankingContext, context) && Objects.equals(this.recipeId, recipeId)) {
             return;
         }
         this.rankingContext = context;
+        this.recipeId = recipeId;
         incrementRevision();
     }
 
@@ -149,15 +163,18 @@ public final class PatternEncodingPreferenceSession {
         }
         var stack = definition.getReadOnlyStack();
         var reference = EncodedPatternRecipeReference.get(stack);
+        ResourceLocation restoredRecipeId = EncodedPatternRecipeReference.getProcessingRecipeId(stack);
         if (reference != null) {
-            setRankingContext(PatternEncodingRankingContext.of(reference.recipeTypeId()));
-            return reference.encodingMode();
+            setRecipeContext(
+                    PatternEncodingRankingContext.of(reference.recipeTypeId()),
+                    reference.kind() == EncodedPatternRecipeReference.Kind.PROCESSING_RECIPE_TYPE ?
+                            restoredRecipeId : null);
         }
-        if (AEItems.PROCESSING_PATTERN.is(stack)) {
-            setRankingContext(null);
-            return EncodingMode.PROCESSING;
+        EncodingMode encodingMode = EncodedPatternRecipeReference.encodingMode(stack);
+        if (reference == null && encodingMode == EncodingMode.PROCESSING) {
+            setRecipeContext(null, restoredRecipeId);
         }
-        return null;
+        return encodingMode;
     }
 
     /**
@@ -294,6 +311,7 @@ public final class PatternEncodingPreferenceSession {
      */
     public void clear() {
         this.rankingContext = null;
+        this.recipeId = null;
         this.observedEncodedPattern = null;
         this.confirmedWorkstation = null;
         this.deferredSnapshotMode = null;

@@ -3,6 +3,14 @@ package com.fish_dan_.data_energistics.mixin.client.crafting;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 
+import appeng.client.Point;
+import appeng.client.gui.style.Blitter;
+import appeng.client.gui.widgets.CPUSelectionList;
+import appeng.client.gui.widgets.InfoBar;
+import appeng.client.gui.widgets.Scrollbar;
+import appeng.core.localization.Tooltips;
+import appeng.menu.me.crafting.CraftingStatusMenu;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
@@ -11,13 +19,6 @@ import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
-import appeng.client.Point;
-import appeng.client.gui.style.Blitter;
-import appeng.client.gui.widgets.CPUSelectionList;
-import appeng.client.gui.widgets.InfoBar;
-import appeng.client.gui.widgets.Scrollbar;
-import appeng.core.localization.Tooltips;
-import appeng.menu.me.crafting.CraftingStatusMenu;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;

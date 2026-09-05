@@ -16,31 +16,6 @@ import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
-import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.ItemHandlerHelper;
-
 import appeng.api.AECapabilities;
 import appeng.api.behaviors.GenericInternalInventory;
 import appeng.api.config.Actionable;
@@ -82,6 +57,32 @@ import appeng.util.inv.CombinedInternalInventory;
 import appeng.util.inv.FilteredInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
+
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -1171,6 +1172,40 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
                 }
             }
         }
+        for (RecipeHolder<DataRipperReassemblerRecipe> holder : getAdditionalProcessingRecipes(level)) {
+            if (excludedRecipeIds.contains(holder.id())) {
+                continue;
+            }
+            for (int color : colors) {
+                if (holder.value().matches(createRecipeInput(channel, color), level)) {
+                    return new ColorMatchedRecipe(holder, color);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Supplies machine-specific recipes that have been normalized to the data reassembler contract.
+     *
+     * <p>
+     * The base machine only returns its native data reassembler recipes. Specializations may add
+     * recipes from compatible external machines without duplicating processing, reservation, or output logic.
+     * </p>
+     */
+    protected Iterable<RecipeHolder<DataRipperReassemblerRecipe>> getAdditionalProcessingRecipes(Level level) {
+        return List.of();
+    }
+
+    /**
+     * Resolves an active machine-specific recipe after its normalized identifier was persisted.
+     *
+     * <p>
+     * Returning {@code null} means that the active recipe is no longer available after a reload.
+     * </p>
+     */
+    protected @Nullable RecipeHolder<DataRipperReassemblerRecipe> getAdditionalProcessingRecipeById(Level level,
+                                                                                                    ResourceLocation recipeId) {
         return null;
     }
 
@@ -1241,11 +1276,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return new RecipeStackIdentity(stack.what(), stack.amount(), patternColor);
     }
 
-    private static @Nullable RecipeHolder<DataRipperReassemblerRecipe> getRecipeById(
-                                                                                     Level level, ResourceLocation recipeId) {
+    private @Nullable RecipeHolder<DataRipperReassemblerRecipe> getRecipeById(Level level, ResourceLocation recipeId) {
         RecipeHolder<?> holder = level.getRecipeManager().byKey(recipeId).orElse(null);
         if (holder == null || !(holder.value() instanceof DataRipperReassemblerRecipe)) {
-            return null;
+            return getAdditionalProcessingRecipeById(level, recipeId);
         }
 
         @SuppressWarnings("unchecked")

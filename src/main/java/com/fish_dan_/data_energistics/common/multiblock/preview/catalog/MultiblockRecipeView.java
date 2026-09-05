@@ -6,10 +6,10 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.projection.Proje
 import com.fish_dan_.data_energistics.common.multiblock.preview.projection.StructurePreviewSnapshot;
 import com.fish_dan_.data_energistics.item.order.OrderPackageTarget;
 
+import appeng.api.stacks.AEItemKey;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-
-import appeng.api.stacks.AEItemKey;
 
 import java.util.HashSet;
 import java.util.LinkedHashMap;

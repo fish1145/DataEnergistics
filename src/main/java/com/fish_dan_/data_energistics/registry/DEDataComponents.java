@@ -9,6 +9,9 @@ import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotItemData;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotMemoryCardData;
 import com.fish_dan_.data_energistics.item.terminal.UniversalTerminalItemData;
 
+import appeng.api.stacks.AEKey;
+
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
@@ -19,7 +22,6 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-import appeng.api.stacks.AEKey;
 import com.mojang.serialization.Codec;
 
 import java.util.UUID;
@@ -29,6 +31,10 @@ public final class DEDataComponents {
     public static final DeferredRegister<DataComponentType<?>> DATA_COMPONENT_TYPES = DeferredRegister.create(
             Registries.DATA_COMPONENT_TYPE,
             Data_Energistics.MODID);
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<GlobalPos>> BEAM_BINDING_SOURCE = DATA_COMPONENT_TYPES.register(
+            "beam_binding_source", () -> DataComponentType.<GlobalPos>builder()
+                    .persistent(GlobalPos.CODEC).networkSynchronized(GlobalPos.STREAM_CODEC).build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<DigitalStorageDepotItemData>> DIGITAL_STORAGE_DEPOT = DATA_COMPONENT_TYPES.register(
             "digital_storage_depot",
@@ -193,6 +199,14 @@ public final class DEDataComponents {
             () -> DataComponentType.<Boolean>builder()
                     .persistent(Codec.BOOL)
                     .networkSynchronized(ByteBufCodecs.BOOL)
+                    .cacheEncoding()
+                    .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ResourceLocation>> PROCESSING_PATTERN_RECIPE_ID = DATA_COMPONENT_TYPES.register(
+            "processing_pattern_recipe_id",
+            () -> DataComponentType.<ResourceLocation>builder()
+                    .persistent(ResourceLocation.CODEC)
+                    .networkSynchronized(ResourceLocation.STREAM_CODEC)
                     .cacheEncoding()
                     .build());
 

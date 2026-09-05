@@ -1,14 +1,18 @@
 package com.fish_dan_.data_energistics.integration.viewer.emi.transfer;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.integration.viewer.emi.recipe.DataChargePressEmiRecipe;
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternEncodingViewerContext;
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternProviderViewerWorkstations;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
-import net.minecraft.resources.ResourceLocation;
-
 import appeng.menu.me.items.PatternEncodingTermMenu;
+
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.crafting.RecipeHolder;
+
 import dev.emi.emi.api.recipe.EmiRecipe;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -36,6 +40,14 @@ public final class EmiPatternTransferContextBridge {
      */
     public static PatternEncodingRankingContext resolve(EmiRecipe recipe) {
         return PatternEncodingViewerContext.fromRecipeType(recipe.getCategory().getId());
+    }
+
+    /** Resolves the stable recipe identity represented by the transferred EMI recipe. */
+    public static @Nullable ResourceLocation resolveRecipeId(@Nullable RecipeHolder<?> holder, EmiRecipe recipe) {
+        if (recipe instanceof DataChargePressEmiRecipe dataChargePressRecipe) {
+            return dataChargePressRecipe.patternRecipeId();
+        }
+        return holder == null ? recipe.getId() : holder.id();
     }
 
     /**

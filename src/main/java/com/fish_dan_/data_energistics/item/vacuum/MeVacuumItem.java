@@ -6,6 +6,16 @@ import com.fish_dan_.data_energistics.item.carrier.RadixContainmentSphereItem;
 import com.fish_dan_.data_energistics.item.powered.PoweredEnergyItem;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.api.config.Actionable;
+import appeng.api.implementations.menuobjects.IMenuItem;
+import appeng.api.implementations.menuobjects.ItemMenuHost;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.ItemMenuHostLocator;
+import appeng.menu.locator.MenuLocators;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -37,15 +47,6 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
 
-import appeng.api.config.Actionable;
-import appeng.api.implementations.menuobjects.IMenuItem;
-import appeng.api.implementations.menuobjects.ItemMenuHost;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.AEItemKey;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.ItemMenuHostLocator;
-import appeng.menu.locator.MenuLocators;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;

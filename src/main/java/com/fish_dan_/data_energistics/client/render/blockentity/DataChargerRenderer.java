@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.client.render.blockentity;
 import com.fish_dan_.data_energistics.block.machine.DataChargerBlock;
 import com.fish_dan_.data_energistics.blockentity.machine.DataChargerBlockEntity;
 
+import appeng.api.orientation.BlockOrientation;
+
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -11,7 +13,6 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.api.orientation.BlockOrientation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import org.joml.Quaternionf;
 

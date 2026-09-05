@@ -14,9 +14,6 @@ import com.fish_dan_.data_energistics.menu.storage.MeCompositeInputWarehouseMenu
 import com.fish_dan_.data_energistics.menu.storage.MeCompositeOutputWarehouseMenu;
 import com.fish_dan_.data_energistics.menu.storage.MePatternBufferMenu;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Player;
-
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
@@ -24,6 +21,10 @@ import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Player;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.function.Function;

@@ -8,6 +8,15 @@ import com.fish_dan_.data_energistics.client.widget.DigitalStorageDepotAutoExpor
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.storage.DigitalStorageDepotMenu;
 
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
+import appeng.client.gui.implementations.UpgradeableScreen;
+import appeng.client.gui.style.ScreenStyle;
+import appeng.core.localization.Tooltips;
+import appeng.menu.SlotSemantic;
+import appeng.menu.SlotSemantics;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -18,14 +27,6 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
 
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.GenericStack;
-import appeng.client.gui.implementations.UpgradeableScreen;
-import appeng.client.gui.style.ScreenStyle;
-import appeng.core.localization.Tooltips;
-import appeng.menu.SlotSemantic;
-import appeng.menu.SlotSemantics;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

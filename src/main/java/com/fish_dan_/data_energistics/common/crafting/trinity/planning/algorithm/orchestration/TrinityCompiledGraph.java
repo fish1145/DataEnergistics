@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import appeng.api.stacks.AEKey;
+
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 
 import java.util.List;

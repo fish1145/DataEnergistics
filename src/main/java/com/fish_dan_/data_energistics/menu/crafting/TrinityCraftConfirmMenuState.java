@@ -1,12 +1,14 @@
 package com.fish_dan_.data_energistics.menu.crafting;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
-
-import net.minecraft.network.chat.Component;
 
 import appeng.api.networking.crafting.CalculationStrategy;
 import appeng.api.stacks.AEKey;
+
+import net.minecraft.network.chat.Component;
+
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -54,6 +56,21 @@ public interface TrinityCraftConfirmMenuState {
     TrinityCraftingCycleSummary data_energistics$cycleSummary();
 
     /**
+     * Accepts one client-bound planning snapshot after its container and revision were validated by the payload
+     * handler. Implementations must reject a non-increasing sequence.
+     */
+    void data_energistics$receivePlanningProgress(long revision,
+                                                  long sequence,
+                                                  TrinityPlanningProgressSnapshot snapshot);
+
+    /**
+     * @return the latest current-revision client planning snapshot, or null before it arrives or after a revision
+     *         change
+     */
+    @Nullable
+    TrinityPlanningProgressSnapshot data_energistics$planningProgress();
+
+    /**
      * @return whether the displayed plan and the server-side CPU eligibility pass belong to the same result
      */
     boolean data_energistics$isPlanReady();
@@ -87,4 +104,7 @@ public interface TrinityCraftConfirmMenuState {
      * @return synchronized player-facing diagnostic
      */
     Component data_energistics$diagnostic();
+
+    /** @return optional localized detail previously appended to the diagnostic in parentheses */
+    Component data_energistics$diagnosticDetail();
 }

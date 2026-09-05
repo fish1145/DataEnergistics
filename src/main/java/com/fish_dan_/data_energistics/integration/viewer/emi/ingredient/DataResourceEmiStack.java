@@ -5,6 +5,9 @@ import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.integration.viewer.xei.ingredient.DataResourceKey;
 
+import appeng.api.client.AEKeyRendering;
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
@@ -12,8 +15,6 @@ import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
-import appeng.api.client.AEKeyRendering;
-import appeng.api.stacks.GenericStack;
 import dev.emi.emi.EmiRenderHelper;
 import dev.emi.emi.api.render.EmiRender;
 import dev.emi.emi.api.render.EmiTooltipComponents;

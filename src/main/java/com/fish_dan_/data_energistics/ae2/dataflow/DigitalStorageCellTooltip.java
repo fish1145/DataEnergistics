@@ -1,15 +1,15 @@
 package com.fish_dan_.data_energistics.ae2.dataflow;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.inventory.tooltip.TooltipComponent;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.config.IncludeExclude;
 import appeng.api.stacks.GenericStack;
 import appeng.core.AEConfig;
 import appeng.core.localization.GuiText;
 import appeng.core.localization.Tooltips;
 import appeng.items.storage.StorageCellTooltipComponent;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.Comparator;

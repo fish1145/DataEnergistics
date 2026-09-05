@@ -3,17 +3,18 @@ package com.fish_dan_.data_energistics.mixin.core.menu.base;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu;
 
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.stacks.GenericStack;
 import appeng.helpers.InventoryAction;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.SlotSemantics;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.menu.slot.FakeSlot;
+
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;

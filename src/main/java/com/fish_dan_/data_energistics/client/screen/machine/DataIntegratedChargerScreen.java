@@ -1,19 +1,10 @@
 package com.fish_dan_.data_energistics.client.screen.machine;
 
-import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
+import com.fish_dan_.data_energistics.client.widget.DataIntegratedChargerModeButton;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.machine.DataIntegratedChargerMenu;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-import net.neoforged.neoforge.fluids.FluidStack;
 
 import appeng.api.config.Settings;
 import appeng.api.config.YesNo;
@@ -26,6 +17,16 @@ import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
 import appeng.client.gui.widgets.ServerSettingToggleButton;
 import appeng.core.localization.Tooltips;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
+import net.neoforged.neoforge.fluids.FluidStack;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -35,11 +36,14 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
 
     private final ServerSettingToggleButton<YesNo> autoExportButton;
     private final OutputSideActionButton outputSidesButton;
+    private final DataIntegratedChargerModeButton modeButton;
     private final ProgressBar progressBar;
 
     public DataIntegratedChargerScreen(DataIntegratedChargerMenu menu, Inventory playerInventory, Component title,
                                        ScreenStyle style) {
         super(menu, playerInventory, title, style);
+        this.modeButton = new DataIntegratedChargerModeButton(this.menu::sendSetMachineMode);
+        this.addToLeftToolbar(this.modeButton);
         this.autoExportButton = new ServerSettingToggleButton<>(Settings.AUTO_EXPORT, YesNo.NO);
         this.addToLeftToolbar(this.autoExportButton);
         this.outputSidesButton = new OutputSideActionButton(button -> openOutputConfig());
@@ -70,6 +74,7 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
         this.autoExportButton.set(this.menu.getAutoExport());
         boolean autoExportEnabled = this.autoExportButton.getCurrentValue() == YesNo.YES;
         this.outputSidesButton.setVisibility(autoExportEnabled);
+        this.modeButton.setMode(this.menu.getMachineMode());
     }
 
     @Override
@@ -81,7 +86,8 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
             } else {
                 tooltip.addAll(this.getTooltipFromContainerItem(this.hoveredSlot.getItem()));
             }
-            tooltip.add(Component.literal(this.menu.fluidAmount + " mB / " + this.menu.getFluidCapacity() + " mB")
+            int fluidTank = getFluidTankIndex(this.hoveredSlot);
+            tooltip.add(Component.literal(this.menu.getFluidAmount(fluidTank) + " mB / " + this.menu.getFluidCapacity() + " mB")
                     .withStyle(Tooltips.NORMAL_TOOLTIP_TEXT));
             this.drawTooltip(guiGraphics, mouseX, mouseY, tooltip);
             return;
@@ -104,12 +110,6 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
         }
 
         super.renderSlot(guiGraphics, slot);
-        if (slot.isActive() && slot.getItem().isEmpty() &&
-                this.menu.getSlotSemantic(slot) == DataIntegratedChargerMenu.MACHINE_MODULE) {
-            DataEnergisticsIcon.getBlitter("BACKGROUND_BLOCK")
-                    .dest(slot.x, slot.y)
-                    .blit(guiGraphics);
-        }
     }
 
     @Override
@@ -130,20 +130,37 @@ public class DataIntegratedChargerScreen extends UpgradeableScreen<DataIntegrate
         // The slot is backed by a ConfigMenuInventory and may expose an empty ItemStack for a
         // fluid key. Use the synchronized menu fields as the source of truth, just like the
         // reassembler screen does for all of its fluid slots.
-        if (this.menu.fluidId == null || this.menu.fluidId.isBlank() || this.menu.fluidAmount <= 0) {
+        int fluidTank = getFluidTankIndex(slot);
+        String fluidId = this.menu.getFluidId(fluidTank);
+        int fluidAmount = this.menu.getFluidAmount(fluidTank);
+        if (fluidId == null || fluidId.isBlank() || fluidAmount <= 0) {
             return null;
         }
 
-        var fluid = BuiltInRegistries.FLUID.getOptional(ResourceLocation.parse(this.menu.fluidId)).orElse(null);
+        var fluid = BuiltInRegistries.FLUID.getOptional(ResourceLocation.parse(fluidId)).orElse(null);
         if (fluid == null) {
             return null;
         }
 
-        AEKey key = AEFluidKey.of(new FluidStack(fluid, this.menu.fluidAmount));
-        return key == null ? null : new GenericStack(key, this.menu.fluidAmount);
+        AEKey key = AEFluidKey.of(new FluidStack(fluid, fluidAmount));
+        return key == null ? null : new GenericStack(key, fluidAmount);
     }
 
     private boolean isFluidTankSlot(@Nullable Slot slot) {
-        return slot != null && this.menu.getSlotSemantic(slot) == DataIntegratedChargerMenu.FLUID_TANK;
+        return getFluidTankIndex(slot) >= 0;
+    }
+
+    private int getFluidTankIndex(@Nullable Slot slot) {
+        if (slot == null) {
+            return -1;
+        }
+        var semantic = this.menu.getSlotSemantic(slot);
+        if (semantic == DataIntegratedChargerMenu.FLUID_TANK_1) {
+            return 0;
+        }
+        if (semantic == DataIntegratedChargerMenu.FLUID_TANK_2) {
+            return 1;
+        }
+        return semantic == DataIntegratedChargerMenu.FLUID_TANK_3 ? 2 : -1;
     }
 }

@@ -4,18 +4,21 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataReassemblerRecipeIngredientAdapter;
 
-import net.minecraft.world.item.ItemStack;
-
-import appeng.api.stacks.GenericStack;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 import com.lowdragmc.lowdraglib2.integration.xei.jei.LDLibJEIPlugin;
+
+import appeng.api.stacks.GenericStack;
+
+import net.minecraft.world.item.ItemStack;
+
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.ITypedIngredient;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * Gives the shared recipe UI native JEI item/fluid identities and AE2 wrapped-key lookup semantics.
@@ -26,20 +29,28 @@ public final class JeiDataReassemblerIngredientAdapter
     @Override
     public void registerItemSlot(ItemSlot element, IngredientIO role, List<ItemStack> candidates) {
         LDLibJEIPlugin.recipeIngredient(element, role, () -> toTypedItems(candidates));
-        LDLibJEIPlugin.recipeSlot(
-                element,
-                () -> toTypedItem(element.getValue()),
-                () -> toTypedItems(candidates));
+        ItemSlot.JEISupport.recipeSlot(element, role, candidates::stream);
     }
 
     @Override
     public void registerGenericStackSlot(UIElement element, IngredientIO role, GenericStack stack) {
         element.style(style -> style.tooltips(GenericStackDisplayHelper.createAmountTooltip(stack)));
-        LDLibJEIPlugin.recipeIngredient(element, role, () -> List.of(toTypedGenericStack(stack)));
+        registerResolvedGenericStackSlot(element, role, JeiGenericStackIngredientResolver.resolve(stack));
+    }
+
+    private static <I> void registerResolvedGenericStackSlot(
+                                                             UIElement element,
+                                                             IngredientIO role,
+                                                             JeiGenericStackIngredientResolver.ResolvedIngredient<I> ingredient) {
+        LDLibJEIPlugin.recipeIngredient(element, role, () -> List.of(toTypedGenericStack(ingredient)));
         LDLibJEIPlugin.recipeSlot(
                 element,
-                () -> toTypedGenericStack(stack),
-                () -> List.of(toTypedGenericStack(stack)));
+                role,
+                ingredient.type(),
+                () -> Stream.of(ingredient.ingredient()),
+                ignored -> {
+                    // This element renders its one immutable GenericStack directly.
+                });
     }
 
     private static ITypedIngredient<?> toTypedItem(ItemStack stack) {
@@ -53,10 +64,6 @@ public final class JeiDataReassemblerIngredientAdapter
             typedIngredients.add(toTypedItem(candidate));
         }
         return typedIngredients;
-    }
-
-    private static ITypedIngredient<?> toTypedGenericStack(GenericStack stack) {
-        return toTypedGenericStack(JeiGenericStackIngredientResolver.resolve(stack));
     }
 
     private static <I> ITypedIngredient<?> toTypedGenericStack(

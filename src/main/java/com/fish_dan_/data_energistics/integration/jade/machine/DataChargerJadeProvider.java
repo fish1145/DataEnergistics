@@ -4,14 +4,15 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.machine.DataChargerBlock;
 import com.fish_dan_.data_energistics.blockentity.machine.DataChargerBlockEntity;
 
+import appeng.core.localization.InGameTooltip;
+import appeng.util.Platform;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.core.localization.InGameTooltip;
-import appeng.util.Platform;
 import snownee.jade.api.BlockAccessor;
 import snownee.jade.api.IBlockComponentProvider;
 import snownee.jade.api.IServerDataProvider;

@@ -4,9 +4,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.capacity.TrinityCp
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 
 import appeng.api.stacks.AEKey;
+
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
@@ -15,8 +17,8 @@ import java.math.BigInteger;
  * Immutable, background-safe input for one initial Trinity planning attempt.
  *
  * <p>
- * The request retains only value data captured on the server thread. It never owns a grid, level, provider, block
- * entity, or crafting CPU reference.
+ * The request retains value data captured on the server thread plus one detached progress reporter. It never owns a
+ * menu, player, grid, level, provider, block entity, or crafting CPU reference.
  * </p>
  */
 public final class TrinityInitialPlanningRequest {
@@ -30,11 +32,12 @@ public final class TrinityInitialPlanningRequest {
     private final TrinityPlanningInventory inventory;
     private final TrinityPlanningLimits limits;
     private final TrinityCpuStorageCapacity maxTrinityCapacity;
+    private final TrinityPlanningProgressReporter progress;
 
     private TrinityInitialPlanningRequest(Builder builder) {
         if (builder.graph == null || builder.target == null || builder.requestedAmount == null ||
                 builder.quantityMode == null || builder.inventory == null || builder.limits == null ||
-                builder.maxTrinityCapacity == null) {
+                builder.maxTrinityCapacity == null || builder.progress == null) {
             throw new IllegalStateException("A Trinity initial planning request is incomplete");
         }
         if (builder.gridScope <= 0L || builder.requestId <= 0L || builder.requestedAmount.signum() <= 0) {
@@ -51,6 +54,7 @@ public final class TrinityInitialPlanningRequest {
         this.inventory = builder.inventory;
         this.limits = builder.limits;
         this.maxTrinityCapacity = builder.maxTrinityCapacity;
+        this.progress = builder.progress;
     }
 
     /**
@@ -97,6 +101,14 @@ public final class TrinityInitialPlanningRequest {
     }
 
     /**
+     * @return detached closeable worker-to-menu channel; it owns no game object and is excluded from semantic cache
+     *         input
+     */
+    public TrinityPlanningProgressReporter progress() {
+        return this.progress;
+    }
+
+    /**
      * Builds the multi-field request only after all mutable grid state has been converted to values.
      */
     public static final class Builder {
@@ -110,6 +122,7 @@ public final class TrinityInitialPlanningRequest {
         private @Nullable TrinityPlanningInventory inventory;
         private @Nullable TrinityPlanningLimits limits;
         private @Nullable TrinityCpuStorageCapacity maxTrinityCapacity;
+        private @Nullable TrinityPlanningProgressReporter progress;
 
         private Builder() {}
 
@@ -155,6 +168,11 @@ public final class TrinityInitialPlanningRequest {
 
         public Builder maxTrinityCapacity(TrinityCpuStorageCapacity maxTrinityCapacity) {
             this.maxTrinityCapacity = maxTrinityCapacity;
+            return this;
+        }
+
+        public Builder progress(TrinityPlanningProgressReporter progress) {
+            this.progress = progress;
             return this;
         }
 

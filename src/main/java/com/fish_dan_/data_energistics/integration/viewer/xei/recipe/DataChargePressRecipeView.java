@@ -1,17 +1,23 @@
 package com.fish_dan_.data_energistics.integration.viewer.xei.recipe;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.blockentity.machine.DataIntegratedChargerBlockEntity.MachineMode;
+import com.fish_dan_.data_energistics.integration.recipe.EaeCircuitCutterRecipeCatalog;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipe;
 import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSupport;
 import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
+import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerRecipe;
 import com.fish_dan_.data_energistics.registry.DERecipes;
-
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.RecipeManager;
 
 import appeng.recipes.AERecipeTypes;
 import appeng.recipes.handlers.ChargerRecipe;
 import appeng.recipes.handlers.InscriberRecipe;
+
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,9 +26,68 @@ import java.util.List;
 public sealed interface DataChargePressRecipeView permits DataChargePressRecipeView.ChargerView,
                                                   DataChargePressRecipeView.InscriberView, DataChargePressRecipeView.CircuitBoardView,
                                                   DataChargePressRecipeView.PowderView, DataChargePressRecipeView.DataChargerView,
-                                                  DataChargePressRecipeView.CustomView {
+                                                  DataChargePressRecipeView.IntegratedChargerView, DataChargePressRecipeView.CustomView,
+                                                  DataChargePressRecipeView.EaeCircuitCutterView {
 
     ResourceLocation id();
+
+    /** Returns the machine mode required to execute this exact viewer recipe variant. */
+    default MachineMode machineMode() {
+        return switch (this) {
+            case PowderView ignored -> MachineMode.POWDER;
+            case CustomView ignored -> MachineMode.CRYSTAL_GROWTH;
+            case ChargerView ignored -> MachineMode.CHARGER;
+            case DataChargerView ignored -> MachineMode.CHARGER;
+            case InscriberView ignored -> MachineMode.INSCRIBER;
+            case IntegratedChargerView ignored -> MachineMode.INSCRIBER;
+            case CircuitBoardView ignored -> MachineMode.INSCRIBER;
+            case EaeCircuitCutterView ignored -> MachineMode.INSCRIBER;
+        };
+    }
+
+    /**
+     * Returns a stable, globally unique processing-pattern identity including this unified view's recipe family.
+     */
+    default ResourceLocation patternRecipeId() {
+        ResourceLocation sourceId;
+        String family;
+        switch (this) {
+            case ChargerView view -> {
+                sourceId = view.holder().id();
+                family = "charger";
+            }
+            case InscriberView view -> {
+                sourceId = view.holder().id();
+                family = "inscriber";
+            }
+            case PowderView view -> {
+                sourceId = view.holder().id();
+                family = "powder";
+            }
+            case DataChargerView view -> {
+                sourceId = view.holder().id();
+                family = "data_charger";
+            }
+            case IntegratedChargerView view -> {
+                sourceId = view.holder().id();
+                family = "integrated_charger";
+            }
+            case CircuitBoardView view -> {
+                sourceId = view.holder().id();
+                family = "circuit_board";
+            }
+            case CustomView view -> {
+                sourceId = view.holder().id();
+                family = "crystal_growth";
+            }
+            case EaeCircuitCutterView view -> {
+                sourceId = view.recipe().id();
+                family = "eae_circuit_cutter";
+            }
+        }
+        return Data_Energistics.id(
+                "data_charge_press/" + family + "/" + sourceId.getNamespace() + "/" + sourceId.getPath());
+    }
 
     /**
      * Builds the viewer entries from exactly the recipe families that the data integrated charger can execute.
@@ -50,8 +115,17 @@ public sealed interface DataChargePressRecipeView permits DataChargePressRecipeV
         recipeManager.getAllRecipesFor(DERecipes.DATA_CHARGER_TYPE.get()).stream()
                 .map(DataChargerView::new)
                 .forEach(views::add);
+
+        recipeManager.getAllRecipesFor(DERecipes.DATA_INTEGRATED_CHARGER_TYPE.get()).stream()
+                .map(IntegratedChargerView::new)
+                .forEach(views::add);
         recipeManager.getAllRecipesFor(DERecipes.DATA_CHARGE_PRESS_TYPE.get()).stream()
                 .map(CustomView::new)
+                .forEach(views::add);
+
+        EaeCircuitCutterRecipeCatalog cutterCatalog = new EaeCircuitCutterRecipeCatalog();
+        cutterCatalog.recipes(recipeManager).stream()
+                .map(EaeCircuitCutterView::new)
                 .forEach(views::add);
 
         return views;
@@ -97,6 +171,15 @@ public sealed interface DataChargePressRecipeView permits DataChargePressRecipeV
         }
     }
 
+    /** A multi-input recipe performed by the integrated charger's inscribing mode. */
+    record IntegratedChargerView(RecipeHolder<DataIntegratedChargerRecipe> holder) implements DataChargePressRecipeView {
+
+        @Override
+        public ResourceLocation id() {
+            return this.holder.id().withSuffix("/data_integrated_charger");
+        }
+    }
+
     /** The fluid-backed, three-board form automatically derived from an inscriber JSON recipe. */
     record CircuitBoardView(RecipeHolder<InscriberRecipe> holder) implements DataChargePressRecipeView {
 
@@ -118,6 +201,28 @@ public sealed interface DataChargePressRecipeView permits DataChargePressRecipeV
         @Override
         public ResourceLocation id() {
             return this.holder.id();
+        }
+    }
+
+    /** An ExtendedAE circuit-cutter recipe adapted to the integrated charger's inscriber mode. */
+    record EaeCircuitCutterView(EaeCircuitCutterRecipeCatalog.CutterRecipe recipe) implements DataChargePressRecipeView {
+
+        @Override
+        public ResourceLocation id() {
+            return this.recipe.id().withSuffix("/eae_circuit_cutter");
+        }
+
+        public Ingredient input() {
+            return this.recipe.input();
+        }
+
+        public ItemStack output() {
+            return this.recipe.output().copyWithCount(
+                    EaeCircuitCutterRecipeCatalog.getIntegratedResultCount(this.recipe.output().getCount()));
+        }
+
+        public int fluidAmount() {
+            return EaeCircuitCutterRecipeCatalog.getIntegratedFluidAmount(this.recipe.output().getCount());
         }
     }
 }

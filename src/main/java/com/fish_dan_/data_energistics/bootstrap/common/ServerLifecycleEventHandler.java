@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProvider
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalOwnershipActionDispatcher;
+import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerPatternModeResolver;
 
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -50,16 +51,20 @@ public final class ServerLifecycleEventHandler {
             PatternProviderRuntimeBindings.clearLiveBindings();
         } finally {
             try {
-                DataTeleportAnchorBlockEntity.clearRuntimeAnchorCache();
+                DataIntegratedChargerPatternModeResolver.clearCache();
             } finally {
                 try {
-                    TrinityDispatchProposalLifecycle.stop();
+                    DataTeleportAnchorBlockEntity.clearRuntimeAnchorCache();
                 } finally {
                     try {
-                        TrinityPlanningGatewayLifecycle.stop();
+                        TrinityDispatchProposalLifecycle.stop();
                     } finally {
-                        if (stoppingServer == event.getServer()) {
-                            stoppingServer = null;
+                        try {
+                            TrinityPlanningGatewayLifecycle.stop();
+                        } finally {
+                            if (stoppingServer == event.getServer()) {
+                                stoppingServer = null;
+                            }
                         }
                     }
                 }

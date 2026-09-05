@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.client.crafting.tree.viewer;
 
-import appeng.api.stacks.GenericStack;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+
+import appeng.api.stacks.GenericStack;
+
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import org.jspecify.annotations.Nullable;
 

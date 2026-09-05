@@ -1,9 +1,10 @@
 package com.fish_dan_.data_energistics.common.trinity.pattern;
 
-import net.minecraft.core.BlockPos;
-
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.KeyCounter;
+
+import net.minecraft.core.BlockPos;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;

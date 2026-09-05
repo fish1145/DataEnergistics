@@ -2,6 +2,10 @@ package com.fish_dan_.data_energistics.ae2.key;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -11,9 +15,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
-import appeng.api.stacks.GenericStack;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 

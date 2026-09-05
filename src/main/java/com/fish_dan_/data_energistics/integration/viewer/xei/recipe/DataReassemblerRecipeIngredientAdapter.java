@@ -1,11 +1,12 @@
 package com.fish_dan_.data_energistics.integration.viewer.xei.recipe;
 
-import net.minecraft.world.item.ItemStack;
-
-import appeng.api.stacks.GenericStack;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
+
+import appeng.api.stacks.GenericStack;
+
+import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 

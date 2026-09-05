@@ -4,9 +4,6 @@ import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderHo
 import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderMenuAccessor;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.MenuType;
-
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.menu.AEBaseMenu;
@@ -15,6 +12,10 @@ import appeng.menu.guisync.GuiSync;
 import appeng.menu.implementations.PatternProviderMenu;
 import appeng.menu.slot.RestrictedInputSlot;
 import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
+
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
+
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

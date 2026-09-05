@@ -7,9 +7,10 @@ import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
 
+import appeng.api.stacks.AEKey;
+
 import net.minecraft.resources.ResourceLocation;
 
-import appeng.api.stacks.AEKey;
 import lombok.Getter;
 import lombok.experimental.Accessors;
 import org.jspecify.annotations.Nullable;

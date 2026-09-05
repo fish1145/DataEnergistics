@@ -5,12 +5,6 @@ import com.fish_dan_.data_energistics.client.screen.trinity.TrinityPatternSearch
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternCatalogView;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityPatternSlotAction;
 
-import net.minecraft.locale.Language;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-
-import appeng.crafting.pattern.EncodedPatternItem;
 import com.lowdragmc.lowdraglib2.gui.ColorPattern;
 import com.lowdragmc.lowdraglib2.gui.slot.LocalSlot;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
@@ -23,6 +17,14 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+
+import appeng.crafting.pattern.EncodedPatternItem;
+
+import net.minecraft.locale.Language;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jspecify.annotations.Nullable;
 

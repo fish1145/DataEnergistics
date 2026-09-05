@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
+import com.fish_dan_.data_energistics.client.render.beam.BeamFormerRenderer;
 import com.fish_dan_.data_energistics.client.render.blockentity.DataChargerRenderer;
 import com.fish_dan_.data_energistics.client.render.blockentity.DataDistributionTowerRenderer;
 import com.fish_dan_.data_energistics.client.render.blockentity.DataExtractorRenderer;
@@ -23,6 +24,8 @@ final class ClientRendererRegistrar {
     private ClientRendererRegistrar() {}
 
     static void register(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerBlockEntityRenderer(DEBlockEntities.ME_BEAM_FORMER.get(), context -> new BeamFormerRenderer());
+        event.registerBlockEntityRenderer(DEBlockEntities.ME_OMNI_BEAM_FORMER.get(), context -> new BeamFormerRenderer());
         event.registerBlockEntityRenderer(DEBlockEntities.DATA_EXTRACTOR_BLOCK_ENTITY.get(), DataExtractorRenderer::new);
         event.registerBlockEntityRenderer(DEBlockEntities.DATA_DISTRIBUTION_TOWER_BLOCK_ENTITY.get(), DataDistributionTowerRenderer::new);
         event.registerBlockEntityRenderer(DEBlockEntities.DATA_MIMETIC_FIELD_BLOCK_ENTITY.get(), DataMimeticFieldRenderer::new);

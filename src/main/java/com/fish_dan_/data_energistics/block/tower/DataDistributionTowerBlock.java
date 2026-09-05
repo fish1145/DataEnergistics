@@ -11,6 +11,12 @@ import com.fish_dan_.data_energistics.menu.machine.DataDistributionTowerMenu;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
+import appeng.block.AEBaseBlock;
+import appeng.blockentity.AEBaseBlockEntity;
+import appeng.core.definitions.AEItems;
+import appeng.util.InteractionUtil;
+import appeng.util.SettingsFrom;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -54,11 +60,6 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 
-import appeng.block.AEBaseBlock;
-import appeng.blockentity.AEBaseBlockEntity;
-import appeng.core.definitions.AEItems;
-import appeng.util.InteractionUtil;
-import appeng.util.SettingsFrom;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

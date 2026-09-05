@@ -7,12 +7,12 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaint
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.exchange.TrinityInformationExchangeDepotUi;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.menu.AEBaseMenu;
+import appeng.menu.guisync.GuiSync;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-
-import appeng.menu.AEBaseMenu;
-import appeng.menu.guisync.GuiSync;
 
 /** Dedicated mode menu for one physical Trinity information exchange depot. */
 public final class TrinityInformationExchangeDepotMenu extends AEBaseMenu {

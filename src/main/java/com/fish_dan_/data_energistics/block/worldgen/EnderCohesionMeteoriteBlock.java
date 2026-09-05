@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.block.worldgen;
 import com.fish_dan_.data_energistics.entity.resource.DispersingDataEntity;
 import com.fish_dan_.data_energistics.integration.ae.useless.SomeUselessThingsCompat;
 
+import appeng.core.definitions.AEItems;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
@@ -17,8 +19,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.fml.ModList;
-
-import appeng.core.definitions.AEItems;
 
 import java.util.Set;
 

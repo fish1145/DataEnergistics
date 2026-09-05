@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.common.compartment;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
+
+import net.minecraft.network.chat.Component;
 
 /**
  * ME storage facade for a bound ME output compartment buffer.

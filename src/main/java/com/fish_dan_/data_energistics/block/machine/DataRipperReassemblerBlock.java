@@ -1,5 +1,9 @@
 package com.fish_dan_.data_energistics.block.machine;
 
+import appeng.api.orientation.IOrientationStrategy;
+import appeng.api.orientation.OrientationStrategies;
+import appeng.block.AEBaseBlock;
+
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.Block;
@@ -13,9 +17,6 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 
-import appeng.api.orientation.IOrientationStrategy;
-import appeng.api.orientation.OrientationStrategies;
-import appeng.block.AEBaseBlock;
 import org.jspecify.annotations.Nullable;
 
 public class DataRipperReassemblerBlock extends AEBaseBlock {

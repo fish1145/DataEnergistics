@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.block.orbital.astronomy;
 import com.fish_dan_.data_energistics.blockentity.orbital.astronomy.AstronomicalObservatoryBlockEntity;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
+import appeng.block.AEBaseBlock;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -19,7 +21,6 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 
-import appeng.block.AEBaseBlock;
 import org.jspecify.annotations.Nullable;
 
 /**

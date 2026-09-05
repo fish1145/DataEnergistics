@@ -60,6 +60,10 @@ public final class DECreativeTabs {
                         output.accept(DEItems.DATA_STORAGE_COMPONENT_256M);
 
                         output.accept(DEItems.DATA_SOLAR_PANEL);
+                        output.accept(DEItems.ME_BEAM_FORMER_PART);
+                        output.accept(DEItems.ME_BEAM_FORMER);
+                        output.accept(DEItems.ME_OMNI_BEAM_FORMER);
+                        output.accept(DEItems.BEAM_BINDING_TOOL);
                         output.accept(DEItems.ME_DATA_SOLAR_PANEL);
                         output.accept(DEItems.DATA_EXTRACTOR);
                         output.accept(DEItems.DATA_RIPPER_REASSEMBLER);
@@ -132,6 +136,8 @@ public final class DECreativeTabs {
                         output.accept(DEItems.REDSTONE_TUNING_CARD);
                         output.accept(DEItems.SOLIDIFIED_OBSIDIAN);
                         output.accept(DEItems.DATA_DUST);
+                        output.accept(DEItems.AMETHYST_DUST);
+                        output.accept(DEItems.DATA_RESIDUAL_CRYSTAL);
                         output.accept(DEItems.OBSIDIAN_DUST);
                         output.accept(DEFluids.ENDER_BUCKET);
                         output.accept(DEFluids.DATA_CORROSION_LIQUID_BUCKET);

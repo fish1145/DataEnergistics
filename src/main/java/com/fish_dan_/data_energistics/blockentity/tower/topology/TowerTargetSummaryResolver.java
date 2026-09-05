@@ -7,6 +7,12 @@ import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.tower.crafting.AeCraftingDisplayBridge;
 import com.fish_dan_.data_energistics.integration.tower.energy.neoecoae.NeoEcoAeTowerBridge;
 
+import appeng.api.AECapabilities;
+import appeng.api.parts.IPart;
+import appeng.api.parts.IPartItem;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.parts.CableBusContainer;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -23,11 +29,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.AECapabilities;
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartItem;
-import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.parts.CableBusContainer;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayDeque;

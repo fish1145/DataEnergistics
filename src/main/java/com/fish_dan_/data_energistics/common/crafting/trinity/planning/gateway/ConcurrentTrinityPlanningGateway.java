@@ -8,12 +8,17 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressMeasure;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressPhase;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
-
-import net.minecraft.network.chat.Component;
 
 import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.GenericStack;
+
+import net.minecraft.network.chat.Component;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
@@ -54,14 +59,10 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
         this(executors.initial(), executors.remaining(), true);
     }
 
-    ConcurrentTrinityPlanningGateway(ExecutorService plannerExecutor, boolean ownsExecutor) {
-        this(plannerExecutor, plannerExecutor, ownsExecutor);
-    }
-
-    ConcurrentTrinityPlanningGateway(
-                                     ExecutorService initialPlannerExecutor,
-                                     ExecutorService remainingPlannerExecutor,
-                                     boolean ownsExecutors) {
+    private ConcurrentTrinityPlanningGateway(
+                                             ExecutorService initialPlannerExecutor,
+                                             ExecutorService remainingPlannerExecutor,
+                                             boolean ownsExecutors) {
         this.initialPlannerExecutor = initialPlannerExecutor;
         this.remainingPlannerExecutor = remainingPlannerExecutor;
         this.ownsExecutors = ownsExecutors;
@@ -114,8 +115,12 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
                                        long graphRevision,
                                        GenericStack requestedOutput,
                                        Callable<TrinityPlanningAttempt> trinityCalculation,
-                                       Supplier<Future<ICraftingPlan>> ae2Calculation) {
+                                       Supplier<Future<ICraftingPlan>> ae2Calculation,
+                                       TrinityPlanningProgressReporter progress) {
         if (!trinityPlanningAvailable) {
+            progress.publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                    TrinityPlanningProgressPhase.DELEGATED_TO_AE2,
+                    TrinityPlanningProgressMeasure.NONE));
             try {
                 return ae2Calculation.get();
             } catch (RuntimeException exception) {
@@ -126,6 +131,9 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
 
         Future<TrinityPlanningAttempt> trinityFuture;
         try {
+            progress.publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                    TrinityPlanningProgressPhase.QUEUED,
+                    TrinityPlanningProgressMeasure.NONE));
             trinityFuture = this.planningCache.submit(
                     this.initialPlannerExecutor,
                     gridScope,
@@ -139,8 +147,11 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
                             Component.translatable(
                                     "gui.data_energistics.trinity_planning.diagnostic.planner_queue_full"),
                             Map.of("reason", exception.getClass().getSimpleName()))));
+            progress.publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                    TrinityPlanningProgressPhase.AWAITING_MENU_RESULT,
+                    TrinityPlanningProgressMeasure.NONE));
         }
-        return new PreferredPlanningFuture(requestedOutput, trinityFuture);
+        return new PreferredPlanningFuture(requestedOutput, trinityFuture, progress);
     }
 
     @Override
@@ -165,15 +176,16 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
     }
 
     @Override
-    public TrinityPlanningComputationResult calculateTrinity(TrinityPlanningInput input)
-                                                                                         throws InterruptedException, ExecutionException {
-        return this.planningComputation.calculate(input);
+    public TrinityPlanningComputationResult calculateTrinity(TrinityPlanningInput input,
+                                                             TrinityPlanningProgressReporter progress)
+                                                                                                       throws InterruptedException, ExecutionException {
+        return this.planningComputation.calculate(input, progress);
     }
 
     @Override
     public TrinityPlanningComputationResult calculateRemainingTrinity(TrinityPlanningInput input)
                                                                                                   throws InterruptedException, ExecutionException {
-        return this.planningComputation.calculate(input);
+        return this.planningComputation.calculate(input, TrinityPlanningProgressReporter.none());
     }
 
     @Override
@@ -207,6 +219,7 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
 
         private final GenericStack requestedOutput;
         private final Future<TrinityPlanningAttempt> trinity;
+        private final TrinityPlanningProgressReporter progress;
         private final long startedNanos;
 
         private @Nullable ICraftingPlan result;
@@ -214,9 +227,11 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
 
         private PreferredPlanningFuture(
                                         GenericStack requestedOutput,
-                                        Future<TrinityPlanningAttempt> trinity) {
+                                        Future<TrinityPlanningAttempt> trinity,
+                                        TrinityPlanningProgressReporter progress) {
             this.requestedOutput = requestedOutput;
             this.trinity = trinity;
+            this.progress = progress;
             this.startedNanos = System.nanoTime();
         }
 
@@ -228,6 +243,9 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
             boolean trinityCancelled = this.trinity.cancel(mayInterruptIfRunning);
             if (trinityCancelled) {
                 this.cancelled = true;
+                this.progress.publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                        TrinityPlanningProgressPhase.CANCELLED,
+                        TrinityPlanningProgressMeasure.NONE));
             }
             return trinityCancelled;
         }
@@ -246,7 +264,7 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
         }
 
         @Override
-        public ICraftingPlan get() throws InterruptedException, ExecutionException {
+        public ICraftingPlan get() throws InterruptedException {
             try {
                 return resolve(Long.MAX_VALUE);
             } catch (TimeoutException exception) {
@@ -256,15 +274,14 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
 
         @Override
         public ICraftingPlan get(long timeout, TimeUnit unit)
-                                                              throws InterruptedException, ExecutionException, TimeoutException {
+                                                              throws InterruptedException, TimeoutException {
             if (timeout < 0L) {
                 throw new IllegalArgumentException("Timeout must not be negative");
             }
             return resolve(saturatedAdd(System.nanoTime(), unit.toNanos(timeout)));
         }
 
-        private ICraftingPlan resolve(long callerDeadlineNanos)
-                                                                throws InterruptedException, ExecutionException, TimeoutException {
+        private ICraftingPlan resolve(long callerDeadlineNanos) throws InterruptedException, TimeoutException {
             synchronized (this) {
                 if (this.cancelled) {
                     throw new CancellationException("The combined crafting calculation was cancelled");
@@ -291,6 +308,9 @@ final class ConcurrentTrinityPlanningGateway implements TrinityPlanningGateway {
                         TrinityPlanningDiagnosticCode.INTERNAL_ERROR,
                         "gui.data_energistics.trinity_planning.diagnostic.internal_error");
             } catch (CancellationException exception) {
+                this.progress.publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                        TrinityPlanningProgressPhase.CANCELLED,
+                        TrinityPlanningProgressMeasure.NONE));
                 diagnostic = TrinityPlanningDiagnostic.ofTranslationKey(
                         TrinityPlanningDiagnosticCode.CALCULATION_CANCELLED,
                         "gui.data_energistics.trinity_planning.diagnostic.cancelled");

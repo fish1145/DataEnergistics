@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.Trin
 
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.crafting.ICraftingPlan;
+
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 

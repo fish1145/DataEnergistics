@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.recipe.chargepress;
 
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.ItemStack;
@@ -11,8 +13,6 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.fluids.FluidStack;
-
-import appeng.api.stacks.GenericStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,8 +52,7 @@ public final class DataChargePressRecipe implements Recipe<DataChargePressRecipe
 
     @Override
     public boolean matches(DataChargePressRecipeInput input, Level level) {
-        return getModule().test(input.module()) && matchesFluid(input.fluid()) &&
-                !findMatchingInputSlots(input.items()).isEmpty();
+        return getModule().test(input.module()) && matchesMachineInputs(input.items(), input.fluid());
     }
 
     @Override
@@ -103,6 +102,11 @@ public final class DataChargePressRecipe implements Recipe<DataChargePressRecipe
             return List.copyOf(matches);
         }
         return List.of();
+    }
+
+    /** Matches the consumable inputs after a machine has already selected its crystal-growth mode. */
+    public boolean matchesMachineInputs(List<ItemStack> items, FluidStack fluid) {
+        return matchesFluid(fluid) && !findMatchingInputSlots(items).isEmpty();
     }
 
     private boolean findMatchingInputSlots(List<ItemStack> inputs, int ingredientIndex, boolean[] usedSlots,

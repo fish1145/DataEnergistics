@@ -14,13 +14,14 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPre
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierDomain;
 
+import appeng.api.stacks.AEItemKey;
+
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.stacks.AEItemKey;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.ExpandedPatternSnapshot;
 import com.modularmc.mdl.api.multiblock.PatternCandidate;

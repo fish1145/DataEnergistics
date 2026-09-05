@@ -2,6 +2,10 @@ package com.fish_dan_.data_energistics.recipe.reassembler;
 
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.ItemStack;
@@ -11,9 +15,6 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.GenericStack;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

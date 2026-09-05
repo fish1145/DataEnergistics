@@ -1,12 +1,13 @@
 package com.fish_dan_.data_energistics.ae2.patternprovider.adaptive;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.util.inv.AppEngInternalInventory;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+
 import org.jspecify.annotations.Nullable;
 
 public interface AdaptivePatternProviderHost extends PatternProviderLogicHost, IUpgradeableObject {

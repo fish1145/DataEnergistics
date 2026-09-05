@@ -3,12 +3,13 @@ package com.fish_dan_.data_energistics.client.map.orbital;
 import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapResponsePayload;
 import com.fish_dan_.data_energistics.orbital.map.OrbitalMapTile;
 
+import com.lowdragmc.lowdraglib2.syncdata.ISubscription;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 
-import com.lowdragmc.lowdraglib2.syncdata.ISubscription;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;

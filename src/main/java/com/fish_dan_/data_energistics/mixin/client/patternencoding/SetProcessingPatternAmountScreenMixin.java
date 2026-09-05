@@ -3,8 +3,6 @@ package com.fish_dan_.data_energistics.mixin.client.patternencoding;
 import com.fish_dan_.data_energistics.client.screen.patternencoding.ProcessingPatternAmountContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternOutputMatchMenu;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.AESubScreen;
@@ -13,6 +11,9 @@ import appeng.client.gui.me.items.PatternEncodingTermScreen;
 import appeng.client.gui.me.items.SetProcessingPatternAmountScreen;
 import appeng.client.gui.widgets.ToggleButton;
 import appeng.menu.me.items.PatternEncodingTermMenu;
+
+import net.minecraft.network.chat.Component;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

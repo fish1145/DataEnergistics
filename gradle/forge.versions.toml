@@ -3,10 +3,10 @@ ae2 = "19.2.17"
 ae2wt = "19.5.1"
 configuration = "3.1.1-neoforge"
 
-jei = "19.51.0.417"
+jei = "19.52.0.423"
 emi = "1.1.24+1.21.1"
 
-ldlib = "2.2.38"
+ldlib = "2.2.38.a"
 mekanism = "1.21.1-10.7.19.85"
 pneumaticcraft = "8.2.23+mc1.21.1"
 kotlinforforge = "5.12.0"

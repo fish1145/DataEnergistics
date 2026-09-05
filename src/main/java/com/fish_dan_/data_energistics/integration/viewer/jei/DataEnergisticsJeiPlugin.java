@@ -13,6 +13,7 @@ import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataReso
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataResourceJeiIngredientHelper;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataResourceJeiIngredientRenderer;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.PatternEncodingGenericStackJeiHandler;
+import com.fish_dan_.data_energistics.integration.viewer.jei.recipe.AdvancedAeReactionChamberJeiRecipeType;
 import com.fish_dan_.data_energistics.integration.viewer.jei.recipe.DataChargePressRecipeCategory;
 import com.fish_dan_.data_energistics.integration.viewer.jei.recipe.DataChargerRecipeCategory;
 import com.fish_dan_.data_energistics.integration.viewer.jei.recipe.DataRipperReassemblerRecipeCategory;
@@ -40,6 +41,10 @@ import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
+import appeng.core.definitions.AEBlocks;
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.recipes.handlers.ChargerRecipe;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.HolderLookup;
@@ -61,9 +66,6 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
-import appeng.core.definitions.AEBlocks;
-import appeng.menu.me.items.PatternEncodingTermMenu;
-import appeng.recipes.handlers.ChargerRecipe;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
@@ -87,8 +89,14 @@ import java.util.function.Function;
 public final class DataEnergisticsJeiPlugin implements IModPlugin {
 
     private static final String AE2_JEI_INTEGRATION_MOD_ID = "ae2jeiintegration";
+    private static final String EXTENDED_AE_MOD_ID = "extendedae";
+    private static final String ADVANCED_AE_MOD_ID = "advanced_ae";
     private static final ResourceLocation AE2_CHARGER_RECIPE_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
+    private static final ResourceLocation EAE_CRYSTAL_ASSEMBLER_RECIPE_ID = ResourceLocation.fromNamespaceAndPath(
+            EXTENDED_AE_MOD_ID, "crystal_assembler");
     private static final RecipeType<RecipeHolder<ChargerRecipe>> AE2_CHARGER_RECIPE_TYPE = RecipeType.createRecipeHolderType(AE2_CHARGER_RECIPE_ID);
+    private static final RecipeType<RecipeHolder<Recipe<?>>> EAE_CRYSTAL_ASSEMBLER_RECIPE_TYPE = RecipeType.createRecipeHolderType(
+            EAE_CRYSTAL_ASSEMBLER_RECIPE_ID);
     private static final ResourceLocation RECIPE_TYPE_NAME_SOURCE_ID = Data_Energistics.id("jei_recipe_type_names");
     private static final Object MULTIBLOCK_REFRESH_KEY = new Object();
     @Nullable
@@ -150,10 +158,17 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         registration.addRecipeCatalyst(DEBlocks.DATA_RIPPER_REASSEMBLER.get(), DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get(),
                 DataRipperReassemblerRecipeCategory.RECIPE_TYPE);
+        if (Data_Energistics.isModLoaded(EXTENDED_AE_MOD_ID)) {
+            registration.addRecipeCatalyst(DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get(),
+                    EAE_CRYSTAL_ASSEMBLER_RECIPE_TYPE);
+        }
+        if (Data_Energistics.isModLoaded(ADVANCED_AE_MOD_ID)) {
+            registration.addRecipeCatalyst(DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get(),
+                    AdvancedAeReactionChamberJeiRecipeType.get());
+        }
         registration.addRecipeCatalyst(DEBlocks.DATA_INTEGRATED_CHARGER.get(), DataChargePressRecipeCategory.RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
         registration.addRecipeCatalyst(DEBlocks.EXTENDED_DATA_CHARGER.get(), AE2_CHARGER_RECIPE_TYPE);
-        registration.addRecipeCatalyst(DEBlocks.TRINITY_DATA_CORE.get(), TrinityMultiblockJeiCategory.RECIPE_TYPE);
         registerDataChargerCatalysts(registration, DataChargerRecipeCategory.RECIPE_TYPE);
     }
 
@@ -385,9 +400,6 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
      */
     TrinityMultiblockJeiCategory installTrinityMultiblockCategory(
                                                                   TrinityMultiblockJeiCategory category) {
-        if (category == null) {
-            throw new IllegalArgumentException("Trinity multiblock JEI category cannot be null");
-        }
         if (this.trinityMultiblockCategory != null) {
             throw new IllegalStateException("Trinity multiblock JEI category was already registered");
         }

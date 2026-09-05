@@ -4,6 +4,20 @@ import com.fish_dan_.data_energistics.ae2.dataflow.DigitalStorageCellTooltip;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
+import appeng.api.config.Actionable;
+import appeng.api.implementations.items.IAEItemPowerStorage;
+import appeng.api.storage.StorageCells;
+import appeng.api.storage.cells.CellState;
+import appeng.core.definitions.AEItems;
+import appeng.items.contents.CellConfig;
+import appeng.items.storage.StorageTier;
+import appeng.items.tools.powered.PortableCellItem;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.ItemMenuHostLocator;
+import appeng.menu.locator.MenuLocators;
+import appeng.util.ConfigInventory;
+import appeng.util.InteractionUtil;
+
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -18,20 +32,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
-
-import appeng.api.config.Actionable;
-import appeng.api.implementations.items.IAEItemPowerStorage;
-import appeng.api.storage.StorageCells;
-import appeng.api.storage.cells.CellState;
-import appeng.core.definitions.AEItems;
-import appeng.items.contents.CellConfig;
-import appeng.items.storage.StorageTier;
-import appeng.items.tools.powered.PortableCellItem;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.ItemMenuHostLocator;
-import appeng.menu.locator.MenuLocators;
-import appeng.util.ConfigInventory;
-import appeng.util.InteractionUtil;
 
 import java.util.List;
 import java.util.Optional;

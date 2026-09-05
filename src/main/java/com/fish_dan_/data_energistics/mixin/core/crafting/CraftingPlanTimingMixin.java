@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.mixin.core.crafting;
 import com.fish_dan_.data_energistics.accessor.crafting.CraftingPlanTiming;
 
 import appeng.crafting.CraftingPlan;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 

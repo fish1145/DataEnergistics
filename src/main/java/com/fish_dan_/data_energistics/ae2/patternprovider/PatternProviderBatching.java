@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.ae2.patternprovider;
 
 import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderBatchAccess;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.api.registry.machine.CraftingMachineScope;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchStatus;
@@ -12,8 +13,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Dis
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.MachineTargetId;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
-
-import net.minecraft.core.Direction;
+import com.fish_dan_.data_energistics.common.entrypoint.machine.CraftingMachineCapacityAdapters;
+import com.fish_dan_.data_energistics.common.entrypoint.machine.CraftingMachineCapacityAdapters.Observation;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.LockCraftingMode;
@@ -26,6 +27,11 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.helpers.patternprovider.PatternProviderTarget;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -182,6 +188,20 @@ public final class PatternProviderBatching {
             }
 
             long count = simulateCapacity(possibleTarget.target(), prototype, requestedCount);
+            if (count > 0L) {
+                var adjacentPosition = blockEntity.getBlockPos().relative(possibleTarget.direction());
+                var adjacentSide = possibleTarget.direction().getOpposite();
+                Observation observation = CraftingMachineCapacityAdapters.capture(
+                        level,
+                        adjacentPosition,
+                        adjacentSide,
+                        patternDetails,
+                        prototype,
+                        count);
+                if (observation != null) {
+                    count = Math.min(count, observation.remainingLogicalCrafts());
+                }
+            }
             if (count <= 0L) {
                 rejections.add(CraftingDispatchRejection.targeted(
                         CraftingDispatchStatus.NO_CAPACITY,
@@ -189,13 +209,14 @@ public final class PatternProviderBatching {
                 continue;
             }
             int nextRoundRobinIndex = nextRoundRobinIndex(normalizedRoundRobin, targetOffset);
+            long admittedCount = count;
 
             return CountedCraftingPreparation.accepted(
-                    ownershipAwareAdmission(count, prototype, (committedPrototype, transferOwnership) -> {
+                    ownershipAwareAdmission(admittedCount, prototype, (committedPrototype, transferOwnership) -> {
                         pushExpanded(
                                 patternDetails,
                                 committedPrototype,
-                                count,
+                                admittedCount,
                                 access,
                                 possibleTarget.direction(),
                                 transferOwnership);
@@ -293,23 +314,39 @@ public final class PatternProviderBatching {
             if (target == null) {
                 continue;
             }
-            long capacity = isBlockedByTargetContents(
+            boolean blocked = isBlockedByTargetContents(
                     logic.isBlocking(),
                     target,
-                    access.dataEnergistics$getPatternInputs()) ?
-                            0L :
-                            simulateCapacity(target, prototype, requestedCount);
+                    access.dataEnergistics$getPatternInputs());
+            long capacity = blocked ? 0L : simulateCapacity(target, prototype, requestedCount);
+            Observation observation = null;
+            if (capacity > 0L) {
+                observation = CraftingMachineCapacityAdapters.capture(
+                        level,
+                        adjacentPosition,
+                        adjacentSide,
+                        patternDetails,
+                        prototype,
+                        capacity);
+                if (observation != null) {
+                    capacity = Math.min(capacity, observation.remainingLogicalCrafts());
+                }
+            }
             snapshots.add(new ProviderCapacitySnapshot(
                     providerId,
                     targetFor(direction),
-                    Optional.of(MachineTargetId.forBlockTarget(level.dimension(), adjacentPosition, adjacentSide)),
+                    Optional.of(machineTargetId(
+                            observation,
+                            level,
+                            adjacentPosition,
+                            adjacentSide)),
                     patternIdentity,
                     publicationRevision,
                     capacityRevision,
                     captureTick,
                     ProviderRoutingMode.TARGETED,
                     new DispatchCapacity.Known(capacity),
-                    new DispatchCapacity.Known(requestedCount)));
+                    new DispatchCapacity.Known(capacity)));
         }
         return List.copyOf(snapshots);
     }
@@ -416,6 +453,16 @@ public final class PatternProviderBatching {
 
     private static CraftingDispatchTarget targetFor(Direction direction) {
         return new CraftingDispatchTarget("side:" + direction.getName());
+    }
+
+    private static MachineTargetId machineTargetId(
+                                                   @Nullable Observation observation,
+                                                   Level level,
+                                                   BlockPos machinePosition,
+                                                   Direction inputSide) {
+        return observation != null && observation.scope() == CraftingMachineScope.BLOCK_ENTITY ?
+                MachineTargetId.forBlockEntity(level.dimension(), machinePosition) :
+                MachineTargetId.forBlockTarget(level.dimension(), machinePosition, inputSide);
     }
 
     static long simulateCapacity(PatternProviderTarget target, KeyCounter[] prototype, long requestedCount) {

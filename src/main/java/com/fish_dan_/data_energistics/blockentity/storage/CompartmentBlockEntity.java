@@ -14,6 +14,13 @@ import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBl
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
 
+import appeng.api.inventories.InternalInventory;
+import appeng.api.orientation.BlockOrientation;
+import appeng.api.stacks.AEKey;
+import appeng.api.storage.MEStorage;
+import appeng.api.util.AECableType;
+import appeng.blockentity.AEBaseBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -23,12 +30,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.inventories.InternalInventory;
-import appeng.api.orientation.BlockOrientation;
-import appeng.api.stacks.AEKey;
-import appeng.api.storage.MEStorage;
-import appeng.api.util.AECableType;
-import appeng.blockentity.AEBaseBlockEntity;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 

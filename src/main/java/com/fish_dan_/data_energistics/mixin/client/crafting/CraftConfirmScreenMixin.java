@@ -4,16 +4,12 @@ import com.fish_dan_.data_energistics.client.crafting.confirm.presentation.Trini
 import com.fish_dan_.data_energistics.client.crafting.confirm.table.TrinityCraftConfirmCycleBarRenderer;
 import com.fish_dan_.data_energistics.client.crafting.tree.CraftingPlanTreeEntry;
 import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
+import com.fish_dan_.data_energistics.client.screen.crafting.confirm.TrinityCraftConfirmScreenRouter;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.client.util.TrinityDurationFormatter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
-
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
 
 import appeng.api.stacks.AEKey;
 import appeng.client.gui.AEBaseScreen;
@@ -23,6 +19,12 @@ import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.Scrollbar;
 import appeng.menu.me.crafting.CraftConfirmMenu;
 import appeng.menu.me.crafting.CraftingPlanSummary;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -109,7 +111,11 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
 
     @Inject(method = "updateBeforeRender", at = @At("TAIL"))
     private void dataEnergistics$placePlanningMetadata(CallbackInfo ci) {
-        CraftingPlanTreeEntry.refresh((CraftConfirmScreen) (Object) this);
+        CraftConfirmScreen screen = (CraftConfirmScreen) (Object) this;
+        if (TrinityCraftConfirmScreenRouter.replaceSynchronizedNativeScreen(screen)) {
+            return;
+        }
+        CraftingPlanTreeEntry.refresh(screen);
         TrinityCraftConfirmMenuState state = (TrinityCraftConfirmMenuState) this.menu;
         dataEnergistics$refreshCyclePage(state);
         this.start.active = this.start.active && state.data_energistics$isPlanReady();
@@ -137,7 +143,7 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                             quantityMode,
                             bytes,
                             planningTime));
-            this.setTextContent("cpu_status", state.data_energistics$diagnostic());
+            this.setTextContent("cpu_status", dataEnergistics$diagnosticText(state));
         } else if (state.data_energistics$isTrinityOnly()) {
             String titleKey = state.data_energistics$hasDynamicMaterialWarning() ?
                     "gui.data_energistics.trinity_planning.dynamic_title" :
@@ -146,7 +152,7 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                     TEXT_ID_DIALOG_TITLE,
                     Component.translatable(titleKey, quantityMode, bytes, planningTime));
             if (state.data_energistics$hasDiagnostic()) {
-                this.setTextContent("cpu_status", state.data_energistics$diagnostic());
+                this.setTextContent("cpu_status", dataEnergistics$diagnosticText(state));
             }
         } else if (state.data_energistics$hasDiagnostic()) {
             this.setTextContent(
@@ -155,8 +161,16 @@ public abstract class CraftConfirmScreenMixin extends AEBaseScreen<CraftConfirmM
                             "gui.data_energistics.trinity_planning.diagnostic_title",
                             quantityMode,
                             planningTime));
-            this.setTextContent("cpu_status", state.data_energistics$diagnostic());
+            this.setTextContent("cpu_status", dataEnergistics$diagnosticText(state));
         }
+    }
+
+    @Unique
+    private static Component dataEnergistics$diagnosticText(TrinityCraftConfirmMenuState state) {
+        Component detail = state.data_energistics$diagnosticDetail();
+        return detail.getString().isEmpty() ?
+                state.data_energistics$diagnostic() :
+                state.data_energistics$diagnostic().copy().append(detail);
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)

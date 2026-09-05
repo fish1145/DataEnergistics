@@ -3,9 +3,10 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.schedule.TrinityVariantFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnostic.TrinityCycleDiagnosticEvidence;
 
+import appeng.api.stacks.AEKey;
+
 import net.minecraft.network.chat.Component;
 
-import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectAVLTreeMap;

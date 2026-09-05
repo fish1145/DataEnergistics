@@ -3,9 +3,6 @@ package com.fish_dan_.data_energistics.ae2.cell;
 import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 import com.fish_dan_.data_energistics.ae2.grid.UnlimitedExtractableStorage;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
@@ -13,6 +10,9 @@ import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
 import appeng.api.storage.cells.CellState;
 import appeng.api.storage.cells.StorageCell;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 
 public final class InfiniteDataCellInventory implements StorageCell, UnlimitedExtractableStorage {
 

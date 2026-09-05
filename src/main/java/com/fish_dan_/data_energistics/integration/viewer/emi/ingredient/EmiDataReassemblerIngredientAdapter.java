@@ -3,9 +3,6 @@ package com.fish_dan_.data_energistics.integration.viewer.emi.ingredient;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ui.DataReassemblerEmiRecipeSlotWidget;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataReassemblerRecipeIngredientAdapter;
 
-import net.minecraft.world.item.ItemStack;
-
-import appeng.api.stacks.GenericStack;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
@@ -13,6 +10,11 @@ import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 import com.lowdragmc.lowdraglib2.integration.xei.emi.EMIUIEvents;
 import com.lowdragmc.lowdraglib2.integration.xei.emi.LDLibEMIPlugin;
 import com.lowdragmc.lowdraglib2.integration.xei.emi.handler.EMIRecipeWidgetHandler;
+
+import appeng.api.stacks.GenericStack;
+
+import net.minecraft.world.item.ItemStack;
+
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
 

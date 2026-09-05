@@ -22,9 +22,6 @@ final class CatalogBackedStructurePreviewUiFactory implements StructurePreviewUi
     private final Supplier<StructurePreviewSceneBinder> sceneBinder;
 
     private CatalogBackedStructurePreviewUiFactory(Supplier<StructurePreviewSceneBinder> sceneBinder) {
-        if (sceneBinder == null) {
-            throw new IllegalArgumentException("Structure preview scene binder supplier cannot be null");
-        }
         this.sceneBinder = sceneBinder;
     }
 
@@ -34,9 +31,6 @@ final class CatalogBackedStructurePreviewUiFactory implements StructurePreviewUi
     }
 
     static StructurePreviewUiFactory create(StructurePreviewSceneBinder sceneBinder) {
-        if (sceneBinder == null) {
-            throw new IllegalArgumentException("Structure preview scene binder cannot be null");
-        }
         return new CatalogBackedStructurePreviewUiFactory(() -> sceneBinder);
     }
 
@@ -44,16 +38,14 @@ final class CatalogBackedStructurePreviewUiFactory implements StructurePreviewUi
     public StructurePreviewUi create(ResourceLocation controllerId,
                                      String structureKey,
                                      String idPrefix,
-                                     boolean logicalClient,
-                                     StructurePreviewPresentation presentation) {
-        if (controllerId == null || structureKey == null || structureKey.isBlank() ||
-                idPrefix == null || idPrefix.isBlank() || presentation == null) {
-            throw new IllegalArgumentException("Structure preview UI factory arguments cannot be null or blank");
+                                     boolean logicalClient) {
+        if (structureKey.isBlank() || idPrefix.isBlank()) {
+            throw new IllegalArgumentException("Structure preview UI factory strings cannot be blank");
         }
         try {
             MultiblockPreviewSpec spec = DEVerticalMultiBlocks.MULTIBLOCK_PREVIEWS.snapshot().require(controllerId);
             PreviewSelection selection = PreviewSelection.initial(spec).select(structureKey);
-            return createResolved(spec, selection, List.of(structureKey), idPrefix, logicalClient, presentation);
+            return createResolved(spec, selection, List.of(structureKey), idPrefix, logicalClient);
         } catch (RuntimeException | Error failure) {
             Data_Energistics.LOGGER.error(
                     "Failed to create structure preview UI for {} structure {}",
@@ -69,11 +61,9 @@ final class CatalogBackedStructurePreviewUiFactory implements StructurePreviewUi
                                      PreviewSelection initialSelection,
                                      List<String> allowedStructureKeys,
                                      String idPrefix,
-                                     boolean logicalClient,
-                                     StructurePreviewPresentation presentation) {
-        if (spec == null || initialSelection == null || allowedStructureKeys == null ||
-                idPrefix == null || idPrefix.isBlank() || presentation == null) {
-            throw new IllegalArgumentException("Structure preview UI factory arguments cannot be null or blank");
+                                     boolean logicalClient) {
+        if (idPrefix.isBlank()) {
+            throw new IllegalArgumentException("Structure preview UI factory id prefix cannot be blank");
         }
         try {
             return createResolved(
@@ -81,8 +71,7 @@ final class CatalogBackedStructurePreviewUiFactory implements StructurePreviewUi
                     initialSelection,
                     allowedStructureKeys,
                     idPrefix,
-                    logicalClient,
-                    presentation);
+                    logicalClient);
         } catch (RuntimeException | Error failure) {
             Data_Energistics.LOGGER.error(
                     "Failed to create structure preview UI for {} structure {}",
@@ -97,14 +86,13 @@ final class CatalogBackedStructurePreviewUiFactory implements StructurePreviewUi
                                               PreviewSelection initialSelection,
                                               List<String> allowedStructureKeys,
                                               String idPrefix,
-                                              boolean logicalClient,
-                                              StructurePreviewPresentation presentation) {
+                                              boolean logicalClient) {
         StructurePreviewSession session = new ProjectedStructurePreviewSession(
                 spec,
                 initialSelection,
                 allowedStructureKeys,
                 new MdlibNorthFacingStructurePreviewProjection());
-        StructurePreviewPanel panel = new StructurePreviewPanel(idPrefix, session, presentation);
+        StructurePreviewPanel panel = new StructurePreviewPanel(idPrefix, session);
         if (logicalClient) {
             StructurePreviewSceneBinding binding = this.sceneBinder.get().bind(
                     panel.scene(),

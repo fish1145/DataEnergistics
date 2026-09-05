@@ -2,6 +2,10 @@ package com.fish_dan_.data_energistics.item.powered;
 
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 
+import appeng.api.config.Actionable;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.storage.StorageCells;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.item.ItemStack;
@@ -9,10 +13,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.common.Tags;
-
-import appeng.api.config.Actionable;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.storage.StorageCells;
 
 import java.util.HashSet;
 import java.util.Set;

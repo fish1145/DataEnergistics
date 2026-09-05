@@ -2,10 +2,6 @@ package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityPatternCoreTier;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.inventories.BaseInternalInventory;
 import appeng.api.inventories.InternalInventory;
@@ -16,6 +12,11 @@ import appeng.api.networking.IGridConnection;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IManagedGridNode;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

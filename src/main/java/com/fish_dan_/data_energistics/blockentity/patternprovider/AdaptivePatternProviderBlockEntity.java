@@ -19,6 +19,21 @@ import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.api.implementations.blockentities.PatternContainerGroup;
+import appeng.api.inventories.InternalInventory;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.IUpgradeableObject;
+import appeng.api.upgrades.UpgradeInventories;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
+import appeng.core.definitions.AEItems;
+import appeng.menu.ISubMenu;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuHostLocator;
+import appeng.util.SettingsFrom;
+import appeng.util.inv.AppEngInternalInventory;
+import appeng.util.inv.InternalInventoryHost;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -42,20 +57,6 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 
-import appeng.api.implementations.blockentities.PatternContainerGroup;
-import appeng.api.inventories.InternalInventory;
-import appeng.api.stacks.AEItemKey;
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.IUpgradeableObject;
-import appeng.api.upgrades.UpgradeInventories;
-import appeng.blockentity.crafting.PatternProviderBlockEntity;
-import appeng.core.definitions.AEItems;
-import appeng.menu.ISubMenu;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuHostLocator;
-import appeng.util.SettingsFrom;
-import appeng.util.inv.AppEngInternalInventory;
-import appeng.util.inv.InternalInventoryHost;
 import org.jspecify.annotations.Nullable;
 
 import java.util.LinkedHashSet;

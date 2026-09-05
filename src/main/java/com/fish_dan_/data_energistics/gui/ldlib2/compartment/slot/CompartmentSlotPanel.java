@@ -4,12 +4,14 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeItemSlot;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;
 
-import net.minecraft.world.inventory.Slot;
+import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 
 import appeng.menu.AEBaseMenu;
 import appeng.menu.SlotSemantic;
-import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
-import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+
+import net.minecraft.world.inventory.Slot;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.ArrayList;

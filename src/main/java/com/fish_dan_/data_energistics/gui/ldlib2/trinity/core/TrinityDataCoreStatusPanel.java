@@ -7,8 +7,6 @@ import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostSta
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreHostStatus.StructureStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 
-import net.minecraft.network.chat.Component;
-
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.SupplierDataSource;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
@@ -16,6 +14,9 @@ import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+
+import net.minecraft.network.chat.Component;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.Locale;

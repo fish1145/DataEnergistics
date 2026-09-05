@@ -25,11 +25,13 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressPhase;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
+
+import appeng.api.stacks.AEKey;
 
 import net.minecraft.network.chat.Component;
 
-import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 
 import java.math.BigInteger;
@@ -78,8 +80,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                                                             TrinityPlanningInventory inventory,
                                                             TrinityPlanningLimits limits,
                                                             TrinityPlanningControl control) {
-        if (snapshot == null || target == null || requestedAmount == null || requestedAmount.signum() <= 0 ||
-                quantityMode == null || inventory == null || limits == null || control == null) {
+        if (requestedAmount.signum() <= 0) {
             throw new IllegalArgumentException("A Trinity graph planning request is incomplete");
         }
         try {
@@ -124,8 +125,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                                                                 int maxBindingVariants,
                                                                 int maxSccKeys,
                                                                 TrinityPlanningControl control) {
-        if (reachableSnapshot == null || target == null || maxBindingVariants <= 0 || maxSccKeys <= 0 ||
-                control == null) {
+        if (maxBindingVariants <= 0 || maxSccKeys <= 0) {
             throw new IllegalArgumentException("A Trinity graph compilation request is incomplete");
         }
         try {
@@ -206,6 +206,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
             return deadlineExceeded();
         }
         List<TrinityPatternVariant> compacted = this.effectCompactor.compact(expandedVariants);
+        control.beginProgressPhase(TrinityPlanningProgressPhase.ANALYZING_TOPOLOGY, 0);
         TrinityAlgorithmResult<TrinityCraftingTopology> analyzed = this.topologyAnalyzer.analyze(
                 reachableSnapshot,
                 compacted,
@@ -251,8 +252,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                                                              TrinityPlanningLimits limits,
                                                              TrinityPlanningMode mode,
                                                              TrinityPlanningControl control) {
-        if (compiled == null || catalogRevision < 0L || requestedAmount == null || requestedAmount.signum() <= 0 ||
-                quantityMode == null || inventory == null || limits == null || mode == null || control == null) {
+        if (catalogRevision < 0L || requestedAmount.signum() <= 0) {
             throw new IllegalArgumentException("A Trinity compiled graph solve request is incomplete");
         }
         try {
@@ -316,6 +316,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
         if (!assembled.successful()) {
             return TrinityAlgorithmResult.failure(assembled.diagnostic());
         }
+        control.beginProgressPhase(TrinityPlanningProgressPhase.ASSEMBLING_PLAN, 0);
         TrinityCraftingPlan plan = this.planAssembler.finalizePlan(
                 new TrinityGraphPlanContext(
                         catalogRevision,

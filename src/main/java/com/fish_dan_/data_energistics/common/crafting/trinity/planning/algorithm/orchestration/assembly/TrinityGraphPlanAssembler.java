@@ -19,10 +19,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanningStatistics;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+
+import net.minecraft.network.chat.Component;
+
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;

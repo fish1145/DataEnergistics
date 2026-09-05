@@ -4,16 +4,17 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdLookup;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityPatternCoreTier;
 
+import appeng.api.inventories.InternalInventory;
+import appeng.api.stacks.AEItemKey;
+import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
+import appeng.util.inv.AppEngInternalInventory;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.api.inventories.InternalInventory;
-import appeng.api.stacks.AEItemKey;
-import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
-import appeng.util.inv.AppEngInternalInventory;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntAVLTreeSet;

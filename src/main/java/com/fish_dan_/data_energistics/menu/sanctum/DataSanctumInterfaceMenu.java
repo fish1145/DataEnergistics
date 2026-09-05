@@ -3,10 +3,6 @@ package com.fish_dan_.data_energistics.menu.sanctum;
 import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-
 import appeng.api.config.Settings;
 import appeng.api.util.IConfigManager;
 import appeng.menu.SlotSemantic;
@@ -17,6 +13,10 @@ import appeng.menu.slot.AppEngSlot;
 import appeng.menu.slot.FakeSlot;
 import appeng.menu.slot.RestrictedInputSlot;
 import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
+
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 
 import java.util.ArrayList;
 import java.util.List;

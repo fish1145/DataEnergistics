@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.integration.viewer.emi;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewers;
 import com.fish_dan_.data_energistics.client.screen.crafting.CraftingPlanTreeScreen;
+import com.fish_dan_.data_energistics.client.screen.crafting.confirm.TrinityCraftConfirmScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.integration.viewer.emi.entrypoint.DataEnergisticsEmiEntrypointLoader;
 import com.fish_dan_.data_energistics.integration.viewer.emi.ingredient.CraftingPlanEmiIngredientViewer;
@@ -34,6 +35,11 @@ import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
+import appeng.api.integrations.emi.EmiStackConverters;
+import appeng.integration.modules.emi.EmiEncodePatternHandler;
+import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
+import appeng.menu.me.items.PatternEncodingTermMenu;
+
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -41,10 +47,6 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.enchantment.Enchantments;
 
-import appeng.api.integrations.emi.EmiStackConverters;
-import appeng.integration.modules.emi.EmiEncodePatternHandler;
-import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
-import appeng.menu.me.items.PatternEncodingTermMenu;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.EmiApi;
 import dev.emi.emi.api.EmiEntrypoint;
@@ -60,6 +62,7 @@ import dev.emi.emi.api.widget.Bounds;
 import dev.emi.emi.recipe.special.EmiAnvilEnchantRecipe;
 import dev.emi.emi.registry.EmiRecipes;
 import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -71,6 +74,10 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final ResourceLocation AE2_CHARGER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath("ae2", "charger");
     private static final ResourceLocation AE2_CONDENSER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath("ae2", "condenser");
+    private static final ResourceLocation EAE_CRYSTAL_ASSEMBLER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath(
+            "extendedae", "assembler");
+    private static final ResourceLocation AAE_REACTION_CHAMBER_CATEGORY_ID = ResourceLocation.fromNamespaceAndPath(
+            "advanced_ae", "reaction");
     private static final ResourceLocation RECIPE_TYPE_NAME_SOURCE_ID = Data_Energistics.id("emi_recipe_type_names");
     private static final ConverterRegistration CONVERTER_REGISTRATION = new ConverterRegistration();
 
@@ -108,6 +115,10 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
             var panel = screen.panelBounds();
             return new Bounds(panel.getX(), panel.getY(), panel.getWidth(), panel.getHeight());
         });
+        registry.addScreenBoundsProvider(TrinityCraftConfirmScreen.class, screen -> {
+            var panel = screen.panelBounds();
+            return new Bounds(panel.getX(), panel.getY(), panel.getWidth(), panel.getHeight());
+        });
         registry.addDragDropHandler(OrderPackageScreen.class, new OrderPackageEmiDragDropHandler());
         registry.addGenericExclusionArea(new UniversalTerminalEmiExclusionArea());
         registry.removeRecipes(PoweredRepairRecipeFilter::shouldHideEmiRepairRecipe);
@@ -133,9 +144,6 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addWorkstation(TimeShiftEmiRecipe.CATEGORY, EmiStack.of(DEItems.RADIX_CONTAINMENT_SPHERE.get()));
         registry.addCategory(TrinityMultiblockEmiRecipe.CATEGORY);
         registry.addRecipe(new TrinityMultiblockEmiRecipe());
-        registry.addWorkstation(
-                TrinityMultiblockEmiRecipe.CATEGORY,
-                EmiStack.of(DEBlocks.TRINITY_DATA_CORE.get()));
         registry.getRecipeManager().getAllRecipesFor(DERecipes.RADIX_CONTAINMENT_SPHERE_RIGHT_CLICK_TYPE.get()).stream()
                 .map(RadixContainmentSphereRightClickEmiRecipe::new)
                 .forEach(registry::addRecipe);
@@ -157,6 +165,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 .getAllRecipesFor(DERecipes.DATA_RIPPER_REASSEMBLER_TYPE.get()).stream()
                 .map(DataRipperReassemblerEmiRecipe::new)
                 .forEach(consumer));
+        registry.addDeferredRecipes(consumer -> registerExternalFactoryWorkstations(registry));
         registerRecipeCategory(
                 registry,
                 DataChargerEmiRecipe.CATEGORY,
@@ -252,6 +261,19 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addWorkstation(ae2ChargerCategory, EmiStack.of(DEBlocks.EXTENDED_DATA_CHARGER.get()));
     }
 
+    private static void registerExternalFactoryWorkstations(EmiRegistry registry) {
+        registerExternalFactoryWorkstation(registry, EAE_CRYSTAL_ASSEMBLER_CATEGORY_ID);
+        registerExternalFactoryWorkstation(registry, AAE_REACTION_CHAMBER_CATEGORY_ID);
+    }
+
+    private static void registerExternalFactoryWorkstation(EmiRegistry registry, ResourceLocation categoryId) {
+        EmiRecipeCategory category = findCategoryById(categoryId);
+        if (category != null) {
+            registry.addWorkstation(category, EmiStack.of(DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get()));
+        }
+    }
+
+    @Nullable
     private static EmiRecipeCategory findCategoryById(ResourceLocation categoryId) {
         return EmiRecipes.categories.stream()
                 .filter(category -> category.getId().equals(categoryId))

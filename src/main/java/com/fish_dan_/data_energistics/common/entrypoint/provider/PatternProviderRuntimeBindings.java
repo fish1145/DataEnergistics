@@ -1,11 +1,15 @@
 package com.fish_dan_.data_energistics.common.entrypoint.provider;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.registry.provider.callback.PatternProviderWorkstationSource;
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderRegistration;
+import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderWorkstationSourceRegistration;
+import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
 
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.helpers.patternprovider.PatternContainer;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -24,11 +28,13 @@ public final class PatternProviderRuntimeBindings {
     /**
      * Installs the immutable declaration snapshot exactly once during common setup.
      */
-    public static synchronized void install(List<PatternProviderRegistration> registrations) {
+    public static synchronized void install(
+                                            List<PatternProviderRegistration> registrations,
+                                            List<PatternProviderWorkstationSourceRegistration> workstationSources) {
         if (registry != null) {
             throw new IllegalStateException("Pattern provider runtime bindings are already installed");
         }
-        registry = new LivePatternProviderBindingRegistry(registrations);
+        registry = new LivePatternProviderBindingRegistry(registrations, workstationSources);
     }
 
     /**
@@ -67,6 +73,12 @@ public final class PatternProviderRuntimeBindings {
      */
     public static Optional<ResolvedProviderBinding> resolve(PatternContainer container) {
         return requireInstalled().resolve(container);
+    }
+
+    /** Resolves the custom workstation topology registered for one live provider identity family. */
+    public static @Nullable PatternProviderWorkstationSource resolveWorkstationSource(
+                                                                                      PatternProviderIdentity identity) {
+        return requireInstalled().resolveWorkstationSource(identity);
     }
 
     /**

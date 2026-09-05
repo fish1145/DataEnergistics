@@ -5,13 +5,13 @@ import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalAcce
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
+import com.lowdragmc.lowdraglib2.gui.factory.PlayerUIMenuType;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
-
-import com.lowdragmc.lowdraglib2.gui.factory.PlayerUIMenuType;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 
 /** Registers and opens the source-agnostic LDLib2 menu used by Curios and map callbacks. */
 public final class OrbitalControlPlayerMenu {

@@ -2,11 +2,12 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
+import com.lowdragmc.lowdraglib2.gui.ui.UI;
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.fml.loading.FMLEnvironment;
 
-import com.lowdragmc.lowdraglib2.gui.ui.UI;
-import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
 

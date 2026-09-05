@@ -4,17 +4,18 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiTheme;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiTheme.Tone;
 
-import net.minecraft.network.chat.Component;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-
 import com.lowdragmc.lowdraglib2.gui.hud.ModularHudLayer;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+
+import net.minecraft.network.chat.Component;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 /** LDLib2 world HUD layer for the currently held orbital control terminal. */

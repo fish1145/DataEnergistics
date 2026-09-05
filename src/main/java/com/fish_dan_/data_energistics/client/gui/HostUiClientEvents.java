@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.client.gui;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostModularUI;
 
+import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolder;
+
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -10,8 +12,6 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ScreenEvent;
-
-import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolder;
 
 /** Routes hosted-window keys before either AE2 or a legacy screen can consume them. */
 @OnlyIn(Dist.CLIENT)

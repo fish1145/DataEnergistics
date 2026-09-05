@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.control.ui;
 
 import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEmitter;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;

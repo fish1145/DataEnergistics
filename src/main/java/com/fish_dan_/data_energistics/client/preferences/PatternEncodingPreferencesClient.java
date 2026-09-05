@@ -11,17 +11,19 @@ import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodin
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderClickStatistic;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesSyncPayload;
 
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import appeng.menu.me.items.PatternEncodingTermMenu;
-import appeng.parts.encoding.EncodingMode;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectLists;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 
@@ -48,8 +50,9 @@ public final class PatternEncodingPreferencesClient {
         if (session.rankingContext() == null && !session.hasDeferredSnapshot()) {
             ResourceLocation fixedWorkstation = PatternEncodingSourceHelper.resolveFallbackWorkstationForMode(
                     interfaces.previewMenu().data_energistics$getEncodingMode());
-            session.setRankingContext(PatternEncodingSourceHelper.resolveFixedModeRankingContext(
-                    interfaces.previewMenu().data_energistics$getEncodingMode(), fixedWorkstation));
+            PatternEncodingRankingContext fixedContext = PatternEncodingSourceHelper.resolveFixedModeRankingContext(
+                    interfaces.previewMenu().data_energistics$getEncodingMode(), fixedWorkstation);
+            session.setRecipeContext(fixedContext, fixedContext == null ? session.recipeId() : null);
         }
         sendSnapshot(menu);
     }
@@ -76,14 +79,15 @@ public final class PatternEncodingPreferencesClient {
      * Persists a successful processing transfer with its exact recipe-type context.
      */
     public static void captureTransferredProcessingRecipe(AbstractContainerMenu menu,
-                                                          PatternEncodingRankingContext rankingContext) {
+                                                          PatternEncodingRankingContext rankingContext,
+                                                          @Nullable ResourceLocation recipeId) {
         Interfaces interfaces = Interfaces.require(menu);
         PatternEncodingPreferenceSession session = interfaces.preferenceMenu().data_energistics$getPreferenceSession();
         session.rememberEncodedPattern(interfaces.previewMenu());
         if (interfaces.sourceAware().data_energistics$isPatternSourceEnabled()) {
-            session.setRankingContext(rankingContext);
+            session.setRecipeContext(rankingContext, recipeId);
         } else {
-            session.setRankingContext(null);
+            session.setRecipeContext(null, recipeId);
         }
         session.deferSnapshotUntil(EncodingMode.PROCESSING);
     }
@@ -136,7 +140,9 @@ public final class PatternEncodingPreferencesClient {
         PatternEncodingClientPreferencesAccess.get().setPatternSourceEnabled(enabled);
         interfaces.sourceAware().data_energistics$setPatternSourceEnabled(enabled);
         if (!enabled) {
-            interfaces.preferenceMenu().data_energistics$getPreferenceSession().setRankingContext(null);
+            PatternEncodingPreferenceSession session = interfaces.preferenceMenu()
+                    .data_energistics$getPreferenceSession();
+            session.setRecipeContext(null, session.recipeId());
             interfaces.sourceAware().data_energistics$setPendingPatternSource(null);
         }
         sendSnapshot(menu);
@@ -194,6 +200,7 @@ public final class PatternEncodingPreferencesClient {
                 preferences.previewPanelOffsetX(),
                 preferences.previewPanelOffsetY(),
                 rankingContext,
+                session.recipeId(),
                 statistics));
     }
 

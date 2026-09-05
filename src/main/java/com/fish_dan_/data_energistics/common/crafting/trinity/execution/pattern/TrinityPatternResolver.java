@@ -3,11 +3,11 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 
-import net.minecraft.core.HolderLookup;
-
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEKey;
 import appeng.me.service.CraftingService;
+
+import net.minecraft.core.HolderLookup;
 
 /**
  * Resolves an immutable plan identity back to the exact live pattern published on the server thread.

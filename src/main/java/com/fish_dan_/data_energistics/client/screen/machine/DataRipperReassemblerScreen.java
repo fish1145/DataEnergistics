@@ -8,16 +8,6 @@ import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
 import com.fish_dan_.data_energistics.client.widget.OutputSideActionButton;
 import com.fish_dan_.data_energistics.menu.machine.DataRipperReassemblerMenu;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-import net.neoforged.neoforge.fluids.FluidStack;
-
 import appeng.api.client.AEKeyRendering;
 import appeng.api.config.Settings;
 import appeng.api.config.YesNo;
@@ -32,6 +22,17 @@ import appeng.client.gui.widgets.ServerSettingToggleButton;
 import appeng.core.localization.Tooltips;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
+import net.neoforged.neoforge.fluids.FluidStack;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

@@ -8,9 +8,6 @@ import com.fish_dan_.data_energistics.ae2.grid.VirtualGridNode;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomain;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerNetworkDomainChange;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.Level;
-
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridService;
@@ -20,6 +17,10 @@ import appeng.api.networking.pathing.IPathingService;
 import appeng.me.Grid;
 import appeng.me.GridNode;
 import appeng.me.helpers.GridServiceContainer;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.Level;
+
 import com.google.common.collect.SetMultimap;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;

@@ -5,14 +5,14 @@ import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalControlInt
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalControlMenuSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.session.OrbitalControlServerSession;
 
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
-
 import com.lowdragmc.lowdraglib2.gui.sync.SyncValue;
 import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEmitter;
 import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEventBuilder;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
+
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.Objects;
 import java.util.function.BooleanSupplier;

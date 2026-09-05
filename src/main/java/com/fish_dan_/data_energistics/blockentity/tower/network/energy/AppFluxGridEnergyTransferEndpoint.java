@@ -4,9 +4,9 @@ import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergy
 import com.fish_dan_.data_energistics.blockentity.tower.equalization.TowerEnergyEndpointSnapshot;
 import com.fish_dan_.data_energistics.integration.tower.energy.appflux.AE2FluxIntegration;
 
-import net.minecraft.world.level.Level;
-
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+
+import net.minecraft.world.level.Level;
 
 /**
  * Bidirectional virtual endpoint backed by the primary grid's Applied Flux inventory.

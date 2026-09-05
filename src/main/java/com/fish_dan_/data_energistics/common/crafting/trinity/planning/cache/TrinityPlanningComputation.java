@@ -22,11 +22,16 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanningStatistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressMeasure;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressPhase;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
+
+import appeng.api.stacks.AEKey;
 
 import net.minecraft.network.chat.Component;
 
-import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
@@ -38,7 +43,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
@@ -83,19 +87,6 @@ public final class TrinityPlanningComputation {
     }
 
     /**
-     * Submits one caller-isolated orchestration; revision invalidation occurs when that request enters the shared
-     * computation layers.
-     *
-     * @param input immutable pure planning input
-     * @return caller-owned future; cancellation with interruption enabled stops this request's planner thread
-     */
-    public Future<TrinityPlanningComputationResult> begin(TrinityPlanningInput input) {
-        return this.cache.submit(
-                input.gridScope(),
-                () -> calculate(input));
-    }
-
-    /**
      * Enters the cache layers on the current accepted planner worker without submitting nested work.
      *
      * @param input immutable pure-planning input
@@ -103,23 +94,34 @@ public final class TrinityPlanningComputation {
      * @throws InterruptedException when this worker is interrupted while waiting for a shared calculation
      * @throws ExecutionException   when a shared bottom calculation fails
      */
-    public TrinityPlanningComputationResult calculate(TrinityPlanningInput input)
-                                                                                  throws InterruptedException, ExecutionException {
+    public TrinityPlanningComputationResult calculate(TrinityPlanningInput input,
+                                                      TrinityPlanningProgressReporter progress)
+                                                                                                throws InterruptedException, ExecutionException {
         long startedNanos = this.nanoClock.getAsLong();
         this.cache.invalidateRevision(input.gridScope(), input.graph().revision());
         TrinityPlanningLimits limits = input.limits();
         TrinityPlanningSession session = TrinityPlanningSession.create(
                 () -> false,
                 this.nanoClock,
-                TimeUnit.MILLISECONDS.toNanos(limits.planningBudgetMs()));
+                TimeUnit.MILLISECONDS.toNanos(limits.planningBudgetMs()),
+                progress);
         TrinityPlanningControl feasibilityControl = session.feasibilityControl();
         CacheTrace cacheTrace = new CacheTrace();
+        progress.publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                TrinityPlanningProgressPhase.REACHABLE_SUBGRAPH,
+                TrinityPlanningProgressMeasure.INDETERMINATE));
         TrinityComputationValue<TrinityCraftingGraphSnapshot> reachable = this.cache.computeInline(
                 input.gridScope(),
                 TrinityComputationNamespace.REACHABLE_GRAPH,
                 input.graph().revision(),
                 new ReachableGraphKey(input.target()),
                 () -> TrinityCachedComputation.cacheable(input.graph().reachableSubgraph(input.target())));
+        int patternCount = reachable.value().patterns().size();
+        progress.publish(patternCount == 0 ?
+                TrinityPlanningProgressSnapshot.withoutUnits(
+                        TrinityPlanningProgressPhase.EXPANDING_PATTERNS,
+                        TrinityPlanningProgressMeasure.NONE) :
+                TrinityPlanningProgressSnapshot.exact(TrinityPlanningProgressPhase.EXPANDING_PATTERNS, 0, patternCount));
         CompiledGraphKey compiledKey = new CompiledGraphKey(
                 input.target(),
                 reachable.value().patterns().stream().map(TrinityCraftingGraphPattern::identity).toList(),
@@ -135,7 +137,8 @@ public final class TrinityPlanningComputation {
                         input.target(),
                         limits,
                         feasibilityControl,
-                        cacheTrace)));
+                        cacheTrace,
+                        progress)));
         cacheTrace.targetStructureHit = compiled.cacheHit();
         if (!compiled.value().successful()) {
             long planningNanos = elapsedSince(startedNanos);
@@ -159,9 +162,21 @@ public final class TrinityPlanningComputation {
                     planningNanos,
                     cacheTrace.snapshot(false));
         }
-        TrinityCompiledGraphProofView requestStructure = attachRouteHints(input.gridScope(), structure, cacheTrace);
+        TrinityCompiledGraphProofView requestStructure = attachRouteHints(input.gridScope(), structure, cacheTrace, progress);
+        int inventoryKeyCount = requestStructure.structure().relevantInventoryKeys().size();
+        progress.publish(inventoryKeyCount == 0 ?
+                TrinityPlanningProgressSnapshot.withoutUnits(
+                        TrinityPlanningProgressPhase.PROJECTING_REQUEST,
+                        TrinityPlanningProgressMeasure.NONE) :
+                TrinityPlanningProgressSnapshot.exact(TrinityPlanningProgressPhase.PROJECTING_REQUEST, 0, inventoryKeyCount));
         TrinityPlanningInventory projectedInventory = input.inventory()
                 .project(requestStructure.structure().relevantInventoryKeys());
+        if (inventoryKeyCount > 0) {
+            progress.publish(TrinityPlanningProgressSnapshot.exact(
+                    TrinityPlanningProgressPhase.PROJECTING_REQUEST,
+                    inventoryKeyCount,
+                    inventoryKeyCount));
+        }
         InFlightRequestKey inFlightKey = new InFlightRequestKey(
                 compiledKey,
                 input.requestedAmount(),
@@ -170,11 +185,18 @@ public final class TrinityPlanningComputation {
                 limits.maxScheduleStates(),
                 limits.planningBudgetMs(),
                 SOLVE_STRATEGY_VERSION);
-        TrinityComputationValue<TrinityAlgorithmResult<TrinityCraftingPlan>> solved = this.cache.computeInline(
+        TrinityComputationValue<TrinityAlgorithmResult<TrinityCraftingPlan>> solved = this.cache.computeInlineObserved(
                 input.gridScope(),
                 TrinityComputationNamespace.REQUEST_IN_FLIGHT,
                 input.graph().revision(),
                 inFlightKey,
+                cacheHit -> {
+                    if (cacheHit) {
+                        progress.publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                                TrinityPlanningProgressPhase.WAITING_FOR_SHARED_RESULT,
+                                TrinityPlanningProgressMeasure.INDETERMINATE));
+                    }
+                },
                 () -> TrinityCachedComputation.transientValue(solveWithFallback(
                         requestStructure,
                         input,
@@ -200,10 +222,12 @@ public final class TrinityPlanningComputation {
                                                                           AEKey target,
                                                                           TrinityPlanningLimits limits,
                                                                           TrinityPlanningControl control,
-                                                                          CacheTrace cacheTrace)
-                                                                                                 throws InterruptedException, ExecutionException {
+                                                                          CacheTrace cacheTrace,
+                                                                          TrinityPlanningProgressReporter progress)
+                                                                                                                    throws InterruptedException, ExecutionException {
         ObjectArrayList<TrinityPatternVariant> expanded = new ObjectArrayList<>();
         int totalVariants = 0;
+        int completedPatterns = 0;
         for (TrinityCraftingGraphPattern pattern : reachable.patterns()) {
             TrinityComputationValue<TrinityAlgorithmResult<List<TrinityPatternVariant>>> patternExpansion = this.cache
                     .computeInline(
@@ -228,23 +252,53 @@ public final class TrinityPlanningComputation {
             }
             totalVariants = Math.addExact(totalVariants, patternVariants);
             expanded.addAll(patternExpansion.value().value());
+            completedPatterns = Math.incrementExact(completedPatterns);
+            publishExactProgress(
+                    progress,
+                    TrinityPlanningProgressPhase.EXPANDING_PATTERNS,
+                    completedPatterns,
+                    reachable.patterns().size());
         }
+        progress.publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                TrinityPlanningProgressPhase.COMPACTING_VARIANTS,
+                TrinityPlanningProgressMeasure.INDETERMINATE));
         TrinityAlgorithmResult<TrinityCompiledGraph> compiled = this.pipeline.compileExpanded(
                 reachable,
                 target,
                 ObjectLists.unmodifiable(expanded),
                 limits.maxSccKeys(),
                 control);
-        return compiled.successful() ?
-                TrinityAlgorithmResult.success(attachStructuralProofs(gridScope, compiled.value(), cacheTrace)) :
-                compiled;
+        if (!compiled.successful()) {
+            return compiled;
+        }
+        progress.publish(TrinityPlanningProgressSnapshot.exact(
+                TrinityPlanningProgressPhase.ANALYZING_TOPOLOGY,
+                1,
+                1));
+        return TrinityAlgorithmResult.success(attachStructuralProofs(gridScope, compiled.value(), cacheTrace, progress));
     }
 
     private TrinityCompiledGraph attachStructuralProofs(
                                                         long gridScope,
                                                         TrinityCompiledGraph compiled,
-                                                        CacheTrace cacheTrace)
-                                                                               throws InterruptedException, ExecutionException {
+                                                        CacheTrace cacheTrace,
+                                                        TrinityPlanningProgressReporter progress)
+                                                                                                  throws InterruptedException, ExecutionException {
+        int proofCount = Math.toIntExact(compiled.topology().variantsByOutputKey().entrySet().stream()
+                .filter(indexed -> {
+                    Integer componentIndex = compiled.topology().componentByKey().get(indexed.getKey());
+                    return componentIndex != null && !compiled.topology().components().get(componentIndex).cyclic();
+                })
+                .count());
+        proofCount = Math.addExact(proofCount, Math.multiplyExact(Math.toIntExact(compiled.topology().components().stream()
+                .filter(TrinityStronglyConnectedComponent::cyclic)
+                .count()), 2));
+        progress.publish(proofCount == 0 ?
+                TrinityPlanningProgressSnapshot.withoutUnits(
+                        TrinityPlanningProgressPhase.BUILDING_STRUCTURAL_PROOFS,
+                        TrinityPlanningProgressMeasure.NONE) :
+                TrinityPlanningProgressSnapshot.exact(TrinityPlanningProgressPhase.BUILDING_STRUCTURAL_PROOFS, 0, proofCount));
+        int completedProofs = 0;
         Object2ObjectLinkedOpenHashMap<AEKey, TrinityAcyclicRouteFamily> routeFamilies = new Object2ObjectLinkedOpenHashMap<>();
         for (Map.Entry<AEKey, List<TrinityPatternVariant>> indexed : compiled.topology()
                 .variantsByOutputKey()
@@ -263,6 +317,12 @@ public final class TrinityPlanningComputation {
                             indexed.getValue())));
             cacheTrace.recordDagRouteProof(family.cacheHit());
             routeFamilies.put(indexed.getKey(), family.value());
+            completedProofs = Math.incrementExact(completedProofs);
+            publishExactProgress(
+                    progress,
+                    TrinityPlanningProgressPhase.BUILDING_STRUCTURAL_PROOFS,
+                    completedProofs,
+                    proofCount);
         }
 
         ObjectArrayList<TrinityCycleUnitProofIndex> cycleUnitProofs = new ObjectArrayList<>();
@@ -282,6 +342,12 @@ public final class TrinityPlanningComputation {
                             component.keys())));
             cacheTrace.recordMipTemplate(template.cacheHit());
             mipTemplates.put(component.index(), template.value());
+            completedProofs = Math.incrementExact(completedProofs);
+            publishExactProgress(
+                    progress,
+                    TrinityPlanningProgressPhase.BUILDING_STRUCTURAL_PROOFS,
+                    completedProofs,
+                    proofCount);
             TrinityComputationValue<TrinityCycleUnitProofIndex> proof = this.cache.computeInline(
                     gridScope,
                     TrinityComputationNamespace.CYCLE_UNIT_PROOF,
@@ -295,6 +361,12 @@ public final class TrinityPlanningComputation {
                     });
             cacheTrace.recordCycleUnitProofs(proof.cacheHit() ? proof.value().uniqueCount() : 0);
             cycleUnitProofs.add(proof.value());
+            completedProofs = Math.incrementExact(completedProofs);
+            publishExactProgress(
+                    progress,
+                    TrinityPlanningProgressPhase.BUILDING_STRUCTURAL_PROOFS,
+                    completedProofs,
+                    proofCount);
         }
         return compiled.withStructuralProofs(
                 Object2ObjectMaps.unmodifiable(routeFamilies),
@@ -305,8 +377,18 @@ public final class TrinityPlanningComputation {
     private TrinityCompiledGraphProofView attachRouteHints(
                                                            long gridScope,
                                                            TrinityCompiledGraph compiled,
-                                                           CacheTrace cacheTrace) {
+                                                           CacheTrace cacheTrace,
+                                                           TrinityPlanningProgressReporter progress) {
         Object2ObjectLinkedOpenHashMap<AEKey, TrinityAcyclicRouteHint> hints = new Object2ObjectLinkedOpenHashMap<>();
+        int totalHints = Math.toIntExact(compiled.routeFamilies().values().stream()
+                .filter(family -> family.provedUniqueProducer().isEmpty())
+                .count());
+        progress.publish(totalHints == 0 ?
+                TrinityPlanningProgressSnapshot.withoutUnits(
+                        TrinityPlanningProgressPhase.LOADING_ROUTE_HINTS,
+                        TrinityPlanningProgressMeasure.NONE) :
+                TrinityPlanningProgressSnapshot.exact(TrinityPlanningProgressPhase.LOADING_ROUTE_HINTS, 0, totalHints));
+        int completedHints = 0;
         for (TrinityAcyclicRouteFamily family : compiled.routeFamilies().values()) {
             if (family.provedUniqueProducer().isPresent()) {
                 continue;
@@ -320,6 +402,12 @@ public final class TrinityPlanningComputation {
                 cacheTrace.routeHintHits++;
                 hints.put(family.output(), cached.orElseThrow());
             }
+            completedHints = Math.incrementExact(completedHints);
+            publishExactProgress(
+                    progress,
+                    TrinityPlanningProgressPhase.LOADING_ROUTE_HINTS,
+                    completedHints,
+                    totalHints);
         }
         return new TrinityCompiledGraphProofView(compiled, Object2ObjectMaps.unmodifiable(hints));
     }
@@ -410,6 +498,7 @@ public final class TrinityPlanningComputation {
                                                                           TrinityPlanningSession session) {
         Optional<TrinityPlanningControl> boundedControl = session.boundedControl();
         if (boundedControl.isPresent()) {
+            session.beginSolving(TrinityPlanningProgressPhase.SOLVING_BOUNDED, limits.maxScheduleStates());
             TrinityAlgorithmResult<TrinityCraftingPlan> bounded = solveFirstFeasible(
                     structure,
                     input,
@@ -420,12 +509,22 @@ public final class TrinityPlanningComputation {
                 return bounded;
             }
         }
+        session.beginSolving(TrinityPlanningProgressPhase.SOLVING_FALLBACK, 0);
         return solveFirstFeasible(
                 structure,
                 input,
                 projectedInventory,
                 limits,
                 session.feasibilityControl());
+    }
+
+    private static void publishExactProgress(TrinityPlanningProgressReporter progress,
+                                             TrinityPlanningProgressPhase phase,
+                                             int completed,
+                                             int total) {
+        if ((completed & 31) == 0 || completed == total) {
+            progress.publish(TrinityPlanningProgressSnapshot.exact(phase, completed, total));
+        }
     }
 
     private TrinityAlgorithmResult<TrinityCraftingPlan> solveFirstFeasible(

@@ -1,9 +1,10 @@
 package com.fish_dan_.data_energistics.common.trinity.host;
 
+import appeng.api.stacks.AEKey;
+
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 
-import appeng.api.stacks.AEKey;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import org.jspecify.annotations.Nullable;

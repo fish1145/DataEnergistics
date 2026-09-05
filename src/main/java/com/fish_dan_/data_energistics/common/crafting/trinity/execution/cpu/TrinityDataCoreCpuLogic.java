@@ -57,18 +57,12 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventorySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputProjection;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
-
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
@@ -95,6 +89,14 @@ import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.crafting.inv.ListCraftingInventory;
 import appeng.hooks.ticking.TickHandler;
 import appeng.me.service.CraftingService;
+
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+
 import com.google.common.base.Preconditions;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
@@ -929,7 +931,8 @@ final class TrinityDataCoreCpuLogic {
         return TrinityPlanningInventorySnapshot.capture(
                 snapshot.keys(),
                 storageService.getInventory(),
-                this.cpu.actionSource()).inventory()
+                this.cpu.actionSource(),
+                TrinityPlanningProgressReporter.none()).inventory()
                 .plus(this.inventory.list)
                 .plus(this.exactWorkingInventory.snapshot());
     }

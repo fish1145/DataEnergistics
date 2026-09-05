@@ -3,9 +3,10 @@ package com.fish_dan_.data_energistics.integration.viewer.jei.ingredient;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.integration.viewer.xei.ingredient.DataResourceKey;
 
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.resources.ResourceLocation;
 
-import appeng.api.stacks.GenericStack;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import mezz.jei.api.ingredients.IIngredientType;

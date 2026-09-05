@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.api.registry.provider.callback;
 
-import net.minecraft.server.level.ServerPlayer;
-
 import appeng.helpers.patternprovider.PatternContainer;
+
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.List;
 

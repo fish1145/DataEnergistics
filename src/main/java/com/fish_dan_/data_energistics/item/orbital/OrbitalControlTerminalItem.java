@@ -5,6 +5,9 @@ import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiFactory
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiSource;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
+import com.lowdragmc.lowdraglib2.gui.factory.HeldItemUIMenuType;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -13,9 +16,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-
-import com.lowdragmc.lowdraglib2.gui.factory.HeldItemUIMenuType;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 
 /**
  * UUID-routed handheld entry point for the orbital weapon fire-control UI.

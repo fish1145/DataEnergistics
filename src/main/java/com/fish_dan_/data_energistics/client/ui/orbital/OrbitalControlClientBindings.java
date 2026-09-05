@@ -20,16 +20,17 @@ import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlDashboard
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiSource;
 import com.fish_dan_.data_energistics.orbital.map.OrbitalMapTile;
 
+import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEmitter;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+import com.lowdragmc.lowdraglib2.syncdata.ISubscription;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEmitter;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
-import com.lowdragmc.lowdraglib2.syncdata.ISubscription;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;

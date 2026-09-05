@@ -8,11 +8,6 @@ import com.fish_dan_.data_energistics.blockentity.storage.MePatternBufferBlockEn
 import com.fish_dan_.data_energistics.common.compartment.CompartmentStorageDisplayInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.inventories.InternalInventory;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.client.Point;
@@ -28,6 +23,11 @@ import appeng.menu.slot.OptionalFakeSlot;
 import appeng.menu.slot.RestrictedInputSlot;
 import appeng.menu.slot.RestrictedInputSlot.PlacableItemType;
 import appeng.util.ConfigMenuInventory;
+
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -4,6 +4,11 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.order.OrderPackageTarget;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
+import appeng.api.client.AEKeyRendering;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
@@ -16,10 +21,6 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
-import appeng.api.client.AEKeyRendering;
-import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 

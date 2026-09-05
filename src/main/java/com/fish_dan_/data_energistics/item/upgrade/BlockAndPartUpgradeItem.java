@@ -1,5 +1,11 @@
 package com.fish_dan_.data_energistics.item.upgrade;
 
+import appeng.api.parts.IPart;
+import appeng.api.parts.IPartItem;
+import appeng.blockentity.AEBaseBlockEntity;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.parts.AEBasePart;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -15,11 +21,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
 
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartItem;
-import appeng.blockentity.AEBaseBlockEntity;
-import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.parts.AEBasePart;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;

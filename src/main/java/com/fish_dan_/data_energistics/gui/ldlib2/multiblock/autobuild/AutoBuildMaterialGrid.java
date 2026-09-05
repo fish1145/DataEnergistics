@@ -2,9 +2,6 @@ package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.autobuild;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
@@ -12,10 +9,17 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
-import dev.vfyjxf.taffy.style.TaffyPosition;
-import org.jspecify.annotations.Nullable;
+import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
+import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 
-import java.util.ArrayList;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+
+import dev.vfyjxf.taffy.style.TaffyPosition;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
+import it.unimi.dsi.fastutil.objects.ObjectLists;
+
 import java.util.List;
 import java.util.function.LongFunction;
 
@@ -29,17 +33,25 @@ final class AutoBuildMaterialGrid extends UIElement {
     private static final int CELL_SIZE = 18;
     private static final int VISIBLE_ENTRY_COUNT = COLUMN_COUNT * VISIBLE_ROW_COUNT;
 
-    private final List<MaterialEntry> entries = new ArrayList<>(VISIBLE_ENTRY_COUNT);
+    private final ObjectList<MaterialEntry> entries = new ObjectArrayList<>(VISIBLE_ENTRY_COUNT);
     private final LongFunction<String> amountFormatter;
-    private List<PreviewMaterial> materials = List.of();
-    private Scroller.@Nullable Vertical scrollbar;
+    private final IngredientIO recipeRole;
+    private final Scroller.Vertical scrollbar;
+    private ObjectList<PreviewMaterial> materials = ObjectLists.emptyList();
     private int firstVisibleRow;
     private boolean overflowing;
 
     AutoBuildMaterialGrid(String id,
                           AutoBuildComposition.Region geometry,
-                          LongFunction<String> amountFormatter) {
+                          LongFunction<String> amountFormatter,
+                          IngredientIO recipeRole,
+                          Scroller.Vertical scrollbar) {
+        if (recipeRole != IngredientIO.NONE && recipeRole != IngredientIO.INPUT) {
+            throw new IllegalArgumentException("Automatic-build material grid only supports NONE and INPUT roles");
+        }
         this.amountFormatter = amountFormatter;
+        this.recipeRole = recipeRole;
+        this.scrollbar = scrollbar;
         setId(id);
         setOverflowVisible(false);
         layout(layout -> layout
@@ -55,16 +67,6 @@ final class AutoBuildMaterialGrid extends UIElement {
             addChild(entry.root());
         }
         addEventListener(UIEvents.MOUSE_WHEEL, this::onMouseWheel);
-    }
-
-    /**
-     * Binds the single scrollbar authored in the NBT instead of creating a second Java scrollbar.
-     */
-    void bindScrollbar(Scroller.Vertical scrollbar) {
-        if (this.scrollbar != null) {
-            throw new IllegalStateException("Trinity automatic-build material grid already has a scrollbar");
-        }
-        this.scrollbar = scrollbar;
         AuthoredScrollerThumbSize.bind(scrollbar);
         scrollbar.setRange(0.0F, 1.0F);
         scrollbar.setOnValueChanged(ignored -> refreshFromScrollbar());
@@ -75,25 +77,30 @@ final class AutoBuildMaterialGrid extends UIElement {
      * Replaces the projected material snapshot while retaining the fixed editor-sized entry tree.
      */
     void setMaterials(List<PreviewMaterial> materials) {
-        this.materials = List.copyOf(materials);
+        this.materials = ObjectLists.unmodifiable(new ObjectArrayList<>(materials));
         this.firstVisibleRow = Math.min(this.firstVisibleRow, maxFirstVisibleRow());
         updateScrollbar();
         refreshEntries();
     }
 
     private MaterialEntry createEntry(String idPrefix, int index) {
+        int column = index % COLUMN_COUNT;
+        int row = index / COLUMN_COUNT;
         UIElement root = new UIElement();
         root.setId(idPrefix + "_entry_" + index);
         root.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
-                .left(index % COLUMN_COUNT * CELL_SIZE)
-                .top(index / COLUMN_COUNT * CELL_SIZE)
+                .left(column * CELL_SIZE)
+                .top(row * CELL_SIZE)
                 .width(CELL_SIZE)
                 .height(CELL_SIZE));
 
-        ItemSlot slot = new ItemSlot();
+        ItemSlot slot = new MaterialItemSlot();
         slot.setId(root.getId() + "_slot");
         slot.setItem(ItemStack.EMPTY);
+        if (this.recipeRole == IngredientIO.INPUT) {
+            slot.xeiRecipeSlot(IngredientIO.INPUT, 1.0f);
+        }
         slot.layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(0)
@@ -122,7 +129,7 @@ final class AutoBuildMaterialGrid extends UIElement {
     }
 
     private void onMouseWheel(UIEvent event) {
-        if (!this.overflowing || this.scrollbar == null || event.deltaY == 0.0F) {
+        if (!this.overflowing || event.deltaY == 0.0F) {
             return;
         }
         this.scrollbar.scrollValue(event.deltaY > 0.0F ?
@@ -132,18 +139,12 @@ final class AutoBuildMaterialGrid extends UIElement {
     }
 
     private void refreshFromScrollbar() {
-        if (this.scrollbar == null) {
-            return;
-        }
         int maximum = maxFirstVisibleRow();
         this.firstVisibleRow = maximum == 0 ? 0 : Math.round(this.scrollbar.getNormalizedValue() * maximum);
         refreshEntries();
     }
 
     private void updateScrollbar() {
-        if (this.scrollbar == null) {
-            return;
-        }
         int maximum = maxFirstVisibleRow();
         this.overflowing = maximum > 0;
         this.firstVisibleRow = Math.min(this.firstVisibleRow, maximum);
@@ -175,8 +176,17 @@ final class AutoBuildMaterialGrid extends UIElement {
 
     private void activate(MaterialEntry entry, PreviewMaterial material) {
         entry.root().setVisible(true);
-        entry.slot().setItem(material.key().toStack(1));
+        int displayAmount = this.recipeRole == IngredientIO.INPUT ? xeiAmount(material) : 1;
+        entry.slot().setItem(material.key().toStack(displayAmount));
         entry.amount().setText(Component.literal(this.amountFormatter.apply(material.amount())));
+    }
+
+    private static int xeiAmount(PreviewMaterial material) {
+        if (material.amount() > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                    "XEI material amount exceeds the supported int range: " + material.amount());
+        }
+        return (int) material.amount();
     }
 
     private static void deactivate(MaterialEntry entry) {
@@ -186,4 +196,13 @@ final class AutoBuildMaterialGrid extends UIElement {
     }
 
     private record MaterialEntry(UIElement root, ItemSlot slot, Label amount) {}
+
+    /** Keeps the recipe count intact while the authored amount label owns visible quantity rendering. */
+    private static final class MaterialItemSlot extends ItemSlot {
+
+        @Override
+        protected void drawItemStack(GUIContext guiContext, ItemStack itemStack) {
+            super.drawItemStack(guiContext, itemStack.getCount() == 1 ? itemStack : itemStack.copyWithCount(1));
+        }
+    }
 }

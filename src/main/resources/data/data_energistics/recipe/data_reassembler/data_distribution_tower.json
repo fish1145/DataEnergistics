@@ -8,15 +8,7 @@
 			},
 			{
 				"item": "ae2:wireless_access_point",
-				"count": 3
-			},
-			{
-				"item": "ae2:quantum_ring",
-				"count": 16
-			},
-			{
-				"item": "ae2:quantum_link",
-				"count": 2
+				"count": 1
 			},
 			{
 				"item": "ae2:me_p2p_tunnel",
@@ -29,6 +21,10 @@
 			{
 				"item": "ae2:controller",
 				"count": 12
+			},
+			{
+				"item": "data_energistics:me_omni_beam_former",
+				"count": 4
 			},
 			{
 				"item": "data_energistics:data_framework",

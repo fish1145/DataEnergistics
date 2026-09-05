@@ -1,0 +1,19 @@
+{
+	"type": "data_energistics:data_integrated_charger",
+	"inputs": [
+		{
+			"item": "ae2:dense_energy_cell",
+			"count": 12
+		},
+		{
+			"item": "data_energistics:data_processor",
+			"count": 6
+		},
+		{
+			"item": "ae2:quantum_entangled_singularity"
+		}
+	],
+	"result": {
+		"id": "data_energistics:data_energy_cell"
+	}
+}

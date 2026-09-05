@@ -24,6 +24,22 @@ import com.fish_dan_.data_energistics.network.ui.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.api.config.Actionable;
+import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.security.IActionHost;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.storage.StorageHelper;
+import appeng.core.definitions.AEItems;
+import appeng.helpers.patternprovider.PatternContainer;
+import appeng.menu.SlotSemantics;
+import appeng.menu.guisync.GuiSync;
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
+import appeng.parts.encoding.PatternEncodingLogic;
+import appeng.util.ConfigInventory;
+
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -40,21 +56,6 @@ import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.item.crafting.SmithingRecipeInput;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import appeng.api.config.Actionable;
-import appeng.api.crafting.PatternDetailsHelper;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.security.IActionHost;
-import appeng.api.stacks.AEItemKey;
-import appeng.api.storage.StorageHelper;
-import appeng.core.definitions.AEItems;
-import appeng.helpers.patternprovider.PatternContainer;
-import appeng.menu.SlotSemantics;
-import appeng.menu.guisync.GuiSync;
-import appeng.menu.me.items.PatternEncodingTermMenu;
-import appeng.parts.encoding.EncodingMode;
-import appeng.parts.encoding.PatternEncodingLogic;
-import appeng.util.ConfigInventory;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectLists;
@@ -194,17 +195,22 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 return;
             }
 
+            encodedPatternInv.setItemDirect(0, encodedPattern);
+            ItemStack finalPattern = encodedPatternInv.getStackInSlot(0);
             EncodedPatternDynamicOutput.apply(
-                    encodedPattern,
+                    finalPattern,
                     this.mode == EncodingMode.PROCESSING &&
                             ((PatternOutputMatchMenu) this).data_energistics$isProcessingOutputSameItem());
-            EncodedPatternRecipeReference.applyProcessingRecipeType(
-                    encodedPattern,
+            EncodedPatternRecipeReference.applyProcessingRecipeMetadata(
+                    finalPattern,
                     PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
                             this,
                             data_energistics$getPreferenceSession(),
-                            this));
-            encodedPatternInv.setItemDirect(0, encodedPattern);
+                            this),
+                    PatternEncodingSourceHelper.resolveProcessingPatternRecipeId(
+                            this,
+                            data_energistics$getPreferenceSession()));
+            syncPatternProvidersIfNeeded(true);
             encodedSuccessfully = true;
         } finally {
             if (handoffStarted) {
@@ -294,7 +300,9 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
     private void transferEncodedPatternToProviders(long providerId, ObjectList<PatternContainer> providers) {
         var encodedPatternInv = this.host.getLogic().getEncodedPatternInv();
         ItemStack encodedPattern = encodedPatternInv.getStackInSlot(0);
+        ServerPlayer serverPlayer = (ServerPlayer) this.getPlayer();
         var uploadContext = PatternProviderSyncHelper.createPatternUploadContext(
+                serverPlayer,
                 this,
                 data_energistics$getPreferenceSession(),
                 providerId);
@@ -302,9 +310,11 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 providers,
                 encodedPattern,
                 uploadContext);
+        if (transferResult.hasWarning()) {
+            this.getPlayer().sendSystemMessage(transferResult.warningMessageOrThrow());
+        }
         if (transferResult.rejected()) {
-            this.getPlayer().sendSystemMessage(Component.translatable(
-                    transferResult.rejection().messageKeyOrThrow()));
+            this.getPlayer().sendSystemMessage(transferResult.rejectionMessageOrThrow());
             return;
         }
         if (transferResult.duplicateFound()) {
@@ -317,14 +327,15 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
         ItemStack remainder = transferResult.remainder();
         if (!transferResult.transferred()) {
+            if (transferResult.hasWarning()) {
+                syncPatternProvidersFromNetwork();
+            }
             return;
         }
 
         encodedPatternInv.setItemDirect(0, remainder.isEmpty() ? ItemStack.EMPTY : remainder);
-        if (this.getPlayer() instanceof ServerPlayer serverPlayer) {
-            PatternUploadRecorder.record(serverPlayer, this, transferResult.committedTarget(),
-                    PatternUploadSource.DATA_ENERGISTICS);
-        }
+        PatternUploadRecorder.record(serverPlayer, this, transferResult.committedTarget(),
+                PatternUploadSource.DATA_ENERGISTICS);
         syncPatternProvidersFromNetwork();
     }
 
@@ -620,15 +631,19 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 grid,
                 PatternProviderSyncTracker.capturePublicationVersion(grid),
                 this.getPlayer().level().getGameTime(),
-                data_energistics$getPreferenceSession().rankingContext());
+                data_energistics$getPreferenceSession().rankingContext(),
+                data_energistics$getEncodedPatternDefinition());
     }
 
     private void syncPatternProvidersFromNetwork(
                                                  IGrid grid,
                                                  PatternProviderSyncTracker.PublicationVersion publication,
                                                  long currentTick,
-                                                 @Nullable PatternEncodingRankingContext rankingContext) {
+                                                 @Nullable PatternEncodingRankingContext rankingContext,
+                                                 @Nullable AEItemKey encodedPatternDefinition) {
         this.syncedPatternProviders = PatternProviderSyncHelper.collectSyncedPatternProviders(
+                (ServerPlayer) this.getPlayer(),
+                encodedPatternDefinition,
                 grid,
                 this.syncedPatternProviderIds,
                 this.syncedPatternProvidersById,
@@ -638,7 +653,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
         this.patternProviderSyncTracker.refreshed(
                 publication,
                 currentTick,
-                rankingContext);
+                rankingContext,
+                encodedPatternDefinition);
         this.lastPreferenceRevision = data_energistics$getPreferenceSession().revision();
     }
 
@@ -651,12 +667,14 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
 
         var publication = PatternProviderSyncTracker.capturePublicationVersion(grid);
         PatternEncodingRankingContext rankingContext = data_energistics$getPreferenceSession().rankingContext();
+        AEItemKey encodedPatternDefinition = data_energistics$getEncodedPatternDefinition();
         long currentTick = this.getPlayer().level().getGameTime();
         long preferenceRevision = data_energistics$getPreferenceSession().revision();
         if (!force && preferenceRevision == this.lastPreferenceRevision && !this.patternProviderSyncTracker.needsRefresh(
                 publication,
                 currentTick,
-                rankingContext)) {
+                rankingContext,
+                encodedPatternDefinition)) {
             return;
         }
 
@@ -664,7 +682,8 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 grid,
                 publication,
                 currentTick,
-                rankingContext);
+                rankingContext,
+                encodedPatternDefinition);
     }
 
     private void clearSyncedPatternProviders() {

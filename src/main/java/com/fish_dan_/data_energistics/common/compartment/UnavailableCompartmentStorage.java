@@ -1,9 +1,10 @@
 package com.fish_dan_.data_energistics.common.compartment;
 
+import appeng.api.stacks.AEKey;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.ListTag;
 
-import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMaps;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;

@@ -2,13 +2,14 @@ package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolution;
 
+import appeng.api.inventories.InternalInventory;
+import appeng.api.stacks.AEItemKey;
+import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.api.inventories.InternalInventory;
-import appeng.api.stacks.AEItemKey;
-import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

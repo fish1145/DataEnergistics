@@ -3,6 +3,9 @@ package com.fish_dan_.data_energistics.recipe.condenser;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
+import appeng.api.implementations.items.IStorageComponent;
+import appeng.blockentity.misc.CondenserBlockEntity;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.Registries;
@@ -19,8 +22,6 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 
-import appeng.api.implementations.items.IStorageComponent;
-import appeng.blockentity.misc.CondenserBlockEntity;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;

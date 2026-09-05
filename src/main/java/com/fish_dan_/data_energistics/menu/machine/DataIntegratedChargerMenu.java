@@ -2,15 +2,9 @@ package com.fish_dan_.data_energistics.menu.machine;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.machine.DataIntegratedChargerBlockEntity;
+import com.fish_dan_.data_energistics.blockentity.machine.DataIntegratedChargerBlockEntity.MachineMode;
 import com.fish_dan_.data_energistics.blockentity.storage.DigitalStorageDepotOutputType;
 import com.fish_dan_.data_energistics.registry.DEMenus;
-
-import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.fluids.FluidStack;
 
 import appeng.api.config.Settings;
 import appeng.api.config.YesNo;
@@ -23,7 +17,13 @@ import appeng.menu.implementations.UpgradeableMenu;
 import appeng.menu.interfaces.IProgressProvider;
 import appeng.menu.slot.AppEngSlot;
 import appeng.menu.slot.OutputSlot;
-import appeng.menu.slot.RestrictedInputSlot;
+
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.fluids.FluidStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,27 +31,41 @@ import java.util.List;
 public class DataIntegratedChargerMenu extends UpgradeableMenu<DataIntegratedChargerBlockEntity> implements IProgressProvider {
 
     private static final String ACTION_SET_OUTPUT_SIDE = "set_output_side";
+    private static final String ACTION_SET_MACHINE_MODE = "set_machine_mode";
     public static final SlotSemantic MACHINE_INPUT_LEFT = SlotSemantics.register("DATA_INTEGRATED_CHARGER_INPUT_LEFT", false);
+    public static final SlotSemantic MACHINE_INPUT_MIDDLE = SlotSemantics.register("DATA_INTEGRATED_CHARGER_INPUT_MIDDLE", false);
     public static final SlotSemantic MACHINE_INPUT_RIGHT = SlotSemantics.register("DATA_INTEGRATED_CHARGER_INPUT_RIGHT", false);
-    public static final SlotSemantic MACHINE_MODULE = SlotSemantics.register("DATA_INTEGRATED_CHARGER_MODULE", false);
-    public static final SlotSemantic FLUID_TANK = SlotSemantics.register("DATA_INTEGRATED_CHARGER_FLUID", false);
+    public static final SlotSemantic FLUID_TANK_1 = SlotSemantics.register("DATA_INTEGRATED_CHARGER_FLUID_1", false);
+    public static final SlotSemantic FLUID_TANK_2 = SlotSemantics.register("DATA_INTEGRATED_CHARGER_FLUID_2", false);
+    public static final SlotSemantic FLUID_TANK_3 = SlotSemantics.register("DATA_INTEGRATED_CHARGER_FLUID_3", false);
 
     @GuiSync(880)
     public YesNo autoExport = YesNo.NO;
     @GuiSync(881)
-    public String fluidId = "";
+    public String fluidId0 = "";
     @GuiSync(882)
-    public int fluidAmount;
+    public int fluidAmount0;
+    @GuiSync(883)
+    public String fluidId1 = "";
     @GuiSync(884)
-    public int itemOutputSidesMask = 63;
+    public int fluidAmount1;
     @GuiSync(885)
-    public int progress;
+    public String fluidId2 = "";
     @GuiSync(886)
+    public int fluidAmount2;
+    @GuiSync(887)
+    public int machineMode = MachineMode.POWDER.ordinal();
+    @GuiSync(888)
+    public int itemOutputSidesMask = 63;
+    @GuiSync(889)
+    public int progress;
+    @GuiSync(890)
     public int maxProgress = DataIntegratedChargerBlockEntity.MAX_PROGRESS;
 
     public DataIntegratedChargerMenu(int id, Inventory playerInventory, DataIntegratedChargerBlockEntity host) {
         super(DEMenus.DATA_INTEGRATED_CHARGER.get(), id, playerInventory, host);
         registerClientAction(ACTION_SET_OUTPUT_SIDE, String.class, this::setOutputSide);
+        registerClientAction(ACTION_SET_MACHINE_MODE, Integer.class, this::setMachineMode);
     }
 
     @Override
@@ -59,7 +73,10 @@ public class DataIntegratedChargerMenu extends UpgradeableMenu<DataIntegratedCha
         if (this.isServerSide()) {
             var host = this.getHost();
             this.autoExport = host.isAutoExportEnabled() ? YesNo.YES : YesNo.NO;
-            syncFluid(host.getFluidTank().getFluid());
+            for (int tank = 0; tank < DataIntegratedChargerBlockEntity.FLUID_TANK_COUNT; tank++) {
+                syncFluid(host.getFluidTank(tank).getFluid(), tank);
+            }
+            this.machineMode = host.getMachineMode().ordinal();
             this.itemOutputSidesMask = encodeOutputSides(host.getOutputSides(DigitalStorageDepotOutputType.ITEMS));
             this.progress = host.getProgress();
             this.maxProgress = host.getMaxProgress();
@@ -73,11 +90,15 @@ public class DataIntegratedChargerMenu extends UpgradeableMenu<DataIntegratedCha
         for (int slot = 0; slot < 3; slot++) {
             this.addSlot(new LargeStackSlot(storage, slot), MACHINE_INPUT_LEFT);
         }
-        for (int slot = 3; slot < DataIntegratedChargerBlockEntity.ITEM_INPUT_SLOT_COUNT; slot++) {
+        for (int slot = 3; slot < 6; slot++) {
+            this.addSlot(new LargeStackSlot(storage, slot), MACHINE_INPUT_MIDDLE);
+        }
+        for (int slot = 6; slot < DataIntegratedChargerBlockEntity.ITEM_INPUT_SLOT_COUNT; slot++) {
             this.addSlot(new LargeStackSlot(storage, slot), MACHINE_INPUT_RIGHT);
         }
-        this.addSlot(new AppEngSlot(this.getHost().getFluidMenuInventory(), 0), FLUID_TANK);
-        this.addSlot(new MachineModuleSlot(storage, DataIntegratedChargerBlockEntity.MACHINE_MODULE_SLOT), MACHINE_MODULE);
+        for (int tank = 0; tank < DataIntegratedChargerBlockEntity.FLUID_TANK_COUNT; tank++) {
+            this.addSlot(new AppEngSlot(this.getHost().getFluidMenuInventory(tank), 0), getFluidTankSemantic(tank));
+        }
         for (int index = 0; index < DataIntegratedChargerBlockEntity.ITEM_OUTPUT_SLOT_COUNT; index++) {
             this.addSlot(new LargeOutputSlot(storage, DataIntegratedChargerBlockEntity.ITEM_OUTPUT_START_SLOT + index),
                     SlotSemantics.MACHINE_OUTPUT);
@@ -103,6 +124,34 @@ public class DataIntegratedChargerMenu extends UpgradeableMenu<DataIntegratedCha
 
     public int getFluidCapacity() {
         return this.getHost().getFluidCapacity();
+    }
+
+    public String getFluidId(int tank) {
+        return switch (tank) {
+            case 0 -> this.fluidId0;
+            case 1 -> this.fluidId1;
+            case 2 -> this.fluidId2;
+            default -> "";
+        };
+    }
+
+    public int getFluidAmount(int tank) {
+        return switch (tank) {
+            case 0 -> this.fluidAmount0;
+            case 1 -> this.fluidAmount1;
+            case 2 -> this.fluidAmount2;
+            default -> 0;
+        };
+    }
+
+    public MachineMode getMachineMode() {
+        return MachineMode.fromOrdinal(this.machineMode);
+    }
+
+    public void sendSetMachineMode(MachineMode mode) {
+        if (mode != null) {
+            sendClientAction(ACTION_SET_MACHINE_MODE, mode.ordinal());
+        }
     }
 
     @Override
@@ -134,9 +183,43 @@ public class DataIntegratedChargerMenu extends UpgradeableMenu<DataIntegratedCha
                 outputType.getSerializedName() + ":" + side.getName() + ":" + enabled);
     }
 
-    private void syncFluid(FluidStack fluid) {
-        this.fluidId = fluid.isEmpty() ? "" : BuiltInRegistries.FLUID.getKey(fluid.getFluid()).toString();
-        this.fluidAmount = fluid.getAmount();
+    private static SlotSemantic getFluidTankSemantic(int tank) {
+        return switch (tank) {
+            case 0 -> FLUID_TANK_1;
+            case 1 -> FLUID_TANK_2;
+            case 2 -> FLUID_TANK_3;
+            default -> throw new IndexOutOfBoundsException("Invalid Data Integrated Charger fluid tank: " + tank);
+        };
+    }
+
+    private void syncFluid(FluidStack fluid, int tank) {
+        String fluidId = fluid.isEmpty() ? "" : BuiltInRegistries.FLUID.getKey(fluid.getFluid()).toString();
+        int fluidAmount = fluid.getAmount();
+        switch (tank) {
+            case 0 -> {
+                this.fluidId0 = fluidId;
+                this.fluidAmount0 = fluidAmount;
+            }
+            case 1 -> {
+                this.fluidId1 = fluidId;
+                this.fluidAmount1 = fluidAmount;
+            }
+            case 2 -> {
+                this.fluidId2 = fluidId;
+                this.fluidAmount2 = fluidAmount;
+            }
+            default -> throw new IndexOutOfBoundsException("Invalid Data Integrated Charger fluid tank: " + tank);
+        }
+    }
+
+    private void setMachineMode(Integer ordinal) {
+        if (ordinal == null) {
+            return;
+        }
+        MachineMode mode = MachineMode.fromOrdinal(ordinal);
+        this.getHost().setMachineMode(mode);
+        this.machineMode = mode.ordinal();
+        broadcastChanges();
     }
 
     private void setOutputSide(String payload) {
@@ -206,19 +289,6 @@ public class DataIntegratedChargerMenu extends UpgradeableMenu<DataIntegratedCha
         @Override
         public int getMaxStackSize(ItemStack stack) {
             return this.getMaxStackSize();
-        }
-    }
-
-    private static final class MachineModuleSlot extends RestrictedInputSlot {
-
-        private MachineModuleSlot(InternalInventory inventory, int slot) {
-            super(PlacableItemType.INSCRIBER_INPUT, inventory, slot);
-            this.setStackLimit(1);
-        }
-
-        @Override
-        public boolean mayPlace(ItemStack stack) {
-            return DataIntegratedChargerBlockEntity.isSupportedMachineModule(stack) && super.mayPlace(stack);
         }
     }
 

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan;
 
 import appeng.api.stacks.AEKey;
+
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 

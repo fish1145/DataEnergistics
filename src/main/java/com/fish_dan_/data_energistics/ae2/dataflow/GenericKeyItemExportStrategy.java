@@ -3,15 +3,6 @@ package com.fish_dan_.data_energistics.ae2.dataflow;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.ItemHandlerHelper;
-
 import appeng.api.AECapabilities;
 import appeng.api.behaviors.GenericInternalInventory;
 import appeng.api.behaviors.StackExportStrategy;
@@ -24,6 +15,16 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageHelper;
 import appeng.parts.automation.StackWorldBehaviors;
 import appeng.util.CowMap;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
+
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 

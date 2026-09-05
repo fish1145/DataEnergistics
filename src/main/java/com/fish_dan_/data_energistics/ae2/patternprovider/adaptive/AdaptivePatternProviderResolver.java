@@ -6,6 +6,12 @@ import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProvi
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
+import appeng.api.parts.IPart;
+import appeng.api.stacks.AEItemKey;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.parts.crafting.PatternProviderPart;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -13,11 +19,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
-import appeng.api.parts.IPart;
-import appeng.api.stacks.AEItemKey;
-import appeng.blockentity.crafting.PatternProviderBlockEntity;
-import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.parts.crafting.PatternProviderPart;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

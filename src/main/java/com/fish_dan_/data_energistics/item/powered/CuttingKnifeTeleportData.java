@@ -2,11 +2,11 @@ package com.fish_dan_.data_energistics.item.powered;
 
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.StorageCells;
+
+import net.minecraft.world.item.ItemStack;
 
 public final class CuttingKnifeTeleportData {
 

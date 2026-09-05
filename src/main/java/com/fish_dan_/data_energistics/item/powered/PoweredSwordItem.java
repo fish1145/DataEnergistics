@@ -7,6 +7,14 @@ import com.fish_dan_.data_energistics.entity.projectile.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.projectile.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
+import appeng.api.config.Actionable;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.storage.StorageCells;
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.util.AEColor;
+import appeng.items.storage.StorageCellTooltipComponent;
+import appeng.items.tools.powered.ColorApplicatorItem;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -51,13 +59,6 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.common.ItemAbility;
 
-import appeng.api.config.Actionable;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.storage.StorageCells;
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.util.AEColor;
-import appeng.items.storage.StorageCellTooltipComponent;
-import appeng.items.tools.powered.ColorApplicatorItem;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;

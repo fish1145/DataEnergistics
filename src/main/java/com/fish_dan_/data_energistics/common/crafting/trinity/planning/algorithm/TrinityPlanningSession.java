@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressPhase;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
+
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
@@ -18,11 +21,12 @@ public final class TrinityPlanningSession {
     public static TrinityPlanningSession create(
                                                 BooleanSupplier cancellation,
                                                 LongSupplier nanoClock,
-                                                long planningBudgetNanos) {
+                                                long planningBudgetNanos,
+                                                TrinityPlanningProgressReporter progress) {
         if (planningBudgetNanos <= 0L) {
             throw new IllegalArgumentException("A Trinity planning session requires cancellation, a clock and a positive budget");
         }
-        return new TrinityPlanningSession(cancellation, nanoClock, planningBudgetNanos);
+        return new TrinityPlanningSession(cancellation, nanoClock, planningBudgetNanos, progress);
     }
 
     private final BooleanSupplier cancellation;
@@ -34,12 +38,18 @@ public final class TrinityPlanningSession {
     private TrinityPlanningSession(
                                    BooleanSupplier cancellation,
                                    LongSupplier nanoClock,
-                                   long planningBudgetNanos) {
+                                   long planningBudgetNanos,
+                                   TrinityPlanningProgressReporter progress) {
         this.cancellation = cancellation;
         this.nanoClock = nanoClock;
         this.planningBudgetNanos = planningBudgetNanos;
         this.startedNanos = nanoClock.getAsLong();
-        this.metrics = TrinityPlanningMetrics.create();
+        this.metrics = TrinityPlanningMetrics.create(progress);
+    }
+
+    /** Starts one solver phase whose counters are published through this request's detached reporter. */
+    public void beginSolving(TrinityPlanningProgressPhase phase, int routeStateLimit) {
+        this.metrics.beginPhase(phase, routeStateLimit);
     }
 
     /**

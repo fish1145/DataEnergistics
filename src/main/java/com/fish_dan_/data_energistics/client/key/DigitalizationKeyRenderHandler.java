@@ -5,6 +5,9 @@ import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKey;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
 
+import appeng.api.client.AEKeyRenderHandler;
+import appeng.client.gui.style.Blitter;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -14,8 +17,6 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 
-import appeng.api.client.AEKeyRenderHandler;
-import appeng.client.gui.style.Blitter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import org.joml.Matrix4f;
