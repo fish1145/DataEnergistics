@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity.machine.mimetic;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.stacks.AEItemKey;
+
+import net.minecraft.world.item.ItemStack;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

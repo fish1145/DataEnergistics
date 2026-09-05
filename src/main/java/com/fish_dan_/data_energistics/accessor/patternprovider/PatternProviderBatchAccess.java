@@ -1,13 +1,14 @@
 package com.fish_dan_.data_energistics.accessor.patternprovider;
 
-import net.minecraft.core.Direction;
-
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IManagedGridNode;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.helpers.patternprovider.PatternProviderTarget;
+
+import net.minecraft.core.Direction;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;

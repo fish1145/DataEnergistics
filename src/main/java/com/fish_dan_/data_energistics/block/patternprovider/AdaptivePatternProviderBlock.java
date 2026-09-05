@@ -5,6 +5,13 @@ import com.fish_dan_.data_energistics.blockentity.patternprovider.AdaptivePatter
 import com.fish_dan_.data_energistics.common.memorycard.BlockMemoryCardInteractionHelper;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
+import appeng.block.AEBaseEntityBlock;
+import appeng.block.crafting.PatternProviderBlock;
+import appeng.block.crafting.PushDirection;
+import appeng.menu.locator.MenuLocators;
+import appeng.util.InteractionUtil;
+import appeng.util.Platform;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -23,13 +30,6 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.BlockHitResult;
-
-import appeng.block.AEBaseEntityBlock;
-import appeng.block.crafting.PatternProviderBlock;
-import appeng.block.crafting.PushDirection;
-import appeng.menu.locator.MenuLocators;
-import appeng.util.InteractionUtil;
-import appeng.util.Platform;
 
 public class AdaptivePatternProviderBlock<T extends AdaptivePatternProviderBlockEntity> extends AEBaseEntityBlock<T> {
 

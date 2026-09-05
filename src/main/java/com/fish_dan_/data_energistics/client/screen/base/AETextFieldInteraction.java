@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen.base;
 
 import appeng.client.gui.widgets.AETextField;
+
 import org.lwjgl.glfw.GLFW;
 
 /**

@@ -5,12 +5,12 @@ import com.fish_dan_.data_energistics.api.crafting.dynamic.DynamicCraftingOutput
 import com.fish_dan_.data_energistics.api.crafting.dynamic.DynamicCraftingOutputMatchMode;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
+
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * Persists and resolves the player-controlled SAME_ITEM rule attached to an encoded processing pattern.

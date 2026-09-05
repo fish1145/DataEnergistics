@@ -3,15 +3,16 @@ package com.fish_dan_.data_energistics.menu.universal;
 import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalData;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 
+import appeng.api.parts.IPart;
+import appeng.api.parts.PartHelper;
+import appeng.menu.locator.MenuHostLocator;
+import appeng.menu.locator.MenuLocators;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;
 
-import appeng.api.parts.IPart;
-import appeng.api.parts.PartHelper;
-import appeng.menu.locator.MenuHostLocator;
-import appeng.menu.locator.MenuLocators;
 import org.jspecify.annotations.Nullable;
 
 public record UniversalTerminalMenuLocator(BlockPos pos, @Nullable Direction side, String terminalName)

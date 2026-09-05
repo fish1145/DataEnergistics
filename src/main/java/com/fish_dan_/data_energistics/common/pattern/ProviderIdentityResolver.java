@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.pattern;
 
+import appeng.helpers.patternprovider.PatternContainer;
+
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
@@ -7,7 +9,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.item.Items;
 
-import appeng.helpers.patternprovider.PatternContainer;
 import com.mojang.serialization.JsonOps;
 import org.jspecify.annotations.Nullable;
 

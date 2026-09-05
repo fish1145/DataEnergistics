@@ -3,11 +3,11 @@ package com.fish_dan_.data_energistics.item.order;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+
+import net.minecraft.world.item.ItemStack;
 
 import java.util.Optional;
 

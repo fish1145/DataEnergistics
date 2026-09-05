@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.client.widget;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.api.config.Setting;
 import appeng.api.config.YesNo;
 import appeng.client.gui.Icon;
 import appeng.client.gui.widgets.ServerSettingToggleButton;
+
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 

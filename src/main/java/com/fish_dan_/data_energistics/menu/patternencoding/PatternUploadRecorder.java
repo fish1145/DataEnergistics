@@ -6,11 +6,12 @@ import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHe
 import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSucceededPayload;
 
+import appeng.parts.encoding.EncodingMode;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import appeng.parts.encoding.EncodingMode;
 import org.jspecify.annotations.Nullable;
 
 /**

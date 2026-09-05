@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.item.depot;
 
-import net.minecraft.world.inventory.tooltip.TooltipComponent;
-
 import appeng.api.stacks.GenericStack;
+
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 
 import java.util.List;
 

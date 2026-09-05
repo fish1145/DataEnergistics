@@ -1,8 +1,9 @@
 package com.fish_dan_.data_energistics.menu.patternencoding.source;
 
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.resources.ResourceLocation;
 
-import appeng.api.stacks.GenericStack;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;

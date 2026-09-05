@@ -3,12 +3,13 @@ package com.fish_dan_.data_energistics.item.powered;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
+import appeng.api.util.AEColor;
+import appeng.items.tools.powered.ColorApplicatorItem;
+
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.api.util.AEColor;
-import appeng.items.tools.powered.ColorApplicatorItem;
 import org.jspecify.annotations.Nullable;
 
 public final class LightSaberColorData {

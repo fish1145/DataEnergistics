@@ -7,6 +7,13 @@ import com.fish_dan_.data_energistics.integration.viewer.xei.multiblock.Multiblo
 import com.fish_dan_.data_energistics.integration.viewer.xei.multiblock.MultiblockXeiRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
+import com.lowdragmc.lowdraglib2.integration.xei.XEITooltipContext;
+import com.lowdragmc.lowdraglib2.integration.xei.jei.LDLibJEIPlugin;
+import com.lowdragmc.lowdraglib2.integration.xei.jei.ModularUIJEIWidget;
+import com.lowdragmc.lowdraglib2.integration.xei.jei.handler.JEIRecipeSlotHandler;
+
 import net.minecraft.client.gui.navigation.ScreenPosition;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -15,12 +22,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalNotification;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
-import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
-import com.lowdragmc.lowdraglib2.integration.xei.XEITooltipContext;
-import com.lowdragmc.lowdraglib2.integration.xei.jei.LDLibJEIPlugin;
-import com.lowdragmc.lowdraglib2.integration.xei.jei.ModularUIJEIWidget;
-import com.lowdragmc.lowdraglib2.integration.xei.jei.handler.JEIRecipeSlotHandler;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import lombok.Getter;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;

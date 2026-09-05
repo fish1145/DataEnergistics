@@ -5,6 +5,10 @@ import com.fish_dan_.data_energistics.common.memorycard.BlockMemoryCardInteracti
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.hooks.WrenchHook;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocators;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -20,9 +24,6 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
-import appeng.hooks.WrenchHook;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
 import org.jspecify.annotations.Nullable;
 
 public class DataRipperReassemblerMainBlock extends DataRipperReassemblerBlock implements EntityBlock {

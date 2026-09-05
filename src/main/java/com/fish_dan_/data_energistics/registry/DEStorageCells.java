@@ -2,9 +2,9 @@ package com.fish_dan_.data_energistics.registry;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
-import net.minecraft.resources.ResourceLocation;
-
 import appeng.api.client.StorageCellModels;
+
+import net.minecraft.resources.ResourceLocation;
 
 public final class DEStorageCells {
 

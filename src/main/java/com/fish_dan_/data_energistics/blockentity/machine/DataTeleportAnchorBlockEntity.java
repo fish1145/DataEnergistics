@@ -5,6 +5,13 @@ import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.world.teleport.TeleportAnchorSavedData;
 
+import appeng.api.config.Actionable;
+import appeng.api.config.PowerMultiplier;
+import appeng.api.config.PowerUnit;
+import appeng.api.inventories.InternalInventory;
+import appeng.api.util.AECableType;
+import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -21,13 +28,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-
-import appeng.api.config.Actionable;
-import appeng.api.config.PowerMultiplier;
-import appeng.api.config.PowerUnit;
-import appeng.api.inventories.InternalInventory;
-import appeng.api.util.AECableType;
-import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 
 import java.util.ArrayList;
 import java.util.Comparator;

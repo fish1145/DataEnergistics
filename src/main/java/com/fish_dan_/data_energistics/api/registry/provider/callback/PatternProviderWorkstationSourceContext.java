@@ -2,11 +2,12 @@ package com.fish_dan_.data_energistics.api.registry.provider.callback;
 
 import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderIdentity;
 
+import appeng.api.crafting.IPatternDetails;
+import appeng.helpers.patternprovider.PatternContainer;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
-import appeng.api.crafting.IPatternDetails;
-import appeng.helpers.patternprovider.PatternContainer;
 import org.jspecify.annotations.Nullable;
 
 /**

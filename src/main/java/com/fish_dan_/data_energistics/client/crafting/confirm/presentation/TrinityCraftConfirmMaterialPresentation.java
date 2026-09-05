@@ -3,12 +3,13 @@ package com.fish_dan_.data_energistics.client.crafting.confirm.presentation;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-
 import appeng.api.client.AEKeyRendering;
 import appeng.core.localization.GuiText;
 import appeng.menu.me.crafting.CraftingPlanSummaryEntry;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 

@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.api.registry.recipe;
 
-import net.minecraft.resources.ResourceLocation;
-
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
+
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * Resolves the stable recipe identity represented by one supported encoded-pattern implementation.

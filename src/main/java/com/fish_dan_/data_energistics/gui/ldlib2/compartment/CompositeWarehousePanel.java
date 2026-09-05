@@ -9,14 +9,6 @@ import com.fish_dan_.data_energistics.gui.ldlib2.compartment.slot.CompartmentSlo
 import com.fish_dan_.data_energistics.menu.storage.CompartmentMenu;
 import com.fish_dan_.data_energistics.menu.storage.CompartmentSlotLabel;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.inventory.Slot;
-
-import appeng.menu.SlotSemantic;
-import appeng.menu.SlotSemantics;
-import appeng.menu.slot.FakeSlot;
-import appeng.menu.slot.IOptionalSlot;
-import appeng.menu.slot.RestrictedInputSlot;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
@@ -24,6 +16,16 @@ import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
+
+import appeng.menu.SlotSemantic;
+import appeng.menu.SlotSemantics;
+import appeng.menu.slot.FakeSlot;
+import appeng.menu.slot.IOptionalSlot;
+import appeng.menu.slot.RestrictedInputSlot;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.Slot;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.List;

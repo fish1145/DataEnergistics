@@ -3,11 +3,12 @@ package com.fish_dan_.data_energistics.integration.guideme.condenser;
 import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipe;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
+import appeng.core.definitions.AEBlocks;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
-import appeng.core.definitions.AEBlocks;
 import guideme.color.SymbolicColor;
 import guideme.compiler.tags.RecipeTypeMappingSupplier;
 import guideme.document.block.LytParagraph;

@@ -2,14 +2,15 @@ package com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
-import net.minecraft.world.inventory.Slot;
-
-import appeng.menu.AEBaseMenu;
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
 import com.lowdragmc.lowdraglib2.gui.slot.LocalSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
+
+import appeng.menu.AEBaseMenu;
+
+import net.minecraft.world.inventory.Slot;
 
 import java.util.ArrayList;
 import java.util.Collections;

@@ -7,15 +7,17 @@ import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeItemSlot;
 import com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge.AeMenuBridge;
 import com.fish_dan_.data_energistics.menu.storage.CompartmentMenu;
 
-import net.minecraft.world.inventory.Slot;
-
-import appeng.menu.SlotSemantic;
-import appeng.menu.slot.AppEngSlot;
-import appeng.menu.slot.FakeSlot;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.Style;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+
+import appeng.menu.SlotSemantic;
+import appeng.menu.slot.AppEngSlot;
+import appeng.menu.slot.FakeSlot;
+
+import net.minecraft.world.inventory.Slot;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.List;

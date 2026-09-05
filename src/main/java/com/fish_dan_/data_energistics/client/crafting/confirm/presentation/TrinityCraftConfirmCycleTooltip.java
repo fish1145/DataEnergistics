@@ -6,10 +6,10 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.Trini
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleMaterialContribution;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 
+import appeng.api.stacks.AEKey;
+
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-
-import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
 import java.util.ArrayList;

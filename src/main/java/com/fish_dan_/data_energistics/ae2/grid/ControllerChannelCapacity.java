@@ -1,13 +1,14 @@
 package com.fish_dan_.data_energistics.ae2.grid;
 
-import net.minecraft.core.BlockPos;
-
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.pathing.ChannelMode;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingService;
 import appeng.blockentity.networking.ControllerBlockEntity;
+
+import net.minecraft.core.BlockPos;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;

@@ -1,12 +1,13 @@
 package com.fish_dan_.data_energistics.ae2.sanctum;
 
+import appeng.api.orientation.RelativeSide;
+import appeng.helpers.InterfaceLogicHost;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
-import appeng.api.orientation.RelativeSide;
-import appeng.helpers.InterfaceLogicHost;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Set;

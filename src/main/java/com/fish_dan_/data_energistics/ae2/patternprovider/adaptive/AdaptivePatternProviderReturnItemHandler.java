@@ -1,9 +1,10 @@
 package com.fish_dan_.data_energistics.ae2.patternprovider.adaptive;
 
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
 
-import appeng.api.stacks.GenericStack;
 import org.jspecify.annotations.Nullable;
 
 import java.util.function.Supplier;

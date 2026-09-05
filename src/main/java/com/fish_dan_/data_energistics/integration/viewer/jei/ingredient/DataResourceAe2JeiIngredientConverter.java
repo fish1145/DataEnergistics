@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.integration.viewer.jei.ingredient;
 
 import appeng.api.stacks.GenericStack;
+
 import mezz.jei.api.ingredients.IIngredientType;
 import org.jspecify.annotations.Nullable;
 import tamaized.ae2jeiintegration.api.integrations.jei.IngredientConverter;

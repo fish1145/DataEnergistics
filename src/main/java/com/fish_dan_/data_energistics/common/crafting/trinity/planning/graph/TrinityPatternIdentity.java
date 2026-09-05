@@ -2,12 +2,12 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph;
 
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.GenericStack;
 
 /**
  * Stable, component-aware identity of one published pattern semantic.

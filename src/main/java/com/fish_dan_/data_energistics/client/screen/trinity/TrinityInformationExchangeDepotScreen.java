@@ -2,13 +2,13 @@ package com.fish_dan_.data_energistics.client.screen.trinity;
 
 import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenu;
 
+import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
-
-import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolderMenu;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 
 /** Thin vanilla container shell whose complete presentation is owned by LDLib2. */
 public final class TrinityInformationExchangeDepotScreen

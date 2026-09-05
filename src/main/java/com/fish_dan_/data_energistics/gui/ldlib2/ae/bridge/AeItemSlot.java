@@ -2,13 +2,6 @@ package com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.IItemHandlerModifiable;
-
-import appeng.menu.slot.AppEngSlot;
-import appeng.menu.slot.FakeSlot;
-import appeng.menu.slot.IOptionalSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.Style;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
@@ -16,6 +9,15 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import com.lowdragmc.lowdraglib2.gui.util.DrawerHelper;
+
+import appeng.menu.slot.AppEngSlot;
+import appeng.menu.slot.FakeSlot;
+import appeng.menu.slot.IOptionalSlot;
+
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.items.IItemHandlerModifiable;
+
 import org.jspecify.annotations.Nullable;
 
 /**

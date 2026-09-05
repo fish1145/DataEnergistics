@@ -1,8 +1,9 @@
 package com.fish_dan_.data_energistics.ae2.grid;
 
+import appeng.api.networking.IGridNode;
+
 import net.minecraft.core.Direction;
 
-import appeng.api.networking.IGridNode;
 import org.jspecify.annotations.Nullable;
 
 /**

@@ -5,14 +5,14 @@ import com.fish_dan_.data_energistics.ae2.settings.CondenserOutputMode;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipe;
 
+import appeng.api.config.CondenserOutput;
+import appeng.client.gui.Icon;
+import appeng.client.gui.widgets.IconButton;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.crafting.RecipeHolder;
-
-import appeng.api.config.CondenserOutput;
-import appeng.client.gui.Icon;
-import appeng.client.gui.widgets.IconButton;
 
 import java.util.List;
 

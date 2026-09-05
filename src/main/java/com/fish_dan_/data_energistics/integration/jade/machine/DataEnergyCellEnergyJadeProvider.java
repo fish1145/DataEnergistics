@@ -3,10 +3,11 @@ package com.fish_dan_.data_energistics.integration.jade.machine;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
+import appeng.blockentity.networking.EnergyCellBlockEntity;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 
-import appeng.blockentity.networking.EnergyCellBlockEntity;
 import snownee.jade.api.Accessor;
 import snownee.jade.api.view.ClientViewGroup;
 import snownee.jade.api.view.EnergyView;

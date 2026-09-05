@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequ
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
+import appeng.core.definitions.AEBlocks;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -11,7 +13,6 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import appeng.core.definitions.AEBlocks;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;

@@ -4,10 +4,10 @@ import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerBin
 import com.fish_dan_.data_energistics.blockentity.tower.network.binding.TowerRuntimeKey;
 import com.fish_dan_.data_energistics.blockentity.tower.network.energy.TowerEnergyLocation;
 
-import net.minecraft.server.level.ServerLevel;
-
 import appeng.api.networking.IGrid;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+
+import net.minecraft.server.level.ServerLevel;
 
 import java.util.List;
 

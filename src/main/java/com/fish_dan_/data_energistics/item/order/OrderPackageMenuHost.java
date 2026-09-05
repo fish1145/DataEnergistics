@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.item.order;
 
-import net.minecraft.world.entity.player.Player;
-
 import appeng.api.implementations.menuobjects.ItemMenuHost;
 import appeng.api.stacks.GenericStack;
 import appeng.menu.locator.ItemMenuHostLocator;
 import appeng.util.ConfigInventory;
+
+import net.minecraft.world.entity.player.Player;
 
 /**
  * Binds the package target component to the single generic configuration slot while the item menu is open.

@@ -1,10 +1,11 @@
 package com.fish_dan_.data_energistics.common.beam;
 
+import appeng.api.parts.IPartHost;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 
-import appeng.api.parts.IPartHost;
 import org.jspecify.annotations.Nullable;
 
 /** Loaded-chunk-only target resolution. Linear devices inspect a ray; omni devices inspect explicit peers only. */

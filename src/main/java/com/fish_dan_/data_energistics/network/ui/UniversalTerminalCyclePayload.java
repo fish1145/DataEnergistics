@@ -6,6 +6,8 @@ import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocato
 import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuSupport;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 
+import appeng.menu.AEBaseMenu;
+
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -13,8 +15,6 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-
-import appeng.menu.AEBaseMenu;
 
 public record UniversalTerminalCyclePayload(boolean reverse) implements CustomPacketPayload {
 

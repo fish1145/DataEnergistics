@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.mixin.core.accessor.ae2;
 
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.helpers.InterfaceLogic;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.gen.Accessor;

@@ -1,14 +1,14 @@
 package com.fish_dan_.data_energistics.client.gui;
 
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AmountFormat;
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
-
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.AmountFormat;
-import appeng.api.stacks.GenericStack;
 
 import java.util.Locale;
 

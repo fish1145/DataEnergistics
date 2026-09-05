@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.blockentity.machine;
 
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.world.item.ItemStack;
-
-import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.GenericStack;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;

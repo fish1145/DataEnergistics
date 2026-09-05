@@ -3,6 +3,10 @@ package com.fish_dan_.data_energistics.integration.guideme.client;
 import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AmountFormat;
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -13,9 +17,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.AmountFormat;
-import appeng.api.stacks.GenericStack;
 import guideme.document.LytRect;
 import guideme.document.block.LytBlock;
 import guideme.document.interaction.GuideTooltip;

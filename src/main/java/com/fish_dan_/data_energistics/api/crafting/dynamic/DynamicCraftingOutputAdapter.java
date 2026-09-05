@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.api.crafting.dynamic;
 
-import net.minecraft.resources.ResourceLocation;
-
 import appeng.api.crafting.IPatternDetails;
+
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.Optional;
 

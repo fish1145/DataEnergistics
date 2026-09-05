@@ -4,10 +4,11 @@ import com.fish_dan_.data_energistics.client.render.beam.BeamGeometryRenderer;
 import com.fish_dan_.data_energistics.common.beam.BeamEndpoint;
 import com.fish_dan_.data_energistics.part.beam.BeamFormerPart;
 
-import net.minecraft.client.renderer.MultiBufferSource;
-
 import appeng.api.parts.IPartItem;
 import appeng.parts.automation.UpgradeablePart;
+
+import net.minecraft.client.renderer.MultiBufferSource;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import org.jspecify.annotations.NullMarked;
 import org.spongepowered.asm.mixin.Mixin;

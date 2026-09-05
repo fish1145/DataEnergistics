@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.recipe.reassembler;
 
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeInput;
-
-import appeng.api.stacks.GenericStack;
 
 import java.util.List;
 

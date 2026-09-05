@@ -3,6 +3,9 @@ package com.fish_dan_.data_energistics.client.screen.terminal;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalData;
 
+import appeng.client.gui.Icon;
+import appeng.menu.AEBaseMenu;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -13,9 +16,6 @@ import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-
-import appeng.client.gui.Icon;
-import appeng.menu.AEBaseMenu;
 
 import java.util.List;
 import java.util.function.Supplier;

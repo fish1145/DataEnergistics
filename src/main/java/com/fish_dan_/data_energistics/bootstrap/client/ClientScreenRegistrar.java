@@ -30,9 +30,9 @@ import com.fish_dan_.data_energistics.client.screen.trinity.TrinityDataCoreScree
 import com.fish_dan_.data_energistics.client.screen.trinity.TrinityInformationExchangeDepotScreen;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
-import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-
 import appeng.init.client.InitScreens;
+
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
 final class ClientScreenRegistrar {
 

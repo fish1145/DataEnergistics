@@ -9,9 +9,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admissio
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuPartitionProfile;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.Level;
-
 import appeng.api.config.Actionable;
 import appeng.api.config.CpuSelectionMode;
 import appeng.api.networking.IGrid;
@@ -28,6 +25,10 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.me.service.CraftingService;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.Level;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.Set;

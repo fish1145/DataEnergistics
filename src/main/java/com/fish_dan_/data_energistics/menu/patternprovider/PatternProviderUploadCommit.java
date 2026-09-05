@@ -7,11 +7,12 @@ import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProvider
 import com.fish_dan_.data_energistics.common.entrypoint.provider.ResolvedProviderBinding;
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderUploadWorkstations.PreparedWorkstationChange;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.inventories.InternalInventory;
 import appeng.helpers.patternprovider.PatternContainer;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
+
+import net.minecraft.world.item.ItemStack;
+
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;

@@ -6,10 +6,11 @@ import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternEnc
 import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternProviderViewerWorkstations;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
+import appeng.menu.me.items.PatternEncodingTermMenu;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
-import appeng.menu.me.items.PatternEncodingTermMenu;
 import dev.emi.emi.api.recipe.EmiRecipe;
 import org.jspecify.annotations.Nullable;
 

@@ -3,10 +3,10 @@ package com.fish_dan_.data_energistics.client.crafting.confirm.table;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleMaterialContribution;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 
-import net.minecraft.client.gui.GuiGraphics;
-
 import appeng.menu.me.crafting.CraftingPlanSummary;
 import appeng.menu.me.crafting.CraftingPlanSummaryEntry;
+
+import net.minecraft.client.gui.GuiGraphics;
 
 import java.util.List;
 

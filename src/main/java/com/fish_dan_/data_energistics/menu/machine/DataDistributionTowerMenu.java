@@ -17,6 +17,14 @@ import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargets
 import com.fish_dan_.data_energistics.network.tower.DataDistributionTowerTargetsSnapshot;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.core.localization.ButtonToolTips;
+import appeng.core.localization.Tooltips;
+import appeng.menu.AEBaseMenu;
+import appeng.menu.SlotSemantics;
+import appeng.menu.guisync.GuiSync;
+import appeng.menu.slot.RestrictedInputSlot;
+import appeng.util.inv.AppEngInternalInventory;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -26,13 +34,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import appeng.core.localization.ButtonToolTips;
-import appeng.core.localization.Tooltips;
-import appeng.menu.AEBaseMenu;
-import appeng.menu.SlotSemantics;
-import appeng.menu.guisync.GuiSync;
-import appeng.menu.slot.RestrictedInputSlot;
-import appeng.util.inv.AppEngInternalInventory;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
 import org.jspecify.annotations.Nullable;
 

@@ -5,11 +5,6 @@ import com.fish_dan_.data_energistics.client.ui.DataReassemblerProgressElement;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataReassemblerLayout.SlotPos;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
-
-import appeng.api.stacks.GenericStack;
-import appeng.core.AppEng;
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.ScrollDataSource;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
@@ -20,6 +15,13 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import com.lowdragmc.lowdraglib2.gui.ui.utils.IModularUIProvider;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
+
+import appeng.api.stacks.GenericStack;
+import appeng.core.AppEng;
+
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.Arrays;

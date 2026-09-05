@@ -3,15 +3,16 @@ package com.fish_dan_.data_energistics.client.screen.terminal;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
+import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.widgets.VerticalButtonBar;
+import appeng.menu.AEBaseMenu;
+
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
-import appeng.client.gui.AEBaseScreen;
-import appeng.client.gui.widgets.VerticalButtonBar;
-import appeng.menu.AEBaseMenu;
 import org.apache.logging.log4j.Logger;
 
 import java.lang.invoke.MethodHandle;

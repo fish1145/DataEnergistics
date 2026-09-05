@@ -4,11 +4,11 @@ import com.fish_dan_.data_energistics.common.beam.BeamDeviceKind;
 import com.fish_dan_.data_energistics.common.beam.BeamEndpoint;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
-import net.minecraft.world.entity.player.Inventory;
-
 import appeng.api.util.IConfigManager;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.implementations.UpgradeableMenu;
+
+import net.minecraft.world.entity.player.Inventory;
 
 /** The same AE2 upgrade slots and authoritative status view for block and part endpoints. */
 public final class BeamFormerMenu extends UpgradeableMenu<BeamEndpoint> {

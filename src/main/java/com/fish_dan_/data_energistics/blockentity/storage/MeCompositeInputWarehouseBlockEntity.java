@@ -4,16 +4,16 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentKeyNormalizer;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.level.block.state.BlockState;
-
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGridNode;
 import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 import appeng.me.helpers.MachineSource;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Persistent state and AE pull logic for ME input compartments.

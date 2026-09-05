@@ -2,11 +2,11 @@ package com.fish_dan_.data_energistics.client.screen.beam;
 
 import com.fish_dan_.data_energistics.menu.beam.BeamFormerMenu;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-
 import appeng.client.gui.implementations.UpgradeableScreen;
 import appeng.client.gui.style.ScreenStyle;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
 
 public final class BeamFormerScreen extends UpgradeableScreen<BeamFormerMenu> {
 

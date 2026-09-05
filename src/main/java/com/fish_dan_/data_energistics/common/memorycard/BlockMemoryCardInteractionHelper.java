@@ -1,5 +1,13 @@
 package com.fish_dan_.data_energistics.common.memorycard;
 
+import appeng.api.ids.AEComponents;
+import appeng.api.implementations.items.IMemoryCard;
+import appeng.api.implementations.items.MemoryCardMessages;
+import appeng.blockentity.AEBaseBlockEntity;
+import appeng.items.tools.MemoryCardItem;
+import appeng.util.InteractionUtil;
+import appeng.util.SettingsFrom;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.network.chat.Component;
@@ -9,13 +17,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
-import appeng.api.ids.AEComponents;
-import appeng.api.implementations.items.IMemoryCard;
-import appeng.api.implementations.items.MemoryCardMessages;
-import appeng.blockentity.AEBaseBlockEntity;
-import appeng.items.tools.MemoryCardItem;
-import appeng.util.InteractionUtil;
-import appeng.util.SettingsFrom;
 import org.jspecify.annotations.Nullable;
 
 public final class BlockMemoryCardInteractionHelper {

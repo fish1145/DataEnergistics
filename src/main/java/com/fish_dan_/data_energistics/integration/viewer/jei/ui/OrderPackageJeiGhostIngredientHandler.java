@@ -5,10 +5,11 @@ import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.integration.viewer.jei.ingredient.DataResourceJeiIngredient;
 import com.fish_dan_.data_energistics.menu.storage.OrderPackageMenu;
 
-import net.minecraft.client.renderer.Rect2i;
-
 import appeng.api.stacks.GenericStack;
 import appeng.menu.slot.FakeSlot;
+
+import net.minecraft.client.renderer.Rect2i;
+
 import mezz.jei.api.gui.handlers.IGhostIngredientHandler;
 import mezz.jei.api.ingredients.ITypedIngredient;
 

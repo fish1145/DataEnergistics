@@ -4,10 +4,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.api.networking.crafting.CalculationStrategy;
 import appeng.api.stacks.AEKey;
+
+import net.minecraft.network.chat.Component;
+
 import org.jspecify.annotations.Nullable;
 
 /**

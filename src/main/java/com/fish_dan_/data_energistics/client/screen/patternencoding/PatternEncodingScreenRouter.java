@@ -4,12 +4,13 @@ import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.ae.ae2wtlib.Ae2WtLibCompat;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 
+import appeng.client.gui.me.items.PatternEncodingTermScreen;
+import appeng.client.gui.style.StyleManager;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
-import appeng.client.gui.me.items.PatternEncodingTermScreen;
-import appeng.client.gui.style.StyleManager;
 import org.jspecify.annotations.Nullable;
 
 public final class PatternEncodingScreenRouter {

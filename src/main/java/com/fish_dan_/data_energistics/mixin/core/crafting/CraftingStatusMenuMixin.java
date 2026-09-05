@@ -7,14 +7,15 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.Tr
 import com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection.TargetState;
 
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.MenuType;
-
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.storage.ITerminalHost;
 import appeng.menu.me.crafting.CraftingCPUMenu;
 import appeng.menu.me.crafting.CraftingStatusMenu;
+
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
+
 import com.google.common.collect.ImmutableSet;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;

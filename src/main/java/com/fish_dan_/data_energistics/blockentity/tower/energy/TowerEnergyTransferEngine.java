@@ -9,11 +9,12 @@ import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAc
 import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccessException;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
+import appeng.blockentity.grid.AENetworkedBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
-import appeng.blockentity.grid.AENetworkedBlockEntity;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;

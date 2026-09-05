@@ -3,12 +3,13 @@ package com.fish_dan_.data_energistics.integration.viewer.emi.ui;
 import com.fish_dan_.data_energistics.client.gui.OrderPackageGhostIngredient;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.Rect2i;
-
 import appeng.api.stacks.GenericStack;
 import appeng.integration.modules.emi.EmiStackHelper;
 import appeng.integration.modules.itemlists.DropTargets;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.Rect2i;
+
 import dev.emi.emi.api.EmiDragDropHandler;
 import dev.emi.emi.api.stack.EmiIngredient;
 

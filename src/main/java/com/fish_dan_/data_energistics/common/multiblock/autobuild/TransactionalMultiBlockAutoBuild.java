@@ -3,6 +3,11 @@ package com.fish_dan_.data_energistics.common.multiblock.autobuild;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
 
+import appeng.api.parts.IPart;
+import appeng.api.parts.IPartItem;
+import appeng.api.parts.PartHelper;
+import appeng.parts.PartPlacement;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -22,10 +27,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.shapes.CollisionContext;
 
-import appeng.api.parts.IPart;
-import appeng.api.parts.IPartItem;
-import appeng.api.parts.PartHelper;
-import appeng.parts.PartPlacement;
 import com.modularmc.mdl.api.multiblock.BlockPattern;
 import com.modularmc.mdl.api.multiblock.MultiblockState;
 import com.modularmc.mdl.api.multiblock.PatternCandidate;

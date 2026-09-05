@@ -6,12 +6,12 @@ import com.fish_dan_.data_energistics.common.multiblock.transfer.MultiblockPatte
 import com.fish_dan_.data_energistics.common.multiblock.transfer.PatternEncodingMultiblockTransfer;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 
+import appeng.menu.me.items.PatternEncodingTermMenu;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-
-import appeng.menu.me.items.PatternEncodingTermMenu;
 
 /**
  * Main-thread router for authoritative multiblock recipe transfer into AE2 pattern terminals.

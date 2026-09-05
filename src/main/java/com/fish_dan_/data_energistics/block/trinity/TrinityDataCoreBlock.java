@@ -6,6 +6,8 @@ import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEn
 import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenu;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
+import appeng.hooks.WrenchHook;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,7 +27,6 @@ import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 
-import appeng.hooks.WrenchHook;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;

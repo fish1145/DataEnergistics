@@ -5,6 +5,9 @@ import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMobEffects;
 import com.fish_dan_.data_energistics.registry.DEParticles;
 
+import appeng.core.definitions.AEItems;
+import appeng.items.misc.PaintBallItem;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -19,8 +22,6 @@ import net.minecraft.world.item.component.ChargedProjectiles;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
-import appeng.core.definitions.AEItems;
-import appeng.items.misc.PaintBallItem;
 import org.joml.Vector3f;
 
 final class ClientTickHandler {

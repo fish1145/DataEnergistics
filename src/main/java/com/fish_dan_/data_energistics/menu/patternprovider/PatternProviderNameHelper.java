@@ -3,10 +3,11 @@ package com.fish_dan_.data_energistics.menu.patternprovider;
 import com.fish_dan_.data_energistics.mixin.core.accessor.ae2.AEBaseBlockEntityNameAccessor;
 import com.fish_dan_.data_energistics.mixin.core.accessor.ae2.AEBasePartNameAccessor;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.blockentity.AEBaseBlockEntity;
 import appeng.parts.AEBasePart;
+
+import net.minecraft.network.chat.Component;
+
 import org.jspecify.annotations.Nullable;
 
 public final class PatternProviderNameHelper {

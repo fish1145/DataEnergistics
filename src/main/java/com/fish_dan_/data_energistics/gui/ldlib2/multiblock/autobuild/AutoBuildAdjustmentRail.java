@@ -1,8 +1,9 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.autobuild;
 
+import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
+
 import net.minecraft.network.chat.Component;
 
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectLists;

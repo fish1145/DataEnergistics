@@ -34,6 +34,12 @@ import com.fish_dan_.data_energistics.part.MeSolarPanelPart;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.part.beam.BeamFormerPart;
 
+import appeng.api.stacks.GenericStack;
+import appeng.api.upgrades.Upgrades;
+import appeng.block.networking.EnergyCellBlockItem;
+import appeng.items.parts.PartItem;
+import appeng.items.storage.StorageTier;
+
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.item.BlockItem;
@@ -49,12 +55,6 @@ import net.neoforged.neoforge.common.SimpleTier;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
-
-import appeng.api.stacks.GenericStack;
-import appeng.api.upgrades.Upgrades;
-import appeng.block.networking.EnergyCellBlockItem;
-import appeng.items.parts.PartItem;
-import appeng.items.storage.StorageTier;
 
 import java.util.List;
 

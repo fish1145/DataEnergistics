@@ -45,6 +45,12 @@ import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwner
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.tower.energy.appflux.AE2FluxIntegration;
 
+import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.IGridServiceProvider;
+import appeng.api.networking.pathing.ChannelMode;
+import appeng.api.stacks.AEItemKey;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -55,11 +61,6 @@ import net.minecraft.world.Nameable;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.IGridServiceProvider;
-import appeng.api.networking.pathing.ChannelMode;
-import appeng.api.stacks.AEItemKey;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

@@ -10,12 +10,13 @@ import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPl
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.TrinityCraftingCycleSummaryProjection;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.networking.security.IActionSource;
 import appeng.menu.me.crafting.CraftingPlanSummary;
+
+import net.minecraft.network.chat.Component;
+
 import org.jspecify.annotations.Nullable;
 
 /** A complete authoritative outcome plus its optional, independently fallible visualization. */

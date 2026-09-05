@@ -6,6 +6,7 @@ import appeng.client.gui.layout.SlotGridLayout;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.style.SlotPosition;
 import appeng.menu.SlotSemantics;
+
 import org.apache.logging.log4j.Logger;
 
 /**

@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 
 import appeng.api.stacks.GenericStack;
 import appeng.items.misc.WrappedGenericStack;
+
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.IIngredientType;
 

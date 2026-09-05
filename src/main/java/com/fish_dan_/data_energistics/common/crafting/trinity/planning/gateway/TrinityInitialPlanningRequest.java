@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 
 import appeng.api.stacks.AEKey;
+
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;

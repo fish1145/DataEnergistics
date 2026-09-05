@@ -9,12 +9,12 @@ import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalReg
 import com.fish_dan_.data_energistics.common.terminal.UniversalTerminalData;
 import com.fish_dan_.data_energistics.menu.universal.UniversalTerminalMenuLocator;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.config.Settings;
 import appeng.api.config.ShowPatternProviders;
 import appeng.api.util.IConfigManager;
 import appeng.core.definitions.AEParts;
+
+import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 

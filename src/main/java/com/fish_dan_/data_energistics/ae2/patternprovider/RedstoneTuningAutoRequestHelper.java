@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.ae2.patternprovider;
 
-import net.minecraft.server.level.ServerLevel;
-
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.CalculationStrategy;
 import appeng.api.networking.security.IActionSource;
+
+import net.minecraft.server.level.ServerLevel;
 
 import java.util.List;
 

@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.menu.crafting.tree.session;
 
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.crafting.ICraftingPlan;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.UUID;
