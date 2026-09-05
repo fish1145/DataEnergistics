@@ -41,6 +41,9 @@ public interface CraftingProviderPublicationIndex {
      */
     List<CraftingProviderId> providerIdsFor(IPatternDetails patternIdentity);
 
+    /** Server-thread snapshot including providers with no current patterns, for outstanding asset recovery. */
+    List<CraftingProviderId> providerIds();
+
     /**
      * Resolves a current ID immediately before server-thread capacity capture or commit.
      *

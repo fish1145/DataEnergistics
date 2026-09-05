@@ -3,8 +3,11 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionNbtCodec;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
+import com.fish_dan_.data_energistics.common.crafting.trinity.serialization.TrinityBigIntegerEncoding;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
 
@@ -55,6 +58,9 @@ final class TrinityDataCoreExecutingCraftingJob {
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
     private static final int DYNAMIC_OUTPUT_SCHEMA_VERSION = 3;
+    private static final int TARGET_PRINCIPAL_SCHEMA_VERSION = 4;
+    private static final String TARGET_PRINCIPAL_KNOWN_TAG = "target_principal_known";
+    private static final String TARGET_PRINCIPAL_TAG = "target_principal";
     private static final String LINK_TAG = "link";
     private static final String PLAYER_ID_TAG = "player_id";
     private static final String FINAL_OUTPUT_TAG = "final_output";
@@ -85,6 +91,7 @@ final class TrinityDataCoreExecutingCraftingJob {
     boolean suspended;
     @Nullable
     Integer playerId;
+    private @Nullable BigInteger targetPrincipal;
 
     @FunctionalInterface
     interface CraftingDifferenceListener {
@@ -100,7 +107,12 @@ final class TrinityDataCoreExecutingCraftingJob {
     TrinityDataCoreExecutingCraftingJob(ICraftingPlan plan,
                                         CraftingDifferenceListener differenceListener,
                                         CraftingLink link,
-                                        @Nullable Integer playerId) {
+                                        @Nullable Integer playerId,
+                                        BigInteger initialTargetPrincipal) {
+        if (initialTargetPrincipal.signum() < 0) {
+            throw new IllegalArgumentException("Initial target principal must not be negative");
+        }
+        this.targetPrincipal = initialTargetPrincipal;
         this.finalOutput = plan.finalOutput();
         this.remainingAmount = this.finalOutput.amount();
         this.waitingFor = new ListCraftingInventory(differenceListener::onCraftingDifference);
@@ -138,6 +150,7 @@ final class TrinityDataCoreExecutingCraftingJob {
         if (!hasSupportedSchema(data)) {
             throw new IllegalArgumentException("Unsupported persisted Trinity Data Core CPU job schema");
         }
+        this.targetPrincipal = readTargetPrincipal(data);
         this.link = new CraftingLink(data.getCompound(LINK_TAG), logic.cpu());
         this.finalOutput = GenericStack.readTag(registries, data.getCompound(FINAL_OUTPUT_TAG));
         this.remainingAmount = data.getLong(REMAINING_AMOUNT_TAG);
@@ -192,7 +205,11 @@ final class TrinityDataCoreExecutingCraftingJob {
      */
     CompoundTag writeToTag(HolderLookup.Provider registries) {
         CompoundTag data = new CompoundTag();
-        data.putInt(SCHEMA_VERSION_TAG, DYNAMIC_OUTPUT_SCHEMA_VERSION);
+        data.putInt(SCHEMA_VERSION_TAG, TARGET_PRINCIPAL_SCHEMA_VERSION);
+        data.putBoolean(TARGET_PRINCIPAL_KNOWN_TAG, this.targetPrincipal != null);
+        if (this.targetPrincipal != null) {
+            data.putByteArray(TARGET_PRINCIPAL_TAG, TrinityBigIntegerEncoding.encode(this.targetPrincipal, "target principal"));
+        }
 
         CompoundTag linkData = new CompoundTag();
         this.link.writeToNBT(linkData);
@@ -359,14 +376,107 @@ final class TrinityDataCoreExecutingCraftingJob {
             return false;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != DYNAMIC_OUTPUT_SCHEMA_VERSION) {
+        if (schemaVersion != DYNAMIC_OUTPUT_SCHEMA_VERSION && schemaVersion != TARGET_PRINCIPAL_SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
                     "Ignoring persisted Trinity Data Core CPU job schema version {}; expected {}",
                     schemaVersion,
-                    DYNAMIC_OUTPUT_SCHEMA_VERSION);
+                    TARGET_PRINCIPAL_SCHEMA_VERSION);
             return false;
         }
         return true;
+    }
+
+    /** A zero production request is represented only by the explicit no-production branch. */
+    record ReplanDemand(boolean noProduction, BigInteger requested) {
+
+        ReplanDemand {
+            if (requested.signum() < 0 || noProduction != (requested.signum() == 0)) {
+                throw new IllegalArgumentException("Replan demand must distinguish zero production from positive planning");
+            }
+        }
+    }
+
+    /**
+     * Counts real CPU-owned target-domain assets. The map must include physical and overflow windows
+     * exactly once and must not include network availability or isolated completion contents.
+     */
+    static BigInteger ownedTargetAmount(AEKey target, TrinitySameItemPolicy policy, Map<AEKey, BigInteger> cpuOwned) {
+        AEKey logicalTarget = policy.normalizeKey(target);
+        BigInteger amount = BigInteger.ZERO;
+        for (var entry : cpuOwned.entrySet()) {
+            if (policy.normalizeKey(entry.getKey()).equals(logicalTarget)) {
+                amount = amount.add(entry.getValue());
+            }
+        }
+        return amount;
+    }
+
+    /**
+     * Computes demand only after accepted providers, ordinary output waits and sessions have settled.
+     * NET_NEW preserves external target principal; FINAL_TOTAL may consume already owned target stock.
+     * A legacy unknown principal deliberately retains the old full-delivery request without stock credit.
+     */
+    ReplanDemand replanDemand(Map<AEKey, BigInteger> cpuOwned) {
+        TrinityPlanExecution execution = trinityExecution();
+        BigInteger delivery = BigInteger.valueOf(execution.deliveryRemaining());
+        TrinitySameItemPolicy policy = execution.sameItemPolicy();
+        AEKey target = policy.normalizeKey(execution.finalOutput().what());
+        BigInteger owned = ownedTargetAmount(target, policy, cpuOwned);
+        BigInteger completion = BigInteger.ZERO;
+        for (var entry : execution.completionContents().object2LongEntrySet()) {
+            completion = completion.add(BigInteger.valueOf(entry.getLongValue()));
+        }
+        BigInteger requested;
+        if (execution.quantityMode() == CraftingQuantityMode.FINAL_TOTAL) {
+            requested = owned.add(completion).compareTo(delivery) >= 0 ? BigInteger.ZERO : delivery.subtract(completion);
+        } else if (this.targetPrincipal == null) {
+            requested = delivery;
+        } else {
+            BigInteger borrowed = BigInteger.ZERO;
+            for (var entry : execution.borrowingLedger().entries().entrySet()) {
+                if (policy.normalizeKey(entry.getKey()).equals(target)) {
+                    borrowed = borrowed.add(entry.getValue().reserved()).add(entry.getValue().committed());
+                }
+            }
+            requested = delivery.add(this.targetPrincipal).add(borrowed).subtract(owned).subtract(completion).max(BigInteger.ZERO);
+        }
+        return new ReplanDemand(requested.signum() == 0, requested);
+    }
+
+    /** Adds only newly acquired replacement target inputs; reusing owned stock must pass zero. */
+    void recordAdditionalTargetPrincipal(BigInteger delta) {
+        if (delta.signum() < 0) {
+            throw new IllegalArgumentException("Additional target principal must not be negative");
+        }
+        if (this.targetPrincipal != null) {
+            this.targetPrincipal = this.targetPrincipal.add(delta);
+        }
+    }
+
+    private static @Nullable BigInteger readTargetPrincipal(CompoundTag data) {
+        if (data.getInt(SCHEMA_VERSION_TAG) == DYNAMIC_OUTPUT_SCHEMA_VERSION) {
+            if (data.contains(TARGET_PRINCIPAL_KNOWN_TAG) || data.contains(TARGET_PRINCIPAL_TAG)) {
+                throw new IllegalArgumentException("Legacy job schema cannot contain target-principal metadata");
+            }
+            return null;
+        }
+        if (!data.contains(TARGET_PRINCIPAL_KNOWN_TAG, Tag.TAG_BYTE)) {
+            throw new IllegalArgumentException("Current job schema requires an explicit target-principal state");
+        }
+        if (!data.getBoolean(TARGET_PRINCIPAL_KNOWN_TAG)) {
+            if (data.contains(TARGET_PRINCIPAL_TAG)) {
+                throw new IllegalArgumentException("Unknown target principal cannot carry a known amount");
+            }
+            return null;
+        }
+        if (!data.contains(TARGET_PRINCIPAL_TAG, Tag.TAG_BYTE_ARRAY)) {
+            throw new IllegalArgumentException("Known target principal requires an exact amount");
+        }
+        BigInteger principal = TrinityBigIntegerEncoding.decode(data.getByteArray(TARGET_PRINCIPAL_TAG), "target principal");
+        if (principal.signum() < 0) {
+            throw new IllegalArgumentException("Persisted target principal must not be negative");
+        }
+        return principal;
     }
 
     private static DynamicCraftingOutputLedger readDynamicOutputs(CompoundTag data,

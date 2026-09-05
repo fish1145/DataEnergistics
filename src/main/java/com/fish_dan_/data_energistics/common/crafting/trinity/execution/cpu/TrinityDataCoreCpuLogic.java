@@ -6,6 +6,8 @@ import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmis
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletion;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletionMode;
 import com.fish_dan_.data_energistics.api.crafting.dynamic.DynamicCraftingOutput;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.SlotStack;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView.Settlement;
 import com.fish_dan_.data_energistics.common.crafting.dynamic.DynamicCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.dynamic.DynamicCraftingOutputResolutionException;
 import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
@@ -61,9 +63,18 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.DynamicOutput;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.OutputContract;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Session;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Submission;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.SubmissionEntry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedgerNbtCodec;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSettlement;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.planning.ReusableInputGraphCaptureAccess;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.planning.ReusableReplanGraphCapture;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputProjection;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
@@ -100,14 +111,17 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 
 import com.google.common.base.Preconditions;
+import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -155,6 +169,9 @@ final class TrinityDataCoreCpuLogic {
     private final TrinityPatternResolver patternResolver = TrinityPatternResolver.create();
     private final TrinityPatternSelector patternSelector = TrinityPatternSelector.create();
     private final TrinityRemainingPlanCalculation remainingPlanCalculation = TrinityRemainingPlanCalculation.create(TrinityPlanningGatewayLifecycle::gateway);
+    private final ReusableReplanGraphCapture reusableReplanCapture = new ReusableReplanGraphCapture();
+    private @Nullable TrinityCraftingGraphSnapshot capturedReplanGraph;
+    private @Nullable Object reportedReplanCaptureFailure;
     private final TrinityWorkerProposalCoordinator proposalCoordinator = TrinityWorkerProposalCoordinator.create(
             TrinityDispatchProposalLifecycle::scheduler);
     @Nullable
@@ -163,6 +180,10 @@ final class TrinityDataCoreCpuLogic {
     private final TrinityExactWorkingInventory exactWorkingInventory = new TrinityExactWorkingInventory();
     private ReusableCpuSessionLedger reusableLedger = new ReusableCpuSessionLedger(UUID.randomUUID());
     private @Nullable Tag quarantinedReusableState;
+    private final TrinityReusableDispatch reusableDispatch = new TrinityReusableDispatch(this);
+    private int reusableMutationDepth;
+    private boolean deferredReusableCancellation;
+    private final Set<AEKey> reusableChanges = new ObjectLinkedOpenHashSet<>();
     private final ListCraftingInventory pendingVirtualCompletions;
     private final ListCraftingInventory pendingNoOutputCompletions;
     private final WorkerOperationTracker operationTracker = WorkerOperationTracker.create();
@@ -241,7 +262,9 @@ final class TrinityDataCoreCpuLogic {
         CraftingLink linkCpu = new CraftingLink(
                 CraftingCpuHelper.generateLinkData(craftId, requester == null, false),
                 this.cpu);
-        this.job = new TrinityDataCoreExecutingCraftingJob(plan, this::postChange, linkCpu, playerId);
+        BigInteger targetPrincipal = TrinityDataCoreExecutingCraftingJob.ownedTargetAmount(plan.finalOutput().what(),
+                plan instanceof TrinityCraftingPlan trinityPlan ? trinityPlan.sameItemPolicy() : TrinitySameItemPolicy.empty(), reusableOwnedInventory());
+        this.job = new TrinityDataCoreExecutingCraftingJob(plan, this::postChange, linkCpu, playerId, targetPrincipal);
         this.jobRevision = Math.incrementExact(this.jobRevision);
         this.capacitySliceCursor = CraftingDispatchCursor.initial();
         this.proposalRetryAt = -1L;
@@ -377,6 +400,10 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
         this.cantStoreItems = false;
+        IGrid reusableGrid = this.cpu.grid();
+        if (reusableGrid != null && this.reusableLedger.hasUnsettled()) {
+            this.reusableDispatch.synchronize(craftingProviderPublications((CraftingService) reusableGrid.getCraftingService()), currentTick);
+        }
         if (this.job == null) {
             recoverVirtualCompletions();
             storeItems();
@@ -420,7 +447,8 @@ final class TrinityDataCoreCpuLogic {
     }
 
     private boolean readyForDispatch(long currentTick) {
-        if (!this.cpu.isOnline() || !this.cpu.isActive() || this.job == null || this.job.suspended || this.quarantinedReusableState != null) {
+        if (!this.cpu.isOnline() || !this.cpu.isActive() || this.job == null || this.job.suspended || this.quarantinedReusableState != null ||
+                this.reusableLedger.hasUncertainOwnership() || this.reusableMutationDepth != 0) {
             return false;
         }
         if (this.job.link.isCanceled() ||
@@ -606,7 +634,7 @@ final class TrinityDataCoreCpuLogic {
                                                                CraftingDispatchWindow dispatchWindow,
                                                                CraftingDispatchBudget dispatchBudget,
                                                                IntSet inspectedStages) {
-        if (advanceTrinityCompletion(currentJob)) {
+        if (currentJob.trinityExecution().status() != TrinityPlanExecution.Status.PLANNING && advanceTrinityCompletion(currentJob)) {
             return CraftingExecutionOutcome.NONE;
         }
 
@@ -632,7 +660,7 @@ final class TrinityDataCoreCpuLogic {
                         execution.failureReason().orElse("unknown runtime failure"));
                 finishJob(false);
             } else if (execution.deadlocked(
-                    !currentJob.waitingFor.list.isEmpty() || !currentJob.dynamicOutputs.isEmpty())) {
+                    !currentJob.waitingFor.list.isEmpty() || !currentJob.dynamicOutputs.isEmpty() || this.reusableLedger.hasUnsettled(currentJob.link.getCraftingID()))) {
                         String reason = "RUNTIME_DEADLOCK: no ready, waiting, retry, planning or in-flight path remains";
                         execution.fail(reason);
                         Data_Energistics.LOGGER.error(
@@ -686,6 +714,21 @@ final class TrinityDataCoreCpuLogic {
         MEStorage network = activeGrid.getStorageService().getInventory();
         if (this.exactWorkingInventory.refillPhysicalWindows(this.inventory)) {
             this.cpu.markDirty();
+        }
+        if (work.exactBindings().stream().anyMatch(binding -> binding.reusableRule() != null)) {
+            if (!(level instanceof ServerLevel serverLevel)) {
+                throw new IllegalStateException("Reusable dispatch requires a server level");
+            }
+            var outcome = this.reusableDispatch.dispatch(currentJob, work, pattern, craftingProviderPublications(craftingService),
+                    energyService, serverLevel, dispatchWindow, currentTick);
+            if (!outcome.accepted() && this.job == currentJob) {
+                if (outcome.staleRule()) {
+                    requestReusableReplan(currentJob);
+                } else {
+                    execution.deferProvider(work, currentTick, settings.dynamicRetryMaxTicks);
+                }
+            }
+            return new CraftingExecutionOutcome(outcome.attempts(), outcome.accepted());
         }
         long maximumLogicalFirings = work.maximumLogicalFirings();
         if (work.cycle()) {
@@ -861,7 +904,8 @@ final class TrinityDataCoreCpuLogic {
                                           CraftingService craftingService,
                                           long currentTick) {
         TrinityPlanExecution execution = currentJob.trinityExecution();
-        if (!(craftingService instanceof TrinityCraftingGraphAccess graphAccess)) {
+        if (!(craftingService instanceof TrinityCraftingGraphAccess graphAccess) ||
+                !(craftingService instanceof ReusableInputGraphCaptureAccess captureAccess)) {
             String reason = "STALE_GRAPH: crafting service does not expose a Trinity graph snapshot";
             execution.fail(reason);
             Data_Energistics.LOGGER.error(reason);
@@ -871,9 +915,48 @@ final class TrinityDataCoreCpuLogic {
         if (activeGrid == null) {
             return;
         }
+        this.reusableLedger.closeJob(currentJob.link.getCraftingID());
+        if (this.reusableLedger.hasUnsettled(currentJob.link.getCraftingID()) ||
+                this.reusableLedger.hasUncertainOwnership() || !currentJob.waitingFor.list.isEmpty()) {
+            return;
+        }
+        var demand = currentJob.replanDemand(reusableOwnedInventory());
+        if (demand.noProduction()) {
+            Map<AEKey, BigInteger> previous = execution.pendingOutputs();
+            execution.finishReplanningWithoutProduction(currentTick);
+            currentJob.timeTracker.replacePendingPlan(previous, Map.of());
+            cancelPendingReplan();
+            this.reusableLedger.finishReplan(currentJob.link.getCraftingID());
+            this.cpu.markDirty();
+            previous.keySet().forEach(this::postChange);
+            return;
+        }
         TrinityCraftingSchema settings = DataEnergisticsConfiguration.INSTANCE.trinity.crafting;
         MEStorage network = activeGrid.getStorageService().getInventory();
-        Optional<TrinityCraftingGraphSnapshot> graphSnapshot = graphAccess.data_energistics$trinityCraftingGraphSnapshot();
+        Optional<TrinityCraftingGraphSnapshot> published = graphAccess.data_energistics$trinityCraftingGraphSnapshot();
+        if (published.isEmpty()) {
+            cancelPendingReplan();
+            return;
+        }
+        long scope = craftingProviderPublications(craftingService).publicationScope();
+        ReusableReplanGraphCapture.Result capture = this.reusableReplanCapture.advance(scope, published.orElseThrow().revision(), currentTick,
+                settings.dynamicRetryMaxTicks, () -> captureAccess.data_energistics$captureReusableGraph((ServerLevel) this.cpu.level(),
+                        this.cpu.actionSource(), execution.finalOutput().what(), reusableInventoryStates(), TrinityPlanningLimits.capture(settings)));
+        if (!(capture instanceof ReusableReplanGraphCapture.Ready captured)) {
+            this.remainingPlanCalculation.cancel();
+            if (!(capture instanceof ReusableReplanGraphCapture.Waiting) && !capture.equals(this.reportedReplanCaptureFailure)) {
+                this.reportedReplanCaptureFailure = capture;
+                Data_Energistics.LOGGER.warn("Trinity CPU {} retained job {} while reusable graph capture was unavailable: {}",
+                        this.cpu.number(), currentJob.link.getCraftingID(), capture);
+            }
+            return;
+        }
+        if (this.capturedReplanGraph != captured.snapshot()) {
+            this.remainingPlanCalculation.cancel();
+            this.capturedReplanGraph = captured.snapshot();
+            this.reportedReplanCaptureFailure = null;
+        }
+        Optional<TrinityCraftingGraphSnapshot> graphSnapshot = Optional.of(captured.snapshot());
         TrinityRemainingPlanCalculation.Result result = this.remainingPlanCalculation.advance(
                 graphSnapshot,
                 craftingProviderPublications(craftingService).publicationScope(),
@@ -881,7 +964,7 @@ final class TrinityDataCoreCpuLogic {
                         .map(snapshot -> captureReplanAvailability(snapshot, activeGrid, currentJob.finalOutput.what()))
                         .orElseGet(TrinityPlanningInventory::empty),
                 execution.finalOutput().what(),
-                BigInteger.valueOf(execution.deliveryRemaining()),
+                demand.requested(),
                 execution.quantityMode(),
                 settings,
                 currentTick);
@@ -925,7 +1008,11 @@ final class TrinityDataCoreCpuLogic {
             return;
         }
 
-        if (!reserveReplacementInputs(ready.plan(), network)) {
+        boolean reserved = reserveReplacementInputs(currentJob, ready.plan(), network);
+        if (this.job != currentJob) {
+            return;
+        }
+        if (!reserved) {
             Data_Energistics.LOGGER.warn(
                     "Trinity CPU {} retained job {} while replacement inputs for catalog revision {} were unavailable",
                     this.cpu.number(),
@@ -943,6 +1030,9 @@ final class TrinityDataCoreCpuLogic {
         currentJob.timeTracker.replacePendingPlan(previousPendingOutputs, ready.plan().plannedOutputs());
         changedOutputKeys.addAll(execution.pendingOutputs().keySet());
         this.remainingPlanCalculation.acceptRevision(ready.revision());
+        this.reusableReplanCapture.cancel();
+        this.capturedReplanGraph = null;
+        this.reusableLedger.finishReplan(currentJob.link.getCraftingID());
         this.cpu.markDirty();
         changedOutputKeys.forEach(this::postChange);
     }
@@ -963,14 +1053,35 @@ final class TrinityDataCoreCpuLogic {
                 .plus(this.exactWorkingInventory.snapshot()).normalized(policy);
     }
 
-    private boolean reserveReplacementInputs(TrinityCraftingPlan replacement, MEStorage network) {
-        return TrinityInitialInputExtractor.reserveReplacement(
-                replacement.initialExpectedInputs(),
-                replacement.sameItemPolicy(),
-                network,
-                this.inventory,
-                this.exactWorkingInventory,
-                this.cpu.actionSource()) == null;
+    private List<AEItemKey> reusableInventoryStates() {
+        ObjectLinkedOpenHashSet<AEItemKey> states = new ObjectLinkedOpenHashSet<>();
+        for (var entry : this.inventory.list) if (entry.getKey() instanceof AEItemKey item) states.add(item);
+        for (var key : this.exactWorkingInventory.snapshot().keySet()) if (key instanceof AEItemKey item) states.add(item);
+        return List.copyOf(states);
+    }
+
+    private Map<AEKey, BigInteger> reusableOwnedInventory() {
+        return TrinityPlanningInventory.empty().plus(this.inventory.list).plus(this.exactWorkingInventory.snapshot()).finiteAmounts();
+    }
+
+    private boolean reserveReplacementInputs(TrinityDataCoreExecutingCraftingJob currentJob, TrinityCraftingPlan replacement, MEStorage network) {
+        BigInteger previous = TrinityDataCoreExecutingCraftingJob.ownedTargetAmount(currentJob.finalOutput.what(),
+                currentJob.trinityExecution().sameItemPolicy(), reusableOwnedInventory());
+        beginReusableMutation();
+        try {
+            return TrinityInitialInputExtractor.reserveReplacement(
+                    replacement.initialExpectedInputs(), replacement.sameItemPolicy(), network,
+                    this.inventory, this.exactWorkingInventory, this.cpu.actionSource()) == null;
+        } finally {
+            try {
+                // A failed rollback can leave new external assets in overflow; those are not produced output.
+                BigInteger after = TrinityDataCoreExecutingCraftingJob.ownedTargetAmount(currentJob.finalOutput.what(),
+                        currentJob.trinityExecution().sameItemPolicy(), reusableOwnedInventory());
+                currentJob.recordAdditionalTargetPrincipal(after.subtract(previous));
+            } finally {
+                endReusableMutation();
+            }
+        }
     }
 
     private long simulateNetworkExtraction(MEStorage network, AEKey key) {
@@ -1068,8 +1179,13 @@ final class TrinityDataCoreCpuLogic {
      */
     private boolean advanceTrinityCompletion(TrinityDataCoreExecutingCraftingJob currentJob) {
         TrinityPlanExecution execution = currentJob.trinityExecution();
-        if (!execution.productionComplete() || !currentJob.waitingFor.list.isEmpty() ||
+        if (execution.status() == TrinityPlanExecution.Status.PLANNING || !execution.productionComplete() || !currentJob.waitingFor.list.isEmpty() ||
                 !currentJob.dynamicOutputs.isEmpty()) {
+            return false;
+        }
+        if (this.reusableLedger.hasUnsettled(currentJob.link.getCraftingID())) {
+            this.reusableLedger.closeJob(currentJob.link.getCraftingID());
+            this.cpu.markDirty();
             return false;
         }
 
@@ -2229,7 +2345,7 @@ final class TrinityDataCoreCpuLogic {
     }
 
     @Nullable
-    private static EnergyCharge chargeEnergy(IEnergyService energyService, double power) {
+    static EnergyCharge chargeEnergy(IEnergyService energyService, double power) {
         if (power < 0.0D || !Double.isFinite(power)) {
             Data_Energistics.LOGGER.error("Trinity Data Core CPU calculated invalid pattern power {}", power);
             return null;
@@ -3056,7 +3172,7 @@ final class TrinityDataCoreCpuLogic {
         }
     }
 
-    private static final class EnergyCharge {
+    static final class EnergyCharge {
 
         private final IEnergyService energyService;
         private final double extracted;
@@ -3067,11 +3183,11 @@ final class TrinityDataCoreCpuLogic {
             this.extracted = extracted;
         }
 
-        private void commit() {
+        void commit() {
             this.active = false;
         }
 
-        private void rollback() {
+        void rollback() {
             if (!this.active) {
                 return;
             }
@@ -3189,6 +3305,10 @@ final class TrinityDataCoreCpuLogic {
      * Cancels the current job, if one is active.
      */
     void cancel() {
+        if (this.reusableMutationDepth != 0) {
+            this.deferredReusableCancellation = true;
+            return;
+        }
         if (this.job == null) {
             return;
         }
@@ -3298,10 +3418,10 @@ final class TrinityDataCoreCpuLogic {
             return TrinityWorkerSchedulingHint.waitingEvent();
         }
         TrinityDataCoreExecutingCraftingJob currentJob = this.job;
+        if (this.reusableLedger.hasUnsettled()) {
+            return TrinityWorkerSchedulingHint.retryAt(Math.addExact(currentTick, this.reusableLedger.hasUncertainOwnership() ? 20L : 1L));
+        }
         if (currentJob == null) {
-            if (this.reusableLedger.hasUnsettled()) {
-                return TrinityWorkerSchedulingHint.retryAt(Math.addExact(currentTick, 20L));
-            }
             return this.inventory.list.isEmpty() &&
                     this.pendingVirtualCompletions.list.isEmpty() &&
                     this.pendingNoOutputCompletions.list.isEmpty() ?
@@ -3746,10 +3866,14 @@ final class TrinityDataCoreCpuLogic {
 
     private void cancelPendingReplan() {
         this.remainingPlanCalculation.cancel();
+        this.reusableReplanCapture.cancel();
+        this.capturedReplanGraph = null;
+        this.reportedReplanCaptureFailure = null;
     }
 
     private void storeItems() {
         Preconditions.checkState(this.job == null, "CPU should not have a job while dumping inventory");
+        if (this.quarantinedReusableState != null || this.reusableLedger.hasUncertainOwnership()) return;
         if (this.inventory.list.isEmpty() && this.exactWorkingInventory.isEmpty()) {
             return;
         }
@@ -3772,6 +3896,10 @@ final class TrinityDataCoreCpuLogic {
     }
 
     private void postChange(AEKey what) {
+        if (this.reusableMutationDepth != 0) {
+            this.reusableChanges.add(what);
+            return;
+        }
         this.lastModifiedOnTick = TickHandler.instance().getCurrentTick();
         for (Consumer<AEKey> listener : this.listeners) {
             listener.accept(what);
@@ -3781,6 +3909,254 @@ final class TrinityDataCoreCpuLogic {
     /** Returns this worker's recent physical-operation load without exposing its mutable tracking window. */
     long recentOperationLoad() {
         return this.operationTracker.recentOperations(TickHandler.instance().getCurrentTick());
+    }
+
+    ReusableCpuSessionLedger reusableLedger() {
+        return this.reusableLedger;
+    }
+
+    boolean ownsReusableJob(UUID id) {
+        return this.job != null && this.job.link.getCraftingID().equals(id);
+    }
+
+    boolean reusableWorkCurrent(TrinityDataCoreExecutingCraftingJob expected, TrinityPlanExecution.Work work) {
+        return this.job == expected && !this.deferredReusableCancellation && !expected.link.isCanceled() && this.cpu.isActive() &&
+                expected.trinityExecution().hasDispatchableWork(candidate -> candidate.equals(work), false);
+    }
+
+    void beginReusableMutation() {
+        this.reusableMutationDepth++;
+    }
+
+    void endReusableMutation() {
+        this.reusableMutationDepth--;
+        if (this.reusableMutationDepth == 0) {
+            this.cpu.markDirty();
+            List<AEKey> changes = List.copyOf(this.reusableChanges);
+            this.reusableChanges.clear();
+            for (AEKey key : changes) {
+                try {
+                    postChange(key);
+                } catch (RuntimeException failure) {
+                    Data_Energistics.LOGGER.error("Trinity CPU {} observer failed after reusable custody was committed for {}", this.cpu.number(), key, failure);
+                }
+            }
+            if (this.deferredReusableCancellation) {
+                this.deferredReusableCancellation = false;
+                cancel();
+            }
+        }
+    }
+
+    KeyCounter reusableAvailability(TrinityDataCoreExecutingCraftingJob currentJob, TrinityPlanExecution.Work work) {
+        KeyCounter available = new KeyCounter();
+        IGrid grid = this.cpu.grid();
+        Set<AEKey> seen = new ObjectOpenHashSet<>();
+        for (var binding : work.exactBindings()) {
+            AEKey key = binding.template().what();
+            if (seen.add(key)) {
+                long count = this.inventory.list.get(key);
+                if (work.cycle() && grid != null && !currentJob.dynamicOutputs.isInputAlias(key)) {
+                    count += Math.min(Long.MAX_VALUE - count, simulateNetworkExtraction(grid.getStorageService().getInventory(), key));
+                }
+                available.add(key, count);
+            }
+        }
+        return available;
+    }
+
+    @Nullable
+    OutputContract reusableOutputs(TrinityDataCoreExecutingCraftingJob currentJob, IPatternDetails pattern, TrinityReusableRecipe recipe) {
+        List<GenericStack> products = VirtualCraftingOutputAdapters.project(pattern).logicalOutputs();
+        List<GenericStack> waiting = new ObjectArrayList<>(products);
+        waiting.addAll(recipe.ordinaryRemainders());
+        PreparedPatternCommit unit = preparePatternCommit(currentJob, pattern, 1L,
+                new ExtractedPatternInputs(recipe.sampleGrid(), recipe.exactInputs(), products, recipe.ordinaryRemainders(), waiting), 1L, false);
+        return unit == null ? null : new OutputContract(unit.expectedOutputs(), unit.expectedContainerItems(),
+                unit.dynamicOutputs().stream().map(value -> new DynamicOutput(new GenericStack(value.plannedKey(), value.amount()),
+                        value.route() == DynamicCraftingOutputLedger.Route.FINAL_OUTPUT, value.source())).toList(),
+                unit.virtualCompletions());
+    }
+
+    long reusableOfferLimit(TrinityDataCoreExecutingCraftingJob currentJob, TrinityPlanExecution.Work work, TrinityReusableRecipe recipe,
+                            OutputContract outputs, double power, IEnergyService energy, Int2LongOpenHashMap resident) {
+        long maximum = work.maximumLogicalFirings();
+        IGrid grid = this.cpu.grid();
+        if (grid == null) return 0L;
+        if (work.cycle()) {
+            maximum = currentJob.trinityExecution().maximumCycleLogicalFirings(work, (key, useful) -> {
+                BigInteger available = combinedCycleSeedAvailability(grid.getStorageService().getInventory(), currentJob.trinityExecution().sameItemPolicy(), key, useful);
+                for (var tool : recipe.tools()) if (tool.state().equals(key)) available = available.add(BigInteger.valueOf(resident.get(tool.slot())));
+                return available.min(useful);
+            }).maximumLogicalFirings();
+        }
+        List<GenericStack> waiting = new ObjectArrayList<>(outputs.products());
+        waiting.addAll(outputs.remainders());
+        return limitByEnergy(power, limitByWaitingCapacity(currentJob, waiting, maximum), energy);
+    }
+
+    Optional<TrinityBorrowingTransaction> borrowReusableInputs(List<SlotStack> physical) {
+        IGrid grid = this.cpu.grid();
+        if (grid == null || this.job == null) return Optional.empty();
+        return borrowDynamicInputs(TrinityReusableDispatch.totals(physical), 1L, grid.getStorageService().getInventory(), this.job.trinityExecution().borrowingLedger());
+    }
+
+    @Nullable
+    KeyCounter[] takeReusableInputs(List<SlotStack> physical, int slots) {
+        KeyCounter[] taken = new KeyCounter[slots];
+        for (int slot = 0; slot < slots; slot++) taken[slot] = new KeyCounter();
+        List<SlotStack> extracted = new ObjectArrayList<>();
+        for (SlotStack item : physical) {
+            long amount = this.inventory.extract(item.stack().what(), item.stack().amount(), Actionable.MODULATE);
+            if (amount > 0L) {
+                extracted.add(new SlotStack(item.slot(), new GenericStack(item.stack().what(), amount)));
+                taken[item.slot()].add(item.stack().what(), amount);
+            }
+            if (amount != item.stack().amount()) {
+                returnReusableInputs(extracted);
+                return null;
+            }
+        }
+        return taken;
+    }
+
+    void returnReusableInputs(List<SlotStack> inputs) {
+        for (SlotStack input : inputs) {
+            this.exactWorkingInventory.deposit(input.stack().what(), input.stack().amount(), this.inventory);
+            wakeReusableTool(input.stack().what());
+        }
+    }
+
+    void registerReusableWaiting(TrinityDataCoreExecutingCraftingJob currentJob, Submission submission) {
+        addWaiting(currentJob, scaleStacks(submission.outputs().products(), submission.count()));
+        List<GenericStack> remainders = scaleStacks(submission.outputs().remainders(), submission.count());
+        addWaiting(currentJob, remainders);
+        currentJob.dynamicOutputs.register(reusableRegistrations(submission.outputs(), submission.count()));
+        for (GenericStack remainder : remainders) currentJob.timeTracker.addMaxItems(remainder.amount(), remainder.what().getType());
+    }
+
+    void rollbackReusableWaiting(TrinityDataCoreExecutingCraftingJob currentJob, Submission submission) {
+        ReusableWithdrawal withdrawal = new ReusableWithdrawal();
+        withdrawal.add(submission, submission.count(), false);
+        prepareReusableWithdrawal(currentJob, withdrawal).run();
+    }
+
+    void accountReusable(TrinityDataCoreExecutingCraftingJob currentJob, TrinityPlanExecution.Work work, Submission submission, List<SlotStack> physical) {
+        KeyCounter consumed = new KeyCounter();
+        for (GenericStack stack : TrinityReusableDispatch.totals(physical)) consumed.add(stack.what(), stack.amount());
+        currentJob.dynamicOutputs.consumeInputAliases(consumed);
+        currentJob.trinityExecution().recordAccepted(work, submission.count(), submission.logicalOffer());
+        for (GenericStack stack : submission.outputs().products()) postChange(stack.what());
+        for (GenericStack stack : submission.outputs().remainders()) postChange(stack.what());
+    }
+
+    void recoverReusableAccounting(Session session, SubmissionEntry entry) {
+        if (!entry.submission().waitingRegistered()) throw new IllegalStateException("Reusable ownership has no durable output registration");
+        if (ownsReusableJob(session.jobId())) {
+            var work = this.job.trinityExecution().recoverAcceptedWork(entry.submission().work(), TickHandler.instance().getCurrentTick()).orElseThrow(
+                    () -> new IllegalStateException("Accepted reusable work cannot be matched to the saved plan"));
+            this.reusableLedger.account(session.id(), entry.sequence(), value -> accountReusable(this.job, work, value, value.physicalInputs()));
+        } else {
+            this.reusableLedger.account(session.id(), entry.sequence(), ignored -> {});
+        }
+    }
+
+    void completeReusableOutputs(UUID jobId, Submission submission, long completed) {
+        List<VirtualCraftingCompletion> tokens = submission.outputs().virtual().stream().map(value -> new VirtualCraftingCompletion(
+                new GenericStack(value.stack().what(), Math.multiplyExact(value.stack().amount(), completed)), value.mode())).toList();
+        if (ownsReusableJob(jobId)) {
+            enqueueVirtualCompletions(tokens);
+        } else {
+            for (VirtualCraftingCompletion token : tokens) {
+                if (token.mode() == VirtualCraftingCompletionMode.DELIVER_TARGET) {
+                    this.exactWorkingInventory.deposit(token.stack().what(), token.stack().amount(), this.inventory);
+                }
+            }
+        }
+    }
+
+    void wakeReusableTool(AEKey key) {
+        if (this.job != null && this.job.isTrinityPlan()) this.job.trinityExecution().wake(key);
+        postChange(key);
+    }
+
+    void requestReusableReplan(TrinityDataCoreExecutingCraftingJob currentJob) {
+        if (this.reusableLedger.requireReplan(currentJob.link.getCraftingID())) {
+            this.proposalCoordinator.cancel();
+            cancelPendingReplan();
+            currentJob.trinityExecution().replanAfterCancelledDispatch(TickHandler.instance().getCurrentTick());
+        }
+        this.reusableLedger.closeJob(currentJob.link.getCraftingID());
+        this.cpu.markDirty();
+    }
+
+    boolean receiveReusableSettlement(Session session, Settlement settlement) {
+        String fingerprint = ReusableCpuSettlement.fingerprint(settlement, this.cpu.level().registryAccess());
+        return this.reusableLedger.settle(settlement, fingerprint, confirmed -> {
+            ReusableCpuSettlement.verify(session, confirmed);
+            if (ownsReusableJob(session.jobId())) {
+                ReusableWithdrawal withdrawal = new ReusableWithdrawal();
+                for (var receipt : confirmed.receipts()) {
+                    if (receipt.cancelled() > 0L) {
+                        withdrawal.add(session.submission(receipt.sequence()), receipt.cancelled(), true);
+                    }
+                }
+                // All sequences must validate before changing any waiting, dynamic-output or time balance.
+                Runnable apply = prepareReusableWithdrawal(this.job, withdrawal);
+                apply.run();
+                if (confirmed.receipts().stream().anyMatch(receipt -> receipt.cancelled() > 0L)) requestReusableReplan(this.job);
+            }
+            for (GenericStack returned : confirmed.returnedAssets()) {
+                this.exactWorkingInventory.deposit(returned.what(), returned.amount(), this.inventory);
+                wakeReusableTool(returned.what());
+            }
+        });
+    }
+
+    private static List<DynamicCraftingOutputLedger.Registration> reusableRegistrations(OutputContract outputs, long count) {
+        return outputs.dynamic().stream().map(value -> new DynamicCraftingOutputLedger.Registration((AEItemKey) value.stack().what(),
+                Math.multiplyExact(value.stack().amount(), count), value.finalOutput() ? DynamicCraftingOutputLedger.Route.FINAL_OUTPUT :
+                        DynamicCraftingOutputLedger.Route.INVENTORY,
+                value.source())).toList();
+    }
+
+    private static final class ReusableWithdrawal {
+
+        private final Map<AEKey, BigInteger> waiting = new Object2ObjectLinkedOpenHashMap<>();
+        private final Map<AEKey, BigInteger> time = new Object2ObjectLinkedOpenHashMap<>();
+        private final List<DynamicCraftingOutputLedger.Registration> dynamic = new ObjectArrayList<>();
+
+        void add(Submission submission, long count, boolean acceptedWork) {
+            for (GenericStack output : submission.outputs().products()) {
+                BigInteger amount = BigInteger.valueOf(output.amount()).multiply(BigInteger.valueOf(count));
+                waiting.merge(output.what(), amount, BigInteger::add);
+                if (acceptedWork) time.merge(output.what(), amount, BigInteger::add);
+            }
+            for (GenericStack output : submission.outputs().remainders()) {
+                BigInteger amount = BigInteger.valueOf(output.amount()).multiply(BigInteger.valueOf(count));
+                waiting.merge(output.what(), amount, BigInteger::add);
+                time.merge(output.what(), amount, BigInteger::add);
+            }
+            dynamic.addAll(reusableRegistrations(submission.outputs(), count));
+        }
+    }
+
+    private Runnable prepareReusableWithdrawal(TrinityDataCoreExecutingCraftingJob currentJob, ReusableWithdrawal withdrawal) {
+        for (var output : withdrawal.waiting.entrySet()) {
+            if (BigInteger.valueOf(currentJob.waitingFor.list.get(output.getKey())).compareTo(output.getValue()) < 0) {
+                throw new IllegalStateException("Cancelled reusable outputs exceed the exact waiting balance");
+            }
+        }
+        var dynamic = currentJob.dynamicOutputs.prepareWithdrawal(withdrawal.dynamic);
+        var progress = currentJob.timeTracker.prepareUncompletedWithdrawal(withdrawal.time);
+        return () -> {
+            dynamic.run();
+            progress.run();
+            withdrawal.waiting.forEach((key, amount) -> {
+                currentJob.waitingFor.list.remove(key, amount.longValueExact());
+                postChange(key);
+            });
+        };
     }
 
     private void notifyJobOwner(TrinityDataCoreExecutingCraftingJob job, CraftingJobStatusPacket.Status status) {

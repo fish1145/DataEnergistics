@@ -161,7 +161,7 @@ public final class ReusableCpuSessionLedger {
         }
 
         public @Nullable Submission submission(long sequence) {
-            return submissions.getOrDefault(sequence, null);
+            return submissions.get(sequence);
         }
 
         public List<SubmissionEntry> pendingSubmissions() {
@@ -217,7 +217,7 @@ public final class ReusableCpuSessionLedger {
     }
 
     public @Nullable Session session(UUID id) {
-        return sessions.getOrDefault(id, null);
+        return sessions.get(id);
     }
 
     public boolean hasUnsettled() {
@@ -406,10 +406,7 @@ public final class ReusableCpuSessionLedger {
     public static ReusableCpuSessionLedger restore(Snapshot snapshot) {
         ReusableCpuSessionLedger result = new ReusableCpuSessionLedger(snapshot.owner());
         result.replanningJobs.addAll(snapshot.replanningJobs());
-        for (UUID sessionId : snapshot.uncertainSessions()) {
-            // Validated after the session index has been populated below.
-            result.uncertainSessions.add(sessionId);
-        }
+        result.uncertainSessions.addAll(snapshot.uncertainSessions());
         for (SessionSnapshot saved : snapshot.sessions()) {
             Session session = result.open(saved.id(), saved.jobId(), saved.target(), saved.pattern(), saved.publication(), saved.bindings());
             long previous = -1L;
@@ -419,10 +416,8 @@ public final class ReusableCpuSessionLedger {
                 }
                 previous = entry.sequence();
                 session.submissions.put(entry.sequence(), entry.submission());
-                if (!saved.closing() || saved.settlementFingerprint() == null) {
-                    if (entry.submission().completed() < entry.submission().count()) {
-                        session.pending.add(entry.sequence());
-                    }
+                if (saved.settlementFingerprint() == null && entry.submission().completed() < entry.submission().count()) {
+                    session.pending.add(entry.sequence());
                 }
             }
             session.nextSequence = saved.nextSequence();
