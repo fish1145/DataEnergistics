@@ -53,7 +53,7 @@ public final class DataChargePressRecipeCategory extends AbstractRecipeCategory<
     private static final int FLUID_Y = 7;
     private static final int OUTPUT_X = 111;
     private static final int OUTPUT_Y = 6;
-    private static final int MODE_ICON_X = BACKGROUND_WIDTH - 16;
+    private static final int MODE_ICON_X = BACKGROUND_WIDTH - 13;
     private static final int MODE_ICON_Y = 0;
     private static final int PROGRESS_X = 151;
     private static final int FIRST_INPUT_Y = 6;

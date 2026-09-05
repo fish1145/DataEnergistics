@@ -19,6 +19,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.BoundPatternInputProvider;
 import com.fish_dan_.data_energistics.common.recipe.RecipeReloadEpoch;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 
@@ -98,7 +99,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 public class AdaptivePatternProviderLogic extends PatternProviderLogic
-                                          implements PatternProviderLogicAccessor, TargetedCountedCraftingProvider {
+                                          implements PatternProviderLogicAccessor, TargetedCountedCraftingProvider, BoundPatternInputProvider {
 
     private static final String RESONATING_PATTERN_DETAILS_CLASS = "io.github.lounode.ae2cs.common.me.crafting.ResonatingPatternDetails";
     private static final String ADVANCED_AE_PATTERN_DETAILS_INTERFACE = "net.pedroksl.advanced_ae.common.patterns.IAdvPatternDetails";
@@ -504,6 +505,25 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     }
 
     @Override
+    public CountedCraftingPreparation prepareBoundInputBatch(
+                                                             IPatternDetails patternDetails,
+                                                             IPatternDetails extractionDetails,
+                                                             KeyCounter[] prototype,
+                                                             long requestedCount,
+                                                             CraftingDispatchTargetAvailability targetAvailability) {
+        if (usesSpecialBatchRoute(patternDetails)) {
+            return prepareBatch(patternDetails, prototype, requestedCount, targetAvailability);
+        }
+        return ((PatternProviderBatchBridge) this).dataEnergistics$prepareStandardBoundInputBatch(
+                patternDetails,
+                extractionDetails,
+                prototype,
+                requestedCount,
+                this::dataEnergistics$afterPushPattern,
+                targetAvailability);
+    }
+
+    @Override
     public List<ProviderCapacitySnapshot> snapshotCapacity(
                                                            CraftingProviderId providerId,
                                                            IPatternDetails patternDetails,
@@ -555,6 +575,28 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
                 this,
                 (PatternProviderBatchAccess) this,
                 patternDetails,
+                prototype,
+                requestedCount,
+                this::dataEnergistics$afterPushPattern,
+                target);
+    }
+
+    @Override
+    @Nullable
+    public CountedCraftingAdmission prepareBoundInputBatchForTarget(
+                                                                    IPatternDetails patternDetails,
+                                                                    IPatternDetails extractionDetails,
+                                                                    KeyCounter[] prototype,
+                                                                    long requestedCount,
+                                                                    CraftingDispatchTarget target) {
+        if (usesSpecialBatchRoute(patternDetails)) {
+            return prepareBatchForTarget(patternDetails, prototype, requestedCount, target);
+        }
+        return PatternProviderBatching.prepareStandardBatchForTarget(
+                this,
+                (PatternProviderBatchAccess) this,
+                patternDetails,
+                extractionDetails,
                 prototype,
                 requestedCount,
                 this::dataEnergistics$afterPushPattern,

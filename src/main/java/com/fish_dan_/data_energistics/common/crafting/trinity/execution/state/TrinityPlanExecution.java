@@ -13,6 +13,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -166,6 +167,7 @@ public final class TrinityPlanExecution {
 
     private long catalogRevision;
     private CraftingQuantityMode quantityMode;
+    private TrinitySameItemPolicy sameItemPolicy = TrinitySameItemPolicy.empty();
     private long generation;
     private long durableRevision;
     /**
@@ -233,6 +235,7 @@ public final class TrinityPlanExecution {
                 new TrinityBorrowingLedger(snapshot.borrowingEntries()));
         restored.catalogRevision = snapshot.catalogRevision();
         restored.quantityMode = snapshot.quantityMode();
+        restored.sameItemPolicy = snapshot.sameItemPolicy();
         restored.generation = snapshot.generation();
         restored.failureReason = snapshot.failureReason();
         restored.completionSealed = snapshot.completionSealed();
@@ -477,7 +480,7 @@ public final class TrinityPlanExecution {
      */
     public void registerInputKeys(int stageIndex, Set<AEKey> keys) {
         StageState stage = requireStage(stageIndex);
-        Set<AEKey> copied = copyKeys(keys);
+        Set<AEKey> copied = normalizeObservedKeys(keys);
         boolean changed = false;
         for (AEKey key : copied) {
             if (stage.inputKeys.add(key)) {
@@ -497,7 +500,8 @@ public final class TrinityPlanExecution {
      * @return whether at least one waiting stage was released
      */
     public boolean wake(AEKey key) {
-        IntSet indexed = this.inputStageIndex.get(key);
+        AEKey observedKey = this.sameItemPolicy.normalizeKey(key);
+        IntSet indexed = this.inputStageIndex.get(observedKey);
         if (indexed == null || indexed.isEmpty()) {
             return false;
         }
@@ -505,7 +509,7 @@ public final class TrinityPlanExecution {
         for (int stageIndex : indexed.toIntArray()) {
             StageState stage = requireStage(stageIndex);
             if ((stage.waitKind == WaitKind.INPUT || stage.waitKind == WaitKind.DYNAMIC_INPUT) &&
-                    stage.waitingKeys.contains(key)) {
+                    stage.waitingKeys.contains(observedKey)) {
                 clearWait(stage);
                 enqueueIfEligible(stage);
                 released = true;
@@ -524,7 +528,7 @@ public final class TrinityPlanExecution {
      * @param keys material keys that can satisfy the wait
      */
     public void deferInput(Work work, Set<AEKey> keys) {
-        Set<AEKey> copied = copyNonEmptyKeys(keys, "input wait");
+        Set<AEKey> copied = normalizeNonEmptyObservedKeys(keys, "input wait");
         StageState stage = releaseCurrentWork(work);
         registerInputKeys(stage.index, copied);
         beginWait(stage, WaitKind.INPUT, copied, -1L);
@@ -542,7 +546,7 @@ public final class TrinityPlanExecution {
     public void deferDynamicInput(Work work, Set<AEKey> keys, long currentTick, int maxRetryTicks) {
         requireTick(currentTick);
         requireRetryCap(maxRetryTicks);
-        Set<AEKey> copied = copyNonEmptyKeys(keys, "dynamic input wait");
+        Set<AEKey> copied = normalizeNonEmptyObservedKeys(keys, "dynamic input wait");
         StageState stage = requireCurrentWork(work);
         if (!stage.cycle) {
             throw new IllegalStateException("Only a Trinity cycle stage may wait for dynamic material selection");
@@ -816,7 +820,7 @@ public final class TrinityPlanExecution {
         return Collections.unmodifiableMap(outputs);
     }
 
-    private static void addDagPendingOutputs(Map<AEKey, BigInteger> outputs, StageState stage) {
+    private void addDagPendingOutputs(Map<AEKey, BigInteger> outputs, StageState stage) {
         if (stage.completed) {
             return;
         }
@@ -863,14 +867,14 @@ public final class TrinityPlanExecution {
         return activeCount.add(laterCount);
     }
 
-    private static void mergePendingOutputs(Map<AEKey, BigInteger> outputs,
-                                            FiringState firing,
-                                            BigInteger firingCount) {
+    private void mergePendingOutputs(Map<AEKey, BigInteger> outputs,
+                                     FiringState firing,
+                                     BigInteger firingCount) {
         if (firingCount.signum() == 0) {
             return;
         }
         firing.outputs.forEach((key, perFiring) -> outputs.merge(
-                key,
+                this.sameItemPolicy.normalizeKey(key),
                 perFiring.multiply(firingCount),
                 BigInteger::add));
     }
@@ -1074,6 +1078,11 @@ public final class TrinityPlanExecution {
         return this.durableRevision;
     }
 
+    /** Returns the persisted logical item domains used by stage balances and runtime input selection. */
+    public TrinitySameItemPolicy sameItemPolicy() {
+        return this.sameItemPolicy;
+    }
+
     /**
      * Encodes durable state without serializing transient queues or indexes.
      *
@@ -1096,6 +1105,7 @@ public final class TrinityPlanExecution {
         return new TrinityExecutionSnapshot(
                 this.catalogRevision,
                 this.quantityMode,
+                this.sameItemPolicy,
                 this.targetKey,
                 this.targetAmount,
                 status(),
@@ -1117,6 +1127,7 @@ public final class TrinityPlanExecution {
     private void installPlan(TrinityCraftingPlan plan) {
         this.catalogRevision = plan.catalogRevision();
         this.quantityMode = plan.quantityMode();
+        this.sameItemPolicy = plan.sameItemPolicy();
         this.stages.clear();
         this.stageOrder.clear();
         this.repeatBlocks.clear();
@@ -1148,6 +1159,7 @@ public final class TrinityPlanExecution {
     private void adoptInstalledPlan(TrinityPlanExecution prepared) {
         this.catalogRevision = prepared.catalogRevision;
         this.quantityMode = prepared.quantityMode;
+        this.sameItemPolicy = prepared.sameItemPolicy;
         this.stages.clear();
         this.stages.putAll(prepared.stages);
         this.stageOrder.clear();
@@ -1163,15 +1175,30 @@ public final class TrinityPlanExecution {
     private void validateInstalledPlan() {
         if (this.catalogRevision < 0L ||
                 this.stageOrder.size() != this.stages.size() ||
-                !new IntOpenHashSet(this.stageOrder).equals(this.stages.keySet())) {
+                !new IntOpenHashSet(this.stageOrder).equals(this.stages.keySet()) ||
+                !this.sameItemPolicy.normalizeKey(this.targetKey).equals(this.targetKey) ||
+                !normalizedKeys(this.seedReserve.keySet())) {
             throw new IllegalArgumentException("A Trinity execution requires complete plan metadata and stage order");
         }
         for (StageState stage : this.stages.values()) {
             if (!this.stages.keySet().containsAll(stage.dependencies) ||
-                    stage.cycle != this.repeatByStage.containsKey(stage.index)) {
+                    stage.cycle != this.repeatByStage.containsKey(stage.index) ||
+                    !normalizedKeys(stage.requiredAtStart.keySet()) ||
+                    !normalizedKeys(stage.netChange.keySet()) ||
+                    !normalizedKeys(stage.inputKeys) ||
+                    !normalizedKeys(stage.waitingKeys)) {
                 throw new IllegalArgumentException("A Trinity execution plan has inconsistent dependencies or cycle membership");
             }
         }
+    }
+
+    private boolean normalizedKeys(Iterable<AEKey> keys) {
+        for (AEKey key : keys) {
+            if (!this.sameItemPolicy.normalizeKey(key).equals(key)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void validateRestoredCursors() {
@@ -1672,16 +1699,18 @@ public final class TrinityPlanExecution {
         return repeat;
     }
 
-    private static Set<AEKey> copyKeys(Set<AEKey> keys) {
-        return Collections.unmodifiableSet(new ObjectLinkedOpenHashSet<>(keys));
+    private Set<AEKey> normalizeObservedKeys(Set<AEKey> keys) {
+        ObjectLinkedOpenHashSet<AEKey> normalized = new ObjectLinkedOpenHashSet<>();
+        keys.forEach(key -> normalized.add(this.sameItemPolicy.normalizeKey(key)));
+        return Collections.unmodifiableSet(normalized);
     }
 
-    private static Set<AEKey> copyNonEmptyKeys(Set<AEKey> keys, String role) {
-        Set<AEKey> copied = copyKeys(keys);
-        if (copied.isEmpty()) {
+    private Set<AEKey> normalizeNonEmptyObservedKeys(Set<AEKey> keys, String role) {
+        Set<AEKey> normalized = normalizeObservedKeys(keys);
+        if (normalized.isEmpty()) {
             throw new IllegalArgumentException("A Trinity " + role + " requires at least one key");
         }
-        return copied;
+        return normalized;
     }
 
     private static void requireTick(long currentTick) {
