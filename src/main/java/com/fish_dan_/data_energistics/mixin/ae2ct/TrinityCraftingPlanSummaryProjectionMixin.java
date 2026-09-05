@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.integration.ae.ae2ct.TrinityCraftingTreePr
 import com.fish_dan_.data_energistics.menu.crafting.projection.TrinityCraftingPlanSummaryProjection;
 
 import appeng.menu.me.crafting.CraftingPlanSummary;
+
 import com.neuvillette.ae2ct.api.ICraftingPlanSummary;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

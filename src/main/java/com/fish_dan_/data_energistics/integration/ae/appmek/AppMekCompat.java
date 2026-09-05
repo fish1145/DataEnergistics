@@ -5,12 +5,13 @@ import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatte
 import com.fish_dan_.data_energistics.part.AdaptivePatternProviderPart;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.core.definitions.AEBlockEntities;
+
 import net.minecraft.core.Direction;
 import net.neoforged.neoforge.capabilities.BlockCapability;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
-import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.core.definitions.AEBlockEntities;
 import mekanism.api.chemical.IChemicalHandler;
 import mekanism.common.capabilities.Capabilities;
 import org.jspecify.annotations.Nullable;

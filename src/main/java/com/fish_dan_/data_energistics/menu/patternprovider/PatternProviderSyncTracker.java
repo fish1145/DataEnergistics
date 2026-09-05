@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankin
 
 import appeng.api.networking.IGrid;
 import appeng.api.stacks.AEItemKey;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;

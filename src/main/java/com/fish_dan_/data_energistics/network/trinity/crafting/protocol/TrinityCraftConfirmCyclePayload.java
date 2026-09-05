@@ -17,12 +17,12 @@ import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityC
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.Material;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCycleRecord.UnresolvedDemand;
 
+import appeng.api.stacks.AEKey;
+
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-
-import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
 import java.util.ArrayList;

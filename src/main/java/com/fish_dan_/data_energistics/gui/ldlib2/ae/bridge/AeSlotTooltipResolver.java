@@ -1,8 +1,6 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
+import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 
 import appeng.api.behaviors.ContainerItemStrategies;
 import appeng.api.behaviors.EmptyingAction;
@@ -11,7 +9,11 @@ import appeng.core.localization.ButtonToolTips;
 import appeng.core.localization.Tooltips;
 import appeng.menu.slot.AppEngSlot;
 import appeng.util.ConfigMenuInventory;
-import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;

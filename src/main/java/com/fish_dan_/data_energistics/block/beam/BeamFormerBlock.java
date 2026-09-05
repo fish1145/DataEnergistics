@@ -5,6 +5,10 @@ import com.fish_dan_.data_energistics.common.beam.BeamDeviceKind;
 import com.fish_dan_.data_energistics.item.beam.BeamBindingToolItem;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.block.AEBaseEntityBlock;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocators;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.StringRepresentable;
@@ -28,10 +32,6 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
-
-import appeng.block.AEBaseEntityBlock;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
 
 /** Directional housing shared by the straight and manually bound omni devices. */
 public final class BeamFormerBlock extends AEBaseEntityBlock<BeamFormerBlockEntity> {

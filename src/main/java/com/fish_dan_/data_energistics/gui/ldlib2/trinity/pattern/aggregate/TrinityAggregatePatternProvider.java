@@ -10,12 +10,12 @@ import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiRoot;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.Level;
-
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.Level;
 
 import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;

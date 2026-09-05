@@ -6,6 +6,7 @@ import appeng.api.stacks.AEKey;
 import appeng.api.storage.ISubMenuHost;
 import appeng.helpers.ICraftingGridMenu.AutoCraftEntry;
 import appeng.menu.locator.MenuHostLocator;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;

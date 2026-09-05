@@ -2,12 +2,13 @@ package com.fish_dan_.data_energistics.integration.viewer.xei.transfer;
 
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
+import appeng.integration.modules.itemlists.EncodingHelper;
+import appeng.parts.encoding.EncodingMode;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeType;
 
-import appeng.integration.modules.itemlists.EncodingHelper;
-import appeng.parts.encoding.EncodingMode;
 import org.jspecify.annotations.Nullable;
 
 /**

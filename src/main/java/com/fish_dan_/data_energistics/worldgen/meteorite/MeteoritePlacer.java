@@ -9,6 +9,12 @@ import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutSand;
 import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutSnow;
 
+import appeng.core.AEConfig;
+import appeng.core.definitions.AEBlocks;
+import appeng.decorative.AEDecorativeBlock;
+import appeng.decorative.solid.BuddingCertusQuartzBlock;
+import appeng.decorative.solid.CertusQuartzClusterBlock;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
@@ -23,12 +29,6 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
-
-import appeng.core.AEConfig;
-import appeng.core.definitions.AEBlocks;
-import appeng.decorative.AEDecorativeBlock;
-import appeng.decorative.solid.BuddingCertusQuartzBlock;
-import appeng.decorative.solid.CertusQuartzClusterBlock;
 
 import java.util.HashMap;
 import java.util.List;

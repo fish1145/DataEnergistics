@@ -7,6 +7,11 @@ import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreMetadata;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.pattern.physical.TrinityPatternCoreUi;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
+import com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+
+import appeng.hooks.WrenchHook;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
@@ -24,9 +29,6 @@ import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 
-import appeng.hooks.WrenchHook;
-import com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;

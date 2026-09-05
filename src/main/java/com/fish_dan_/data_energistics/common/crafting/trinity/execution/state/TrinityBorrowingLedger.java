@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.state;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityBorrowingLedgerNbtCodec;
 
+import appeng.api.stacks.AEKey;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-
-import appeng.api.stacks.AEKey;
 
 import java.math.BigInteger;
 import java.util.Collections;

@@ -4,13 +4,14 @@ import com.fish_dan_.data_energistics.accessor.condenser.CondenserBlockEntityAcc
 import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipe;
 import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipeCatalog;
 
+import appeng.blockentity.misc.CondenserBlockEntity;
+import appeng.util.inv.AppEngInternalInventory;
+
 import net.minecraft.core.HolderLookup.Provider;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.blockentity.misc.CondenserBlockEntity;
-import appeng.util.inv.AppEngInternalInventory;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

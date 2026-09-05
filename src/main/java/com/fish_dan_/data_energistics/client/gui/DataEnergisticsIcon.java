@@ -2,11 +2,12 @@ package com.fish_dan_.data_energistics.client.gui;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
+import appeng.client.gui.style.Blitter;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 
-import appeng.client.gui.style.Blitter;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.apache.logging.log4j.Logger;

@@ -2,6 +2,10 @@ package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import com.fish_dan_.data_energistics.common.crafting.pattern.EncodedPatternRecipeReference;
 
+import appeng.api.stacks.AEItemKey;
+import appeng.menu.guisync.PacketWritable;
+import appeng.parts.encoding.EncodingMode;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -9,9 +13,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.resources.ResourceLocation;
 
-import appeng.api.stacks.AEItemKey;
-import appeng.menu.guisync.PacketWritable;
-import appeng.parts.encoding.EncodingMode;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;

@@ -4,13 +4,14 @@ import com.fish_dan_.data_energistics.accessor.condenser.CondenserMenuAccessor;
 import com.fish_dan_.data_energistics.client.widget.CondenserOutputModeButton;
 import com.fish_dan_.data_energistics.mixin.core.accessor.ae2.WidgetContainerAccessor;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.implementations.CondenserScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.menu.implementations.CondenserMenu;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

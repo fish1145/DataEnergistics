@@ -3,10 +3,11 @@ package com.fish_dan_.data_energistics.client.screen.crafting.confirm;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanSessionTransfer;
 
+import appeng.client.gui.me.crafting.CraftConfirmScreen;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
-import appeng.client.gui.me.crafting.CraftConfirmScreen;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;

@@ -6,6 +6,10 @@ import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.block.AEBaseBlock;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocators;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -40,9 +44,6 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import appeng.block.AEBaseBlock;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;

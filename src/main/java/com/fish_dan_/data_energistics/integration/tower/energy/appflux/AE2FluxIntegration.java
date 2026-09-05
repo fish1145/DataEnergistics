@@ -1,7 +1,5 @@
 package com.fish_dan_.data_energistics.integration.tower.energy.appflux;
 
-import net.neoforged.neoforge.energy.IEnergyStorage;
-
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IManagedGridNode;
@@ -9,6 +7,9 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageService;
 import appeng.api.storage.MEStorage;
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+
+import net.neoforged.neoforge.energy.IEnergyStorage;
+
 import com.glodblock.github.appflux.common.caps.NetworkFEPower;
 import com.glodblock.github.appflux.common.me.key.FluxKey;
 import com.glodblock.github.appflux.common.me.key.type.EnergyType;

@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.compartment;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+
 import org.jspecify.annotations.Nullable;
 
 /**

@@ -3,6 +3,10 @@ package com.fish_dan_.data_energistics.client.render.tooltip;
 import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotTooltipComponent;
 
+import appeng.api.stacks.AmountFormat;
+import appeng.api.stacks.GenericStack;
+import appeng.client.gui.me.common.StackSizeRenderer;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -11,9 +15,6 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.network.chat.Component;
 
-import appeng.api.stacks.AmountFormat;
-import appeng.api.stacks.GenericStack;
-import appeng.client.gui.me.common.StackSizeRenderer;
 import org.joml.Matrix4f;
 
 import java.util.List;

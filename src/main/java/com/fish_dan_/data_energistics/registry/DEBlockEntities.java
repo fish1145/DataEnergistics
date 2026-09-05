@@ -27,13 +27,13 @@ import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEn
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityInformationExchangeDepotBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityPatternCoreBlockEntity;
 
+import appeng.blockentity.networking.EnergyCellBlockEntity;
+
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
-
-import appeng.blockentity.networking.EnergyCellBlockEntity;
 
 import java.util.concurrent.atomic.AtomicReference;
 

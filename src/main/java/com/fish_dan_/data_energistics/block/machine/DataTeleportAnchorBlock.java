@@ -6,6 +6,13 @@ import com.fish_dan_.data_energistics.item.powered.PoweredCuttingKnifeItem;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.api.config.Actionable;
+import appeng.api.util.AEColor;
+import appeng.block.AEBaseBlock;
+import appeng.items.tools.powered.ColorApplicatorItem;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocators;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -37,12 +44,6 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
-import appeng.api.config.Actionable;
-import appeng.api.util.AEColor;
-import appeng.block.AEBaseBlock;
-import appeng.items.tools.powered.ColorApplicatorItem;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Set;

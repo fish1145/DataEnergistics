@@ -2,9 +2,9 @@ package com.fish_dan_.data_energistics.api.registry.provider.callback;
 
 import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderIdentity;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.helpers.patternprovider.PatternContainer;
+
+import net.minecraft.world.item.ItemStack;
 
 /**
  * Immutable facts supplied after a provider inventory delta has been confirmed.

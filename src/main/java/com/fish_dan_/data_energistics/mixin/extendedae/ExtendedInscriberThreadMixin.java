@@ -2,11 +2,12 @@ package com.fish_dan_.data_energistics.mixin.extendedae;
 
 import com.fish_dan_.data_energistics.registry.DEItems;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.recipes.handlers.InscriberRecipe;
 import appeng.util.inv.AppEngInternalInventory;
+
+import net.minecraft.world.item.ItemStack;
+
 import com.glodblock.github.extendedae.common.me.InscriberThread;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

@@ -7,9 +7,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 
+import appeng.menu.me.crafting.CraftingPlanSummary;
+
 import net.minecraft.network.chat.Component;
 
-import appeng.menu.me.crafting.CraftingPlanSummary;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Locale;

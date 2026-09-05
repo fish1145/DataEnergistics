@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.client.render.item;
 
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumMenuHost;
 
+import appeng.api.client.StorageCellModels;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.renderer.RenderType;
@@ -25,7 +27,6 @@ import net.neoforged.neoforge.client.ChunkRenderTypeSet;
 import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.common.util.TriState;
 
-import appeng.api.client.StorageCellModels;
 import com.mojang.blaze3d.vertex.PoseStack;
 import org.jspecify.annotations.Nullable;
 

@@ -1,8 +1,9 @@
 package com.fish_dan_.data_energistics.mixin.core.accessor.ae2;
 
+import appeng.parts.AEBasePart;
+
 import net.minecraft.network.chat.Component;
 
-import appeng.parts.AEBasePart;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;

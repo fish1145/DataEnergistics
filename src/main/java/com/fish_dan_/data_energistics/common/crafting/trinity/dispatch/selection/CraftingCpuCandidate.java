@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection;
 
 import appeng.api.config.CpuSelectionMode;
+
 import org.jspecify.annotations.Nullable;
 
 /**

@@ -4,11 +4,12 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 
+import appeng.api.storage.ITerminalHost;
+import appeng.menu.me.crafting.CraftingStatusMenu;
+
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 
-import appeng.api.storage.ITerminalHost;
-import appeng.menu.me.crafting.CraftingStatusMenu;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;

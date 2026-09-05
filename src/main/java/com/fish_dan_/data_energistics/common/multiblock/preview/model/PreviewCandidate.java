@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.common.multiblock.preview.model;
 
-import net.minecraft.world.level.block.state.BlockState;
-
 import appeng.api.stacks.AEItemKey;
+
+import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Optional;
 

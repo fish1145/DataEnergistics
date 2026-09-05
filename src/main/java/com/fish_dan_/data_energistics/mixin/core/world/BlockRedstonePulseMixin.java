@@ -3,6 +3,11 @@ package com.fish_dan_.data_energistics.mixin.core.world;
 import com.fish_dan_.data_energistics.accessor.patternprovider.RedstoneTuningAwareHost;
 import com.fish_dan_.data_energistics.block.patternprovider.AdaptivePatternProviderBlock;
 
+import appeng.api.parts.IPart;
+import appeng.block.crafting.PatternProviderBlock;
+import appeng.block.networking.CableBusBlock;
+import appeng.blockentity.networking.CableBusBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -13,10 +18,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.parts.IPart;
-import appeng.block.crafting.PatternProviderBlock;
-import appeng.block.networking.CableBusBlock;
-import appeng.blockentity.networking.CableBusBlockEntity;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;

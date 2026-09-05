@@ -4,14 +4,15 @@ import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOut
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputProjection;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingPatternOutputs;
 
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.Level;
-
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsTooltip;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.crafting.pattern.AEProcessingPattern;
+
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
+
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.client.screen.patternencoding;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.client.gui.Icon;
 import appeng.client.gui.widgets.IconButton;
+
+import net.minecraft.network.chat.Component;
 
 final class PatternEncodingPreviewDragButton extends IconButton {
 

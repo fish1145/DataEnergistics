@@ -35,6 +35,11 @@ import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
+import appeng.api.integrations.emi.EmiStackConverters;
+import appeng.integration.modules.emi.EmiEncodePatternHandler;
+import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
+import appeng.menu.me.items.PatternEncodingTermMenu;
+
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -42,10 +47,6 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.enchantment.Enchantments;
 
-import appeng.api.integrations.emi.EmiStackConverters;
-import appeng.integration.modules.emi.EmiEncodePatternHandler;
-import appeng.integration.modules.emi.EmiUseCraftingRecipeHandler;
-import appeng.menu.me.items.PatternEncodingTermMenu;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.EmiApi;
 import dev.emi.emi.api.EmiEntrypoint;

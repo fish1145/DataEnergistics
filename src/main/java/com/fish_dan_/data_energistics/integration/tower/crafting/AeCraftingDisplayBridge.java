@@ -2,12 +2,13 @@ package com.fish_dan_.data_energistics.integration.tower.crafting;
 
 import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
-
 import appeng.blockentity.crafting.CraftingBlockEntity;
 import appeng.blockentity.crafting.MolecularAssemblerBlockEntity;
 import appeng.blockentity.crafting.PatternProviderBlockEntity;
+
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
+
 import org.jspecify.annotations.Nullable;
 
 /**

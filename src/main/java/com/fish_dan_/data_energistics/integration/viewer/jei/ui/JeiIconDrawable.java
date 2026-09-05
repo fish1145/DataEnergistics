@@ -1,8 +1,9 @@
 package com.fish_dan_.data_energistics.integration.viewer.jei.ui;
 
+import appeng.client.gui.Icon;
+
 import net.minecraft.client.gui.GuiGraphics;
 
-import appeng.client.gui.Icon;
 import mezz.jei.api.gui.drawable.IDrawable;
 
 public class JeiIconDrawable implements IDrawable {

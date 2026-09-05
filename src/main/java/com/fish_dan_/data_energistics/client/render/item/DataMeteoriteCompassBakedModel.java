@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.client.render.item;
 
 import com.fish_dan_.data_energistics.client.meteorite.DataMeteoriteCompassClientCache;
 
+import appeng.client.render.model.MeteoriteCompassBakedModel;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.block.model.BakedQuad;
@@ -21,7 +23,6 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.model.BakedModelWrapper;
 import net.neoforged.neoforge.client.model.data.ModelData;
 
-import appeng.client.render.model.MeteoriteCompassBakedModel;
 import com.mojang.blaze3d.vertex.PoseStack;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;

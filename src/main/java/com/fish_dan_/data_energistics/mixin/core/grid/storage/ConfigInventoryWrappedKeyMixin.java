@@ -2,12 +2,13 @@ package com.fish_dan_.data_energistics.mixin.core.grid.storage;
 
 import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.util.ConfigInventory;
+
+import net.minecraft.world.item.ItemStack;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

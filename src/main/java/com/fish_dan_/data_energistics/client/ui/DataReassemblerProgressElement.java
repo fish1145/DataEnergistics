@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.client.ui;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
-import net.minecraft.resources.ResourceLocation;
-
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
+
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.function.DoubleSupplier;
 

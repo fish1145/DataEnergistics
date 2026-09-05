@@ -2,11 +2,12 @@ package com.fish_dan_.data_energistics.integration.viewer.emi.ingredient;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.stacks.GenericStack;
 import appeng.integration.modules.emi.EmiStackHelper;
 import appeng.items.misc.WrappedGenericStack;
+
+import net.minecraft.world.item.ItemStack;
+
 import dev.emi.emi.api.stack.EmiStack;
 
 /**

@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.grid.VirtualGridNode;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
+
 import org.jspecify.annotations.Nullable;
 
 /**

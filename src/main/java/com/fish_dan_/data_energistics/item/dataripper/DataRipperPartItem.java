@@ -2,12 +2,12 @@ package com.fish_dan_.data_energistics.item.dataripper;
 
 import com.fish_dan_.data_energistics.part.DataRipperPart;
 
+import appeng.items.parts.PartItem;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-
-import appeng.items.parts.PartItem;
 
 import java.util.List;
 

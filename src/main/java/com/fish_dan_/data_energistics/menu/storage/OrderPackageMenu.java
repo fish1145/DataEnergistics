@@ -3,12 +3,12 @@ package com.fish_dan_.data_energistics.menu.storage;
 import com.fish_dan_.data_energistics.item.order.OrderPackageMenuHost;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
-import net.minecraft.world.entity.player.Inventory;
-
 import appeng.menu.AEBaseMenu;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 import appeng.menu.slot.FakeSlot;
+
+import net.minecraft.world.entity.player.Inventory;
 
 /**
  * Presents one type-only target slot and the player's inventory for an order package.

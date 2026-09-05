@@ -5,6 +5,9 @@ import com.fish_dan_.data_energistics.common.memorycard.BlockMemoryCardInteracti
 import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumStatusMenu;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
+import appeng.block.AEBaseBlock;
+import appeng.menu.locator.MenuLocators;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -41,8 +44,6 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import appeng.block.AEBaseBlock;
-import appeng.menu.locator.MenuLocators;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

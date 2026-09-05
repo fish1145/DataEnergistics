@@ -4,12 +4,12 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityPatternCoreBlockEntity;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Player;
-
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Player;
 
 /** Builds the native LDLib2 NBT surface for one physical Trinity pattern core. */
 public final class TrinityPatternCoreUi {

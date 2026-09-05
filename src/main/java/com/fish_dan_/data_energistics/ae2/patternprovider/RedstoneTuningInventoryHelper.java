@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.util.ReflectionAccess;
 
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
+
 import org.jspecify.annotations.Nullable;
 
 public final class RedstoneTuningInventoryHelper {

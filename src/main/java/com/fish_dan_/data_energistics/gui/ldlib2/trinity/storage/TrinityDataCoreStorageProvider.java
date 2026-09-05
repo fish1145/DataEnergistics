@@ -10,13 +10,14 @@ import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHos
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiNbtLayouts;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
 
-import net.minecraft.network.chat.Component;
-
 import com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataProvider;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
+
+import net.minecraft.network.chat.Component;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 
 import java.util.function.IntConsumer;

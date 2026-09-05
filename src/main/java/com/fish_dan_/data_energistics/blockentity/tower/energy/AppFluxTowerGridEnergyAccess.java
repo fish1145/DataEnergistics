@@ -2,9 +2,9 @@ package com.fish_dan_.data_energistics.blockentity.tower.energy;
 
 import com.fish_dan_.data_energistics.integration.tower.energy.appflux.AE2FluxIntegration;
 
-import net.neoforged.neoforge.energy.IEnergyStorage;
-
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+
+import net.neoforged.neoforge.energy.IEnergyStorage;
 
 /** Uses AppFlux's long-width ME storage API for the tower's own grid energy. */
 final class AppFluxTowerGridEnergyAccess implements TowerGridEnergyAccess {

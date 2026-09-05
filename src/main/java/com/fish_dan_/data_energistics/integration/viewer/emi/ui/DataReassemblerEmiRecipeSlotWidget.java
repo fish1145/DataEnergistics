@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.integration.viewer.emi.ui;
 
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 import com.lowdragmc.lowdraglib2.integration.xei.emi.EMIRecipeSlotWidget;
+
 import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.widget.Bounds;

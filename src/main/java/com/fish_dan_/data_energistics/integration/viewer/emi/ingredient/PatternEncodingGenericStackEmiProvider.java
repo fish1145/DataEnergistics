@@ -2,10 +2,11 @@ package com.fish_dan_.data_energistics.integration.viewer.emi.ingredient;
 
 import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
 
-import net.minecraft.client.gui.screens.Screen;
-
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.StackWithBounds;
+
+import net.minecraft.client.gui.screens.Screen;
+
 import dev.emi.emi.api.EmiStackProvider;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.stack.EmiStackInteraction;

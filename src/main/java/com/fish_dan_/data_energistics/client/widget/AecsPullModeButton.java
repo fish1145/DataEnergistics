@@ -1,14 +1,14 @@
 package com.fish_dan_.data_energistics.client.widget;
 
+import appeng.client.gui.Icon;
+import appeng.client.gui.style.Blitter;
+import appeng.client.gui.widgets.ITooltip;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-
-import appeng.client.gui.Icon;
-import appeng.client.gui.style.Blitter;
-import appeng.client.gui.widgets.ITooltip;
 
 import java.util.List;
 import java.util.function.Consumer;

@@ -9,6 +9,8 @@ import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotItemData;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotMemoryCardData;
 import com.fish_dan_.data_energistics.item.terminal.UniversalTerminalItemData;
 
+import appeng.api.stacks.AEKey;
+
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponentType;
@@ -20,7 +22,6 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-import appeng.api.stacks.AEKey;
 import com.mojang.serialization.Codec;
 
 import java.util.UUID;

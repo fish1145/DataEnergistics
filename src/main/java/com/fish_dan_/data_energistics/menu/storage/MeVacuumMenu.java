@@ -3,14 +3,14 @@ package com.fish_dan_.data_energistics.menu.storage;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumMenuHost;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-
 import appeng.api.inventories.InternalInventory;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
 import appeng.menu.slot.RestrictedInputSlot;
+
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 
 public class MeVacuumMenu extends AEBaseMenu {
 

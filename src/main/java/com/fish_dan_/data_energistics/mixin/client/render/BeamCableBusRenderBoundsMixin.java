@@ -3,12 +3,13 @@ package com.fish_dan_.data_energistics.mixin.client.render;
 import com.fish_dan_.data_energistics.client.render.beam.BeamGeometryRenderer;
 import com.fish_dan_.data_energistics.common.beam.BeamEndpoint;
 
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.blockentity.networking.CableBusTESR;
+
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 
-import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.blockentity.networking.CableBusTESR;
 import org.jspecify.annotations.NullMarked;
 import org.spongepowered.asm.mixin.Mixin;
 

@@ -1,9 +1,10 @@
 package com.fish_dan_.data_energistics.gui.ldlib2.ae.bridge;
 
-import net.minecraft.world.inventory.Slot;
+import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 
 import appeng.menu.AEBaseMenu;
-import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
+
+import net.minecraft.world.inventory.Slot;
 
 /**
  * Mounts an LDLib2 UI on an existing AE2 menu without rebuilding or reindexing its slots.

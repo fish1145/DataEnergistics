@@ -4,11 +4,12 @@ import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderHo
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningAutoRequestHelper;
 import com.fish_dan_.data_energistics.mixin.core.accessor.ae2.PatternProviderLogicFieldAccessor;
 
-import net.minecraft.server.level.ServerLevel;
-
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.KeyCounter;
 import appeng.helpers.patternprovider.PatternProviderLogic;
+
+import net.minecraft.server.level.ServerLevel;
+
 import io.github.lounode.ae2cs.common.me.logic.MeteoritePatternProviderLogic;
 import io.github.lounode.ae2cs.common.me.logic.ResonatingPatternProviderLogic;
 import org.spongepowered.asm.mixin.Mixin;

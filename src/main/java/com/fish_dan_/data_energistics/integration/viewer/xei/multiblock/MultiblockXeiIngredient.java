@@ -3,9 +3,10 @@ package com.fish_dan_.data_energistics.integration.viewer.xei.multiblock;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeView;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 
+import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
+
 import net.minecraft.world.item.ItemStack;
 
-import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectLists;

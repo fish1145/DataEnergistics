@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.block;
 
 import com.fish_dan_.data_energistics.blockentity.TuningForkBaseBlockEntity;
 
+import appeng.block.AEBaseBlock;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -19,7 +21,6 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import appeng.block.AEBaseBlock;
 import org.jetbrains.annotations.Nullable;
 
 /**

@@ -8,12 +8,12 @@ import com.fish_dan_.data_energistics.client.render.item.OrderPackageBakedModel;
 import com.fish_dan_.data_energistics.client.render.item.OrderPackageItemRenderer;
 import com.fish_dan_.data_energistics.registry.DEStorageCells;
 
+import appeng.api.client.StorageCellModels;
+import appeng.client.render.model.MeteoriteCompassBakedModel;
+
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.neoforged.neoforge.client.event.ModelEvent;
-
-import appeng.api.client.StorageCellModels;
-import appeng.client.render.model.MeteoriteCompassBakedModel;
 
 final class ClientModelRegistrar {
 

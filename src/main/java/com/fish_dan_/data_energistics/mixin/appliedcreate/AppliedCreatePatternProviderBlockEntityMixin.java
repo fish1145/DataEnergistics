@@ -5,14 +5,15 @@ import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderLo
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningInventoryHelper;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.UpgradeInventories;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.UpgradeInventories;
 import com.loliball.appliedcreate.patternprovider.AndesitePatternProviderBlockEntity;
 import com.loliball.appliedcreate.patternprovider.BrassPatternProviderBlockEntity;
 import org.spongepowered.asm.mixin.Mixin;

@@ -2,16 +2,17 @@ package com.fish_dan_.data_energistics.client.screen.machine;
 
 import com.fish_dan_.data_energistics.menu.machine.DataAsynchronousProcessingFactoryMenu;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.ProgressBar;
 import appeng.core.localization.Tooltips;
 import appeng.menu.SlotSemantic;
 import appeng.menu.interfaces.IProgressProvider;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
+
 import org.jspecify.annotations.Nullable;
 
 public final class DataAsynchronousProcessingFactoryScreen
