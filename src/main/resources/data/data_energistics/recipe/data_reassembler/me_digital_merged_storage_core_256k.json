@@ -30,6 +30,10 @@
 			{
 				"item": "data_energistics:data_residual_crystal",
 				"count": 10
+			},
+			{
+				"item": "data_energistics:digisidian_memorize_ingot",
+				"count": 4
 			}
 		],
 		"fluids": [
