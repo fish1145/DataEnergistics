@@ -12,6 +12,7 @@ import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.reusable.Adap
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingTarget;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingCustodyCensus;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingProviderAdapter;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.SlotStack;
@@ -767,6 +768,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     public Optional<ReusableCraftingSessionView> reusableSession(UUID sessionId) {
         AdaptiveReusableCraftingState.Slot slot = this.reusableCrafting.locate(sessionId);
         return slot == null ? Optional.empty() : slot.endpoint().query(sessionId);
+    }
+
+    @Override
+    public ReusableCraftingCustodyCensus reusableCustody(String cpuOwner) {
+        var blockEntity = this.host.getBlockEntity();
+        return this.reusableCrafting.reusableCustody(cpuOwner, !blockEntity.isRemoved() && blockEntity.getLevel() instanceof ServerLevel);
     }
 
     @Override

@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess.Finite
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingTarget;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingCustodyCensus;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingProviderAdapter;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.SlotStack;
@@ -37,6 +38,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolver;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.custody.ReusableCustodyAggregation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.TrinityReusableSlot;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
@@ -99,6 +101,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import org.apache.logging.log4j.Logger;
@@ -1630,6 +1633,8 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
 
     private final class HatchCraftingProvider implements TargetedCountedCraftingProvider, ReusableCraftingProviderAdapter {
 
+        private final ReusableCustodyAggregation custodyCoverage = new ReusableCustodyAggregation();
+
         @Override
         public List<Target> reusableTargets(IPatternDetails pattern, IActionSource source, ServerLevel serverLevel) {
             TrinityDataCoreBlockEntity host = patternProviderHost();
@@ -1703,6 +1708,27 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         public Optional<ReusableCraftingSessionView> reusableSession(UUID sessionId) {
             ReusableLocation location = locateSession(sessionId);
             return location == null ? Optional.empty() : location.slot().endpoint().query(sessionId);
+        }
+
+        @Override
+        public ReusableCraftingCustodyCensus reusableCustody(String cpuOwner) {
+            TrinityDataCoreBlockEntity host = boundHost(false);
+            if (host == null || !host.isLeaseOwner(TrinityInformationExchangeDepotBlockEntity.this)) {
+                // Standby hatches own no execution scope; the elected hatch reports the mounted cores.
+                return this.custodyCoverage.census(cpuOwner, true, List.of());
+            }
+            var catalog = host.getPatternCatalog();
+            boolean complete = catalog.layoutSnapshot().active();
+            List<ReusableCraftingCustodyCensus> sources = new ObjectArrayList<>();
+            for (var mount : catalog.mountedCores()) {
+                if (mount.core() instanceof TrinityPatternCoreBlockEntity core && level.isLoaded(core.getBlockPos()) &&
+                        level.getBlockEntity(core.getBlockPos()) == core) {
+                    sources.add(core.reusableCustody(catalog.hostId(), cpuOwner));
+                } else {
+                    complete = false;
+                }
+            }
+            return this.custodyCoverage.census(cpuOwner, complete, sources);
         }
 
         @Override

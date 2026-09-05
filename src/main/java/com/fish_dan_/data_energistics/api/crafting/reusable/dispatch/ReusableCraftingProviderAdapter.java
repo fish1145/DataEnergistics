@@ -33,6 +33,13 @@ public interface ReusableCraftingProviderAdapter extends CountedCraftingProvider
     /** @return current immutable state, or empty when the owning executor cannot currently be reached */
     Optional<ReusableCraftingSessionView> reusableSession(UUID sessionId);
 
+    /**
+     * Read-only evidence for this exact CPU owner, including acknowledged CLOSED history. Called on the server
+     * thread even when no pattern is currently published. Incomplete visible coverage must be explicit; an empty
+     * result never proves the absence of custody in unloaded or disconnected providers. No claim is adopted here.
+     */
+    ReusableCraftingCustodyCensus reusableCustody(String cpuOwner);
+
     /** @return the accepted sequence's durable result, including completed/cancelled work, without modifying it */
     Optional<AppendReceipt> reusableReceipt(UUID sessionId, long sequence);
 

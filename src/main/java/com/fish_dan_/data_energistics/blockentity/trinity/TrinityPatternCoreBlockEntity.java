@@ -2,8 +2,10 @@ package com.fish_dan_.data_energistics.blockentity.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingCustodyCensus;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingProviderAdapter.ReturnReceiver;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.custody.ReusableCustodyAggregation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint.Host;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.TrinityReusableCraftingHost;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.TrinityReusableSlot;
@@ -81,6 +83,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     }
 
     private final PersistentTrinityPatternCore core;
+    private final ReusableCustodyAggregation custodyCoverage = new ReusableCustodyAggregation();
     private long observedReloadEpoch = TrinityPatternCoreReloadEpoch.current();
     private CoreLoadState coreLoadState = CoreLoadState.NEW;
     @Nullable
@@ -473,6 +476,12 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
             }
         }
         return null;
+    }
+
+    /** Read-only custody scope; an unready or no-longer-authorized mounted core is explicitly incomplete. */
+    public ReusableCraftingCustodyCensus reusableCustody(UUID hostOwner, String cpuOwner) {
+        boolean visible = isReusableOwner(hostOwner);
+        return this.custodyCoverage.census(cpuOwner, visible, visible ? List.of(this.core.reusableCustody(cpuOwner)) : List.of());
     }
 
     /** Uses the slot authorized by findReusableSession within the same synchronous server callback. */

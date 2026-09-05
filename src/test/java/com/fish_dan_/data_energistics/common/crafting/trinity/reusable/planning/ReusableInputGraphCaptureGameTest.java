@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmis
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingTarget;
 import com.fish_dan_.data_energistics.api.crafting.reusable.ReusableInputRule;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingCustodyCensus;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingProviderAdapter;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.Target;
@@ -259,6 +260,11 @@ public final class ReusableInputGraphCaptureGameTest {
 
         @Override
         public Optional<ReusableCraftingSessionView> reusableSession(UUID sessionId) {
+            throw mutation();
+        }
+
+        @Override
+        public ReusableCraftingCustodyCensus reusableCustody(String cpuOwner) {
             throw mutation();
         }
 

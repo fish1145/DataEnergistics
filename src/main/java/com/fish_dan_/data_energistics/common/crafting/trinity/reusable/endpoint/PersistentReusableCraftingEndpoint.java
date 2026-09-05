@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.crafting.reusable.ReusableInputContext.Ownership;
 import com.fish_dan_.data_energistics.api.crafting.reusable.ReusableInputRule;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingCustodyCensus;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingProviderAdapter.ReturnReceiver;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.Input;
@@ -14,6 +15,7 @@ import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCra
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView.Settlement;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView.State;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.custody.ReusableCustodyIndex;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession.Append;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession.Identity;
@@ -131,6 +133,7 @@ public final class PersistentReusableCraftingEndpoint {
 
     private final String targetIdentity;
     private final Object2ObjectLinkedOpenHashMap<UUID, Entry> sessions = new Object2ObjectLinkedOpenHashMap<>();
+    private final ReusableCustodyIndex custody = new ReusableCustodyIndex();
     private @Nullable UUID resident;
     private long generation;
 
@@ -152,6 +155,22 @@ public final class PersistentReusableCraftingEndpoint {
     /** Current physical resident, without copying its held assets or historic receipts. */
     public Optional<UUID> residentSessionId() {
         return Optional.ofNullable(resident);
+    }
+
+    /** Owner-filtered evidence includes every historical acknowledgement, independently of current residency. */
+    public ReusableCraftingCustodyCensus reusableCustody(String cpuOwner) {
+        return custody.census(cpuOwner);
+    }
+
+    /** Compact acknowledged evidence for transfer to the physical core archive before replacing a route. */
+    public List<ReusableCraftingCustodyCensus.Entry> acknowledgedCustody() {
+        return sessions.values().stream().filter(entry -> entry.settlementAcknowledged).map(PersistentReusableCraftingEndpoint::custodyEntry).toList();
+    }
+
+    private static ReusableCraftingCustodyCensus.Entry custodyEntry(Entry entry) {
+        Identity identity = entry.binding.identity();
+        return new ReusableCraftingCustodyCensus.Entry(identity.sessionId(), identity.jobId(), identity.cpuOwner(), identity.target(),
+                entry.session.accepted(), entry.settlementAcknowledged);
     }
 
     /** Prepares an all-or-nothing transfer of total quantities without retaining the live request references. */
@@ -370,6 +389,7 @@ public final class PersistentReusableCraftingEndpoint {
             entry.session.acknowledgeReturn(sequence, assets);
         }
         entry.settlementAcknowledged = true;
+        custody.record(custodyEntry(entry));
         if (sessionId.equals(resident)) {
             resident = null;
         }
@@ -403,6 +423,7 @@ public final class PersistentReusableCraftingEndpoint {
             Entry entry = new Entry(snapshot.binding(), session, snapshot.revision(), snapshot.notBefore(),
                     snapshot.settlementAcknowledged(), snapshot.failure());
             result.sessions.put(identity.sessionId(), entry);
+            result.custody.record(custodyEntry(entry));
             if (!entry.settlementAcknowledged) {
                 if (result.resident != null) {
                     throw new IllegalArgumentException("Multiple persisted sessions claim one native crafting endpoint");
@@ -653,6 +674,7 @@ public final class PersistentReusableCraftingEndpoint {
             entry.notBefore = eligibleTick;
             sessions.put(entry.binding.identity().sessionId(), entry);
             resident = entry.binding.identity().sessionId();
+            custody.record(custodyEntry(entry));
             changed(entry, host);
             return true;
         }

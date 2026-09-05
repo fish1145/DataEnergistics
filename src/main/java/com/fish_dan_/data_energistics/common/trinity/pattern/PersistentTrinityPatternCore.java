@@ -2,9 +2,12 @@ package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingCustodyCensus;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.SlotStack;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdLookup;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.custody.ReusableCustodyAggregation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.custody.ReusableCustodyArchive;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint.Host;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.TrinityReusableSlot;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityPatternCoreTier;
@@ -65,6 +68,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     private static final String STACK_TAG = "stack";
     private static final String VERSION_TAG = "version";
     private static final String REUSABLE_SLOTS_TAG = "reusable_slots";
+    private static final String CUSTODY_ARCHIVE_TAG = "reusable_custody_archive";
 
     private final int patternCapacity;
     private final PatternDecoder decoder;
@@ -76,6 +80,8 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
      */
     private Int2ObjectMap<CachedPattern> cachedPatterns = new Int2ObjectOpenHashMap<>();
     private Int2ObjectMap<TrinityReusableSlot> reusableSlots = new Int2ObjectOpenHashMap<>();
+    private ReusableCustodyArchive custodyArchive = new ReusableCustodyArchive();
+    private final ReusableCustodyAggregation custodyAggregation = new ReusableCustodyAggregation();
     /**
      * Slots retaining an encoded pattern, ordered for reload and persistence without a capacity scan.
      */
@@ -285,6 +291,16 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         return this.reusableSlots.get(slot);
     }
 
+    /** Evidence follows the physical core even after a slot's old route and its CLOSED endpoint are replaced. */
+    public ReusableCraftingCustodyCensus reusableCustody(String cpuOwner) {
+        List<ReusableCraftingCustodyCensus> sources = new ObjectArrayList<>(this.reusableSlots.size() + 1);
+        sources.add(this.custodyArchive.census(cpuOwner));
+        for (TrinityReusableSlot slot : this.reusableSlots.values()) {
+            sources.add(slot.endpoint().reusableCustody(cpuOwner));
+        }
+        return this.custodyAggregation.census(cpuOwner, true, sources);
+    }
+
     public @Nullable ReusableCraftingAdmission prepareReusable(PatternRoute route, ReusableCraftingRequest request, long tick, Host host) {
         ensureNoActiveRefundTransaction();
         validateOwnedRoute(route);
@@ -332,6 +348,9 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
                 } finally {
                     if (prepared.hasTransferredInputOwnership()) {
                         target.clearCloseRequest();
+                        if (existing != null && target != existing) {
+                            custodyArchive.retain(existing.endpoint().acknowledgedCustody());
+                        }
                         reusableSlots.put(route.slot(), target);
                         reusableStateChanged(route.slot());
                     }
@@ -534,6 +553,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         data.put(SLOTS_TAG, slotEntries);
         data.put(REFUND_OUTBOX_TAG, writeRefundOutbox(registries));
         data.put(REUSABLE_SLOTS_TAG, writeReusableSlots(registries, false));
+        data.put(CUSTODY_ARCHIVE_TAG, this.custodyArchive.writeToTag());
     }
 
     /**
@@ -555,7 +575,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         retainedSlots.addAll(this.pendingOutputSlots);
         if (retainedSlots.isEmpty() &&
                 this.patternRefundOutbox.isEmpty() &&
-                this.retainedRefundOutboxByHost.isEmpty() && this.reusableSlots.isEmpty()) {
+                this.retainedRefundOutboxByHost.isEmpty() && this.reusableSlots.isEmpty() && this.custodyArchive.isEmpty()) {
             clearCoreStateTags(data);
             return;
         }
@@ -570,6 +590,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         data.put(SLOTS_TAG, slotEntries);
         data.put(REFUND_OUTBOX_TAG, writeRefundOutbox(registries));
         data.put(REUSABLE_SLOTS_TAG, writeReusableSlots(registries, true));
+        data.put(CUSTODY_ARCHIVE_TAG, this.custodyArchive.writeToTag());
     }
 
     @Override
@@ -621,6 +642,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         int persistedCapacity = validatePersistedCapacity(data, version);
         UUID loadedId = data.getUUID(CORE_ID_TAG);
         Int2ObjectMap<TrinityReusableSlot> loadedReusable = readReusableSlots(data, registries, loadedId, version);
+        ReusableCustodyArchive loadedCustody = readCustodyArchive(data, loadedId, version);
         boolean identityChanged = !this.coreId.equals(loadedId);
         Int2ObjectMap<TrinityPatternSlot> loadedSlots = readSlots(requiredCompoundList(data, SLOTS_TAG), registries, loadedId);
         for (TrinityReusableSlot reusable : loadedReusable.values()) {
@@ -717,6 +739,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         this.patternRefundOutbox = loadedOutbox.patterns();
         this.retainedRefundOutboxByHost = loadedOutbox.retainedByHost();
         this.reusableSlots = loadedReusable;
+        this.custodyArchive = loadedCustody;
         this.coreId = loadedId;
         this.stateRevision = nextStateRevision;
         for (int reusableSlot : loadedReusable.keySet()) {
@@ -1148,6 +1171,16 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         return entries;
     }
 
+    private static ReusableCustodyArchive readCustodyArchive(CompoundTag data, UUID coreId, int version) {
+        if (version < CURRENT_STATE_VERSION) {
+            if (data.contains(CUSTODY_ARCHIVE_TAG)) {
+                throw new IllegalArgumentException("Legacy core schema cannot contain a custody archive");
+            }
+            return new ReusableCustodyArchive();
+        }
+        return ReusableCustodyArchive.readFromTag(requiredCompoundList(data, CUSTODY_ARCHIVE_TAG), "trinity-core:" + coreId + "/slot:");
+    }
+
     private Int2ObjectMap<TrinityReusableSlot> readReusableSlots(CompoundTag data, HolderLookup.Provider registries,
                                                                  UUID loadedId, int version) {
         Int2ObjectMap<TrinityReusableSlot> restored = new Int2ObjectOpenHashMap<>();
@@ -1184,6 +1217,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         data.remove(SLOTS_TAG);
         data.remove(REFUND_OUTBOX_TAG);
         data.remove(REUSABLE_SLOTS_TAG);
+        data.remove(CUSTODY_ARCHIVE_TAG);
     }
 
     private static int validatePersistedSchema(CompoundTag data) {
@@ -1191,7 +1225,8 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
             throw new IllegalArgumentException("Persisted Trinity pattern core state requires an integer version");
         }
         int version = data.getInt(VERSION_TAG);
-        if (version != POWER_OF_TWO_CAPACITY_STATE_VERSION && version != COUNTED_STATE_VERSION && version != CURRENT_STATE_VERSION) {
+        if (version != POWER_OF_TWO_CAPACITY_STATE_VERSION && version != COUNTED_STATE_VERSION &&
+                version != CURRENT_STATE_VERSION) {
             throw new IllegalArgumentException("Unsupported Trinity pattern core state version " + version);
         }
         if (!data.contains(SLOTS_TAG)) {
@@ -1206,7 +1241,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
     private static boolean containsCoreState(CompoundTag data) {
         return data.contains(VERSION_TAG) || data.contains(PATTERN_CAPACITY_TAG) || data.contains(SLOTS_TAG) ||
-                data.contains(REFUND_OUTBOX_TAG) || data.contains(REUSABLE_SLOTS_TAG);
+                data.contains(REFUND_OUTBOX_TAG) || data.contains(REUSABLE_SLOTS_TAG) || data.contains(CUSTODY_ARCHIVE_TAG);
     }
 
     private static ListTag requiredCompoundList(CompoundTag data, String tagName) {

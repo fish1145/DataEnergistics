@@ -1,9 +1,11 @@
 package com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.reusable;
 
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingCustodyCensus;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.SlotStack;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.custody.ReusableCustodyAggregation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint.Host;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.ReusableCraftingEndpointNbtCodec;
@@ -83,6 +85,7 @@ public final class AdaptiveReusableCraftingState {
 
     private final UUID providerId;
     private final Int2ObjectLinkedOpenHashMap<Slot> slots = new Int2ObjectLinkedOpenHashMap<>();
+    private final ReusableCustodyAggregation custodyCoverage = new ReusableCustodyAggregation();
     private boolean handoffPrepared;
 
     public AdaptiveReusableCraftingState() {
@@ -103,6 +106,18 @@ public final class AdaptiveReusableCraftingState {
 
     public List<Slot> slots() {
         return List.copyOf(slots.values());
+    }
+
+    /** Native state remains queryable after pattern or provider mode changes, but not after its source handoff. */
+    public ReusableCraftingCustodyCensus reusableCustody(String cpuOwner, boolean sourceVisible) {
+        if (!sourceVisible || this.handoffPrepared) {
+            return this.custodyCoverage.census(cpuOwner, false, List.of());
+        }
+        List<ReusableCraftingCustodyCensus> sources = new ObjectArrayList<>(this.slots.size());
+        for (Slot slot : this.slots.values()) {
+            sources.add(slot.endpoint.reusableCustody(cpuOwner));
+        }
+        return this.custodyCoverage.census(cpuOwner, true, sources);
     }
 
     public boolean handoffPrepared() {
