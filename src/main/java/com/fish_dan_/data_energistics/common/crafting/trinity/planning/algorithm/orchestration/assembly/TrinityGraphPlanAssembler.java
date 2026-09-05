@@ -414,7 +414,8 @@ public final class TrinityGraphPlanAssembler {
                         count,
                         variant.physicalInputs(),
                         variant.declaredOutputs(),
-                        variant.physicalRemainingOutputs())),
+                        variant.physicalRemainingOutputs(),
+                        variant.requiresExactBinding() ? variant.bindings() : List.of())),
                 required,
                 multiplySigned(variant.netChange(), count));
     }

@@ -40,7 +40,9 @@ public final class TrinityExecutionNbtCodec {
 
     private static final int LONG_AMOUNT_SCHEMA = 5;
     private static final int BIG_INTEGER_SCHEMA = 6;
-    private static final int SCHEMA = 7;
+    private static final int SAME_ITEM_SCHEMA = 7;
+    private static final int SCHEMA = 8;
+    private static final String EXACT_BINDINGS_TAG = "exact_bindings";
     private static final int MAX_BIG_INTEGER_BYTES = 512;
     private static final String PLAN_KIND = "trinity_compact";
     private static final String SCHEMA_TAG = "schema_version";
@@ -157,7 +159,7 @@ public final class TrinityExecutionNbtCodec {
             FIRINGS_TAG,
             REQUIRED_AT_START_TAG,
             NET_CHANGE_TAG);
-    private static final Set<String> FIRING_FIELDS = Set.of(
+    private static final Set<String> LEGACY_FIRING_FIELDS = Set.of(
             DEFINITION_TAG,
             PUBLICATION_TAG,
             PRIMARY_OUTPUT_TAG,
@@ -166,6 +168,9 @@ public final class TrinityExecutionNbtCodec {
             OUTPUTS_TAG,
             REMAINING_COUNT_TAG,
             INITIALIZED_TAG);
+    private static final Set<String> FIRING_FIELDS = Set.of(
+            DEFINITION_TAG, PUBLICATION_TAG, PRIMARY_OUTPUT_TAG, VARIANT_ORDINAL_TAG,
+            PLANNED_COUNT_TAG, OUTPUTS_TAG, REMAINING_COUNT_TAG, INITIALIZED_TAG, EXACT_BINDINGS_TAG);
     private static final Set<String> REPEAT_FIELDS = Set.of(
             INDEX_TAG,
             STAGE_ORDER_ENTRY_TAG,
@@ -219,14 +224,14 @@ public final class TrinityExecutionNbtCodec {
     public static TrinityExecutionSnapshot decode(CompoundTag tag, HolderLookup.Provider registries) {
         requireType(tag, SCHEMA_TAG, Tag.TAG_INT, "execution schema");
         int schema = tag.getInt(SCHEMA_TAG);
-        if (schema != LONG_AMOUNT_SCHEMA && schema != BIG_INTEGER_SCHEMA && schema != SCHEMA) {
+        if (schema != LONG_AMOUNT_SCHEMA && schema != BIG_INTEGER_SCHEMA && schema != SAME_ITEM_SCHEMA && schema != SCHEMA) {
             throw new IllegalArgumentException("Unsupported Trinity execution schema");
         }
-        requireFields(tag, schema >= SCHEMA ? ROOT_FIELDS : LEGACY_ROOT_FIELDS, "execution root");
+        requireFields(tag, schema >= SAME_ITEM_SCHEMA ? ROOT_FIELDS : LEGACY_ROOT_FIELDS, "execution root");
         requireType(tag, PLAN_KIND_TAG, Tag.TAG_STRING, "execution plan kind");
         requireType(tag, CATALOG_REVISION_TAG, Tag.TAG_LONG, "execution catalog revision");
         requireType(tag, QUANTITY_MODE_TAG, Tag.TAG_STRING, "execution quantity mode");
-        if (schema >= SCHEMA) {
+        if (schema >= SAME_ITEM_SCHEMA) {
             requireType(tag, SAME_ITEM_POLICY_TAG, Tag.TAG_LIST, "execution same-item policy");
         }
         requireType(tag, ACTUAL_FINAL_OUTPUTS_TAG, Tag.TAG_LIST, "execution actual final outputs");
@@ -249,7 +254,7 @@ public final class TrinityExecutionNbtCodec {
         return new TrinityExecutionSnapshot(
                 nonNegative(tag.getLong(CATALOG_REVISION_TAG), "catalog revision"),
                 parseEnum(CraftingQuantityMode.class, tag.getString(QUANTITY_MODE_TAG), "quantity mode"),
-                schema >= SCHEMA ? readSameItemPolicy(tag, registries) : TrinitySameItemPolicy.empty(),
+                schema >= SAME_ITEM_SCHEMA ? readSameItemPolicy(tag, registries) : TrinitySameItemPolicy.empty(),
                 decodeKey(tag.getCompound(TARGET_KEY_TAG), registries, "execution target"),
                 tag.getLong(TARGET_AMOUNT_TAG),
                 parseEnum(TrinityPlanExecution.Status.class, tag.getString(STATUS_TAG), "execution status"),
@@ -287,7 +292,7 @@ public final class TrinityExecutionNbtCodec {
             return Object2LongMaps.emptyMap();
         }
         int schema = tag.getInt(SCHEMA_TAG);
-        if (schema != LONG_AMOUNT_SCHEMA && schema != BIG_INTEGER_SCHEMA && schema != SCHEMA) {
+        if (schema != LONG_AMOUNT_SCHEMA && schema != BIG_INTEGER_SCHEMA && schema != SAME_ITEM_SCHEMA && schema != SCHEMA) {
             return Object2LongMaps.emptyMap();
         }
 
@@ -430,7 +435,7 @@ public final class TrinityExecutionNbtCodec {
         ObjectArrayList<Firing> firings = new ObjectArrayList<>();
         for (Tag encoded : encodedFirings) {
             CompoundTag firingTag = (CompoundTag) encoded;
-            requireFields(firingTag, FIRING_FIELDS, "stage firing");
+            requireFields(firingTag, schema >= SCHEMA ? FIRING_FIELDS : LEGACY_FIRING_FIELDS, "stage firing");
             requireType(firingTag, DEFINITION_TAG, Tag.TAG_STRING, "firing definition identity");
             requireType(firingTag, PUBLICATION_TAG, Tag.TAG_STRING, "firing publication identity");
             requireType(firingTag, PRIMARY_OUTPUT_TAG, Tag.TAG_COMPOUND, "firing primary output");
@@ -460,7 +465,9 @@ public final class TrinityExecutionNbtCodec {
                     readBigInteger(firingTag, PLANNED_COUNT_TAG, schema),
                     readBigAmountMap(firingTag, OUTPUTS_TAG, registries, "firing output", false, schema),
                     readBigInteger(firingTag, REMAINING_COUNT_TAG, schema),
-                    firingTag.getBoolean(INITIALIZED_TAG)));
+                    firingTag.getBoolean(INITIALIZED_TAG),
+                    schema >= SCHEMA ? TrinityBoundInputSnapshotCodec.read(
+                            requireCompoundList(firingTag, EXACT_BINDINGS_TAG, "exact firing bindings"), registries) : List.of()));
         }
         if (firings.isEmpty()) {
             throw new IllegalArgumentException("A Trinity stage requires at least one firing signature");
@@ -630,6 +637,7 @@ public final class TrinityExecutionNbtCodec {
         tag.put(OUTPUTS_TAG, saveBigAmounts(firing.outputs(), registries));
         putBigInteger(tag, REMAINING_COUNT_TAG, firing.remainingCount());
         tag.putBoolean(INITIALIZED_TAG, firing.initialized());
+        tag.put(EXACT_BINDINGS_TAG, TrinityBoundInputSnapshotCodec.write(firing.exactBindings(), registries));
         return tag;
     }
 

@@ -59,14 +59,30 @@ public final class TrinityCraftingGraphSnapshot {
         Object2ObjectLinkedOpenHashMap<AEKey, ObjectLinkedOpenHashSet<TrinityCraftingGraphPattern>> producerSets = new Object2ObjectLinkedOpenHashMap<>();
         Object2ObjectLinkedOpenHashMap<Item, ObjectLinkedOpenHashSet<TrinityCraftingGraphPattern>> itemProducerSets = new Object2ObjectLinkedOpenHashMap<>();
         for (TrinityCraftingGraphPattern pattern : this.patterns) {
-            for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
-                for (TrinityPatternPublicationSignature.Alternative alternative : input.alternatives()) {
-                    encounteredKeys.add(alternative.stack().what());
-                    if (alternative.remainingKey() != null) {
-                        encounteredKeys.add(alternative.remainingKey());
-                        producerSets
-                                .computeIfAbsent(alternative.remainingKey(), ignored -> new ObjectLinkedOpenHashSet<>())
-                                .add(pattern);
+            if (pattern.reusableBindings().isEmpty()) {
+                for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
+                    for (TrinityPatternPublicationSignature.Alternative alternative : input.alternatives()) {
+                        encounteredKeys.add(alternative.stack().what());
+                        if (alternative.remainingKey() != null) {
+                            encounteredKeys.add(alternative.remainingKey());
+                            producerSets
+                                    .computeIfAbsent(alternative.remainingKey(), ignored -> new ObjectLinkedOpenHashSet<>())
+                                    .add(pattern);
+                        }
+                    }
+                }
+            } else {
+                for (List<TrinityBoundPatternInput> assignment : pattern.reusableBindings()) {
+                    for (TrinityBoundPatternInput binding : assignment) {
+                        encounteredKeys.add(binding.template().what());
+                        if (binding.remainingKey() != null) {
+                            encounteredKeys.add(binding.remainingKey());
+                            producerSets.computeIfAbsent(binding.remainingKey(), ignored -> new ObjectLinkedOpenHashSet<>()).add(pattern);
+                        }
+                        for (GenericStack byproduct : binding.byproducts()) {
+                            encounteredKeys.add(byproduct.what());
+                            producerSets.computeIfAbsent(byproduct.what(), ignored -> new ObjectLinkedOpenHashSet<>()).add(pattern);
+                        }
                     }
                 }
             }
@@ -173,9 +189,17 @@ public final class TrinityCraftingGraphSnapshot {
                 if (!reachablePatterns.add(pattern)) {
                     continue;
                 }
-                for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
-                    for (TrinityPatternPublicationSignature.Alternative alternative : input.alternatives()) {
-                        pending.enqueue(alternative.stack().what());
+                if (pattern.reusableBindings().isEmpty()) {
+                    for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
+                        for (TrinityPatternPublicationSignature.Alternative alternative : input.alternatives()) {
+                            pending.enqueue(alternative.stack().what());
+                        }
+                    }
+                } else {
+                    for (List<TrinityBoundPatternInput> assignment : pattern.reusableBindings()) {
+                        for (TrinityBoundPatternInput binding : assignment) {
+                            pending.enqueue(binding.template().what());
+                        }
                     }
                 }
             }

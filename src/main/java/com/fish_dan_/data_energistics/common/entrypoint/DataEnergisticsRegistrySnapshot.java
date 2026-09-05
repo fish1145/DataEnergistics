@@ -48,6 +48,7 @@ public final class DataEnergisticsRegistrySnapshot {
     private final ObjectList<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters;
     private final ObjectList<DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters;
     private final ReusableInputRules reusableInputRules;
+    private final boolean hasReusableInputRules;
 
     /**
      * Freezes all registration values without retaining a mutable staging collection.
@@ -75,6 +76,7 @@ public final class DataEnergisticsRegistrySnapshot {
         this.virtualCraftingOutputAdapters = immutableList(virtualCraftingOutputAdapters);
         this.dynamicCraftingOutputAdapters = immutableList(dynamicCraftingOutputAdapters.values());
         this.reusableInputRules = new FrozenReusableInputRules(immutableList(reusableInputAdapters.values()));
+        this.hasReusableInputRules = !reusableInputAdapters.isEmpty();
     }
 
     private static <T> ObjectList<T> immutableList(Collection<T> values) {
@@ -161,5 +163,10 @@ public final class DataEnergisticsRegistrySnapshot {
     /** @return immutable server-thread rule lookup; resolved model values are safe for background planning */
     public ReusableInputRules reusableInputs() {
         return this.reusableInputRules;
+    }
+
+    /** @return whether a server capture can benefit from querying reusable input rules */
+    public boolean hasReusableInputRules() {
+        return this.hasReusableInputRules;
     }
 }

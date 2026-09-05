@@ -712,17 +712,26 @@ final class TrinityDataCoreCpuLogic {
                 execution.sameItemPolicy(), this.inventory.list,
                 work.cycle() ? network.getAvailableStacks() : new KeyCounter(),
                 key -> simulateNetworkExtraction(network, key));
-        TrinityPatternSelector.Result selection = this.patternSelector.select(
+        TrinityPatternSelector.Result selection = !work.exactBindings().isEmpty() ? this.patternSelector.selectExact(
                 pattern,
                 work.plannedVariantOrdinal(),
-                work.cycle(),
+                work.exactBindings(),
                 maximumLogicalFirings,
                 this.inventory.list::get,
                 key -> work.cycle() && !currentJob.dynamicOutputs.isInputAlias(key) ?
                         simulateNetworkExtraction(network, key) : 0L,
-                key -> execution.sameItemPolicy().allowsSameItem(key) ? sameItemInputs.candidates(key) :
-                        currentJob.dynamicOutputs.resolveInputs(key, this.inventory.list),
-                settings.maxBindingVariants);
+                level) :
+                this.patternSelector.select(
+                        pattern,
+                        work.plannedVariantOrdinal(),
+                        work.cycle(),
+                        maximumLogicalFirings,
+                        this.inventory.list::get,
+                        key -> work.cycle() && !currentJob.dynamicOutputs.isInputAlias(key) ?
+                                simulateNetworkExtraction(network, key) : 0L,
+                        key -> execution.sameItemPolicy().allowsSameItem(key) ? sameItemInputs.candidates(key) :
+                                currentJob.dynamicOutputs.resolveInputs(key, this.inventory.list),
+                        settings.maxBindingVariants);
         TrinityPatternSelector.Selected selected;
         switch (selection) {
             case TrinityPatternSelector.Selected value -> selected = value;

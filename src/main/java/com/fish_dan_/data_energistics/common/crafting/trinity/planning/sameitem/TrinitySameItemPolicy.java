@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem;
 
 import com.fish_dan_.data_energistics.common.crafting.dynamic.EncodedPatternDynamicOutput;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityBoundPatternInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphPattern;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 
@@ -73,7 +74,29 @@ public final class TrinitySameItemPolicy {
         if (target instanceof AEItemKey targetItem && representatives.containsKey(targetItem.getItem())) {
             representatives.put(targetItem.getItem(), targetItem);
         }
+        for (TrinityCraftingGraphPattern pattern : graph.patterns()) {
+            for (List<TrinityBoundPatternInput> assignment : pattern.reusableBindings()) {
+                for (TrinityBoundPatternInput binding : assignment) {
+                    if (binding.reusableRule() != null) {
+                        representatives.remove(binding.reusableRule().initialKey().getItem());
+                        if (binding.remainingKey() instanceof AEItemKey successor) {
+                            representatives.remove(successor.getItem());
+                        }
+                    }
+                }
+            }
+        }
         return representatives.isEmpty() ? EMPTY : new TrinitySameItemPolicy(representatives.values());
+    }
+
+    /** Excludes tool state domains from component-insensitive accounting without modifying physical keys. */
+    public TrinitySameItemPolicy preservingExactItems(Collection<AEItemKey> exactItems) {
+        if (isEmpty() || exactItems.isEmpty()) {
+            return this;
+        }
+        Object2ObjectLinkedOpenHashMap<Item, AEItemKey> retained = new Object2ObjectLinkedOpenHashMap<>(this.representativesByItem);
+        exactItems.forEach(key -> retained.remove(key.getItem()));
+        return retained.size() == this.representativesByItem.size() ? this : ofRepresentatives(retained.values());
     }
 
     /** Reconstructs a persisted policy from one representative for each authorised item. */

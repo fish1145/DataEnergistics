@@ -157,7 +157,8 @@ public final class TrinitySameItemPolicyGameTest {
                 BigInteger.ONE,
                 Map.of(physicalInput, BigInteger.ONE),
                 Map.of(physicalOutput, BigInteger.valueOf(2L)),
-                Map.of());
+                Map.of(),
+                List.of());
         TrinityPlanStage stage = new TrinityPlanStage(
                 0,
                 false,
@@ -197,6 +198,11 @@ public final class TrinitySameItemPolicyGameTest {
         CompoundTag schemaSix = saved.copy();
         schemaSix.putInt("schema_version", 6);
         schemaSix.remove("same_item_policy");
+        for (Tag encodedStage : schemaSix.getList("stages", Tag.TAG_COMPOUND)) {
+            for (Tag encodedFiring : ((CompoundTag) encodedStage).getList("firings", Tag.TAG_COMPOUND)) {
+                ((CompoundTag) encodedFiring).remove("exact_bindings");
+            }
+        }
         TrinityPlanExecution restoredSix = TrinityPlanExecution.restore(
                 schemaSix,
                 helper.getLevel().registryAccess(),

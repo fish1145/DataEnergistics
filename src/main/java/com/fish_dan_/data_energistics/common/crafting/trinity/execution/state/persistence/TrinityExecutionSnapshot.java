@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.p
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityBorrowingLedger;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityBoundPatternInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
@@ -119,12 +120,14 @@ public record TrinityExecutionSnapshot(
                          BigInteger plannedCount,
                          Map<AEKey, BigInteger> outputs,
                          BigInteger remainingCount,
-                         boolean initialized) {
+                         boolean initialized,
+                         List<TrinityBoundPatternInput> exactBindings) {
 
         /**
          * Rejects cursors that could create work absent from the plan.
          */
         public Firing {
+            exactBindings = List.copyOf(exactBindings);
             outputs = immutableBigAmounts(outputs, false, "firing output");
             if (!outputs.containsKey(primaryOutput)) {
                 throw new IllegalArgumentException("A Trinity firing state must retain its primary output");

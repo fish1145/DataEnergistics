@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.pe
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.WaitKind;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityLongAmountSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityBoundPatternInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
@@ -115,12 +116,14 @@ public final class TrinityPlanExecution {
                        AEKey primaryOutput,
                        int plannedVariantOrdinal,
                        long maximumLogicalFirings,
-                       boolean cycle) {
+                       boolean cycle,
+                       List<TrinityBoundPatternInput> exactBindings) {
 
         /**
          * Rejects incomplete or non-dispatchable offers before provider code receives them.
          */
         public Work {
+            exactBindings = List.copyOf(exactBindings);
             if (generation < 0L || stageIndex < 0 || firingIndex < 0 ||
                     plannedVariantOrdinal < 0 ||
                     maximumLogicalFirings <= 0L) {
@@ -1504,7 +1507,8 @@ public final class TrinityPlanExecution {
                 firing.primaryOutput,
                 firing.variantOrdinal,
                 physicalWindow(maximum),
-                stage.cycle);
+                stage.cycle,
+                firing.exactBindings);
     }
 
     private void initializeCurrentFiring(StageState stage) {
@@ -1860,6 +1864,7 @@ public final class TrinityPlanExecution {
         private final int variantOrdinal;
         private final BigInteger plannedCount;
         private final Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> outputs;
+        private final List<TrinityBoundPatternInput> exactBindings;
         private BigInteger remainingCount;
         private boolean initialized;
 
@@ -1869,7 +1874,8 @@ public final class TrinityPlanExecution {
                             BigInteger plannedCount,
                             Map<AEKey, BigInteger> outputs,
                             BigInteger remainingCount,
-                            boolean initialized) {
+                            boolean initialized,
+                            List<TrinityBoundPatternInput> exactBindings) {
             if (variantOrdinal < 0 || plannedCount.signum() <= 0 || remainingCount.signum() < 0 ||
                     (!initialized && remainingCount.signum() != 0)) {
                 throw new IllegalArgumentException("A Trinity firing state contains an invalid signature or cursor");
@@ -1881,6 +1887,7 @@ public final class TrinityPlanExecution {
             this.outputs = copyOutputs(outputs);
             this.remainingCount = remainingCount;
             this.initialized = initialized;
+            this.exactBindings = List.copyOf(exactBindings);
         }
 
         private static FiringState fromPlan(TrinityPlanPatternFiring firing, boolean cycle) {
@@ -1892,7 +1899,8 @@ public final class TrinityPlanExecution {
                     count,
                     firing.outputs(),
                     cycle ? BigInteger.ZERO : count,
-                    !cycle);
+                    !cycle,
+                    firing.exactBindings());
         }
 
         private static FiringState fromSnapshot(Firing snapshot) {
@@ -1903,7 +1911,8 @@ public final class TrinityPlanExecution {
                     snapshot.plannedCount(),
                     snapshot.outputs(),
                     snapshot.remainingCount(),
-                    snapshot.initialized());
+                    snapshot.initialized(),
+                    snapshot.exactBindings());
         }
 
         private Firing snapshot() {
@@ -1914,7 +1923,8 @@ public final class TrinityPlanExecution {
                     this.plannedCount,
                     this.outputs,
                     this.remainingCount,
-                    this.initialized);
+                    this.initialized,
+                    this.exactBindings);
         }
 
         private static Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> copyOutputs(Map<AEKey, BigInteger> source) {

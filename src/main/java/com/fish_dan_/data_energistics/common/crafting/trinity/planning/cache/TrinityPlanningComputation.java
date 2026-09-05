@@ -115,7 +115,7 @@ public final class TrinityPlanningComputation {
                 input.gridScope(),
                 TrinityComputationNamespace.REACHABLE_GRAPH,
                 input.graph().revision(),
-                new ReachableGraphKey(input.target()),
+                new ReachableGraphKey(input.target(), input.graph().patterns()),
                 () -> TrinityCachedComputation.cacheable(input.graph().reachableSubgraph(input.target())));
         int patternCount = reachable.value().patterns().size();
         progress.publish(patternCount == 0 ?
@@ -126,7 +126,7 @@ public final class TrinityPlanningComputation {
         TrinitySameItemPolicy sameItemPolicy = reachable.value().sameItemPolicy(input.target());
         CompiledGraphKey compiledKey = new CompiledGraphKey(
                 input.target(),
-                reachable.value().patterns().stream().map(TrinityCraftingGraphPattern::identity).toList(),
+                reachable.value().patterns(),
                 sameItemPolicy,
                 STRUCTURE_VERSION);
         TrinityComputationValue<TrinityAlgorithmResult<TrinityCompiledGraph>> compiled = this.cache.computeInline(
@@ -238,7 +238,7 @@ public final class TrinityPlanningComputation {
                             gridScope,
                             TrinityComputationNamespace.PATTERN_EXPANSION,
                             TrinityComputationCache.SEMANTIC_REVISION,
-                            new PatternExpansionKey(pattern.identity(), PATTERN_EXPANSION_VERSION),
+                            new PatternExpansionKey(pattern, PATTERN_EXPANSION_VERSION),
                             () -> cacheSuccessful(this.pipeline.expandPattern(
                                     pattern,
                                     limits.maxBindingVariants(),
@@ -604,15 +604,15 @@ public final class TrinityPlanningComputation {
                 TrinityCachedComputation.transientValue(result);
     }
 
-    private record ReachableGraphKey(AEKey target) {}
+    private record ReachableGraphKey(AEKey target, List<TrinityCraftingGraphPattern> patterns) {}
 
     private record CompiledGraphKey(
                                     AEKey target,
-                                    List<TrinityPatternIdentity> patternIdentities,
+                                    List<TrinityCraftingGraphPattern> patterns,
                                     TrinitySameItemPolicy sameItemPolicy,
                                     int structureVersion) {}
 
-    private record PatternExpansionKey(TrinityPatternIdentity identity, int expansionVersion) {}
+    private record PatternExpansionKey(TrinityCraftingGraphPattern pattern, int expansionVersion) {}
 
     private record RouteFamilyKey(
                                   AEKey output,
