@@ -144,6 +144,52 @@ public final class ReusableInputPlanningExpansionGameTest {
                 .filter(input -> input.template().what().equals(key)).findFirst().orElseThrow();
     }
 
+    @TestHolder("reusable_planning_cursor_resumes_without_restarting_rule_callbacks")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cursorResumesWithoutRestartingRuleCallbacks(GameTestHelper helper) {
+        TestPattern pattern = new TestPattern(3, false);
+        AtomicLong callbacks = new AtomicLong();
+        ReusableInputRules rules = input -> {
+            callbacks.incrementAndGet();
+            return input.inputSlot() == 0 ? Optional.of(ReusableInputRule.fixedDamage(
+                    RULE_ID, 1L, (AEItemKey) input.actualInput().what(), 1, 4, List.of())) : Optional.empty();
+        };
+        ReusableInputPlanningCursor cursor = new ReusableInputPlanningCursor(context(helper, pattern), List.of(tool(2)),
+                rules, 4, TrinityPlanningControl.unbounded());
+        AtomicLong clock = new AtomicLong();
+        ReusableInputPlanningExpansion.Result result = null;
+        int slices = 0;
+        while (result == null && slices < 1000) {
+            result = cursor.advance(1L, clock::getAndIncrement);
+            slices++;
+        }
+        helper.assertTrue(result instanceof ReusableInputPlanningExpansion.Captured,
+                "Small server tick slices must eventually publish the complete graph");
+        helper.assertTrue(slices > 4, "Capture must suspend and resume across several ticks");
+        helper.assertValueEqual(((ReusableInputPlanningExpansion.Captured) result).bindings().size(), 4,
+                "All inventory and successor states survive cursor suspension");
+        helper.assertValueEqual(callbacks.get(), 8L, "Each of four complete assignments resolves its two slots once");
+        helper.assertValueEqual(cursor.advance(1L, clock::getAndIncrement), result, "Completed cursor is idempotent");
+        helper.succeed();
+    }
+
+    @TestHolder("reusable_planning_cursor_cancel_stops_pending_capture_without_partial_graph")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void cursorCancelStopsPendingCaptureWithoutPartialGraph(GameTestHelper helper) {
+        ReusableInputPlanningCursor cursor = new ReusableInputPlanningCursor(context(helper, new TestPattern(3, false)),
+                List.of(tool(2)), ignored -> Optional.empty(), 4, TrinityPlanningControl.unbounded());
+        AtomicLong clock = new AtomicLong();
+        helper.assertTrue(cursor.advance(1L, clock::getAndIncrement) == null, "First small slice should retain pending work");
+        cursor.cancel();
+        var result = cursor.advance(1L, clock::getAndIncrement);
+        helper.assertTrue(result instanceof ReusableInputPlanningExpansion.Stopped, "Cancellation publishes no partial graph");
+        helper.assertValueEqual(((ReusableInputPlanningExpansion.Stopped) result).reason(),
+                ReusableInputPlanningExpansion.Reason.CANCELLED, "Cancellation remains distinct from tick budget exhaustion");
+        helper.succeed();
+    }
+
     private static ReusableInputContext context(GameTestHelper helper, TestPattern pattern) {
         GenericStack tool = new GenericStack(tool(0), 2L);
         return ReusableInputContext.builder().pattern(pattern).actualInput(tool)
