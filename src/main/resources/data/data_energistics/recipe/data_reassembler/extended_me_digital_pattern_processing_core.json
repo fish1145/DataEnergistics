@@ -1,0 +1,52 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:me_digital_pattern_processing_core",
+				"count": 2
+			},
+			{
+				"item": "data_energistics:digisidian_memorize_ingot",
+				"count": 5
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 42
+			},
+			{
+				"item": "ae2:controller"
+			},
+			{
+				"item": "data_energistics:fluix_aggregate_crystal_processor",
+				"count": 16
+			},
+			{
+				"item": "data_energistics:singularity_block",
+				"count": 3
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:ender",
+				"amount": 1859
+			},
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 5472
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 15408
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:extended_me_digital_pattern_processing_core"
+			}
+		]
+	}
+}

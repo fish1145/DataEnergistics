@@ -109,24 +109,25 @@ All five Data Crystal mother rocks preserve their own tier when mined with Silk 
   <IsometricCamera yaw="0" pitch="25" />
 </GameScene>
 
-Dispersing Manifest Binary are mining digital meteorites (drop rates as shown in the table above) and mining residual data ores (guaranteed to drop 1~3).
-Nearby Dispersing Manifest Binary attract and merge automatically. Their names show the contained amount, up to 8 Binary units per entity. At 8 units, the entity is about 2 times its base size.
-> ⚠ if you leave it alone for a minute, it will fade away  
-> 
+Dispersing Manifest Binary are mining digitized meteorites (drop rates as shown in the table above) and mining residual data ores (guaranteed to drop 1~3).<br>
+
+> Nearby Dispersing Manifest Binary attract and merge automatically. Their names show the contained amount, up to 8 Binary units per entity. At 8 units, the entity is about 2 times its base size.
+> ⚠ if you leave it alone for a minute, it will fade away<br>
+>
 When he appears in the world, you need to use it
-<Row> 
+<Row>
     <ItemLink id="data_energistics:radix_containment_sphere" />
     <ItemImage id="data_energistics:radix_containment_sphere" />
-</Row>  
+</Row>
     <RecipeFor id="data_energistics:radix_containment_sphere" />
-captures it; when energy is depleted, it is destroyed and the Binary inside is also destroyed
-  
+captures it; when the sphere's energy is depleted, it leaks one Manifest Binary into the world every 100 ticks.
+
 
 You can also make one
 <Row>
     <ItemLink id="data_energistics:me_vacuum" />
     <ItemImage id="data_energistics:me_vacuum" />
-</Row>  
+</Row>
     <RecipeFor id="data_energistics:me_vacuum" />
 Place Radix Containment Sphere in it for area capture
 
@@ -138,25 +139,28 @@ Place Radix Containment Sphere in it for area capture
   <IsometricCamera yaw="150" pitch="25" />
 </GameScene>
 
-Comes with mutant meteorites, but generally only forms in meteorites that crash onto the plains  
-  
+Comes with variant meteorites, but generally only forms in meteorites that crash onto plains.<br>
+<Row>
+    <ItemImage id="data_energistics:me_vacuum" />
+</Row>
+
 
 You can also make one
 <Row>
     <ItemLink id="data_energistics:me_vacuum" />
     <ItemImage id="data_energistics:me_vacuum" />
-</Row>  
+</Row>
     <RecipeFor id="data_energistics:me_vacuum" />
-Perform a range of suction on the loaded fluid disk  
+Perform a range of suction on the loaded fluid disk<br>
 > ⚠ it deals about twice the damage of Dragon Breath, so proceed with caution
 >
 
-## Digitalized Meteorite Compass  
+## Digitalized Meteorite Compass
 
 > Meteorite Compass after specialization (synthesis), specifically used to find meteorites in this module
 > The usage method is the same as a regular meteorite compass
 
 <Row>
-    <ItemImage id="data_energistics:data_meteorite_compass" />
+    <ItemImage id="data_energistics:data_meteorite_compass" scale="6" />
     <RecipeFor id="data_energistics:data_meteorite_compass" />
-</Row> 
+</Row>

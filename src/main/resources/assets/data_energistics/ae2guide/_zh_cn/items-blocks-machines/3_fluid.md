@@ -36,13 +36,14 @@ item_ids:
 
 ---
 
-## 数据腐蚀液桶
+## 数蚀液桶
 
-数据腐蚀液拥有极强的腐蚀性，接触到它的活体会持续受到极高伤害。它也可能生成在数位化陨石周围。
+数蚀液拥有极强的腐蚀性，接触到它的活体会持续受到极高伤害。它也可能生成在数位化陨石周围。
 
 <Column>
   <Row>
     <ItemImage id="data_energistics:data_corrosion_liquid_bucket" scale="3" />
+    <Recipe id="data_energistics:data_reassembler/data_corrosion_liquid_bucket" />
   </Row>
 </Column>
 
