@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEKey;
@@ -36,6 +37,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
     private final boolean multiplePaths;
     private final long catalogRevision;
     private final CraftingQuantityMode quantityMode;
+    private final TrinitySameItemPolicy sameItemPolicy;
     private final Map<AEKey, BigInteger> initialExpectedInputs;
     private final Map<TrinityPatternIdentity, BigInteger> patternFirings;
     private final Map<AEKey, BigInteger> plannedOutputs;
@@ -63,6 +65,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
         this.multiplePaths = builder.multiplePaths;
         this.catalogRevision = builder.catalogRevision;
         this.quantityMode = quantityMode;
+        this.sameItemPolicy = builder.sameItemPolicy;
         this.initialExpectedInputs = TrinityPlanAmounts.validatePositive(
                 builder.initialExpectedInputs,
                 "initial expected input");
@@ -70,12 +73,16 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
         this.stages = validateStages(builder.stages);
         this.stageOrder = validateStageOrder(builder.stageOrder, this.stages);
         this.cycleRepeatBlocks = validateRepeatBlocks(builder.cycleRepeatBlocks, this.stages);
-        this.plannedOutputs = calculatePlannedOutputs(this.stages, this.cycleRepeatBlocks);
+        this.plannedOutputs = calculatePlannedOutputs(
+                this.stages,
+                this.cycleRepeatBlocks,
+                this.sameItemPolicy);
         this.minimumSeed = TrinityPlanAmounts.validatePositive(builder.minimumSeed, "minimum seed");
         this.targetNetChange = TrinityPlanAmounts.validateSignedNonZero(builder.targetNetChange, "target net change");
         this.diagnostics = validateDiagnostics(builder.diagnostics);
         this.statistics = builder.statistics;
 
+        validateLogicalBalances();
         validateFiringAggregation(this.patternFirings, this.stages, this.cycleRepeatBlocks);
         validateNetChange(this.targetNetChange, this.stages, this.cycleRepeatBlocks);
         validateGlobalMinimumSeed(this.minimumSeed, this.cycleRepeatBlocks);
@@ -100,6 +107,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
         this.multiplePaths = source.multiplePaths;
         this.catalogRevision = source.catalogRevision;
         this.quantityMode = source.quantityMode;
+        this.sameItemPolicy = source.sameItemPolicy;
         this.initialExpectedInputs = source.initialExpectedInputs;
         this.patternFirings = source.patternFirings;
         this.plannedOutputs = source.plannedOutputs;
@@ -225,7 +233,8 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
 
     private static Map<AEKey, BigInteger> calculatePlannedOutputs(
                                                                   List<TrinityPlanStage> stages,
-                                                                  List<TrinityCycleRepeatBlock> repeatBlocks) {
+                                                                  List<TrinityCycleRepeatBlock> repeatBlocks,
+                                                                  TrinitySameItemPolicy sameItemPolicy) {
         Int2ObjectOpenHashMap<BigInteger> stageMultipliers = new Int2ObjectOpenHashMap<>();
         stages.forEach(stage -> stageMultipliers.put(stage.index(), BigInteger.ONE));
         for (TrinityCycleRepeatBlock block : repeatBlocks) {
@@ -240,7 +249,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
             for (TrinityPlanPatternFiring firing : stage.firings()) {
                 BigInteger totalFirings = firing.count().multiply(stageMultiplier);
                 firing.outputs().forEach((key, amount) -> outputs.merge(
-                        key,
+                        sameItemPolicy.normalizeKey(key),
                         amount.multiply(totalFirings),
                         BigInteger::add));
             }
@@ -331,6 +340,29 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
             }
             requireBalances(balances, block.minimumSeed(), "repeat block " + block.index());
             applyChange(balances, block.netChange(), "repeat block " + block.index());
+        }
+    }
+
+    private void validateLogicalBalances() {
+        requireNormalized(this.initialExpectedInputs, "initial input");
+        requireNormalized(this.minimumSeed, "minimum seed");
+        requireNormalized(this.targetNetChange, "target net change");
+        for (TrinityPlanStage stage : this.stages) {
+            requireNormalized(stage.requiredAtStart(), "stage start");
+            requireNormalized(stage.netChange(), "stage net change");
+        }
+        for (TrinityCycleRepeatBlock block : this.cycleRepeatBlocks) {
+            requireNormalized(block.minimumSeed(), "repeat minimum seed");
+            requireNormalized(block.netChange(), "repeat net change");
+        }
+        if (!this.sameItemPolicy.normalizeKey(this.finalOutput.what()).equals(this.finalOutput.what())) {
+            throw new IllegalArgumentException("A Trinity final output must be its same-item domain representative");
+        }
+    }
+
+    private void requireNormalized(Map<AEKey, BigInteger> amounts, String role) {
+        if (amounts.keySet().stream().anyMatch(key -> !this.sameItemPolicy.normalizeKey(key).equals(key))) {
+            throw new IllegalArgumentException("A Trinity " + role + " must use same-item domain representatives");
         }
     }
 
@@ -438,6 +470,11 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
         return this.quantityMode;
     }
 
+    /** Returns the request-local logical item domains used by all stage balances. */
+    public TrinitySameItemPolicy sameItemPolicy() {
+        return this.sameItemPolicy;
+    }
+
     /**
      * @return exact external initial materials, including seed that no preceding stage can produce
      */
@@ -521,6 +558,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
         private boolean multiplePaths;
         private long catalogRevision = -1L;
         private @Nullable CraftingQuantityMode quantityMode;
+        private TrinitySameItemPolicy sameItemPolicy = TrinitySameItemPolicy.empty();
         private Map<AEKey, BigInteger> initialExpectedInputs = Map.of();
         private Map<TrinityPatternIdentity, BigInteger> patternFirings = Map.of();
         private List<TrinityPlanStage> stages = List.of();
@@ -576,6 +614,15 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
          */
         public Builder quantityMode(CraftingQuantityMode value) {
             this.quantityMode = value;
+            return this;
+        }
+
+        /**
+         * @param value request-local logical item-domain projection
+         * @return this builder
+         */
+        public Builder sameItemPolicy(TrinitySameItemPolicy value) {
+            this.sameItemPolicy = value;
             return this;
         }
 

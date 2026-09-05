@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
+
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 
@@ -17,10 +19,13 @@ import java.util.Map;
  * @param primaryOutput       primary output used to resolve the live provider pattern on the server thread
  * @param ordinal             deterministic Cartesian binding ordinal for that pattern
  * @param alternativeOrdinals selected alternative index for every ordered input slot
- * @param inputs              exact per-firing consumption
+ * @param bindings            exact physical input bindings retained for live pattern selection
+ * @param inputs              logical per-firing consumption used by planning balances
  * @param declaredOutputs     exact pattern-declared outputs, excluding input remainders
- * @param outputs             exact declared outputs plus remaining keys
- * @param netChange           exact signed {@code outputs - inputs}
+ * @param outputs             logical declared outputs plus remaining keys used by planning balances
+ * @param netChange           logical signed {@code outputs - inputs}
+ * @param physicalInputs      exact component-aware consumption represented by {@code bindings}
+ * @param physicalOutputs     exact declared outputs plus exact input remainders
  */
 public record TrinityPatternVariant(
                                     TrinityPatternIdentity patternIdentity,
@@ -31,7 +36,9 @@ public record TrinityPatternVariant(
                                     Map<AEKey, BigInteger> inputs,
                                     Map<AEKey, BigInteger> declaredOutputs,
                                     Map<AEKey, BigInteger> outputs,
-                                    Map<AEKey, BigInteger> netChange)
+                                    Map<AEKey, BigInteger> netChange,
+                                    Map<AEKey, BigInteger> physicalInputs,
+                                    Map<AEKey, BigInteger> physicalOutputs)
         implements Comparable<TrinityPatternVariant> {
 
     /**
@@ -54,11 +61,13 @@ public record TrinityPatternVariant(
         inputs = copyPositive(inputs, "inputs");
         declaredOutputs = copyPositive(declaredOutputs, "declared outputs");
         outputs = copyPositive(outputs, "outputs");
+        physicalInputs = copyPositive(physicalInputs, "physical inputs");
+        physicalOutputs = copyPositive(physicalOutputs, "physical outputs");
         if (!declaredOutputs.containsKey(primaryOutput)) {
             throw new IllegalArgumentException("A Trinity pattern variant must retain its primary output");
         }
         for (Map.Entry<AEKey, BigInteger> entry : declaredOutputs.entrySet()) {
-            BigInteger total = outputs.get(entry.getKey());
+            BigInteger total = physicalOutputs.get(entry.getKey());
             if (total == null || total.compareTo(entry.getValue()) < 0) {
                 throw new IllegalArgumentException(
                         "Trinity declared outputs must be contained in the complete transition outputs");
@@ -113,7 +122,45 @@ public record TrinityPatternVariant(
                 inputs,
                 declared,
                 outputs,
-                calculateNetChange(inputs, outputs));
+                calculateNetChange(inputs, outputs),
+                inputs,
+                outputs);
+    }
+
+    /**
+     * Returns a transition whose solver-facing balances use authorised same-item representatives while all physical
+     * identity, binding, declared-output and remainder data remains unchanged.
+     */
+    public TrinityPatternVariant normalized(TrinitySameItemPolicy policy) {
+        Map<AEKey, BigInteger> normalizedInputs = policy.normalizeAmounts(this.physicalInputs);
+        Map<AEKey, BigInteger> normalizedOutputs = policy.normalizeAmounts(this.physicalOutputs);
+        if (normalizedInputs.equals(this.inputs) && normalizedOutputs.equals(this.outputs)) {
+            return this;
+        }
+        return new TrinityPatternVariant(
+                this.patternIdentity,
+                this.primaryOutput,
+                this.ordinal,
+                this.alternativeOrdinals,
+                this.bindings,
+                normalizedInputs,
+                this.declaredOutputs,
+                normalizedOutputs,
+                calculateNetChange(normalizedInputs, normalizedOutputs),
+                this.physicalInputs,
+                this.physicalOutputs);
+    }
+
+    /** Returns exact physical input remainders without mixing them with logical planning representatives. */
+    public Map<AEKey, BigInteger> physicalRemainingOutputs() {
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> remaining = new Object2ObjectLinkedOpenHashMap<>();
+        this.physicalOutputs.forEach((key, amount) -> {
+            BigInteger remainder = amount.subtract(this.declaredOutputs.getOrDefault(key, BigInteger.ZERO));
+            if (remainder.signum() > 0) {
+                remaining.put(key, remainder);
+            }
+        });
+        return Collections.unmodifiableMap(remaining);
     }
 
     @Override

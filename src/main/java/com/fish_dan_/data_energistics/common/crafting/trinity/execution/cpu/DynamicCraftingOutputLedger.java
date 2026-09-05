@@ -14,9 +14,11 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,8 +37,8 @@ final class DynamicCraftingOutputLedger {
     private static final String INPUT_ALIASES_TAG = "same_item_inputs";
     private static final String ACTUAL_KEY_TAG = "actual_key";
 
-    private final ArrayList<MutableEntry> entries = new ArrayList<>();
-    private final LinkedHashMap<AEItemKey, Long> inputAliases = new LinkedHashMap<>();
+    private final ObjectArrayList<MutableEntry> entries = new ObjectArrayList<>();
+    private final Object2LongLinkedOpenHashMap<AEItemKey> inputAliases = new Object2LongLinkedOpenHashMap<>();
 
     /**
      * Output ownership route selected at provider-commit time.
@@ -60,8 +62,8 @@ final class DynamicCraftingOutputLedger {
                         ResourceLocation source) {
 
         Registration {
-            if (plannedKey == null || amount <= 0L || route == null || source == null) {
-                throw new IllegalArgumentException("A dynamic output registration must be complete and positive");
+            if (amount <= 0L) {
+                throw new IllegalArgumentException("A dynamic output registration must be positive");
             }
         }
     }
@@ -231,41 +233,34 @@ final class DynamicCraftingOutputLedger {
      * Marks an ordinary actual dynamic output as eligible for same-item input binding within this job only.
      */
     void recordInputAlias(AEItemKey actualKey, long amount) {
-        if (actualKey == null || amount <= 0L) {
+        if (amount <= 0L) {
             throw new IllegalArgumentException("A dynamic input alias must be a positive item amount");
         }
-        this.inputAliases.merge(actualKey, amount, Math::addExact);
+        this.inputAliases.mergeLong(actualKey, amount, Math::addExact);
     }
 
     /**
-     * Selects an owned actual variant only when the exact planned key is unavailable in CPU inventory.
+     * Returns the owned same-item alternatives without requiring one variant to satisfy the whole input.
      */
-    Optional<AEItemKey> resolveInput(AEKey plannedKey,
-                                     long amountPerCraft,
-                                     KeyCounter inventory) {
-        if (!(plannedKey instanceof AEItemKey plannedItem) || amountPerCraft <= 0L ||
-                inventory.get(plannedKey) >= amountPerCraft) {
-            return Optional.empty();
+    List<GenericStack> resolveInputs(AEKey plannedKey, KeyCounter inventory) {
+        if (!(plannedKey instanceof AEItemKey plannedItem)) {
+            return List.of();
         }
-        for (Map.Entry<AEItemKey, Long> alias : this.inputAliases.entrySet()) {
+        ObjectArrayList<GenericStack> alternatives = new ObjectArrayList<>();
+        for (var alias : this.inputAliases.object2LongEntrySet()) {
             if (alias.getKey().getItem() == plannedItem.getItem() &&
-                    alias.getValue() >= amountPerCraft && inventory.get(alias.getKey()) >= amountPerCraft) {
-                return Optional.of(alias.getKey());
+                    !alias.getKey().equals(plannedKey)) {
+                long available = Math.min(alias.getLongValue(), inventory.get(alias.getKey()));
+                if (available > 0L) {
+                    alternatives.add(new GenericStack(alias.getKey(), available));
+                }
             }
         }
-        return Optional.empty();
+        return List.copyOf(alternatives);
     }
 
     boolean isInputAlias(AEKey key) {
         return key instanceof AEItemKey itemKey && this.inputAliases.containsKey(itemKey);
-    }
-
-    /**
-     * Restricts a dynamic alias to the quantity actually produced and owned by this job.
-     */
-    long availableInputAmount(AEKey key, KeyCounter inventory) {
-        Long owned = key instanceof AEItemKey itemKey ? this.inputAliases.get(itemKey) : null;
-        return owned == null ? inventory.get(key) : Math.min(owned, inventory.get(key));
     }
 
     /**
@@ -276,13 +271,13 @@ final class DynamicCraftingOutputLedger {
             if (!(consumed.getKey() instanceof AEItemKey itemKey)) {
                 continue;
             }
-            Long aliased = this.inputAliases.get(itemKey);
-            if (aliased == null) {
+            long aliased = this.inputAliases.getLong(itemKey);
+            if (aliased == 0L) {
                 continue;
             }
             long remaining = aliased - Math.min(aliased, consumed.getLongValue());
             if (remaining == 0L) {
-                this.inputAliases.remove(itemKey);
+                this.inputAliases.removeLong(itemKey);
             } else {
                 this.inputAliases.put(itemKey, remaining);
             }
@@ -329,7 +324,7 @@ final class DynamicCraftingOutputLedger {
             throw new IllegalArgumentException("Damaged dynamic crafting output ledger root");
         }
         DynamicCraftingOutputLedger ledger = new DynamicCraftingOutputLedger();
-        ArrayList<Registration> registrations = new ArrayList<>();
+        ObjectArrayList<Registration> registrations = new ObjectArrayList<>();
         Tag rawWaiting = root.get(WAITING_TAG);
         if (!(rawWaiting instanceof ListTag encoded) ||
                 (!encoded.isEmpty() && encoded.getElementType() != Tag.TAG_COMPOUND)) {
@@ -377,7 +372,7 @@ final class DynamicCraftingOutputLedger {
             }
             AEKey decoded = AEKey.fromTagGeneric(registries, tag.getCompound(ACTUAL_KEY_TAG));
             if (!(decoded instanceof AEItemKey itemKey) || tag.getLong(AMOUNT_TAG) <= 0L ||
-                    ledger.inputAliases.putIfAbsent(itemKey, tag.getLong(AMOUNT_TAG)) != null) {
+                    ledger.inputAliases.putIfAbsent(itemKey, tag.getLong(AMOUNT_TAG)) != 0L) {
                 throw new IllegalArgumentException("Same-item input aliases require unique positive item entries");
             }
         }
@@ -389,7 +384,7 @@ final class DynamicCraftingOutputLedger {
     }
 
     private static Map<Item, Domain> domains(List<Registration> registrations) {
-        HashMap<Item, Domain> domains = new HashMap<>();
+        Object2ObjectOpenHashMap<Item, Domain> domains = new Object2ObjectOpenHashMap<>();
         for (Registration registration : registrations) {
             Domain candidate = new Domain(registration.plannedKey(), registration.route());
             Domain existing = domains.putIfAbsent(registration.plannedKey().getItem(), candidate);
@@ -403,14 +398,13 @@ final class DynamicCraftingOutputLedger {
     }
 
     private static Map<Item, List<AEItemKey>> expectedDomains(List<GenericStack> outputs) {
-        LinkedHashMap<Item, List<AEItemKey>> domains = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<Item, List<AEItemKey>> domains = new Object2ObjectLinkedOpenHashMap<>();
         for (GenericStack output : outputs) {
             if (output.what() instanceof AEItemKey itemKey) {
-                ArrayList<AEItemKey> keys = new ArrayList<>(domains.getOrDefault(itemKey.getItem(), List.of()));
+                List<AEItemKey> keys = domains.computeIfAbsent(itemKey.getItem(), ignored -> new ObjectArrayList<>());
                 if (!keys.contains(itemKey)) {
                     keys.add(itemKey);
                 }
-                domains.put(itemKey.getItem(), List.copyOf(keys));
             }
         }
         return domains;

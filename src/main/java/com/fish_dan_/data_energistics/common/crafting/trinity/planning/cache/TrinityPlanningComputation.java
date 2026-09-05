@@ -27,6 +27,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
 import appeng.api.stacks.AEKey;
 
@@ -54,7 +55,7 @@ import java.util.function.LongSupplier;
 public final class TrinityPlanningComputation {
 
     private static final int SOLVE_STRATEGY_VERSION = 3;
-    private static final int STRUCTURE_VERSION = 3;
+    private static final int STRUCTURE_VERSION = 4;
     private static final int PATTERN_EXPANSION_VERSION = 1;
     private static final int DAG_ROUTE_PROOF_VERSION = 1;
     private static final int CYCLE_UNIT_PROOF_VERSION = 2;
@@ -122,9 +123,11 @@ public final class TrinityPlanningComputation {
                         TrinityPlanningProgressPhase.EXPANDING_PATTERNS,
                         TrinityPlanningProgressMeasure.NONE) :
                 TrinityPlanningProgressSnapshot.exact(TrinityPlanningProgressPhase.EXPANDING_PATTERNS, 0, patternCount));
+        TrinitySameItemPolicy sameItemPolicy = reachable.value().sameItemPolicy(input.target());
         CompiledGraphKey compiledKey = new CompiledGraphKey(
                 input.target(),
                 reachable.value().patterns().stream().map(TrinityCraftingGraphPattern::identity).toList(),
+                sameItemPolicy,
                 STRUCTURE_VERSION);
         TrinityComputationValue<TrinityAlgorithmResult<TrinityCompiledGraph>> compiled = this.cache.computeInline(
                 input.gridScope(),
@@ -170,6 +173,7 @@ public final class TrinityPlanningComputation {
                         TrinityPlanningProgressMeasure.NONE) :
                 TrinityPlanningProgressSnapshot.exact(TrinityPlanningProgressPhase.PROJECTING_REQUEST, 0, inventoryKeyCount));
         TrinityPlanningInventory projectedInventory = input.inventory()
+                .normalized(requestStructure.structure().sameItemPolicy())
                 .project(requestStructure.structure().relevantInventoryKeys());
         if (inventoryKeyCount > 0) {
             progress.publish(TrinityPlanningProgressSnapshot.exact(
@@ -605,6 +609,7 @@ public final class TrinityPlanningComputation {
     private record CompiledGraphKey(
                                     AEKey target,
                                     List<TrinityPatternIdentity> patternIdentities,
+                                    TrinitySameItemPolicy sameItemPolicy,
                                     int structureVersion) {}
 
     private record PatternExpansionKey(TrinityPatternIdentity identity, int expansionVersion) {}

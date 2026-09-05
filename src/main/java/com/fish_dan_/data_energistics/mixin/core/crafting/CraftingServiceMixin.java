@@ -272,7 +272,7 @@ public abstract class CraftingServiceMixin
         TrinityPlanningInventorySnapshot inventorySnapshot;
         try {
             inventorySnapshot = graph
-                    .map(snapshot -> dataEnergistics$capturePlanningInventory(snapshot, actionSource, progress))
+                    .map(snapshot -> dataEnergistics$capturePlanningInventory(snapshot, what, actionSource, progress))
                     .orElseGet(TrinityPlanningInventorySnapshot::empty);
         } catch (TrinityPlanningInventorySnapshot.CaptureException exception) {
             Data_Energistics.LOGGER.error(
@@ -444,11 +444,13 @@ public abstract class CraftingServiceMixin
     @Unique
     private TrinityPlanningInventorySnapshot dataEnergistics$capturePlanningInventory(
                                                                                       TrinityCraftingGraphSnapshot graph,
+                                                                                      AEKey target,
                                                                                       IActionSource actionSource,
                                                                                       TrinityPlanningProgressReporter progress) {
         var storageService = this.grid.getStorageService();
         return TrinityPlanningInventorySnapshot.capture(
                 graph.keys(),
+                graph.sameItemPolicy(target),
                 storageService.getInventory(),
                 actionSource,
                 progress);

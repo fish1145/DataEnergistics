@@ -27,6 +27,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressPhase;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
 import appeng.api.stacks.AEKey;
 
@@ -205,7 +206,11 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
         if (state == StopState.DEADLINE_EXCEEDED) {
             return deadlineExceeded();
         }
-        List<TrinityPatternVariant> compacted = this.effectCompactor.compact(expandedVariants);
+        TrinitySameItemPolicy sameItemPolicy = reachableSnapshot.sameItemPolicy(target);
+        List<TrinityPatternVariant> normalizedVariants = expandedVariants.stream()
+                .map(variant -> variant.normalized(sameItemPolicy))
+                .toList();
+        List<TrinityPatternVariant> compacted = this.effectCompactor.compact(normalizedVariants);
         control.beginProgressPhase(TrinityPlanningProgressPhase.ANALYZING_TOPOLOGY, 0);
         TrinityAlgorithmResult<TrinityCraftingTopology> analyzed = this.topologyAnalyzer.analyze(
                 reachableSnapshot,
@@ -224,7 +229,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
         }
 
         boolean reachableCycle = hasReachableCycle(analyzed.value(), targetComponent);
-        List<AEKey> relevantInventoryKeys = reachableSnapshot.keys().stream()
+        List<AEKey> relevantInventoryKeys = sameItemPolicy.normalizeKeys(reachableSnapshot.keys()).stream()
                 .filter(analyzed.value().componentByKey()::containsKey)
                 .toList();
         return TrinityAlgorithmResult.success(new TrinityCompiledGraph(
@@ -236,6 +241,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                 targetComponent,
                 reachableCycle,
                 relevantInventoryKeys,
+                sameItemPolicy,
                 Map.of(),
                 TrinityCycleUnitProofIndex.empty(),
                 Int2ObjectMaps.emptyMap()));
@@ -284,6 +290,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                                                                    TrinityPlanningLimits limits,
                                                                    TrinityPlanningMode mode,
                                                                    TrinityPlanningControl control) {
+        inventory = inventory.normalized(compiled.sameItemPolicy());
         StopState state = stopState(control);
         if (state == StopState.CANCELLED) {
             return cancelled();
@@ -325,6 +332,7 @@ final class ExactTrinityGraphPlanningPipeline implements TrinityGraphPlanningPip
                         quantityMode,
                         compiled.variants(),
                         compiled.topology(),
+                        compiled.sameItemPolicy(),
                         startedNanos),
                 assembled.value());
         return TrinityAlgorithmResult.success(plan);
