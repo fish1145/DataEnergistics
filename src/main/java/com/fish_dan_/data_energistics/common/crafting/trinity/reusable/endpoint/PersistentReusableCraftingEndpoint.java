@@ -160,7 +160,7 @@ public final class PersistentReusableCraftingEndpoint {
             return null;
         }
         Entry existing = sessions.get(request.sessionId());
-        if (sessions.containsKey(request.sessionId())) {
+        if (existing != null) {
             if (!compatibleBinding(existing.binding, binding)) {
                 return null;
             }
@@ -178,7 +178,7 @@ public final class PersistentReusableCraftingEndpoint {
         if (!host.isAvailable(binding)) {
             return null;
         }
-        Entry candidate = sessions.containsKey(request.sessionId()) ? existing :
+        Entry candidate = existing != null ? existing :
                 new Entry(binding, new ReusableInputSession(binding.identity(), binding.tools()), 0, currentTick, false, "");
         try {
             candidate.session.validateAppend(append);
@@ -189,10 +189,10 @@ public final class PersistentReusableCraftingEndpoint {
     }
 
     public Optional<ReusableCraftingSessionView> query(UUID sessionId) {
-        if (!sessions.containsKey(sessionId)) {
+        Entry entry = sessions.get(sessionId);
+        if (entry == null) {
             return Optional.empty();
         }
-        Entry entry = sessions.get(sessionId);
         Identity identity = entry.binding.identity();
         List<SlotStack> held = new ObjectArrayList<>();
         entry.session.heldTools().forEach((slot, stacks) -> stacks.forEach(stack -> held.add(new SlotStack(slot, stack))));
@@ -202,10 +202,11 @@ public final class PersistentReusableCraftingEndpoint {
     }
 
     public Optional<AppendReceipt> receipt(UUID sessionId, long sequence) {
-        if (!sessions.containsKey(sessionId)) {
+        Entry entry = sessions.get(sessionId);
+        if (entry == null) {
             return Optional.empty();
         }
-        return sessions.get(sessionId).session.appendSnapshot(sequence)
+        return entry.session.appendSnapshot(sequence)
                 .map(append -> new AppendReceipt(sequence, append.request().operations(), append.completed(), append.cancelled()));
     }
 
@@ -278,10 +279,10 @@ public final class PersistentReusableCraftingEndpoint {
     }
 
     public void close(UUID sessionId, Host host) {
-        if (!sessions.containsKey(sessionId)) {
+        Entry entry = sessions.get(sessionId);
+        if (entry == null) {
             return;
         }
-        Entry entry = sessions.get(sessionId);
         State before = visibleState(entry);
         entry.session.close();
         if (before != visibleState(entry)) {
@@ -294,19 +295,17 @@ public final class PersistentReusableCraftingEndpoint {
      * remains. The receiver's durable deduplication closes the crash window between receive and local ack.
      */
     public boolean settle(UUID sessionId, ReturnReceiver receiver, Host host) {
-        if (!sessions.containsKey(sessionId)) {
+        Entry entry = sessions.get(sessionId);
+        if (entry == null) {
             return false;
         }
-        Entry entry = sessions.get(sessionId);
         if (entry.settlementAcknowledged) {
             return true;
         }
-        if (entry.session.activeOperation() != null || entry.session.pending() != 0 ||
-                (entry.session.status() != ReusableInputSession.State.RETURN_PENDING && entry.session.status() != ReusableInputSession.State.CLOSED)) {
+        if (entry.session.status() != ReusableInputSession.State.RETURN_PENDING && entry.session.status() != ReusableInputSession.State.CLOSED) {
             return false;
         }
-        if (!entry.session.pendingOutputs().isEmpty()) {
-            publishOutputs(entry, host);
+        if (publishOutputs(entry, host)) {
             changed(entry, host);
         }
         Identity identity = entry.binding.identity();
@@ -448,11 +447,14 @@ public final class PersistentReusableCraftingEndpoint {
         }
     }
 
-    private static void publishOutputs(Entry entry, Host host) {
-        if (!entry.session.pendingOutputs().isEmpty()) {
-            host.acceptOutputs(entry.binding.identity(), entry.session.pendingOutputs());
-            entry.session.drainOutputs();
+    private static boolean publishOutputs(Entry entry, Host host) {
+        List<GenericStack> outputs = entry.session.pendingOutputs();
+        if (outputs.isEmpty()) {
+            return false;
         }
+        host.acceptOutputs(entry.binding.identity(), outputs);
+        entry.session.drainOutputs();
+        return true;
     }
 
     private void changed(Entry entry, Host host) {
@@ -475,10 +477,11 @@ public final class PersistentReusableCraftingEndpoint {
     }
 
     private Entry requireEntry(UUID sessionId) {
-        if (!sessions.containsKey(sessionId)) {
+        Entry entry = sessions.get(sessionId);
+        if (entry == null) {
             throw new IllegalArgumentException("Unknown native reusable session");
         }
-        return sessions.get(sessionId);
+        return entry;
     }
 
     private static List<GenericStack> checkedAssets(List<GenericStack> assets) {
@@ -493,7 +496,7 @@ public final class PersistentReusableCraftingEndpoint {
 
     private static Object2LongLinkedOpenHashMap<AEKey> counts(List<GenericStack> assets) {
         Object2LongLinkedOpenHashMap<AEKey> result = new Object2LongLinkedOpenHashMap<>();
-        for (GenericStack stack : checkedAssets(assets)) {
+        for (GenericStack stack : assets) {
             result.put(stack.what(), Math.addExact(result.getLong(stack.what()), stack.amount()));
         }
         return result;
@@ -579,13 +582,16 @@ public final class PersistentReusableCraftingEndpoint {
             if (expectedGeneration != generation || expectedRevision != entry.revision || !host.isAvailable(entry.binding)) {
                 return false;
             }
-            entry.session.validateAppend(append);
             // Only opening defers execution. Continuous appends must not move the already accepted queue's
             // eligibility forward on every tick and indefinitely starve native execution.
             long eligibleTick = sessions.containsKey(entry.binding.identity().sessionId()) ? entry.notBefore :
                     Math.incrementExact(queuedTick);
+            // acceptAppend validates and stages private values without invoking any host callback.
+            // Mark ownership before clearing the caller's counters or publishing/persisting the entry.
+            if (!entry.session.acceptAppend(append)) {
+                return false;
+            }
             transferred = true;
-            entry.session.acceptAppend(append);
             for (KeyCounter counter : delivery) {
                 counter.clear();
             }

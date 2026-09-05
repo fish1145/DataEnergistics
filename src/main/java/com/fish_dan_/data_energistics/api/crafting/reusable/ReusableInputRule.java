@@ -45,7 +45,7 @@ public record ReusableInputRule(ResourceLocation id, long revision, Kind kind, A
         transitions = List.copyOf(transitions);
         if (kind == Kind.FIXED_DAMAGE) {
             int initialDamage = initialKey.toStack().getDamageValue();
-            if (damagePerUse <= 0 || breakAtDamage <= 0 || initialDamage < 0 || initialDamage >= breakAtDamage ||
+            if (damagePerUse <= 0 || initialDamage < 0 || initialDamage >= breakAtDamage ||
                     breakAtDamage > initialKey.toStack().getMaxDamage() || !transitions.isEmpty()) {
                 throw new IllegalArgumentException("Invalid fixed-damage tool contract");
             }

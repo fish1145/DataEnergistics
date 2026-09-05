@@ -25,7 +25,7 @@ final class SessionAssets {
 
     static Object2LongLinkedOpenHashMap<AEKey> counts(List<GenericStack> assets) {
         Object2LongLinkedOpenHashMap<AEKey> result = new Object2LongLinkedOpenHashMap<>();
-        for (GenericStack asset : checked(assets)) {
+        for (GenericStack asset : assets) {
             result.put(asset.what(), Math.addExact(result.getLong(asset.what()), asset.amount()));
         }
         return result;

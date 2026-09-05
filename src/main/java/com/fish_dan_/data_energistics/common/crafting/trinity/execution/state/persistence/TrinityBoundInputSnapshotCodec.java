@@ -58,7 +58,6 @@ public final class TrinityBoundInputSnapshotCodec {
             require(entry, "multiplier", Tag.TAG_LONG);
             require(entry, "has_remainder", Tag.TAG_BYTE);
             require(entry, "reusable", Tag.TAG_BYTE);
-            require(entry, "byproducts", Tag.TAG_LIST);
             if (entry.getInt("slot") != result.size()) {
                 throw new IllegalArgumentException("Exact input binding slots must be contiguous and ordered");
             }
@@ -83,8 +82,8 @@ public final class TrinityBoundInputSnapshotCodec {
             } else if (entry.contains("rule")) {
                 throw new IllegalArgumentException("Unexpected reusable input rule");
             }
-            ListTag products = (ListTag) entry.get("byproducts");
-            if (!products.isEmpty() && products.getElementType() != Tag.TAG_COMPOUND) {
+            if (!(entry.get("byproducts") instanceof ListTag products) ||
+                    !products.isEmpty() && products.getElementType() != Tag.TAG_COMPOUND) {
                 throw new IllegalArgumentException("Input byproducts must be a compound list");
             }
             ObjectArrayList<GenericStack> byproducts = new ObjectArrayList<>(products.size());

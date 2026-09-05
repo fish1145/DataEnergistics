@@ -250,6 +250,30 @@ public final class ReusableInputSessionGameTest {
         helper.succeed();
     }
 
+    @TestHolder("reusable_session_invalid_native_reports_leave_execution_escrow_intact")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void invalidNativeReportsLeaveExecutionEscrowIntact(GameTestHelper helper) {
+        ReusableInputSession session = session(finite(), 1, Ownership.CPU_SUPPLIED);
+        session.acceptAppend(append(1, 1, List.of(delivery(0, 1))));
+        Operation active = session.beginOperation().orElseThrow();
+        var before = session.snapshot();
+        List<ToolOutcome> predicted = session.predictedOutcomes(active);
+        ToolOutcome outcome = predicted.getFirst();
+        expectIllegal(helper, () -> session.completeOperation(active.id(), List.of(outcome, outcome), List.of()),
+                "Duplicate tool slots must be rejected at the report boundary");
+        expectIllegal(helper, () -> session.completeOperation(active.id(),
+                List.of(new ToolOutcome(9, outcome.successors(), outcome.byproducts())), List.of()),
+                "A foreign slot cannot replace the required tool outcome");
+        expectIllegal(helper, () -> session.completeOperation(active.id(), predicted, List.of(stack(OUTPUT, -1))),
+                "Negative ordinary output cannot enter trusted asset arithmetic");
+        helper.assertValueEqual(session.snapshot(), before, "Invalid reports cannot mutate execution escrow");
+        helper.assertTrue(session.completeOperation(active.id(), predicted, List.of(stack(OUTPUT, 1))),
+                "A complete corrected report can settle the same operation once");
+        helper.assertValueEqual(session.completed(), 1L, "Only the valid report advances completed work");
+        helper.succeed();
+    }
+
     @TestHolder("reusable_session_native_failure_and_abort_keep_distinct_asset_ownership")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")

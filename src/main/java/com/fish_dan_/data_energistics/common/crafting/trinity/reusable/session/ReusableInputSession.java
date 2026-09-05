@@ -204,10 +204,9 @@ public final class ReusableInputSession {
             throw new IllegalArgumentException("A reusable session needs at least one reusable slot");
         }
         for (SlotContract contract : slotContracts) {
-            if (contracts.containsKey(contract.slot())) {
+            if (contracts.putIfAbsent(contract.slot(), contract) != null) {
                 throw new IllegalArgumentException("Duplicate reusable slot contract");
             }
-            contracts.put(contract.slot(), contract);
             tools.put(contract.slot(), List.of());
         }
     }
@@ -241,7 +240,7 @@ public final class ReusableInputSession {
     }
 
     public Optional<AppendSnapshot> appendSnapshot(long sequence) {
-        return appends.containsKey(sequence) ? Optional.of(appends.get(sequence)) : Optional.empty();
+        return Optional.ofNullable(appends.get(sequence));
     }
 
     public List<ReturnBatch> returnOutbox() {
@@ -270,8 +269,12 @@ public final class ReusableInputSession {
 
     /** Validates without taking ownership. A matching replay remains valid even after closure. */
     public void validateAppend(Append request) {
+        prepareAppendTools(request);
+    }
+
+    private @Nullable Int2ObjectLinkedOpenHashMap<List<GenericStack>> prepareAppendTools(Append request) {
         if (isReplay(request)) {
-            return;
+            return null;
         }
         if (state != State.OPEN || active != null) {
             throw new IllegalStateException("Append requires an open session at a native-operation safe point");
@@ -292,21 +295,20 @@ public final class ReusableInputSession {
                 throw new IllegalArgumentException("Insufficient guaranteed reusable input capacity in slot " + contract.slot());
             }
         }
+        return candidate;
     }
 
     /**
      * Takes ownership only after all slots, amounts and reservations have passed validation; false is a no-op replay.
      */
     public boolean acceptAppend(Append request) {
-        validateAppend(request);
-        if (isReplay(request)) {
+        var preparedTools = prepareAppendTools(request);
+        if (preparedTools == null) {
             return false;
         }
-        for (ToolDelivery delivery : request.deliveredTools()) {
-            tools.put(delivery.slot(), SessionAssets.merge(tools.get(delivery.slot()), List.of(delivery.stack())));
-        }
+        tools.putAll(preparedTools);
         appends.put(request.sequence(), new AppendSnapshot(request, 0, 0, request.deliveredMaterials()));
-        acceptedCount += request.operations(); // Overflow was checked by validateAppend before taking ownership.
+        acceptedCount += request.operations(); // Overflow was checked before taking ownership.
         pendingAppends.enqueue(request.sequence());
         idleSince = -1;
         return true;
@@ -399,14 +401,13 @@ public final class ReusableInputSession {
     }
 
     private boolean finishOperation(long operationId, List<ToolOutcome> actual, List<GenericStack> ordinaryOutputs, String reason) {
+        ordinaryOutputs = SessionAssets.checked(ordinaryOutputs);
         Operation operation = requireActive(operationId);
         Int2ObjectLinkedOpenHashMap<ToolOutcome> outcomes = new Int2ObjectLinkedOpenHashMap<>();
         for (ToolOutcome outcome : actual) {
-            requireContract(outcome.slot());
-            if (outcomes.containsKey(outcome.slot())) {
+            if (outcomes.putIfAbsent(outcome.slot(), outcome) != null) {
                 throw new IllegalArgumentException("Duplicate actual tool outcome slot");
             }
-            outcomes.put(outcome.slot(), outcome);
         }
         if (!outcomes.keySet().equals(contracts.keySet())) {
             throw new IllegalArgumentException("Native result must account for every reusable slot");
@@ -423,7 +424,7 @@ public final class ReusableInputSession {
             newTools.put(outcome.slot(), SessionAssets.merge(outcome.successors(), tools.get(outcome.slot())));
             newOutputs = SessionAssets.merge(newOutputs, outcome.byproducts());
             long surviving = outcome.successors().stream().mapToLong(GenericStack::amount).reduce(0, Math::addExact);
-            exhausted = Math.addExact(exhausted, Math.max(0, requireContract(outcome.slot()).heldAmount() - surviving));
+            exhausted = Math.addExact(exhausted, Math.max(0, contracts.get(outcome.slot()).heldAmount() - surviving));
         }
         long totalExhausted = Math.addExact(exhaustedTools, exhausted);
         AppendSnapshot append = appends.get(operation.appendSequence());
@@ -512,14 +513,16 @@ public final class ReusableInputSession {
 
     /** Exact full-batch acknowledgment; duplicate matching acknowledgments are harmless, unknown IDs fail. */
     public boolean acknowledgeReturn(long sequence, List<GenericStack> exactAssets) {
-        if (!returns.containsKey(sequence)) {
-            if (!acknowledged.containsKey(sequence)) {
+        exactAssets = SessionAssets.checked(exactAssets);
+        ReturnBatch batch = returns.get(sequence);
+        if (batch == null) {
+            ReturnBatch previous = acknowledged.get(sequence);
+            if (previous == null) {
                 throw new IllegalArgumentException("Unknown return acknowledgment sequence");
             }
-            requireAcknowledgment(acknowledged.get(sequence), exactAssets);
+            requireAcknowledgment(previous, exactAssets);
             return false;
         }
-        ReturnBatch batch = returns.get(sequence);
         requireAcknowledgment(batch, exactAssets);
         returns.remove(sequence);
         acknowledged.put(sequence, batch);
@@ -714,10 +717,10 @@ public final class ReusableInputSession {
     }
 
     private boolean isReplay(Append request) {
-        if (!appends.containsKey(request.sequence())) {
+        AppendSnapshot previous = appends.get(request.sequence());
+        if (previous == null) {
             return false;
         }
-        AppendSnapshot previous = appends.get(request.sequence());
         if (!previous.request().equals(request)) {
             throw new IllegalArgumentException("Append sequence was replayed with a different payload");
         }
@@ -725,10 +728,11 @@ public final class ReusableInputSession {
     }
 
     private SlotContract requireContract(int slot) {
-        if (!contracts.containsKey(slot)) {
+        SlotContract contract = contracts.get(slot);
+        if (contract == null) {
             throw new IllegalArgumentException("No reusable contract for slot " + slot);
         }
-        return contracts.get(slot);
+        return contract;
     }
 
     private Operation requireActive(long operationId) {
