@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCra
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView.Settlement;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution.Work;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.OutputContract;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Submission;
 
 import appeng.api.stacks.AEItemKey;
@@ -97,8 +98,8 @@ public final class ReusableCpuSessionLedgerGameTest {
 
     private static Submission localSubmission() {
         Work work = new Work(0L, 0, 0, PUBLICATION, OUTPUT, 0, 1L, false, List.of());
-        return new Submission(work, 1L, 1L, 0D, List.of(new GenericStack(OUTPUT, 1L)),
-                List.of(new SlotStack(0, new GenericStack(AEItemKey.of(Items.WOODEN_AXE), 1L))), false, false);
+        return new Submission(work, 1L, 1L, 0D, new OutputContract(List.of(new GenericStack(OUTPUT, 1L)), List.of(), List.of(), List.of()),
+                List.of(new SlotStack(0, new GenericStack(AEItemKey.of(Items.WOODEN_AXE), 1L))), false, false, false, 0L);
     }
 
     private static Settlement emptySettlement() {

@@ -1,11 +1,15 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu;
 
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingTarget;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletion;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingCompletionMode;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.SlotStack;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.Target;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution.Work;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityBoundInputSnapshotCodec;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.DynamicOutput;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.OutputContract;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.SessionSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Snapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Submission;
@@ -22,6 +26,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,8 +40,22 @@ public final class ReusableCpuSessionLedgerNbtCodec {
     public static CompoundTag encode(ReusableCpuSessionLedger ledger, HolderLookup.Provider registries) {
         Snapshot snapshot = ledger.snapshot();
         CompoundTag tag = new CompoundTag();
-        tag.putInt("schema", 1);
+        tag.putInt("schema", 2);
         tag.putUUID("owner", snapshot.owner());
+        ListTag replanning = new ListTag();
+        for (UUID job : snapshot.replanningJobs()) {
+            CompoundTag entry = new CompoundTag();
+            entry.putUUID("job", job);
+            replanning.add(entry);
+        }
+        tag.put("replanning_jobs", replanning);
+        ListTag uncertain = new ListTag();
+        for (UUID sessionId : snapshot.uncertainSessions()) {
+            CompoundTag entry = new CompoundTag();
+            entry.putUUID("session", sessionId);
+            uncertain.add(entry);
+        }
+        tag.put("uncertain_sessions", uncertain);
         ListTag sessions = new ListTag();
         for (SessionSnapshot session : snapshot.sessions()) {
             CompoundTag entry = new CompoundTag();
@@ -64,16 +83,34 @@ public final class ReusableCpuSessionLedgerNbtCodec {
                 item.putLong("count", submission.count());
                 item.putLong("offer", submission.logicalOffer());
                 item.putDouble("energy", submission.energy());
-                item.put("outputs", writeAssets(submission.expectedOutputs(), registries));
+                item.put("products", writeAssets(submission.outputs().products(), registries));
+                item.put("remainders", writeAssets(submission.outputs().remainders(), registries));
+                ListTag dynamic = new ListTag();
+                for (DynamicOutput output : submission.outputs().dynamic()) {
+                    CompoundTag value = GenericStack.writeTag(registries, output.stack());
+                    value.putBoolean("final", output.finalOutput());
+                    value.putString("source", output.source().toString());
+                    dynamic.add(value);
+                }
+                item.put("dynamic", dynamic);
+                ListTag virtual = new ListTag();
+                for (VirtualCraftingCompletion output : submission.outputs().virtual()) {
+                    CompoundTag value = GenericStack.writeTag(registries, output.stack());
+                    value.putString("mode", output.mode().name());
+                    virtual.add(value);
+                }
+                item.put("virtual", virtual);
+                item.putLong("completed", submission.completed());
                 ListTag escrow = new ListTag();
-                for (SlotStack asset : submission.escrow()) {
+                for (SlotStack asset : submission.physicalInputs()) {
                     CompoundTag value = GenericStack.writeTag(registries, asset.stack());
                     value.putInt("input_slot", asset.slot());
                     escrow.add(value);
                 }
-                item.put("escrow", escrow);
+                item.put("physical_inputs", escrow);
                 item.putBoolean("transferred", submission.transferred());
                 item.putBoolean("accounted", submission.accounted());
+                item.putBoolean("waiting_registered", submission.waitingRegistered());
                 submissions.add(item);
             }
             entry.put("submissions", submissions);
@@ -84,10 +121,25 @@ public final class ReusableCpuSessionLedgerNbtCodec {
     }
 
     public static ReusableCpuSessionLedger decode(CompoundTag tag, HolderLookup.Provider registries) {
-        if (integer(tag, "schema") != 1) {
+        int schema = integer(tag, "schema");
+        if (schema != 1 && schema != 2) {
             throw new IllegalArgumentException("Unsupported reusable CPU ledger schema");
         }
         UUID owner = uuid(tag, "owner");
+        ObjectOpenHashSet<UUID> replanning = new ObjectOpenHashSet<>();
+        ObjectOpenHashSet<UUID> uncertain = new ObjectOpenHashSet<>();
+        if (schema >= 2) {
+            for (Tag value : list(tag, "replanning_jobs")) {
+                if (!replanning.add(uuid((CompoundTag) value, "job"))) {
+                    throw new IllegalArgumentException("Duplicate reusable CPU recovery job");
+                }
+            }
+            for (Tag value : list(tag, "uncertain_sessions")) {
+                if (!uncertain.add(uuid((CompoundTag) value, "session"))) {
+                    throw new IllegalArgumentException("Duplicate quarantined reusable session");
+                }
+            }
+        }
         List<SessionSnapshot> sessions = new ObjectArrayList<>();
         for (Tag value : list(tag, "sessions")) {
             CompoundTag entry = (CompoundTag) value;
@@ -101,22 +153,37 @@ public final class ReusableCpuSessionLedgerNbtCodec {
             for (Tag item : list(entry, "submissions")) {
                 CompoundTag stored = (CompoundTag) item;
                 List<SlotStack> escrow = new ObjectArrayList<>();
-                for (Tag asset : list(stored, "escrow")) {
+                for (Tag asset : list(stored, schema == 1 ? "escrow" : "physical_inputs")) {
                     CompoundTag owned = (CompoundTag) asset;
                     escrow.add(new SlotStack(integer(owned, "input_slot"), stack(owned, registries)));
                 }
                 require(stored, "energy", Tag.TAG_DOUBLE);
+                List<DynamicOutput> dynamic = new ObjectArrayList<>();
+                List<VirtualCraftingCompletion> virtual = new ObjectArrayList<>();
+                if (schema >= 2) {
+                    for (Tag valueOutput : list(stored, "dynamic")) {
+                        CompoundTag output = (CompoundTag) valueOutput;
+                        dynamic.add(new DynamicOutput(stack(output, registries), bool(output, "final"), ResourceLocation.parse(string(output, "source"))));
+                    }
+                    for (Tag valueOutput : list(stored, "virtual")) {
+                        CompoundTag output = (CompoundTag) valueOutput;
+                        virtual.add(new VirtualCraftingCompletion(stack(output, registries), VirtualCraftingCompletionMode.valueOf(string(output, "mode"))));
+                    }
+                }
+                OutputContract outputs = new OutputContract(readAssets(list(stored, schema == 1 ? "outputs" : "products"), registries),
+                        schema == 1 ? List.of() : readAssets(list(stored, "remainders"), registries), dynamic, virtual);
                 submissions.add(new SubmissionEntry(number(stored, "sequence"), new Submission(
                         readWork(compound(stored, "work"), registries), number(stored, "count"), number(stored, "offer"),
-                        stored.getDouble("energy"), readAssets(list(stored, "outputs"), registries), escrow,
-                        bool(stored, "transferred"), bool(stored, "accounted"))));
+                        stored.getDouble("energy"), outputs, escrow,
+                        bool(stored, "transferred"), schema == 1 ? bool(stored, "accounted") : bool(stored, "waiting_registered"),
+                        bool(stored, "accounted"), schema == 1 ? 0L : number(stored, "completed"))));
             }
             sessions.add(new SessionSnapshot(uuid(entry, "id"), uuid(entry, "job"), target, pattern,
                     new TrinityPatternIdentity(string(entry, "definition"), string(entry, "publication")),
                     TrinityBoundInputSnapshotCodec.read(list(entry, "bindings"), registries), submissions,
                     number(entry, "next_sequence"), bool(entry, "closing"), optionalString(entry, "settlement").orElse(null)));
         }
-        return ReusableCpuSessionLedger.restore(new Snapshot(owner, sessions));
+        return ReusableCpuSessionLedger.restore(new Snapshot(owner, sessions, replanning, uncertain));
     }
 
     private static CompoundTag writeWork(Work work, HolderLookup.Provider registries) {
