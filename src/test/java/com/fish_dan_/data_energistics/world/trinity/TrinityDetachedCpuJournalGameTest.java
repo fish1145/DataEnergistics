@@ -4,20 +4,15 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.world.trinity.TrinityDataCoreStorageSavedData.RecoveryKey;
 import com.fish_dan_.data_energistics.world.trinity.TrinityDataCoreStorageSavedData.RecoveryStatus;
 
-import appeng.api.config.Actionable;
-import appeng.api.stacks.AEItemKey;
-
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
-import java.math.BigInteger;
 import java.util.UUID;
 
 @GameTestHolder(Data_Energistics.MODID)
@@ -92,24 +87,16 @@ public final class TrinityDetachedCpuJournalGameTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_detached_cpu_journal_reads_legacy_storage_and_quarantines_changed_fingerprint")
+    @TestHolder("trinity_detached_cpu_journal_quarantines_changed_fingerprint")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void readsLegacyStorageAndQuarantinesChangedFingerprint(GameTestHelper helper) {
+    public static void quarantinesChangedFingerprint(GameTestHelper helper) {
         TrinityDataCoreStorageSavedData storage = new TrinityDataCoreStorageSavedData();
-        UUID storageId = UUID.randomUUID();
-        AEItemKey diamond = AEItemKey.of(Items.DIAMOND);
-        storage.insert(storageId, diamond, 4, Actionable.MODULATE);
-        CompoundTag legacy = storage.save(new CompoundTag(), helper.getLevel().registryAccess());
-        legacy.putInt("schema_version", 1);
-        legacy.remove("detached_cpu_runtimes");
-        TrinityDataCoreStorageSavedData restored = TrinityDataCoreStorageSavedData.load(legacy, helper.getLevel().registryAccess());
-        helper.assertValueEqual(restored.amount(storageId, diamond), BigInteger.valueOf(4), "Schema one inventories remain readable");
-        RecoveryKey key = new RecoveryKey(UUID.randomUUID(), storageId, UUID.randomUUID());
+        RecoveryKey key = new RecoveryKey(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
         CompoundTag original = new CompoundTag();
         original.putLong("known_local_amount", 2);
-        restored.storeDetachedRuntime(key, original);
-        CompoundTag damaged = restored.save(new CompoundTag(), helper.getLevel().registryAccess());
+        storage.storeDetachedRuntime(key, original);
+        CompoundTag damaged = storage.save(new CompoundTag(), helper.getLevel().registryAccess());
         damaged.getList("detached_cpu_runtimes", Tag.TAG_COMPOUND).getCompound(0).getCompound("runtime").putLong("known_local_amount", 7);
         TrinityDataCoreStorageSavedData quarantined = TrinityDataCoreStorageSavedData.load(damaged, helper.getLevel().registryAccess());
         helper.assertValueEqual(quarantined.detachedRuntime(key).orElseThrow().status(), RecoveryStatus.UNVERIFIED,

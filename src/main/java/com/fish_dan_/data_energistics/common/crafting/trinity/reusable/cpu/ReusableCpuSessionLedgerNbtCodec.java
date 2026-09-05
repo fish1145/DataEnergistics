@@ -40,7 +40,7 @@ public final class ReusableCpuSessionLedgerNbtCodec {
     public static CompoundTag encode(ReusableCpuSessionLedger ledger, HolderLookup.Provider registries) {
         Snapshot snapshot = ledger.snapshot();
         CompoundTag tag = new CompoundTag();
-        tag.putInt("schema", 2);
+        tag.putInt("schema", 1);
         tag.putUUID("owner", snapshot.owner());
         ListTag replanning = new ListTag();
         for (UUID job : snapshot.replanningJobs()) {
@@ -122,22 +122,20 @@ public final class ReusableCpuSessionLedgerNbtCodec {
 
     public static ReusableCpuSessionLedger decode(CompoundTag tag, HolderLookup.Provider registries) {
         int schema = integer(tag, "schema");
-        if (schema != 1 && schema != 2) {
+        if (schema != 1) {
             throw new IllegalArgumentException("Unsupported reusable CPU ledger schema");
         }
         UUID owner = uuid(tag, "owner");
         ObjectOpenHashSet<UUID> replanning = new ObjectOpenHashSet<>();
         ObjectOpenHashSet<UUID> uncertain = new ObjectOpenHashSet<>();
-        if (schema >= 2) {
-            for (Tag value : list(tag, "replanning_jobs")) {
-                if (!replanning.add(uuid((CompoundTag) value, "job"))) {
-                    throw new IllegalArgumentException("Duplicate reusable CPU recovery job");
-                }
+        for (Tag value : list(tag, "replanning_jobs")) {
+            if (!replanning.add(uuid((CompoundTag) value, "job"))) {
+                throw new IllegalArgumentException("Duplicate reusable CPU recovery job");
             }
-            for (Tag value : list(tag, "uncertain_sessions")) {
-                if (!uncertain.add(uuid((CompoundTag) value, "session"))) {
-                    throw new IllegalArgumentException("Duplicate quarantined reusable session");
-                }
+        }
+        for (Tag value : list(tag, "uncertain_sessions")) {
+            if (!uncertain.add(uuid((CompoundTag) value, "session"))) {
+                throw new IllegalArgumentException("Duplicate quarantined reusable session");
             }
         }
         List<SessionSnapshot> sessions = new ObjectArrayList<>();
@@ -153,30 +151,28 @@ public final class ReusableCpuSessionLedgerNbtCodec {
             for (Tag item : list(entry, "submissions")) {
                 CompoundTag stored = (CompoundTag) item;
                 List<SlotStack> escrow = new ObjectArrayList<>();
-                for (Tag asset : list(stored, schema == 1 ? "escrow" : "physical_inputs")) {
+                for (Tag asset : list(stored, "physical_inputs")) {
                     CompoundTag owned = (CompoundTag) asset;
                     escrow.add(new SlotStack(integer(owned, "input_slot"), stack(owned, registries)));
                 }
                 require(stored, "energy", Tag.TAG_DOUBLE);
                 List<DynamicOutput> dynamic = new ObjectArrayList<>();
                 List<VirtualCraftingCompletion> virtual = new ObjectArrayList<>();
-                if (schema >= 2) {
-                    for (Tag valueOutput : list(stored, "dynamic")) {
-                        CompoundTag output = (CompoundTag) valueOutput;
-                        dynamic.add(new DynamicOutput(stack(output, registries), bool(output, "final"), ResourceLocation.parse(string(output, "source"))));
-                    }
-                    for (Tag valueOutput : list(stored, "virtual")) {
-                        CompoundTag output = (CompoundTag) valueOutput;
-                        virtual.add(new VirtualCraftingCompletion(stack(output, registries), VirtualCraftingCompletionMode.valueOf(string(output, "mode"))));
-                    }
+                for (Tag valueOutput : list(stored, "dynamic")) {
+                    CompoundTag output = (CompoundTag) valueOutput;
+                    dynamic.add(new DynamicOutput(stack(output, registries), bool(output, "final"), ResourceLocation.parse(string(output, "source"))));
                 }
-                OutputContract outputs = new OutputContract(readAssets(list(stored, schema == 1 ? "outputs" : "products"), registries),
-                        schema == 1 ? List.of() : readAssets(list(stored, "remainders"), registries), dynamic, virtual);
+                for (Tag valueOutput : list(stored, "virtual")) {
+                    CompoundTag output = (CompoundTag) valueOutput;
+                    virtual.add(new VirtualCraftingCompletion(stack(output, registries), VirtualCraftingCompletionMode.valueOf(string(output, "mode"))));
+                }
+                OutputContract outputs = new OutputContract(readAssets(list(stored, "products"), registries),
+                        readAssets(list(stored, "remainders"), registries), dynamic, virtual);
                 submissions.add(new SubmissionEntry(number(stored, "sequence"), new Submission(
                         readWork(compound(stored, "work"), registries), number(stored, "count"), number(stored, "offer"),
                         stored.getDouble("energy"), outputs, escrow,
-                        bool(stored, "transferred"), schema == 1 ? bool(stored, "accounted") : bool(stored, "waiting_registered"),
-                        bool(stored, "accounted"), schema == 1 ? 0L : number(stored, "completed"))));
+                        bool(stored, "transferred"), bool(stored, "waiting_registered"),
+                        bool(stored, "accounted"), number(stored, "completed"))));
             }
             sessions.add(new SessionSnapshot(uuid(entry, "id"), uuid(entry, "job"), target, pattern,
                     new TrinityPatternIdentity(string(entry, "definition"), string(entry, "publication")),

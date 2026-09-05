@@ -23,7 +23,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -83,26 +82,12 @@ public final class TrinityTargetPrincipalGameTest {
         helper.succeed();
     }
 
-    @TestHolder("legacy_unknown_principal_remains_unknown_and_final_total_uses_owned_targets")
+    @TestHolder("final_total_replanning_uses_owned_targets_and_isolated_completion")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void legacyUnknownRemainsUnknownAndFinalTotalUsesOwnedTargets(GameTestHelper helper) {
+    public static void finalTotalUsesOwnedTargetsAndIsolatedCompletion(GameTestHelper helper) {
         TrinityDataCoreVirtualCpu cpu = cpu(helper);
         AEItemKey target = AEItemKey.of(Items.DIAMOND);
-        CompoundTag legacy = job(cpu, CraftingQuantityMode.NET_NEW, BigInteger.ONE).writeToTag(helper.getLevel().registryAccess());
-        legacy.putInt("schema_version", 3);
-        legacy.remove("target_principal_known");
-        legacy.remove("target_principal");
-        var unknown = new TrinityDataCoreExecutingCraftingJob(legacy, helper.getLevel().registryAccess(), ignored -> {}, cpu.logic());
-        unknown.recordAdditionalTargetPrincipal(BigInteger.valueOf(10L));
-        helper.assertValueEqual(unknown.replanDemand(Map.of(target, BigInteger.valueOf(100L))).requested(), BigInteger.valueOf(3L),
-                "Legacy unknown principal cannot treat mixed stock as proved produced output");
-        CompoundTag rewritten = unknown.writeToTag(helper.getLevel().registryAccess());
-        helper.assertFalse(rewritten.getBoolean("target_principal_known") || rewritten.contains("target_principal"),
-                "A known increment cannot reconstruct the missing original principal");
-        var reloaded = new TrinityDataCoreExecutingCraftingJob(rewritten, helper.getLevel().registryAccess(), ignored -> {}, cpu.logic());
-        helper.assertValueEqual(reloaded.replanDemand(Map.of(target, BigInteger.valueOf(100L))).requested(), BigInteger.valueOf(3L),
-                "Unknown ownership remains unknown after a second save and reload");
         TrinityDataCoreExecutingCraftingJob total = job(cpu, CraftingQuantityMode.FINAL_TOTAL, BigInteger.valueOf(10L));
         helper.assertValueEqual(total.replanDemand(Map.of(target, BigInteger.ONE)).requested(), BigInteger.valueOf(3L),
                 "FINAL_TOTAL requests the final total, leaving existing owned target consumption to the solver");

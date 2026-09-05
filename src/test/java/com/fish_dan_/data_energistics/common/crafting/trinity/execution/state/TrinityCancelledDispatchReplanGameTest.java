@@ -111,10 +111,6 @@ public final class TrinityCancelledDispatchReplanGameTest {
         CompoundTag unmarked = retired.copy();
         unmarked.putBoolean("production_retired", false);
         expectInvalidSnapshot(helper, unmarked);
-        CompoundTag legacyEmpty = retired.copy();
-        legacyEmpty.putInt("schema_version", 8);
-        legacyEmpty.remove("production_retired");
-        expectInvalidSnapshot(helper, legacyEmpty);
         execution.sealCompletion(1L);
         execution.recordDelivered(actual, 1L);
         var pendingDelivery = execution.completionOffer().orElseThrow();

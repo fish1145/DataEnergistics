@@ -33,7 +33,7 @@ import java.util.UUID;
 /** Complete session escrow encoding. Unknown versions and malformed asset/progress relationships fail at load. */
 public final class ReusableInputSessionNbtCodec {
 
-    private static final int SCHEMA = 3;
+    private static final int SCHEMA = 1;
 
     private ReusableInputSessionNbtCodec() {}
 
@@ -93,8 +93,7 @@ public final class ReusableInputSessionNbtCodec {
 
     /** Restores all idempotency records and assets; interrupted native effects remain quarantined. */
     public static ReusableInputSession decode(CompoundTag tag, HolderLookup.Provider registries) {
-        int version = integer(tag, "schema");
-        if (version < 1 || version > SCHEMA) {
+        if (integer(tag, "schema") != SCHEMA) {
             throw new IllegalArgumentException("Unsupported reusable session schema");
         }
         Identity identity = new Identity(uuid(tag, "session_id"), uuid(tag, "job_id"), string(tag, "cpu_owner"),
@@ -108,7 +107,7 @@ public final class ReusableInputSessionNbtCodec {
         }
         List<AppendSnapshot> appends = new ObjectArrayList<>();
         for (CompoundTag entry : compounds(tag, "appends")) {
-            appends.add(new AppendSnapshot(decodeAppend(entry, registries, version), number(entry, "completed"),
+            appends.add(new AppendSnapshot(decodeAppend(entry, registries), number(entry, "completed"),
                     number(entry, "cancelled"), decodeAssets(entry, "remaining", registries)));
         }
         Operation active = null;
@@ -117,13 +116,11 @@ public final class ReusableInputSessionNbtCodec {
             active = new Operation(number(entry, "id"), number(entry, "append"),
                     decodeInputs(entry, "consumed", registries), decodeTools(entry, "tools", registries));
         }
-        // Older non-negative competition times preserve their original deadline as a latched request.
-        long yieldRequestedAt = number(tag, version >= 3 ? "yield_requested_at" : "competition_since");
         return ReusableInputSession.restore(new Snapshot(identity, contracts, State.valueOf(string(tag, "state")), appends,
                 decodeTools(tag, "tools", registries), active, decodeAssets(tag, "outputs", registries),
                 decodeReturns(tag, "returns", registries), decodeReturns(tag, "acknowledged", registries),
                 decodeTools(tag, "machine_released", registries), number(tag, "next_operation"), number(tag, "next_return"),
-                number(tag, "idle_since"), yieldRequestedAt, number(tag, "exhausted"), string(tag, "fault")));
+                number(tag, "idle_since"), number(tag, "yield_requested_at"), number(tag, "exhausted"), string(tag, "fault")));
     }
 
     private static CompoundTag encodeAppend(Append append, HolderLookup.Provider registries) {
@@ -144,17 +141,11 @@ public final class ReusableInputSessionNbtCodec {
         return entry;
     }
 
-    private static Append decodeAppend(CompoundTag tag, HolderLookup.Provider registries, int version) {
+    private static Append decodeAppend(CompoundTag tag, HolderLookup.Provider registries) {
         Int2ObjectMap<AEItemKey> states = new Int2ObjectLinkedOpenHashMap<>();
-        if (version == 1) {
-            if (tag.contains("operation_states")) {
-                throw new IllegalArgumentException("Legacy session cannot contain exact operation-state reservations");
-            }
-        } else {
-            for (CompoundTag entry : compounds(tag, "operation_states")) {
-                if (states.putIfAbsent(integer(entry, "slot"), item(entry, "state", registries)) != null) {
-                    throw new IllegalArgumentException("Duplicate exact operation-state slot");
-                }
+        for (CompoundTag entry : compounds(tag, "operation_states")) {
+            if (states.putIfAbsent(integer(entry, "slot"), item(entry, "state", registries)) != null) {
+                throw new IllegalArgumentException("Duplicate exact operation-state slot");
             }
         }
         return new Append(number(tag, "sequence"), number(tag, "operations"), decodeInputs(tag, "consumed", registries),

@@ -29,8 +29,6 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -195,31 +193,6 @@ public final class TrinitySameItemPolicyGameTest {
                 .primaryOutput(), physicalOutput,
                 "Restored provider lookup must retain the raw primary output");
 
-        CompoundTag schemaSix = saved.copy();
-        schemaSix.putInt("schema_version", 6);
-        schemaSix.remove("production_retired");
-        schemaSix.remove("same_item_policy");
-        for (Tag encodedStage : schemaSix.getList("stages", Tag.TAG_COMPOUND)) {
-            for (Tag encodedFiring : ((CompoundTag) encodedStage).getList("firings", Tag.TAG_COMPOUND)) {
-                ((CompoundTag) encodedFiring).remove("exact_bindings");
-            }
-        }
-        TrinityPlanExecution restoredSix = TrinityPlanExecution.restore(
-                schemaSix,
-                helper.getLevel().registryAccess(),
-                20L);
-        helper.assertTrue(restoredSix.sameItemPolicy().isEmpty(),
-                "Schema 6 execution must restore with exact-only semantics");
-
-        CompoundTag schemaFive = schemaSix.copy();
-        schemaFive.putInt("schema_version", 5);
-        downgradeAmountsToLong(schemaFive);
-        TrinityPlanExecution restoredFive = TrinityPlanExecution.restore(
-                schemaFive,
-                helper.getLevel().registryAccess(),
-                20L);
-        helper.assertTrue(restoredFive.sameItemPolicy().isEmpty(),
-                "Schema 5 execution must restore with exact-only semantics");
         helper.succeed();
     }
 
@@ -308,36 +281,6 @@ public final class TrinitySameItemPolicyGameTest {
         ItemStack stack = new ItemStack(Items.PAPER);
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(name));
         return AEItemKey.of(stack);
-    }
-
-    private static void downgradeAmountsToLong(CompoundTag root) {
-        convertAmountEntries(root.getList("seed_reserve", Tag.TAG_COMPOUND));
-        for (Tag encodedStage : root.getList("stages", Tag.TAG_COMPOUND)) {
-            CompoundTag stage = (CompoundTag) encodedStage;
-            convertAmountEntries(stage.getList("required_at_start", Tag.TAG_COMPOUND));
-            convertAmountEntries(stage.getList("net_change", Tag.TAG_COMPOUND));
-            for (Tag encodedFiring : stage.getList("firings", Tag.TAG_COMPOUND)) {
-                CompoundTag firing = (CompoundTag) encodedFiring;
-                convertBigIntegerField(firing, "planned_count");
-                convertBigIntegerField(firing, "remaining_count");
-                convertAmountEntries(firing.getList("outputs", Tag.TAG_COMPOUND));
-            }
-        }
-        for (Tag encodedRepeat : root.getList("repeat_blocks", Tag.TAG_COMPOUND)) {
-            CompoundTag repeat = (CompoundTag) encodedRepeat;
-            convertBigIntegerField(repeat, "remaining_repetitions");
-            convertBigIntegerField(repeat, "wave_count");
-        }
-    }
-
-    private static void convertAmountEntries(ListTag entries) {
-        for (Tag encodedEntry : entries) {
-            convertBigIntegerField((CompoundTag) encodedEntry, "amount");
-        }
-    }
-
-    private static void convertBigIntegerField(CompoundTag tag, String field) {
-        tag.putLong(field, new BigInteger(tag.getByteArray(field)).longValueExact());
     }
 
     private static final class FiniteStorage implements MEStorage, FiniteNetworkStorageAccess {

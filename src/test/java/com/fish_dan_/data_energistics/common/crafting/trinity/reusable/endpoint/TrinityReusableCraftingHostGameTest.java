@@ -131,29 +131,6 @@ public final class TrinityReusableCraftingHostGameTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_reusable_core_reads_previous_schemas_and_rejects_legacy_session_payload")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void readsPreviousSchemasAndRejectsLegacySessionPayload(GameTestHelper helper) {
-        NativePattern pattern = new NativePattern();
-        CompoundTag state = new CompoundTag();
-        core(pattern).writeToTag(state, helper.getLevel().registryAccess());
-        state.remove("reusable_slots");
-        state.putInt("version", 4);
-        PersistentTrinityPatternCore previous = core(pattern);
-        helper.assertTrue(previous.hydrateFromTagAndReportMigration(state, helper.getLevel().registryAccess()), "Schema four migrates to five");
-        state.putInt("version", 3);
-        state.putInt("pattern_capacity", 64);
-        helper.assertTrue(core(pattern).hydrateFromTagAndReportMigration(state, helper.getLevel().registryAccess()), "Schema three remains readable");
-        state.put("reusable_slots", new CompoundTag());
-        try {
-            core(pattern).hydrateFromTag(state, helper.getLevel().registryAccess());
-            helper.fail("Old schema must not silently discard an unexpected session payload");
-        } catch (IllegalArgumentException expected) {
-            helper.succeed();
-        }
-    }
-
     @TestHolder("trinity_native_recipe_validation_allows_declared_tool_components_but_preserves_ordinary_no_substitution")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")

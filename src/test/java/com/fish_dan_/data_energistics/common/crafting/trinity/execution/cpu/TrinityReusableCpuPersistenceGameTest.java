@@ -56,19 +56,12 @@ public final class TrinityReusableCpuPersistenceGameTest {
         helper.succeed();
     }
 
-    @TestHolder("trinity_reusable_cpu_preserves_corrupt_custody_and_reads_legacy_inventory_schemas")
+    @TestHolder("trinity_reusable_cpu_preserves_corrupt_custody_evidence")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void preservesCorruptCustodyAndReadsLegacyInventorySchemas(GameTestHelper helper) {
+    public static void preservesCorruptCustodyEvidence(GameTestHelper helper) {
         TrinityDataCoreVirtualCpu cpu = cpu(helper);
         CompoundTag saved = cpu.logic().writeToTag(helper.getLevel().registryAccess());
-        for (int version : new int[] { 2, 3 }) {
-            CompoundTag legacy = saved.copy();
-            legacy.putInt("schema_version", version);
-            legacy.remove("reusable_sessions");
-            cpu.logic().readFromTag(legacy, helper.getLevel().registryAccess());
-            helper.assertTrue(!cpu.isBusy(), "Legacy jobs do not acquire inferred reusable custody");
-        }
         CompoundTag damaged = saved.getCompound("reusable_sessions").copy();
         damaged.remove("owner");
         saved.put("reusable_sessions", damaged);

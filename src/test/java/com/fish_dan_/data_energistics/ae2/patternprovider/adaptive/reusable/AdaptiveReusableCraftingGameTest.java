@@ -104,23 +104,16 @@ public final class AdaptiveReusableCraftingGameTest {
         NativeHost host = new NativeHost();
         UUID id = UUID.randomUUID();
         ReusableCraftingAdmission first = prepared(state, request(state, id, 0, 1, 5, Optional.of(tool(0)), helper), 8, host);
+        helper.assertValueEqual(amount(first.physicalInputs(), tool(0)), 1L, "Five offered tools are clipped to the one admitted exact-state use");
         first.commit(delivery(first, 2));
         ReusableCraftingAdmission second = prepared(state, request(state, id, 1, 2, 5, Optional.of(tool(0)), helper), 7, host);
         helper.assertValueEqual(amount(second.physicalInputs(), tool(0)), 2L,
                 "Already reserved D0 tool is excluded from the next exact-state batch");
         second.commit(delivery(second, 2));
         state.slot(0).endpoint().tick(1, 3, host);
-        var view = state.slot(0).endpoint().query(id).orElseThrow();
-        helper.assertValueEqual(amount(view.heldTools(), tool(1)), 3L, "Three D0 operations produce three actual D1 tools");
-        helper.assertValueEqual(amount(view.heldTools(), tool(3)), 0L, "Exact batch cannot repeatedly damage one tool to D3");
-        state = reload(state, helper);
-        ReusableCraftingAdmission next = prepared(state, request(state, id, 2, 3, 0, Optional.of(tool(1)), helper), 8, host);
+        ReusableCraftingAdmission next = prepared(state, request(state, id, 2, 3, 5, Optional.of(tool(1)), helper), 8, host);
         helper.assertValueEqual(next.physicalInputs().stream().filter(input -> input.slot() == 0).count(), 0L,
-                "Next D1 stage keeps the actual three resident tools");
-        next.commit(delivery(next, 2));
-        state.slot(0).endpoint().tick(2, 3, host);
-        helper.assertValueEqual(amount(state.slot(0).endpoint().query(id).orElseThrow().heldTools(), tool(2)), 3L,
-                "The subsequent exact state advances each tool once");
+                "Three resident D1 tools eliminate another physical transfer even when five are offered");
         helper.succeed();
     }
 

@@ -332,15 +332,6 @@ public final class ReusableInputSessionGameTest {
     public static void persistenceRejectsMissingFieldsAndInconsistentMaterials(GameTestHelper helper) {
         ReusableInputSession session = session(unchanged(), 1, Ownership.CPU_SUPPLIED);
         session.acceptAppend(append(1, 2, List.of(delivery(0, 1))));
-        CompoundTag legacy = ReusableInputSessionNbtCodec.encode(session, helper.getLevel().registryAccess());
-        legacy.putInt("schema", 1);
-        legacy.putLong("competition_since", legacy.getLong("yield_requested_at"));
-        legacy.remove("yield_requested_at");
-        for (Tag entry : legacy.getList("appends", Tag.TAG_COMPOUND)) {
-            ((CompoundTag) entry).remove("operation_states");
-        }
-        helper.assertValueEqual(ReusableInputSessionNbtCodec.decode(legacy, helper.getLevel().registryAccess()).snapshot(), session.snapshot(),
-                "Old sessions keep their consecutive-state semantics rather than inferring exact reservations");
         CompoundTag missing = ReusableInputSessionNbtCodec.encode(session, helper.getLevel().registryAccess());
         missing.remove("next_operation");
         expectIllegal(helper, () -> ReusableInputSessionNbtCodec.decode(missing, helper.getLevel().registryAccess()),

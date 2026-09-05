@@ -29,7 +29,6 @@ import appeng.me.helpers.BaseActionSource;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
@@ -120,10 +119,10 @@ public final class ReusableYieldGameTest {
         helper.succeed();
     }
 
-    @TestHolder("reusable_yield_deadline_survives_restart_and_legacy_competition_time_migration")
+    @TestHolder("reusable_yield_deadline_survives_restart")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void deadlineSurvivesRestartAndLegacyCompetitionTimeMigration(GameTestHelper helper) {
+    public static void deadlineSurvivesRestart(GameTestHelper helper) {
         PersistentReusableCraftingEndpoint source = new PersistentReusableCraftingEndpoint(TARGET);
         NativeHost host = new NativeHost();
         UUID owner = UUID.randomUUID();
@@ -132,25 +131,11 @@ public final class ReusableYieldGameTest {
                 TARGET, Optional.empty(), 1, helper);
         source.requestYield(contender, 100, host);
         CompoundTag saved = ReusableCraftingEndpointNbtCodec.encode(source, helper.getLevel().registryAccess());
-        for (int version : new int[] { 1, 2, 3 }) {
-            CompoundTag data = saved.copy();
-            CompoundTag session = data.getList("sessions", Tag.TAG_COMPOUND).getCompound(0).getCompound("session");
-            if (version < 3) {
-                session.putInt("schema", version);
-                session.putLong("competition_since", session.getLong("yield_requested_at"));
-                session.remove("yield_requested_at");
-                if (version == 1) {
-                    for (Tag append : session.getList("appends", Tag.TAG_COMPOUND)) {
-                        ((CompoundTag) append).remove("operation_states");
-                    }
-                }
-            }
-            PersistentReusableCraftingEndpoint restored = ReusableCraftingEndpointNbtCodec.decode(data, helper.getLevel().registryAccess());
-            helper.assertTrue(restored.requestYield(contender, 118, host), "Restored request remains acknowledged without changing its first tick");
-            helper.assertValueEqual(restored.tick(119, 1, host), 1, "Restored owner remains runnable before its original deadline");
-            helper.assertValueEqual(restored.tick(120, 1, host), 0, "Restoration does not restart the twenty-tick interval");
-            helper.assertValueEqual(restored.query(owner).orElseThrow().cancelled(), 99L, "Restored deadline cancels only actual unexecuted work");
-        }
+        PersistentReusableCraftingEndpoint restored = ReusableCraftingEndpointNbtCodec.decode(saved, helper.getLevel().registryAccess());
+        helper.assertTrue(restored.requestYield(contender, 118, host), "Restored request remains acknowledged without changing its first tick");
+        helper.assertValueEqual(restored.tick(119, 1, host), 1, "Restored owner remains runnable before its original deadline");
+        helper.assertValueEqual(restored.tick(120, 1, host), 0, "Restoration does not restart the twenty-tick interval");
+        helper.assertValueEqual(restored.query(owner).orElseThrow().cancelled(), 99L, "Restored deadline cancels only actual unexecuted work");
         helper.succeed();
     }
 

@@ -22,7 +22,6 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -73,21 +72,6 @@ public final class ReusableExactExecutionBindingGameTest {
         helper.assertTrue(selected instanceof TrinityPatternSelector.Selected, "Expanded ordinal 42 must not index one legacy alternative");
         helper.assertValueEqual(((TrinityPatternSelector.Selected) selected).inputsPerCraft(), List.of(new GenericStack(initial, 1L)),
                 "Execution retains the actual damaged tool rather than the encoded fresh template");
-        CompoundTag old = encoded.copy();
-        old.putInt("schema_version", 8);
-        old.remove("production_retired");
-        var legacyEight = TrinityPlanExecution.restore(old, helper.getLevel().registryAccess(), 30L);
-        helper.assertValueEqual(legacyEight.pollDispatchable(30L, Set.of(), ignored -> true, true).orElseThrow().exactBindings(), bindings,
-                "Schema 8 keeps exact bindings without inventing a production-retirement marker");
-        old.putInt("schema_version", 7);
-        for (Tag storedStage : old.getList("stages", Tag.TAG_COMPOUND)) {
-            for (Tag storedFiring : ((CompoundTag) storedStage).getList("firings", Tag.TAG_COMPOUND)) {
-                ((CompoundTag) storedFiring).remove("exact_bindings");
-            }
-        }
-        var legacy = TrinityPlanExecution.restore(old, helper.getLevel().registryAccess(), 30L);
-        helper.assertTrue(legacy.pollDispatchable(30L, Set.of(), ignored -> true, true).orElseThrow().exactBindings().isEmpty(),
-                "Schema 7 restores old ordinal behavior, not inferred reusable bindings");
         ListTag invalid = TrinityBoundInputSnapshotCodec.write(bindings, helper.getLevel().registryAccess());
         invalid.getCompound(0).remove("rule");
         try {
