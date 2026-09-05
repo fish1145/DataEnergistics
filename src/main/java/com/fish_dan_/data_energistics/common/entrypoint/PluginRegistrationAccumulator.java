@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.entrypoint;
 
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputAdapter;
 import com.fish_dan_.data_energistics.api.crafting.dynamic.DynamicCraftingOutputAdapter;
+import com.fish_dan_.data_energistics.api.crafting.reusable.ReusableInputRuleAdapter;
 import com.fish_dan_.data_energistics.api.entrypoint.DataEnergisticsRegistry;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistry;
@@ -16,6 +17,7 @@ import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternPr
 import com.fish_dan_.data_energistics.api.registry.provider.definition.ProviderIdentityDescriptor;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdRegistry;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolver;
+import com.fish_dan_.data_energistics.api.registry.reusable.ReusableInputRegistry;
 import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchRegistry;
 import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchTermRegistration;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
@@ -55,6 +57,7 @@ final class PluginRegistrationAccumulator {
     private final Object2ObjectMap<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms = new Object2ObjectLinkedOpenHashMap<>();
     private final ObjectList<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters = new ObjectArrayList<>();
     private final Object2ObjectMap<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters = new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2ObjectMap<ResourceLocation, ReusableInputRuleAdapter> reusableInputAdapters = new Object2ObjectLinkedOpenHashMap<>();
     private volatile boolean frozen;
 
     /**
@@ -158,6 +161,12 @@ final class PluginRegistrationAccumulator {
             }
         }
 
+        for (ResourceLocation adapterId : staging.reusableInputAdapters.keySet()) {
+            if (this.reusableInputAdapters.containsKey(adapterId)) {
+                throw new IllegalStateException("Duplicate reusable-input adapter ID '" + adapterId + "' from " + staging.description());
+            }
+        }
+
         this.universalTerminals.putAll(staging.universalTerminals);
         this.patternProviders.putAll(staging.patternProviders);
         staging.patternProviders.values().forEach(registration -> this.patternProviderIdentities.put(
@@ -176,6 +185,7 @@ final class PluginRegistrationAccumulator {
         this.trinityPatternSearchTerms.putAll(staging.trinityPatternSearchTerms);
         this.virtualCraftingOutputAdapters.addAll(staging.virtualCraftingOutputAdapters);
         this.dynamicCraftingOutputAdapters.putAll(staging.dynamicCraftingOutputAdapters);
+        this.reusableInputAdapters.putAll(staging.reusableInputAdapters);
         staging.markCommitted();
     }
 
@@ -194,7 +204,8 @@ final class PluginRegistrationAccumulator {
                 this.trinityPatternRecipeIdResolvers,
                 this.trinityPatternSearchTerms,
                 this.virtualCraftingOutputAdapters,
-                this.dynamicCraftingOutputAdapters);
+                this.dynamicCraftingOutputAdapters,
+                this.reusableInputAdapters);
         this.frozen = true;
         return snapshot;
     }
@@ -226,6 +237,7 @@ final class PluginRegistrationAccumulator {
         private final Object2ObjectMap<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms = new Object2ObjectLinkedOpenHashMap<>();
         private final ObjectList<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters = new ObjectArrayList<>();
         private final Object2ObjectMap<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters = new Object2ObjectLinkedOpenHashMap<>();
+        private final Object2ObjectMap<ResourceLocation, ReusableInputRuleAdapter> reusableInputAdapters = new Object2ObjectLinkedOpenHashMap<>();
         private final UniversalTerminalRegistry universalTerminalRegistry = new StagedUniversalTerminalRegistry();
         private final PatternProviderRegistry patternProviderRegistry = new StagedPatternProviderRegistry();
         private final CraftingMachineRegistry craftingMachineRegistry = new StagedCraftingMachineRegistry();
@@ -292,6 +304,17 @@ final class PluginRegistrationAccumulator {
             return this.dynamicCraftingOutputRegistry;
         }
 
+        @Override
+        public ReusableInputRegistry reusableInputs() {
+            return adapter -> {
+                requireOpen();
+                ResourceLocation adapterId = adapter.id();
+                if (this.reusableInputAdapters.putIfAbsent(adapterId, adapter) != null) {
+                    throw new IllegalStateException("Duplicate reusable-input adapter ID '" + adapterId + "' in " + description());
+                }
+            };
+        }
+
         /**
          * Closes and clears a failed transaction without touching already committed plugins.
          */
@@ -310,6 +333,7 @@ final class PluginRegistrationAccumulator {
             this.trinityPatternSearchTerms.clear();
             this.virtualCraftingOutputAdapters.clear();
             this.dynamicCraftingOutputAdapters.clear();
+            this.reusableInputAdapters.clear();
         }
 
         /**

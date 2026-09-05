@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.entrypoint;
 
 import com.fish_dan_.data_energistics.api.crafting.dispatch.VirtualCraftingOutputAdapter;
 import com.fish_dan_.data_energistics.api.crafting.dynamic.DynamicCraftingOutputAdapter;
+import com.fish_dan_.data_energistics.api.crafting.reusable.ReusableInputRuleAdapter;
 import com.fish_dan_.data_energistics.api.registry.adaptive.AdaptivePatternProviderRegistration;
 import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMachineCapacityRegistration;
 import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationRegistration;
@@ -9,8 +10,10 @@ import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternPr
 import com.fish_dan_.data_energistics.api.registry.provider.definition.PatternProviderWorkstationSourceRegistration;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdLookup;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolver;
+import com.fish_dan_.data_energistics.api.registry.reusable.ReusableInputRules;
 import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchTermRegistration;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.rules.FrozenReusableInputRules;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResolvers;
 
 import net.minecraft.resources.ResourceLocation;
@@ -44,6 +47,7 @@ public final class DataEnergisticsRegistrySnapshot {
     private final ObjectList<TrinityPatternSearchTermRegistration> trinityPatternSearchTermRegistrations;
     private final ObjectList<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters;
     private final ObjectList<DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters;
+    private final ReusableInputRules reusableInputRules;
 
     /**
      * Freezes all registration values without retaining a mutable staging collection.
@@ -57,7 +61,8 @@ public final class DataEnergisticsRegistrySnapshot {
                                     Map<ResourceLocation, TrinityPatternRecipeIdResolver> trinityPatternRecipeIdResolvers,
                                     Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms,
                                     Collection<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters,
-                                    Map<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters) {
+                                    Map<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters,
+                                    Map<ResourceLocation, ReusableInputRuleAdapter> reusableInputAdapters) {
         this.universalTerminalRegistrations = immutableList(universalTerminalRegistrations);
         this.patternProviderRegistrations = immutableList(patternProviderRegistrations);
         this.patternProviderWorkstationSourceRegistrations = immutableList(
@@ -69,6 +74,7 @@ public final class DataEnergisticsRegistrySnapshot {
         this.trinityPatternSearchTermRegistrations = immutableList(trinityPatternSearchTerms.values());
         this.virtualCraftingOutputAdapters = immutableList(virtualCraftingOutputAdapters);
         this.dynamicCraftingOutputAdapters = immutableList(dynamicCraftingOutputAdapters.values());
+        this.reusableInputRules = new FrozenReusableInputRules(immutableList(reusableInputAdapters.values()));
     }
 
     private static <T> ObjectList<T> immutableList(Collection<T> values) {
@@ -150,5 +156,10 @@ public final class DataEnergisticsRegistrySnapshot {
      */
     public List<DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters() {
         return this.dynamicCraftingOutputAdapters;
+    }
+
+    /** @return immutable server-thread rule lookup; resolved model values are safe for background planning */
+    public ReusableInputRules reusableInputs() {
+        return this.reusableInputRules;
     }
 }
