@@ -201,6 +201,11 @@ public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
         return mirrored;
     }
 
+    /** Four-way physical adjacency for shared storage; this does not expose an AE node connection. */
+    public static boolean connectsOnSide(BlockState state, Direction direction) {
+        return state.getValue(connectionProperty(direction));
+    }
+
     private static BooleanProperty connectionProperty(Direction direction) {
         return switch (direction) {
             case NORTH -> CONNECT_NORTH;

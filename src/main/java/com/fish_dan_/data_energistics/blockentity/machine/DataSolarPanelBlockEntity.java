@@ -1,6 +1,9 @@
 package com.fish_dan_.data_energistics.blockentity.machine;
 
 import com.fish_dan_.data_energistics.block.machine.DataSolarPanelBlock;
+import com.fish_dan_.data_energistics.common.solar.energy.SolarEnergyPool;
+import com.fish_dan_.data_energistics.common.solar.energy.SolarPanelArray;
+import com.fish_dan_.data_energistics.common.solar.energy.SolarPanelArrayPort;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.SolarPanelSchema;
 import com.fish_dan_.data_energistics.menu.machine.DataSolarPanelMenuHost;
@@ -8,11 +11,9 @@ import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import appeng.api.config.Actionable;
-import appeng.api.config.PowerMultiplier;
-import appeng.api.config.PowerUnit;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
-import appeng.api.networking.IGridNode;
+import appeng.api.networking.energy.IAEPowerStorage;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
@@ -30,6 +31,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -52,13 +55,16 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
             getUpgradeMachine(),
             getUpgradeSlots(),
             this::onUpgradesChanged);
+    private final SolarPanelArray.Membership arrayMembership = new SolarPanelArray.Membership(this, new LocalEnergyCell());
     private boolean redstoneControlled;
+    private boolean loadingUpgrades;
 
     public DataSolarPanelBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(DEBlockEntities.DATA_SOLAR_PANEL_BLOCK_ENTITY.get(), blockPos, blockState);
         this.getMainNode()
                 .setVisualRepresentation(getUpgradeMachine())
-                .setIdlePowerUsage(0.0D);
+                .setIdlePowerUsage(0.0D)
+                .addService(IAEPowerStorage.class, new SolarPanelArrayPort(this.arrayMembership));
         this.setInternalMaxPower(computeMaxPower(this.upgrades));
     }
 
@@ -77,6 +83,7 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
         super.onReady();
         if (this.level != null && !this.level.isClientSide) {
             DataSolarPanelBlock.refreshLoadedConnections(this.level, this.worldPosition);
+            this.arrayMembership.onReady();
         }
         updateOnlineState();
     }
@@ -86,19 +93,72 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
             return;
         }
 
-        if (this.redstoneControlled && !isReceivingRedstonePower()) {
-            updateOnlineState();
-            return;
-        }
-
-        this.injectExternalPower(PowerUnit.AE, getGeneratedPowerPerTick(), Actionable.MODULATE);
-        pushStoredPowerToGrid();
+        this.arrayMembership.tick();
         updateOnlineState();
     }
 
     @Override
+    public void setBlockState(BlockState state) {
+        BlockState previous = getBlockState();
+        super.setBlockState(state);
+        if (previous.getBlock() != state.getBlock()) {
+            this.arrayMembership.invalidate();
+            return;
+        }
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            if (DataSolarPanelBlock.connectsOnSide(previous, direction) != DataSolarPanelBlock.connectsOnSide(state, direction)) {
+                this.arrayMembership.invalidate();
+                return;
+            }
+        }
+    }
+
+    @Override
+    public void setRemoved() {
+        this.arrayMembership.onUnavailable();
+        super.setRemoved();
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        this.arrayMembership.onUnavailable();
+        super.onChunkUnloaded();
+    }
+
+    /** Stable internal storage handle, independent of this panel's bottom-only AE node. */
+    public SolarPanelArray.Membership energyMembership() {
+        return this.arrayMembership;
+    }
+
+    @Override
+    public SolarEnergyPool.Snapshot getEnergyStorageSnapshot() {
+        return this.arrayMembership.snapshot();
+    }
+
+    @Override
+    protected double funnelPowerIntoStorage(double power, Actionable mode) {
+        return power - this.arrayMembership.insert(power, mode);
+    }
+
+    @Override
+    protected double getFunnelPowerDemand(double maxRequired) {
+        SolarEnergyPool.Snapshot storage = getEnergyStorageSnapshot();
+        return Math.min(maxRequired, storage.capacity() - storage.stored());
+    }
+
+    @Override
+    protected double extractAEPower(double amount, Actionable mode) {
+        return this.arrayMembership.extract(amount, mode);
+    }
+
+    /** Each member keeps its own redstone switch and generation upgrades. */
+    public boolean allowsArrayGeneration() {
+        return !this.redstoneControlled || isReceivingRedstonePower();
+    }
+
+    @Override
     public boolean isOnline() {
-        return this.getMainNode().isOnline() && (!this.redstoneControlled || isReceivingRedstonePower());
+        return this.getMainNode().isOnline() && allowsArrayGeneration();
     }
 
     @Override
@@ -147,7 +207,7 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     }
 
     @Override
-    public InternalInventory getSubInventory(ResourceLocation id) {
+    public @Nullable InternalInventory getSubInventory(ResourceLocation id) {
         if (ISegmentedInventory.UPGRADES.equals(id)) {
             return this.upgrades;
         }
@@ -156,10 +216,17 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
 
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
-        super.loadTag(data, registries);
-        this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
-        this.redstoneControlled = data.getBoolean(REDSTONE_CONTROLLED_TAG);
+        // Restore the cell's capacity before AE2 loads (and clamps) its saved energy.
+        this.loadingUpgrades = true;
+        try {
+            this.upgrades.readFromNBT(data, UPGRADES_TAG, registries);
+        } finally {
+            this.loadingUpgrades = false;
+        }
         this.setInternalMaxPower(computeMaxPower(this.upgrades));
+        super.loadTag(data, registries);
+        this.redstoneControlled = data.getBoolean(REDSTONE_CONTROLLED_TAG);
+        this.arrayMembership.invalidate();
     }
 
     @Override
@@ -195,7 +262,11 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     }
 
     public static double computeMaxPower(IUpgradeInventory upgrades, SolarPanelSchema settings) {
-        return ENERGY_CAPACITY + getEnergyCardCount(upgrades) * settings.energyCardCapacityBonusAE;
+        double capacity = ENERGY_CAPACITY + getEnergyCardCount(upgrades) * settings.energyCardCapacityBonusAE;
+        if (!Double.isFinite(capacity) || capacity < 0.0D) {
+            throw new IllegalArgumentException("Invalid configured solar capacity: " + capacity);
+        }
+        return capacity;
     }
 
     public static double applySpeedUpgrades(double baseGeneration, IUpgradeInventory upgrades) {
@@ -226,29 +297,6 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
         return this.getBlockState().getBlock() == DEBlocks.ME_DATA_SOLAR_PANEL.get() ? ME_DATA_GENERATION_MULTIPLIER : 1.0D;
     }
 
-    private void pushStoredPowerToGrid() {
-        IGridNode node = this.getMainNode().getNode();
-        if (node == null || node.getGrid() == null) {
-            return;
-        }
-
-        double available = this.getAECurrentPower();
-        if (available <= 0.0001D) {
-            return;
-        }
-
-        var energyService = node.getGrid().getEnergyService();
-        if (energyService == null) {
-            return;
-        }
-
-        double overflow = energyService.injectPower(available, Actionable.MODULATE);
-        double accepted = Math.max(0.0D, available - overflow);
-        if (accepted > 0.0001D) {
-            this.extractAEPower(accepted, Actionable.MODULATE, PowerMultiplier.ONE);
-        }
-    }
-
     private void updateOnlineState() {
         updateBlockState(isOnline());
     }
@@ -273,12 +321,55 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     }
 
     private void onUpgradesChanged() {
-        double currentPower = this.getInternalCurrentPower();
-        this.setInternalMaxPower(computeMaxPower(this.upgrades));
-        if (currentPower > this.getInternalMaxPower()) {
-            this.extractAEPower(currentPower - this.getInternalMaxPower(), Actionable.MODULATE, PowerMultiplier.ONE);
+        if (this.loadingUpgrades) {
+            return;
         }
+        refreshArrayCapacity();
+        this.arrayMembership.invalidate();
         this.saveChanges();
         this.markForClientUpdate();
+    }
+
+    /** Applies live upgrade/config changes without discarding energy that fits in another member. */
+    public void refreshArrayCapacity() {
+        double capacity = computeMaxPower(this.upgrades);
+        if (capacity != getInternalMaxPower()) {
+            this.arrayMembership.beforeCapacityChange(capacity);
+            setInternalMaxPower(capacity);
+            saveChanges();
+        }
+    }
+
+    // The pool uses raw local storage. NBT also stays local, so splitting/unloading never duplicates a shared total.
+    private final class LocalEnergyCell implements SolarEnergyPool.Cell {
+
+        @Override
+        public double stored() {
+            return getInternalCurrentPower();
+        }
+
+        @Override
+        public double capacity() {
+            return getInternalMaxPower();
+        }
+
+        @Override
+        public double insert(double amount, Actionable mode) {
+            double offered = Math.min(amount, capacity() - stored());
+            double accepted = offered - DataSolarPanelBlockEntity.super.injectAEPower(offered, mode);
+            if (mode == Actionable.MODULATE && accepted > 0.0D) {
+                saveChanges();
+            }
+            return accepted;
+        }
+
+        @Override
+        public double extract(double amount, Actionable mode) {
+            double extracted = DataSolarPanelBlockEntity.super.extractAEPower(amount, mode);
+            if (mode == Actionable.MODULATE && extracted > 0.0D) {
+                saveChanges();
+            }
+            return extracted;
+        }
     }
 }
