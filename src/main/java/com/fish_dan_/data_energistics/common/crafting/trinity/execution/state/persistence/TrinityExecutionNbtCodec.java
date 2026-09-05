@@ -8,7 +8,9 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.pe
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.WaitKind;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 
 import net.minecraft.core.HolderLookup;
@@ -37,13 +39,15 @@ import java.util.Set;
 public final class TrinityExecutionNbtCodec {
 
     private static final int LONG_AMOUNT_SCHEMA = 5;
-    private static final int SCHEMA = 6;
+    private static final int BIG_INTEGER_SCHEMA = 6;
+    private static final int SCHEMA = 7;
     private static final int MAX_BIG_INTEGER_BYTES = 512;
     private static final String PLAN_KIND = "trinity_compact";
     private static final String SCHEMA_TAG = "schema_version";
     private static final String PLAN_KIND_TAG = "plan_kind";
     private static final String CATALOG_REVISION_TAG = "catalog_revision";
     private static final String QUANTITY_MODE_TAG = "quantity_mode";
+    private static final String SAME_ITEM_POLICY_TAG = "same_item_policy";
     private static final String TARGET_KEY_TAG = "target_key";
     private static final String TARGET_AMOUNT_TAG = "target_amount";
     private static final String STATUS_TAG = "status";
@@ -94,11 +98,33 @@ public final class TrinityExecutionNbtCodec {
     private static final String KEY_TAG = "key";
     private static final String AMOUNT_TAG = "amount";
 
+    private static final Set<String> LEGACY_ROOT_FIELDS = Set.of(
+            SCHEMA_TAG,
+            PLAN_KIND_TAG,
+            CATALOG_REVISION_TAG,
+            QUANTITY_MODE_TAG,
+            TARGET_KEY_TAG,
+            TARGET_AMOUNT_TAG,
+            STATUS_TAG,
+            FAILURE_REASON_TAG,
+            GENERATION_TAG,
+            STAGES_TAG,
+            STAGE_ORDER_TAG,
+            REPEAT_BLOCKS_TAG,
+            SEED_RESERVE_TAG,
+            COMPLETION_SEALED_TAG,
+            COMPLETION_BUFFER_TAG,
+            ACTUAL_FINAL_OUTPUTS_TAG,
+            DELIVERY_REMAINING_TAG,
+            LEDGER_TAG,
+            SAVED_AT_TICK_TAG,
+            BUDGET_RETRY_AT_TAG);
     private static final Set<String> ROOT_FIELDS = Set.of(
             SCHEMA_TAG,
             PLAN_KIND_TAG,
             CATALOG_REVISION_TAG,
             QUANTITY_MODE_TAG,
+            SAME_ITEM_POLICY_TAG,
             TARGET_KEY_TAG,
             TARGET_AMOUNT_TAG,
             STATUS_TAG,
@@ -163,6 +189,7 @@ public final class TrinityExecutionNbtCodec {
         root.putString(PLAN_KIND_TAG, PLAN_KIND);
         root.putLong(CATALOG_REVISION_TAG, snapshot.catalogRevision());
         root.putString(QUANTITY_MODE_TAG, snapshot.quantityMode().name());
+        root.put(SAME_ITEM_POLICY_TAG, saveKeys(snapshot.sameItemPolicy().representatives(), registries));
         root.put(TARGET_KEY_TAG, snapshot.targetKey().toTagGeneric(registries));
         root.putLong(TARGET_AMOUNT_TAG, snapshot.targetAmount());
         root.putString(STATUS_TAG, snapshot.status().name());
@@ -192,13 +219,16 @@ public final class TrinityExecutionNbtCodec {
     public static TrinityExecutionSnapshot decode(CompoundTag tag, HolderLookup.Provider registries) {
         requireType(tag, SCHEMA_TAG, Tag.TAG_INT, "execution schema");
         int schema = tag.getInt(SCHEMA_TAG);
-        if (schema != LONG_AMOUNT_SCHEMA && schema != SCHEMA) {
+        if (schema != LONG_AMOUNT_SCHEMA && schema != BIG_INTEGER_SCHEMA && schema != SCHEMA) {
             throw new IllegalArgumentException("Unsupported Trinity execution schema");
         }
-        requireFields(tag, ROOT_FIELDS, "execution root");
+        requireFields(tag, schema >= SCHEMA ? ROOT_FIELDS : LEGACY_ROOT_FIELDS, "execution root");
         requireType(tag, PLAN_KIND_TAG, Tag.TAG_STRING, "execution plan kind");
         requireType(tag, CATALOG_REVISION_TAG, Tag.TAG_LONG, "execution catalog revision");
         requireType(tag, QUANTITY_MODE_TAG, Tag.TAG_STRING, "execution quantity mode");
+        if (schema >= SCHEMA) {
+            requireType(tag, SAME_ITEM_POLICY_TAG, Tag.TAG_LIST, "execution same-item policy");
+        }
         requireType(tag, ACTUAL_FINAL_OUTPUTS_TAG, Tag.TAG_LIST, "execution actual final outputs");
         requireType(tag, TARGET_KEY_TAG, Tag.TAG_COMPOUND, "execution target key");
         requireType(tag, TARGET_AMOUNT_TAG, Tag.TAG_LONG, "execution target amount");
@@ -219,6 +249,7 @@ public final class TrinityExecutionNbtCodec {
         return new TrinityExecutionSnapshot(
                 nonNegative(tag.getLong(CATALOG_REVISION_TAG), "catalog revision"),
                 parseEnum(CraftingQuantityMode.class, tag.getString(QUANTITY_MODE_TAG), "quantity mode"),
+                schema >= SCHEMA ? readSameItemPolicy(tag, registries) : TrinitySameItemPolicy.empty(),
                 decodeKey(tag.getCompound(TARGET_KEY_TAG), registries, "execution target"),
                 tag.getLong(TARGET_AMOUNT_TAG),
                 parseEnum(TrinityPlanExecution.Status.class, tag.getString(STATUS_TAG), "execution status"),
@@ -256,7 +287,7 @@ public final class TrinityExecutionNbtCodec {
             return Object2LongMaps.emptyMap();
         }
         int schema = tag.getInt(SCHEMA_TAG);
-        if (schema != LONG_AMOUNT_SCHEMA && schema != SCHEMA) {
+        if (schema != LONG_AMOUNT_SCHEMA && schema != BIG_INTEGER_SCHEMA && schema != SCHEMA) {
             return Object2LongMaps.emptyMap();
         }
 
@@ -407,13 +438,13 @@ public final class TrinityExecutionNbtCodec {
             requireType(
                     firingTag,
                     PLANNED_COUNT_TAG,
-                    schema >= SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG,
+                    schema >= BIG_INTEGER_SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG,
                     "firing planned count");
             requireType(firingTag, OUTPUTS_TAG, Tag.TAG_LIST, "firing outputs");
             requireType(
                     firingTag,
                     REMAINING_COUNT_TAG,
-                    schema >= SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG,
+                    schema >= BIG_INTEGER_SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG,
                     "firing remaining count");
             requireType(firingTag, INITIALIZED_TAG, Tag.TAG_BYTE, "firing initialized flag");
             AEKey primaryOutput = decodeKey(
@@ -449,13 +480,13 @@ public final class TrinityExecutionNbtCodec {
             requireType(
                     repeatTag,
                     REMAINING_REPETITIONS_TAG,
-                    schema >= SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG,
+                    schema >= BIG_INTEGER_SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG,
                     "repeat remaining count");
             requireType(repeatTag, CURSOR_TAG, Tag.TAG_INT, "repeat cursor");
             requireType(
                     repeatTag,
                     WAVE_COUNT_TAG,
-                    schema >= SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG,
+                    schema >= BIG_INTEGER_SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG,
                     "repeat wave count");
             RepeatBlock repeat = new RepeatBlock(
                     repeatTag.getInt(INDEX_TAG),
@@ -487,7 +518,7 @@ public final class TrinityExecutionNbtCodec {
             requireType(
                     entry,
                     AMOUNT_TAG,
-                    schema >= SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG,
+                    schema >= BIG_INTEGER_SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG,
                     role + " amount");
             AEKey key = decodeKey(entry.getCompound(KEY_TAG), registries, role);
             BigInteger amount = readBigInteger(entry, AMOUNT_TAG, schema);
@@ -547,6 +578,18 @@ public final class TrinityExecutionNbtCodec {
             }
         }
         return keys;
+    }
+
+    private static TrinitySameItemPolicy readSameItemPolicy(CompoundTag tag,
+                                                            HolderLookup.Provider registries) {
+        ObjectArrayList<AEItemKey> representatives = new ObjectArrayList<>();
+        for (AEKey key : readKeys(tag, SAME_ITEM_POLICY_TAG, registries, "same-item representative")) {
+            if (!(key instanceof AEItemKey itemKey)) {
+                throw new IllegalArgumentException("A Trinity same-item policy requires item representatives");
+            }
+            representatives.add(itemKey);
+        }
+        return TrinitySameItemPolicy.ofRepresentatives(representatives);
     }
 
     private static ListTag saveStages(List<Stage> stages, HolderLookup.Provider registries) {
@@ -645,7 +688,7 @@ public final class TrinityExecutionNbtCodec {
         return new BigInteger(encoded);
     }
 
-    private static ListTag saveKeys(Iterable<AEKey> keys, HolderLookup.Provider registries) {
+    private static ListTag saveKeys(Iterable<? extends AEKey> keys, HolderLookup.Provider registries) {
         ListTag encoded = new ListTag();
         keys.forEach(key -> encoded.add(key.toTagGeneric(registries)));
         return encoded;

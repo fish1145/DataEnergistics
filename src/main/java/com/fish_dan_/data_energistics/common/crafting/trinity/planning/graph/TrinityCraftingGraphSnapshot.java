@@ -1,14 +1,19 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 
-import java.util.ArrayDeque;
+import net.minecraft.world.item.Item;
+
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -27,6 +32,7 @@ public final class TrinityCraftingGraphSnapshot {
     private final List<TrinityCraftingGraphPattern> patterns;
     private final List<AEKey> keys;
     private final Map<AEKey, List<TrinityCraftingGraphPattern>> patternsByOutput;
+    private final Map<Item, List<TrinityCraftingGraphPattern>> patternsByOutputItem;
 
     /**
      * Builds a deterministic graph and rejects duplicate semantic identities.
@@ -49,8 +55,9 @@ public final class TrinityCraftingGraphSnapshot {
         this.revision = revision;
         this.patterns = List.copyOf(sortedPatterns.values());
 
-        LinkedHashSet<AEKey> encounteredKeys = new LinkedHashSet<>();
-        LinkedHashMap<AEKey, LinkedHashSet<TrinityCraftingGraphPattern>> producerSets = new LinkedHashMap<>();
+        ObjectLinkedOpenHashSet<AEKey> encounteredKeys = new ObjectLinkedOpenHashSet<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, ObjectLinkedOpenHashSet<TrinityCraftingGraphPattern>> producerSets = new Object2ObjectLinkedOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<Item, ObjectLinkedOpenHashSet<TrinityCraftingGraphPattern>> itemProducerSets = new Object2ObjectLinkedOpenHashMap<>();
         for (TrinityCraftingGraphPattern pattern : this.patterns) {
             for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
                 for (TrinityPatternPublicationSignature.Alternative alternative : input.alternatives()) {
@@ -58,21 +65,29 @@ public final class TrinityCraftingGraphSnapshot {
                     if (alternative.remainingKey() != null) {
                         encounteredKeys.add(alternative.remainingKey());
                         producerSets
-                                .computeIfAbsent(alternative.remainingKey(), ignored -> new LinkedHashSet<>())
+                                .computeIfAbsent(alternative.remainingKey(), ignored -> new ObjectLinkedOpenHashSet<>())
                                 .add(pattern);
                     }
                 }
             }
             for (GenericStack output : pattern.outputs()) {
                 encounteredKeys.add(output.what());
-                producerSets.computeIfAbsent(output.what(), ignored -> new LinkedHashSet<>()).add(pattern);
+                producerSets.computeIfAbsent(output.what(), ignored -> new ObjectLinkedOpenHashSet<>()).add(pattern);
+                if (output.what() instanceof AEItemKey itemOutput) {
+                    itemProducerSets
+                            .computeIfAbsent(itemOutput.getItem(), ignored -> new ObjectLinkedOpenHashSet<>())
+                            .add(pattern);
+                }
             }
         }
 
-        LinkedHashMap<AEKey, List<TrinityCraftingGraphPattern>> producerIndex = new LinkedHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, List<TrinityCraftingGraphPattern>> producerIndex = new Object2ObjectLinkedOpenHashMap<>();
         producerSets.forEach((key, producers) -> producerIndex.put(key, List.copyOf(producers)));
         this.keys = List.copyOf(encounteredKeys);
         this.patternsByOutput = Collections.unmodifiableMap(producerIndex);
+        Object2ObjectLinkedOpenHashMap<Item, List<TrinityCraftingGraphPattern>> itemProducerIndex = new Object2ObjectLinkedOpenHashMap<>();
+        itemProducerSets.forEach((item, producers) -> itemProducerIndex.put(item, List.copyOf(producers)));
+        this.patternsByOutputItem = Collections.unmodifiableMap(itemProducerIndex);
     }
 
     /**
@@ -113,6 +128,11 @@ public final class TrinityCraftingGraphSnapshot {
         return this.patternsByOutput;
     }
 
+    /** Returns the target-specific accounting policy derived from this complete graph. */
+    public TrinitySameItemPolicy sameItemPolicy(AEKey target) {
+        return TrinitySameItemPolicy.fromGraph(this, target);
+    }
+
     /**
      * Derives the complete reverse-reachable hypergraph for one requested output.
      *
@@ -134,22 +154,28 @@ public final class TrinityCraftingGraphSnapshot {
     }
 
     private TrinityCraftingGraphSnapshot deriveReachableSubgraph(AEKey target) {
-        ArrayDeque<AEKey> pending = new ArrayDeque<>();
-        LinkedHashSet<AEKey> visitedKeys = new LinkedHashSet<>();
-        LinkedHashSet<TrinityCraftingGraphPattern> reachablePatterns = new LinkedHashSet<>();
-        pending.add(target);
+        TrinitySameItemPolicy sameItemPolicy = sameItemPolicy(target);
+        ObjectArrayFIFOQueue<AEKey> pending = new ObjectArrayFIFOQueue<>();
+        ObjectLinkedOpenHashSet<AEKey> visitedKeys = new ObjectLinkedOpenHashSet<>();
+        ObjectLinkedOpenHashSet<TrinityCraftingGraphPattern> reachablePatterns = new ObjectLinkedOpenHashSet<>();
+        pending.enqueue(target);
         while (!pending.isEmpty()) {
-            AEKey required = pending.removeFirst();
+            AEKey required = pending.dequeue();
             if (!visitedKeys.add(required)) {
                 continue;
             }
-            for (TrinityCraftingGraphPattern pattern : patternsProducing(required)) {
+            ObjectLinkedOpenHashSet<TrinityCraftingGraphPattern> producers = new ObjectLinkedOpenHashSet<>(patternsProducing(required));
+            if (sameItemPolicy.allowsSameItem(required)) {
+                AEItemKey requiredItem = (AEItemKey) required;
+                producers.addAll(this.patternsByOutputItem.getOrDefault(requiredItem.getItem(), List.of()));
+            }
+            for (TrinityCraftingGraphPattern pattern : producers) {
                 if (!reachablePatterns.add(pattern)) {
                     continue;
                 }
                 for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
                     for (TrinityPatternPublicationSignature.Alternative alternative : input.alternatives()) {
-                        pending.addLast(alternative.stack().what());
+                        pending.enqueue(alternative.stack().what());
                     }
                 }
             }

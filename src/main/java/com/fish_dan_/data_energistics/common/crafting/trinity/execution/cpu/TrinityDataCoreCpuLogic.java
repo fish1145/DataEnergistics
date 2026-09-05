@@ -39,12 +39,15 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.WorkerOperationTracker;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchStepResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityBoundPatternDetails;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityPatternResolver;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityPatternSelector;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityBorrowingTransaction;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityCompletionInputExtractor;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityInitialInputExtractor;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityRemainingPlanCalculation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinitySameItemInputInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityBorrowingLedger;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.inventory.TrinityExactWorkingInventory;
@@ -58,6 +61,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputProjection;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
@@ -101,6 +105,7 @@ import com.google.common.base.Preconditions;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -682,7 +687,8 @@ final class TrinityDataCoreCpuLogic {
             try {
                 cycleWaveLimit = execution.maximumCycleLogicalFirings(
                         work,
-                        (key, usefulUpper) -> combinedCycleSeedAvailability(network, key, usefulUpper));
+                        (key, usefulUpper) -> combinedCycleSeedAvailability(
+                                network, execution.sameItemPolicy(), key, usefulUpper));
             } catch (RuntimeException exception) {
                 Data_Energistics.LOGGER.error(
                         "Trinity CPU {} failed to calculate the seed-safe cycle wave for compact job {}",
@@ -702,18 +708,20 @@ final class TrinityDataCoreCpuLogic {
                 return CraftingExecutionOutcome.NONE;
             }
         }
+        TrinitySameItemInputInventory sameItemInputs = new TrinitySameItemInputInventory(
+                execution.sameItemPolicy(), this.inventory.list,
+                work.cycle() ? network.getAvailableStacks() : new KeyCounter(),
+                key -> simulateNetworkExtraction(network, key));
         TrinityPatternSelector.Result selection = this.patternSelector.select(
                 pattern,
                 work.plannedVariantOrdinal(),
                 work.cycle(),
                 maximumLogicalFirings,
-                key -> currentJob.dynamicOutputs.availableInputAmount(key, this.inventory.list),
+                this.inventory.list::get,
                 key -> work.cycle() && !currentJob.dynamicOutputs.isInputAlias(key) ?
                         simulateNetworkExtraction(network, key) : 0L,
-                input -> currentJob.dynamicOutputs.resolveInput(
-                        input.what(),
-                        input.amount(),
-                        this.inventory.list),
+                key -> execution.sameItemPolicy().allowsSameItem(key) ? sameItemInputs.candidates(key) :
+                        currentJob.dynamicOutputs.resolveInputs(key, this.inventory.list),
                 settings.maxBindingVariants);
         TrinityPatternSelector.Selected selected;
         switch (selection) {
@@ -855,7 +863,7 @@ final class TrinityDataCoreCpuLogic {
                 graphSnapshot,
                 craftingProviderPublications(craftingService).publicationScope(),
                 () -> graphSnapshot
-                        .map(snapshot -> captureReplanAvailability(snapshot, activeGrid))
+                        .map(snapshot -> captureReplanAvailability(snapshot, activeGrid, currentJob.finalOutput.what()))
                         .orElseGet(TrinityPlanningInventory::empty),
                 execution.finalOutput().what(),
                 BigInteger.valueOf(execution.deliveryRemaining()),
@@ -926,20 +934,24 @@ final class TrinityDataCoreCpuLogic {
 
     private TrinityPlanningInventory captureReplanAvailability(
                                                                TrinityCraftingGraphSnapshot snapshot,
-                                                               IGrid grid) {
+                                                               IGrid grid,
+                                                               AEKey target) {
         var storageService = grid.getStorageService();
+        TrinitySameItemPolicy policy = snapshot.sameItemPolicy(target);
         return TrinityPlanningInventorySnapshot.capture(
                 snapshot.keys(),
+                policy,
                 storageService.getInventory(),
                 this.cpu.actionSource(),
                 TrinityPlanningProgressReporter.none()).inventory()
                 .plus(this.inventory.list)
-                .plus(this.exactWorkingInventory.snapshot());
+                .plus(this.exactWorkingInventory.snapshot()).normalized(policy);
     }
 
     private boolean reserveReplacementInputs(TrinityCraftingPlan replacement, MEStorage network) {
         return TrinityInitialInputExtractor.reserveReplacement(
                 replacement.initialExpectedInputs(),
+                replacement.sameItemPolicy(),
                 network,
                 this.inventory,
                 this.exactWorkingInventory,
@@ -964,8 +976,32 @@ final class TrinityDataCoreCpuLogic {
      */
     private BigInteger combinedCycleSeedAvailability(
                                                      MEStorage network,
+                                                     TrinitySameItemPolicy policy,
                                                      AEKey key,
                                                      BigInteger usefulUpper) {
+        if (!policy.allowsSameItem(key)) {
+            return combinedExactCycleSeedAvailability(network, key, usefulUpper);
+        }
+        AEKey logicalKey = policy.normalizeKey(key);
+        ObjectLinkedOpenHashSet<AEKey> keys = new ObjectLinkedOpenHashSet<>();
+        keys.add(key);
+        this.inventory.list.forEach(entry -> keys.add(entry.getKey()));
+        keys.addAll(this.exactWorkingInventory.snapshot().keySet());
+        network.getAvailableStacks().forEach(entry -> keys.add(entry.getKey()));
+        BigInteger available = BigInteger.ZERO;
+        for (AEKey candidate : keys) {
+            if (policy.normalizeKey(candidate).equals(logicalKey)) {
+                available = available.add(combinedExactCycleSeedAvailability(
+                        network, candidate, usefulUpper.subtract(available)));
+                if (available.equals(usefulUpper)) {
+                    break;
+                }
+            }
+        }
+        return available;
+    }
+
+    private BigInteger combinedExactCycleSeedAvailability(MEStorage network, AEKey key, BigInteger usefulUpper) {
         BigInteger cpuAmount = this.exactWorkingInventory.totalAmount(key, this.inventory).min(usefulUpper);
         if (cpuAmount.equals(usefulUpper)) {
             return cpuAmount;
@@ -1045,27 +1081,26 @@ final class TrinityDataCoreCpuLogic {
             long exactAmount = Math.subtractExact(
                     execution.deliveryRemaining(),
                     execution.actualFinalOutputAmount());
-            long available = this.inventory.extract(target.what(), exactAmount, Actionable.SIMULATE);
-            if (available != exactAmount) {
-                String reason = "RUNTIME_DEADLOCK: completed Trinity production owns " + available +
-                        " exact and " + execution.actualFinalOutputAmount() +
-                        " actual units of required delivery " + execution.deliveryRemaining() +
-                        " for " + target.what();
+            this.exactWorkingInventory.refillPhysicalWindows(this.inventory);
+            List<GenericStack> delivery = TrinityCompletionInputExtractor.extract(
+                    execution.sameItemPolicy(), target.what(), exactAmount, this.inventory);
+            if (delivery == null) {
+                String reason = "RUNTIME_DEADLOCK: completed Trinity production lacks " + exactAmount +
+                        " unsealed delivery units for " + target.what();
                 Data_Energistics.LOGGER.error(reason);
                 execution.fail(reason);
                 finishJob(false);
                 return true;
             }
-            long extracted = this.inventory.extract(target.what(), exactAmount, Actionable.MODULATE);
-            if (extracted != exactAmount) {
-                this.inventory.insert(target.what(), extracted, Actionable.MODULATE);
-                String reason = "RUNTIME_DEADLOCK: Trinity completion inventory changed while sealing " + target.what();
-                Data_Energistics.LOGGER.error(reason);
-                execution.fail(reason);
-                finishJob(false);
-                return true;
+            long exactDelivery = 0L;
+            for (GenericStack slice : delivery) {
+                if (slice.what().equals(target.what())) {
+                    exactDelivery += slice.amount();
+                } else {
+                    execution.recordActualFinalOutput((AEItemKey) slice.what(), slice.amount());
+                }
             }
-            execution.sealCompletion(extracted);
+            execution.sealCompletion(exactDelivery);
             postChange(target.what());
         }
 
@@ -1410,6 +1445,7 @@ final class TrinityDataCoreCpuLogic {
                         preparation = prepareSelectedProvider(
                                 provider,
                                 details,
+                                extractionDetails,
                                 inputs.inputHolder(),
                                 offeredCount,
                                 snapshot,
@@ -1732,13 +1768,14 @@ final class TrinityDataCoreCpuLogic {
     private CountedCraftingPreparation prepareSelectedProvider(
                                                                ICraftingProvider provider,
                                                                IPatternDetails details,
+                                                               IPatternDetails extractionDetails,
                                                                KeyCounter[] prototype,
                                                                long offeredCount,
                                                                ProviderCapacitySnapshot snapshot,
                                                                CraftingDispatchWindow dispatchWindow,
                                                                boolean nativeSingleCraftFallback,
                                                                boolean countedDispatch) {
-        if (nativeSingleCraftFallback) {
+        if (nativeSingleCraftFallback && details == extractionDetails) {
             return CountedCraftingProviderAdapters.prepareNativeSingleCraft(
                     provider,
                     details,
@@ -1747,8 +1784,9 @@ final class TrinityDataCoreCpuLogic {
         return CountedCraftingProviderAdapters.prepare(
                 provider,
                 details,
+                extractionDetails,
                 prototype,
-                offeredCount,
+                nativeSingleCraftFallback ? 1L : offeredCount,
                 snapshot,
                 target -> canAttemptProvider(dispatchWindow, provider, details, target, countedDispatch));
     }
@@ -1967,12 +2005,14 @@ final class TrinityDataCoreCpuLogic {
                                                             Level level) {
         KeyCounter expectedOutputs = new KeyCounter();
         KeyCounter expectedContainerItems = new KeyCounter();
-        KeyCounter[] inputHolder = CraftingCpuHelper.extractPatternInputs(
-                details,
-                sourceInventory,
-                level,
-                expectedOutputs,
-                expectedContainerItems);
+        KeyCounter[] inputHolder = details instanceof TrinityBoundPatternDetails bound ?
+                bound.extractInputs(sourceInventory, expectedOutputs, expectedContainerItems) :
+                CraftingCpuHelper.extractPatternInputs(
+                        details,
+                        sourceInventory,
+                        level,
+                        expectedOutputs,
+                        expectedContainerItems);
         if (inputHolder == null) {
             return null;
         }
@@ -2080,7 +2120,7 @@ final class TrinityDataCoreCpuLogic {
                                                List<GenericStack> waitingPerCraft,
                                                long maximumCount) {
         long count = maximumCount;
-        for (GenericStack waiting : waitingPerCraft) {
+        for (GenericStack waiting : sameItemPolicy(currentJob).normalizeStacks(waitingPerCraft)) {
             long currentlyWaiting = currentJob.waitingFor.list.get(waiting.what());
             count = Math.min(count, (Long.MAX_VALUE - currentlyWaiting) / waiting.amount());
         }
@@ -2261,6 +2301,10 @@ final class TrinityDataCoreCpuLogic {
                 count,
                 expectedOutputs,
                 expectedContainerItems);
+        TrinitySameItemPolicy policy = sameItemPolicy(currentJob);
+        expectedOutputs = policy.normalizeStacks(expectedOutputs);
+        expectedContainerItems = policy.normalizeStacks(expectedContainerItems);
+        scheduledOutputs = policy.normalizeStacks(scheduledOutputs);
         ObjectArrayList<GenericStack> allExpectedPhysicalOutputs = new ObjectArrayList<>(expectedOutputs);
         allExpectedPhysicalOutputs.addAll(expectedContainerItems);
         if (currentJob.dynamicOutputs.evaluate(
@@ -2389,7 +2433,39 @@ final class TrinityDataCoreCpuLogic {
             }
         }
 
-        return List.copyOf(resolved);
+        TrinitySameItemPolicy policy = sameItemPolicy(currentJob);
+        if (policy.isEmpty()) {
+            return List.copyOf(resolved);
+        }
+        ObjectArrayList<DynamicCraftingOutputLedger.Registration> normalized = new ObjectArrayList<>();
+        Object2LongOpenHashMap<AEKey> registeredAmounts = new Object2LongOpenHashMap<>();
+        for (DynamicCraftingOutputLedger.Registration registration : resolved) {
+            AEItemKey key = (AEItemKey) policy.normalizeKey(registration.plannedKey());
+            normalized.add(new DynamicCraftingOutputLedger.Registration(
+                    key, registration.amount(), dynamicRoute(currentJob, key), registration.source()));
+            registeredAmounts.mergeLong(key, registration.amount(), Math::addExact);
+        }
+        ObjectArrayList<GenericStack> physicalOutputs = new ObjectArrayList<>(expectedOutputs);
+        physicalOutputs.addAll(expectedContainerItems);
+        for (GenericStack output : policy.normalizeStacks(physicalOutputs)) {
+            if (policy.allowsSameItem(output.what())) {
+                long remaining = output.amount() - registeredAmounts.getLong(output.what());
+                if (remaining < 0L) {
+                    throw new DynamicCraftingOutputResolutionException(
+                            "Dynamic registrations exceed prepared same-item outputs for " + details.getDefinition());
+                }
+                if (remaining > 0L) {
+                    AEItemKey key = (AEItemKey) output.what();
+                    normalized.add(new DynamicCraftingOutputLedger.Registration(
+                            key, remaining, dynamicRoute(currentJob, key), EncodedPatternDynamicOutput.SOURCE_ID));
+                }
+            }
+        }
+        return List.copyOf(normalized);
+    }
+
+    private static TrinitySameItemPolicy sameItemPolicy(TrinityDataCoreExecutingCraftingJob currentJob) {
+        return currentJob.isTrinityPlan() ? currentJob.trinityExecution().sameItemPolicy() : TrinitySameItemPolicy.empty();
     }
 
     private static DynamicCraftingOutputLedger.Route dynamicRoute(
@@ -3046,11 +3122,13 @@ final class TrinityDataCoreCpuLogic {
         if (dynamicMatch.isPresent()) {
             DynamicCraftingOutputLedger.Match match = dynamicMatch.orElseThrow();
             AEItemKey actualItem = (AEItemKey) what;
-            if (match.route() == DynamicCraftingOutputLedger.Route.FINAL_OUTPUT && currentJob.isTrinityPlan()) {
+            if (match.route() == DynamicCraftingOutputLedger.Route.FINAL_OUTPUT && currentJob.isTrinityPlan() &&
+                    !sameItemPolicy(currentJob).allowsSameItem(actualItem)) {
                 currentJob.trinityExecution().recordActualFinalOutput(actualItem, dynamicAccepted);
             } else {
-                this.inventory.insert(actualItem, dynamicAccepted, Actionable.MODULATE);
-                if (match.route() == DynamicCraftingOutputLedger.Route.INVENTORY) {
+                this.exactWorkingInventory.deposit(actualItem, dynamicAccepted, this.inventory);
+                if (match.route() == DynamicCraftingOutputLedger.Route.INVENTORY &&
+                        !sameItemPolicy(currentJob).allowsSameItem(actualItem)) {
                     currentJob.dynamicOutputs.recordInputAlias(actualItem, dynamicAccepted);
                 }
                 if (currentJob.isTrinityPlan()) {

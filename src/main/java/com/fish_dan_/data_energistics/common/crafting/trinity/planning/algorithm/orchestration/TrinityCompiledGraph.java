@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityCraftingTopology;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
 import appeng.api.stacks.AEKey;
 
@@ -25,6 +26,7 @@ import java.util.Map;
  * @param targetComponent       component containing the requested target
  * @param reachableCycle        whether an upstream component reachable from the target is cyclic
  * @param relevantInventoryKeys exact deterministic inventory projection read by demand solving
+ * @param sameItemPolicy        request-local logical item-domain projection
  * @param routeFamilies         quantity-independent DAG producer families
  * @param cycleUnitProofs       deduplicated deterministic units and productive-output aliases
  * @param cycleMipTemplates     sparse coefficient templates keyed by cyclic component index
@@ -38,6 +40,7 @@ public record TrinityCompiledGraph(
                                    int targetComponent,
                                    boolean reachableCycle,
                                    List<AEKey> relevantInventoryKeys,
+                                   TrinitySameItemPolicy sameItemPolicy,
                                    Map<AEKey, TrinityAcyclicRouteFamily> routeFamilies,
                                    TrinityCycleUnitProofIndex cycleUnitProofs,
                                    Int2ObjectMap<TrinityMipCoefficientTemplate> cycleMipTemplates) {
@@ -58,6 +61,7 @@ public record TrinityCompiledGraph(
                 targetComponent,
                 reachableCycle,
                 relevantInventoryKeys,
+                sameItemPolicy,
                 newRouteFamilies,
                 newCycleUnitProofs,
                 newCycleMipTemplates);

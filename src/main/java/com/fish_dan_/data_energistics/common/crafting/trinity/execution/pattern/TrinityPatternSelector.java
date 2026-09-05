@@ -1,25 +1,21 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityBoundPatternDetails.SlotBinding;
 import com.fish_dan_.data_energistics.common.crafting.trinity.pattern.binding.TrinityPatternBindingEnumerator;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 
 import appeng.api.crafting.IPatternDetails;
-import appeng.api.crafting.PatternDetailsTooltip;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import appeng.api.stacks.KeyCounter;
 
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.level.Level;
+import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
@@ -92,32 +88,6 @@ public final class TrinityPatternSelector {
     private final TrinityPatternBindingEnumerator bindingEnumerator = TrinityPatternBindingEnumerator.create();
 
     /**
-     * Selects an exact runtime binding without enabling current-job dynamic input aliases.
-     *
-     * <p>
-     * This overload preserves the existing selector contract for callers that do not own a
-     * dynamic-output ledger.
-     * </p>
-     */
-    public Result select(IPatternDetails pattern,
-                         int plannedOrdinal,
-                         boolean dynamic,
-                         long remainingCrafts,
-                         ToLongFunction<AEKey> cpuAvailability,
-                         ToLongFunction<AEKey> networkAvailability,
-                         int maxVariants) {
-        return select(
-                pattern,
-                plannedOrdinal,
-                dynamic,
-                remainingCrafts,
-                cpuAvailability,
-                networkAvailability,
-                ignored -> Optional.empty(),
-                maxVariants);
-    }
-
-    /**
      * Selects either the planned ordinal or, for a cycle stage, the best currently executable alternative.
      *
      * @param pattern              exact live pattern returned by {@link TrinityPatternResolver}
@@ -126,7 +96,7 @@ public final class TrinityPatternSelector {
      * @param remainingCrafts      remaining logical firings for the work item
      * @param cpuAvailability      current CPU-owned amount for a key
      * @param networkAvailability  current simulatable network amount for a key
-     * @param dynamicInputResolver current-job resolver for actual same-item variants returned by dynamic outputs
+     * @param dynamicInputResolver authorized actual same-item alternatives and their usable CPU-owned quantities
      * @param maxVariants          configured Cartesian expansion bound
      * @return explicit selection, wait set, or a hard planning bound failure
      */
@@ -136,14 +106,14 @@ public final class TrinityPatternSelector {
                          long remainingCrafts,
                          ToLongFunction<AEKey> cpuAvailability,
                          ToLongFunction<AEKey> networkAvailability,
-                         Function<GenericStack, Optional<AEItemKey>> dynamicInputResolver,
+                         Function<AEKey, List<GenericStack>> dynamicInputResolver,
                          int maxVariants) {
-        if (plannedOrdinal < 0 || remainingCrafts <= 0L || dynamicInputResolver == null || maxVariants <= 0) {
+        if (plannedOrdinal < 0 || remainingCrafts <= 0L || maxVariants <= 0) {
             throw new IllegalArgumentException("A Trinity runtime binding requires an ordinal, work and variant limit");
         }
 
         List<RuntimeInput> inputs = captureInputs(pattern.getInputs());
-        LinkedHashSet<AEKey> observedKeys = allAlternativeKeys(inputs);
+        ObjectLinkedOpenHashSet<AEKey> observedKeys = allAlternativeKeys(inputs);
         List<TrinityPatternBindingEnumerator.Binding> bindings;
         if (dynamic) {
             TrinityPatternBindingEnumerator.Result enumeration = this.bindingEnumerator.enumerate(
@@ -177,7 +147,8 @@ public final class TrinityPatternSelector {
                         remainingCrafts,
                         cpuAvailability,
                         networkAvailability,
-                        dynamicInputResolver);
+                        dynamicInputResolver,
+                        observedKeys);
             } catch (ArithmeticException exception) {
                 return new ArithmeticOverflow("runtime_pattern_binding");
             }
@@ -189,7 +160,7 @@ public final class TrinityPatternSelector {
         if (best == null) {
             return new Unavailable(observedKeys);
         }
-        IPatternDetails extractionPattern = new BoundPatternDetails(pattern, best.selectedInputs());
+        IPatternDetails extractionPattern = new TrinityBoundPatternDetails(pattern, best.selectedInputs());
         best.aggregatedInputs().forEach(input -> observedKeys.add(input.what()));
         return new Selected(
                 extractionPattern,
@@ -200,15 +171,15 @@ public final class TrinityPatternSelector {
     }
 
     private static List<RuntimeInput> captureInputs(IPatternDetails.IInput[] inputs) {
-        ArrayList<RuntimeInput> captured = new ArrayList<>(inputs.length);
+        ObjectArrayList<RuntimeInput> captured = new ObjectArrayList<>(inputs.length);
         for (IPatternDetails.IInput input : inputs) {
             captured.add(new RuntimeInput(input, TrinityPatternPublicationSignature.Input.capture(input)));
         }
         return List.copyOf(captured);
     }
 
-    private static LinkedHashSet<AEKey> allAlternativeKeys(List<RuntimeInput> inputs) {
-        LinkedHashSet<AEKey> keys = new LinkedHashSet<>();
+    private static ObjectLinkedOpenHashSet<AEKey> allAlternativeKeys(List<RuntimeInput> inputs) {
+        ObjectLinkedOpenHashSet<AEKey> keys = new ObjectLinkedOpenHashSet<>();
         for (RuntimeInput input : inputs) {
             for (TrinityPatternPublicationSignature.Alternative alternative : input.signature().alternatives()) {
                 keys.add(alternative.stack().what());
@@ -223,52 +194,122 @@ public final class TrinityPatternSelector {
                                       long remainingCrafts,
                                       ToLongFunction<AEKey> cpuAvailability,
                                       ToLongFunction<AEKey> networkAvailability,
-                                      Function<GenericStack, Optional<AEItemKey>> dynamicInputResolver) {
-        ArrayList<SelectedInput> selected = new ArrayList<>(inputs.size());
-        LinkedHashMap<AEKey, Long> aggregated = new LinkedHashMap<>();
+                                      Function<AEKey, List<GenericStack>> dynamicInputResolver,
+                                      Set<AEKey> observedKeys) {
+        ObjectArrayList<GenericStack> templates = new ObjectArrayList<>(inputs.size());
+        ObjectArrayList<List<GenericStack>> aliases = new ObjectArrayList<>(inputs.size());
+        ObjectArrayList<Object2LongLinkedOpenHashMap<AEKey>> allocations = new ObjectArrayList<>(inputs.size());
+        Object2LongLinkedOpenHashMap<AEKey> cpuAmounts = new Object2LongLinkedOpenHashMap<>();
+        Object2LongLinkedOpenHashMap<AEKey> totalAmounts = new Object2LongLinkedOpenHashMap<>();
+        Object2LongLinkedOpenHashMap<AEKey> available = new Object2LongLinkedOpenHashMap<>();
+        Object2LongLinkedOpenHashMap<AEKey> aliasLimits = new Object2LongLinkedOpenHashMap<>();
+        Object2LongLinkedOpenHashMap<AEKey> aliasUsage = new Object2LongLinkedOpenHashMap<>();
+        long[] remaining = new long[inputs.size()];
         for (int slot = 0; slot < inputs.size(); slot++) {
             RuntimeInput input = inputs.get(slot);
             TrinityPatternPublicationSignature.Alternative alternative = input.signature()
                     .alternatives()
                     .get(alternatives.get(slot));
             GenericStack template = alternative.stack();
-            long amount = Math.multiplyExact(template.amount(), input.signature().multiplier());
-            AEKey selectedKey = dynamicInputResolver.apply(new GenericStack(template.what(), amount))
-                    .<AEKey>map(key -> key)
-                    .orElse(template.what());
-            GenericStack selectedTemplate = new GenericStack(selectedKey, template.amount());
-            AEKey remainingKey = selectedKey.equals(template.what()) ?
-                    alternative.remainingKey() :
-                    input.delegate().getRemainingKey(selectedKey);
-            aggregated.merge(selectedKey, amount, Math::addExact);
-            selected.add(new SelectedInput(input.delegate(), selectedTemplate, remainingKey));
+            templates.add(template);
+            remaining[slot] = Math.multiplyExact(template.amount(), input.signature().multiplier());
+            allocations.add(new Object2LongLinkedOpenHashMap<>());
+            captureAvailability(template.what(), cpuAvailability, networkAvailability, cpuAmounts, totalAmounts);
+            List<GenericStack> candidates = dynamicInputResolver.apply(template.what());
+            aliases.add(candidates);
+            for (GenericStack candidate : candidates) {
+                if (!(template.what() instanceof AEItemKey planned) ||
+                        !(candidate.what() instanceof AEItemKey actual) || actual.getItem() != planned.getItem() ||
+                        candidate.amount() <= 0L) {
+                    throw new IllegalArgumentException("Dynamic input resolver returned an invalid same-item alternative");
+                }
+                captureAvailability(candidate.what(), cpuAvailability, networkAvailability, cpuAmounts, totalAmounts);
+                aliasLimits.mergeLong(candidate.what(), candidate.amount(), Math::min);
+                observedKeys.add(candidate.what());
+            }
         }
-
+        available.putAll(totalAmounts);
+        // Reserve exact requirements for every slot first, so a flexible input cannot steal a later exact input.
+        for (int slot = 0; slot < inputs.size(); slot++) {
+            GenericStack template = templates.get(slot);
+            long taken = allocate(allocations.get(slot), available, template.what(), remaining[slot], template.amount());
+            remaining[slot] -= taken;
+        }
+        for (int slot = 0; slot < inputs.size(); slot++) {
+            GenericStack template = templates.get(slot);
+            for (GenericStack alias : aliases.get(slot)) {
+                long allowed = aliasLimits.getLong(alias.what()) - aliasUsage.getLong(alias.what());
+                long taken = allocate(allocations.get(slot), available, alias.what(),
+                        Math.min(remaining[slot], allowed), template.amount());
+                aliasUsage.addTo(alias.what(), taken);
+                remaining[slot] -= taken;
+                if (remaining[slot] == 0L) {
+                    break;
+                }
+            }
+            if (remaining[slot] > 0L) {
+                return new Candidate(ordinal, 0L, 0L, List.of(), List.of());
+            }
+        }
+        ObjectArrayList<SlotBinding> selected = new ObjectArrayList<>(inputs.size());
+        Object2LongLinkedOpenHashMap<AEKey> aggregated = new Object2LongLinkedOpenHashMap<>();
+        for (int slot = 0; slot < inputs.size(); slot++) {
+            ObjectArrayList<GenericStack> slices = new ObjectArrayList<>();
+            for (var allocation : allocations.get(slot).object2LongEntrySet()) {
+                slices.add(new GenericStack(allocation.getKey(), allocation.getLongValue()));
+                aggregated.mergeLong(allocation.getKey(), allocation.getLongValue(), Math::addExact);
+            }
+            selected.add(new SlotBinding(inputs.get(slot).delegate(), templates.get(slot), slices));
+        }
         long maximumCrafts = remainingCrafts;
-        LinkedHashMap<AEKey, Long> cpuAmounts = new LinkedHashMap<>();
-        for (Map.Entry<AEKey, Long> entry : aggregated.entrySet()) {
-            long cpuAmount = requireAvailable(cpuAvailability.applyAsLong(entry.getKey()));
-            long networkAmount = requireAvailable(networkAvailability.applyAsLong(entry.getKey()));
-            cpuAmounts.put(entry.getKey(), cpuAmount);
-            long total = saturatingAdd(cpuAmount, networkAmount);
-            maximumCrafts = Math.min(maximumCrafts, total / entry.getValue());
+        for (var entry : aggregated.object2LongEntrySet()) {
+            maximumCrafts = Math.min(maximumCrafts, totalAmounts.getLong(entry.getKey()) / entry.getLongValue());
+        }
+        for (var entry : aliasUsage.object2LongEntrySet()) {
+            if (entry.getLongValue() > 0L) {
+                maximumCrafts = Math.min(maximumCrafts, aliasLimits.getLong(entry.getKey()) / entry.getLongValue());
+            }
         }
 
         long networkBorrow = 0L;
-        for (Map.Entry<AEKey, Long> entry : aggregated.entrySet()) {
-            long batchAmount = Math.multiplyExact(entry.getValue(), maximumCrafts);
-            long borrowed = Math.max(0L, batchAmount - Math.min(batchAmount, cpuAmounts.get(entry.getKey())));
+        for (var entry : aggregated.object2LongEntrySet()) {
+            long batchAmount = Math.multiplyExact(entry.getLongValue(), maximumCrafts);
+            long borrowed = Math.max(0L, batchAmount - Math.min(batchAmount, cpuAmounts.getLong(entry.getKey())));
             networkBorrow = Math.addExact(networkBorrow, borrowed);
         }
 
-        ArrayList<GenericStack> exactInputs = new ArrayList<>(aggregated.size());
-        aggregated.forEach((key, amount) -> exactInputs.add(new GenericStack(key, amount)));
+        ObjectArrayList<GenericStack> exactInputs = new ObjectArrayList<>(aggregated.size());
+        aggregated.object2LongEntrySet().forEach(entry -> exactInputs.add(new GenericStack(entry.getKey(), entry.getLongValue())));
         return new Candidate(
                 ordinal,
                 maximumCrafts,
                 networkBorrow,
                 List.copyOf(selected),
                 List.copyOf(exactInputs));
+    }
+
+    private static void captureAvailability(AEKey key, ToLongFunction<AEKey> cpuAvailability,
+                                            ToLongFunction<AEKey> networkAvailability,
+                                            Object2LongLinkedOpenHashMap<AEKey> cpuAmounts,
+                                            Object2LongLinkedOpenHashMap<AEKey> totalAmounts) {
+        if (!totalAmounts.containsKey(key)) {
+            long cpu = requireAvailable(cpuAvailability.applyAsLong(key));
+            long network = requireAvailable(networkAvailability.applyAsLong(key));
+            cpuAmounts.put(key, cpu);
+            totalAmounts.put(key, saturatingAdd(cpu, network));
+        }
+    }
+
+    private static long allocate(Object2LongLinkedOpenHashMap<AEKey> allocated,
+                                 Object2LongLinkedOpenHashMap<AEKey> available,
+                                 AEKey key, long requested, long quantum) {
+        long amount = Math.min(requested, available.getLong(key));
+        amount -= amount % quantum;
+        if (amount > 0L) {
+            allocated.addTo(key, amount);
+            available.addTo(key, -amount);
+        }
+        return amount;
     }
 
     private static long requireAvailable(long amount) {
@@ -282,7 +323,7 @@ public final class TrinityPatternSelector {
         return left > Long.MAX_VALUE - right ? Long.MAX_VALUE : left + right;
     }
 
-    private static List<Integer> decodeCartesianOrdinal(int ordinal, List<RuntimeInput> inputs) {
+    private static @Nullable List<Integer> decodeCartesianOrdinal(int ordinal, List<RuntimeInput> inputs) {
         int remaining = ordinal;
         Integer[] alternatives = new Integer[inputs.size()];
         for (int slot = inputs.size() - 1; slot >= 0; slot--) {
@@ -296,7 +337,7 @@ public final class TrinityPatternSelector {
     private record Candidate(int ordinal,
                              long maximumCrafts,
                              long networkBorrow,
-                             List<SelectedInput> selectedInputs,
+                             List<SlotBinding> selectedInputs,
                              List<GenericStack> aggregatedInputs) {
 
         private boolean isBetterThan(Candidate other) {
@@ -312,94 +353,4 @@ public final class TrinityPatternSelector {
 
     private record RuntimeInput(IPatternDetails.IInput delegate,
                                 TrinityPatternPublicationSignature.Input signature) {}
-
-    private record SelectedInput(IPatternDetails.IInput delegate,
-                                 GenericStack template,
-                                 AEKey remainingKey) {}
-
-    /**
-     * Pattern wrapper used only for exact CPU-side extraction; providers always receive the registered delegate.
-     */
-    @SuppressWarnings("ClassCanBeRecord")
-    private static final class BoundPatternDetails implements IPatternDetails {
-
-        private final IPatternDetails delegate;
-        private final IInput[] inputs;
-
-        private BoundPatternDetails(IPatternDetails delegate, List<SelectedInput> selectedInputs) {
-            this.delegate = delegate;
-            this.inputs = selectedInputs.stream().map(BoundInput::new).toArray(IInput[]::new);
-        }
-
-        @Override
-        public AEItemKey getDefinition() {
-            return this.delegate.getDefinition();
-        }
-
-        @Override
-        public IInput[] getInputs() {
-            return this.inputs.clone();
-        }
-
-        @Override
-        public GenericStack getPrimaryOutput() {
-            return this.delegate.getPrimaryOutput();
-        }
-
-        @Override
-        public List<GenericStack> getOutputs() {
-            return this.delegate.getOutputs();
-        }
-
-        @Override
-        public boolean supportsPushInputsToExternalInventory() {
-            return this.delegate.supportsPushInputsToExternalInventory();
-        }
-
-        @Override
-        public void pushInputsToExternalInventory(KeyCounter[] inputHolder, PatternInputSink inputSink) {
-            this.delegate.pushInputsToExternalInventory(inputHolder, inputSink);
-        }
-
-        @Override
-        public PatternDetailsTooltip getTooltip(Level level, TooltipFlag flags) {
-            return this.delegate.getTooltip(level, flags);
-        }
-    }
-
-    /**
-     * One exact slot alternative retaining the live pattern's multiplier and remainder semantics.
-     */
-    private static final class BoundInput implements IPatternDetails.IInput {
-
-        private final IPatternDetails.IInput delegate;
-        private final GenericStack template;
-        private final AEKey remainingKey;
-
-        private BoundInput(SelectedInput selected) {
-            this.delegate = selected.delegate();
-            this.template = selected.template();
-            this.remainingKey = selected.remainingKey();
-        }
-
-        @Override
-        public GenericStack[] getPossibleInputs() {
-            return new GenericStack[] { this.template };
-        }
-
-        @Override
-        public long getMultiplier() {
-            return this.delegate.getMultiplier();
-        }
-
-        @Override
-        public boolean isValid(AEKey input, Level level) {
-            return this.template.what().equals(input);
-        }
-
-        @Override
-        public AEKey getRemainingKey(AEKey template) {
-            return this.template.what().equals(template) ? this.remainingKey : null;
-        }
-    }
 }

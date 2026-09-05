@@ -326,6 +326,7 @@ public final class TrinityGraphPlanAssembler {
                 .multiplePaths(hasMultiplePaths(context.variants()))
                 .catalogRevision(context.catalogRevision())
                 .quantityMode(context.quantityMode())
+                .sameItemPolicy(context.sameItemPolicy())
                 .initialExpectedInputs(assembly.initialInputs())
                 .patternFirings(assembly.patternFirings())
                 .stages(assembly.stages())
@@ -411,22 +412,11 @@ public final class TrinityGraphPlanAssembler {
                         variant.primaryOutput(),
                         variant.ordinal(),
                         count,
-                        variant.inputs(),
+                        variant.physicalInputs(),
                         variant.declaredOutputs(),
-                        remainingOutputs(variant))),
+                        variant.physicalRemainingOutputs())),
                 required,
                 multiplySigned(variant.netChange(), count));
-    }
-
-    private static Map<AEKey, BigInteger> remainingOutputs(TrinityPatternVariant variant) {
-        Map<AEKey, BigInteger> remaining = new Object2ObjectLinkedOpenHashMap<>();
-        variant.outputs().forEach((key, amount) -> {
-            BigInteger difference = amount.subtract(variant.declaredOutputs().getOrDefault(key, BigInteger.ZERO));
-            if (difference.signum() > 0) {
-                remaining.put(key, difference);
-            }
-        });
-        return remaining;
     }
 
     private static Map<AEKey, BigInteger> requiredAtStart(

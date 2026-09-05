@@ -18,6 +18,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.DispatchCapacity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.BoundPatternInputProvider;
 
 import appeng.api.config.LockCraftingMode;
 import appeng.api.crafting.IPatternDetails;
@@ -44,7 +45,7 @@ import java.util.Optional;
 
 @Mixin(PatternProviderLogic.class)
 public abstract class PatternProviderLogicMixin
-                                                implements PatternProviderLogicAccessor, PatternProviderBatchBridge, TargetedCountedCraftingProvider {
+                                                implements PatternProviderLogicAccessor, PatternProviderBatchBridge, TargetedCountedCraftingProvider, BoundPatternInputProvider {
 
     @Shadow
     @Final
@@ -112,6 +113,27 @@ public abstract class PatternProviderLogicMixin
     }
 
     @Override
+    public CountedCraftingPreparation prepareBoundInputBatch(
+                                                             IPatternDetails patternDetails,
+                                                             IPatternDetails extractionDetails,
+                                                             KeyCounter[] prototype,
+                                                             long requestedCount,
+                                                             CraftingDispatchTargetAvailability targetAvailability) {
+        PatternProviderLogic logic = (PatternProviderLogic) (Object) this;
+        if (logic.getClass() != PatternProviderLogic.class) {
+            return CountedCraftingPreparation.rejected(
+                    CraftingDispatchRejection.scoped(CraftingDispatchStatus.REJECTED));
+        }
+        return this.dataEnergistics$prepareStandardBoundInputBatch(
+                patternDetails,
+                extractionDetails,
+                prototype,
+                requestedCount,
+                this::dataEnergistics$afterCountedPush,
+                targetAvailability);
+    }
+
+    @Override
     @Nullable
     public CountedCraftingAdmission dataEnergistics$prepareStandardBatch(
                                                                          IPatternDetails patternDetails,
@@ -137,6 +159,25 @@ public abstract class PatternProviderLogicMixin
                 (PatternProviderLogic) (Object) this,
                 (PatternProviderBatchAccess) this,
                 patternDetails,
+                prototype,
+                requestedCount,
+                afterCommit,
+                targetAvailability);
+    }
+
+    @Override
+    public CountedCraftingPreparation dataEnergistics$prepareStandardBoundInputBatch(
+                                                                                     IPatternDetails patternDetails,
+                                                                                     IPatternDetails extractionDetails,
+                                                                                     KeyCounter[] prototype,
+                                                                                     long requestedCount,
+                                                                                     Runnable afterCommit,
+                                                                                     CraftingDispatchTargetAvailability targetAvailability) {
+        return PatternProviderBatching.prepareStandardBatch(
+                (PatternProviderLogic) (Object) this,
+                (PatternProviderBatchAccess) this,
+                patternDetails,
+                extractionDetails,
                 prototype,
                 requestedCount,
                 afterCommit,
@@ -197,6 +238,29 @@ public abstract class PatternProviderLogicMixin
                 logic,
                 (PatternProviderBatchAccess) this,
                 patternDetails,
+                prototype,
+                requestedCount,
+                this::dataEnergistics$afterCountedPush,
+                target);
+    }
+
+    @Override
+    @Nullable
+    public CountedCraftingAdmission prepareBoundInputBatchForTarget(
+                                                                    IPatternDetails patternDetails,
+                                                                    IPatternDetails extractionDetails,
+                                                                    KeyCounter[] prototype,
+                                                                    long requestedCount,
+                                                                    CraftingDispatchTarget target) {
+        PatternProviderLogic logic = (PatternProviderLogic) (Object) this;
+        if (logic.getClass() != PatternProviderLogic.class) {
+            return null;
+        }
+        return PatternProviderBatching.prepareStandardBatchForTarget(
+                logic,
+                (PatternProviderBatchAccess) this,
+                patternDetails,
+                extractionDetails,
                 prototype,
                 requestedCount,
                 this::dataEnergistics$afterCountedPush,

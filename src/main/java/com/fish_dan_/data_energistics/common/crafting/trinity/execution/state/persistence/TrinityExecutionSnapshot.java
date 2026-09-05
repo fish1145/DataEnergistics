@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.Tr
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
 import appeng.api.stacks.AEKey;
 
@@ -28,6 +29,7 @@ import java.util.Set;
  *
  * @param catalogRevision    graph catalog revision used by the plan
  * @param quantityMode       requested delivery interpretation
+ * @param sameItemPolicy     logical item domains used by persisted stage balances
  * @param targetKey          final requested key
  * @param targetAmount       exact requested amount
  * @param status             durable execution status
@@ -48,6 +50,7 @@ import java.util.Set;
 public record TrinityExecutionSnapshot(
                                        long catalogRevision,
                                        CraftingQuantityMode quantityMode,
+                                       TrinitySameItemPolicy sameItemPolicy,
                                        AEKey targetKey,
                                        long targetAmount,
                                        TrinityPlanExecution.Status status,

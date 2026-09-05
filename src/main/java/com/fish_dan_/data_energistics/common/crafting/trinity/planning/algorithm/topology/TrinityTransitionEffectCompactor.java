@@ -42,7 +42,9 @@ public final class TrinityTransitionEffectCompactor {
                                     AEKey primaryOutput,
                                     Map<AEKey, BigInteger> inputs,
                                     Map<AEKey, BigInteger> declaredOutputs,
-                                    Map<AEKey, BigInteger> outputs) {
+                                    Map<AEKey, BigInteger> outputs,
+                                    Map<AEKey, BigInteger> physicalInputs,
+                                    Map<AEKey, BigInteger> physicalOutputs) {
 
         private static TransitionEffect from(TrinityPatternVariant variant) {
             if (variant == null) {
@@ -52,7 +54,9 @@ public final class TrinityTransitionEffectCompactor {
                     variant.primaryOutput(),
                     variant.inputs(),
                     variant.declaredOutputs(),
-                    variant.outputs());
+                    variant.outputs(),
+                    variant.physicalInputs(),
+                    variant.physicalOutputs());
         }
     }
 }
