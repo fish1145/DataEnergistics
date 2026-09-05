@@ -8,6 +8,13 @@ import com.fish_dan_.data_energistics.network.crafting.tree.action.CraftingPlanT
 import com.fish_dan_.data_energistics.network.crafting.tree.protocol.CraftingPlanGraphPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassResponsePayload;
+import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlConsoleOpenPayload;
+import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
+import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlOpenPayload;
+import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapRequestPayload;
+import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapResponsePayload;
+import com.fish_dan_.data_energistics.network.orbital.projection.OrbitalProjectionVisualsPayload;
+import com.fish_dan_.data_energistics.network.orbital.visual.OrbitalAttackVisualsPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.MultiblockPatternTransferPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesAckPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesSyncPayload;
@@ -149,5 +156,33 @@ public final class DEPayloads {
                 DataMeteoriteCompassResponsePayload.TYPE,
                 DataMeteoriteCompassResponsePayload.STREAM_CODEC,
                 DataMeteoriteCompassResponsePayload::handle);
+        registrar.playToClient(
+                OrbitalControlHudSnapshotPayload.TYPE,
+                OrbitalControlHudSnapshotPayload.STREAM_CODEC,
+                OrbitalControlHudSnapshotPayload::handle);
+        registrar.playToServer(
+                OrbitalControlOpenPayload.TYPE,
+                OrbitalControlOpenPayload.STREAM_CODEC,
+                OrbitalControlOpenPayload::handle);
+        registrar.playToServer(
+                OrbitalControlConsoleOpenPayload.TYPE,
+                OrbitalControlConsoleOpenPayload.STREAM_CODEC,
+                OrbitalControlConsoleOpenPayload::handle);
+        registrar.playToServer(
+                OrbitalTacticalMapRequestPayload.TYPE,
+                OrbitalTacticalMapRequestPayload.STREAM_CODEC,
+                OrbitalTacticalMapRequestPayload::handle);
+        registrar.playToClient(
+                OrbitalTacticalMapResponsePayload.TYPE,
+                OrbitalTacticalMapResponsePayload.STREAM_CODEC,
+                OrbitalTacticalMapResponsePayload::handle);
+        registrar.playToClient(
+                OrbitalAttackVisualsPayload.TYPE,
+                OrbitalAttackVisualsPayload.STREAM_CODEC,
+                OrbitalAttackVisualsPayload::handle);
+        registrar.playToClient(
+                OrbitalProjectionVisualsPayload.TYPE,
+                OrbitalProjectionVisualsPayload.STREAM_CODEC,
+                OrbitalProjectionVisualsPayload::handle);
     }
 }

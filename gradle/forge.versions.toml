@@ -21,6 +21,14 @@ grandpower = "3.0.2"
 ## ftb mod ##
 ftblibrary = "2101.1.35"
 ftbultimine  = "2101.1.15"
+ftbchunks = "2101.1.9"
+
+## optional map integrations ##
+jmapi = "2.0.0-1.21.1-20260205.200232-15"
+jmruntime = "1.21.1-6.0.0-beta.54+neoforge"
+jmcompat = "1.21.1-6.0.0-beta.46"
+xaerolib = "1.0.42"
+xaeros-world-map = "7401095"
 
 ## modrinth maven ##
 jade = "15.10.6+neoforge"
@@ -85,6 +93,12 @@ grandpower          = { module = "dev.technici4n:GrandPower", version.ref = "gra
 
 ftblibrary          = { module = "dev.ftb.mods:ftb-library-neoforge", version.ref = "ftblibrary" }
 ftbultimine         = { module = "dev.ftb.mods:ftb-ultimine-neoforge", version.ref = "ftbultimine" }
+ftbchunks           = { module = "dev.ftb.mods:ftb-chunks-neoforge", version.ref = "ftbchunks" }
+
+journeymap-api      = { module = "info.journeymap:journeymap-api-neoforge", version.ref = "jmapi" }
+journeymap          = { module = "maven.modrinth:journeymap", version.ref = "jmruntime" }
+xaerolib            = { module = "xaero.lib:xaerolib-neoforge-1.21", version.ref = "xaerolib" }
+xaeros-world-map    = { module = "curse.maven:xaeros-world-map-317780", version.ref = "xaeros-world-map" }
 
 jade                = { module = "maven.modrinth:jade", version.ref = "jade" }
 sodium              = { module = "maven.modrinth:sodium", version.ref = "sodium" }

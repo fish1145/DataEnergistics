@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Defers digital storage cells to their dedicated dual-resource cell handler before AE2's single-key handler claims
+ * Defers digital storage cells to their dedicated multi-resource cell handler before AE2's single-key handler claims
  * them.
  */
 @Mixin(BasicCellHandler.class)

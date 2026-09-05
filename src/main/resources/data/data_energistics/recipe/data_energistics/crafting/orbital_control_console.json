@@ -1,0 +1,25 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDC", "AEA"],
+	"key": {
+		"A": {
+			"item": "data_energistics:data_framework"
+		},
+		"B": {
+			"item": "ae2:engineering_processor"
+		},
+		"C": {
+			"item": "ae2:calculation_processor"
+		},
+		"D": {
+			"item": "ae2:controller"
+		},
+		"E": {
+			"item": "data_energistics:data_crystal_block"
+		}
+	},
+	"result": {
+		"id": "data_energistics:orbital_control_console",
+		"count": 1
+	}
+}

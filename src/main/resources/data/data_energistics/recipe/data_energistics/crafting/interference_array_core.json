@@ -1,0 +1,28 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDC", "EFE"],
+	"key": {
+		"A": {
+			"item": "data_energistics:data_framework"
+		},
+		"B": {
+			"item": "data_energistics:astronomical_observatory"
+		},
+		"C": {
+			"item": "data_energistics:data_crystal_block"
+		},
+		"D": {
+			"item": "ae2:controller"
+		},
+		"E": {
+			"item": "data_energistics:data_meteorite_2"
+		},
+		"F": {
+			"item": "ae2:energy_cell"
+		}
+	},
+	"result": {
+		"id": "data_energistics:interference_array_core",
+		"count": 1
+	}
+}

@@ -1,0 +1,19 @@
+{
+	"variants": {
+		"facing=north": {
+			"model": "data_energistics:block/orbital_uplink_beacon"
+		},
+		"facing=east": {
+			"model": "data_energistics:block/orbital_uplink_beacon",
+			"y": 90
+		},
+		"facing=south": {
+			"model": "data_energistics:block/orbital_uplink_beacon",
+			"y": 180
+		},
+		"facing=west": {
+			"model": "data_energistics:block/orbital_uplink_beacon",
+			"y": 270
+		}
+	}
+}

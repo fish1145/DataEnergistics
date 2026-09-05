@@ -11,7 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Routes digital storage cells to the multi-resource inventory that stores both Data Flow and Echo.
+ * Routes digital storage cells to the inventory shared by all Digitalization resources.
  */
 public final class DigitalStorageCellHandler implements ICellHandler {
 
@@ -30,7 +30,7 @@ public final class DigitalStorageCellHandler implements ICellHandler {
     }
 
     /**
-     * Identifies regular and portable digital storage cells that share the dual-resource storage format.
+     * Identifies regular and portable digital storage cells that share the multi-resource storage format.
      */
     public static boolean isDigitalStorageCell(ItemStack stack) {
         return !stack.isEmpty() && (stack.getItem() instanceof DigitalStorageCellItem || stack.getItem() instanceof PortableDigitalStorageCellItem);

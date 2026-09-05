@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.key;
 
+import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKey;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
@@ -78,6 +79,9 @@ public final class DigitalizationKeyRenderHandler implements AEKeyRenderHandler<
         }
         if (key instanceof EchoKey) {
             return CustomKeyGuiRenderer.echoSprite();
+        }
+        if (key instanceof CelestialEnergyKey) {
+            return CustomKeyGuiRenderer.celestialEnergySprite();
         }
         throw new IllegalArgumentException("Unsupported Digitalization key: " + key.getClass().getName());
     }

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.key;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
@@ -20,6 +21,8 @@ public final class CustomKeyGuiRenderer {
     private static final ResourceLocation DATA_FLOW_SPRITE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/key/data_flow");
     private static final ResourceLocation DATA_SPRITE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/key/data");
     private static final ResourceLocation ECHO_SPRITE = ResourceLocation.withDefaultNamespace("item/echo_shard");
+    // TODO: Replace this functional placeholder with a dedicated project-owned Celestial Energy sprite.
+    private static final ResourceLocation CELESTIAL_ENERGY_SPRITE = DATA_FLOW_SPRITE;
 
     private CustomKeyGuiRenderer() {}
 
@@ -42,6 +45,10 @@ public final class CustomKeyGuiRenderer {
             drawSprite(guiGraphics, x, y, echoSprite());
             return true;
         }
+        if (key instanceof CelestialEnergyKey) {
+            drawSprite(guiGraphics, x, y, celestialEnergySprite());
+            return true;
+        }
         return false;
     }
 
@@ -55,6 +62,10 @@ public final class CustomKeyGuiRenderer {
 
     public static TextureAtlasSprite echoSprite() {
         return Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(ECHO_SPRITE);
+    }
+
+    public static TextureAtlasSprite celestialEnergySprite() {
+        return Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(CELESTIAL_ENERGY_SPRITE);
     }
 
     private static void drawSprite(GuiGraphics guiGraphics, int x, int y, TextureAtlasSprite sprite) {

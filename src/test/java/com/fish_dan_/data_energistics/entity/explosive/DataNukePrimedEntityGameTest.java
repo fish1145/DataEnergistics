@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.Vec3;
@@ -14,10 +13,8 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 /**
- * Verifies that a primed digital annihilator owns and releases its server chunk ticket.
+ * Verifies digital-annihilator chunk-ticket ownership and lifecycle cleanup.
  */
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -26,8 +23,7 @@ public final class DataNukePrimedEntityGameTest {
     private static final int DISTANT_CHUNK_OFFSET = 128 * 16;
     private static final int TEST_ISOLATION_OFFSET = 32 * 16;
     private static final int CROSS_CHUNK_OFFSET = 2 * 16;
-    private static final int LONG_FUSE_TICKS = 1200;
-    private static final String TAG_ACTIVE = "DataNukeActive";
+    private static final int LONG_FUSE_TICKS = Integer.MAX_VALUE;
 
     private DataNukePrimedEntityGameTest() {}
 
@@ -39,7 +35,7 @@ public final class DataNukePrimedEntityGameTest {
         BlockPos origin = distantOrigin(helper, 0);
         level.getChunkAt(origin);
 
-        DataNukePrimedEntity entity = createStationaryEntity(level, origin, LONG_FUSE_TICKS);
+        DataNukePrimedEntity entity = createStationaryEntity(level, origin);
 
         ChunkPos chunkPos = new ChunkPos(origin);
         helper.startSequence()
@@ -74,7 +70,7 @@ public final class DataNukePrimedEntityGameTest {
         level.getChunkAt(origin);
         level.getChunkAt(destination);
 
-        DataNukePrimedEntity entity = createStationaryEntity(level, origin, LONG_FUSE_TICKS);
+        DataNukePrimedEntity entity = createStationaryEntity(level, origin);
 
         ChunkPos originChunk = new ChunkPos(origin);
         ChunkPos destinationChunk = new ChunkPos(destination);
@@ -120,46 +116,6 @@ public final class DataNukePrimedEntityGameTest {
                 .thenSucceed();
     }
 
-    @TestHolder("digital_annihilator_force_loads_its_chunk_while_active")
-    @EmptyTemplate("5x5")
-    @GameTest(template = "empty_5x5", timeoutTicks = 400)
-    public static void forceLoadsItsChunkWhileActive(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos origin = distantOrigin(helper, 2);
-        level.getChunkAt(origin);
-
-        DataNukePrimedEntity entity = createStationaryEntity(level, origin, LONG_FUSE_TICKS);
-        CompoundTag savedEntity = entity.saveWithoutId(new CompoundTag());
-        savedEntity.putBoolean(TAG_ACTIVE, true);
-        entity.load(savedEntity);
-        helper.assertTrue(entity.isActive(), "The restored digital annihilator must be active");
-
-        ChunkPos chunkPos = new ChunkPos(origin);
-        AtomicBoolean observedActiveTicket = new AtomicBoolean();
-        helper.onEachTick(() -> {
-            if (!entity.isAddedToLevel() || entity.isRemoved() || !isForceTicked(level, chunkPos) || !level.getChunkSource().isPositionTicking(chunkPos.toLong())) {
-                return;
-            }
-            observedActiveTicket.set(true);
-            entity.discard();
-        });
-
-        helper.startSequence()
-                .thenWaitUntil(() -> helper.assertFalse(
-                        isForceTicked(level, chunkPos),
-                        "The preloaded chunk must not have a force-ticking ticket before the active digital annihilator is added"))
-                .thenExecute(() -> helper.assertTrue(
-                        level.addFreshEntity(entity),
-                        "The active digital annihilator must be added to the test level"))
-                .thenWaitUntil(() -> helper.assertTrue(
-                        observedActiveTicket.get(),
-                        "The active digital annihilator must keep its chunk entity-ticking"))
-                .thenWaitUntil(() -> helper.assertFalse(
-                        isForceTicked(level, chunkPos),
-                        "Removing the active digital annihilator must release its origin chunk"))
-                .thenSucceed();
-    }
-
     @TestHolder("digital_annihilators_share_their_force_load_ticket")
     @EmptyTemplate("5x5")
     @GameTest(template = "empty_5x5", timeoutTicks = 400)
@@ -168,8 +124,8 @@ public final class DataNukePrimedEntityGameTest {
         BlockPos origin = distantOrigin(helper, 3);
         level.getChunkAt(origin);
 
-        DataNukePrimedEntity first = createStationaryEntity(level, origin, LONG_FUSE_TICKS);
-        DataNukePrimedEntity second = createStationaryEntity(level, origin, LONG_FUSE_TICKS);
+        DataNukePrimedEntity first = createStationaryEntity(level, origin);
+        DataNukePrimedEntity second = createStationaryEntity(level, origin);
 
         ChunkPos chunkPos = new ChunkPos(origin);
         helper.startSequence()
@@ -210,11 +166,11 @@ public final class DataNukePrimedEntityGameTest {
         return level.getChunkSource().chunkMap.getDistanceManager().shouldForceTicks(chunkPos.toLong());
     }
 
-    private static DataNukePrimedEntity createStationaryEntity(ServerLevel level, BlockPos origin, int fuseTicks) {
+    private static DataNukePrimedEntity createStationaryEntity(ServerLevel level, BlockPos origin) {
         DataNukePrimedEntity entity = new DataNukePrimedEntity(level, origin, null);
         entity.setNoGravity(true);
         entity.setDeltaMovement(Vec3.ZERO);
-        entity.setFuse(fuseTicks);
+        entity.setFuse(LONG_FUSE_TICKS);
         return entity;
     }
 }

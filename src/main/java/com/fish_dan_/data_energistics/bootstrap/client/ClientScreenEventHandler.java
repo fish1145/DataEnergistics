@@ -5,7 +5,9 @@ import com.fish_dan_.data_energistics.client.screen.crafting.confirm.TrinityCraf
 import com.fish_dan_.data_energistics.client.screen.patternencoding.PatternEncodingScreenRouter;
 import com.fish_dan_.data_energistics.client.screen.terminal.Ae2TerminalKeyOverlay;
 import com.fish_dan_.data_energistics.client.screen.terminal.UniversalTerminalScreenHook;
+import com.fish_dan_.data_energistics.client.ui.orbital.OrbitalControlClientBindings;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
@@ -20,6 +22,7 @@ final class ClientScreenEventHandler {
     }
 
     static void onScreenOpening(ScreenEvent.Opening event) {
+        OrbitalControlClientBindings.onScreenOpening(Minecraft.getInstance().screen);
         Screen replacement = TrinityCraftConfirmScreenRouter.routeOpeningScreen(event.getCurrentScreen());
         if (replacement == null) {
             replacement = PatternEncodingScreenRouter.routeOpeningScreen(event.getCurrentScreen());

@@ -23,6 +23,16 @@ public final class DEKeyMappings {
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_Z,
             KEY_CATEGORY);
+    public static final KeyMapping OPEN_ORBITAL_CONTROL = new KeyMapping(
+            "key.data_energistics.open_orbital_control",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_O,
+            KEY_CATEGORY);
+    public static final KeyMapping TOGGLE_ORBITAL_CONTROL_HUD = new KeyMapping(
+            "key.data_energistics.toggle_orbital_control_hud",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_H,
+            KEY_CATEGORY);
     public static final KeyMapping PREVIOUS_TRINITY_CYCLE = new KeyMapping(
             "key.data_energistics.previous_trinity_cycle",
             InputConstants.Type.KEYSYM,

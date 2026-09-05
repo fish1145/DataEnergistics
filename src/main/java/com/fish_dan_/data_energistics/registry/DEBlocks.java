@@ -18,6 +18,11 @@ import com.fish_dan_.data_energistics.block.machine.DataMimeticFieldBlock;
 import com.fish_dan_.data_energistics.block.machine.DataRipperReassemblerMainBlock;
 import com.fish_dan_.data_energistics.block.machine.DataSolarPanelBlock;
 import com.fish_dan_.data_energistics.block.machine.DataTeleportAnchorBlock;
+import com.fish_dan_.data_energistics.block.orbital.OrbitalControlConsoleBlock;
+import com.fish_dan_.data_energistics.block.orbital.OrbitalUplinkBeaconBlock;
+import com.fish_dan_.data_energistics.block.orbital.astronomy.AstronomicalMirrorBlock;
+import com.fish_dan_.data_energistics.block.orbital.astronomy.AstronomicalObservatoryBlock;
+import com.fish_dan_.data_energistics.block.orbital.astronomy.InterferenceArrayCoreBlock;
 import com.fish_dan_.data_energistics.block.patternprovider.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.block.sanctum.DataSanctumBlock;
 import com.fish_dan_.data_energistics.block.sanctum.DataSanctumInterfaceBlock;
@@ -117,6 +122,46 @@ public final class DEBlocks {
             "data_teleport_anchor",
             DataTeleportAnchorBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK));
+
+    public static final DeferredBlock<Block> ORBITAL_CONTROL_CONSOLE = BLOCKS.registerBlock(
+            "orbital_control_console",
+            OrbitalControlConsoleBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> ORBITAL_UPLINK_BEACON = BLOCKS.registerBlock(
+            "orbital_uplink_beacon",
+            OrbitalUplinkBeaconBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> ASTRONOMICAL_OBSERVATORY = BLOCKS.registerBlock(
+            "astronomical_observatory",
+            AstronomicalObservatoryBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> INTERFERENCE_ARRAY_CORE = BLOCKS.registerBlock(
+            "interference_array_core",
+            InterferenceArrayCoreBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> ASTRONOMICAL_MIRROR = BLOCKS.registerBlock(
+            "astronomical_mirror",
+            AstronomicalMirrorBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_BLOCK)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> ASTRONOMICAL_MIRROR_PANEL = BLOCKS.registerSimpleBlock(
+            "astronomical_mirror_panel",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_BLOCK)
+                    .requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> CELESTIAL_WAVEGUIDE = BLOCKS.registerSimpleBlock(
+            "celestial_waveguide",
+            BlockBehaviour.Properties.ofFullCopy(Blocks.QUARTZ_BLOCK)
+                    .requiresCorrectToolForDrops());
 
     public static final DeferredBlock<Block> DATA_SANCTUM = BLOCKS.registerBlock(
             "data_sanctum",

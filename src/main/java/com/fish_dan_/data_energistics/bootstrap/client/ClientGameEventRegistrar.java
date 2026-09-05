@@ -1,7 +1,11 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
+import com.fish_dan_.data_energistics.client.hud.orbital.OrbitalControlHudClientState;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingClientPreferencesAccess;
 import com.fish_dan_.data_energistics.client.preferences.PatternUploadSucceededClientHandler;
+import com.fish_dan_.data_energistics.client.render.orbital.OrbitalAttackVisualClientState;
+import com.fish_dan_.data_energistics.client.render.orbital.OrbitalProjectionVisualClientState;
+import com.fish_dan_.data_energistics.client.ui.orbital.OrbitalControlClientBindings;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceSession;
 
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
@@ -12,6 +16,7 @@ final class ClientGameEventRegistrar {
     private ClientGameEventRegistrar() {}
 
     static void register() {
+        OrbitalControlClientBindings.install();
         NeoForge.EVENT_BUS.addListener(ClientInputHandler::onMovementInputUpdate);
         NeoForge.EVENT_BUS.addListener(ClientInputHandler::onInteractionKeyTriggered);
         NeoForge.EVENT_BUS.addListener(ClientInputHandler::onMouseButtonPre);
@@ -34,6 +39,10 @@ final class ClientGameEventRegistrar {
             PatternEncodingPreferenceSession.clearForMenu(event.getPlayer().containerMenu);
         }
         PatternUploadSucceededClientHandler.clear();
+        OrbitalControlClientBindings.clear();
+        OrbitalAttackVisualClientState.clear();
+        OrbitalProjectionVisualClientState.clear();
+        OrbitalControlHudClientState.clear();
         PatternEncodingClientPreferencesAccess.deactivateServerProfile();
     }
 }

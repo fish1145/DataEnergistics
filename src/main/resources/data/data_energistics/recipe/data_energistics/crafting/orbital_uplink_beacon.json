@@ -1,0 +1,25 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDC", "AEA"],
+	"key": {
+		"A": {
+			"item": "data_energistics:data_framework"
+		},
+		"B": {
+			"item": "data_energistics:astronomical_observatory"
+		},
+		"C": {
+			"item": "data_energistics:celestial_waveguide"
+		},
+		"D": {
+			"item": "ae2:wireless_access_point"
+		},
+		"E": {
+			"item": "ae2:energy_cell"
+		}
+	},
+	"result": {
+		"id": "data_energistics:orbital_uplink_beacon",
+		"count": 1
+	}
+}

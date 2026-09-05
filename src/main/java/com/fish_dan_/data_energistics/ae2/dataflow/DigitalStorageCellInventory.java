@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.ae2.dataflow;
 
+import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
@@ -35,14 +36,14 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Persists the shared byte budget of a digital storage cell while accepting its native Data Flow and Echo key types.
+ * Persists the shared byte budget of a digital storage cell while accepting its native Digitalization resources.
  */
 public final class DigitalStorageCellInventory implements StorageCell {
 
     public static final Set<AEKeyType> SUPPORTED_KEY_TYPES = Set.of(DigitalizationKeyType.TYPE);
 
     private static final int MAX_STORED_TYPES = 63;
-    private static final int SUPPORTED_RESOURCE_COUNT = 2;
+    private static final int SUPPORTED_RESOURCE_COUNT = 3;
     private static final int AMOUNT_PER_BYTE = DigitalizationKeyType.TYPE.getAmountPerByte();
 
     private final ItemStack stack;
@@ -184,7 +185,7 @@ public final class DigitalStorageCellInventory implements StorageCell {
     }
 
     /**
-     * Returns the cell byte capacity shared by Data Flow and Echo.
+     * Returns the cell byte capacity shared by all Digitalization resources.
      */
     public long getTotalBytes() {
         return cellItem.getBytes(stack);
@@ -290,7 +291,7 @@ public final class DigitalStorageCellInventory implements StorageCell {
     }
 
     private static boolean supports(AEKey key) {
-        return key == DataFlowKey.of() || key == EchoKey.of();
+        return key == DataFlowKey.of() || key == EchoKey.of() || key == CelestialEnergyKey.of();
     }
 
     private long getFreeBytes() {

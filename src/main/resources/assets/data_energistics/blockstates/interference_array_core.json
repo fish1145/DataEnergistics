@@ -1,0 +1,10 @@
+{
+	"variants": {
+		"lit=false": {
+			"model": "data_energistics:block/interference_array_core_off"
+		},
+		"lit=true": {
+			"model": "data_energistics:block/interference_array_core_on"
+		}
+	}
+}

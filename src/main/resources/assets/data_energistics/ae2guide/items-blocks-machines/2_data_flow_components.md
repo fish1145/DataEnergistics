@@ -103,7 +103,7 @@ Data Flow Component Housing is used to encapsulate storage components into usabl
 
 After assembly, you can obtain a Digital Storage Cell of the corresponding tier.
 
-Each Digital Storage Cell stores both Data Flow and Echo. The two resources share one byte pool and both use 8 units per byte.
+Each Digital Storage Cell stores Data Flow, Echo, and Celestial Energy. The three resources share one byte pool and use 8 units per byte.
 
 <Column>
   <Row>
@@ -116,7 +116,7 @@ Each Digital Storage Cell stores both Data Flow and Echo. The two resources shar
 </Column>
 
 Other storage components also follow the same formula
-When it holds neither Data Flow nor Echo, you can use Shift + right-click to disassemble
+When it holds no Digitalization resources, you can use Shift + right-click to disassemble
 
 ---
 
@@ -130,7 +130,7 @@ Other portable storage components also follow the same formula
   </Row>
 </Column>
 
-If it holds neither Data Flow nor Echo, you can Shift + right-click to disassemble it
+If it holds no Digitalization resources, you can Shift + right-click to disassemble it
 
 ---
 
@@ -149,4 +149,4 @@ Maximum energy = base capacity × (1 + 8 × number of energy cards)
   <Row>
     <ItemImage id="data_cell_infinity" />
   </Row>
-A component formed by an unknown force that can infinitely retrieve Data Flow, Binary, and Echo; no one knows where it comes from or where it will go
+A component formed by an unknown force that can infinitely retrieve Data Flow, Binary, Echo, and Celestial Energy; no one knows where it comes from or where it will go

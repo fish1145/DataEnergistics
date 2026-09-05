@@ -14,8 +14,13 @@ import com.fish_dan_.data_energistics.common.entrypoint.machine.PatternUploadWor
 import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProviderRuntimeBindings;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.curios.CuriosDataDistributionConnectorAccess;
+import com.fish_dan_.data_energistics.integration.curios.CuriosOrbitalControlTerminalAccess;
 import com.fish_dan_.data_energistics.integration.ftb.ultimine.DataCrystalPickaxeFtbUltimineCompat;
+import com.fish_dan_.data_energistics.integration.map.ftbchunks.FtbChunksOrbitalClaimHints;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotKeyContainerItemStrategy;
+import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlPlayerMenu;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointChunkTickets;
+import com.fish_dan_.data_energistics.orbital.map.OrbitalClaimHints;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DECreativeTabs;
@@ -68,6 +73,7 @@ public class CommonProxy {
         modEventBus.addListener(CommonCapabilityRegistrar::registerPartCapabilities);
         modEventBus.addListener(CommonPayloadRegistrar::register);
         modEventBus.addListener(BuiltinDataPackRegistrar::register);
+        modEventBus.addListener(OrbitalEndpointChunkTickets::registerController);
 
         CommonEventRegistrar.register();
     }
@@ -85,8 +91,14 @@ public class CommonProxy {
                     snapshot.patternProviderWorkstationSourceRegistrations());
             AdaptivePatternProviderResolver.install(snapshot.adaptivePatternProviderRegistrations());
             DEUpgrades.init();
+            OrbitalControlPlayerMenu.register();
             if (ModFlags.isCuriosLoaded()) {
                 CuriosDataDistributionConnectorAccess.register();
+                CuriosOrbitalControlTerminalAccess.register();
+            }
+            if (ModFlags.isFtbChunksLoaded()) {
+                OrbitalClaimHints.install(FtbChunksOrbitalClaimHints::isClaimed);
+                Data_Energistics.LOGGER.info("Registered FTB Chunks orbital tactical-map claim hints");
             }
             if (Data_Energistics.isModLoaded("ftbultimine")) {
                 Data_Energistics.LOGGER.info("Registering Data Crystal Pickaxe FTB Ultimine duplicate ore integration");

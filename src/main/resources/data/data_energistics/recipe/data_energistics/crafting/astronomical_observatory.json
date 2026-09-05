@@ -1,0 +1,25 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": ["ABA", "CDC", "AEA"],
+	"key": {
+		"A": {
+			"item": "data_energistics:data_framework"
+		},
+		"B": {
+			"item": "ae2:energy_cell"
+		},
+		"C": {
+			"item": "data_energistics:data_crystal_block"
+		},
+		"D": {
+			"item": "ae2:formation_core"
+		},
+		"E": {
+			"item": "ae2:quartz_vibrant_glass"
+		}
+	},
+	"result": {
+		"id": "data_energistics:astronomical_observatory",
+		"count": 1
+	}
+}

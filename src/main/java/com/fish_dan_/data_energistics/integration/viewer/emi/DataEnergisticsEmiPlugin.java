@@ -108,6 +108,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA, 1L));
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.DATA_FLOW, 1L));
         registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.ECHO, 1L));
+        registry.addEmiStack(new DataResourceEmiStack(DataResourceKey.CELESTIAL_ENERGY, 1L));
         registry.addGenericStackProvider(new PatternEncodingGenericStackEmiProvider());
         CraftingPlanIngredientViewers.register("emi", new CraftingPlanEmiIngredientViewer());
         registry.addScreenBoundsProvider(CraftingPlanTreeScreen.class, screen -> {

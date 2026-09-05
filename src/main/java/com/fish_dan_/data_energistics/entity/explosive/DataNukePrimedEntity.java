@@ -3,12 +3,16 @@ package com.fish_dan_.data_energistics.entity.explosive;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.DataNukeSchema;
+import com.fish_dan_.data_energistics.entity.explosive.DigitalAnnihilationWork.Settings;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -25,20 +29,21 @@ import net.minecraft.world.entity.item.PrimedTnt;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 public class DataNukePrimedEntity extends PrimedTnt {
 
+    public static final int DEFAULT_FUSE_TICKS = 80;
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final EntityDataAccessor<Boolean> DATA_ACTIVE = SynchedEntityData.defineId(DataNukePrimedEntity.class,
             EntityDataSerializers.BOOLEAN);
@@ -46,19 +51,33 @@ public class DataNukePrimedEntity extends PrimedTnt {
     private static final String TAG_ACTIVE = "DataNukeActive";
     private static final String TAG_WORK_TICKS = "DataNukeWorkTicks";
     private static final String TAG_EXPANSION_RADIUS = "DataNukeExpansionRadius";
+    private static final String TAG_WORK_STATE = "DataNukeWorkState";
+    private static final String TAG_ORBITAL_PAYLOAD = "DataNukeOrbitalPayload";
+    private static final String TAG_ORBITAL_ATTACK_ID = "DataNukeOrbitalAttackId";
+    private static final String TAG_DAMAGE_EXEMPTIONS = "DataNukeDamageExemptions";
+    private static final String TAG_WORK_SETTINGS_INTERVAL = "DataNukeWorkSettingsInterval";
+    private static final String TAG_WORK_SETTINGS_RADIUS = "DataNukeWorkSettingsRadius";
+    private static final String TAG_WORK_SETTINGS_CENTER = "DataNukeWorkSettingsCenter";
+    private static final String TAG_UUID = "UUID";
     private static final TicketType<UUID> CHUNK_TICKET_TYPE = TicketType.create(
             Data_Energistics.MODID + ":digital_annihilator",
             UUID::compareTo);
     private static final int CHUNK_TICKET_DISTANCE = 2;
     private static final double CENTER_Y_OFFSET = 0.5D;
-    private static final int SURFACE_INNER_MARGIN = 3;
-    private static final int SURFACE_OUTER_MARGIN = 3;
 
     private BlockPos origin = BlockPos.ZERO;
     private int workTicks;
     private int expansionRadius;
     @Nullable
+    private DigitalAnnihilationWork annihilationWork;
+    @Nullable
     private LivingEntity owner;
+    @Nullable
+    private UUID orbitalAttackId;
+    private Set<UUID> damageExemptions = Set.of();
+    @Nullable
+    private Settings capturedWorkSettings;
+    private @Nullable String persistedStateFailure;
     @Nullable
     private ChunkPos forcedChunk;
 
@@ -67,17 +86,39 @@ public class DataNukePrimedEntity extends PrimedTnt {
     }
 
     public DataNukePrimedEntity(Level level, BlockPos origin, @Nullable LivingEntity owner) {
+        this(level, origin, owner, Set.of());
+    }
+
+    /** Creates a nuke with an immutable authorization exemption snapshot. */
+    public DataNukePrimedEntity(Level level, BlockPos origin, @Nullable LivingEntity owner, Set<UUID> damageExemptions) {
         super(DEEntities.DATA_NUKE_PRIMED.get(), level);
         this.origin = origin.immutable();
         this.owner = owner;
+        this.damageExemptions = Set.copyOf(damageExemptions);
         this.setPos(origin.getX() + 0.5D, origin.getY(), origin.getZ() + 0.5D);
         double angle = level.random.nextDouble() * (Math.PI * 2.0D);
         this.setDeltaMovement(-Math.sin(angle) * 0.02D, 0.2D, -Math.cos(angle) * 0.02D);
-        this.setFuse(80);
+        this.setFuse(DEFAULT_FUSE_TICKS);
         this.xo = this.getX();
         this.yo = this.getY();
         this.zo = this.getZ();
         this.setBlockState(DEBlocks.DATA_NUKE.get().defaultBlockState());
+    }
+
+    /** Creates an orbital fuse with the Data Nuke settings captured at attack confirmation. */
+    public static DataNukePrimedEntity createOrbitalPayload(
+                                                            Level level,
+                                                            BlockPos origin,
+                                                            UUID attackId,
+                                                            Set<UUID> damageExemptions,
+                                                            DigitalAnnihilationWork.Settings workSettings) {
+        DataNukePrimedEntity entity = new DataNukePrimedEntity(level, origin, null, damageExemptions);
+        entity.orbitalAttackId = attackId;
+        entity.capturedWorkSettings = workSettings;
+        entity.setNoGravity(true);
+        entity.setDeltaMovement(Vec3.ZERO);
+        entity.setFuse(DEFAULT_FUSE_TICKS);
+        return entity;
     }
 
     @Override
@@ -94,12 +135,14 @@ public class DataNukePrimedEntity extends PrimedTnt {
 
     @Override
     public void onRemovedFromLevel() {
+        releaseAnnihilationWork();
         removeChunkTicket();
         super.onRemovedFromLevel();
     }
 
     @Override
     public void remove(RemovalReason reason) {
+        releaseAnnihilationWork();
         removeChunkTicket();
         super.remove(reason);
     }
@@ -112,6 +155,11 @@ public class DataNukePrimedEntity extends PrimedTnt {
 
     @Override
     public void tick() {
+        String loadFailure = this.persistedStateFailure;
+        if (loadFailure != null && this.level() instanceof ServerLevel serverLevel) {
+            discardInvalidPersistedState(serverLevel, loadFailure);
+            return;
+        }
         if (this.isActive()) {
             tickActive();
             return;
@@ -151,6 +199,27 @@ public class DataNukePrimedEntity extends PrimedTnt {
         tag.putBoolean(TAG_ACTIVE, this.isActive());
         tag.putInt(TAG_WORK_TICKS, this.workTicks);
         tag.putInt(TAG_EXPANSION_RADIUS, this.expansionRadius);
+        if (this.annihilationWork != null) {
+            CompoundTag workTag = new CompoundTag();
+            this.annihilationWork.save(workTag);
+            tag.put(TAG_WORK_STATE, workTag);
+        }
+        if (this.orbitalAttackId != null) {
+            tag.putUUID(TAG_ORBITAL_ATTACK_ID, this.orbitalAttackId);
+        }
+        tag.putBoolean(TAG_ORBITAL_PAYLOAD, this.orbitalAttackId != null);
+        if (this.capturedWorkSettings != null) {
+            tag.putInt(TAG_WORK_SETTINGS_INTERVAL, this.capturedWorkSettings.workIntervalTicks());
+            tag.putInt(TAG_WORK_SETTINGS_RADIUS, this.capturedWorkSettings.maxRadius());
+            tag.putDouble(TAG_WORK_SETTINGS_CENTER, this.capturedWorkSettings.centerEntityConsumeRadius());
+        }
+        ListTag exemptionList = new ListTag();
+        this.damageExemptions.stream().sorted().forEach(uuid -> {
+            CompoundTag exemption = new CompoundTag();
+            exemption.putUUID(TAG_UUID, uuid);
+            exemptionList.add(exemption);
+        });
+        tag.put(TAG_DAMAGE_EXEMPTIONS, exemptionList);
     }
 
     @Override
@@ -161,9 +230,70 @@ public class DataNukePrimedEntity extends PrimedTnt {
         }
         this.setActive(tag.getBoolean(TAG_ACTIVE));
         this.workTicks = Math.max(0, tag.getInt(TAG_WORK_TICKS));
-        this.expansionRadius = Math.max(0, Math.min(
-                DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius,
-                tag.getInt(TAG_EXPANSION_RADIUS)));
+        boolean orbitalMarkerPresent = tag.contains(TAG_ORBITAL_PAYLOAD, Tag.TAG_BYTE);
+        boolean orbitalMarker = orbitalMarkerPresent && tag.getBoolean(TAG_ORBITAL_PAYLOAD);
+        boolean attackIdPresent = tag.hasUUID(TAG_ORBITAL_ATTACK_ID);
+        boolean orbitalPayload = orbitalMarker || attackIdPresent;
+        this.orbitalAttackId = attackIdPresent ? tag.getUUID(TAG_ORBITAL_ATTACK_ID) : null;
+        if (orbitalPayload && (!orbitalMarkerPresent || !orbitalMarker || !attackIdPresent)) {
+            invalidatePersistedState("incomplete orbital payload identity");
+        }
+
+        boolean completeWorkSettings = tag.contains(TAG_WORK_SETTINGS_INTERVAL, Tag.TAG_INT) && tag.contains(TAG_WORK_SETTINGS_RADIUS, Tag.TAG_INT) && tag.contains(TAG_WORK_SETTINGS_CENTER, Tag.TAG_DOUBLE);
+        this.capturedWorkSettings = completeWorkSettings ? DigitalAnnihilationWork.Settings.fromPersisted(
+                tag.getInt(TAG_WORK_SETTINGS_INTERVAL),
+                tag.getInt(TAG_WORK_SETTINGS_RADIUS),
+                tag.getDouble(TAG_WORK_SETTINGS_CENTER)) : null;
+        if (orbitalPayload && !completeWorkSettings) {
+            invalidatePersistedState("missing orbital payload settings");
+        }
+
+        int maximumRadius = this.capturedWorkSettings != null ? this.capturedWorkSettings.maxRadius() : DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius;
+        this.expansionRadius = Math.clamp(tag.getInt(TAG_EXPANSION_RADIUS), 0, maximumRadius);
+        HashSet<UUID> exemptions = new HashSet<>();
+        Tag rawExemptions = tag.get(TAG_DAMAGE_EXEMPTIONS);
+        if (rawExemptions instanceof ListTag exemptionList) {
+            for (Tag rawExemption : exemptionList) {
+                if (!(rawExemption instanceof CompoundTag exemption) || !exemption.hasUUID(TAG_UUID) || !exemptions.add(exemption.getUUID(TAG_UUID))) {
+                    if (orbitalPayload) {
+                        invalidatePersistedState("invalid orbital exemption entry");
+                    }
+                    break;
+                }
+            }
+        } else if (orbitalPayload) {
+            invalidatePersistedState("missing orbital exemption list");
+        }
+        this.damageExemptions = Set.copyOf(exemptions);
+
+        if (!this.isActive() || this.persistedStateFailure != null) {
+            return;
+        }
+        try {
+            if (orbitalPayload) {
+                Tag rawWorkState = tag.get(TAG_WORK_STATE);
+                if (!(rawWorkState instanceof CompoundTag workTag) || this.capturedWorkSettings == null) {
+                    invalidatePersistedState("missing orbital annihilation work state");
+                    return;
+                }
+                this.annihilationWork = DigitalAnnihilationWork.restoreOrbital(
+                        this.origin,
+                        this.getUUID(),
+                        this.capturedWorkSettings,
+                        workTag);
+            } else {
+                this.annihilationWork = DigitalAnnihilationWork.restoreManual(
+                        this.origin,
+                        this.getUUID(),
+                        this.capturedWorkSettings != null ? this.capturedWorkSettings : currentWorkSettings(),
+                        this.workTicks,
+                        this.expansionRadius,
+                        tag.getCompound(TAG_WORK_STATE));
+            }
+            syncLegacyWorkFields();
+        } catch (IllegalArgumentException exception) {
+            invalidatePersistedState(exception.getMessage() == null ? "invalid persisted annihilation work" : exception.getMessage());
+        }
     }
 
     private void activate() {
@@ -172,10 +302,15 @@ public class DataNukePrimedEntity extends PrimedTnt {
         }
 
         this.setActive(true);
-        this.setFuse(80);
+        this.setFuse(DEFAULT_FUSE_TICKS);
         this.setNoGravity(true);
         this.setDeltaMovement(Vec3.ZERO);
         this.setPos(this.origin.getX() + 0.5D, this.origin.getY(), this.origin.getZ() + 0.5D);
+        this.annihilationWork = DigitalAnnihilationWork.create(
+                this.origin,
+                this.getUUID(),
+                this.capturedWorkSettings != null ? this.capturedWorkSettings : currentWorkSettings());
+        syncLegacyWorkFields();
         if (!(this.level() instanceof ServerLevel serverLevel)) {
             return;
         }
@@ -197,22 +332,32 @@ public class DataNukePrimedEntity extends PrimedTnt {
 
         try {
             Level level = this.level();
-            DataNukeSchema settings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
-            consumeCenterEntities(level, settings);
-            this.workTicks++;
-            if (this.workTicks < settings.workIntervalTicks) {
+            if (!(level instanceof ServerLevel serverLevel)) {
                 return;
             }
-
-            this.workTicks = 0;
-            int nextRadius = getNextExpansionRadius(settings);
-            if (!consumeSurfaceBlocks(level, nextRadius, settings)) {
+            if (this.orbitalAttackId != null) {
                 return;
             }
-            this.expansionRadius = nextRadius;
-            consumeExpandedEntities(level, this.expansionRadius);
-            if (isFinished(settings)) {
+            if (this.annihilationWork == null) {
+                this.annihilationWork = DigitalAnnihilationWork.create(
+                        this.origin,
+                        this.getUUID(),
+                        this.capturedWorkSettings != null ? this.capturedWorkSettings : currentWorkSettings());
+            }
+            DigitalAnnihilationWork.TickResult result = this.annihilationWork.tick(serverLevel);
+            syncLegacyWorkFields();
+            consumeCenterEntities(level, this.annihilationWork.centerEntityConsumeRadius());
+            if (this.annihilationWork.expansionRadius() > 0) {
+                consumeExpandedEntities(level, this.annihilationWork.expansionRadius());
+            }
+            if (result.state() == DigitalAnnihilationWork.State.FINISHED) {
                 LOGGER.info("Data nuke finished at {} in dimension {}.", this.origin, level.dimension().location());
+                this.discard();
+            } else if (result.state() == DigitalAnnihilationWork.State.FAULTED) {
+                LOGGER.error("Data nuke work failed at {} in dimension {}: {}",
+                        this.origin,
+                        level.dimension().location(),
+                        this.annihilationWork.failure());
                 this.discard();
             }
         } catch (RuntimeException exception) {
@@ -222,89 +367,68 @@ public class DataNukePrimedEntity extends PrimedTnt {
         }
     }
 
-    private boolean isFinished(DataNukeSchema settings) {
-        return this.expansionRadius >= settings.maxRadius;
-    }
-
-    private int getNextExpansionRadius(DataNukeSchema settings) {
-        int maxRadius = settings.maxRadius;
-        return this.expansionRadius < maxRadius ? this.expansionRadius + 1 : maxRadius;
-    }
-
-    private boolean consumeSurfaceBlocks(Level level, int radius, DataNukeSchema settings) {
-        if (radius <= 0) {
-            return true;
+    /**
+     * Advances an active orbital payload with the shared orbital scheduler's mutation and chunk allowance. Manual
+     * data nukes never call this entry point and retain their standalone work behavior.
+     */
+    public DigitalAnnihilationWork.TickResult tickOrbitalWork(
+                                                              int mutationBudget,
+                                                              Predicate<ChunkPos> chunkReady) {
+        if (this.persistedStateFailure != null) {
+            throw new IllegalStateException(this.persistedStateFailure);
         }
-
-        int innerRadius = Math.max(0, radius - SURFACE_INNER_MARGIN);
-        int outerRadius = Math.min(settings.maxRadius, radius + SURFACE_OUTER_MARGIN);
-        double innerRadiusSqr = innerRadius * innerRadius;
-        double outerRadiusSqr = outerRadius * outerRadius;
-        int minOffsetY = Math.max(level.getMinBuildHeight() - this.origin.getY(),
-                (int) Math.floor(CENTER_Y_OFFSET - outerRadius - 0.5D));
-        int maxOffsetY = Math.min(level.getMaxBuildHeight() - 1 - this.origin.getY(),
-                (int) Math.ceil(CENTER_Y_OFFSET + outerRadius - 0.5D));
-        int minX = this.origin.getX() - outerRadius;
-        int maxX = this.origin.getX() + outerRadius;
-        int minZ = this.origin.getZ() - outerRadius;
-        int maxZ = this.origin.getZ() + outerRadius;
-        int minChunkX = Math.floorDiv(minX, 16);
-        int maxChunkX = Math.floorDiv(maxX, 16);
-        int minChunkZ = Math.floorDiv(minZ, 16);
-        int maxChunkZ = Math.floorDiv(maxZ, 16);
-
-        BlockPos.MutableBlockPos targetPos = new BlockPos.MutableBlockPos();
-        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
-            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                LevelChunk chunk = level.getChunkSource().getChunk(chunkX, chunkZ, true);
-                if (chunk == null) {
-                    LOGGER.warn("Data nuke at {} is waiting for chunk [{}, {}] in dimension {}.",
-                            this.origin, chunkX, chunkZ, level.dimension().location());
-                    return false;
-                }
-
-                int startX = Math.max(minX, chunkX << 4);
-                int endX = Math.min(maxX, (chunkX << 4) + 15);
-                int startZ = Math.max(minZ, chunkZ << 4);
-                int endZ = Math.min(maxZ, (chunkZ << 4) + 15);
-                for (int x = startX; x <= endX; x++) {
-                    int offsetX = x - this.origin.getX();
-                    for (int z = startZ; z <= endZ; z++) {
-                        int offsetZ = z - this.origin.getZ();
-                        double horizontalDistanceSqr = offsetX * offsetX + offsetZ * offsetZ;
-                        if (horizontalDistanceSqr > outerRadiusSqr) {
-                            continue;
-                        }
-
-                        for (int offsetY = minOffsetY; offsetY <= maxOffsetY; offsetY++) {
-                            double dy = offsetY + 0.5D - CENTER_Y_OFFSET;
-                            double distanceSqr = horizontalDistanceSqr + dy * dy;
-                            if (distanceSqr < innerRadiusSqr || distanceSqr > outerRadiusSqr) {
-                                continue;
-                            }
-
-                            targetPos.set(x, this.origin.getY() + offsetY, z);
-                            level.setBlock(targetPos, Blocks.AIR.defaultBlockState(),
-                                    Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
-                        }
-                    }
-                }
-            }
+        if (this.orbitalAttackId == null) {
+            throw new IllegalStateException("A manual data nuke cannot use the orbital work scheduler");
         }
-        return true;
+        if (!this.isActive()) {
+            throw new IllegalStateException("An orbital data nuke cannot start terrain work before its fuse activates");
+        }
+        if (!(this.level() instanceof ServerLevel serverLevel)) {
+            throw new IllegalStateException("Orbital data nuke work requires a server level");
+        }
+        if (this.annihilationWork == null) {
+            this.annihilationWork = DigitalAnnihilationWork.create(
+                    this.origin,
+                    this.getUUID(),
+                    this.capturedWorkSettings != null ? this.capturedWorkSettings : currentWorkSettings());
+        }
+        DigitalAnnihilationWork.TickResult result = this.annihilationWork.tickBudgeted(
+                serverLevel,
+                mutationBudget,
+                chunkReady);
+        syncLegacyWorkFields();
+        consumeCenterEntities(serverLevel, this.annihilationWork.centerEntityConsumeRadius());
+        if (this.annihilationWork.expansionRadius() > 0) {
+            consumeExpandedEntities(serverLevel, this.annihilationWork.expansionRadius());
+        }
+        return result;
     }
 
-    private int consumeCenterEntities(Level level, DataNukeSchema settings) {
-        return consumeEntities(level, settings.centerEntityConsumeRadius);
+    /** Returns the persisted block cursor owned by the active orbital work. */
+    public long orbitalWorkCursor() {
+        if (this.annihilationWork == null) {
+            return 0L;
+        }
+        return this.annihilationWork.blockCursor();
     }
 
-    private int consumeExpandedEntities(Level level, int radius) {
-        return consumeEntities(level, radius);
+    /** Returns the stable work failure reported by an active orbital payload, if present. */
+    @Nullable
+    public String orbitalWorkFailure() {
+        return this.annihilationWork == null ? null : this.annihilationWork.failure();
     }
 
-    private int consumeEntities(Level level, double radius) {
+    private void consumeCenterEntities(Level level, double radius) {
+        consumeEntities(level, radius);
+    }
+
+    private void consumeExpandedEntities(Level level, int radius) {
+        consumeEntities(level, radius);
+    }
+
+    private void consumeEntities(Level level, double radius) {
         if (radius <= 0.0D) {
-            return 0;
+            return;
         }
 
         double centerX = getCenterX();
@@ -321,32 +445,29 @@ public class DataNukePrimedEntity extends PrimedTnt {
         List<Entity> entities = level.getEntities(this, bounds,
                 entity -> isConsumableEntity(entity) && distanceToCenterSqr(entity, centerX, centerY, centerZ) <= radiusSqr);
         if (entities.isEmpty()) {
-            return 0;
+            return;
         }
 
-        int consumed = 0;
         for (Entity entity : entities) {
             if (entity instanceof ServerPlayer player) {
                 player.hurt(player.damageSources().fellOutOfWorld(), Float.MAX_VALUE);
             } else {
                 entity.discard();
             }
-            consumed++;
         }
-        return consumed;
     }
 
     private boolean isConsumableEntity(Entity entity) {
         if (entity == this || entity.isRemoved() || !entity.isAlive()) {
             return false;
         }
+        if (this.damageExemptions.contains(entity.getUUID())) {
+            return false;
+        }
         if (entity instanceof Player player && (player.isCreative() || player.isSpectator())) {
             return false;
         }
-        if (entity instanceof ServerPlayer player && player.hasPermissions(2)) {
-            return false;
-        }
-        return true;
+        return !(entity instanceof ServerPlayer player) || !player.hasPermissions(2);
     }
 
     private double getCenterX() {
@@ -368,12 +489,66 @@ public class DataNukePrimedEntity extends PrimedTnt {
         return this.entityData.get(DATA_ACTIVE);
     }
 
+    /** Returns the orbital attack identity that created this payload, if any. */
+    @Nullable
+    public UUID orbitalAttackId() {
+        return this.orbitalAttackId;
+    }
+
+    /** Returns the frozen UUID exemption snapshot used by the annihilation work. */
+    public Set<UUID> damageExemptions() {
+        return this.damageExemptions;
+    }
+
     private void setActive(boolean active) {
         this.entityData.set(DATA_ACTIVE, active);
     }
 
+    private void syncLegacyWorkFields() {
+        if (this.annihilationWork == null) {
+            return;
+        }
+        this.workTicks = this.annihilationWork.workTicks();
+        this.expansionRadius = this.annihilationWork.expansionRadius();
+    }
+
+    private static DigitalAnnihilationWork.Settings currentWorkSettings() {
+        DataNukeSchema settings = DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke;
+        return new DigitalAnnihilationWork.Settings(
+                settings.workIntervalTicks,
+                settings.maxRadius,
+                settings.centerEntityConsumeRadius);
+    }
+
+    private void invalidatePersistedState(String reason) {
+        if (this.persistedStateFailure == null) {
+            this.persistedStateFailure = reason;
+        }
+    }
+
+    private void discardInvalidPersistedState(ServerLevel level, String reason) {
+        boolean attackFaulted = this.orbitalAttackId != null && OrbitalAttackSavedData.get(level.getServer()).markDigitalPayloadEntityFaulted(
+                level.getServer(),
+                this.orbitalAttackId,
+                this.getUUID(),
+                reason);
+        LOGGER.error(
+                "Discarding invalid persisted data nuke {}: {}; attackFaulted={}",
+                this.getUUID(),
+                reason,
+                attackFaulted);
+        this.discard();
+    }
+
+    private void releaseAnnihilationWork() {
+        if (this.annihilationWork == null || !(this.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        this.annihilationWork.release(serverLevel);
+    }
+
     private void updateChunkTicket() {
-        if (!this.isAddedToLevel() || this.isRemoved() || !(this.level() instanceof ServerLevel serverLevel)) {
+        if (this.orbitalAttackId != null || !this.isAddedToLevel() || this.isRemoved() || !(this.level() instanceof ServerLevel serverLevel)) {
             return;
         }
 
