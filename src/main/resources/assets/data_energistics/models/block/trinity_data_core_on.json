@@ -27,6 +27,18 @@
 			}
 		},
 		{
+			"name": "screen_flower",
+			"from": [2, 2, 0.99],
+			"to": [14, 14, 0.99],
+			"faces": {
+				"north": {
+					"uv": [2, 2, 14, 14],
+					"texture": "#top_light",
+					"neoforge_data": { "block_light": 15, "sky_light": 15 }
+				}
+			}
+		},
+		{
 			"name": "top_light",
 			"from": [0, 16, 0],
 			"to": [16, 16, 16],
@@ -107,12 +119,13 @@
 		0,
 		1,
 		2,
+		3,
 		{
 			"name": "front",
 			"origin": [0, 0, 0],
 			"scope": 0,
 			"color": 0,
-			"children": [3, 4, 5, 6]
+			"children": [4, 5, 6, 7]
 		}
 	]
 }
