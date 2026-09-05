@@ -197,6 +197,7 @@ public final class TrinitySameItemPolicyGameTest {
 
         CompoundTag schemaSix = saved.copy();
         schemaSix.putInt("schema_version", 6);
+        schemaSix.remove("production_retired");
         schemaSix.remove("same_item_policy");
         for (Tag encodedStage : schemaSix.getList("stages", Tag.TAG_COMPOUND)) {
             for (Tag encodedFiring : ((CompoundTag) encodedStage).getList("firings", Tag.TAG_COMPOUND)) {

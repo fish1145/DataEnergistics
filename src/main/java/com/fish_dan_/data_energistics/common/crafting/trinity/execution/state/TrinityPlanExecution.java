@@ -178,6 +178,7 @@ public final class TrinityPlanExecution {
      */
     private final Int2ObjectLinkedOpenHashMap<Work> leasedWorks = new Int2ObjectLinkedOpenHashMap<>();
     private boolean planning;
+    private boolean productionRetired;
     private boolean failed;
     private String failureReason = "";
     private long budgetRetryAt = -1L;
@@ -239,6 +240,7 @@ public final class TrinityPlanExecution {
         restored.catalogRevision = snapshot.catalogRevision();
         restored.quantityMode = snapshot.quantityMode();
         restored.sameItemPolicy = snapshot.sameItemPolicy();
+        restored.productionRetired = snapshot.productionRetired();
         restored.generation = snapshot.generation();
         restored.failureReason = snapshot.failureReason();
         restored.completionSealed = snapshot.completionSealed();
@@ -287,7 +289,7 @@ public final class TrinityPlanExecution {
         if (persistedStatus != Status.BUDGET_EXHAUSTED && restored.budgetRetryAt != -1L) {
             throw new IllegalArgumentException("A Trinity non-budget state cannot retain a budget retry tick");
         }
-        if ((persistedStatus == Status.COMPLETED) != restored.productionComplete()) {
+        if (persistedStatus != Status.PLANNING && (persistedStatus == Status.COMPLETED) != restored.productionComplete()) {
             throw new IllegalArgumentException("A Trinity completed status must match all persisted stage cursors");
         }
         restored.validatePersistedStatusShape(persistedStatus);
@@ -413,6 +415,46 @@ public final class TrinityPlanExecution {
         }
 
         return allowNewLease ? dequeueEligibleWork(inspectedStages) : Optional.empty();
+    }
+
+    /**
+     * Recreates only the transient lease for a durable provider acceptance not yet recorded in this
+     * execution snapshot. A changed generation or firing identity is not recoverable. The returned
+     * work retains the current remaining-count bound; no acceptance or output is applied here.
+     *
+     * @param expected    frozen work attached to the accepted provider submission
+     * @param currentTick current server tick used by the existing dispatchability gate
+     * @return matching current or restored lease, or empty while stale or not dispatchable
+     */
+    public Optional<Work> recoverAcceptedWork(Work expected, long currentTick) {
+        requireTick(currentTick);
+        if (expected.generation() != this.generation) {
+            return Optional.empty();
+        }
+        Work leased = this.leasedWorks.get(expected.stageIndex());
+        if (leased != null) {
+            return sameAcceptedFiring(leased, expected) ? Optional.of(leased) : Optional.empty();
+        }
+        StageState stage = this.stages.get(expected.stageIndex());
+        if (stage == null || stage.completed || stage.currentFiring != expected.firingIndex() || stage.currentFiring >= stage.firings.size()) {
+            return Optional.empty();
+        }
+        FiringState firing = stage.firings.get(stage.currentFiring);
+        if (!firing.patternIdentity.equals(expected.patternIdentity()) || !firing.primaryOutput.equals(expected.primaryOutput()) ||
+                firing.variantOrdinal != expected.plannedVariantOrdinal() || stage.cycle != expected.cycle() ||
+                !firing.exactBindings.equals(expected.exactBindings())) {
+            return Optional.empty();
+        }
+        IntOpenHashSet excluded = new IntOpenHashSet(this.stages.keySet());
+        excluded.remove(expected.stageIndex());
+        return pollDispatchable(currentTick, excluded, work -> sameAcceptedFiring(work, expected), true);
+    }
+
+    private static boolean sameAcceptedFiring(Work actual, Work expected) {
+        return actual.generation() == expected.generation() && actual.stageIndex() == expected.stageIndex() &&
+                actual.firingIndex() == expected.firingIndex() && actual.patternIdentity().equals(expected.patternIdentity()) &&
+                actual.primaryOutput().equals(expected.primaryOutput()) && actual.plannedVariantOrdinal() == expected.plannedVariantOrdinal() &&
+                actual.cycle() == expected.cycle() && actual.exactBindings().equals(expected.exactBindings());
     }
 
     /**
@@ -594,6 +636,48 @@ public final class TrinityPlanExecution {
     }
 
     /**
+     * Retires outstanding work leases after an already accepted dispatch was cancelled. Old firing
+     * and cycle cursors are historical facts and are not rewound. The caller must settle in-flight
+     * output and cancellation accounting before installing a replacement, and must suppress delivery
+     * completion while status() is PLANNING even if every old stage was already dispatched.
+     *
+     * @param currentTick current server tick
+     */
+    public void replanAfterCancelledDispatch(long currentTick) {
+        requireTick(currentTick);
+        if (this.failed) {
+            throw new IllegalStateException("A failed Trinity execution cannot restart cancelled dispatches");
+        }
+        this.generation = Math.addExact(this.generation, 1L);
+        this.planning = true;
+        this.budgetRetryAt = -1L;
+        rebuildTransientState(currentTick);
+        markDurableMutation();
+    }
+
+    /**
+     * Finishes a recovery episode when the CPU has already secured all required final assets.
+     * Clears only obsolete production state. No output is created, sealed or delivered here;
+     * delivery responsibility, actual final variants and borrowing ownership remain unchanged.
+     *
+     * @param currentTick current server tick after the caller's settled inventory check
+     */
+    public void finishReplanningWithoutProduction(long currentTick) {
+        requireTick(currentTick);
+        if (!this.planning) {
+            throw new IllegalStateException("Trinity recovery can omit production only while planning");
+        }
+        long nextGeneration = Math.addExact(this.generation, 1L);
+        clearInstalledProduction();
+        this.productionRetired = true;
+        this.generation = nextGeneration;
+        this.planning = false;
+        this.budgetRetryAt = -1L;
+        rebuildTransientState(currentTick);
+        markDurableMutation();
+    }
+
+    /**
      * Replaces all remaining stage cursors after a successful replan while retaining ledger and completion ownership.
      *
      * @param replacement replacement plan for the remaining request
@@ -601,12 +685,12 @@ public final class TrinityPlanExecution {
      */
     public void replaceRemainingPlan(TrinityCraftingPlan replacement, long currentTick) {
         requireTick(currentTick);
-        if (!this.planning) {
-            throw new IllegalStateException("A Trinity replacement plan is accepted only while planning");
+        if (!this.planning || this.completionSealed) {
+            throw new IllegalStateException("A Trinity replacement plan requires unsealed planning state");
         }
         GenericStack output = replacement.finalOutput();
         if (!this.targetKey.equals(output.what()) || replacement.quantityMode() != this.quantityMode ||
-                output.amount() > this.deliveryRemaining) {
+                output.amount() <= 0L) {
             throw new IllegalArgumentException("A Trinity replacement plan must preserve target and quantity semantics");
         }
         long nextGeneration = Math.addExact(this.generation, 1L);
@@ -1124,18 +1208,16 @@ public final class TrinityPlanExecution {
                 this.deliveryRemaining,
                 this.borrowingLedger.entries(),
                 currentTick,
-                this.budgetRetryAt);
+                this.budgetRetryAt,
+                this.productionRetired);
     }
 
     private void installPlan(TrinityCraftingPlan plan) {
+        this.productionRetired = false;
         this.catalogRevision = plan.catalogRevision();
         this.quantityMode = plan.quantityMode();
         this.sameItemPolicy = plan.sameItemPolicy();
-        this.stages.clear();
-        this.stageOrder.clear();
-        this.repeatBlocks.clear();
-        this.repeatByStage.clear();
-        this.seedReserve.clear();
+        clearInstalledProduction();
 
         for (TrinityPlanStage planStage : plan.stages()) {
             StageState stage = StageState.fromPlan(planStage);
@@ -1160,19 +1242,24 @@ public final class TrinityPlanExecution {
     }
 
     private void adoptInstalledPlan(TrinityPlanExecution prepared) {
+        this.productionRetired = prepared.productionRetired;
         this.catalogRevision = prepared.catalogRevision;
         this.quantityMode = prepared.quantityMode;
         this.sameItemPolicy = prepared.sameItemPolicy;
-        this.stages.clear();
+        clearInstalledProduction();
         this.stages.putAll(prepared.stages);
-        this.stageOrder.clear();
         this.stageOrder.addAll(prepared.stageOrder);
-        this.repeatBlocks.clear();
         this.repeatBlocks.putAll(prepared.repeatBlocks);
-        this.repeatByStage.clear();
         this.repeatByStage.putAll(prepared.repeatByStage);
-        this.seedReserve.clear();
         this.seedReserve.putAll(prepared.seedReserve);
+    }
+
+    private void clearInstalledProduction() {
+        this.stages.clear();
+        this.stageOrder.clear();
+        this.repeatBlocks.clear();
+        this.repeatByStage.clear();
+        this.seedReserve.clear();
     }
 
     private void validateInstalledPlan() {
@@ -1356,8 +1443,8 @@ public final class TrinityPlanExecution {
                 }
             }
             case PLANNING -> {
-                if (!this.planning || this.failed || productionComplete()) {
-                    throw new IllegalArgumentException("A Trinity planning status requires unfinished non-failed work");
+                if (!this.planning || this.failed) {
+                    throw new IllegalArgumentException("A Trinity planning status requires non-failed suspended dispatch");
                 }
             }
             case BUDGET_EXHAUSTED -> {

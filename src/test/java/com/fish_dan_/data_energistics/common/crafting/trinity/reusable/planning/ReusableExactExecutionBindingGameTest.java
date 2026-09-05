@@ -74,6 +74,11 @@ public final class ReusableExactExecutionBindingGameTest {
         helper.assertValueEqual(((TrinityPatternSelector.Selected) selected).inputsPerCraft(), List.of(new GenericStack(initial, 1L)),
                 "Execution retains the actual damaged tool rather than the encoded fresh template");
         CompoundTag old = encoded.copy();
+        old.putInt("schema_version", 8);
+        old.remove("production_retired");
+        var legacyEight = TrinityPlanExecution.restore(old, helper.getLevel().registryAccess(), 30L);
+        helper.assertValueEqual(legacyEight.pollDispatchable(30L, Set.of(), ignored -> true, true).orElseThrow().exactBindings(), bindings,
+                "Schema 8 keeps exact bindings without inventing a production-retirement marker");
         old.putInt("schema_version", 7);
         for (Tag storedStage : old.getList("stages", Tag.TAG_COMPOUND)) {
             for (Tag storedFiring : ((CompoundTag) storedStage).getList("firings", Tag.TAG_COMPOUND)) {

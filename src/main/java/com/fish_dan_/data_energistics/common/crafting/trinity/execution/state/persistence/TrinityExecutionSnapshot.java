@@ -47,6 +47,7 @@ import java.util.Set;
  * @param borrowingEntries   ownership-preserving dynamic borrowing history
  * @param savedAtTick        non-negative server tick used to convert retry deadlines across a restart
  * @param budgetRetryAt      next tick after a physical budget exhaustion, or {@code -1}
+ * @param productionRetired  whether recovery explicitly retired production while retaining output delivery ownership
  */
 public record TrinityExecutionSnapshot(
                                        long catalogRevision,
@@ -67,7 +68,8 @@ public record TrinityExecutionSnapshot(
                                        long deliveryRemaining,
                                        Map<AEKey, TrinityBorrowingLedger.Balances> borrowingEntries,
                                        long savedAtTick,
-                                       long budgetRetryAt) {
+                                       long budgetRetryAt,
+                                       boolean productionRetired) {
 
     /**
      * Copies ordered collections so persistence cannot mutate the live scheduler.
@@ -81,6 +83,14 @@ public record TrinityExecutionSnapshot(
         borrowingEntries = immutableMap(borrowingEntries);
         if (savedAtTick < 0L) {
             throw new IllegalArgumentException("A Trinity execution save tick cannot be negative");
+        }
+        if (productionRetired) {
+            if (!stages.isEmpty() || !stageOrder.isEmpty() || !repeatBlocks.isEmpty() || !seedReserve.isEmpty() ||
+                    status != TrinityPlanExecution.Status.COMPLETED && status != TrinityPlanExecution.Status.PLANNING) {
+                throw new IllegalArgumentException("Retired Trinity production requires empty scheduling state and completed or recovery status");
+            }
+        } else if (stages.isEmpty() || stageOrder.isEmpty()) {
+            throw new IllegalArgumentException("A non-retired Trinity execution requires stages and stage order");
         }
     }
 
