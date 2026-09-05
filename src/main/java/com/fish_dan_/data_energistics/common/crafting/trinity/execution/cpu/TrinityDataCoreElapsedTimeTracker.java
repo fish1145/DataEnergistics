@@ -109,6 +109,47 @@ final class TrinityDataCoreElapsedTimeTracker {
     }
 
     /**
+     * Removes accepted work that was cancelled before execution. Quantities use each AE key type's
+     * native storage units; display conversion remains in progress(). All affected type totals are
+     * validated before changing the baseline or elapsed time. Already completed work is never reduced
+     * or increased, and the remaining baseline may not fall below it.
+     * The returned action must run once in the same server callback without intervening tracker mutations.
+     *
+     * @param cancelledOutputs positive exact cancelled output quantities; empty is a no-op
+     * @throws IllegalArgumentException when a cancellation quantity is not positive
+     * @throws IllegalStateException    when cancellation would withdraw completed or unscheduled work
+     */
+    Runnable prepareUncompletedWithdrawal(Map<AEKey, BigInteger> cancelledOutputs) {
+        Reference2ObjectMap<AEKeyType, BigInteger> updated = new Reference2ObjectOpenHashMap<>();
+        mergeBigIntegerWork(cancelledOutputs, updated);
+        for (var entry : updated.reference2ObjectEntrySet()) {
+            AEKeyType type = entry.getKey();
+            BigInteger remaining = amount(this.startedWorkByType, type).subtract(entry.getValue());
+            if (remaining.compareTo(amount(this.completedWorkByType, type)) < 0) {
+                throw new IllegalStateException("Cancelled Trinity work exceeds the uncompleted baseline for " + type.getId());
+            }
+            entry.setValue(remaining);
+        }
+        long nextLastTime = updated.isEmpty() ? this.lastTime : System.nanoTime();
+        long nextElapsed = this.elapsedTime + nextLastTime - this.lastTime;
+        return new Runnable() {
+
+            private boolean applied;
+
+            @Override
+            public void run() {
+                if (applied) {
+                    throw new IllegalStateException("A prepared progress withdrawal may only be applied once");
+                }
+                applied = true;
+                elapsedTime = nextElapsed;
+                lastTime = nextLastTime;
+                startedWorkByType.putAll(updated);
+            }
+        };
+    }
+
+    /**
      * Records work that has been completed for this job.
      *
      * @param amount  amount completed
