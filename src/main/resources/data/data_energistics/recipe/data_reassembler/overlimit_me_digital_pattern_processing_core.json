@@ -1,0 +1,57 @@
+{
+	"type": "data_energistics:data_reassembler",
+	"inputs": {
+		"items": [
+			{
+				"item": "data_energistics:extended_me_digital_pattern_processing_core",
+				"count": 2
+			},
+			{
+				"item": "data_energistics:empty_trinity_unit",
+				"count": 4
+			},
+			{
+				"item": "ae2:capacity_card",
+				"count": 2
+			},
+			{
+				"item": "data_energistics:digisidian_memorize_ingot",
+				"count": 7
+			},
+			{
+				"item": "data_energistics:data_processor",
+				"count": 68
+			},
+			{
+				"item": "data_energistics:data_residual_crystal",
+				"count": 14
+			},
+			{
+				"item": "data_energistics:complexified_biochips",
+				"count": 2
+			}
+		],
+		"fluids": [
+			{
+				"fluid": "data_energistics:ender",
+				"amount": 2785
+			},
+			{
+				"fluid": "data_energistics:data_corrosion_liquid",
+				"amount": 7569
+			}
+		],
+		"resource": {
+			"key_type": "data_energistics:digitalization",
+			"resource": "data_energistics:data_flow",
+			"amount": 23680
+		}
+	},
+	"outputs": {
+		"items": [
+			{
+				"id": "data_energistics:overlimit_me_digital_pattern_processing_core"
+			}
+		]
+	}
+}
