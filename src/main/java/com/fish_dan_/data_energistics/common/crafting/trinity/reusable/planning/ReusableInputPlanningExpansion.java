@@ -12,11 +12,11 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 
 import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayDeque;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -84,7 +84,7 @@ public final class ReusableInputPlanningExpansion {
         private final IPatternDetails.IInput[] inputs;
         private final List<ObjectLinkedOpenHashSet<GenericStack>> original = new ObjectArrayList<>();
         private final List<Object2IntLinkedOpenHashMap<GenericStack>> ordinals = new ObjectArrayList<>();
-        private final ArrayDeque<List<GenericStack>> pending = new ArrayDeque<>();
+        private final ObjectArrayFIFOQueue<List<GenericStack>> pending = new ObjectArrayFIFOQueue<>();
         private final ObjectLinkedOpenHashSet<List<GenericStack>> seen = new ObjectLinkedOpenHashSet<>();
         private final List<List<TrinityBoundPatternInput>> bindings = new ObjectArrayList<>();
         private boolean hasReusableInputs;
@@ -105,7 +105,7 @@ public final class ReusableInputPlanningExpansion {
                 seedCartesian(options);
                 while (!pending.isEmpty()) {
                     checkpoint();
-                    List<GenericStack> templates = pending.removeFirst();
+                    List<GenericStack> templates = pending.dequeue();
                     List<TrinityBoundPatternInput> captured = captureBinding(templates);
                     if (captured == null) {
                         continue;
@@ -255,7 +255,7 @@ public final class ReusableInputPlanningExpansion {
                 throw new CaptureStopped(Reason.BINDING_LIMIT);
             }
             seen.add(immutable);
-            pending.addLast(immutable);
+            pending.enqueue(immutable);
         }
 
         private void checkpoint() {

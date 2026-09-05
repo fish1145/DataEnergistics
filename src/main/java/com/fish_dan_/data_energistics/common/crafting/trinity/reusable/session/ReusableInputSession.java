@@ -7,6 +7,8 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
@@ -15,7 +17,6 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -235,8 +236,8 @@ public final class ReusableInputSession {
         return List.copyOf(contracts.values());
     }
 
-    public Map<Integer, List<GenericStack>> heldTools() {
-        return Map.copyOf(tools);
+    public Int2ObjectMap<List<GenericStack>> heldTools() {
+        return Int2ObjectMaps.unmodifiable(new Int2ObjectLinkedOpenHashMap<>(tools));
     }
 
     public Optional<AppendSnapshot> appendSnapshot(long sequence) {
