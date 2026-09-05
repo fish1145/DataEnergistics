@@ -33,6 +33,13 @@
 				"top": 48
 			},
 			"align": "CENTER"
+		},
+		"storage": {
+			"position": {
+				"left": 88,
+				"top": 64
+			},
+			"align": "CENTER"
 		}
 	},
 	"widgets": {
