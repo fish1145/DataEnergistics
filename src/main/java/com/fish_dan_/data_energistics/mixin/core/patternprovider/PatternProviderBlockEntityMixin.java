@@ -6,6 +6,11 @@ import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningInventor
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.UpgradeInventories;
+import appeng.blockentity.crafting.PatternProviderBlockEntity;
+import appeng.util.SettingsFrom;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
@@ -14,10 +19,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.UpgradeInventories;
-import appeng.blockentity.crafting.PatternProviderBlockEntity;
-import appeng.util.SettingsFrom;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

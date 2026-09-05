@@ -4,13 +4,15 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataReassemblerRecipeIngredientAdapter;
 
-import net.minecraft.world.item.ItemStack;
-
-import appeng.api.stacks.GenericStack;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 import com.lowdragmc.lowdraglib2.integration.xei.jei.LDLibJEIPlugin;
+
+import appeng.api.stacks.GenericStack;
+
+import net.minecraft.world.item.ItemStack;
+
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.ITypedIngredient;
 

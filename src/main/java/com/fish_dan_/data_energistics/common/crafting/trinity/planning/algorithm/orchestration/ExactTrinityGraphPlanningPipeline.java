@@ -28,9 +28,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressPhase;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 
+import appeng.api.stacks.AEKey;
+
 import net.minecraft.network.chat.Component;
 
-import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 
 import java.math.BigInteger;

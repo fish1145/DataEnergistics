@@ -2,12 +2,13 @@ package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import com.fish_dan_.data_energistics.common.crafting.pattern.EncodedPatternRecipeReference;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
-
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.stacks.AEItemKey;
 import appeng.parts.encoding.EncodingMode;
+
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+
 import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMaps;

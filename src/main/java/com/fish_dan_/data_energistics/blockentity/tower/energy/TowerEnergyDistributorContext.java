@@ -1,9 +1,10 @@
 package com.fish_dan_.data_energistics.blockentity.tower.energy;
 
+import appeng.blockentity.grid.AENetworkedBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
-import appeng.blockentity.grid.AENetworkedBlockEntity;
 import org.jspecify.annotations.Nullable;
 
 /**

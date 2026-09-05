@@ -25,9 +25,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.diagnosti
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanQuality;
 
+import appeng.api.stacks.AEKey;
+
 import net.minecraft.network.chat.Component;
 
-import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;

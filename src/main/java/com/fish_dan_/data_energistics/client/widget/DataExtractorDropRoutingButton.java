@@ -2,10 +2,10 @@ package com.fish_dan_.data_energistics.client.widget;
 
 import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorDropRoutingMode;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.client.gui.Icon;
 import appeng.client.gui.widgets.IconButton;
+
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.function.Consumer;

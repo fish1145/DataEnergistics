@@ -5,6 +5,9 @@ import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderLo
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningInventoryHelper;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 
+import appeng.api.upgrades.IUpgradeInventory;
+import appeng.api.upgrades.UpgradeInventories;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -13,8 +16,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.pedroksl.advanced_ae.common.entities.AdvPatternProviderEntity;
 import net.pedroksl.advanced_ae.common.logic.AdvPatternProviderLogicHost;
 
-import appeng.api.upgrades.IUpgradeInventory;
-import appeng.api.upgrades.UpgradeInventories;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

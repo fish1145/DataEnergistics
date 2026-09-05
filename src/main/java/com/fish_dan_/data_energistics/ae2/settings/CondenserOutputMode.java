@@ -3,11 +3,12 @@ package com.fish_dan_.data_energistics.ae2.settings;
 import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipe;
 import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipeCatalog;
 
+import appeng.api.config.CondenserOutput;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
 
-import appeng.api.config.CondenserOutput;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;

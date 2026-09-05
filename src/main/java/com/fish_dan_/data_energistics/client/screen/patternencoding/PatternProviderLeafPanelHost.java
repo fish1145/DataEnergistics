@@ -2,11 +2,12 @@ package com.fish_dan_.data_energistics.client.screen.patternencoding;
 
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 
+import appeng.client.gui.style.ScreenStyle;
+
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.renderer.Rect2i;
 
-import appeng.client.gui.style.ScreenStyle;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 
 /**

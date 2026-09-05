@@ -7,17 +7,6 @@ import com.fish_dan_.data_energistics.client.widget.DataExtractorToggleButton;
 import com.fish_dan_.data_energistics.client.widget.PatternProviderRedstoneTuningButton;
 import com.fish_dan_.data_energistics.menu.patternprovider.AdaptivePatternProviderMenu;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-import net.neoforged.neoforge.network.PacketDistributor;
-
 import appeng.api.client.AEKeyRendering;
 import appeng.api.config.LockCraftingMode;
 import appeng.api.config.Settings;
@@ -41,6 +30,18 @@ import appeng.core.network.ServerboundPacket;
 import appeng.core.network.serverbound.ConfigButtonPacket;
 import appeng.menu.SlotSemantics;
 import appeng.menu.slot.AppEngSlot;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
+import net.neoforged.neoforge.network.PacketDistributor;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

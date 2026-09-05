@@ -7,9 +7,9 @@ import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwner
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridOwnershipSnapshot;
 import com.fish_dan_.data_energistics.blockentity.tower.virtual.VirtualGridTower;
 
-import net.minecraft.server.MinecraftServer;
-
 import appeng.api.networking.IGrid;
+
+import net.minecraft.server.MinecraftServer;
 
 import java.util.Collections;
 import java.util.HashMap;

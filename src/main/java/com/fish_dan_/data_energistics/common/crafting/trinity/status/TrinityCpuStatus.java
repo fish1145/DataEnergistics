@@ -2,14 +2,15 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.status;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 
+import appeng.api.config.CpuSelectionMode;
+import appeng.api.networking.crafting.CraftingJobStatus;
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.codec.StreamCodec;
 
-import appeng.api.config.CpuSelectionMode;
-import appeng.api.networking.crafting.CraftingJobStatus;
-import appeng.api.stacks.GenericStack;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import org.jspecify.annotations.Nullable;

@@ -14,10 +14,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.GenericStack;
+
+import net.minecraft.network.chat.Component;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.Map;

@@ -8,16 +8,17 @@ import com.fish_dan_.data_energistics.integration.viewer.xei.multiblock.Multiblo
 import com.fish_dan_.data_energistics.integration.viewer.xei.multiblock.MultiblockXeiRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.resources.ResourceLocation;
-
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventDispatcher;
 import com.lowdragmc.lowdraglib2.integration.xei.emi.EMIUIEvents;
 import com.lowdragmc.lowdraglib2.integration.xei.emi.ModularUIEMIRecipe;
 import com.lowdragmc.lowdraglib2.integration.xei.emi.handler.EMIRecipeIngredientHandler;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.resources.ResourceLocation;
+
 import dev.emi.emi.api.EmiApi;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiIngredient;

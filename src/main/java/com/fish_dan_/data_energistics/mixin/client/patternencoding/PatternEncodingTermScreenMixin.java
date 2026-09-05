@@ -2,16 +2,17 @@ package com.fish_dan_.data_energistics.mixin.client.patternencoding;
 
 import com.fish_dan_.data_energistics.client.screen.patternencoding.ProcessingPatternAmountContext;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.Slot;
-
 import appeng.client.gui.me.common.MEStorageScreen;
 import appeng.client.gui.me.items.PatternEncodingTermScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

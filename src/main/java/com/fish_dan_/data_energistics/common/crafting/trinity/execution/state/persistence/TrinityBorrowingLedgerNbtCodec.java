@@ -2,12 +2,13 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.p
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityBorrowingLedger;
 
+import appeng.api.stacks.AEKey;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 
-import appeng.api.stacks.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 import java.math.BigInteger;

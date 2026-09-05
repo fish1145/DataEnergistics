@@ -41,6 +41,10 @@ import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
+import appeng.core.definitions.AEBlocks;
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.recipes.handlers.ChargerRecipe;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.HolderLookup;
@@ -62,9 +66,6 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
-import appeng.core.definitions.AEBlocks;
-import appeng.menu.me.items.PatternEncodingTermMenu;
-import appeng.recipes.handlers.ChargerRecipe;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;

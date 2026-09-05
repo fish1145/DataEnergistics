@@ -13,11 +13,12 @@ import com.fish_dan_.data_energistics.common.trinity.autobuild.TrinityAutoBuildB
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 
+import appeng.api.stacks.AEItemKey;
+
 import net.minecraft.Util;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
-import appeng.api.stacks.AEItemKey;
 import com.modularmc.mdl.api.multiblock.PatternUnit;
 import com.modularmc.mdl.api.multiblock.RepeatRange;
 

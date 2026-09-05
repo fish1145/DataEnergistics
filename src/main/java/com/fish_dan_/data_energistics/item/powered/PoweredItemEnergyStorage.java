@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.item.powered;
 
-import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.energy.IEnergyStorage;
-
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerUnit;
 import appeng.api.implementations.items.IAEItemPowerStorage;
+
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.energy.IEnergyStorage;
 
 public class PoweredItemEnergyStorage implements IEnergyStorage {
 

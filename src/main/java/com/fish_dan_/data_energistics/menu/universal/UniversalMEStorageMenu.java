@@ -4,12 +4,12 @@ import com.fish_dan_.data_energistics.network.ui.UniversalTerminalCyclePayload;
 import com.fish_dan_.data_energistics.part.UniversalTerminalPart;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.menu.guisync.GuiSync;
+import appeng.menu.me.common.MEStorageMenu;
+
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.neoforged.neoforge.network.PacketDistributor;
-
-import appeng.menu.guisync.GuiSync;
-import appeng.menu.me.common.MEStorageMenu;
 
 public class UniversalMEStorageMenu extends MEStorageMenu implements UniversalTerminalMenuBridge {
 

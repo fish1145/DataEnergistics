@@ -4,10 +4,10 @@ import com.fish_dan_.data_energistics.gui.ldlib2.host.protocol.HostUiKey;
 import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostUiExtension;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
 
-import net.minecraft.network.chat.Component;
-
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
+
+import net.minecraft.network.chat.Component;
 
 /**
  * Binds the actions supported by the Trinity Data Core's editor-authored launcher rail.

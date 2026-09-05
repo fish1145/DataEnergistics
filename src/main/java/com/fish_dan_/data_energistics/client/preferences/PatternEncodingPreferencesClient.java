@@ -11,12 +11,13 @@ import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodin
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderClickStatistic;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternEncodingPreferencesSyncPayload;
 
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import appeng.menu.me.items.PatternEncodingTermMenu;
-import appeng.parts.encoding.EncodingMode;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectList;

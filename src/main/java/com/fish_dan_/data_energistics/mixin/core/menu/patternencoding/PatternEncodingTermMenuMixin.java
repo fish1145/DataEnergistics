@@ -28,16 +28,6 @@ import com.fish_dan_.data_energistics.mixin.configuration.DataEnergisticsEarlyCo
 import com.fish_dan_.data_energistics.network.patternencoding.MultiblockPatternTransferPayload;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
 
-import net.minecraft.nbt.TagParser;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.PacketDistributor;
-
 import appeng.api.config.Actionable;
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.ids.AEComponents;
@@ -58,6 +48,17 @@ import appeng.menu.slot.RestrictedInputSlot;
 import appeng.parts.encoding.EncodingMode;
 import appeng.parts.encoding.PatternEncodingLogic;
 import appeng.util.ConfigInventory;
+
+import net.minecraft.nbt.TagParser;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.network.PacketDistributor;
+
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectList;

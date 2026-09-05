@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.blockentity.machine.DataExtractorBlockEnti
 
 import appeng.api.networking.IGridNode;
 import appeng.menu.me.networktool.NetworkStatus;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;

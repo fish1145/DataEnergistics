@@ -9,6 +9,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology.TrinityStronglyConnectedComponent;
 
 import appeng.api.stacks.AEKey;
+
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.math.BigInteger;

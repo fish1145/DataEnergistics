@@ -3,14 +3,14 @@ package com.fish_dan_.data_energistics.menu.machine;
 import com.fish_dan_.data_energistics.blockentity.machine.DataTeleportAnchorBlockEntity;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.menu.AEBaseMenu;
+import appeng.menu.guisync.GuiSync;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
-
-import appeng.menu.AEBaseMenu;
-import appeng.menu.guisync.GuiSync;
 
 import java.util.List;
 

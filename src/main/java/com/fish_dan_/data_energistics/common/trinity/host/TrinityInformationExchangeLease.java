@@ -1,8 +1,9 @@
 package com.fish_dan_.data_energistics.common.trinity.host;
 
+import appeng.api.networking.IGrid;
+
 import net.minecraft.core.BlockPos;
 
-import appeng.api.networking.IGrid;
 import org.jspecify.annotations.Nullable;
 
 /**

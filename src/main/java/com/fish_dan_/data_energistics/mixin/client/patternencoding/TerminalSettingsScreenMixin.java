@@ -3,13 +3,14 @@ package com.fish_dan_.data_energistics.mixin.client.patternencoding;
 import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferencesClient;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.client.gui.AESubScreen;
 import appeng.client.gui.me.common.MEStorageScreen;
 import appeng.client.gui.me.common.TerminalSettingsScreen;
 import appeng.client.gui.widgets.AECheckbox;
 import appeng.menu.me.common.MEStorageMenu;
+
+import net.minecraft.network.chat.Component;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

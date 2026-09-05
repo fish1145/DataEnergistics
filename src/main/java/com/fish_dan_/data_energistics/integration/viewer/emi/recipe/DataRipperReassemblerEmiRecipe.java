@@ -8,11 +8,12 @@ import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataRipperRe
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
+import com.lowdragmc.lowdraglib2.integration.xei.emi.ModularUIEMIRecipe;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
-import com.lowdragmc.lowdraglib2.integration.xei.emi.ModularUIEMIRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiStack;
 

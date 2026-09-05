@@ -2,10 +2,11 @@ package com.fish_dan_.data_energistics.gui.ldlib2.host.window;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
-import net.minecraft.world.entity.player.Player;
-
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
+
+import net.minecraft.world.entity.player.Player;
+
 import org.jspecify.annotations.Nullable;
 
 /**

@@ -4,13 +4,14 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.sanctum.DataSanctumBlock;
 import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumBlockEntity;
 
+import appeng.core.localization.InGameTooltip;
+import appeng.util.Platform;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.core.localization.InGameTooltip;
-import appeng.util.Platform;
 import snownee.jade.api.BlockAccessor;
 import snownee.jade.api.IBlockComponentProvider;
 import snownee.jade.api.IServerDataProvider;

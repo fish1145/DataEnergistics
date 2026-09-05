@@ -15,13 +15,6 @@ import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-
 import appeng.api.AECapabilities;
 import appeng.api.implementations.items.IAEItemPowerStorage;
 import appeng.api.parts.RegisterPartCapabilitiesEvent;
@@ -29,6 +22,13 @@ import appeng.blockentity.grid.AENetworkedPoweredBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
 import appeng.core.definitions.AEBlockEntities;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 final class CommonCapabilityRegistrar {
 

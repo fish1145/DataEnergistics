@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.integration.viewer.emi.transfer;
 import com.fish_dan_.data_energistics.common.multiblock.preview.catalog.MultiblockRecipeViewSource;
 
 import appeng.integration.modules.emi.EmiEncodePatternHandler;
+
 import dev.emi.emi.api.recipe.EmiRecipe;
 
 /**

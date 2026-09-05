@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.ae2.grid;
 
 import appeng.api.networking.IGrid;
+
 import org.jspecify.annotations.Nullable;
 
 /**

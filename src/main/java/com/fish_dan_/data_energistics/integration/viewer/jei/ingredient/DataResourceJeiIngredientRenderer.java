@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.integration.viewer.jei.ingredient;
 import com.fish_dan_.data_energistics.client.gui.GenericStackDisplayHelper;
 import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 
+import appeng.api.client.AEKeyRendering;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -10,7 +12,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item.TooltipContext;
 import net.minecraft.world.item.TooltipFlag;
 
-import appeng.api.client.AEKeyRendering;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import mezz.jei.api.ingredients.IIngredientRenderer;
 import org.jspecify.annotations.Nullable;

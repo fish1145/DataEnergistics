@@ -8,17 +8,18 @@ import com.fish_dan_.data_energistics.recipe.chargepress.DataChargePressRecipeSu
 import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.GenericStack;
+import appeng.client.gui.Icon;
+import appeng.recipes.handlers.InscriberProcessType;
+import appeng.recipes.handlers.InscriberRecipe;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.GenericStack;
-import appeng.client.gui.Icon;
-import appeng.recipes.handlers.InscriberProcessType;
-import appeng.recipes.handlers.InscriberRecipe;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.builder.ITooltipBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;

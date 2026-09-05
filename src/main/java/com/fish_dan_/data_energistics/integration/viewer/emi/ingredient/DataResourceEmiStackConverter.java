@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.integration.viewer.xei.ingredient.DataReso
 
 import appeng.api.integrations.emi.EmiStackConverter;
 import appeng.api.stacks.GenericStack;
+
 import dev.emi.emi.api.stack.EmiStack;
 import org.jspecify.annotations.Nullable;
 

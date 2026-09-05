@@ -1,11 +1,12 @@
 package com.fish_dan_.data_energistics.recipe.reassembler;
 
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 
-import appeng.api.stacks.GenericStack;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;

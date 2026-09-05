@@ -5,12 +5,13 @@ import com.fish_dan_.data_energistics.client.preferences.PatternEncodingPreferen
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingMultiblockTransferTarget;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 
+import appeng.integration.modules.emi.EmiEncodePatternHandler;
+import appeng.menu.me.items.PatternEncodingTermMenu;
+
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.network.chat.Component;
 
-import appeng.integration.modules.emi.EmiEncodePatternHandler;
-import appeng.menu.me.items.PatternEncodingTermMenu;
 import dev.emi.emi.api.recipe.EmiPlayerInventory;
 import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.recipe.handler.EmiCraftContext;

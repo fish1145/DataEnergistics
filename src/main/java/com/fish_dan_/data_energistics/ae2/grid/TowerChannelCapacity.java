@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.ae2.grid;
 
-import net.minecraft.core.BlockPos;
-
 import appeng.api.networking.IGrid;
 import appeng.api.networking.pathing.ChannelMode;
 import appeng.api.networking.pathing.ControllerState;
+
+import net.minecraft.core.BlockPos;
 
 /**
  * Calculates the total channel budget available to one tower network domain.

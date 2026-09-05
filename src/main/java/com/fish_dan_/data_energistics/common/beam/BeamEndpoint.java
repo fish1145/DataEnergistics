@@ -1,11 +1,12 @@
 package com.fish_dan_.data_energistics.common.beam;
 
+import appeng.api.networking.IManagedGridNode;
+import appeng.api.upgrades.IUpgradeableObject;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 
-import appeng.api.networking.IManagedGridNode;
-import appeng.api.upgrades.IUpgradeableObject;
 import org.jspecify.annotations.Nullable;
 
 /**

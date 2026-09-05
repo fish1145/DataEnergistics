@@ -3,13 +3,14 @@ package com.fish_dan_.data_energistics.blockentity.storage;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentOutputStorage;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
+import appeng.api.storage.IStorageMounts;
+import appeng.api.storage.IStorageProvider;
+import appeng.api.storage.MEStorage;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.storage.IStorageMounts;
-import appeng.api.storage.IStorageProvider;
-import appeng.api.storage.MEStorage;
 import org.jspecify.annotations.Nullable;
 
 /**

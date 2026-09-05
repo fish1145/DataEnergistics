@@ -4,14 +4,15 @@ import com.fish_dan_.data_energistics.block.sanctum.DataSanctumBlock;
 import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumBlockEntity;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.menu.AEBaseMenu;
+import appeng.menu.guisync.GuiSync;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.menu.AEBaseMenu;
-import appeng.menu.guisync.GuiSync;
 import org.jspecify.annotations.Nullable;
 
 public class DataSanctumStatusMenu extends AEBaseMenu {

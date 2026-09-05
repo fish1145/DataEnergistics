@@ -4,13 +4,6 @@ import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView.Entry;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-
-import appeng.api.client.AEKeyRendering;
-import appeng.api.stacks.AEKey;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.BindableUIElement;
@@ -19,6 +12,15 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
+
+import appeng.api.client.AEKeyRendering;
+import appeng.api.stacks.AEKey;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jspecify.annotations.Nullable;
 

@@ -7,10 +7,6 @@ import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState.Confirmation;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.MenuType;
-
 import appeng.api.networking.crafting.CalculationStrategy;
 import appeng.api.stacks.AEKey;
 import appeng.api.storage.ISubMenuHost;
@@ -19,6 +15,11 @@ import appeng.menu.MenuOpener;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.me.crafting.CraftAmountMenu;
 import appeng.menu.me.crafting.CraftConfirmMenu;
+
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
+
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.jspecify.annotations.Nullable;

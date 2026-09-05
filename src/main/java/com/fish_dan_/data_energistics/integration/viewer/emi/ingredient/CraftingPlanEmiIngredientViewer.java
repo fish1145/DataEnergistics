@@ -2,9 +2,11 @@ package com.fish_dan_.data_energistics.integration.viewer.emi.ingredient;
 
 import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewer;
 
-import appeng.api.stacks.GenericStack;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.integration.xei.emi.EMIUIEvents;
+
+import appeng.api.stacks.GenericStack;
+
 import dev.emi.emi.api.EmiApi;
 import dev.emi.emi.api.stack.EmiStackInteraction;
 import dev.emi.emi.runtime.EmiReloadManager;

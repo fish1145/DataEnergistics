@@ -9,15 +9,15 @@ import com.fish_dan_.data_energistics.recipe.charger.DataChargerRecipe;
 import com.fish_dan_.data_energistics.recipe.charger.DataIntegratedChargerRecipe;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
+import appeng.recipes.AERecipeTypes;
+import appeng.recipes.handlers.ChargerRecipe;
+import appeng.recipes.handlers.InscriberRecipe;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
-
-import appeng.recipes.AERecipeTypes;
-import appeng.recipes.handlers.ChargerRecipe;
-import appeng.recipes.handlers.InscriberRecipe;
 
 import java.util.ArrayList;
 import java.util.List;

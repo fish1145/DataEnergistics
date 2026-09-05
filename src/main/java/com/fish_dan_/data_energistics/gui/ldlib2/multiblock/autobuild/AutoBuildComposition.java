@@ -3,13 +3,14 @@ package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.autobuild;
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 import com.fish_dan_.data_energistics.gui.ldlib2.multiblock.preview.StructurePreviewUi;
 
-import net.minecraft.network.chat.Component;
-
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
+
+import net.minecraft.network.chat.Component;
+
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 

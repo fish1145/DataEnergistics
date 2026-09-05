@@ -5,9 +5,6 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
 
-import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.util.Mth;
-
 import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.GuiTextureGroup;
@@ -15,6 +12,10 @@ import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.GraphView;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
+
+import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.util.Mth;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;

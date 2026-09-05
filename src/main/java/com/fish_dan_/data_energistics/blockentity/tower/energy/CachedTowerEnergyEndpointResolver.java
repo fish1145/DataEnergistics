@@ -6,12 +6,13 @@ import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEne
 import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointIntegrationRegistry;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
+import appeng.blockentity.networking.CableBusBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.energy.IEnergyStorage;
 
-import appeng.blockentity.networking.CableBusBlockEntity;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import org.jspecify.annotations.Nullable;

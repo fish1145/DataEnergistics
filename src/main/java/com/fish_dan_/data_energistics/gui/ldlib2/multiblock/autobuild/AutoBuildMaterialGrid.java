@@ -2,9 +2,6 @@ package com.fish_dan_.data_energistics.gui.ldlib2.multiblock.autobuild;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.material.PreviewMaterial;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
@@ -14,6 +11,10 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;

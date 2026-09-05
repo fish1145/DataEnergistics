@@ -3,12 +3,14 @@ package com.fish_dan_.data_energistics.integration.viewer.jei.ingredient;
 import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewer;
 import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
 
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.integration.xei.jei.JEIUIEvents;
+
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.Rect2i;
 
-import appeng.api.stacks.GenericStack;
-import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.integration.xei.jei.JEIUIEvents;
 import mezz.jei.api.gui.builder.IClickableIngredientFactory;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.runtime.IClickableIngredient;

@@ -6,11 +6,11 @@ import com.fish_dan_.data_energistics.gui.ldlib2.host.window.HostSubUiRoot;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.core.TrinityDataCoreHostUiKeys;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout.TrinityUiXmlLayouts;
 
-import net.minecraft.network.chat.Component;
-
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+
+import net.minecraft.network.chat.Component;
 
 /**
  * Shared geometry and controls for the draggable Trinity automatic-build window.

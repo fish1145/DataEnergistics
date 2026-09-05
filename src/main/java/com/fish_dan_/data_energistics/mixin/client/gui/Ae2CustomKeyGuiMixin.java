@@ -2,15 +2,16 @@ package com.fish_dan_.data_energistics.mixin.client.gui;
 
 import com.fish_dan_.data_energistics.client.key.CustomKeyGuiRenderer;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-
 import appeng.api.stacks.AEKey;
 import appeng.client.gui.me.common.FinishedJobToast;
 import appeng.client.gui.me.common.MEStorageScreen;
 import appeng.client.gui.me.crafting.AbstractTableRenderer;
 import appeng.client.gui.me.networktool.NetworkStatusScreen;
 import appeng.client.gui.widgets.InfoBar;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;

@@ -9,6 +9,9 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankin
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
+
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -19,8 +22,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import appeng.menu.me.items.PatternEncodingTermMenu;
-import appeng.parts.encoding.EncodingMode;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;

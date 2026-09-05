@@ -3,10 +3,11 @@ package com.fish_dan_.data_energistics.ae2.dataflow;
 import com.fish_dan_.data_energistics.item.cell.DigitalStorageCellItem;
 import com.fish_dan_.data_energistics.item.cell.PortableDigitalStorageCellItem;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.storage.cells.ICellHandler;
 import appeng.api.storage.cells.ISaveProvider;
+
+import net.minecraft.world.item.ItemStack;
+
 import org.jspecify.annotations.Nullable;
 
 /**

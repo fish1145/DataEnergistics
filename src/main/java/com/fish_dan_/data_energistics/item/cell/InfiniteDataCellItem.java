@@ -4,6 +4,12 @@ import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 import com.fish_dan_.data_energistics.ae2.cell.InfiniteDataCellInventory;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
+import appeng.api.config.FuzzyMode;
+import appeng.api.stacks.GenericStack;
+import appeng.api.storage.cells.ICellWorkbenchItem;
+import appeng.items.storage.StorageCellTooltipComponent;
+import appeng.util.ConfigInventory;
+
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,12 +21,6 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
-
-import appeng.api.config.FuzzyMode;
-import appeng.api.stacks.GenericStack;
-import appeng.api.storage.cells.ICellWorkbenchItem;
-import appeng.items.storage.StorageCellTooltipComponent;
-import appeng.util.ConfigInventory;
 
 import java.util.List;
 import java.util.Optional;

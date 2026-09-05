@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity.tower.energy;
 
-import net.neoforged.neoforge.energy.IEnergyStorage;
-
 import appeng.blockentity.grid.AENetworkedBlockEntity;
+
+import net.neoforged.neoforge.energy.IEnergyStorage;
 
 /**
  * Provides long-width access to energy stored in the tower's own AE grid.

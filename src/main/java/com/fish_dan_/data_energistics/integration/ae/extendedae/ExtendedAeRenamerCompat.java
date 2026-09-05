@@ -2,6 +2,12 @@ package com.fish_dan_.data_energistics.integration.ae.extendedae;
 
 import com.fish_dan_.data_energistics.registry.DEItems;
 
+import appeng.blockentity.AEBaseBlockEntity;
+import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocators;
+import appeng.parts.AEBasePart;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -13,11 +19,6 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 
-import appeng.blockentity.AEBaseBlockEntity;
-import appeng.blockentity.networking.CableBusBlockEntity;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
-import appeng.parts.AEBasePart;
 import org.jspecify.annotations.Nullable;
 
 public final class ExtendedAeRenamerCompat {

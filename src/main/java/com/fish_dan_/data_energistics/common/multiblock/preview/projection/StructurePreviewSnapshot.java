@@ -8,9 +8,10 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSel
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewViewState;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewVisibleLayer;
 
+import appeng.api.stacks.AEItemKey;
+
 import net.minecraft.core.BlockPos;
 
-import appeng.api.stacks.AEItemKey;
 import com.modularmc.mdl.api.multiblock.PatternBounds;
 
 import java.util.HashSet;

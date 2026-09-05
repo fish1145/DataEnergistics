@@ -5,13 +5,6 @@ import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProvider
 import com.fish_dan_.data_energistics.common.pattern.ProviderIdentity;
 import com.fish_dan_.data_energistics.util.StableDigest;
 
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-
 import appeng.api.config.Actionable;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
@@ -25,6 +18,14 @@ import appeng.api.storage.MEStorage;
 import appeng.api.storage.StorageHelper;
 import appeng.core.definitions.AEItems;
 import appeng.helpers.patternprovider.PatternContainer;
+
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiB
 import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockPlacementPredicate;
 import com.fish_dan_.data_energistics.common.multiblock.json.matching.JsonMultiBlockReplaceableCompartmentPredicate;
 
+import appeng.api.parts.IPartItem;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -11,7 +13,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
-import appeng.api.parts.IPartItem;
 import com.modularmc.mdl.api.multiblock.PatternCandidate;
 import com.modularmc.mdl.api.multiblock.json.StructurePatternResolver.StringArrayDefinition;
 import com.modularmc.mdl.api.multiblock.structurepredicate.StructurePredicate;

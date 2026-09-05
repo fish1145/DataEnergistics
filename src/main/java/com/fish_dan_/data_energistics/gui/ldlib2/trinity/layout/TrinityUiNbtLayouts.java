@@ -2,17 +2,17 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity.layout;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
+import com.lowdragmc.lowdraglib2.Platform;
+import com.lowdragmc.lowdraglib2.gui.ui.UI;
+import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.UITemplate;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.fml.loading.FMLEnvironment;
-
-import com.lowdragmc.lowdraglib2.Platform;
-import com.lowdragmc.lowdraglib2.gui.ui.UI;
-import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
-import com.lowdragmc.lowdraglib2.gui.ui.UITemplate;
 
 import java.io.DataInputStream;
 import java.io.FileNotFoundException;

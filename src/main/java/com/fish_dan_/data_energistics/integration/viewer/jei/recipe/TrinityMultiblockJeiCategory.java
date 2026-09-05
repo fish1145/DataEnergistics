@@ -7,9 +7,6 @@ import com.fish_dan_.data_energistics.integration.viewer.xei.multiblock.Multiblo
 import com.fish_dan_.data_energistics.integration.viewer.xei.multiblock.MultiblockXeiRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
@@ -17,6 +14,10 @@ import com.lowdragmc.lowdraglib2.integration.xei.jei.JEIUIEvents;
 import com.lowdragmc.lowdraglib2.integration.xei.jei.LDLibJEIPlugin;
 import com.lowdragmc.lowdraglib2.integration.xei.jei.ModularUIRecipeCategory;
 import com.lowdragmc.lowdraglib2.integration.xei.jei.handler.JEIRecipeIngredientHandler;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+
 import lombok.Getter;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.drawable.IDrawable;

@@ -4,16 +4,6 @@ import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuListStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCpuStatus;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-
-import appeng.api.client.AEKeyRendering;
-import appeng.api.config.CpuSelectionMode;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AmountFormat;
-import appeng.api.stacks.GenericStack;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
@@ -30,6 +20,18 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
+
+import appeng.api.client.AEKeyRendering;
+import appeng.api.config.CpuSelectionMode;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AmountFormat;
+import appeng.api.stacks.GenericStack;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jspecify.annotations.Nullable;
 

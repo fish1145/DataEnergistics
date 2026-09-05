@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.ae2.grid;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.Collection;

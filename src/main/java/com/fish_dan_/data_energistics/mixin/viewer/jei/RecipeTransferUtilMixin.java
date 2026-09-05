@@ -7,13 +7,14 @@ import com.fish_dan_.data_energistics.integration.viewer.xei.transfer.PatternEnc
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
+
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
-import appeng.menu.me.items.PatternEncodingTermMenu;
-import appeng.parts.encoding.EncodingMode;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;

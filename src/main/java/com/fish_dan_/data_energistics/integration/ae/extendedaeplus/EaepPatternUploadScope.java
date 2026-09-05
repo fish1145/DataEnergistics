@@ -8,13 +8,14 @@ import com.fish_dan_.data_energistics.menu.patternencoding.PatternUploadRecorder
 import com.fish_dan_.data_energistics.menu.patternprovider.PatternProviderSyncHelper;
 import com.fish_dan_.data_energistics.network.patternencoding.PatternUploadSource;
 
+import appeng.helpers.patternprovider.PatternContainer;
+import appeng.menu.me.items.PatternEncodingTermMenu;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
-import appeng.helpers.patternprovider.PatternContainer;
-import appeng.menu.me.items.PatternEncodingTermMenu;
 import com.extendedae_plus.content.matrix.PatternCorePlusBlockEntity;
 import com.extendedae_plus.util.uploadPattern.ExtendedAEPatternUploadUtil;
 import com.glodblock.github.extendedae.common.tileentities.matrix.TileAssemblerMatrixPattern;

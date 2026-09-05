@@ -7,9 +7,10 @@ import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataRipperRe
 import com.fish_dan_.data_energistics.integration.viewer.xei.recipe.DataRipperReassemblerRecipeView;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
+import com.lowdragmc.lowdraglib2.integration.xei.jei.ModularUIRecipeCategory;
+
 import net.minecraft.network.chat.Component;
 
-import com.lowdragmc.lowdraglib2.integration.xei.jei.ModularUIRecipeCategory;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.recipe.RecipeType;

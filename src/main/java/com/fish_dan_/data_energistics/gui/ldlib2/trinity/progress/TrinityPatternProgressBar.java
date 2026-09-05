@@ -2,10 +2,11 @@ package com.fish_dan_.data_energistics.gui.ldlib2.trinity.progress;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
-import net.minecraft.resources.ResourceLocation;
-
 import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+
+import net.minecraft.resources.ResourceLocation;
+
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jspecify.annotations.Nullable;
 

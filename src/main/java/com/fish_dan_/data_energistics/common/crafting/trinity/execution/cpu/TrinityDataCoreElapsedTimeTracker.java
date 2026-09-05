@@ -1,12 +1,13 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
+import appeng.api.stacks.AEKeyTypes;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.util.Mth;
 
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
-import appeng.api.stacks.AEKeyTypes;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 

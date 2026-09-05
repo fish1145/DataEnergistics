@@ -9,13 +9,13 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.Tr
 import com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityDataCoreMenu;
 
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-
 import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import appeng.menu.me.crafting.CraftingStatusMenu;
+
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 
 /**
  * Reconstructs a CPU-status request from the current server menu and live Trinity topology.

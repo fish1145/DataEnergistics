@@ -2,14 +2,14 @@ package com.fish_dan_.data_energistics.client.crafting.tree;
 
 import com.fish_dan_.data_energistics.menu.crafting.tree.session.CraftingPlanSessionTransfer;
 
+import appeng.client.gui.me.crafting.CraftConfirmScreen;
+import appeng.client.gui.style.WidgetStyle;
+import appeng.client.gui.widgets.AE2Button;
+
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.client.event.ScreenEvent;
-
-import appeng.client.gui.me.crafting.CraftConfirmScreen;
-import appeng.client.gui.style.WidgetStyle;
-import appeng.client.gui.widgets.AE2Button;
 
 /** Adds one independently positioned action between the native cancel/start controls. */
 public final class CraftingPlanTreeEntry {

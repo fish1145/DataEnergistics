@@ -2,12 +2,13 @@ package com.fish_dan_.data_energistics.mixin.client.gui;
 
 import com.fish_dan_.data_energistics.client.screen.Ae2NativeSlotHighlight;
 
+import appeng.client.gui.AEBaseScreen;
+import appeng.menu.slot.ResizableSlot;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.inventory.Slot;
 
-import appeng.client.gui.AEBaseScreen;
-import appeng.menu.slot.ResizableSlot;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

@@ -38,6 +38,8 @@ import com.fish_dan_.data_energistics.common.resonance.TuningForkVariant;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreTier;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityPatternCoreTier;
 
+import appeng.block.networking.EnergyCellBlock;
+
 import net.minecraft.world.level.block.AmethystClusterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -47,8 +49,6 @@ import net.minecraft.world.level.material.MapColor;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
-
-import appeng.block.networking.EnergyCellBlock;
 
 public final class DEBlocks {
 

@@ -2,11 +2,12 @@ package com.fish_dan_.data_energistics.common.crafting.pattern;
 
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
+import appeng.api.ids.AEComponents;
+import appeng.parts.encoding.EncodingMode;
+
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.api.ids.AEComponents;
-import appeng.parts.encoding.EncodingMode;
 import org.jspecify.annotations.Nullable;
 
 /**

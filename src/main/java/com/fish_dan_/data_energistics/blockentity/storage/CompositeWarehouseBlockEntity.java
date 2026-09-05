@@ -5,18 +5,19 @@ import com.fish_dan_.data_energistics.common.compartment.CompartmentInventory;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentType;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.state.BlockState;
-
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.core.definitions.AEItems;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.state.BlockState;
+
 import org.jspecify.annotations.Nullable;
 
 /**

@@ -4,9 +4,10 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternMaint
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.progress.TrinityPatternProgressAppearance;
 import com.fish_dan_.data_energistics.gui.ldlib2.trinity.progress.TrinityPatternProgressBar;
 
+import com.lowdragmc.lowdraglib2.gui.ui.elements.BindableUIElement;
+
 import net.minecraft.network.chat.Component;
 
-import com.lowdragmc.lowdraglib2.gui.ui.elements.BindableUIElement;
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import org.jspecify.annotations.Nullable;
 

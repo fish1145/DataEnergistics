@@ -4,12 +4,13 @@ import com.fish_dan_.data_energistics.common.dataripper.DataReassemblerGuideLayo
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerIngredient;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 
+import appeng.core.AppEng;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 
-import appeng.core.AppEng;
 import guideme.document.interaction.GuideTooltip;
 import guideme.render.RenderContext;
 

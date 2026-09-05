@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderAdapter;
 
 import appeng.api.networking.crafting.ICraftingProvider;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.IdentityHashMap;

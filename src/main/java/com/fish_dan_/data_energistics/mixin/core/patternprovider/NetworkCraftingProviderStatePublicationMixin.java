@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.common.entrypoint.provider.PatternProvider
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.me.service.helpers.NetworkCraftingProviders;
+
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

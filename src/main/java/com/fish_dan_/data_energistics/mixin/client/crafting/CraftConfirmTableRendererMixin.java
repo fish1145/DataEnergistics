@@ -5,12 +5,13 @@ import com.fish_dan_.data_energistics.client.crafting.confirm.presentation.Trini
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftConfirmMenuState;
 import com.fish_dan_.data_energistics.menu.crafting.projection.cycle.model.TrinityCraftingCycleSummary;
 
-import net.minecraft.network.chat.Component;
-
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.me.crafting.AbstractTableRenderer;
 import appeng.client.gui.me.crafting.CraftConfirmTableRenderer;
 import appeng.menu.me.crafting.CraftingPlanSummaryEntry;
+
+import net.minecraft.network.chat.Component;
+
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

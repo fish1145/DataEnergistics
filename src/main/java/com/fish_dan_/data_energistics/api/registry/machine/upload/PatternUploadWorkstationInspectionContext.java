@@ -2,6 +2,9 @@ package com.fish_dan_.data_energistics.api.registry.machine.upload;
 
 import com.fish_dan_.data_energistics.api.registry.provider.runtime.PatternProviderIdentity;
 
+import appeng.api.crafting.IPatternDetails;
+import appeng.helpers.patternprovider.PatternContainer;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -9,8 +12,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
-import appeng.api.crafting.IPatternDetails;
-import appeng.helpers.patternprovider.PatternContainer;
 import org.jspecify.annotations.Nullable;
 
 /**

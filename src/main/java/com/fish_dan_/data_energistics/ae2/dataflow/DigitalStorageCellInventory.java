@@ -4,9 +4,6 @@ import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.config.Actionable;
 import appeng.api.config.IncludeExclude;
 import appeng.api.ids.AEComponents;
@@ -25,6 +22,10 @@ import appeng.core.definitions.AEItems;
 import appeng.util.ConfigInventory;
 import appeng.util.prioritylist.FuzzyPriorityList;
 import appeng.util.prioritylist.IPartitionList;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

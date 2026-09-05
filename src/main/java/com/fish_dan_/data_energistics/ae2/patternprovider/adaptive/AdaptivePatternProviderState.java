@@ -1,15 +1,15 @@
 package com.fish_dan_.data_energistics.ae2.patternprovider.adaptive;
 
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.inventories.InternalInventory;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
+
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.function.IntSupplier;
 

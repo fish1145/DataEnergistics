@@ -5,12 +5,13 @@ import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderLo
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningAutoRequestHelper;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
 
+import appeng.api.crafting.IPatternDetails;
+import appeng.api.stacks.KeyCounter;
+
 import net.minecraft.server.level.ServerLevel;
 import net.pedroksl.advanced_ae.common.logic.AdvPatternProviderLogic;
 import net.pedroksl.advanced_ae.common.logic.AdvPatternProviderLogicHost;
 
-import appeng.api.crafting.IPatternDetails;
-import appeng.api.stacks.KeyCounter;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

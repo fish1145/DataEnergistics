@@ -2,11 +2,12 @@ package com.fish_dan_.data_energistics.ae2.cell;
 
 import com.fish_dan_.data_energistics.item.cell.InfiniteDataCellItem;
 
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.storage.cells.ICellHandler;
 import appeng.api.storage.cells.ISaveProvider;
 import appeng.api.storage.cells.StorageCell;
+
+import net.minecraft.world.item.ItemStack;
+
 import org.jspecify.annotations.Nullable;
 
 public final class InfiniteDataCellHandler implements ICellHandler {

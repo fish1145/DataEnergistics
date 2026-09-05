@@ -5,17 +5,18 @@ import com.fish_dan_.data_energistics.accessor.condenser.CondenserMenuAccessor;
 import com.fish_dan_.data_energistics.ae2.settings.CondenserOutputMode;
 import com.fish_dan_.data_energistics.recipe.condenser.CondenserOutputRecipeCatalog;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.level.Level;
-
 import appeng.api.config.CondenserOutput;
 import appeng.api.config.Settings;
 import appeng.blockentity.misc.CondenserBlockEntity;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.implementations.CondenserMenu;
+
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.level.Level;
+
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

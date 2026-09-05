@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.menu.patternencoding;
 
 import appeng.api.stacks.GenericStack;
+
 import org.jspecify.annotations.Nullable;
 
 /**

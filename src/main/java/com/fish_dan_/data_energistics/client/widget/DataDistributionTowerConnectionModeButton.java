@@ -3,13 +3,13 @@ package com.fish_dan_.data_energistics.client.widget;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.ConnectionMode;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsIcon;
 
+import appeng.client.gui.Icon;
+import appeng.client.gui.widgets.ITooltip;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
-
-import appeng.client.gui.Icon;
-import appeng.client.gui.widgets.ITooltip;
 
 import java.util.List;
 import java.util.function.Consumer;

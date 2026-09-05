@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.proj
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+
 import com.neuvillette.ae2ct.api.RecipeHelper;
 import org.jetbrains.annotations.ApiStatus;
 

@@ -18,12 +18,14 @@ import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGra
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Material;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Process;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.GraphViewLod;
 
 import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.AEKey;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.GraphViewLod;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;

@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture;
 
-import net.minecraft.core.HolderLookup;
-
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEKey;
 import appeng.me.service.helpers.NetworkCraftingProviders;
+
+import net.minecraft.core.HolderLookup;
 
 import java.util.List;
 import java.util.function.LongSupplier;

@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.block;
 
+import appeng.block.AEBaseBlock;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
@@ -8,8 +10,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-
-import appeng.block.AEBaseBlock;
 
 public class DataFrameworkBlock extends AEBaseBlock {
 

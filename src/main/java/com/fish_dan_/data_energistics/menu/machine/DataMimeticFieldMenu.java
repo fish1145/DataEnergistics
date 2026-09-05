@@ -5,10 +5,6 @@ import com.fish_dan_.data_energistics.blockentity.machine.DataMimeticFieldBlockE
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
-import net.minecraft.core.Direction;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.ItemStack;
-
 import appeng.api.inventories.InternalInventory;
 import appeng.api.util.IConfigManager;
 import appeng.menu.SlotSemantic;
@@ -20,6 +16,10 @@ import appeng.menu.slot.AppEngSlot;
 import appeng.menu.slot.IOptionalSlotHost;
 import appeng.menu.slot.OptionalRestrictedInputSlot;
 import appeng.menu.slot.RestrictedInputSlot;
+
+import net.minecraft.core.Direction;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;

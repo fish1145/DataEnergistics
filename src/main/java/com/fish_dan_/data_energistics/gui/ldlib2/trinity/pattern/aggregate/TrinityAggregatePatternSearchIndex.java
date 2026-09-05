@@ -5,13 +5,13 @@ import com.fish_dan_.data_energistics.client.screen.trinity.TrinityPatternSearch
 import com.fish_dan_.data_energistics.client.screen.trinity.TrinityPatternSearchMode;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
+
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.HashMap;

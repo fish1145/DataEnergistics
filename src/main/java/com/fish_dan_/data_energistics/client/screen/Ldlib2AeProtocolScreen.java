@@ -1,12 +1,12 @@
 package com.fish_dan_.data_energistics.client.screen;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.menu.AEBaseMenu;
+
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
 
 /**
  * Retains AE2's fake-slot, carried-stack, and keyboard protocols while a mounted LDLib2 tree owns every visual.

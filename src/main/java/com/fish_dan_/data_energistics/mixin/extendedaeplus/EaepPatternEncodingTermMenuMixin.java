@@ -6,11 +6,12 @@ import com.fish_dan_.data_energistics.integration.ae.extendedaeplus.EaepPatternU
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingRankingContext;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
+import appeng.menu.me.items.PatternEncodingTermMenu;
+import appeng.parts.encoding.EncodingMode;
+
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 
-import appeng.menu.me.items.PatternEncodingTermMenu;
-import appeng.parts.encoding.EncodingMode;
 import com.extendedae_plus.api.upload.IPatternEncodingShiftUploadSync;
 import com.extendedae_plus.util.uploadPattern.ExtendedAEPatternUploadUtil;
 import org.spongepowered.asm.mixin.Mixin;

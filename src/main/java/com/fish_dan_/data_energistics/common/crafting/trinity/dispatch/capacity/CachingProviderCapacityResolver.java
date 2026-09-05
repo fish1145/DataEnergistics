@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.Tri
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.KeyCounter;
+
 import org.jspecify.annotations.Nullable;
 
 import java.util.concurrent.ExecutionException;

@@ -1,13 +1,13 @@
 package com.fish_dan_.data_energistics.client.widget;
 
+import appeng.client.gui.Icon;
+import appeng.client.gui.widgets.IconButton;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
-
-import appeng.client.gui.Icon;
-import appeng.client.gui.widgets.IconButton;
 
 public class OutputSideDisplayButton extends IconButton {
 

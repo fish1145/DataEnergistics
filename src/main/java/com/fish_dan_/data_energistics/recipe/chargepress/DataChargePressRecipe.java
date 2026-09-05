@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.recipe.chargepress;
 
 import com.fish_dan_.data_energistics.registry.DERecipes;
 
+import appeng.api.stacks.GenericStack;
+
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.ItemStack;
@@ -11,8 +13,6 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.fluids.FluidStack;
-
-import appeng.api.stacks.GenericStack;
 
 import java.util.ArrayList;
 import java.util.List;

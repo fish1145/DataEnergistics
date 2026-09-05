@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.entity.projectile;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
+import appeng.api.upgrades.UpgradeInventories;
+
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -36,7 +38,6 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.entity.PartEntity;
 
-import appeng.api.upgrades.UpgradeInventories;
 import org.jspecify.annotations.Nullable;
 
 public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplier {

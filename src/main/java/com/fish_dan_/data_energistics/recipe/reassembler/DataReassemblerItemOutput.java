@@ -2,6 +2,9 @@ package com.fish_dan_.data_energistics.recipe.reassembler;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 
+import appeng.blockentity.qnb.QuantumBridgeBlockEntity;
+import appeng.core.definitions.AEItems;
+
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -10,8 +13,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ExtraCodecs;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.blockentity.qnb.QuantumBridgeBlockEntity;
-import appeng.core.definitions.AEItems;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import org.jspecify.annotations.Nullable;

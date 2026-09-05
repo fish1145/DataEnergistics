@@ -4,6 +4,10 @@ import com.fish_dan_.data_energistics.blockentity.machine.DataSolarPanelBlockEnt
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
+import appeng.block.AEBaseBlock;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.MenuLocators;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionResult;
@@ -29,9 +33,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import appeng.block.AEBaseBlock;
-import appeng.menu.MenuOpener;
-import appeng.menu.locator.MenuLocators;
 import org.jspecify.annotations.Nullable;
 
 public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {

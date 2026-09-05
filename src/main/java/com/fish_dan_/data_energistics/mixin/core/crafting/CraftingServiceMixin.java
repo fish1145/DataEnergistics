@@ -55,11 +55,6 @@ import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPubli
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.Level;
-
 import appeng.api.config.Actionable;
 import appeng.api.config.CpuSelectionMode;
 import appeng.api.crafting.IPatternDetails;
@@ -81,6 +76,12 @@ import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import appeng.me.service.CraftingService;
 import appeng.me.service.helpers.NetworkCraftingProviders;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.Level;
+
 import com.google.common.collect.ImmutableSet;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;

@@ -1,9 +1,10 @@
 package com.fish_dan_.data_energistics.api.registry.terminal;
 
+import appeng.api.util.IConfigManager;
+
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.api.util.IConfigManager;
 import org.jspecify.annotations.Nullable;
 
 import java.util.function.Function;

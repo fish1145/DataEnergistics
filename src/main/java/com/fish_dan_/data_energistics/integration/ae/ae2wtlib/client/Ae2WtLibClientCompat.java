@@ -3,10 +3,11 @@ package com.fish_dan_.data_energistics.integration.ae.ae2wtlib.client;
 import com.fish_dan_.data_energistics.client.screen.patternencoding.WirelessPatternEncodingTermScreen;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
 
+import appeng.client.gui.style.StyleManager;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
-import appeng.client.gui.style.StyleManager;
 import de.mari_023.ae2wtlib.wet.WETMenu;
 import de.mari_023.ae2wtlib.wet.WETScreen;
 
