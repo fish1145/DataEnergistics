@@ -14,8 +14,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.Reusa
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.OutputContract;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Submission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSettlement;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.NativeReusableCrafting;
 
 import appeng.api.crafting.IPatternDetails;
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
@@ -29,11 +31,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
@@ -56,6 +60,22 @@ public final class TrinityReusableDispatchContractGameTest {
     private static final Target TARGET = new Target("dispatch-contract-native", CountedCraftingTarget.route("dispatch-contract-native"), Optional.empty());
 
     private TrinityReusableDispatchContractGameTest() {}
+
+    @TestHolder("trinity_reusable_external_recipes_keep_fluid_material_validation")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void externalRecipesKeepFluidMaterialValidation(GameTestHelper helper) {
+        AEFluidKey water = AEFluidKey.of(Fluids.WATER);
+        List<TrinityBoundPatternInput> bindings = List.of(toolBinding(0, unchanged(), 1),
+                new TrinityBoundPatternInput(1, 0, new GenericStack(water, 1000), 1, null));
+        TestPattern pattern = new TestPattern(bindings);
+        helper.assertTrue(NativeReusableCrafting.matches(pattern, List.of(stack(tool(0), 1), new GenericStack(water, 1000)),
+                IntSet.of(0), Optional.empty(), helper.getLevel()), "External reusable providers may consume their validated fluid keys");
+        helper.assertTrue(!NativeReusableCrafting.matches(pattern,
+                List.of(stack(tool(0), 1), new GenericStack(AEFluidKey.of(Fluids.LAVA), 1000)), IntSet.of(0), Optional.empty(), helper.getLevel()),
+                "Reusable authorization cannot bypass the ordinary fluid input validator");
+        helper.succeed();
+    }
 
     @TestHolder("trinity_reusable_offer_shares_one_balance_for_consumed_and_held_identical_keys")
     @EmptyTemplate("5")

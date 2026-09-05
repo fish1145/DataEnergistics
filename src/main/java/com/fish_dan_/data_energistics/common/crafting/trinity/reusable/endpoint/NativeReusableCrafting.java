@@ -58,7 +58,7 @@ public final class NativeReusableCrafting {
         boolean nativeValidation = usesNativeRecipeValidation(nativePattern, recipeId);
         for (int slot = 0; slot < inputs.length; slot++) {
             GenericStack exact = exactInputs.get(slot);
-            if (exact.amount() <= 0 || !(exact.what() instanceof AEItemKey) ||
+            if (exact.amount() <= 0 || nativePattern instanceof IMolecularAssemblerSupportedPattern && !(exact.what() instanceof AEItemKey) ||
                     (!nativeValidation || !reusableSlots.contains(slot)) && !inputs[slot].isValid(exact.what(), level)) {
                 return false;
             }
