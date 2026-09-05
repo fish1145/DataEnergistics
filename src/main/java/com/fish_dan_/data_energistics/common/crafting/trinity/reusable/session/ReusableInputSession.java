@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
+import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
@@ -79,7 +80,8 @@ public final class ReusableInputSession {
 
     /** Immutable idempotency payload. Materials must equal exact per-operation consumption times operations. */
     public record Append(long sequence, long operations, List<SlotInput> consumedPerOperation,
-                         List<GenericStack> deliveredMaterials, List<ToolDelivery> deliveredTools) {
+                         List<GenericStack> deliveredMaterials, List<ToolDelivery> deliveredTools,
+                         Int2ObjectMap<AEItemKey> operationStates) {
 
         public Append {
             if (sequence < 0 || operations <= 0) {
@@ -88,6 +90,12 @@ public final class ReusableInputSession {
             consumedPerOperation = List.copyOf(consumedPerOperation);
             deliveredMaterials = SessionAssets.checked(deliveredMaterials);
             deliveredTools = List.copyOf(deliveredTools);
+            operationStates = Int2ObjectMaps.unmodifiable(new Int2ObjectLinkedOpenHashMap<>(operationStates));
+            for (int slot : operationStates.keySet()) {
+                if (slot < 0) {
+                    throw new IllegalArgumentException("Invalid exact tool-state slot");
+                }
+            }
             IntOpenHashSet slots = new IntOpenHashSet();
             for (SlotInput input : consumedPerOperation) {
                 if (!slots.add(input.slot())) {
@@ -181,6 +189,7 @@ public final class ReusableInputSession {
     private final Long2ObjectLinkedOpenHashMap<AppendSnapshot> appends = new Long2ObjectLinkedOpenHashMap<>();
     private final LongArrayFIFOQueue pendingAppends = new LongArrayFIFOQueue();
     private final Int2ObjectLinkedOpenHashMap<List<GenericStack>> tools = new Int2ObjectLinkedOpenHashMap<>();
+    private final Int2ObjectLinkedOpenHashMap<Object2LongLinkedOpenHashMap<AEItemKey>> stateReservations = new Int2ObjectLinkedOpenHashMap<>();
     private final Long2ObjectLinkedOpenHashMap<ReturnBatch> returns = new Long2ObjectLinkedOpenHashMap<>();
     private final Long2ObjectLinkedOpenHashMap<ReturnBatch> acknowledged = new Long2ObjectLinkedOpenHashMap<>();
     private List<GenericStack> outputs = List.of();
@@ -208,6 +217,7 @@ public final class ReusableInputSession {
                 throw new IllegalArgumentException("Duplicate reusable slot contract");
             }
             tools.put(contract.slot(), List.of());
+            stateReservations.put(contract.slot(), new Object2LongLinkedOpenHashMap<>());
         }
     }
 
@@ -241,6 +251,12 @@ public final class ReusableInputSession {
 
     public Optional<AppendSnapshot> appendSnapshot(long sequence) {
         return Optional.ofNullable(appends.get(sequence));
+    }
+
+    /** Derived exact-state operation reservations, never an additional physical tool balance. */
+    public long reservedToolUses(int slot, AEItemKey state) {
+        var reservations = stateReservations.get(slot);
+        return reservations == null ? 0L : reservations.getLong(state);
     }
 
     public List<ReturnBatch> returnOutbox() {
@@ -282,6 +298,7 @@ public final class ReusableInputSession {
         if (!appends.isEmpty() && request.sequence() <= appends.lastLongKey()) {
             throw new IllegalArgumentException("Append sequence must increase");
         }
+        validateOperationStates(request);
         long totalAccepted = Math.addExact(accepted(), request.operations());
         long reserved = totalAccepted - completed() - cancelled();
         Int2ObjectLinkedOpenHashMap<List<GenericStack>> candidate = new Int2ObjectLinkedOpenHashMap<>(tools);
@@ -291,7 +308,10 @@ public final class ReusableInputSession {
             candidate.put(delivery.slot(), SessionAssets.merge(candidate.get(delivery.slot()), List.of(delivery.stack())));
         }
         for (SlotContract contract : contracts.values()) {
-            if (!canRun(contract, candidate.get(contract.slot()), reserved)) {
+            AEItemKey exact = request.operationStates().get(contract.slot());
+            boolean sufficient = exact == null ? canRun(contract, candidate.get(contract.slot()), reserved) :
+                    canRunExact(contract, candidate.get(contract.slot()), exact, request.operations());
+            if (!sufficient) {
                 throw new IllegalArgumentException("Insufficient guaranteed reusable input capacity in slot " + contract.slot());
             }
         }
@@ -307,6 +327,7 @@ public final class ReusableInputSession {
             return false;
         }
         tools.putAll(preparedTools);
+        updateStateReservations(request, request.operations());
         appends.put(request.sequence(), new AppendSnapshot(request, 0, 0, request.deliveredMaterials()));
         acceptedCount += request.operations(); // Overflow was checked before taking ownership.
         pendingAppends.enqueue(request.sequence());
@@ -327,7 +348,10 @@ public final class ReusableInputSession {
         Int2ObjectLinkedOpenHashMap<List<GenericStack>> retained = new Int2ObjectLinkedOpenHashMap<>(tools);
         for (SlotContract contract : contracts.values()) {
             List<GenericStack> available = new ObjectArrayList<>(tools.get(contract.slot()));
-            if (contract.heldAmount() > 1) {
+            AEItemKey exact = append.request().operationStates().get(contract.slot());
+            if (exact != null) {
+                available.removeIf(stack -> !exact.equals(stack.what()));
+            } else if (contract.heldAmount() > 1) {
                 // Longest remaining lives first preserves multi-tool feasibility; one-tool slots exhaust FIFO.
                 available.sort(Comparator.comparingLong((GenericStack stack) -> contract.rule().guaranteedUses((AEItemKey) stack.what())).reversed());
             }
@@ -430,6 +454,7 @@ public final class ReusableInputSession {
         AppendSnapshot append = appends.get(operation.appendSequence());
         AppendSnapshot advanced = new AppendSnapshot(append.request(), Math.incrementExact(append.completed()),
                 append.cancelled(), append.remainingMaterials());
+        updateStateReservations(append.request(), -1L);
         tools.putAll(newTools);
         outputs = newOutputs;
         exhaustedTools = totalExhausted;
@@ -506,6 +531,7 @@ public final class ReusableInputSession {
         appends.putAll(cancelledAppends);
         cancelledCount = acceptedCount - completedCount;
         pendingAppends.clear();
+        stateReservations.values().forEach(Object2LongLinkedOpenHashMap::clear);
         tools.replaceAll((slot, ignored) -> List.of());
         machineOwnedReleased = List.copyOf(released);
         state = returns.isEmpty() ? State.CLOSED : State.RETURN_PENDING;
@@ -590,12 +616,14 @@ public final class ReusableInputSession {
                 throw new IllegalArgumentException("Persisted append sequences must increase strictly");
             }
             previousSequence = append.request().sequence();
+            result.validateOperationStates(append.request());
             result.appends.put(append.request().sequence(), append);
             result.acceptedCount = Math.addExact(result.acceptedCount, append.request().operations());
             result.completedCount = Math.addExact(result.completedCount, append.completed());
             result.cancelledCount = Math.addExact(result.cancelledCount, append.cancelled());
             if (append.completed() + append.cancelled() < append.request().operations()) {
                 result.pendingAppends.enqueue(append.request().sequence());
+                result.updateStateReservations(append.request(), append.request().operations() - append.completed() - append.cancelled());
             }
         }
         for (ToolDelivery tool : snapshot.tools()) {
@@ -683,6 +711,10 @@ public final class ReusableInputSession {
             }
             for (ToolDelivery tool : active.tools()) {
                 requireContract(tool.slot()).rule().guaranteedUses((AEItemKey) tool.stack().what());
+                AEItemKey expected = append.request().operationStates().get(tool.slot());
+                if (expected != null && !expected.equals(tool.stack().what())) {
+                    throw new IllegalArgumentException("Persisted execution tool does not match its exact append state");
+                }
                 activeTools.put(tool.slot(), SessionAssets.merge(activeTools.get(tool.slot()), List.of(tool.stack())));
             }
             for (SlotContract contract : contracts.values()) {
@@ -692,11 +724,53 @@ public final class ReusableInputSession {
             }
         } else if (state == State.OPEN) {
             for (SlotContract contract : contracts.values()) {
-                if (!canRun(contract, tools.get(contract.slot()), pending())) {
+                boolean exact = !appends.isEmpty() && appends.get(appends.firstLongKey()).request().operationStates().containsKey(contract.slot());
+                if (!(exact ? canRunExact(contract, tools.get(contract.slot()), null, 0L) :
+                        canRun(contract, tools.get(contract.slot()), pending()))) {
                     throw new IllegalArgumentException("Persisted tools do not cover accepted reservations");
                 }
             }
         }
+    }
+
+    private void validateOperationStates(Append request) {
+        if (!appends.isEmpty() && !appends.get(appends.firstLongKey()).request().operationStates().keySet().equals(request.operationStates().keySet())) {
+            throw new IllegalArgumentException("A session cannot change between exact and consecutive tool-state execution");
+        }
+        for (var entry : request.operationStates().int2ObjectEntrySet()) {
+            requireContract(entry.getIntKey()).rule().guaranteedUses(entry.getValue());
+        }
+    }
+
+    private void updateStateReservations(Append request, long delta) {
+        for (var entry : request.operationStates().int2ObjectEntrySet()) {
+            var reservations = stateReservations.get(entry.getIntKey());
+            long next = Math.addExact(reservations.getLong(entry.getValue()), delta);
+            if (next < 0L) {
+                throw new IllegalStateException("Exact tool-state reservation underflow");
+            }
+            if (next == 0L) {
+                reservations.removeLong(entry.getValue());
+            } else {
+                reservations.put(entry.getValue(), next);
+            }
+        }
+    }
+
+    private boolean canRunExact(SlotContract contract, List<GenericStack> available, @Nullable AEItemKey extraState, long extraUses) {
+        var requested = new Object2LongLinkedOpenHashMap<>(stateReservations.get(contract.slot()));
+        if (extraState != null) {
+            requested.put(extraState, Math.addExact(requested.getLong(extraState), extraUses));
+        }
+        var amounts = SessionAssets.counts(available);
+        for (var entry : requested.object2LongEntrySet()) {
+            boolean unchanged = entry.getKey().equals(contract.rule().advance(entry.getKey(), 1L).successor());
+            long required = unchanged ? contract.heldAmount() : Math.multiplyExact(entry.getLongValue(), contract.heldAmount());
+            if (amounts.getLong(entry.getKey()) < required) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean canRun(SlotContract contract, List<GenericStack> available, long operations) {

@@ -238,7 +238,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
         NativeHost host = new NativeHost();
         UUID sessionId = UUID.randomUUID();
         ReusableCraftingRequest request = request(helper, sessionId, 0, 1, List.of(new SlotStack(0, stack(tool(0), 1))));
-        List<Input> machineClaim = List.of(new Input(0, List.of(), Optional.of(new Tool(1, Ownership.MACHINE_OWNED, rule()))), request.inputs().get(1));
+        List<Input> machineClaim = List.of(new Input(0, List.of(), Optional.of(new Tool(1, Ownership.MACHINE_OWNED, rule(), Optional.empty()))), request.inputs().get(1));
         ReusableCraftingRequest unsupported = new ReusableCraftingRequest(sessionId, JOB, "cpu:owner", 0, request.target(),
                 request.pattern(), machineClaim, request.offeredTools(), 1, request.recipeId(), request.actionSource(), request.level());
         helper.assertTrue(endpoint.prepare(unsupported, 0, host) == null, "Native endpoint cannot claim a machine inventory it does not have");
@@ -303,7 +303,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
         endpoint.tick(1, 1, false, host);
         endpoint = reload(endpoint, helper);
         ReusableInputRule atDamageOne = ReusableInputRule.fixedDamage(RULE_ID, 1, tool(1), 1, 3, List.of(stack(SCRAP, 1)));
-        List<Input> continuedInputs = List.of(new Input(0, List.of(), Optional.of(new Tool(1, Ownership.CPU_SUPPLIED, atDamageOne))),
+        List<Input> continuedInputs = List.of(new Input(0, List.of(), Optional.of(new Tool(1, Ownership.CPU_SUPPLIED, atDamageOne, Optional.empty()))),
                 first.inputs().get(1));
         ReusableCraftingRequest continuation = new ReusableCraftingRequest(sessionId, JOB, "cpu:owner", 1, first.target(), first.pattern(),
                 continuedInputs, List.of(), 1, first.recipeId(), first.actionSource(), first.level());
@@ -317,7 +317,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
         helper.assertValueEqual(endpoint.snapshot().getFirst().session().slotContracts().getFirst().rule().initialKey(), tool(0),
                 "Continuation never replaces the original D0 rule or resets lifetime");
         ReusableInputRule changedLoss = ReusableInputRule.fixedDamage(RULE_ID, 1, tool(2), 2, 3, List.of(stack(SCRAP, 1)));
-        List<Input> changedInputs = List.of(new Input(0, List.of(), Optional.of(new Tool(1, Ownership.CPU_SUPPLIED, changedLoss))), first.inputs().get(1));
+        List<Input> changedInputs = List.of(new Input(0, List.of(), Optional.of(new Tool(1, Ownership.CPU_SUPPLIED, changedLoss, Optional.empty()))), first.inputs().get(1));
         ReusableCraftingRequest incompatible = new ReusableCraftingRequest(sessionId, JOB, "cpu:owner", 2, first.target(), first.pattern(),
                 changedInputs, List.of(), 1, first.recipeId(), first.actionSource(), first.level());
         helper.assertTrue(endpoint.prepare(incompatible, 2, host) == null, "A changed per-use loss is not a continuation of the frozen contract");
@@ -382,11 +382,51 @@ public final class PersistentReusableCraftingEndpointGameTest {
         helper.succeed();
     }
 
+    @TestHolder("reusable_endpoint_exact_firings_reserve_distinct_states_and_reuse_resident_successors")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void exactFiringsReserveDistinctStatesAndReuseResidentSuccessors(GameTestHelper helper) {
+        PersistentReusableCraftingEndpoint endpoint = new PersistentReusableCraftingEndpoint(TARGET);
+        NativeHost host = new NativeHost();
+        UUID sessionId = UUID.randomUUID();
+        ReusableCraftingRequest initial = exactRequest(helper, sessionId, 0, 3, tool(0), List.of(new SlotStack(0, stack(tool(0), 3))));
+        ReusableCraftingAdmission opened = prepare(endpoint, initial, 0, host);
+        helper.assertTrue(opened.commit(delivery(opened)), "Three D0 firings accept three real D0 tools");
+        endpoint = reload(endpoint, helper);
+        helper.assertValueEqual(endpoint.reservedToolUses(sessionId, 0, tool(0)), 3L, "Pending exact reservations survive reload");
+        helper.assertTrue(endpoint.prepare(exactRequest(helper, sessionId, 1, 1, tool(0), List.of()), 1, host) == null,
+                "The same D0 units cannot be promised to another pending append");
+        endpoint.tick(1, 3, false, host);
+        helper.assertValueEqual(endpoint.query(sessionId).orElseThrow().heldTools(), List.of(new SlotStack(0, stack(tool(1), 3))),
+                "Three D0 to D1 firings cannot become one tool's consecutive D0 to D3 execution");
+        helper.assertValueEqual(endpoint.reservedToolUses(sessionId, 0, tool(0)), 0L, "Completed exact uses release their reservations");
+        ReusableCraftingAdmission next = prepare(endpoint, exactRequest(helper, sessionId, 1, 3, tool(1), List.of()), 2, host);
+        helper.assertValueEqual(amount(next.physicalInputs(), 0, tool(1)), 0L, "The next D1 stage does not transport its resident tools again");
+        helper.assertTrue(next.commit(delivery(next)), "Resident successors are reusable for the next exact stage");
+        endpoint.tick(2, 3, false, host);
+        endpoint.close(sessionId, host);
+        endpoint.settle(sessionId, settlement -> {
+            helper.assertValueEqual(settlement.returnedAssets(), List.of(stack(tool(2), 3)), "Final return contains all three actual D2 tools");
+            return true;
+        }, host);
+        helper.assertValueEqual(host.amount(PRODUCT), 6L, "Both exact stages execute their actual six recipe operations");
+        helper.succeed();
+    }
+
+    private static ReusableCraftingRequest exactRequest(GameTestHelper helper, UUID sessionId, long sequence, long operations,
+                                                        AEItemKey state, List<SlotStack> offeredTools) {
+        ReusableCraftingRequest base = request(helper, sessionId, sequence, operations, offeredTools);
+        List<Input> inputs = List.of(new Input(0, List.of(), Optional.of(new Tool(1, Ownership.CPU_SUPPLIED, rule(), Optional.of(state)))),
+                base.inputs().get(1));
+        return new ReusableCraftingRequest(sessionId, JOB, base.cpuOwner(), sequence, base.target(), base.pattern(), inputs,
+                offeredTools, operations, base.recipeId(), base.actionSource(), base.level());
+    }
+
     private static ReusableCraftingRequest request(GameTestHelper helper, UUID sessionId, long sequence, long operations,
                                                    List<SlotStack> offeredTools) {
         return new ReusableCraftingRequest(sessionId, JOB, "cpu:owner", sequence,
                 new Target(TARGET, CountedCraftingTarget.route("native-core-slot"), Optional.empty()), new TestPattern(),
-                List.of(new Input(0, List.of(), Optional.of(new Tool(1, Ownership.CPU_SUPPLIED, rule()))),
+                List.of(new Input(0, List.of(), Optional.of(new Tool(1, Ownership.CPU_SUPPLIED, rule(), Optional.empty()))),
                         new Input(1, List.of(stack(MATERIAL, 1)), Optional.empty())),
                 offeredTools, operations, Optional.empty(), new BaseActionSource(), helper.getLevel());
     }

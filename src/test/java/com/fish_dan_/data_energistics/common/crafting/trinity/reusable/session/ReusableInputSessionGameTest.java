@@ -31,6 +31,8 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,7 +54,12 @@ public final class ReusableInputSessionGameTest {
     public static void unchangedToolResidesAcrossOneThousandOperations(GameTestHelper helper) {
         ReusableInputSession session = session(unchanged(), 1, Ownership.CPU_SUPPLIED);
         for (int sequence = 0; sequence < 10; sequence++) {
-            session.acceptAppend(append(sequence, 100, sequence == 0 ? List.of(delivery(0, 1)) : List.of()));
+            Append request = append(sequence, 100, sequence == 0 ? List.of(delivery(0, 1)) : List.of());
+            session.acceptAppend(new Append(sequence, request.operations(), request.consumedPerOperation(),
+                    request.deliveredMaterials(), request.deliveredTools(), Int2ObjectMaps.singleton(0, tool(0))));
+        }
+        helper.assertValueEqual(session.reservedToolUses(0, tool(0)), 1000L, "Exact unchanged tool covers all sequentially reserved appends");
+        for (int sequence = 0; sequence < 10; sequence++) {
             execute(session, 100);
             helper.assertTrue(session.returnOutbox().isEmpty(), "Completing an append cannot return its resident tool");
             helper.assertValueEqual(amount(session.heldTools().get(0), tool(0)), 1L, "There is still one actual tool");
@@ -140,7 +147,7 @@ public final class ReusableInputSessionGameTest {
     public static void sameSlotSameKeyHeldAndConsumedStaySeparate(GameTestHelper helper) {
         ReusableInputSession session = session(unchanged(), 1, Ownership.CPU_SUPPLIED);
         session.acceptAppend(new Append(1, 10, List.of(new SlotInput(0, stack(tool(0), 1))),
-                List.of(stack(tool(0), 10)), List.of(delivery(0, 1))));
+                List.of(stack(tool(0), 10)), List.of(delivery(0, 1)), Int2ObjectMaps.emptyMap()));
         Operation active = session.beginOperation().orElseThrow();
         helper.assertValueEqual(active.consumed().getFirst().slot(), 0, "Consumed portion keeps the native slot");
         helper.assertValueEqual(active.tools().getFirst().slot(), 0, "Held portion keeps the same native slot");
@@ -323,6 +330,13 @@ public final class ReusableInputSessionGameTest {
     public static void persistenceRejectsMissingFieldsAndInconsistentMaterials(GameTestHelper helper) {
         ReusableInputSession session = session(unchanged(), 1, Ownership.CPU_SUPPLIED);
         session.acceptAppend(append(1, 2, List.of(delivery(0, 1))));
+        CompoundTag legacy = ReusableInputSessionNbtCodec.encode(session, helper.getLevel().registryAccess());
+        legacy.putInt("schema", 1);
+        for (Tag entry : legacy.getList("appends", Tag.TAG_COMPOUND)) {
+            ((CompoundTag) entry).remove("operation_states");
+        }
+        helper.assertValueEqual(ReusableInputSessionNbtCodec.decode(legacy, helper.getLevel().registryAccess()).snapshot(), session.snapshot(),
+                "Old sessions keep their consecutive-state semantics rather than inferring exact reservations");
         CompoundTag missing = ReusableInputSessionNbtCodec.encode(session, helper.getLevel().registryAccess());
         missing.remove("next_operation");
         expectIllegal(helper, () -> ReusableInputSessionNbtCodec.decode(missing, helper.getLevel().registryAccess()),
@@ -426,7 +440,7 @@ public final class ReusableInputSessionGameTest {
 
     private static Append append(long sequence, long operations, List<ToolDelivery> tools) {
         return new Append(sequence, operations, List.of(new SlotInput(1, stack(MATERIAL, 1))),
-                List.of(stack(MATERIAL, operations)), tools);
+                List.of(stack(MATERIAL, operations)), tools, Int2ObjectMaps.emptyMap());
     }
 
     private static void execute(ReusableInputSession session, long operations) {

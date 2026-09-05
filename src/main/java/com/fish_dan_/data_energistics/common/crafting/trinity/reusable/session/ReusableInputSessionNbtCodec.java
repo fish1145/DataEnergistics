@@ -22,6 +22,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.List;
@@ -31,7 +33,7 @@ import java.util.UUID;
 /** Complete session escrow encoding. Unknown versions and malformed asset/progress relationships fail at load. */
 public final class ReusableInputSessionNbtCodec {
 
-    private static final int SCHEMA = 1;
+    private static final int SCHEMA = 2;
 
     private ReusableInputSessionNbtCodec() {}
 
@@ -91,7 +93,8 @@ public final class ReusableInputSessionNbtCodec {
 
     /** Restores all idempotency records and assets; interrupted native effects remain quarantined. */
     public static ReusableInputSession decode(CompoundTag tag, HolderLookup.Provider registries) {
-        if (integer(tag, "schema") != SCHEMA) {
+        int version = integer(tag, "schema");
+        if (version != 1 && version != SCHEMA) {
             throw new IllegalArgumentException("Unsupported reusable session schema");
         }
         Identity identity = new Identity(uuid(tag, "session_id"), uuid(tag, "job_id"), string(tag, "cpu_owner"),
@@ -105,7 +108,7 @@ public final class ReusableInputSessionNbtCodec {
         }
         List<AppendSnapshot> appends = new ObjectArrayList<>();
         for (CompoundTag entry : compounds(tag, "appends")) {
-            appends.add(new AppendSnapshot(decodeAppend(entry, registries), number(entry, "completed"),
+            appends.add(new AppendSnapshot(decodeAppend(entry, registries, version), number(entry, "completed"),
                     number(entry, "cancelled"), decodeAssets(entry, "remaining", registries)));
         }
         Operation active = null;
@@ -128,12 +131,32 @@ public final class ReusableInputSessionNbtCodec {
         entry.put("consumed", encodeInputs(append.consumedPerOperation(), registries));
         entry.put("delivered_materials", encodeAssets(append.deliveredMaterials(), registries));
         entry.put("delivered_tools", encodeTools(append.deliveredTools(), registries));
+        ListTag states = new ListTag();
+        for (var state : append.operationStates().int2ObjectEntrySet()) {
+            CompoundTag value = new CompoundTag();
+            value.putInt("slot", state.getIntKey());
+            value.put("state", state.getValue().toTagGeneric(registries));
+            states.add(value);
+        }
+        entry.put("operation_states", states);
         return entry;
     }
 
-    private static Append decodeAppend(CompoundTag tag, HolderLookup.Provider registries) {
+    private static Append decodeAppend(CompoundTag tag, HolderLookup.Provider registries, int version) {
+        Int2ObjectMap<AEItemKey> states = new Int2ObjectLinkedOpenHashMap<>();
+        if (version == 1) {
+            if (tag.contains("operation_states")) {
+                throw new IllegalArgumentException("Legacy session cannot contain exact operation-state reservations");
+            }
+        } else {
+            for (CompoundTag entry : compounds(tag, "operation_states")) {
+                if (states.putIfAbsent(integer(entry, "slot"), item(entry, "state", registries)) != null) {
+                    throw new IllegalArgumentException("Duplicate exact operation-state slot");
+                }
+            }
+        }
         return new Append(number(tag, "sequence"), number(tag, "operations"), decodeInputs(tag, "consumed", registries),
-                decodeAssets(tag, "delivered_materials", registries), decodeTools(tag, "delivered_tools", registries));
+                decodeAssets(tag, "delivered_materials", registries), decodeTools(tag, "delivered_tools", registries), states);
     }
 
     private static ListTag encodeInputs(List<SlotInput> inputs, HolderLookup.Provider registries) {

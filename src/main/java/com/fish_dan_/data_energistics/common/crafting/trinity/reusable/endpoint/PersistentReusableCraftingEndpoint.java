@@ -6,7 +6,9 @@ import com.fish_dan_.data_energistics.api.crafting.reusable.ReusableInputRule;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingProviderAdapter.ReturnReceiver;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.Input;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.SlotStack;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.Tool;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView.AppendReceipt;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView.Settlement;
@@ -28,6 +30,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
@@ -146,6 +149,11 @@ public final class PersistentReusableCraftingEndpoint {
         return resident != null;
     }
 
+    /** Current physical resident, without copying its held assets or historic receipts. */
+    public Optional<UUID> residentSessionId() {
+        return Optional.ofNullable(resident);
+    }
+
     /** Prepares an all-or-nothing transfer of total quantities without retaining the live request references. */
     public @Nullable ReusableCraftingAdmission prepare(ReusableCraftingRequest request, long currentTick, Host host) {
         if (!targetIdentity.equals(request.target().persistentIdentity()) || currentTick < 0) {
@@ -208,6 +216,17 @@ public final class PersistentReusableCraftingEndpoint {
         }
         return entry.session.appendSnapshot(sequence)
                 .map(append -> new AppendReceipt(sequence, append.request().operations(), append.completed(), append.cancelled()));
+    }
+
+    /** Original immutable physical delivery used to replay a partially accepted sequence after reload. */
+    public Optional<Append> acceptedAppend(UUID sessionId, long sequence) {
+        Entry entry = sessions.get(sessionId);
+        return entry == null ? Optional.empty() : entry.session.appendSnapshot(sequence).map(ReusableInputSession.AppendSnapshot::request);
+    }
+
+    /** Exact-state reservations in operation units; the session must have already been discovered. */
+    public long reservedToolUses(UUID sessionId, int slot, AEItemKey state) {
+        return requireEntry(sessionId).session.reservedToolUses(slot, state);
     }
 
     /** Uses at most operationBudget native operations; callers share this budget with their legacy batch queue. */
@@ -426,7 +445,11 @@ public final class PersistentReusableCraftingEndpoint {
             materials.add(new GenericStack(input.stack().what(), Math.multiplyExact(input.stack().amount(), request.requestedCount())));
         }
         List<ToolDelivery> tools = request.offeredTools().stream().map(tool -> new ToolDelivery(tool.slot(), tool.stack())).toList();
-        return new Append(request.sequence(), request.requestedCount(), binding.consumed(), materials, tools);
+        Int2ObjectMap<AEItemKey> states = new Int2ObjectLinkedOpenHashMap<>();
+        for (Input input : request.inputs()) {
+            input.tool().flatMap(Tool::operationState).ifPresent(state -> states.put(input.slot(), state));
+        }
+        return new Append(request.sequence(), request.requestedCount(), binding.consumed(), materials, tools, states);
     }
 
     private static List<SlotStack> physicalInputs(Binding binding, Append append) {

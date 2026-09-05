@@ -201,7 +201,7 @@ public final class TrinityReusableCraftingHostGameTest {
         ReusableInputRule rule = ReusableInputRule.fixedDamage(RECIPE, 1, tool(0), 1, 3, List.of(new GenericStack(SCRAP, 1)));
         return new ReusableCraftingRequest(session, UUID.randomUUID(), "cpu:core-host-test", 0,
                 new Target(target, CountedCraftingTarget.route(target), Optional.empty()), new RoutedCraftingPatternDetails(route, pattern),
-                List.of(new Input(0, List.of(), Optional.of(new Tool(1, Ownership.CPU_SUPPLIED, rule))),
+                List.of(new Input(0, List.of(), Optional.of(new Tool(1, Ownership.CPU_SUPPLIED, rule, Optional.empty()))),
                         new Input(1, List.of(new GenericStack(MATERIAL, 1)), Optional.empty())),
                 List.of(new SlotStack(0, new GenericStack(tool(0), tools))), operations, Optional.of(RECIPE), new BaseActionSource(), helper.getLevel());
     }

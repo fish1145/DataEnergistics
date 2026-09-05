@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.api.crafting.reusable.ReusableInputRule;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 
 import net.minecraft.resources.ResourceLocation;
@@ -72,13 +73,17 @@ public record ReusableCraftingRequest(UUID sessionId, UUID jobId, String cpuOwne
         }
     }
 
-    /** Complete frozen contract for one slot's retained units, including their original ownership. */
-    public record Tool(long heldAmount, Ownership ownership, ReusableInputRule rule) {
+    /**
+     * Frozen held-unit contract. An operationState constrains every operation in this append to that exact key;
+     * captured CPU firings always provide it. Empty allows a native caller's deterministic consecutive state chain.
+     */
+    public record Tool(long heldAmount, Ownership ownership, ReusableInputRule rule, Optional<AEItemKey> operationState) {
 
         public Tool {
             if (heldAmount <= 0L) {
                 throw new IllegalArgumentException("A retained tool requirement must be positive");
             }
+            operationState.ifPresent(rule::guaranteedUses);
         }
     }
 
