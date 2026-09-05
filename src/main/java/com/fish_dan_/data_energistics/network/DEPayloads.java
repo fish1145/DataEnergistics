@@ -22,6 +22,7 @@ import com.fish_dan_.data_energistics.network.trinity.TrinityHostedPriorityPaylo
 import com.fish_dan_.data_energistics.network.trinity.TrinityOpenCpuStatusPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityRefundPatternsPayload;
 import com.fish_dan_.data_energistics.network.trinity.TrinityRefundRetainedItemsPayload;
+import com.fish_dan_.data_energistics.network.trinity.crafting.progress.TrinityCraftConfirmPlanningProgressPayload;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCyclePayload;
 import com.fish_dan_.data_energistics.network.ui.HostUiRequestPayload;
 import com.fish_dan_.data_energistics.network.ui.HostUiResponsePayload;
@@ -60,6 +61,10 @@ public final class DEPayloads {
                 TrinityCraftConfirmCyclePayload.TYPE,
                 TrinityCraftConfirmCyclePayload.STREAM_CODEC,
                 TrinityCraftConfirmCyclePayload::handle);
+        registrar.playToClient(
+                TrinityCraftConfirmPlanningProgressPayload.TYPE,
+                TrinityCraftConfirmPlanningProgressPayload.STREAM_CODEC,
+                TrinityCraftConfirmPlanningProgressPayload::handle);
         registrar.playToClient(
                 UniversalTerminalStateSyncPayload.TYPE,
                 UniversalTerminalStateSyncPayload.STREAM_CODEC,

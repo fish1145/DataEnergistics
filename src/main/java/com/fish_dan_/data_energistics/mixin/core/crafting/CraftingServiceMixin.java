@@ -44,8 +44,13 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.cap
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.capture.TrinityCraftingProviderRevision;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventorySnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressMeasure;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressPhase;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityCraftingRequestContext;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningProgressContext;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
@@ -215,7 +220,7 @@ public abstract class CraftingServiceMixin
                                                                                   long amount,
                                                                                   CalculationStrategy strategy,
                                                                                   Operation<Future<ICraftingPlan>> original) {
-        if (level == null || simRequester == null || what == null || strategy == null || amount <= 0L) {
+        if (amount <= 0L) {
             return original.call(level, simRequester, what, amount, strategy);
         }
 
@@ -223,6 +228,8 @@ public abstract class CraftingServiceMixin
         IActionSource actionSource = Objects.requireNonNull(
                 simRequester.getActionSource(),
                 "A crafting simulation requester requires an action source");
+        TrinityPlanningProgressReporter progress = TrinityPlanningProgressContext.resolve(actionSource)
+                .orElseGet(TrinityPlanningProgressReporter::none);
         CraftingQuantityMode quantityMode = TrinityCraftingRequestContext.resolve(
                 actionSource,
                 settings.defaultQuantityMode);
@@ -245,11 +252,17 @@ public abstract class CraftingServiceMixin
                 requiresTrinity = true;
             }
             if (requiresTrinity) {
+                progress.publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                        TrinityPlanningProgressPhase.AWAITING_MENU_RESULT,
+                        TrinityPlanningProgressMeasure.NONE));
                 return dataEnergistics$noEligibleTrinityCpuDynamicOutputPlan(
                         what,
                         amount,
                         publicationRevision);
             }
+            progress.publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                    TrinityPlanningProgressPhase.DELEGATED_TO_AE2,
+                    TrinityPlanningProgressMeasure.NONE));
             return original.call(level, simRequester, what, amount, strategy);
         }
 
@@ -258,7 +271,7 @@ public abstract class CraftingServiceMixin
         TrinityPlanningInventorySnapshot inventorySnapshot;
         try {
             inventorySnapshot = graph
-                    .map(snapshot -> dataEnergistics$capturePlanningInventory(snapshot, actionSource))
+                    .map(snapshot -> dataEnergistics$capturePlanningInventory(snapshot, actionSource, progress))
                     .orElseGet(TrinityPlanningInventorySnapshot::empty);
         } catch (TrinityPlanningInventorySnapshot.CaptureException exception) {
             Data_Energistics.LOGGER.error(
@@ -273,6 +286,9 @@ public abstract class CraftingServiceMixin
                             "key", exception.key().toString(),
                             "phase", "inventory_capture",
                             "reason", exception.getCause().getClass().getSimpleName()));
+            progress.publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                    TrinityPlanningProgressPhase.AWAITING_MENU_RESULT,
+                    TrinityPlanningProgressMeasure.NONE));
             return CompletableFuture.completedFuture(TrinityDiagnosedCraftingPlan.forDiagnostic(
                     new GenericStack(what, amount),
                     diagnostic));
@@ -307,8 +323,10 @@ public abstract class CraftingServiceMixin
                         quantityMode,
                         inventory,
                         maxTrinityCapacity.orElseThrow(),
-                        planningLimits),
-                () -> original.call(level, simRequester, what, amount, strategy));
+                        planningLimits,
+                        progress),
+                () -> original.call(level, simRequester, what, amount, strategy),
+                progress);
     }
 
     /**
@@ -388,7 +406,8 @@ public abstract class CraftingServiceMixin
                                                                                CraftingQuantityMode quantityMode,
                                                                                TrinityPlanningInventory inventory,
                                                                                TrinityCpuStorageCapacity maxTrinityCapacity,
-                                                                               TrinityPlanningLimits limits) throws Exception {
+                                                                               TrinityPlanningLimits limits,
+                                                                               TrinityPlanningProgressReporter progress) throws Exception {
         if (graph.isEmpty()) {
             TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.STALE_GRAPH,
@@ -416,6 +435,7 @@ public abstract class CraftingServiceMixin
                 .inventory(inventory)
                 .limits(limits)
                 .maxTrinityCapacity(maxTrinityCapacity)
+                .progress(progress)
                 .build();
         return DATA_ENERGISTICS_INITIAL_PLAN_CALCULATION.calculate(request);
     }
@@ -423,12 +443,14 @@ public abstract class CraftingServiceMixin
     @Unique
     private TrinityPlanningInventorySnapshot dataEnergistics$capturePlanningInventory(
                                                                                       TrinityCraftingGraphSnapshot graph,
-                                                                                      IActionSource actionSource) {
+                                                                                      IActionSource actionSource,
+                                                                                      TrinityPlanningProgressReporter progress) {
         var storageService = this.grid.getStorageService();
         return TrinityPlanningInventorySnapshot.capture(
                 graph.keys(),
                 storageService.getInventory(),
-                actionSource);
+                actionSource,
+                progress);
     }
 
     /**

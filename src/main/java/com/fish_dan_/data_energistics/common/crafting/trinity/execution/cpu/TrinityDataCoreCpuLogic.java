@@ -57,6 +57,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory.TrinityPlanningInventorySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputProjection;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
@@ -929,7 +930,8 @@ final class TrinityDataCoreCpuLogic {
         return TrinityPlanningInventorySnapshot.capture(
                 snapshot.keys(),
                 storageService.getInventory(),
-                this.cpu.actionSource()).inventory()
+                this.cpu.actionSource(),
+                TrinityPlanningProgressReporter.none()).inventory()
                 .plus(this.inventory.list)
                 .plus(this.exactWorkingInventory.snapshot());
     }

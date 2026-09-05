@@ -10,6 +10,7 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 
 import appeng.client.gui.me.items.PatternEncodingTermScreen;
 import appeng.client.gui.style.StyleManager;
+import org.jspecify.annotations.Nullable;
 
 public final class PatternEncodingScreenRouter {
 
@@ -22,7 +23,10 @@ public final class PatternEncodingScreenRouter {
         }
     }
 
-    public static Screen routeOpeningScreen(Screen currentScreen) {
+    public static @Nullable Screen routeOpeningScreen(@Nullable Screen currentScreen) {
+        if (currentScreen == null) {
+            return null;
+        }
         Screen replacement = maybeReplaceNativePatternEncodingScreen(currentScreen, false);
         if (replacement == null && ModFlags.isAe2WtLibWirelessPatternEncodingSupportLoaded()) {
             replacement = Ae2WtLibCompat.maybeReplaceWirelessPatternEncodingScreen(currentScreen, false);
@@ -30,7 +34,8 @@ public final class PatternEncodingScreenRouter {
         return replacement;
     }
 
-    private static Screen maybeReplaceNativePatternEncodingScreen(Screen currentScreen, boolean applyImmediately) {
+    private static @Nullable Screen maybeReplaceNativePatternEncodingScreen(Screen currentScreen,
+                                                                            boolean applyImmediately) {
         if (!(currentScreen instanceof PatternEncodingTermScreen<?> screen)) {
             return null;
         }

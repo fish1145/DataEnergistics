@@ -4,14 +4,15 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnosticCode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityAlgorithmResult;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.orchestration.TrinityGraphPlanner;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.PlanningCachePath;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningCacheStatistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanningStatistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressMeasure;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressPhase;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
 import net.minecraft.network.chat.Component;
@@ -19,8 +20,6 @@ import net.minecraft.network.chat.Component;
 import appeng.api.stacks.GenericStack;
 
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -41,37 +40,7 @@ public final class TrinityInitialPlanCalculation {
     private final PlanningAlgorithm algorithm;
 
     TrinityInitialPlanCalculation(Supplier<TrinityPlanningGateway> gatewaySupplier) {
-        if (gatewaySupplier == null) {
-            throw new IllegalArgumentException("A Trinity initial calculation requires a gateway supplier");
-        }
-        this.algorithm = request -> gatewaySupplier.get().calculateTrinity(input(request));
-    }
-
-    TrinityInitialPlanCalculation(TrinityGraphPlanner planner) {
-        if (planner == null) {
-            throw new IllegalArgumentException("A Trinity initial calculation requires a planner");
-        }
-        this.algorithm = request -> new TrinityPlanningComputationResult(
-                planner.plan(
-                        request.graph(),
-                        request.target(),
-                        request.requestedAmount(),
-                        request.quantityMode(),
-                        request.inventory(),
-                        request.limits(),
-                        TrinityPlanningControl.create(
-                                () -> false,
-                                System::nanoTime,
-                                TimeUnit.MILLISECONDS.toNanos(request.limits().planningBudgetMs()))),
-                PlanningCachePath.MISS);
-    }
-
-    TrinityInitialPlanCalculation(
-                                  Function<TrinityPlanningInput, TrinityPlanningComputationResult> computation) {
-        if (computation == null) {
-            throw new IllegalArgumentException("A Trinity initial calculation requires a planning computation");
-        }
-        this.algorithm = request -> computation.apply(input(request));
+        this.algorithm = request -> gatewaySupplier.get().calculateTrinity(input(request), request.progress());
     }
 
     /**
@@ -81,9 +50,6 @@ public final class TrinityInitialPlanCalculation {
      * @return executable plan or an explicit non-executable Trinity diagnostic
      */
     public TrinityPlanningAttempt calculate(TrinityInitialPlanningRequest request) throws Exception {
-        if (request == null) {
-            throw new IllegalArgumentException("A Trinity initial calculation requires a request");
-        }
         TrinityPlanningComputationResult computation = this.algorithm.calculate(request);
         TrinityAlgorithmResult<TrinityCraftingPlan> result = computation.result();
         if (!result.successful()) {
@@ -92,10 +58,16 @@ public final class TrinityInitialPlanCalculation {
                     result.diagnostic(),
                     computation.planningNanos());
             logFailure(request, failedAttempt.diagnostic(), computation.cachePath(), computation.cacheStatistics());
+            request.progress().publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                    TrinityPlanningProgressPhase.AWAITING_MENU_RESULT,
+                    TrinityPlanningProgressMeasure.NONE));
             return failedAttempt;
         }
 
         TrinityCraftingPlan plan = result.value();
+        request.progress().publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                TrinityPlanningProgressPhase.VALIDATING_CPU_CAPACITY,
+                TrinityPlanningProgressMeasure.INDETERMINATE));
         if (!request.maxTrinityCapacity().accepts(plan.exactBytes())) {
             TrinityPlanningDiagnostic diagnostic = new TrinityPlanningDiagnostic(
                     TrinityPlanningDiagnosticCode.NO_ELIGIBLE_TRINITY_CPU,
@@ -107,6 +79,9 @@ public final class TrinityInitialPlanCalculation {
                             "planBytes", plan.exactBytes().toString(),
                             "maxTrinityBytes", request.maxTrinityCapacity().diagnosticValue()));
             logFailure(request, diagnostic, computation.cachePath(), computation.cacheStatistics());
+            request.progress().publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                    TrinityPlanningProgressPhase.AWAITING_MENU_RESULT,
+                    TrinityPlanningProgressMeasure.NONE));
             return TrinityPlanningAttempt.failure(diagnostic);
         }
 
@@ -144,6 +119,9 @@ public final class TrinityInitialPlanCalculation {
                     cache.mipTemplateHits(),
                     cache.requestInFlightShared());
         }
+        request.progress().publish(TrinityPlanningProgressSnapshot.withoutUnits(
+                TrinityPlanningProgressPhase.AWAITING_MENU_RESULT,
+                TrinityPlanningProgressMeasure.NONE));
         return TrinityPlanningAttempt.success(plan);
     }
 

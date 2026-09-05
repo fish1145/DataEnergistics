@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.gateway;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityComputationCache;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningComputationResult;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.cache.TrinityPlanningInput;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration.TrinityCraftingSchema;
 
 import appeng.api.networking.crafting.ICraftingPlan;
@@ -46,7 +47,8 @@ public interface TrinityPlanningGateway extends AutoCloseable {
                                 long graphRevision,
                                 GenericStack requestedOutput,
                                 Callable<TrinityPlanningAttempt> trinityCalculation,
-                                Supplier<Future<ICraftingPlan>> ae2Calculation);
+                                Supplier<Future<ICraftingPlan>> ae2Calculation,
+                                TrinityPlanningProgressReporter progress);
 
     /**
      * Submits a Trinity-only continuation such as remaining-work replanning through its isolated bounded lane.
@@ -64,13 +66,15 @@ public interface TrinityPlanningGateway extends AutoCloseable {
     /**
      * Executes initial-request planning through the global cache on the current accepted planner worker.
      *
-     * @param input immutable Grid-scoped planning input
+     * @param input    immutable Grid-scoped planning input
+     * @param progress detached request-local progress reporter
      * @return algorithm result and exact cache path
      * @throws InterruptedException when this worker is interrupted while joining shared work
      * @throws ExecutionException   when a bottom calculation fails
      */
-    TrinityPlanningComputationResult calculateTrinity(TrinityPlanningInput input)
-                                                                                  throws InterruptedException, ExecutionException;
+    TrinityPlanningComputationResult calculateTrinity(TrinityPlanningInput input,
+                                                      TrinityPlanningProgressReporter progress)
+                                                                                                throws InterruptedException, ExecutionException;
 
     /**
      * Executes remaining-work planning through the global cache on its isolated planner worker.

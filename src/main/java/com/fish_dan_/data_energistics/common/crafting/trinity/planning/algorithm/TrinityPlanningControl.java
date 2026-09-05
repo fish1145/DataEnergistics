@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressPhase;
+
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 
@@ -31,9 +33,9 @@ public final class TrinityPlanningControl {
     public static TrinityPlanningControl create(BooleanSupplier cancellation,
                                                 LongSupplier nanoClock,
                                                 long budgetNanos) {
-        if (cancellation == null || nanoClock == null || budgetNanos <= 0L) {
+        if (budgetNanos <= 0L) {
             throw new IllegalArgumentException(
-                    "A Trinity planning control requires complete sources and a positive budget");
+                    "A Trinity planning control requires a positive budget");
         }
         return new TrinityPlanningControl(
                 cancellation,
@@ -120,6 +122,11 @@ public final class TrinityPlanningControl {
     /** Records route-selection states charged to this request. */
     public void recordRouteStates(int states) {
         this.metrics.recordRouteStates(states);
+    }
+
+    /** Publishes a real planner boundary through the request-local progress metrics. */
+    public void beginProgressPhase(TrinityPlanningProgressPhase phase, int routeStateLimit) {
+        this.metrics.beginPhase(phase, routeStateLimit);
     }
 
     /** @return route states already recorded by this request tracker */
