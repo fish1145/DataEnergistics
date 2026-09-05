@@ -109,83 +109,187 @@
 			}
 		},
 		{
-			"when": { "connect_north": "true", "lit": "false" },
+			"when": {
+				"connect_north": "false",
+				"connect_west": "false"
+			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_extension_off"
+				"model": "data_energistics:block/solar_panel_connected_post"
 			}
 		},
 		{
-			"when": { "connect_east": "true", "lit": "false" },
+			"when": {
+				"connect_east": "false",
+				"connect_north": "false"
+			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_extension_off",
+				"model": "data_energistics:block/solar_panel_connected_post",
 				"y": 90
 			}
 		},
 		{
-			"when": { "connect_south": "true", "lit": "false" },
+			"when": {
+				"connect_south": "false",
+				"connect_east": "false"
+			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_extension_off",
+				"model": "data_energistics:block/solar_panel_connected_post",
 				"y": 180
 			}
 		},
 		{
-			"when": { "connect_west": "true", "lit": "false" },
+			"when": {
+				"connect_west": "false",
+				"connect_south": "false"
+			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_extension_off",
+				"model": "data_energistics:block/solar_panel_connected_post",
 				"y": 270
 			}
 		},
 		{
-			"when": { "connect_north": "true", "lit": "true" },
+			"when": {
+				"connect_north": "false",
+				"connect_west": "true"
+			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_extension_on"
+				"model": "data_energistics:block/solar_panel_connected_post_north"
 			}
 		},
 		{
-			"when": { "connect_east": "true", "lit": "true" },
+			"when": {
+				"connect_east": "false",
+				"connect_north": "true"
+			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_extension_on",
+				"model": "data_energistics:block/solar_panel_connected_post_north",
 				"y": 90
 			}
 		},
 		{
-			"when": { "connect_south": "true", "lit": "true" },
+			"when": {
+				"connect_south": "false",
+				"connect_east": "true"
+			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_extension_on",
+				"model": "data_energistics:block/solar_panel_connected_post_north",
 				"y": 180
 			}
 		},
 		{
-			"when": { "connect_west": "true", "lit": "true" },
+			"when": {
+				"connect_west": "false",
+				"connect_south": "true"
+			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_extension_on",
+				"model": "data_energistics:block/solar_panel_connected_post_north",
+				"y": 270
+			}
+		},
+		{
+			"when": {
+				"connect_north": "true",
+				"connect_west": "false"
+			},
+			"apply": {
+				"model": "data_energistics:block/solar_panel_connected_post_west"
+			}
+		},
+		{
+			"when": {
+				"connect_east": "true",
+				"connect_north": "false"
+			},
+			"apply": {
+				"model": "data_energistics:block/solar_panel_connected_post_west",
+				"y": 90
+			}
+		},
+		{
+			"when": {
+				"connect_south": "true",
+				"connect_east": "false"
+			},
+			"apply": {
+				"model": "data_energistics:block/solar_panel_connected_post_west",
+				"y": 180
+			}
+		},
+		{
+			"when": {
+				"connect_west": "true",
+				"connect_south": "false"
+			},
+			"apply": {
+				"model": "data_energistics:block/solar_panel_connected_post_west",
+				"y": 270
+			}
+		},
+		{
+			"when": {
+				"connect_north": "true",
+				"connect_west": "true",
+				"connect_north_west": "false"
+			},
+			"apply": {
+				"model": "data_energistics:block/solar_panel_connected_post_concave"
+			}
+		},
+		{
+			"when": {
+				"connect_east": "true",
+				"connect_north": "true",
+				"connect_north_east": "false"
+			},
+			"apply": {
+				"model": "data_energistics:block/solar_panel_connected_post_concave",
+				"y": 90
+			}
+		},
+		{
+			"when": {
+				"connect_south": "true",
+				"connect_east": "true",
+				"connect_south_east": "false"
+			},
+			"apply": {
+				"model": "data_energistics:block/solar_panel_connected_post_concave",
+				"y": 180
+			}
+		},
+		{
+			"when": {
+				"connect_west": "true",
+				"connect_south": "true",
+				"connect_south_west": "false"
+			},
+			"apply": {
+				"model": "data_energistics:block/solar_panel_connected_post_concave",
 				"y": 270
 			}
 		},
 		{
 			"when": {
 				"AND": [
-					{ "lit": "false" },
+					{ "connect_west": "true" },
 					{
 						"OR": [
 							{ "connect_north": "false" },
-							{ "connect_west": "false" },
 							{ "connect_north_west": "false" }
 						]
 					}
 				]
 			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_post_off"
+				"model": "data_energistics:block/solar_panel_connected_post_south"
 			}
 		},
 		{
 			"when": {
 				"AND": [
-					{ "lit": "false" },
+					{ "connect_north": "true" },
 					{
 						"OR": [
-							{ "connect_north": "false" },
 							{ "connect_east": "false" },
 							{ "connect_north_east": "false" }
 						]
@@ -193,35 +297,33 @@
 				]
 			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_post_off",
+				"model": "data_energistics:block/solar_panel_connected_post_south",
 				"y": 90
 			}
 		},
 		{
 			"when": {
 				"AND": [
-					{ "lit": "false" },
+					{ "connect_east": "true" },
 					{
 						"OR": [
 							{ "connect_south": "false" },
-							{ "connect_east": "false" },
 							{ "connect_south_east": "false" }
 						]
 					}
 				]
 			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_post_off",
+				"model": "data_energistics:block/solar_panel_connected_post_south",
 				"y": 180
 			}
 		},
 		{
 			"when": {
 				"AND": [
-					{ "lit": "false" },
+					{ "connect_south": "true" },
 					{
 						"OR": [
-							{ "connect_south": "false" },
 							{ "connect_west": "false" },
 							{ "connect_south_west": "false" }
 						]
@@ -229,17 +331,16 @@
 				]
 			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_post_off",
+				"model": "data_energistics:block/solar_panel_connected_post_south",
 				"y": 270
 			}
 		},
 		{
 			"when": {
 				"AND": [
-					{ "lit": "true" },
+					{ "connect_north": "true" },
 					{
 						"OR": [
-							{ "connect_north": "false" },
 							{ "connect_west": "false" },
 							{ "connect_north_west": "false" }
 						]
@@ -247,34 +348,32 @@
 				]
 			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_post_on"
+				"model": "data_energistics:block/solar_panel_connected_post_east"
 			}
 		},
 		{
 			"when": {
 				"AND": [
-					{ "lit": "true" },
+					{ "connect_east": "true" },
 					{
 						"OR": [
 							{ "connect_north": "false" },
-							{ "connect_east": "false" },
 							{ "connect_north_east": "false" }
 						]
 					}
 				]
 			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_post_on",
+				"model": "data_energistics:block/solar_panel_connected_post_east",
 				"y": 90
 			}
 		},
 		{
 			"when": {
 				"AND": [
-					{ "lit": "true" },
+					{ "connect_south": "true" },
 					{
 						"OR": [
-							{ "connect_south": "false" },
 							{ "connect_east": "false" },
 							{ "connect_south_east": "false" }
 						]
@@ -282,119 +381,24 @@
 				]
 			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_post_on",
+				"model": "data_energistics:block/solar_panel_connected_post_east",
 				"y": 180
 			}
 		},
 		{
 			"when": {
 				"AND": [
-					{ "lit": "true" },
+					{ "connect_west": "true" },
 					{
 						"OR": [
 							{ "connect_south": "false" },
-							{ "connect_west": "false" },
 							{ "connect_south_west": "false" }
 						]
 					}
 				]
 			},
 			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_post_on",
-				"y": 270
-			}
-		},
-		{
-			"when": {
-				"connect_north": "true",
-				"connect_west": "true",
-				"connect_north_west": "true",
-				"lit": "false"
-			},
-			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_corner_off"
-			}
-		},
-		{
-			"when": {
-				"connect_north": "true",
-				"connect_east": "true",
-				"connect_north_east": "true",
-				"lit": "false"
-			},
-			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_corner_off",
-				"y": 90
-			}
-		},
-		{
-			"when": {
-				"connect_south": "true",
-				"connect_east": "true",
-				"connect_south_east": "true",
-				"lit": "false"
-			},
-			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_corner_off",
-				"y": 180
-			}
-		},
-		{
-			"when": {
-				"connect_south": "true",
-				"connect_west": "true",
-				"connect_south_west": "true",
-				"lit": "false"
-			},
-			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_corner_off",
-				"y": 270
-			}
-		},
-		{
-			"when": {
-				"connect_north": "true",
-				"connect_west": "true",
-				"connect_north_west": "true",
-				"lit": "true"
-			},
-			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_corner_on"
-			}
-		},
-		{
-			"when": {
-				"connect_north": "true",
-				"connect_east": "true",
-				"connect_north_east": "true",
-				"lit": "true"
-			},
-			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_corner_on",
-				"y": 90
-			}
-		},
-		{
-			"when": {
-				"connect_south": "true",
-				"connect_east": "true",
-				"connect_south_east": "true",
-				"lit": "true"
-			},
-			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_corner_on",
-				"y": 180
-			}
-		},
-		{
-			"when": {
-				"connect_south": "true",
-				"connect_west": "true",
-				"connect_south_west": "true",
-				"lit": "true"
-			},
-			"apply": {
-				"model": "data_energistics:block/me_solar_panel_connected_corner_on",
+				"model": "data_energistics:block/solar_panel_connected_post_east",
 				"y": 270
 			}
 		}

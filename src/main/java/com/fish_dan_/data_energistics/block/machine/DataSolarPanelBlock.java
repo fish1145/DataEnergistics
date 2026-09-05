@@ -86,7 +86,7 @@ public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
         return connectedState(state, context.getLevel(), context.getClickedPos());
     }
 
-    private BlockState connectedState(BlockState state, LevelReader level, BlockPos pos) {
+    private static BlockState connectedState(BlockState state, LevelReader level, BlockPos pos) {
         for (Direction direction : Direction.Plane.HORIZONTAL) {
             BlockPos adjacent = pos.relative(direction);
             state = state.setValue(connectionProperty(direction), matchesLoadedPanel(level, adjacent))
@@ -95,8 +95,13 @@ public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
         return state;
     }
 
-    private boolean matchesLoadedPanel(LevelReader level, BlockPos pos) {
-        return level.hasChunkAt(pos) && level.getBlockState(pos).is(this);
+    private static boolean matchesLoadedPanel(LevelReader level, BlockPos pos) {
+        return level.hasChunkAt(pos) && connectsVisually(level.getBlockState(pos));
+    }
+
+    /** Both solar variants share an outer frame, without sharing power storage or their AE network nodes. */
+    private static boolean connectsVisually(BlockState state) {
+        return state.getBlock() instanceof DataSolarPanelBlock;
     }
 
     @Override
@@ -105,7 +110,7 @@ public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
         if (direction.getAxis().isVertical()) {
             return state;
         }
-        return connectedState(state, level, pos).setValue(connectionProperty(direction), neighborState.is(this));
+        return connectedState(state, level, pos).setValue(connectionProperty(direction), connectsVisually(neighborState));
     }
 
     @Override
@@ -148,8 +153,8 @@ public class DataSolarPanelBlock extends AEBaseBlock implements EntityBlock {
             return;
         }
         BlockState state = level.getBlockState(pos);
-        if (state.getBlock() instanceof DataSolarPanelBlock panel) {
-            BlockState connected = panel.connectedState(state, level, pos);
+        if (connectsVisually(state)) {
+            BlockState connected = connectedState(state, level, pos);
             if (connected != state) {
                 // Only visual fields changed; avoid recursively notifying an entire array of panels.
                 level.setBlock(pos, connected, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);

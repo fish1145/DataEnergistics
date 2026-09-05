@@ -29,10 +29,10 @@ public final class DataSolarPanelBlockConnectionGameTest {
 
     private DataSolarPanelBlockConnectionGameTest() {}
 
-    @TestHolder("me_solar_panels_connect_only_to_matching_panel_type")
+    @TestHolder("me_solar_panels_connect_across_variants_but_not_other_blocks")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void panelsConnectOnlyToMatchingPanelType(GameTestHelper helper) {
+    public static void panelsConnectAcrossVariantsButNotOtherBlocks(GameTestHelper helper) {
         helper.setBlock(SOLAR_PANEL_POS, DEBlocks.DATA_SOLAR_PANEL.get());
         helper.setBlock(EAST_SOLAR_PANEL_POS, DEBlocks.DATA_SOLAR_PANEL.get());
 
@@ -40,8 +40,11 @@ public final class DataSolarPanelBlockConnectionGameTest {
         assertConnection(helper, EAST_SOLAR_PANEL_POS, DataSolarPanelBlock.CONNECT_WEST, true);
 
         helper.setBlock(NORTH_SOLAR_PANEL_POS, DEBlocks.ME_DATA_SOLAR_PANEL.get());
+        assertConnection(helper, SOLAR_PANEL_POS, DataSolarPanelBlock.CONNECT_NORTH, true);
+        assertConnection(helper, NORTH_SOLAR_PANEL_POS, DataSolarPanelBlock.CONNECT_SOUTH, true);
+
+        helper.setBlock(NORTH_SOLAR_PANEL_POS, Blocks.STONE);
         assertConnection(helper, SOLAR_PANEL_POS, DataSolarPanelBlock.CONNECT_NORTH, false);
-        assertConnection(helper, NORTH_SOLAR_PANEL_POS, DataSolarPanelBlock.CONNECT_SOUTH, false);
 
         helper.setBlock(EAST_SOLAR_PANEL_POS, Blocks.AIR);
         assertConnection(helper, SOLAR_PANEL_POS, DataSolarPanelBlock.CONNECT_EAST, false);

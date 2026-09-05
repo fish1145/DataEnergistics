@@ -4,7 +4,7 @@
 	"texture_size": [32, 32],
 	"textures": {
 		"panel": "data_energistics:block/solar_panel/me_solar_panel_off",
-		"connection": "data_energistics:block/solar_panel/solar_panel_connection",
+		"connection": "data_energistics:block/solar_panel/me_solar_panel_off",
 		"particle": "#panel"
 	}
 }

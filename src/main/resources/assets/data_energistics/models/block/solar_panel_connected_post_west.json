@@ -2,10 +2,10 @@
 	"parent": "data_energistics:block/solar_panel_connected_component",
 	"elements": [
 		{
-			"from": [2, 3, 0],
-			"to": [14, 4, 2],
+			"from": [0, 4, 0],
+			"to": [2, 5, 2],
 			"faces": {
-				"up": { "uv": [1, 0, 7, 1], "texture": "#connection" }
+				"up": { "uv": [0, 1, 1, 2], "texture": "#connection" }
 			}
 		}
 	]

@@ -5,6 +5,10 @@
 			"from": [2, 0, 2],
 			"to": [14, 1, 14],
 			"faces": {
+				"north": { "uv": [9, 1, 15, 1.5], "texture": "#panel" },
+				"east": { "uv": [9, 1, 15, 1.5], "texture": "#panel" },
+				"south": { "uv": [9, 1, 15, 1.5], "texture": "#panel" },
+				"west": { "uv": [9, 1, 15, 1.5], "texture": "#panel" },
 				"down": { "uv": [9, 1, 15, 7], "texture": "#panel", "cullface": "down" }
 			}
 		},
@@ -16,8 +20,8 @@
 			}
 		},
 		{
-			"from": [2, 3, 2],
-			"to": [14, 4, 14],
+			"from": [0, 3, 0],
+			"to": [16, 4, 16],
 			"faces": {
 				"up": { "uv": [0, 0, 8, 8], "texture": "#panel" }
 			}

@@ -2,11 +2,22 @@
 	"parent": "data_energistics:block/solar_panel_connected_component",
 	"elements": [
 		{
-			"from": [0, 0, 0],
+			"from": [0, 1, 0],
+			"to": [16, 4, 2],
+			"faces": {
+				"north": {
+					"uv": [0, 8.5, 8, 10],
+					"texture": "#connection",
+					"cullface": "north"
+				}
+			}
+		},
+		{
+			"from": [0, 4, 0],
 			"to": [16, 5, 2],
 			"faces": {
 				"north": {
-					"uv": [0, 8, 8, 10.5],
+					"uv": [0, 8, 8, 8.5],
 					"texture": "#connection",
 					"cullface": "north"
 				}
