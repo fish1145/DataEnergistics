@@ -10,8 +10,8 @@ import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodin
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.parts.encoding.EncodingMode;
 
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
@@ -19,9 +19,8 @@ import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
-import mezz.jei.api.recipe.transfer.IRecipeTransferManager;
 import mezz.jei.common.transfer.RecipeTransferErrorInternal;
-import mezz.jei.common.transfer.RecipeTransferUtil;
+import mezz.jei.common.transfer.RecipeTransferService;
 import org.spongepowered.asm.mixin.Mixin;
 
 import java.util.Optional;
@@ -29,20 +28,19 @@ import java.util.Optional;
 /**
  * Captures the exact JEI recipe type around the real transfer handler call.
  */
-@Mixin(value = RecipeTransferUtil.class, remap = false)
-public abstract class RecipeTransferUtilMixin {
+@Mixin(value = RecipeTransferService.class, remap = false)
+public abstract class RecipeTransferServiceMixin {
 
-    @WrapMethod(method = "transferRecipe(Lmezz/jei/api/recipe/transfer/IRecipeTransferManager;Lnet/minecraft/world/inventory/AbstractContainerMenu;Lmezz/jei/api/gui/IRecipeLayoutDrawable;Lnet/minecraft/world/entity/player/Player;ZZ)Ljava/util/Optional;")
-    private static Optional<IRecipeTransferError> dataEnergistics$captureTransferContext(
-                                                                                         IRecipeTransferManager recipeTransferManager,
-                                                                                         AbstractContainerMenu container,
-                                                                                         IRecipeLayoutDrawable<?> recipeLayout,
-                                                                                         Player player,
-                                                                                         boolean maxTransfer,
-                                                                                         boolean doTransfer,
-                                                                                         Operation<Optional<IRecipeTransferError>> original) {
-        if (!doTransfer || !(container instanceof PatternEncodingTermMenu menu)) {
-            return original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, doTransfer);
+    @WrapMethod(method = "transferRecipe(Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;Lmezz/jei/api/gui/IRecipeLayoutDrawable;Lnet/minecraft/world/entity/player/Player;ZZ)Ljava/util/Optional;")
+    private Optional<IRecipeTransferError> dataEnergistics$captureTransferContext(
+                                                                                  AbstractContainerScreen<?> screen,
+                                                                                  IRecipeLayoutDrawable<?> recipeLayout,
+                                                                                  Player player,
+                                                                                  boolean maxTransfer,
+                                                                                  boolean doTransfer,
+                                                                                  Operation<Optional<IRecipeTransferError>> original) {
+        if (!doTransfer || !(screen.getMenu() instanceof PatternEncodingTermMenu menu)) {
+            return original.call(screen, recipeLayout, player, maxTransfer, doTransfer);
         }
         PatternEncodingRankingContext rankingContext;
         try {
@@ -54,7 +52,7 @@ public abstract class RecipeTransferUtilMixin {
             PatternEncodingPreferencesClient.clearTransferredRecipeContext(menu);
             return Optional.of(RecipeTransferErrorInternal.INSTANCE);
         }
-        Optional<IRecipeTransferError> result = original.call(recipeTransferManager, container, recipeLayout, player, maxTransfer, true);
+        Optional<IRecipeTransferError> result = original.call(screen, recipeLayout, player, maxTransfer, true);
         if (result.isEmpty()) {
             Recipe<?> recipe = recipeLayout.getRecipe() instanceof RecipeHolder<?> holder ? holder.value() :
                     recipeLayout.getRecipe() instanceof Recipe<?> value ? value : null;
