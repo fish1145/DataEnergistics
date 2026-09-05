@@ -1,11 +1,17 @@
 package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.SlotStack;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdLookup;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint.Host;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.TrinityReusableSlot;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityPatternCoreTier;
 
 import appeng.api.inventories.InternalInventory;
 import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.KeyCounter;
 import appeng.blockentity.crafting.IMolecularAssemblerSupportedPattern;
 import appeng.util.inv.AppEngInternalInventory;
 
@@ -16,6 +22,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntAVLTreeSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
@@ -41,7 +48,8 @@ import java.util.UUID;
  */
 public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
-    private static final int CURRENT_STATE_VERSION = 4;
+    private static final int CURRENT_STATE_VERSION = 5;
+    private static final int COUNTED_STATE_VERSION = 4;
     private static final int POWER_OF_TWO_CAPACITY_STATE_VERSION = 3;
     private static final String AMOUNT_TAG = "amount";
     private static final String CORE_ID_TAG = "core_id";
@@ -56,6 +64,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     private static final String SLOTS_TAG = "slots";
     private static final String STACK_TAG = "stack";
     private static final String VERSION_TAG = "version";
+    private static final String REUSABLE_SLOTS_TAG = "reusable_slots";
 
     private final int patternCapacity;
     private final PatternDecoder decoder;
@@ -66,6 +75,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
      * Constant-time slot lookup for stable occupied-directory entries.
      */
     private Int2ObjectMap<CachedPattern> cachedPatterns = new Int2ObjectOpenHashMap<>();
+    private Int2ObjectMap<TrinityReusableSlot> reusableSlots = new Int2ObjectOpenHashMap<>();
     /**
      * Slots retaining an encoded pattern, ordered for reload and persistence without a capacity scan.
      */
@@ -231,6 +241,10 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     public boolean enqueueBatch(PatternRoute route, ItemStack patternSnapshot, List<ItemStack> inputs, long queuedTick) {
         ensureNoActiveRefundTransaction();
         validateOwnedRoute(route);
+        TrinityReusableSlot reusable = this.reusableSlots.get(route.slot());
+        if (reusable != null && reusable.hasWork()) {
+            return false;
+        }
         ensurePersistentRevisionAvailable();
         return slot(route.slot()).enqueue(route, patternSnapshot, inputs, queuedTick);
     }
@@ -245,6 +259,10 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         ensureNoActiveRefundTransaction();
         validateOwnedRoute(route);
         TrinityPatternSlot slot = slot(route.slot());
+        TrinityReusableSlot reusable = this.reusableSlots.get(route.slot());
+        if (reusable != null && reusable.hasWork()) {
+            return false;
+        }
         if (this.cachedPatterns.get(route.slot()) != expectedPattern ||
                 expectedPattern.runtimeBindingRevision() != expectedRuntimeBindingRevision) {
             return false;
@@ -256,6 +274,77 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     @Override
     public List<TrinityCraftingBatch> queuedBatches(int slot) {
         return slot(slot).queuedBatches();
+    }
+
+    @Override
+    public Int2ObjectMap<TrinityReusableSlot> reusableSlots() {
+        return Int2ObjectMaps.unmodifiable(new Int2ObjectOpenHashMap<>(this.reusableSlots));
+    }
+
+    public @Nullable TrinityReusableSlot reusableSlot(int slot) {
+        return this.reusableSlots.get(slot);
+    }
+
+    public @Nullable ReusableCraftingAdmission prepareReusable(PatternRoute route, ReusableCraftingRequest request, long tick, Host host) {
+        ensureNoActiveRefundTransaction();
+        validateOwnedRoute(route);
+        if (slot(route.slot()).hasQueuedWork()) {
+            return null;
+        }
+        TrinityReusableSlot existing = this.reusableSlots.get(route.slot());
+        if (existing != null && existing.hasWork() && (!existing.route().equals(route) || existing.closeRequested())) {
+            return null;
+        }
+        TrinityReusableSlot target = existing == null || !existing.route().equals(route) ? new TrinityReusableSlot(route) : existing;
+        ReusableCraftingAdmission prepared = target.endpoint().prepare(request, tick, host);
+        if (prepared == null) {
+            return null;
+        }
+        return new ReusableCraftingAdmission() {
+
+            @Override
+            public long count() {
+                return prepared.count();
+            }
+
+            @Override
+            public List<SlotStack> physicalInputs() {
+                return prepared.physicalInputs();
+            }
+
+            @Override
+            public boolean replay() {
+                return prepared.replay();
+            }
+
+            @Override
+            public boolean hasTransferredInputOwnership() {
+                return prepared.hasTransferredInputOwnership();
+            }
+
+            @Override
+            public boolean commit(KeyCounter[] delivery) {
+                if (slot(route.slot()).hasQueuedWork() || reusableSlots.get(route.slot()) != existing || target.closeRequested() && target.hasWork()) {
+                    return false;
+                }
+                try {
+                    return prepared.commit(delivery);
+                } finally {
+                    if (prepared.hasTransferredInputOwnership()) {
+                        target.clearCloseRequest();
+                        reusableSlots.put(route.slot(), target);
+                        reusableStateChanged(route.slot());
+                    }
+                }
+            }
+        };
+    }
+
+    /** Records changes to the same persistent core state and publishes its combined legacy/reusable work index. */
+    public void reusableStateChanged(int slot) {
+        ensureNoActiveRefundTransaction();
+        markPersistentChanged(slot);
+        updateSlotWorkIndexes(slot);
     }
 
     @Override
@@ -334,7 +423,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
     @Override
     public boolean hasWork() {
-        return !this.queuedSlots.isEmpty() || !this.pendingOutputSlots.isEmpty();
+        return !this.workingSlotsByHost.isEmpty();
     }
 
     @Override
@@ -379,11 +468,13 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
     @Override
     public RefundTransaction prepareRefund() {
+        requestReusableClosure(null);
         return beginRefund(captureRefundState(null));
     }
 
     @Override
     public RefundTransaction prepareRefund(UUID hostId) {
+        requestReusableClosure(hostId);
         return beginRefund(captureRefundState(hostId));
     }
 
@@ -442,6 +533,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         }
         data.put(SLOTS_TAG, slotEntries);
         data.put(REFUND_OUTBOX_TAG, writeRefundOutbox(registries));
+        data.put(REUSABLE_SLOTS_TAG, writeReusableSlots(registries, false));
     }
 
     /**
@@ -463,7 +555,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         retainedSlots.addAll(this.pendingOutputSlots);
         if (retainedSlots.isEmpty() &&
                 this.patternRefundOutbox.isEmpty() &&
-                this.retainedRefundOutboxByHost.isEmpty()) {
+                this.retainedRefundOutboxByHost.isEmpty() && this.reusableSlots.isEmpty()) {
             clearCoreStateTags(data);
             return;
         }
@@ -477,6 +569,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         }
         data.put(SLOTS_TAG, slotEntries);
         data.put(REFUND_OUTBOX_TAG, writeRefundOutbox(registries));
+        data.put(REUSABLE_SLOTS_TAG, writeReusableSlots(registries, true));
     }
 
     @Override
@@ -527,8 +620,13 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         int version = validatePersistedSchema(data);
         int persistedCapacity = validatePersistedCapacity(data, version);
         UUID loadedId = data.getUUID(CORE_ID_TAG);
+        Int2ObjectMap<TrinityReusableSlot> loadedReusable = readReusableSlots(data, registries, loadedId, version);
         boolean identityChanged = !this.coreId.equals(loadedId);
         Int2ObjectMap<TrinityPatternSlot> loadedSlots = readSlots(requiredCompoundList(data, SLOTS_TAG), registries, loadedId);
+        for (TrinityReusableSlot reusable : loadedReusable.values()) {
+            TrinityPatternSlot restoredSlot = loadedSlots.get(reusable.route().slot());
+            reusable.validateRestoredPublication(restoredSlot == null ? null : restoredSlot.decodedPattern(), registries);
+        }
         RefundOutbox loadedOutbox = readRefundOutbox(data, registries);
         validatePersistedSlotBounds(loadedSlots, loadedOutbox, persistedCapacity);
         InvalidPatternWorkMigration invalidPatternWorkMigration = migrateInvalidLoadedPatternWork(
@@ -545,6 +643,8 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         IntAVLTreeSet changedSlots = persistentSlots();
         changedSlots.addAll(loadedSlots.keySet());
         IntAVLTreeSet changedWorkSlots = new IntAVLTreeSet();
+        changedWorkSlots.addAll(this.reusableSlots.keySet());
+        changedWorkSlots.addAll(loadedReusable.keySet());
         ObjectArrayList<SlotApplication> slotApplications = new ObjectArrayList<>(changedSlots.size());
         for (int slot : changedSlots) {
             TrinityPatternSlot loadedSlot = loadedSlots.computeIfAbsent(slot, this::newDetachedSlot);
@@ -616,8 +716,12 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         applyWorkIndexes(loadedIndexes);
         this.patternRefundOutbox = loadedOutbox.patterns();
         this.retainedRefundOutboxByHost = loadedOutbox.retainedByHost();
+        this.reusableSlots = loadedReusable;
         this.coreId = loadedId;
         this.stateRevision = nextStateRevision;
+        for (int reusableSlot : loadedReusable.keySet()) {
+            updateSlotWorkIndexes(reusableSlot);
+        }
         if (notifyChanges && !identityChanged) {
             for (int slot : changedPatternSlots) {
                 notifyChange(new TrinityPatternSlot.Change(slot, TrinityPatternSlot.ChangeKind.CATALOG));
@@ -629,7 +733,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
                 notifyChange(new TrinityPatternSlot.Change(slot, TrinityPatternSlot.ChangeKind.WORK));
             }
         }
-        return version == POWER_OF_TWO_CAPACITY_STATE_VERSION || invalidPatternWorkMigration.migrated();
+        return version != CURRENT_STATE_VERSION || invalidPatternWorkMigration.migrated();
     }
 
     private IntAVLTreeSet changedPatternSlots(Int2ObjectMap<TrinityPatternSlot> loadedSlots,
@@ -995,7 +1099,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
             throw new IllegalArgumentException("Persisted Trinity pattern core state is missing its capacity");
         }
         int persistedCapacity = data.getInt(PATTERN_CAPACITY_TAG);
-        if (version == CURRENT_STATE_VERSION && persistedCapacity == this.patternCapacity ||
+        if (version >= COUNTED_STATE_VERSION && persistedCapacity == this.patternCapacity ||
                 version == POWER_OF_TWO_CAPACITY_STATE_VERSION &&
                         TrinityPatternCoreTier.matchesPowerOfTwoCapacity(persistedCapacity, this.patternCapacity)) {
             return persistedCapacity;
@@ -1036,12 +1140,50 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         data.putInt(VERSION_TAG, CURRENT_STATE_VERSION);
     }
 
+    private ListTag writeReusableSlots(HolderLookup.Provider registries, boolean removingPattern) {
+        ListTag entries = new ListTag();
+        for (int slot : new IntAVLTreeSet(this.reusableSlots.keySet())) {
+            entries.add(this.reusableSlots.get(slot).writeToTag(registries, removingPattern));
+        }
+        return entries;
+    }
+
+    private Int2ObjectMap<TrinityReusableSlot> readReusableSlots(CompoundTag data, HolderLookup.Provider registries,
+                                                                 UUID loadedId, int version) {
+        Int2ObjectMap<TrinityReusableSlot> restored = new Int2ObjectOpenHashMap<>();
+        if (version < CURRENT_STATE_VERSION) {
+            if (data.contains(REUSABLE_SLOTS_TAG)) {
+                throw new IllegalArgumentException("Legacy core schema cannot contain reusable session assets");
+            }
+            return restored;
+        }
+        for (Tag encoded : requiredCompoundList(data, REUSABLE_SLOTS_TAG)) {
+            TrinityReusableSlot reusable = TrinityReusableSlot.readFromTag((CompoundTag) encoded, registries);
+            PatternRoute route = reusable.route();
+            validatePersistedRoute(route, loadedId, route.slot(), "reusable session");
+            if (restored.put(route.slot(), reusable) != null) {
+                throw new IllegalArgumentException("Duplicate persisted reusable core slot");
+            }
+        }
+        return restored;
+    }
+
+    private void requestReusableClosure(@Nullable UUID hostId) {
+        for (TrinityReusableSlot reusable : this.reusableSlots.values()) {
+            if (reusable.hasWork() && (hostId == null || hostId.equals(reusable.route().hostId()))) {
+                reusable.requestClose();
+                markPersistentChanged(reusable.route().slot());
+            }
+        }
+    }
+
     private static void clearCoreStateTags(CompoundTag data) {
         data.remove(VERSION_TAG);
         data.remove(CORE_ID_TAG);
         data.remove(PATTERN_CAPACITY_TAG);
         data.remove(SLOTS_TAG);
         data.remove(REFUND_OUTBOX_TAG);
+        data.remove(REUSABLE_SLOTS_TAG);
     }
 
     private static int validatePersistedSchema(CompoundTag data) {
@@ -1049,7 +1191,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
             throw new IllegalArgumentException("Persisted Trinity pattern core state requires an integer version");
         }
         int version = data.getInt(VERSION_TAG);
-        if (version != POWER_OF_TWO_CAPACITY_STATE_VERSION && version != CURRENT_STATE_VERSION) {
+        if (version != POWER_OF_TWO_CAPACITY_STATE_VERSION && version != COUNTED_STATE_VERSION && version != CURRENT_STATE_VERSION) {
             throw new IllegalArgumentException("Unsupported Trinity pattern core state version " + version);
         }
         if (!data.contains(SLOTS_TAG)) {
@@ -1064,7 +1206,7 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
 
     private static boolean containsCoreState(CompoundTag data) {
         return data.contains(VERSION_TAG) || data.contains(PATTERN_CAPACITY_TAG) || data.contains(SLOTS_TAG) ||
-                data.contains(REFUND_OUTBOX_TAG);
+                data.contains(REFUND_OUTBOX_TAG) || data.contains(REUSABLE_SLOTS_TAG);
     }
 
     private static ListTag requiredCompoundList(CompoundTag data, String tagName) {
@@ -1238,6 +1380,10 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
     private void onSlotChanged(TrinityPatternSlot.Change change) {
         switch (change.kind()) {
             case CATALOG -> {
+                TrinityReusableSlot reusable = this.reusableSlots.get(change.slot());
+                if (reusable != null && reusable.hasWork()) {
+                    reusable.requestClose();
+                }
                 updateCachedPattern(change.slot());
                 markCatalogChanged(change.slot());
             }
@@ -1269,6 +1415,11 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         IMolecularAssemblerSupportedPattern decoded = this.slots.get(slot).decodedPattern();
         TrinityPatternDefinition definition = this.slots.get(slot).requiredInstalledDefinition();
         boolean semanticChange = cached.rebind(definition, decoded);
+        TrinityReusableSlot reusable = this.reusableSlots.get(slot);
+        if (semanticChange && reusable != null && reusable.hasWork()) {
+            reusable.requestClose();
+            markPersistentChanged(slot);
+        }
         boolean invalidWorkMigrated = migrateInvalidRuntimePatternWork(slot);
         if (semanticChange || invalidWorkMigrated) {
             notifyChange(new TrinityPatternSlot.Change(slot, TrinityPatternSlot.ChangeKind.RUNTIME_BINDING));
@@ -1365,7 +1516,11 @@ public final class PersistentTrinityPatternCore implements TrinityPatternCore {
         } else {
             this.pendingOutputSlots.remove(slot);
         }
-        Set<UUID> currentWorkHosts = patternSlot.workHostIds();
+        Set<UUID> currentWorkHosts = new ObjectOpenHashSet<>(patternSlot.workHostIds());
+        TrinityReusableSlot reusable = this.reusableSlots.get(slot);
+        if (reusable != null && reusable.hasWork()) {
+            currentWorkHosts.add(reusable.route().hostId());
+        }
         for (UUID hostId : currentWorkHosts) {
             this.workingSlotsByHost.computeIfAbsent(hostId, ignored -> new IntAVLTreeSet()).add(slot);
         }

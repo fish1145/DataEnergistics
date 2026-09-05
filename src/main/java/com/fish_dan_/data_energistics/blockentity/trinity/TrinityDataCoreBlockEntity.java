@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
 import com.fish_dan_.data_energistics.block.machine.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.bootstrap.common.ServerLifecycleEventHandler;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
@@ -1821,6 +1822,20 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                     admission.route,
                     exception);
             throw exception;
+        } finally {
+            this.craftingAdmissions.remove(token);
+        }
+    }
+
+    /** Consumes the same lease/layout/publication authorization before transferring reusable total inputs. */
+    boolean commitReusableCraftingAdmission(CraftingAdmissionToken token, ReusableCraftingAdmission prepared, KeyCounter[] delivery) {
+        CraftingAdmissionState admission = this.craftingAdmissions.get(token);
+        if (admission == null || admission.committing) {
+            return false;
+        }
+        admission.committing = true;
+        try {
+            return prepared.count() == token.count() && isCurrentCraftingAdmission(token, admission) && prepared.commit(delivery);
         } finally {
             this.craftingAdmissions.remove(token);
         }

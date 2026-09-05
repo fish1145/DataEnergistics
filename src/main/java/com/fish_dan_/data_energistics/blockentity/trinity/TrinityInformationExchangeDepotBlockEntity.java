@@ -6,6 +6,14 @@ import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess;
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess.FiniteTransferResult;
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess.FiniteTransferTarget;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingTarget;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingProviderAdapter;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.SlotStack;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.Target;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView.AppendReceipt;
 import com.fish_dan_.data_energistics.block.storage.CompartmentBlock;
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity.CraftingAdmissionToken;
 import com.fish_dan_.data_energistics.bootstrap.common.ServerLifecycleEventHandler;
@@ -29,11 +37,14 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreCraftingRuntime;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingRouteResolver;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.TrinityReusableSlot;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockContext;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockController;
 import com.fish_dan_.data_energistics.common.multiblock.vertical.VerticalMultiBlockPos;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreStorageProfile;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityInformationExchangeDepotStatus;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternTerminalPartition;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection;
 import com.fish_dan_.data_energistics.menu.trinity.TrinityCraftingStatusSelection.TargetState;
@@ -1617,7 +1628,125 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         }
     }
 
-    private final class HatchCraftingProvider implements TargetedCountedCraftingProvider {
+    private final class HatchCraftingProvider implements TargetedCountedCraftingProvider, ReusableCraftingProviderAdapter {
+
+        @Override
+        public List<Target> reusableTargets(IPatternDetails pattern, IActionSource source, ServerLevel serverLevel) {
+            TrinityDataCoreBlockEntity host = patternProviderHost();
+            if (host == null || serverLevel != level || !(pattern instanceof RoutedCraftingPatternDetails routed) ||
+                    !host.getPatternCatalog().getAvailablePatterns().contains(pattern) || loadedCore(host, routed.route()) == null) {
+                return List.of();
+            }
+            String identity = TrinityReusableSlot.targetIdentity(routed.route().coreId(), routed.route().slot());
+            return List.of(new Target(identity, CountedCraftingTarget.route(identity), Optional.empty()));
+        }
+
+        @Override
+        public @Nullable ReusableCraftingAdmission prepareReusable(ReusableCraftingRequest request) {
+            TrinityDataCoreBlockEntity host = patternProviderHost();
+            if (host == null || request.level() != level || !(request.pattern() instanceof RoutedCraftingPatternDetails routed)) {
+                return null;
+            }
+            TrinityPatternCoreBlockEntity core = loadedCore(host, routed.route());
+            if (core == null) {
+                return null;
+            }
+            CraftingAdmissionToken token = host.issueCraftingAdmission(TrinityInformationExchangeDepotBlockEntity.this,
+                    request.pattern(), level.getGameTime(), request.requestedCount());
+            if (token == null) {
+                return null;
+            }
+            ReusableCraftingAdmission prepared = core.prepareReusable(routed.route(), request);
+            if (prepared == null) {
+                return null;
+            }
+            return new ReusableCraftingAdmission() {
+
+                @Override
+                public long count() {
+                    return prepared.count();
+                }
+
+                @Override
+                public List<SlotStack> physicalInputs() {
+                    return prepared.physicalInputs();
+                }
+
+                @Override
+                public boolean replay() {
+                    return prepared.replay();
+                }
+
+                @Override
+                public boolean hasTransferredInputOwnership() {
+                    return prepared.hasTransferredInputOwnership();
+                }
+
+                @Override
+                public boolean commit(KeyCounter[] delivery) {
+                    return host.commitReusableCraftingAdmission(token, prepared, delivery);
+                }
+            };
+        }
+
+        @Override
+        public Optional<ReusableCraftingSessionView> reusableSession(UUID sessionId) {
+            ReusableLocation location = locateSession(sessionId);
+            return location == null ? Optional.empty() : location.slot().endpoint().query(sessionId);
+        }
+
+        @Override
+        public Optional<AppendReceipt> reusableReceipt(UUID sessionId, long sequence) {
+            ReusableLocation location = locateSession(sessionId);
+            return location == null ? Optional.empty() : location.slot().endpoint().receipt(sessionId, sequence);
+        }
+
+        @Override
+        public void closeReusableSession(UUID sessionId) {
+            ReusableLocation location = locateSession(sessionId);
+            if (location != null) {
+                location.core().closeReusableSession(location.slot(), sessionId);
+            }
+        }
+
+        @Override
+        public boolean settleReusableSession(UUID sessionId, ReturnReceiver receiver) {
+            ReusableLocation location = locateSession(sessionId);
+            return location != null && location.core().settleReusableSession(location.slot(), sessionId, receiver);
+        }
+
+        private @Nullable ReusableLocation locateSession(UUID sessionId) {
+            TrinityDataCoreBlockEntity host = boundHost(false);
+            if (host == null || !isCandidateOnline() || !host.isLeaseOwner(TrinityInformationExchangeDepotBlockEntity.this)) {
+                return null;
+            }
+            UUID owner = host.getPatternCatalog().hostId();
+            for (var mount : host.getPatternCatalog().mountedCores()) {
+                if (mount.core() instanceof TrinityPatternCoreBlockEntity core && level.isLoaded(core.getBlockPos()) &&
+                        level.getBlockEntity(core.getBlockPos()) == core) {
+                    TrinityReusableSlot slot = core.findReusableSession(owner, sessionId);
+                    if (slot != null) {
+                        return new ReusableLocation(core, slot);
+                    }
+                }
+            }
+            return null;
+        }
+
+        private @Nullable TrinityPatternCoreBlockEntity loadedCore(TrinityDataCoreBlockEntity host, PatternRoute route) {
+            if (!route.hostId().equals(host.getPatternCatalog().hostId())) {
+                return null;
+            }
+            for (var mount : host.getPatternCatalog().mountedCores()) {
+                if (mount.core() instanceof TrinityPatternCoreBlockEntity core && core.coreId().equals(route.coreId()) &&
+                        level.isLoaded(core.getBlockPos()) && level.getBlockEntity(core.getBlockPos()) == core) {
+                    return core;
+                }
+            }
+            return null;
+        }
+
+        private record ReusableLocation(TrinityPatternCoreBlockEntity core, TrinityReusableSlot slot) {}
 
         @Override
         public List<IPatternDetails> getAvailablePatterns() {
