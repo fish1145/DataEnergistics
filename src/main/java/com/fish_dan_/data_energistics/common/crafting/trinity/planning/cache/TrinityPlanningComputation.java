@@ -115,7 +115,7 @@ public final class TrinityPlanningComputation {
                 input.gridScope(),
                 TrinityComputationNamespace.REACHABLE_GRAPH,
                 input.graph().revision(),
-                new ReachableGraphKey(input.target(), input.graph().patterns()),
+                new ReachableGraphKey(input.target(), input.graph().patterns(), input.graph().reusableInputFallbacks()),
                 () -> TrinityCachedComputation.cacheable(input.graph().reachableSubgraph(input.target())));
         int patternCount = reachable.value().patterns().size();
         progress.publish(patternCount == 0 ?
@@ -604,7 +604,8 @@ public final class TrinityPlanningComputation {
                 TrinityCachedComputation.transientValue(result);
     }
 
-    private record ReachableGraphKey(AEKey target, List<TrinityCraftingGraphPattern> patterns) {}
+    private record ReachableGraphKey(AEKey target, List<TrinityCraftingGraphPattern> patterns,
+                                     Map<TrinityPatternIdentity, TrinityPlanningDiagnostic> reusableInputFallbacks) {}
 
     private record CompiledGraphKey(
                                     AEKey target,

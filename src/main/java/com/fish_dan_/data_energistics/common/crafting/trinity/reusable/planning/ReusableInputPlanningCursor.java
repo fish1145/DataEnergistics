@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.api.registry.reusable.ReusableInputRules;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.TrinityPlanningControl;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityBoundPatternInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCanonicalNbt;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.NativeReusableCrafting;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.planning.ReusableInputPlanningExpansion.Captured;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.planning.ReusableInputPlanningExpansion.Reason;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.planning.ReusableInputPlanningExpansion.Result;
@@ -15,6 +16,7 @@ import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
@@ -53,6 +55,7 @@ public final class ReusableInputPlanningCursor {
     private final TrinityPlanningControl control;
     private final Thread owner = Thread.currentThread();
     private final IPatternDetails.IInput[] inputs;
+    private final boolean nativeValidation;
     private final Object2ObjectAVLTreeMap<String, AEItemKey> sortedInventory = new Object2ObjectAVLTreeMap<>();
     private final List<AEItemKey> orderedInventory = new ObjectArrayList<>();
     private final List<ObjectLinkedOpenHashSet<GenericStack>> original = new ObjectArrayList<>();
@@ -87,6 +90,7 @@ public final class ReusableInputPlanningCursor {
         this.limit = limit;
         this.control = control;
         this.inputs = context.pattern().getInputs();
+        this.nativeValidation = NativeReusableCrafting.usesNativeRecipeValidation(context.pattern(), context.recipeId());
     }
 
     /**
@@ -204,13 +208,13 @@ public final class ReusableInputPlanningCursor {
             return;
         }
         GenericStack template = encodedOptions.get(templateIndex);
-        if (!(template.what() instanceof AEItemKey) || inventoryIndex == orderedInventory.size()) {
+        if (!(template.what() instanceof AEItemKey templateItem) || inventoryIndex == orderedInventory.size()) {
             templateIndex++;
             inventoryIndex = 0;
             return;
         }
         AEItemKey available = orderedInventory.get(inventoryIndex++);
-        if (inputs[slot].isValid(available, context.level())) {
+        if (inputs[slot].isValid(available, context.level()) || nativeValidation && available.getItem() == templateItem.getItem()) {
             candidate(new GenericStack(available, template.amount()));
         }
     }
@@ -260,6 +264,16 @@ public final class ReusableInputPlanningCursor {
 
     private void captureSlot() {
         if (slot == assignment.size()) {
+            IntOpenHashSet reusableSlots = new IntOpenHashSet();
+            for (TrinityBoundPatternInput binding : captured) {
+                if (binding.reusableRule() != null) {
+                    reusableSlots.add(binding.slotIndex());
+                }
+            }
+            if (!NativeReusableCrafting.matches(context.pattern(), actual, reusableSlots, context.recipeId(), context.level())) {
+                phase = Phase.BEGIN_BINDING;
+                return;
+            }
             anyReusable |= reusable;
             bindings.add(List.copyOf(captured));
             slot = 0;
@@ -318,7 +332,7 @@ public final class ReusableInputPlanningCursor {
         TrinityBoundPatternInput binding = captured.get(slot++);
         if (binding.reusableRule() != null && binding.remainingKey() != null &&
                 !binding.remainingKey().equals(binding.template().what()) &&
-                inputs[binding.slotIndex()].isValid(binding.remainingKey(), context.level())) {
+                (nativeValidation || inputs[binding.slotIndex()].isValid(binding.remainingKey(), context.level()))) {
             List<GenericStack> next = new ObjectArrayList<>(assignment);
             next.set(binding.slotIndex(), new GenericStack(binding.remainingKey(), binding.template().amount()));
             enqueue(next);
