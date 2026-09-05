@@ -84,7 +84,7 @@ public final class AdaptiveReusableCraftingGameTest {
         helper.assertValueEqual(state.pendingOperations(), 0L, "Preparing does not reserve the shared budget");
         admission.commit(delivery(admission, 2));
         helper.assertValueEqual(state.pendingOperations(), 2L, "Committed but unexecuted work is reserved separately");
-        state.slot(0).endpoint().tick(1, 1, false, host);
+        state.slot(0).endpoint().tick(1, 1, host);
         helper.assertValueEqual(state.pendingOperations(), 1L, "One actual completion releases one pending reservation");
         state = reload(state, helper);
         ReusableCraftingAdmission replay = prepared(state, original, 0, host);
@@ -109,7 +109,7 @@ public final class AdaptiveReusableCraftingGameTest {
         helper.assertValueEqual(amount(second.physicalInputs(), tool(0)), 2L,
                 "Already reserved D0 tool is excluded from the next exact-state batch");
         second.commit(delivery(second, 2));
-        state.slot(0).endpoint().tick(1, 3, false, host);
+        state.slot(0).endpoint().tick(1, 3, host);
         var view = state.slot(0).endpoint().query(id).orElseThrow();
         helper.assertValueEqual(amount(view.heldTools(), tool(1)), 3L, "Three D0 operations produce three actual D1 tools");
         helper.assertValueEqual(amount(view.heldTools(), tool(3)), 0L, "Exact batch cannot repeatedly damage one tool to D3");
@@ -118,7 +118,7 @@ public final class AdaptiveReusableCraftingGameTest {
         helper.assertValueEqual(next.physicalInputs().stream().filter(input -> input.slot() == 0).count(), 0L,
                 "Next D1 stage keeps the actual three resident tools");
         next.commit(delivery(next, 2));
-        state.slot(0).endpoint().tick(2, 3, false, host);
+        state.slot(0).endpoint().tick(2, 3, host);
         helper.assertValueEqual(amount(state.slot(0).endpoint().query(id).orElseThrow().heldTools(), tool(2)), 3L,
                 "The subsequent exact state advances each tool once");
         helper.succeed();
@@ -133,7 +133,7 @@ public final class AdaptiveReusableCraftingGameTest {
         UUID id = UUID.randomUUID();
         ReusableCraftingAdmission admission = prepared(source, request(source, id, 0, 2, 1, Optional.empty(), helper), 8, host);
         admission.commit(delivery(admission, 2));
-        source.slot(0).endpoint().tick(1, 1, false, host);
+        source.slot(0).endpoint().tick(1, 1, host);
         expectState(helper, source::ensureCanClear, "Unexported resident state cannot be cleared");
         CompoundTag item = source.prepareItemHandoff(helper.getLevel().registryAccess());
         helper.assertTrue(source.handoffPrepared(), "Physical handoff freezes source ownership");
@@ -161,7 +161,7 @@ public final class AdaptiveReusableCraftingGameTest {
         UUID id = UUID.randomUUID();
         ReusableCraftingAdmission admission = prepared(owned, request(owned, id, 0, 2, 1, Optional.empty(), helper), 8, host);
         admission.commit(delivery(admission, 2));
-        owned.slot(0).endpoint().tick(1, 1, false, host);
+        owned.slot(0).endpoint().tick(1, 1, host);
         helper.setBlock(new BlockPos(1, 1, 1), DEBlocks.ADAPTIVE_PATTERN_PROVIDER.get());
         AdaptivePatternProviderBlockEntity source = helper.getBlockEntity(new BlockPos(1, 1, 1));
         AdaptivePatternProviderLogic sourceLogic = (AdaptivePatternProviderLogic) source.getLogic();

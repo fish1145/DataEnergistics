@@ -770,6 +770,23 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     }
 
     @Override
+    public boolean requestReusableYield(ReusableCraftingRequest contender) {
+        if (!reusableNativeAvailable() || this.host.getBlockEntity().getLevel() != contender.level() ||
+                !contender.target().mode().equals(Optional.of(AdaptiveReusableCraftingState.MODE))) {
+            return false;
+        }
+        for (var entry : this.nativePatternSlots.int2ObjectEntrySet()) {
+            int index = entry.getIntKey();
+            if (this.reusableCrafting.targetIdentity(index).equals(contender.target().persistentIdentity())) {
+                AdaptiveReusableCraftingState.Slot resident = this.reusableCrafting.slot(index);
+                return resident != null && resident.endpoint().requestYield(contender, contender.level().getGameTime(),
+                        reusableHost(index, entry.getValue().recipe(), ReusableHostPurpose.YIELD));
+            }
+        }
+        return false;
+    }
+
+    @Override
     public Optional<AppendReceipt> reusableReceipt(UUID sessionId, long sequence) {
         AdaptiveReusableCraftingState.Slot slot = this.reusableCrafting.locate(sessionId);
         return slot == null ? Optional.empty() : slot.endpoint().receipt(sessionId, sequence);
@@ -799,6 +816,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     }
 
     private Host reusableHost(int slot, ResourceLocation recipe) {
+        return reusableHost(slot, recipe, ReusableHostPurpose.EXECUTION);
+    }
+
+    private Host reusableHost(int slot, ResourceLocation recipe, ReusableHostPurpose purpose) {
         return new Host() {
 
             private @Nullable Binding checkedBinding;
@@ -826,7 +847,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
                     checkedPattern = current;
                     checkedBinding = binding;
                 }
-                return worksInRound < getMeteoriteMaxWorksPerRound() && hasMeteoriteEnergy();
+                return purpose == ReusableHostPurpose.YIELD || worksInRound < getMeteoriteMaxWorksPerRound() && hasMeteoriteEnergy();
             }
 
             @Override
@@ -886,13 +907,18 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
                 slot.close(host);
             }
             int budget = Math.max(0, getMeteoriteMaxWorksPerRound() - this.worksInRound);
-            worked |= slot.endpoint().tick(level.getGameTime(), budget, false, host) > 0;
+            worked |= slot.endpoint().tick(level.getGameTime(), budget, host) > 0;
         }
         return worked;
     }
 
     private record NativePatternSlot(IMolecularAssemblerSupportedPattern pattern, ResourceLocation recipe,
                                      TrinityPatternIdentity identity) {}
+
+    private enum ReusableHostPurpose {
+        EXECUTION,
+        YIELD
+    }
 
     @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {

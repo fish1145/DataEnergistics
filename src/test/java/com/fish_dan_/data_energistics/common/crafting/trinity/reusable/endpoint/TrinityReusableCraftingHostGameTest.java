@@ -76,7 +76,7 @@ public final class TrinityReusableCraftingHostGameTest {
         TrinityReusableCraftingHost host = host(core, route, helper);
         admit(core, route, request(pattern, route, session, 4, 2, helper), host);
         helper.assertTrue(core.isSlotWorking(route.hostId(), 0), "Reusable-only work appears in the existing host slot index");
-        core.reusableSlot(0).endpoint().tick(1, 2, false, host);
+        core.reusableSlot(0).endpoint().tick(1, 2, host);
         helper.assertValueEqual(pattern.remainderCalls, 2, "Native getRemainingItems is called once per actual operation");
         CompoundTag saved = new CompoundTag();
         core.writeToTag(saved, helper.getLevel().registryAccess());
@@ -84,7 +84,7 @@ public final class TrinityReusableCraftingHostGameTest {
         restored.hydrateFromTag(saved, helper.getLevel().registryAccess());
         helper.assertTrue(restored.isSlotWorking(route.hostId(), 0), "Reload reconstructs the combined work index");
         TrinityReusableCraftingHost resumed = host(restored, route, helper);
-        restored.reusableSlot(0).endpoint().tick(2, 2, false, resumed);
+        restored.reusableSlot(0).endpoint().tick(2, 2, resumed);
         helper.assertValueEqual(pattern.remainderCalls, 4, "Native execution resumes from actual persisted tool damage");
         helper.assertValueEqual(restored.pendingOutputs(route).stream().filter(item -> item.key().equals(PRODUCT)).mapToLong(item -> item.amount()).sum(),
                 4L, "Ordinary outputs use the existing core pending-output route");
@@ -111,7 +111,7 @@ public final class TrinityReusableCraftingHostGameTest {
         UUID session = UUID.randomUUID();
         TrinityReusableCraftingHost host = host(core, route, helper);
         admit(core, route, request(pattern, route, session, 2, 1, helper), host);
-        core.reusableSlot(0).endpoint().tick(1, 1, false, host);
+        core.reusableSlot(0).endpoint().tick(1, 1, host);
         CompoundTag miningItem = new CompoundTag();
         core.writeRetainedWorkToTag(miningItem, helper.getLevel().registryAccess());
         PersistentTrinityPatternCore moved = core(pattern);

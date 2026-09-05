@@ -78,14 +78,14 @@ public final class PersistentReusableCraftingEndpointGameTest {
         helper.assertTrue(admission.hasTransferredInputOwnership(), "Successful admission crosses ownership boundary");
         helper.assertValueEqual(delivery[0].get(tool(0)), 0L, "Transferred tool counter is consumed");
         helper.assertValueEqual(delivery[1].get(MATERIAL), 0L, "Transferred total material counter is consumed");
-        helper.assertValueEqual(endpoint.tick(10, 10, false, host), 0, "Native work starts on a later tick");
-        helper.assertValueEqual(endpoint.tick(11, 2, false, host), 2, "Native operations obey the shared host budget");
+        helper.assertValueEqual(endpoint.tick(10, 10, host), 0, "Native work starts on a later tick");
+        helper.assertValueEqual(endpoint.tick(11, 2, host), 2, "Native operations obey the shared host budget");
         endpoint = reload(endpoint, helper);
-        helper.assertValueEqual(endpoint.tick(12, 1, false, host), 1, "Restored endpoint executes the third actual tool use");
+        helper.assertValueEqual(endpoint.tick(12, 1, host), 1, "Restored endpoint executes the third actual tool use");
         ReusableCraftingAdmission second = prepare(endpoint, request(helper, sessionId, 1, 2, List.of()), 12, host);
         helper.assertValueEqual(amount(second.physicalInputs(), 0, tool(0)), 0L, "Resident spare tool is not transferred again");
         helper.assertTrue(second.commit(delivery(second)), "Second append uses already resident assets");
-        helper.assertValueEqual(endpoint.tick(13, 9, false, host), 2, "Only two further actual operations were accepted");
+        helper.assertValueEqual(endpoint.tick(13, 9, host), 2, "Only two further actual operations were accepted");
         helper.assertValueEqual(host.amount(PRODUCT), 5L, "Actual native outputs follow ordinary persistent pending queue");
         helper.assertValueEqual(host.amount(SCRAP), 1L, "One actually exhausted tool yields one scrap");
         endpoint.close(sessionId, host);
@@ -138,7 +138,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
         ReusableCraftingRequest request = request(helper, sessionId, 0, 3, List.of(new SlotStack(0, stack(tool(0), 1))));
         ReusableCraftingAdmission first = prepare(endpoint, request, 0, host);
         first.commit(delivery(first));
-        endpoint.tick(1, 3, false, host);
+        endpoint.tick(1, 3, host);
         endpoint.close(sessionId, host);
         helper.assertValueEqual(endpoint.query(sessionId).orElseThrow().state(), State.RETURN_PENDING,
                 "No physical refund does not eliminate the CPU settlement obligation");
@@ -180,7 +180,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
                 List.of(new SlotStack(0, stack(tool(0), 1)))), 0, host);
         first.commit(delivery(first));
         host.failNative = true;
-        helper.assertValueEqual(endpoint.tick(1, 9, false, host), 0, "Unknown native result cannot be counted as completed");
+        helper.assertValueEqual(endpoint.tick(1, 9, host), 0, "Unknown native result cannot be counted as completed");
         helper.assertValueEqual(endpoint.query(sessionId).orElseThrow().state(), State.FAULTED, "Unknown effects are explicitly faulted");
         endpoint.close(sessionId, host);
         helper.assertTrue(!endpoint.settle(sessionId, settlement -> {
@@ -190,7 +190,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
                 "Close cannot refund pre-execution tools after an unknown exception");
         endpoint = reload(endpoint, helper);
         host.failNative = false;
-        helper.assertValueEqual(endpoint.tick(2, 9, false, host), 0, "Restart cannot repeat quarantined native execution");
+        helper.assertValueEqual(endpoint.tick(2, 9, host), 0, "Restart cannot repeat quarantined native execution");
         endpoint.reconcile(sessionId, new NativeResult(true, List.of(new ToolOutcome(0, List.of(stack(tool(1), 1)), List.of())),
                 List.of(stack(PRODUCT, 1)), Optional.empty()), host);
         List<Settlement> received = new ObjectArrayList<>();
@@ -218,10 +218,10 @@ public final class PersistentReusableCraftingEndpointGameTest {
         ReusableCraftingAdmission accepted = prepare(endpoint, request, 0, host);
         accepted.commit(delivery(accepted));
         host.paused = true;
-        helper.assertValueEqual(endpoint.tick(1, 3, false, host), 0, "Explicit unexecuted native pause keeps the complete escrow");
+        helper.assertValueEqual(endpoint.tick(1, 3, host), 0, "Explicit unexecuted native pause keeps the complete escrow");
         helper.assertValueEqual(endpoint.receipt(sessionId, 0).orElseThrow().completed(), 0L, "Pause cannot count completed work");
         host.paused = false;
-        helper.assertValueEqual(endpoint.tick(2, 3, false, host), 2, "Two actual remaining uses are accepted from non-initial damage");
+        helper.assertValueEqual(endpoint.tick(2, 3, host), 2, "Two actual remaining uses are accepted from non-initial damage");
         endpoint.close(sessionId, host);
         endpoint.settle(sessionId, settlement -> {
             helper.assertTrue(settlement.returnedAssets().isEmpty(), "Both actual remaining uses exhaust the supplied damaged tool");
@@ -273,7 +273,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
         ReusableCraftingAdmission admission = prepare(endpoint, request, 0, host);
         helper.assertValueEqual(amount(admission.physicalInputs(), 0, tool(0)), 3L, "Same-slot total is two consumed plus one held tool");
         admission.commit(delivery(admission));
-        endpoint.tick(1, 1, false, host);
+        endpoint.tick(1, 1, host);
         endpoint.close(sessionId, host);
         endpoint.settle(sessionId, settlement -> {
             helper.assertValueEqual(assetAmount(settlement.returnedAssets(), tool(0)), 1L, "One unused same-key consumed material remains");
@@ -300,7 +300,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
         ReusableCraftingRequest first = request(helper, sessionId, 0, 1, List.of(new SlotStack(0, stack(tool(0), 1))));
         ReusableCraftingAdmission opened = prepare(endpoint, first, 0, host);
         opened.commit(delivery(opened));
-        endpoint.tick(1, 1, false, host);
+        endpoint.tick(1, 1, host);
         endpoint = reload(endpoint, helper);
         ReusableInputRule atDamageOne = ReusableInputRule.fixedDamage(RULE_ID, 1, tool(1), 1, 3, List.of(stack(SCRAP, 1)));
         List<Input> continuedInputs = List.of(new Input(0, List.of(), Optional.of(new Tool(1, Ownership.CPU_SUPPLIED, atDamageOne, Optional.empty()))),
@@ -311,7 +311,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
         helper.assertValueEqual(amount(appended.physicalInputs(), 0, tool(1)), 0L,
                 "D1 stage reuses the actual resident successor without another physical transfer");
         helper.assertTrue(appended.commit(delivery(appended)), "D0-opened session accepts the same contract frozen from D1");
-        helper.assertValueEqual(endpoint.tick(2, 1, false, host), 1, "Second native operation advances actual D1 to D2");
+        helper.assertValueEqual(endpoint.tick(2, 1, host), 1, "Second native operation advances actual D1 to D2");
         helper.assertValueEqual(endpoint.query(sessionId).orElseThrow().heldTools(), List.of(new SlotStack(0, stack(tool(2), 1))),
                 "Continued session retains exactly one D2 tool");
         helper.assertValueEqual(endpoint.snapshot().getFirst().session().slotContracts().getFirst().rule().initialKey(), tool(0),
@@ -339,7 +339,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
         ReusableCraftingRequest first = request(helper, sessionId, 0, 1, List.of(new SlotStack(0, stack(tool(0), 1))));
         ReusableCraftingAdmission opened = prepare(endpoint, first, 0, host);
         opened.commit(delivery(opened));
-        endpoint.tick(1, 1, false, host);
+        endpoint.tick(1, 1, host);
         TrinityPatternIdentity frozen = endpoint.snapshot().getFirst().binding().publicationIdentity();
         endpoint = reload(endpoint, helper);
         helper.assertValueEqual(endpoint.snapshot().getFirst().binding().publicationIdentity(), frozen,
@@ -368,11 +368,11 @@ public final class PersistentReusableCraftingEndpointGameTest {
         ReusableCraftingAdmission opened = prepare(endpoint, request(helper, sessionId, 0, 1,
                 List.of(new SlotStack(0, stack(tool(0), 3)))), 0, host);
         opened.commit(delivery(opened));
-        helper.assertValueEqual(endpoint.tick(0, 1, false, host), 0, "Initial open still defers native execution to the next tick");
+        helper.assertValueEqual(endpoint.tick(0, 1, host), 0, "Initial open still defers native execution to the next tick");
         for (int tick = 1; tick <= 5; tick++) {
             ReusableCraftingAdmission appended = prepare(endpoint, request(helper, sessionId, tick, 1, List.of()), tick, host);
             helper.assertTrue(appended.commit(delivery(appended)), "Continuous per-tick material append is accepted");
-            helper.assertValueEqual(endpoint.tick(tick, 1, false, host), 1,
+            helper.assertValueEqual(endpoint.tick(tick, 1, host), 1,
                     "Appending before execution cannot defer already accepted work again");
             helper.assertValueEqual(endpoint.query(sessionId).orElseThrow().completed(), (long) tick,
                     "Every tick advances native completion despite a preceding append");
@@ -396,14 +396,14 @@ public final class PersistentReusableCraftingEndpointGameTest {
         helper.assertValueEqual(endpoint.reservedToolUses(sessionId, 0, tool(0)), 3L, "Pending exact reservations survive reload");
         helper.assertTrue(endpoint.prepare(exactRequest(helper, sessionId, 1, 1, tool(0), List.of()), 1, host) == null,
                 "The same D0 units cannot be promised to another pending append");
-        endpoint.tick(1, 3, false, host);
+        endpoint.tick(1, 3, host);
         helper.assertValueEqual(endpoint.query(sessionId).orElseThrow().heldTools(), List.of(new SlotStack(0, stack(tool(1), 3))),
                 "Three D0 to D1 firings cannot become one tool's consecutive D0 to D3 execution");
         helper.assertValueEqual(endpoint.reservedToolUses(sessionId, 0, tool(0)), 0L, "Completed exact uses release their reservations");
         ReusableCraftingAdmission next = prepare(endpoint, exactRequest(helper, sessionId, 1, 3, tool(1), List.of()), 2, host);
         helper.assertValueEqual(amount(next.physicalInputs(), 0, tool(1)), 0L, "The next D1 stage does not transport its resident tools again");
         helper.assertTrue(next.commit(delivery(next)), "Resident successors are reusable for the next exact stage");
-        endpoint.tick(2, 3, false, host);
+        endpoint.tick(2, 3, host);
         endpoint.close(sessionId, host);
         endpoint.settle(sessionId, settlement -> {
             helper.assertValueEqual(settlement.returnedAssets(), List.of(stack(tool(2), 3)), "Final return contains all three actual D2 tools");

@@ -785,6 +785,7 @@ final class TrinityDataCoreCpuLogic {
         switch (selection) {
             case TrinityPatternSelector.Selected value -> selected = value;
             case TrinityPatternSelector.Unavailable unavailable -> {
+                this.reusableDispatch.releaseToolsFor(currentJob, work, unavailable.observedKeys());
                 if (work.cycle()) {
                     execution.deferDynamicInput(
                             work,

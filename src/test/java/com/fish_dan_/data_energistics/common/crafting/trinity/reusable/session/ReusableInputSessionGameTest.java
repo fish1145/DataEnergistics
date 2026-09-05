@@ -307,16 +307,18 @@ public final class ReusableInputSessionGameTest {
         ReusableInputSession idle = session(unchanged(), 1, Ownership.CPU_SUPPLIED);
         idle.acceptAppend(append(1, 1, List.of(delivery(0, 1))));
         execute(idle, 1);
-        helper.assertTrue(!idle.tick(100, false), "First idle tick starts grace period");
+        helper.assertTrue(!idle.tick(100), "First idle tick starts grace period");
         idle = reload(idle, helper);
-        helper.assertTrue(!idle.tick(119, false), "Nineteen idle ticks keep the resident session");
-        helper.assertTrue(idle.tick(120, false), "Twenty idle ticks release the resident tool");
+        helper.assertTrue(!idle.tick(119), "Nineteen idle ticks keep the resident session");
+        helper.assertTrue(idle.tick(120), "Twenty idle ticks release the resident tool");
         ReusableInputSession contested = session(unchanged(), 1, Ownership.CPU_SUPPLIED);
         contested.acceptAppend(append(1, 100, List.of(delivery(0, 1))));
-        helper.assertTrue(!contested.tick(100, true), "Competition starts its own grace period while busy");
+        helper.assertTrue(contested.requestYield(100), "Explicit competition signal latches its deadline while busy");
+        helper.assertTrue(!contested.tick(100), "Competition starts its own grace period while busy");
         Operation active = contested.beginOperation().orElseThrow();
-        helper.assertTrue(!contested.tick(119, true), "Competition before boundary keeps native operation active");
-        helper.assertTrue(contested.tick(120, true), "Twenty competing ticks request safe-point closure");
+        helper.assertTrue(!contested.requestYield(119), "A repeat signal cannot restart the active operation's grace period");
+        helper.assertTrue(!contested.tick(119), "Competition before boundary keeps native operation active");
+        helper.assertTrue(contested.tick(120), "Twenty competing ticks request safe-point closure");
         helper.assertValueEqual(contested.status(), State.CLOSING, "Native operation is allowed to finish before release");
         contested.completeOperation(active.id(), contested.predictedOutcomes(active), List.of());
         helper.assertValueEqual(contested.status(), State.RETURN_PENDING, "Completed native operation settles pending closure");
@@ -332,6 +334,8 @@ public final class ReusableInputSessionGameTest {
         session.acceptAppend(append(1, 2, List.of(delivery(0, 1))));
         CompoundTag legacy = ReusableInputSessionNbtCodec.encode(session, helper.getLevel().registryAccess());
         legacy.putInt("schema", 1);
+        legacy.putLong("competition_since", legacy.getLong("yield_requested_at"));
+        legacy.remove("yield_requested_at");
         for (Tag entry : legacy.getList("appends", Tag.TAG_COMPOUND)) {
             ((CompoundTag) entry).remove("operation_states");
         }

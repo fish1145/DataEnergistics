@@ -1690,6 +1690,16 @@ public class TrinityInformationExchangeDepotBlockEntity extends AENetworkedBlock
         }
 
         @Override
+        public boolean requestReusableYield(ReusableCraftingRequest contender) {
+            TrinityDataCoreBlockEntity host = patternProviderHost();
+            if (host == null || contender.level() != level || !(contender.pattern() instanceof RoutedCraftingPatternDetails routed)) {
+                return false;
+            }
+            TrinityPatternCoreBlockEntity core = loadedCore(host, routed.route());
+            return core != null && core.requestReusableYield(routed.route(), contender);
+        }
+
+        @Override
         public Optional<ReusableCraftingSessionView> reusableSession(UUID sessionId) {
             ReusableLocation location = locateSession(sessionId);
             return location == null ? Optional.empty() : location.slot().endpoint().query(sessionId);

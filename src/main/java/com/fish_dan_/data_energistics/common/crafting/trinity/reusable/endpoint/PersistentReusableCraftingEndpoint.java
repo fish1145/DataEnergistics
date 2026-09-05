@@ -230,7 +230,7 @@ public final class PersistentReusableCraftingEndpoint {
     }
 
     /** Uses at most operationBudget native operations; callers share this budget with their legacy batch queue. */
-    public int tick(long currentTick, int operationBudget, boolean competitorWaiting, Host host) {
+    public int tick(long currentTick, int operationBudget, Host host) {
         if (currentTick < 0 || operationBudget < 0) {
             throw new IllegalArgumentException("Invalid reusable execution tick or budget");
         }
@@ -238,7 +238,7 @@ public final class PersistentReusableCraftingEndpoint {
             return 0;
         }
         Entry entry = sessions.get(resident);
-        if (entry.session.tick(currentTick, competitorWaiting)) {
+        if (entry.session.tick(currentTick)) {
             changed(entry, host);
         }
         if (!entry.failure.isEmpty() || visibleState(entry) != State.OPEN || currentTick < entry.notBefore) {
@@ -307,6 +307,31 @@ public final class PersistentReusableCraftingEndpoint {
         if (before != visibleState(entry)) {
             changed(entry, host);
         }
+    }
+
+    /** Latches one concrete competing session without admitting its inputs or changing the owner's contract. */
+    public boolean requestYield(ReusableCraftingRequest contender, long currentTick, Host host) {
+        if (resident == null || resident.equals(contender.sessionId()) || currentTick < 0 ||
+                !targetIdentity.equals(contender.target().persistentIdentity())) {
+            return false;
+        }
+        Entry owner = sessions.get(resident);
+        if (owner.session.status() != ReusableInputSession.State.OPEN) {
+            return false;
+        }
+        Binding candidate;
+        try {
+            candidate = binding(contender);
+        } catch (IllegalArgumentException | ArithmeticException invalid) {
+            return false;
+        }
+        if (!sameRecipeBinding(owner.binding, candidate) || !host.isAvailable(candidate)) {
+            return false;
+        }
+        if (owner.session.requestYield(currentTick)) {
+            changed(owner, host);
+        }
+        return true;
     }
 
     /**
@@ -407,7 +432,14 @@ public final class PersistentReusableCraftingEndpoint {
     }
 
     private static boolean compatibleBinding(Binding frozen, Binding proposed) {
-        if (!frozen.identity().equals(proposed.identity()) || !frozen.publicationIdentity().equals(proposed.publicationIdentity()) ||
+        return frozen.identity().sessionId().equals(proposed.identity().sessionId()) &&
+                frozen.identity().jobId().equals(proposed.identity().jobId()) && frozen.identity().cpuOwner().equals(proposed.identity().cpuOwner()) &&
+                sameRecipeBinding(frozen, proposed);
+    }
+
+    private static boolean sameRecipeBinding(Binding frozen, Binding proposed) {
+        if (!frozen.identity().target().equals(proposed.identity().target()) || !frozen.identity().pattern().equals(proposed.identity().pattern()) ||
+                !frozen.identity().mode().equals(proposed.identity().mode()) || !frozen.publicationIdentity().equals(proposed.publicationIdentity()) ||
                 frozen.inputSlots() != proposed.inputSlots() || !frozen.recipeId().equals(proposed.recipeId()) ||
                 !frozen.consumed().equals(proposed.consumed()) || frozen.tools().size() != proposed.tools().size()) {
             return false;

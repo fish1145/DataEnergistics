@@ -40,6 +40,14 @@ public interface ReusableCraftingProviderAdapter extends CountedCraftingProvider
     void closeReusableSession(UUID sessionId);
 
     /**
+     * Signals one explicit, runnable contender for an already occupied concrete native target. Implementations
+     * validate the current recipe/mode/rule binding and reject the owner itself or unrelated targets. A true result
+     * latches the owner's first request time; repeated signals cannot extend its twenty-tick safe-point deadline.
+     * This transfers no inputs and consumes no crafting allowance. Ordinary preparation remains read-only.
+     */
+    boolean requestReusableYield(ReusableCraftingRequest contender);
+
+    /**
      * Transfers the authoritative directed outbox through the receiver. A false result leaves the outbox intact;
      * a true result records its acknowledgement before the outbox is cleared. Never route tools via global AEKey
      * waiting counters. An unreachable owner is not permission to invent a refund.

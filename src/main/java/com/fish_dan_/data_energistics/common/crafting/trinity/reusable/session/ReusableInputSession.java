@@ -168,7 +168,7 @@ public final class ReusableInputSession {
                            List<AppendSnapshot> appends, List<ToolDelivery> tools, @Nullable Operation active,
                            List<GenericStack> outputs, List<ReturnBatch> returns, List<ReturnBatch> acknowledged,
                            List<ToolDelivery> machineOwnedReleased, long nextOperation, long nextReturn,
-                           long idleSince, long competitionSince, long exhaustedTools, String fault) {
+                           long idleSince, long yieldRequestedAt, long exhaustedTools, String fault) {
 
         public Snapshot {
             contracts = List.copyOf(contracts);
@@ -178,7 +178,7 @@ public final class ReusableInputSession {
             returns = List.copyOf(returns);
             acknowledged = List.copyOf(acknowledged);
             machineOwnedReleased = List.copyOf(machineOwnedReleased);
-            if (nextOperation < 0 || nextReturn < 0 || idleSince < -1 || competitionSince < -1 || exhaustedTools < 0) {
+            if (nextOperation < 0 || nextReturn < 0 || idleSince < -1 || yieldRequestedAt < -1 || exhaustedTools < 0) {
                 throw new IllegalArgumentException("Invalid session counters");
             }
         }
@@ -199,7 +199,7 @@ public final class ReusableInputSession {
     private long nextOperation;
     private long nextReturn;
     private long idleSince = -1;
-    private long competitionSince = -1;
+    private long yieldRequestedAt = -1;
     private long exhaustedTools;
     // Derived from immutable append receipts on load; normal execution never scans completed history.
     private long acceptedCount;
@@ -572,8 +572,20 @@ public final class ReusableInputSession {
         return result;
     }
 
-    /** Returns true when twenty idle ticks or twenty continuously competing ticks request safe-point closure. */
-    public boolean tick(long now, boolean competitorWaiting) {
+    /** Records the first explicit contention signal; false means no new state was written. */
+    public boolean requestYield(long now) {
+        if (now < 0) {
+            throw new IllegalArgumentException("Negative reusable yield request tick");
+        }
+        if (state != State.OPEN || yieldRequestedAt >= 0) {
+            return false;
+        }
+        yieldRequestedAt = now;
+        return true;
+    }
+
+    /** Returns true when twenty idle ticks or the latched yield deadline request safe-point closure. */
+    public boolean tick(long now) {
         if (now < 0) {
             throw new IllegalArgumentException("Negative session tick");
         }
@@ -587,14 +599,7 @@ public final class ReusableInputSession {
         } else {
             idleSince = -1;
         }
-        if (competitorWaiting) {
-            if (competitionSince < 0 || competitionSince > now) {
-                competitionSince = now;
-            }
-        } else {
-            competitionSince = -1;
-        }
-        if ((idleSince >= 0 && now - idleSince >= 20) || (competitionSince >= 0 && now - competitionSince >= 20)) {
+        if ((idleSince >= 0 && now - idleSince >= 20) || (yieldRequestedAt >= 0 && now - yieldRequestedAt >= 20)) {
             close();
             return true;
         }
@@ -604,7 +609,7 @@ public final class ReusableInputSession {
     public Snapshot snapshot() {
         return new Snapshot(identity, slotContracts(), state, List.copyOf(appends.values()), deliveries(tools), active,
                 outputs, returnOutbox(), List.copyOf(acknowledged.values()), machineOwnedReleased,
-                nextOperation, nextReturn, idleSince, competitionSince, exhaustedTools, fault);
+                nextOperation, nextReturn, idleSince, yieldRequestedAt, exhaustedTools, fault);
     }
 
     /** Restores persisted state and quarantines an interrupted operation until its actual result is reconciled. */
@@ -650,7 +655,7 @@ public final class ReusableInputSession {
         result.nextOperation = snapshot.nextOperation();
         result.nextReturn = snapshot.nextReturn();
         result.idleSince = snapshot.idleSince();
-        result.competitionSince = snapshot.competitionSince();
+        result.yieldRequestedAt = snapshot.yieldRequestedAt();
         result.exhaustedTools = snapshot.exhaustedTools();
         result.fault = snapshot.fault();
         result.validateRestored();

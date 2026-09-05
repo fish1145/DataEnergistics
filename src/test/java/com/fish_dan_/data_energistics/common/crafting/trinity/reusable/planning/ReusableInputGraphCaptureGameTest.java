@@ -253,6 +253,11 @@ public final class ReusableInputGraphCaptureGameTest {
         }
 
         @Override
+        public boolean requestReusableYield(ReusableCraftingRequest contender) {
+            throw mutation();
+        }
+
+        @Override
         public Optional<ReusableCraftingSessionView> reusableSession(UUID sessionId) {
             throw mutation();
         }

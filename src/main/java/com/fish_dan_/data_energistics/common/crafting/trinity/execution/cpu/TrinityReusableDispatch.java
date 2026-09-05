@@ -44,6 +44,7 @@ import org.jspecify.annotations.Nullable;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /** Server-thread physical handoff and directed recovery. The owning CPU ledger is the only persistent truth here. */
@@ -130,6 +131,8 @@ final class TrinityReusableDispatch {
                             target, pattern, recipe.inputs(), offer.addedTools(), offer.count(), recipeId, owner.cpu().actionSource(), level);
                     ReusableCraftingAdmission prepared = adapter.prepareReusable(request);
                     if (prepared == null) {
+                        // Read-only preparation has finished. This separate signal may request a safe-point yield.
+                        adapter.requestReusableYield(request);
                         continue;
                     }
                     if (prepared.replay() || prepared.count() <= 0L || prepared.count() > offer.count()) {
@@ -309,6 +312,29 @@ final class TrinityReusableDispatch {
             }
         }
         return null;
+    }
+
+    /** A blocked incompatible firing may need a real tool held by this job, not additional network material. */
+    void releaseToolsFor(TrinityDataCoreExecutingCraftingJob job, Work work, Set<AEKey> missing) {
+        ReusableCpuSessionLedger ledger = owner.reusableLedger();
+        for (Session session : ledger.sessions()) {
+            if (session.settled() || session.closing() || !session.jobId().equals(job.link.getCraftingID()) ||
+                    session.publication().equals(work.patternIdentity())) {
+                continue;
+            }
+            Endpoint endpoint = locations.get(session.id());
+            if (endpoint == null) continue;
+            try {
+                var view = endpoint.adapter().reusableSession(session.id());
+                if (view.isPresent() && view.orElseThrow().heldTools().stream().anyMatch(tool -> missing.contains(tool.stack().what()) &&
+                        owner.getStored(tool.stack().what()) == 0L)) {
+                    ledger.close(session.id());
+                    owner.cpu().markDirty();
+                }
+            } catch (RuntimeException failure) {
+                report(session.id().toString(), failure);
+            }
+        }
     }
 
     private static @Nullable Session matchingSession(ReusableCpuSessionLedger ledger, TrinityDataCoreExecutingCraftingJob job, Work work, Target target) {

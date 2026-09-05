@@ -217,7 +217,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
             if (reusable.closeRequested()) {
                 reusable.closeSessions(host);
             }
-            return reusable.endpoint().tick(currentTick, REUSABLE_OPERATIONS_PER_SLOT_TICK, false, host);
+            return reusable.endpoint().tick(currentTick, REUSABLE_OPERATIONS_PER_SLOT_TICK, host);
         }
         if (!runtimeBindingsCurrent()) {
             return 0;
@@ -452,6 +452,15 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
             return null;
         }
         return this.core.prepareReusable(route, request, this.level.getGameTime(), reusableHost(route));
+    }
+
+    public boolean requestReusableYield(PatternRoute route, ReusableCraftingRequest contender) {
+        if (contender.level() != this.level || !isReusableOwner(route.hostId())) {
+            return false;
+        }
+        TrinityReusableSlot resident = this.core.reusableSlot(route.slot());
+        return resident != null && resident.route().equals(route) &&
+                resident.endpoint().requestYield(contender, this.level.getGameTime(), reusableHost(route));
     }
 
     public @Nullable TrinityReusableSlot findReusableSession(UUID owner, UUID sessionId) {

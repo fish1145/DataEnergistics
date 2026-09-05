@@ -33,7 +33,7 @@ import java.util.UUID;
 /** Complete session escrow encoding. Unknown versions and malformed asset/progress relationships fail at load. */
 public final class ReusableInputSessionNbtCodec {
 
-    private static final int SCHEMA = 2;
+    private static final int SCHEMA = 3;
 
     private ReusableInputSessionNbtCodec() {}
 
@@ -85,7 +85,7 @@ public final class ReusableInputSessionNbtCodec {
         tag.putLong("next_operation", snapshot.nextOperation());
         tag.putLong("next_return", snapshot.nextReturn());
         tag.putLong("idle_since", snapshot.idleSince());
-        tag.putLong("competition_since", snapshot.competitionSince());
+        tag.putLong("yield_requested_at", snapshot.yieldRequestedAt());
         tag.putLong("exhausted", snapshot.exhaustedTools());
         tag.putString("fault", snapshot.fault());
         return tag;
@@ -94,7 +94,7 @@ public final class ReusableInputSessionNbtCodec {
     /** Restores all idempotency records and assets; interrupted native effects remain quarantined. */
     public static ReusableInputSession decode(CompoundTag tag, HolderLookup.Provider registries) {
         int version = integer(tag, "schema");
-        if (version != 1 && version != SCHEMA) {
+        if (version < 1 || version > SCHEMA) {
             throw new IllegalArgumentException("Unsupported reusable session schema");
         }
         Identity identity = new Identity(uuid(tag, "session_id"), uuid(tag, "job_id"), string(tag, "cpu_owner"),
@@ -117,11 +117,13 @@ public final class ReusableInputSessionNbtCodec {
             active = new Operation(number(entry, "id"), number(entry, "append"),
                     decodeInputs(entry, "consumed", registries), decodeTools(entry, "tools", registries));
         }
+        // Older non-negative competition times preserve their original deadline as a latched request.
+        long yieldRequestedAt = number(tag, version >= 3 ? "yield_requested_at" : "competition_since");
         return ReusableInputSession.restore(new Snapshot(identity, contracts, State.valueOf(string(tag, "state")), appends,
                 decodeTools(tag, "tools", registries), active, decodeAssets(tag, "outputs", registries),
                 decodeReturns(tag, "returns", registries), decodeReturns(tag, "acknowledged", registries),
                 decodeTools(tag, "machine_released", registries), number(tag, "next_operation"), number(tag, "next_return"),
-                number(tag, "idle_since"), number(tag, "competition_since"), number(tag, "exhausted"), string(tag, "fault")));
+                number(tag, "idle_since"), yieldRequestedAt, number(tag, "exhausted"), string(tag, "fault")));
     }
 
     private static CompoundTag encodeAppend(Append append, HolderLookup.Provider registries) {
