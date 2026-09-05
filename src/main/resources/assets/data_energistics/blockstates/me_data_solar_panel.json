@@ -166,7 +166,13 @@
 			"when": {
 				"AND": [
 					{ "lit": "false" },
-					{ "OR": [{ "connect_north": "false" }, { "connect_west": "false" }] }
+					{
+						"OR": [
+							{ "connect_north": "false" },
+							{ "connect_west": "false" },
+							{ "connect_north_west": "false" }
+						]
+					}
 				]
 			},
 			"apply": {
@@ -177,7 +183,13 @@
 			"when": {
 				"AND": [
 					{ "lit": "false" },
-					{ "OR": [{ "connect_north": "false" }, { "connect_east": "false" }] }
+					{
+						"OR": [
+							{ "connect_north": "false" },
+							{ "connect_east": "false" },
+							{ "connect_north_east": "false" }
+						]
+					}
 				]
 			},
 			"apply": {
@@ -189,7 +201,13 @@
 			"when": {
 				"AND": [
 					{ "lit": "false" },
-					{ "OR": [{ "connect_south": "false" }, { "connect_east": "false" }] }
+					{
+						"OR": [
+							{ "connect_south": "false" },
+							{ "connect_east": "false" },
+							{ "connect_south_east": "false" }
+						]
+					}
 				]
 			},
 			"apply": {
@@ -201,7 +219,13 @@
 			"when": {
 				"AND": [
 					{ "lit": "false" },
-					{ "OR": [{ "connect_south": "false" }, { "connect_west": "false" }] }
+					{
+						"OR": [
+							{ "connect_south": "false" },
+							{ "connect_west": "false" },
+							{ "connect_south_west": "false" }
+						]
+					}
 				]
 			},
 			"apply": {
@@ -213,7 +237,13 @@
 			"when": {
 				"AND": [
 					{ "lit": "true" },
-					{ "OR": [{ "connect_north": "false" }, { "connect_west": "false" }] }
+					{
+						"OR": [
+							{ "connect_north": "false" },
+							{ "connect_west": "false" },
+							{ "connect_north_west": "false" }
+						]
+					}
 				]
 			},
 			"apply": {
@@ -224,7 +254,13 @@
 			"when": {
 				"AND": [
 					{ "lit": "true" },
-					{ "OR": [{ "connect_north": "false" }, { "connect_east": "false" }] }
+					{
+						"OR": [
+							{ "connect_north": "false" },
+							{ "connect_east": "false" },
+							{ "connect_north_east": "false" }
+						]
+					}
 				]
 			},
 			"apply": {
@@ -236,7 +272,13 @@
 			"when": {
 				"AND": [
 					{ "lit": "true" },
-					{ "OR": [{ "connect_south": "false" }, { "connect_east": "false" }] }
+					{
+						"OR": [
+							{ "connect_south": "false" },
+							{ "connect_east": "false" },
+							{ "connect_south_east": "false" }
+						]
+					}
 				]
 			},
 			"apply": {
@@ -248,7 +290,13 @@
 			"when": {
 				"AND": [
 					{ "lit": "true" },
-					{ "OR": [{ "connect_south": "false" }, { "connect_west": "false" }] }
+					{
+						"OR": [
+							{ "connect_south": "false" },
+							{ "connect_west": "false" },
+							{ "connect_south_west": "false" }
+						]
+					}
 				]
 			},
 			"apply": {
@@ -260,6 +308,7 @@
 			"when": {
 				"connect_north": "true",
 				"connect_west": "true",
+				"connect_north_west": "true",
 				"lit": "false"
 			},
 			"apply": {
@@ -270,6 +319,7 @@
 			"when": {
 				"connect_north": "true",
 				"connect_east": "true",
+				"connect_north_east": "true",
 				"lit": "false"
 			},
 			"apply": {
@@ -281,6 +331,7 @@
 			"when": {
 				"connect_south": "true",
 				"connect_east": "true",
+				"connect_south_east": "true",
 				"lit": "false"
 			},
 			"apply": {
@@ -292,6 +343,7 @@
 			"when": {
 				"connect_south": "true",
 				"connect_west": "true",
+				"connect_south_west": "true",
 				"lit": "false"
 			},
 			"apply": {
@@ -303,6 +355,7 @@
 			"when": {
 				"connect_north": "true",
 				"connect_west": "true",
+				"connect_north_west": "true",
 				"lit": "true"
 			},
 			"apply": {
@@ -313,6 +366,7 @@
 			"when": {
 				"connect_north": "true",
 				"connect_east": "true",
+				"connect_north_east": "true",
 				"lit": "true"
 			},
 			"apply": {
@@ -324,6 +378,7 @@
 			"when": {
 				"connect_south": "true",
 				"connect_east": "true",
+				"connect_south_east": "true",
 				"lit": "true"
 			},
 			"apply": {
@@ -335,6 +390,7 @@
 			"when": {
 				"connect_south": "true",
 				"connect_west": "true",
+				"connect_south_west": "true",
 				"lit": "true"
 			},
 			"apply": {

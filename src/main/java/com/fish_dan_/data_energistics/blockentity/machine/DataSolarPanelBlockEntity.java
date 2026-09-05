@@ -75,6 +75,9 @@ public class DataSolarPanelBlockEntity extends AENetworkedPoweredBlockEntity imp
     @Override
     public void onReady() {
         super.onReady();
+        if (this.level != null && !this.level.isClientSide) {
+            DataSolarPanelBlock.refreshLoadedConnections(this.level, this.worldPosition);
+        }
         updateOnlineState();
     }
 
