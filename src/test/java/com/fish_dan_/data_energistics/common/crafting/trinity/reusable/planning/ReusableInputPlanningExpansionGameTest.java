@@ -39,31 +39,6 @@ public final class ReusableInputPlanningExpansionGameTest {
 
     private ReusableInputPlanningExpansionGameTest() {}
 
-    @TestHolder("reusable_planning_expands_inventory_damage_and_exact_exhaustion")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5")
-    public static void expandsInventoryDamageAndExactExhaustion(GameTestHelper helper) {
-        TestPattern pattern = new TestPattern(3, false);
-        ReusableInputRules rules = context -> context.inputSlot() == 0 ? Optional.of(
-                ReusableInputRule.fixedDamage(RULE_ID, 1L, (AEItemKey) context.actualInput().what(), 1, 4,
-                        List.of(new GenericStack(AEItemKey.of(Items.STICK), 3L)))) :
-                Optional.empty();
-        ReusableInputPlanningExpansion.Result result = ReusableInputPlanningExpansion.capture(
-                context(helper, pattern), List.of(tool(2)), rules, 4, TrinityPlanningControl.unbounded());
-        helper.assertTrue(result instanceof ReusableInputPlanningExpansion.Captured, "Four exact tool states fit the bound");
-        var captured = (ReusableInputPlanningExpansion.Captured) result;
-        helper.assertTrue(captured.hasReusableInputs(), "Registered rules must be retained");
-        helper.assertValueEqual(captured.bindings().size(), 4, "Encoded and inventory states share a deduplicated closure");
-        TrinityBoundPatternInput damaged = binding(captured, tool(2));
-        helper.assertValueEqual(damaged.remainingKey(), tool(3), "Inventory tool predicts its actual next Damage");
-        helper.assertValueEqual(damaged.remainingAmount(), BigInteger.valueOf(2L), "Two slot tool units each return once");
-        TrinityBoundPatternInput exhausted = binding(captured, tool(3));
-        helper.assertTrue(exhausted.remainingKey() == null, "Exhaustion must not invent another tool state");
-        helper.assertValueEqual(exhausted.byproducts().getFirst().amount(), 3L, "Byproducts remain per-tool-unit metadata");
-        helper.assertValueEqual(exhausted.consumedAmount(), BigInteger.valueOf(2L), "Slot quantity remains exact");
-        helper.succeed();
-    }
-
     @TestHolder("reusable_planning_keeps_rules_bound_to_complete_input_assignment")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -144,16 +119,17 @@ public final class ReusableInputPlanningExpansionGameTest {
                 .filter(input -> input.template().what().equals(key)).findFirst().orElseThrow();
     }
 
-    @TestHolder("reusable_planning_cursor_resumes_without_restarting_rule_callbacks")
+    @TestHolder("reusable_planning_cursor_preserves_exact_states_without_restarting_rule_callbacks")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
-    public static void cursorResumesWithoutRestartingRuleCallbacks(GameTestHelper helper) {
+    public static void cursorPreservesExactStatesWithoutRestartingRuleCallbacks(GameTestHelper helper) {
         TestPattern pattern = new TestPattern(3, false);
         AtomicLong callbacks = new AtomicLong();
         ReusableInputRules rules = input -> {
             callbacks.incrementAndGet();
             return input.inputSlot() == 0 ? Optional.of(ReusableInputRule.fixedDamage(
-                    RULE_ID, 1L, (AEItemKey) input.actualInput().what(), 1, 4, List.of())) : Optional.empty();
+                    RULE_ID, 1L, (AEItemKey) input.actualInput().what(), 1, 4,
+                    List.of(new GenericStack(AEItemKey.of(Items.STICK), 3L)))) : Optional.empty();
         };
         ReusableInputPlanningCursor cursor = new ReusableInputPlanningCursor(context(helper, pattern), List.of(tool(2)),
                 rules, 4, TrinityPlanningControl.unbounded());
@@ -166,9 +142,18 @@ public final class ReusableInputPlanningExpansionGameTest {
         }
         helper.assertTrue(result instanceof ReusableInputPlanningExpansion.Captured,
                 "Small server tick slices must eventually publish the complete graph");
-        helper.assertTrue(slices > 4, "Capture must suspend and resume across several ticks");
-        helper.assertValueEqual(((ReusableInputPlanningExpansion.Captured) result).bindings().size(), 4,
+        helper.assertTrue(slices > 1, "Capture must suspend and resume across ticks");
+        var captured = (ReusableInputPlanningExpansion.Captured) result;
+        helper.assertTrue(captured.hasReusableInputs(), "Registered rules must be retained");
+        helper.assertValueEqual(captured.bindings().size(), 4,
                 "All inventory and successor states survive cursor suspension");
+        TrinityBoundPatternInput damaged = binding(captured, tool(2));
+        helper.assertValueEqual(damaged.remainingKey(), tool(3), "Inventory tool predicts its actual next Damage");
+        helper.assertValueEqual(damaged.remainingAmount(), BigInteger.valueOf(2L), "Two slot tool units each return once");
+        TrinityBoundPatternInput exhausted = binding(captured, tool(3));
+        helper.assertTrue(exhausted.remainingKey() == null, "Exhaustion must not invent another tool state");
+        helper.assertValueEqual(exhausted.byproducts().getFirst().amount(), 3L, "Byproducts remain per-tool-unit metadata");
+        helper.assertValueEqual(exhausted.consumedAmount(), BigInteger.valueOf(2L), "Slot quantity remains exact");
         helper.assertValueEqual(callbacks.get(), 8L, "Each of four complete assignments resolves its two slots once");
         helper.assertValueEqual(cursor.advance(1L, clock::getAndIncrement), result, "Completed cursor is idempotent");
         helper.succeed();

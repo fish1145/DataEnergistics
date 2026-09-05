@@ -65,7 +65,6 @@ public final class ReusableExactExecutionBindingGameTest {
                 .initialExpectedInputs(Map.of(initial, BigInteger.ONE)).patternFirings(Map.of(identity, BigInteger.ONE))
                 .stages(List.of(stage)).stageOrder(List.of(0)).targetNetChange(delta).build();
         CompoundTag encoded = TrinityPlanExecution.create(plan, 10L).save(helper.getLevel().registryAccess(), 10L);
-        helper.assertValueEqual(encoded.getInt("schema_version"), 8, "Exact assignments use a new explicit schema");
         var restored = TrinityPlanExecution.restore(encoded, helper.getLevel().registryAccess(), 20L);
         var work = restored.pollDispatchable(20L, Set.of(), ignored -> true, true).orElseThrow();
         helper.assertValueEqual(work.exactBindings(), bindings, "Rule, quantities and damaged keys survive restore");

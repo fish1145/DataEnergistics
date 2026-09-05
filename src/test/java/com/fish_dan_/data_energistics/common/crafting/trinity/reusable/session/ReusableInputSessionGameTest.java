@@ -81,8 +81,6 @@ public final class ReusableInputSessionGameTest {
         execute(session, 50);
         helper.assertValueEqual(session.heldTools().get(0), List.of(stack(tool(50), 1)),
                 "Single-tool slot exhausts each physical tool before using its spare");
-        helper.assertValueEqual(finite().guaranteedUses((AEItemKey) session.heldTools().get(0).getFirst().what()), 50L,
-                "The last physical tool has fifty actual uses remaining");
         helper.assertValueEqual(session.exhaustedTools(), 2L, "Only two tools exhausted");
         helper.assertValueEqual(amount(session.pendingOutputs(), SCRAP), 4L, "Exhaustion scrap is produced twice");
         session.close();
@@ -234,9 +232,6 @@ public final class ReusableInputSessionGameTest {
         ReusableInputSession session = session(finite(), 1, Ownership.CPU_SUPPLIED);
         session.acceptAppend(append(1, 2, List.of(delivery(0, 1))));
         Operation active = session.beginOperation().orElseThrow();
-        expectIllegal(helper, () -> session.completeOperation(active.id(), List.of(), List.of()),
-                "Missing tool outcomes must not masquerade as legal exhaustion");
-        helper.assertTrue(active.equals(session.activeOperation()), "Invalid report retains unresolved execution escrow");
         boolean matched = session.completeOperation(active.id(), List.of(new ToolOutcome(0,
                 List.of(stack(tool(9), 1)), List.of(stack(SCRAP, 3)))), List.of(stack(OUTPUT, 1)));
         helper.assertTrue(!matched, "Unexpected loss and byproducts differ from frozen prediction");

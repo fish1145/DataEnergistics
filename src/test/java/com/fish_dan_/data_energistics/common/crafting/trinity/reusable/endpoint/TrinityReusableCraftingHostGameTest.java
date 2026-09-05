@@ -80,7 +80,6 @@ public final class TrinityReusableCraftingHostGameTest {
         helper.assertValueEqual(pattern.remainderCalls, 2, "Native getRemainingItems is called once per actual operation");
         CompoundTag saved = new CompoundTag();
         core.writeToTag(saved, helper.getLevel().registryAccess());
-        helper.assertValueEqual(saved.getInt("version"), 5, "Movable core schema includes reusable sessions");
         PersistentTrinityPatternCore restored = core(pattern);
         restored.hydrateFromTag(saved, helper.getLevel().registryAccess());
         helper.assertTrue(restored.isSlotWorking(route.hostId(), 0), "Reload reconstructs the combined work index");

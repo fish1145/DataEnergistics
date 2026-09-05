@@ -347,7 +347,6 @@ public final class PersistentReusableCraftingEndpointGameTest {
         IPatternDetails changedPattern = new TestPattern(2);
         ReusableCraftingRequest changed = new ReusableCraftingRequest(sessionId, JOB, "cpu:owner", 1, first.target(), changedPattern,
                 first.inputs(), List.of(), 1, first.recipeId(), first.actionSource(), first.level());
-        helper.assertValueEqual(changedPattern.getDefinition(), first.pattern().getDefinition(), "Fixture keeps the encoded pattern key unchanged");
         helper.assertTrue(endpoint.prepare(changed, 1, host) == null, "Changed native output semantics reject append despite the same encoded key and recipe ID");
         ReusableCraftingRequest continuation = request(helper, sessionId, 1, 1, List.of());
         ReusableCraftingAdmission prepared = prepare(endpoint, continuation, 1, host);

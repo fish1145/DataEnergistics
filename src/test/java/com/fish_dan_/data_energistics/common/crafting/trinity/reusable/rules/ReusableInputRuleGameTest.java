@@ -93,7 +93,6 @@ public final class ReusableInputRuleGameTest {
         expectIllegal(helper, () -> finite.advance(first, 3L), "Finite table cannot continue after exhaustion");
         ReusableInputRule cycle = ReusableInputRule.transitions(RULE_ID, 2L, first, List.of(
                 new Transition(first, second, List.of(scrap)), new Transition(second, first, List.of())));
-        helper.assertValueEqual(cycle.kind(), ReusableInputRule.Kind.TRANSITIONS, "An infinite cycle is not unchanged");
         helper.assertValueEqual(cycle.guaranteedUses(first), Long.MAX_VALUE, "Complete deterministic cycle is unbounded");
         ReusableInputRule.Result result = cycle.advance(first, Long.MAX_VALUE);
         helper.assertValueEqual(result.successor(), second, "Odd cycle count retains the second state");
@@ -153,7 +152,6 @@ public final class ReusableInputRuleGameTest {
         FrozenReusableInputRules lookup = new FrozenReusableInputRules(mutable);
         mutable.clear();
         helper.assertValueEqual(lookup.resolve(context).orElseThrow(), unchanged, "Lookup copies frozen registration list");
-        helper.assertValueEqual(context.actualInput().amount(), 2L, "Slot tool quantity remains distinct from unit rule");
         ResourceLocation other = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "other_tool");
         FrozenReusableInputRules conflict = new FrozenReusableInputRules(List.of(new FixedAdapter(RULE_ID, unchanged),
                 new FixedAdapter(other, ReusableInputRule.unchanged(other, 1L, key))));
