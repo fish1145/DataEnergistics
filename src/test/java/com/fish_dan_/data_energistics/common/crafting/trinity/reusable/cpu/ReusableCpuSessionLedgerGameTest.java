@@ -62,6 +62,9 @@ public final class ReusableCpuSessionLedgerGameTest {
         ReusableCpuSessionLedger.Snapshot snapshot = ledger.snapshot();
         helper.assertValueEqual(ReusableCpuSessionLedger.restore(snapshot).snapshot(), snapshot,
                 "A legally settled session must remain restorable");
+        helper.assertValueEqual(ReusableCpuSessionLedgerNbtCodec.decode(ReusableCpuSessionLedgerNbtCodec.encode(ledger,
+                helper.getLevel().registryAccess()), helper.getLevel().registryAccess()).snapshot(), snapshot,
+                "Owner and rejected sequence history survive CPU custody persistence");
         helper.succeed();
     }
 
@@ -72,6 +75,8 @@ public final class ReusableCpuSessionLedgerGameTest {
         ReusableCpuSessionLedger ledger = openLedger();
         long sequence = ledger.prepare(SESSION, localSubmission());
         ledger.transferred(SESSION, sequence);
+        ledger = ReusableCpuSessionLedgerNbtCodec.decode(ReusableCpuSessionLedgerNbtCodec.encode(ledger,
+                helper.getLevel().registryAccess()), helper.getLevel().registryAccess());
         Settlement settlement = new Settlement(SESSION, JOB, OWNER.toString(), TARGET.persistentIdentity(), 0L,
                 List.of(), List.of(), 0L, List.of(new AppendReceipt(sequence, 1L, 1L, 0L)), Optional.empty());
         AtomicInteger receives = new AtomicInteger();

@@ -62,6 +62,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.Trin
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedgerNbtCodec;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputProjection;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
@@ -131,13 +133,15 @@ import java.util.function.Consumer;
 final class TrinityDataCoreCpuLogic {
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int SCHEMA_VERSION = 3;
+    private static final int SCHEMA_VERSION = 4;
+    private static final int EXACT_INVENTORY_SCHEMA_VERSION = 3;
     private static final int LONG_INVENTORY_SCHEMA_VERSION = 2;
     private static final String INVENTORY_TAG = "inventory";
     private static final String EXACT_INVENTORY_TAG = "exact_inventory";
     private static final String VIRTUAL_COMPLETIONS_TAG = "virtual_completions";
     private static final String NO_OUTPUT_VIRTUAL_COMPLETIONS_TAG = "no_output_virtual_completions";
     private static final String JOB_TAG = "job";
+    private static final String REUSABLE_LEDGER_TAG = "reusable_sessions";
     private static final double ENERGY_TOLERANCE = 0.01D;
     /** The shared dispatch window, rather than structure co-processors, owns the physical-operation limit. */
     private static final int UNLIMITED_WORKER_OPERATIONS = Integer.MAX_VALUE;
@@ -157,6 +161,8 @@ final class TrinityDataCoreCpuLogic {
     private TrinityDataCoreExecutingCraftingJob job;
     private final ListCraftingInventory inventory = new ListCraftingInventory(this::postChange);
     private final TrinityExactWorkingInventory exactWorkingInventory = new TrinityExactWorkingInventory();
+    private ReusableCpuSessionLedger reusableLedger = new ReusableCpuSessionLedger(UUID.randomUUID());
+    private @Nullable Tag quarantinedReusableState;
     private final ListCraftingInventory pendingVirtualCompletions;
     private final ListCraftingInventory pendingNoOutputCompletions;
     private final WorkerOperationTracker operationTracker = WorkerOperationTracker.create();
@@ -201,7 +207,7 @@ final class TrinityDataCoreCpuLogic {
         if (!this.cpu.isActiveOnGrid(grid)) {
             return CraftingSubmitResult.CPU_OFFLINE;
         }
-        if (this.job != null) {
+        if (isBusy()) {
             return CraftingSubmitResult.CPU_BUSY;
         }
         if (plan instanceof TrinityCraftingPlan trinityPlan ?
@@ -414,7 +420,7 @@ final class TrinityDataCoreCpuLogic {
     }
 
     private boolean readyForDispatch(long currentTick) {
-        if (!this.cpu.isOnline() || !this.cpu.isActive() || this.job == null || this.job.suspended) {
+        if (!this.cpu.isOnline() || !this.cpu.isActive() || this.job == null || this.job.suspended || this.quarantinedReusableState != null) {
             return false;
         }
         if (this.job.link.isCanceled() ||
@@ -3261,11 +3267,16 @@ final class TrinityDataCoreCpuLogic {
         return this.job != null;
     }
 
+    /** Recovery custody remains occupied even after cancellation has detached the current job. */
+    boolean isBusy() {
+        return this.job != null || this.reusableLedger.hasUnsettled() || this.quarantinedReusableState != null;
+    }
+
     /**
      * Returns whether this worker owns state that must survive hiding, saving, and pool reuse.
      */
     boolean hasRetainedState() {
-        return this.job != null || !this.inventory.list.isEmpty() ||
+        return isBusy() || !this.inventory.list.isEmpty() || !this.exactWorkingInventory.isEmpty() ||
                 !this.pendingVirtualCompletions.list.isEmpty() || !this.pendingNoOutputCompletions.list.isEmpty();
     }
 
@@ -3283,8 +3294,14 @@ final class TrinityDataCoreCpuLogic {
      * @return immediate, event-gated, timed-retry or idle disposition
      */
     TrinityWorkerSchedulingHint schedulingHint(long currentTick) {
+        if (this.quarantinedReusableState != null) {
+            return TrinityWorkerSchedulingHint.waitingEvent();
+        }
         TrinityDataCoreExecutingCraftingJob currentJob = this.job;
         if (currentJob == null) {
+            if (this.reusableLedger.hasUnsettled()) {
+                return TrinityWorkerSchedulingHint.retryAt(Math.addExact(currentTick, 20L));
+            }
             return this.inventory.list.isEmpty() &&
                     this.pendingVirtualCompletions.list.isEmpty() &&
                     this.pendingNoOutputCompletions.list.isEmpty() ?
@@ -3409,6 +3426,8 @@ final class TrinityDataCoreCpuLogic {
     CompoundTag writeToTag(HolderLookup.Provider registries) {
         CompoundTag data = new CompoundTag();
         data.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
+        data.put(REUSABLE_LEDGER_TAG, this.quarantinedReusableState == null ?
+                ReusableCpuSessionLedgerNbtCodec.encode(this.reusableLedger, registries) : this.quarantinedReusableState.copy());
         data.put(INVENTORY_TAG, this.inventory.writeToNBT(registries));
         if (!this.exactWorkingInventory.isEmpty()) {
             data.put(EXACT_INVENTORY_TAG, this.exactWorkingInventory.save(registries));
@@ -3429,16 +3448,18 @@ final class TrinityDataCoreCpuLogic {
      */
     void readFromTag(CompoundTag data, HolderLookup.Provider registries) {
         discardPersistedState();
+        readReusableLedger(data, registries);
         if (!data.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
             Data_Energistics.LOGGER.warn("Ignoring Trinity Data Core CPU logic without a schema version");
             return;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != LONG_INVENTORY_SCHEMA_VERSION && schemaVersion != SCHEMA_VERSION) {
+        if (schemaVersion != LONG_INVENTORY_SCHEMA_VERSION && schemaVersion != EXACT_INVENTORY_SCHEMA_VERSION && schemaVersion != SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
-                    "Ignoring Trinity Data Core CPU logic schema version {}; expected {} or {}",
+                    "Ignoring Trinity Data Core CPU logic schema version {}; expected {}, {} or {}",
                     schemaVersion,
                     LONG_INVENTORY_SCHEMA_VERSION,
+                    EXACT_INVENTORY_SCHEMA_VERSION,
                     SCHEMA_VERSION);
             return;
         }
@@ -3450,7 +3471,7 @@ final class TrinityDataCoreCpuLogic {
         }
 
         this.inventory.readFromNBT(inventoryTag, registries);
-        if (schemaVersion == SCHEMA_VERSION && data.contains(EXACT_INVENTORY_TAG)) {
+        if (schemaVersion >= EXACT_INVENTORY_SCHEMA_VERSION && data.contains(EXACT_INVENTORY_TAG)) {
             if (!data.contains(EXACT_INVENTORY_TAG, Tag.TAG_COMPOUND)) {
                 Data_Energistics.LOGGER.error("Ignoring Trinity Data Core CPU logic with invalid exact inventory");
                 discardPersistedState();
@@ -3561,6 +3582,30 @@ final class TrinityDataCoreCpuLogic {
         }
     }
 
+    private void readReusableLedger(CompoundTag data, HolderLookup.Provider registries) {
+        this.reusableLedger = new ReusableCpuSessionLedger(UUID.randomUUID());
+        int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
+        Tag raw = data.get(REUSABLE_LEDGER_TAG);
+        this.quarantinedReusableState = raw == null ? null : raw.copy();
+        if (raw == null && schemaVersion < SCHEMA_VERSION) {
+            return;
+        }
+        if (schemaVersion != SCHEMA_VERSION || !(raw instanceof CompoundTag encoded)) {
+            if (raw == null) {
+                this.quarantinedReusableState = new CompoundTag();
+            }
+            Data_Energistics.LOGGER.error("Trinity CPU {} retained invalid or missing reusable custody state for reconciliation", this.cpu.number());
+            return;
+        }
+        try {
+            this.reusableLedger = ReusableCpuSessionLedgerNbtCodec.decode(encoded, registries);
+            this.quarantinedReusableState = null;
+        } catch (RuntimeException exception) {
+            Data_Energistics.LOGGER.error("Trinity CPU {} retained damaged reusable custody state for reconciliation", this.cpu.number(), exception);
+        }
+    }
+
+    /** Discards invalid ordinary job state, never independently owned reusable assets or their recovery evidence. */
     void discardPersistedState() {
         this.proposalCoordinator.cancel();
         cancelPendingReplan();
@@ -3579,6 +3624,7 @@ final class TrinityDataCoreCpuLogic {
 
     static boolean persistedHasRetainedState(CompoundTag data) {
         return data.contains(JOB_TAG) ||
+                data.contains(REUSABLE_LEDGER_TAG) ||
                 !data.getList(INVENTORY_TAG, Tag.TAG_COMPOUND).isEmpty() ||
                 data.contains(EXACT_INVENTORY_TAG, Tag.TAG_COMPOUND) ||
                 !data.getList(VIRTUAL_COMPLETIONS_TAG, Tag.TAG_COMPOUND).isEmpty();
@@ -3654,6 +3700,11 @@ final class TrinityDataCoreCpuLogic {
 
     private void finishJob(boolean success) {
         if (this.job == null) {
+            return;
+        }
+        this.reusableLedger.closeJob(this.job.link.getCraftingID());
+        if (success && this.reusableLedger.hasUnsettled(this.job.link.getCraftingID())) {
+            this.cpu.markDirty();
             return;
         }
         recoverVirtualCompletions();

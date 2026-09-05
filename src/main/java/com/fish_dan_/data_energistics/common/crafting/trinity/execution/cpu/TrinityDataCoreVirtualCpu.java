@@ -311,7 +311,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
 
     @Override
     public boolean isBusy() {
-        return number() != 0 && this.logic.hasJob();
+        return number() != 0 && this.logic.isBusy();
     }
 
     /**
@@ -321,7 +321,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @return whether job submission may be attempted
      */
     public boolean canAcceptJob() {
-        return number() == 0 ? this.runtime.canAcceptJob() : !this.logic.hasJob();
+        return number() == 0 ? this.runtime.canAcceptJob() : !this.logic.isBusy();
     }
 
     /**
