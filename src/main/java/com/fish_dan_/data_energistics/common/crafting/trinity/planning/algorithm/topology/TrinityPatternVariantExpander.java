@@ -92,6 +92,23 @@ public final class TrinityPatternVariantExpander {
         if (state != StopState.RUNNING) {
             return stopped(state);
         }
+        if (!pattern.reusableBindings().isEmpty()) {
+            if (pattern.reusableBindings().size() > maxVariants) {
+                return variantLimit(pattern, maxVariants, BigInteger.valueOf(pattern.reusableBindings().size()));
+            }
+            ObjectArrayList<TrinityPatternVariant> variants = new ObjectArrayList<>(pattern.reusableBindings().size());
+            for (int ordinal = 0; ordinal < pattern.reusableBindings().size(); ordinal++) {
+                state = stopState(control);
+                if (state != StopState.RUNNING) {
+                    return stopped(state);
+                }
+                List<TrinityBoundPatternInput> assignment = pattern.reusableBindings().get(ordinal);
+                variants.add(TrinityPatternVariant.create(pattern.identity(), pattern.outputs().getFirst().what(),
+                        ordinal, assignment.stream().map(TrinityBoundPatternInput::alternativeIndex).toList(),
+                        assignment, pattern.outputs(), true));
+            }
+            return TrinityAlgorithmResult.success(ObjectLists.unmodifiable(variants));
+        }
         TrinityPatternBindingEnumerator.Result enumeration = this.bindingEnumerator.enumerate(
                 pattern.inputs(),
                 maxVariants);

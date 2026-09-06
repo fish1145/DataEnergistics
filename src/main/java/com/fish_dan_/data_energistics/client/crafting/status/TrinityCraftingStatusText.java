@@ -29,7 +29,15 @@ public final class TrinityCraftingStatusText {
     public static List<Component> lines(TrinityCraftingStatusEntry entry, boolean tooltip) {
         AEKey key = Objects.requireNonNull(entry.getWhat(), "CPU status table requires a resolved material key");
         List<Component> lines = tooltip ? new ObjectArrayList<>(AEKeyRendering.getTooltip(key)) : new ObjectArrayList<>(3);
-        add(lines, GuiText.FromStorage, key, entry.stored(), tooltip);
+        if (!tooltip && entry.resident().signum() > 0) {
+            lines.add(Component.translatable("gui.data_energistics.reusable_status.stored_and_held",
+                    format(key, entry.stored(), false), format(key, entry.resident(), false)));
+        } else {
+            add(lines, GuiText.FromStorage, key, entry.stored(), tooltip);
+            if (entry.resident().signum() > 0) {
+                lines.add(Component.translatable("gui.data_energistics.reusable_status.held_material", format(key, entry.resident(), true)));
+            }
+        }
         add(lines, GuiText.Crafting, key, entry.active(), tooltip);
         add(lines, GuiText.Scheduled, key, entry.pending(), tooltip);
         return lines;

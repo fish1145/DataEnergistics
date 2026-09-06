@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
 import com.fish_dan_.data_energistics.block.machine.DataRipperReassemblerBlock;
 import com.fish_dan_.data_energistics.bootstrap.common.ServerLifecycleEventHandler;
 import com.fish_dan_.data_energistics.common.compartment.CompartmentHost;
@@ -73,6 +74,8 @@ import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 import com.fish_dan_.data_energistics.world.trinity.TrinityDataCoreStorageSavedData;
+import com.fish_dan_.data_energistics.world.trinity.TrinityDataCoreStorageSavedData.RecoveryKey;
+import com.fish_dan_.data_energistics.world.trinity.TrinityDataCoreStorageSavedData.RecoveryStatus;
 
 import appeng.api.config.Actionable;
 import appeng.api.crafting.IPatternDetails;
@@ -92,6 +95,7 @@ import appeng.parts.networking.CablePart;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
@@ -99,6 +103,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -155,6 +160,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private static final String CRAFTING_RUNTIME_TAG = "trinity_data_core_crafting_runtime";
     private static final String STORAGE_ID_TAG = "trinity_data_core_storage_id";
     private static final String HOST_ID_TAG = "trinity_data_core_host_id";
+    private static final String CPU_REMOVAL_TOKEN_TAG = "trinity_cpu_removal_token";
+    private static final String CPU_REMOVAL_PREPARED_TAG = "trinity_cpu_removal_prepared";
+    private static final String CPU_RECOVERY_CLAIMANT_TAG = "trinity_cpu_recovery_claimant";
+    private static final String CPU_RECOVERY_APPLIED_TAG = "trinity_cpu_recovery_applied";
+    private static final String CPU_RECOVERY_QUARANTINED_TAG = "trinity_cpu_recovery_quarantined";
     private static final String STORAGE_PRIORITY_TAG = "trinity_data_core_storage_priority";
     private static final String PATTERN_PRIORITY_TAG = "trinity_data_core_pattern_priority";
     private static final String ACCESS_LEASE_HATCH_POSITION_TAG = "trinity_access_lease_hatch_position";
@@ -176,6 +186,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     private UUID storageId = UUID.randomUUID();
     @Getter
     private UUID hostId = UUID.randomUUID();
+    private UUID cpuRecoveryClaimant = UUID.randomUUID();
+    private @Nullable UUID cpuRemovalToken;
+    private @Nullable UUID appliedCpuRecovery;
+    private boolean cpuRemovalPrepared;
+    private boolean cpuRecoveryQuarantined;
     private int storagePriority;
     private int patternPriority;
     @Getter
@@ -382,6 +397,10 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         super.onLoad();
         this.loaded = true;
         this.craftingRuntime.setPaused(true);
+        if (this.level instanceof ServerLevel serverLevel) {
+            this.cpuRecoveryQuarantined |= TrinityDataCoreStorageSavedData.get(serverLevel.getServer())
+                    .requiresCpuRecoveryReconciliation(this.hostId, this.storageId, this.appliedCpuRecovery, this.cpuRecoveryClaimant);
+        }
         requestStructureRecheck();
     }
 
@@ -717,7 +736,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      * Returns whether the CPU child may publish its retained virtual CPU runtime through the elected lease.
      */
     public boolean isCpuProviderAvailable() {
-        return isStorageAvailable() && this.cpuStructureFormed && this.structureValidation.isValid(Structure.CPU);
+        return !this.cpuRemovalPrepared && !this.cpuRecoveryQuarantined && isStorageAvailable() &&
+                this.cpuStructureFormed && this.structureValidation.isValid(Structure.CPU);
     }
 
     /**
@@ -1067,6 +1087,17 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             LOGGER.error("Rejecting partial Trinity Data Core identity on item {}", stack);
             return false;
         }
+        CustomData custom = stack.get(DataComponents.CUSTOM_DATA);
+        CompoundTag itemData = custom == null ? new CompoundTag() : custom.copyTag();
+        if (itemData.contains(CPU_REMOVAL_TOKEN_TAG) && !itemData.hasUUID(CPU_REMOVAL_TOKEN_TAG)) {
+            LOGGER.error("Rejecting invalid Trinity CPU recovery token on item {}", stack);
+            return false;
+        }
+        if (itemData.hasUUID(CPU_REMOVAL_TOKEN_TAG) && !itemData.getUUID(CPU_REMOVAL_TOKEN_TAG).equals(this.appliedCpuRecovery) &&
+                this.craftingRuntime.shouldRemainRegistered()) {
+            LOGGER.error("Rejecting detached CPU recovery into nonempty or active Trinity host {}", this.worldPosition);
+            return false;
+        }
         setIdentity(itemStorageId, itemHostId);
         Integer itemStoragePriority = stack.get(DEDataComponents.TRINITY_DATA_CORE_STORAGE_PRIORITY);
         Integer itemPatternPriority = stack.get(DEDataComponents.TRINITY_DATA_CORE_PATTERN_PRIORITY);
@@ -1076,6 +1107,9 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
             this.storagePriority = restoredStoragePriority;
             this.patternPriority = restoredPatternPriority;
             setChanged();
+        }
+        if (itemData.hasUUID(CPU_REMOVAL_TOKEN_TAG)) {
+            restoreDetachedCpuRuntime(itemData.getUUID(CPU_REMOVAL_TOKEN_TAG));
         }
         return true;
     }
@@ -1088,6 +1122,47 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         stack.set(DEDataComponents.TRINITY_DATA_CORE_HOST_ID, this.hostId);
         stack.set(DEDataComponents.TRINITY_DATA_CORE_STORAGE_PRIORITY, this.storagePriority);
         stack.set(DEDataComponents.TRINITY_DATA_CORE_PATTERN_PRIORITY, this.patternPriority);
+        CustomData previous = stack.get(DataComponents.CUSTOM_DATA);
+        CompoundTag custom = previous == null ? new CompoundTag() : previous.copyTag();
+        custom.putUUID(CPU_REMOVAL_TOKEN_TAG, cpuRemovalToken());
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(custom));
+    }
+
+    private UUID cpuRemovalToken() {
+        if (this.cpuRemovalToken == null) {
+            this.cpuRemovalToken = UUID.randomUUID();
+            setChanged();
+        }
+        return this.cpuRemovalToken;
+    }
+
+    private void restoreDetachedCpuRuntime(UUID removalToken) {
+        if (removalToken.equals(this.appliedCpuRecovery)) {
+            return;
+        }
+        if (!(this.level instanceof ServerLevel serverLevel) || this.cpuRemovalPrepared) {
+            throw new IllegalStateException("Detached CPU recovery requires a fresh server-side recipient");
+        }
+        this.craftingRuntime.setPaused(true);
+        RecoveryKey key = new RecoveryKey(this.hostId, this.storageId, removalToken);
+        var result = TrinityDataCoreStorageSavedData.get(serverLevel.getServer()).claimDetachedRuntime(
+                key, this.cpuRecoveryClaimant, snapshot -> {
+                    this.craftingRuntime.readFromTag(snapshot, serverLevel.registryAccess());
+                    CompoundTag restored = new CompoundTag();
+                    this.craftingRuntime.writeToTag(restored, serverLevel.registryAccess());
+                    if (!TrinityDataCoreStorageSavedData.runtimeFingerprint(snapshot).equals(
+                            TrinityDataCoreStorageSavedData.runtimeFingerprint(restored))) {
+                        return false;
+                    }
+                    this.appliedCpuRecovery = removalToken;
+                    return true;
+                });
+        this.cpuRecoveryQuarantined = result.orElse(null) != RecoveryStatus.RESTORED || !removalToken.equals(this.appliedCpuRecovery);
+        if (this.cpuRecoveryQuarantined) {
+            LOGGER.error("Trinity host {} could not verify one-time CPU recovery {}: {}; retained journal requires reconciliation",
+                    this.worldPosition, removalToken, result.map(Enum::name).orElse("MISSING"));
+        }
+        setChanged();
     }
 
     @Override
@@ -1826,6 +1901,20 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
+    /** Consumes the same lease/layout/publication authorization before transferring reusable total inputs. */
+    boolean commitReusableCraftingAdmission(CraftingAdmissionToken token, ReusableCraftingAdmission prepared, KeyCounter[] delivery) {
+        CraftingAdmissionState admission = this.craftingAdmissions.get(token);
+        if (admission == null || admission.committing) {
+            return false;
+        }
+        admission.committing = true;
+        try {
+            return prepared.count() == token.count() && isCurrentCraftingAdmission(token, admission) && prepared.commit(delivery);
+        } finally {
+            this.craftingAdmissions.remove(token);
+        }
+    }
+
     private boolean isCurrentCraftingAdmission(CraftingAdmissionToken token, CraftingAdmissionState admission) {
         Level level = this.level;
         if (level == null || level.isClientSide() || !this.loaded || level.getGameTime() != admission.issuedTick ||
@@ -2194,6 +2283,12 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         clearPatternCatalog();
         this.storageId = data.getUUID(STORAGE_ID_TAG);
         this.hostId = data.getUUID(HOST_ID_TAG);
+        this.cpuRemovalToken = optionalRecoveryUuid(data, CPU_REMOVAL_TOKEN_TAG);
+        UUID claimant = optionalRecoveryUuid(data, CPU_RECOVERY_CLAIMANT_TAG);
+        this.cpuRecoveryClaimant = claimant == null ? UUID.randomUUID() : claimant;
+        this.appliedCpuRecovery = optionalRecoveryUuid(data, CPU_RECOVERY_APPLIED_TAG);
+        this.cpuRemovalPrepared = optionalRecoveryFlag(data, CPU_REMOVAL_PREPARED_TAG);
+        this.cpuRecoveryQuarantined = optionalRecoveryFlag(data, CPU_RECOVERY_QUARANTINED_TAG);
         this.storagePriority = data.contains(STORAGE_PRIORITY_TAG, Tag.TAG_INT) ? data.getInt(STORAGE_PRIORITY_TAG) : 0;
         this.patternPriority = data.contains(PATTERN_PRIORITY_TAG, Tag.TAG_INT) ? data.getInt(PATTERN_PRIORITY_TAG) : 0;
         this.patternCatalog = new MountedCorePatternCatalog(this.hostId);
@@ -2242,6 +2337,19 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         data.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
         data.putUUID(STORAGE_ID_TAG, this.storageId);
         data.putUUID(HOST_ID_TAG, this.hostId);
+        if (this.cpuRemovalToken != null) {
+            data.putUUID(CPU_REMOVAL_TOKEN_TAG, this.cpuRemovalToken);
+        } else {
+            data.remove(CPU_REMOVAL_TOKEN_TAG);
+        }
+        data.putUUID(CPU_RECOVERY_CLAIMANT_TAG, this.cpuRecoveryClaimant);
+        if (this.appliedCpuRecovery != null) {
+            data.putUUID(CPU_RECOVERY_APPLIED_TAG, this.appliedCpuRecovery);
+        } else {
+            data.remove(CPU_RECOVERY_APPLIED_TAG);
+        }
+        data.putBoolean(CPU_REMOVAL_PREPARED_TAG, this.cpuRemovalPrepared);
+        data.putBoolean(CPU_RECOVERY_QUARANTINED_TAG, this.cpuRecoveryQuarantined);
         data.putInt(STORAGE_PRIORITY_TAG, this.storagePriority);
         data.putInt(PATTERN_PRIORITY_TAG, this.patternPriority);
         data.putBoolean(FORMED_TAG, this.formed);
@@ -2296,11 +2404,33 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         }
     }
 
+    private static @Nullable UUID optionalRecoveryUuid(CompoundTag tag, String field) {
+        if (!tag.contains(field)) {
+            return null;
+        }
+        if (!tag.hasUUID(field)) {
+            throw new IllegalArgumentException("Invalid Trinity CPU recovery identity: " + field);
+        }
+        return tag.getUUID(field);
+    }
+
+    private static boolean optionalRecoveryFlag(CompoundTag tag, String field) {
+        if (tag.contains(field) && !tag.contains(field, Tag.TAG_BYTE)) {
+            throw new IllegalArgumentException("Invalid Trinity CPU recovery flag: " + field);
+        }
+        return tag.getBoolean(field);
+    }
+
     private void discardPersistedTrinityState() {
         this.structureValidation.reset();
         clearPatternCatalog();
         this.storageId = UUID.randomUUID();
         this.hostId = UUID.randomUUID();
+        this.cpuRecoveryClaimant = UUID.randomUUID();
+        this.cpuRemovalToken = null;
+        this.appliedCpuRecovery = null;
+        this.cpuRemovalPrepared = false;
+        this.cpuRecoveryQuarantined = false;
         this.storagePriority = 0;
         this.patternPriority = 0;
         this.patternCatalog = new MountedCorePatternCatalog(this.hostId);
@@ -3214,36 +3344,51 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
      * Cancels active CPU jobs only when the host block is being permanently removed from the world.
      */
     public void onPermanentRemoval() {
+        if (this.cpuRemovalPrepared) {
+            return;
+        }
+        if (!(this.level instanceof ServerLevel serverLevel)) {
+            throw new IllegalStateException("Trinity CPU removal recovery requires a server level");
+        }
         invalidateCraftingAdmissions();
-        this.craftingRuntime.cancelAllJobs();
-        recoverCancelledCpuInventory();
         this.loaded = false;
         this.craftingRuntime.setPaused(true);
+        TrinityDataCoreStorageSavedData storage = TrinityDataCoreStorageSavedData.get(serverLevel.getServer());
+        boolean recoveredAll = false;
+        try {
+            this.craftingRuntime.cancelAllJobs();
+            recoveredAll = !this.cpuRecoveryQuarantined && recoverCancelledCpuInventory(storage);
+        } catch (RuntimeException exception) {
+            this.cpuRecoveryQuarantined = true;
+            LOGGER.error("Trinity host {} removal could not verify cancellation or local recovery; preserving remaining runtime as unverified",
+                    this.worldPosition, exception);
+        }
+        CompoundTag remaining = new CompoundTag();
+        this.craftingRuntime.writeToTag(remaining, serverLevel.registryAccess());
+        RecoveryKey recovery = new RecoveryKey(this.hostId, this.storageId, cpuRemovalToken());
+        if (this.cpuRecoveryQuarantined) {
+            storage.quarantineDetachedRuntime(recovery, remaining, "Source host custody is not verified; local assets were not released");
+        } else {
+            storage.storeDetachedRuntime(recovery, remaining);
+        }
+        this.cpuRemovalPrepared = true;
+        if (!recoveredAll) {
+            LOGGER.warn("Trinity host {} retained uncertain CPU inventory in removal journal {} for verified recovery",
+                    this.worldPosition, this.cpuRemovalToken);
+        }
+        setChanged();
         clearPatternCatalog();
         this.patternCatalogValid = false;
         transitionAccessLease(null);
         clearCompartmentBindings(mainDefinitionKey().structureName());
     }
 
-    private void recoverCancelledCpuInventory() {
-        if (!(this.level instanceof ServerLevel serverLevel)) {
-            String message = "Trinity host " + this.worldPosition +
-                    " cannot durably recover cancelled CPU inventory without a server level";
-            LOGGER.error(message);
-            throw new IllegalStateException(message);
-        }
-        TrinityDataCoreStorageSavedData storage = TrinityDataCoreStorageSavedData.get(serverLevel.getServer());
-        boolean recoveredAll = this.craftingRuntime.recoverCancelledInventory((key, amount) -> storage.insert(
+    private boolean recoverCancelledCpuInventory(TrinityDataCoreStorageSavedData storage) {
+        return this.craftingRuntime.recoverCancelledInventory((key, amount) -> storage.insert(
                 this.storageId,
                 key,
                 amount,
                 Actionable.MODULATE));
-        if (!recoveredAll) {
-            String message = "Trinity host " + this.worldPosition +
-                    " retained CPU inventory after durable removal recovery";
-            LOGGER.error(message);
-            throw new IllegalStateException(message);
-        }
     }
 
     private static TrinityDataCoreStorageProfile buildStorageProfile(StructureWorldView world, List<BlockPos> positions) {

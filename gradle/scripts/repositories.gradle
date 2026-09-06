@@ -4,6 +4,13 @@ repositories {
     }
     mavenLocal()
     mavenCentral()
+    exclusiveContent { // Mystical Agriculture and Cucumber
+        forRepository { maven { url = "https://maven.blakesmods.com" } }
+        filter {
+            includeGroup("com.blakebr0.cucumber")
+            includeGroup("com.blakebr0.mysticalagriculture")
+        }
+    }
     // force gradle to download FastUtil & LWJGL from the central maven so we can get source artifacts
     exclusiveContent { // Force
         forRepository { mavenCentral() }

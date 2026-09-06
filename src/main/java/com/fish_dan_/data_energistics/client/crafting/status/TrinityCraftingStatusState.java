@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.crafting.status;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCraftingStatusEntry;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftingStatusPayload;
+import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftingStatusPayload.Header;
 
 import appeng.api.stacks.AEKey;
 import appeng.menu.me.crafting.CraftingStatus;
@@ -25,8 +26,12 @@ public final class TrinityCraftingStatusState {
     private @Nullable TrinityCraftingStatusPayload pending;
     private long sequence = -1;
     private int nextBatch;
-    private boolean initialized;
     private boolean publishing;
+    private @Nullable Header header;
+
+    public @Nullable Header header() {
+        return header;
+    }
 
     /** Drops exact state when a native status packet switches the screen away from the Trinity data stream. */
     public void onNativeUpdate() {
@@ -34,7 +39,7 @@ public final class TrinityCraftingStatusState {
             this.entries.clear();
             this.pendingEntries.clear();
             this.pending = null;
-            this.initialized = false;
+            this.header = null;
         }
     }
 
@@ -51,7 +56,7 @@ public final class TrinityCraftingStatusState {
             this.sequence = payload.sequence();
             this.pending = null;
             this.pendingEntries.clear();
-            if (payload.batchIndex() != 0 || !payload.header().full() && !this.initialized) {
+            if (payload.batchIndex() != 0 || !payload.header().full() && this.header == null) {
                 return;
             }
             this.pending = payload;
@@ -92,7 +97,7 @@ public final class TrinityCraftingStatusState {
             } else if (updated.containsKey(serial) && !key.equals(updated.get(serial).getWhat())) {
                 throw new IllegalArgumentException("Trinity CPU status serial changed its material key");
             }
-            updated.put(serial, new TrinityCraftingStatusEntry(serial, key, entry.stored(), entry.active(), entry.pending()));
+            updated.put(serial, new TrinityCraftingStatusEntry(serial, key, entry.stored(), entry.active(), entry.pending(), entry.resident()));
         }
         List<CraftingStatusEntry> rows = new ObjectArrayList<>(updated.values());
         var header = first.header();
@@ -103,7 +108,7 @@ public final class TrinityCraftingStatusState {
             this.publishing = false;
         }
         this.entries = updated;
-        this.initialized = true;
+        this.header = header;
         this.pending = null;
         this.pendingEntries.clear();
     }

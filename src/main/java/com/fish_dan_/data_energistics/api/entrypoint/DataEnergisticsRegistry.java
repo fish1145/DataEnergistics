@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.api.registry.machine.capacity.CraftingMach
 import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationRegistration;
 import com.fish_dan_.data_energistics.api.registry.provider.PatternProviderRegistry;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdRegistry;
+import com.fish_dan_.data_energistics.api.registry.reusable.ReusableInputRegistry;
 import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchRegistry;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistry;
 import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegistry;
@@ -90,4 +91,14 @@ public interface DataEnergisticsRegistry {
      * @return dynamic physical crafting-output declaration facet
      */
     DynamicCraftingOutputRegistry dynamicCraftingOutputs();
+
+    /**
+     * Declares deterministic reusable-input rules during plugin registration. Legacy registrar implementations remain
+     * binary compatible, but must explicitly implement this facet before accepting reusable-input declarations.
+     *
+     * @return transaction-local reusable-input registry
+     */
+    default ReusableInputRegistry reusableInputs() {
+        throw new UnsupportedOperationException("This legacy registrar does not support reusable crafting inputs");
+    }
 }

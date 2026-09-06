@@ -2,12 +2,15 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityBoundPatternDetails.SlotBinding;
 import com.fish_dan_.data_energistics.common.crafting.trinity.pattern.binding.TrinityPatternBindingEnumerator;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityBoundPatternInput;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+
+import net.minecraft.world.level.Level;
 
 import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -86,6 +89,56 @@ public final class TrinityPatternSelector {
     public record ArithmeticOverflow(String operation) implements Result {}
 
     private final TrinityPatternBindingEnumerator bindingEnumerator = TrinityPatternBindingEnumerator.create();
+
+    /**
+     * Selects a server-captured complete assignment without interpreting its expanded ordinal against the original
+     * pattern's alternatives. Exact assignments deliberately cannot switch material aliases behind a frozen rule.
+     */
+    public Result selectExact(IPatternDetails pattern, int ordinal, List<TrinityBoundPatternInput> bindings,
+                              long remainingCrafts, ToLongFunction<AEKey> cpuAvailability,
+                              ToLongFunction<AEKey> networkAvailability, Level level) {
+        if (ordinal < 0 || remainingCrafts <= 0L || bindings.isEmpty()) {
+            throw new IllegalArgumentException("Exact dispatch needs a positive work offer and complete bindings");
+        }
+        IPatternDetails.IInput[] originals = pattern.getInputs();
+        ObjectLinkedOpenHashSet<AEKey> observed = new ObjectLinkedOpenHashSet<>();
+        ObjectArrayList<SlotBinding> slots = new ObjectArrayList<>(bindings.size());
+        Object2LongLinkedOpenHashMap<AEKey> totals = new Object2LongLinkedOpenHashMap<>();
+        if (originals.length != bindings.size()) {
+            bindings.forEach(binding -> observed.add(binding.template().what()));
+            return new Unavailable(observed);
+        }
+        try {
+            for (int slot = 0; slot < bindings.size(); slot++) {
+                TrinityBoundPatternInput binding = bindings.get(slot);
+                AEKey key = binding.template().what();
+                observed.add(key);
+                if (binding.slotIndex() != slot || originals[slot].getMultiplier() != binding.multiplier() ||
+                        !originals[slot].isValid(key, level)) {
+                    return new Unavailable(observed);
+                }
+                long amount = binding.consumedAmount().longValueExact();
+                totals.mergeLong(key, amount, Math::addExact);
+                slots.add(new SlotBinding(originals[slot], binding.template(), List.of(new GenericStack(key, amount))));
+            }
+            long maximum = remainingCrafts;
+            ObjectArrayList<GenericStack> perCraft = new ObjectArrayList<>(totals.size());
+            for (var entry : totals.object2LongEntrySet()) {
+                long cpuAmount = cpuAvailability.applyAsLong(entry.getKey());
+                long networkAmount = networkAvailability.applyAsLong(entry.getKey());
+                if (cpuAmount < 0L || networkAmount < 0L) {
+                    throw new IllegalStateException("Exact input availability must not be negative");
+                }
+                long available = cpuAmount + Math.min(networkAmount, Long.MAX_VALUE - cpuAmount);
+                maximum = Math.min(maximum, available / entry.getLongValue());
+                perCraft.add(new GenericStack(entry.getKey(), entry.getLongValue()));
+            }
+            return maximum == 0L ? new Unavailable(observed) :
+                    new Selected(new TrinityBoundPatternDetails(pattern, slots), ordinal, maximum, perCraft, observed);
+        } catch (ArithmeticException overflow) {
+            return new ArithmeticOverflow("exact_input_binding");
+        }
+    }
 
     /**
      * Selects either the planned ordinal or, for a cycle stage, the best currently executable alternative.

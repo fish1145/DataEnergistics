@@ -1,6 +1,14 @@
 package com.fish_dan_.data_energistics.blockentity.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingCustodyCensus;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingProviderAdapter.ReturnReceiver;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.custody.ReusableCustodyAggregation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint.Host;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.TrinityReusableCraftingHost;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.TrinityReusableSlot;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreComponent;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityCoreKind;
@@ -46,6 +54,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -61,6 +70,8 @@ import java.util.UUID;
  */
 public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity implements TrinityPatternCore {
 
+    private static final int REUSABLE_OPERATIONS_PER_SLOT_TICK = 64;
+
     /**
      * Tracks whether level-dependent pattern state has been committed or must remain quarantined.
      */
@@ -72,6 +83,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     }
 
     private final PersistentTrinityPatternCore core;
+    private final ReusableCustodyAggregation custodyCoverage = new ReusableCustodyAggregation();
     private long observedReloadEpoch = TrinityPatternCoreReloadEpoch.current();
     private CoreLoadState coreLoadState = CoreLoadState.NEW;
     @Nullable
@@ -202,6 +214,14 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
      * @return number of completed queue groups
      */
     public int executeOwnedSlot(UUID hostId, int slot, long currentTick) {
+        TrinityReusableSlot reusable = this.core.reusableSlot(slot);
+        if (reusable != null && reusable.hasWork() && isReusableOwner(hostId) && reusable.route().hostId().equals(hostId)) {
+            Host host = reusableHost(reusable.route());
+            if (reusable.closeRequested()) {
+                reusable.closeSessions(host);
+            }
+            return reusable.endpoint().tick(currentTick, REUSABLE_OPERATIONS_PER_SLOT_TICK, host);
+        }
         if (!runtimeBindingsCurrent()) {
             return 0;
         }
@@ -423,6 +443,66 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
     @Override
     public UUID coreId() {
         return this.core.coreId();
+    }
+
+    @Override
+    public Int2ObjectMap<TrinityReusableSlot> reusableSlots() {
+        return readyCore().reusableSlots();
+    }
+
+    public @Nullable ReusableCraftingAdmission prepareReusable(PatternRoute route, ReusableCraftingRequest request) {
+        if (!isReusableOwner(route.hostId())) {
+            return null;
+        }
+        return this.core.prepareReusable(route, request, this.level.getGameTime(), reusableHost(route));
+    }
+
+    public boolean requestReusableYield(PatternRoute route, ReusableCraftingRequest contender) {
+        if (contender.level() != this.level || !isReusableOwner(route.hostId())) {
+            return false;
+        }
+        TrinityReusableSlot resident = this.core.reusableSlot(route.slot());
+        return resident != null && resident.route().equals(route) &&
+                resident.endpoint().requestYield(contender, this.level.getGameTime(), reusableHost(route));
+    }
+
+    public @Nullable TrinityReusableSlot findReusableSession(UUID owner, UUID sessionId) {
+        if (!isReusableOwner(owner)) {
+            return null;
+        }
+        for (TrinityReusableSlot slot : this.core.reusableSlots().values()) {
+            if (slot.route().hostId().equals(owner) && slot.containsSession(sessionId)) {
+                return slot;
+            }
+        }
+        return null;
+    }
+
+    /** Read-only custody scope; an unready or no-longer-authorized mounted core is explicitly incomplete. */
+    public ReusableCraftingCustodyCensus reusableCustody(UUID hostOwner, String cpuOwner) {
+        boolean visible = isReusableOwner(hostOwner);
+        return this.custodyCoverage.census(cpuOwner, visible, visible ? List.of(this.core.reusableCustody(cpuOwner)) : List.of());
+    }
+
+    /** Uses the slot authorized by findReusableSession within the same synchronous server callback. */
+    void closeReusableSession(TrinityReusableSlot slot, UUID sessionId) {
+        slot.endpoint().close(sessionId, reusableHost(slot.route()));
+    }
+
+    /** Uses the slot authorized by findReusableSession within the same synchronous server callback. */
+    boolean settleReusableSession(TrinityReusableSlot slot, UUID sessionId, ReturnReceiver receiver) {
+        return slot.endpoint().settle(sessionId, receiver, reusableHost(slot.route()));
+    }
+
+    private boolean isReusableOwner(UUID owner) {
+        BoundPatternHost current = currentPatternHost();
+        return isCoreStateReady() && !isRemoved() && this.level instanceof ServerLevel && current != null &&
+                current.binding().hostId().equals(owner) && !this.patternHostReleasePending && !this.patternHostChangeFailed;
+    }
+
+    private Host reusableHost(PatternRoute route) {
+        return new TrinityReusableCraftingHost(this.core, route, (ServerLevel) this.level,
+                () -> isReusableOwner(route.hostId()) && runtimeBindingsCurrent());
     }
 
     @Override

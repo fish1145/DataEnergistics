@@ -45,6 +45,11 @@ public abstract class NetworkCraftingProvidersPublicationMixin
     }
 
     @Override
+    public List<CraftingProviderId> providerIds() {
+        return this.dataEnergistics$publicationIndex.providerIds();
+    }
+
+    @Override
     @Nullable
     public ICraftingProvider resolveLiveProvider(CraftingProviderId providerId) {
         return this.dataEnergistics$publicationIndex.resolveLiveProvider(providerId);

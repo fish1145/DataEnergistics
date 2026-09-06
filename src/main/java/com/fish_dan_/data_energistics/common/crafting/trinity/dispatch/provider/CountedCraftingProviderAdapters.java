@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingCapac
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderAdapter;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingRoutingMode;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingTarget;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingProviderAdapter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityView;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.TargetedCountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
@@ -22,6 +23,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Pro
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.KeyCounter;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -226,6 +229,15 @@ public final class CountedCraftingProviderAdapters {
      */
     public static boolean supportsCountedDispatch(ICraftingProvider provider) {
         return REGISTRY.find(provider) != null || provider instanceof CountedCraftingProvider;
+    }
+
+    /** Resolves the optional durable-session capability without bypassing an explicitly registered legacy adapter. */
+    public static @Nullable ReusableCraftingProviderAdapter reusableAdapter(ICraftingProvider provider) {
+        CountedCraftingProviderAdapter registered = REGISTRY.find(provider);
+        if (registered != null) {
+            return registered instanceof ReusableCraftingProviderAdapter reusable ? reusable : null;
+        }
+        return provider instanceof ReusableCraftingProviderAdapter reusable ? reusable : null;
     }
 
     static CountedCraftingPreparation prepareProviderTarget(

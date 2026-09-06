@@ -155,7 +155,8 @@ public final class TrinitySameItemPolicyGameTest {
                 BigInteger.ONE,
                 Map.of(physicalInput, BigInteger.ONE),
                 Map.of(physicalOutput, BigInteger.valueOf(2L)),
-                Map.of());
+                Map.of(),
+                List.of());
         TrinityPlanStage stage = new TrinityPlanStage(
                 0,
                 false,

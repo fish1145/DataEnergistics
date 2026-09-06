@@ -5,11 +5,11 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -37,7 +37,7 @@ public final class IdentityCraftingProviderPublicationIndex implements CraftingP
     /**
      * Live publications retained only inside the server-thread index.
      */
-    private final Map<CraftingProviderId, LivePublication> publications = new LinkedHashMap<>();
+    private final Map<CraftingProviderId, LivePublication> publications = new Object2ObjectLinkedOpenHashMap<>();
 
     /**
      * Identity-keyed immutable publication buckets updated only for patterns touched by one lifecycle mutation.
@@ -47,7 +47,7 @@ public final class IdentityCraftingProviderPublicationIndex implements CraftingP
      * so a caller that already captured a bucket can safely transfer that list to pure dispatch code.
      * </p>
      */
-    private final IdentityHashMap<IPatternDetails, List<CraftingProviderId>> providerIdsByPattern = new IdentityHashMap<>();
+    private final Reference2ObjectOpenHashMap<IPatternDetails, List<CraftingProviderId>> providerIdsByPattern = new Reference2ObjectOpenHashMap<>();
 
     /**
      * Last registration sequence allocated in this publication scope.
@@ -58,6 +58,8 @@ public final class IdentityCraftingProviderPublicationIndex implements CraftingP
      * Monotonic index revision used to reject stale capacity observations.
      */
     private long revision;
+    private long providerSnapshotRevision = -1L;
+    private List<CraftingProviderId> providerSnapshot = List.of();
 
     /**
      * Publishes the exact pattern snapshot captured by AE2 for one provider registration.
@@ -84,8 +86,8 @@ public final class IdentityCraftingProviderPublicationIndex implements CraftingP
         this.publications.put(providerId, new LivePublication(provider, patternSnapshot));
         for (IPatternDetails pattern : patternSnapshot) {
             List<CraftingProviderId> current = this.providerIdsByPattern.get(pattern);
-            ArrayList<CraftingProviderId> next = current == null ?
-                    new ArrayList<>() : new ArrayList<>(current);
+            ObjectArrayList<CraftingProviderId> next = current == null ?
+                    new ObjectArrayList<>() : new ObjectArrayList<>(current);
             next.add(providerId);
             this.providerIdsByPattern.put(pattern, List.copyOf(next));
         }
@@ -111,7 +113,7 @@ public final class IdentityCraftingProviderPublicationIndex implements CraftingP
             if (current == null) {
                 throw new IllegalStateException("Crafting provider publication index lost pattern bucket: " + providerId);
             }
-            ArrayList<CraftingProviderId> next = new ArrayList<>(current);
+            ObjectArrayList<CraftingProviderId> next = new ObjectArrayList<>(current);
             if (!next.remove(providerId)) {
                 throw new IllegalStateException("Crafting provider publication index lost provider ID: " + providerId);
             }
@@ -138,6 +140,15 @@ public final class IdentityCraftingProviderPublicationIndex implements CraftingP
     public List<CraftingProviderId> providerIdsFor(IPatternDetails patternIdentity) {
         List<CraftingProviderId> providerIds = this.providerIdsByPattern.get(patternIdentity);
         return providerIds == null ? List.of() : providerIds;
+    }
+
+    @Override
+    public List<CraftingProviderId> providerIds() {
+        if (this.providerSnapshotRevision != this.revision) {
+            this.providerSnapshot = List.copyOf(this.publications.keySet());
+            this.providerSnapshotRevision = this.revision;
+        }
+        return this.providerSnapshot;
     }
 
     @Override

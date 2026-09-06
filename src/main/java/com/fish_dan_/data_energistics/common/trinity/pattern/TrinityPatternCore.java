@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.trinity.pattern;
 
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.TrinityReusableSlot;
 
 import appeng.api.inventories.InternalInventory;
 import appeng.api.stacks.AEItemKey;
@@ -10,6 +11,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -252,6 +254,9 @@ public interface TrinityPatternCore {
      * @return stable UUID used by persistent pattern routes
      */
     UUID coreId();
+
+    /** Immutable index of route-owned reusable sessions, including receipts retained after pattern removal. */
+    Int2ObjectMap<TrinityReusableSlot> reusableSlots();
 
     /**
      * @return fixed slot count derived from the core block tier

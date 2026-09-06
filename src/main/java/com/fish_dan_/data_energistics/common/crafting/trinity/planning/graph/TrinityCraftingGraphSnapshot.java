@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.TrinityPlanningDiagnostic;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 
@@ -10,6 +11,7 @@ import appeng.api.stacks.GenericStack;
 import net.minecraft.world.item.Item;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
 import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
@@ -33,6 +35,7 @@ public final class TrinityCraftingGraphSnapshot {
     private final List<AEKey> keys;
     private final Map<AEKey, List<TrinityCraftingGraphPattern>> patternsByOutput;
     private final Map<Item, List<TrinityCraftingGraphPattern>> patternsByOutputItem;
+    private final Map<TrinityPatternIdentity, TrinityPlanningDiagnostic> reusableInputFallbacks;
 
     /**
      * Builds a deterministic graph and rejects duplicate semantic identities.
@@ -41,6 +44,12 @@ public final class TrinityCraftingGraphSnapshot {
      * @param patterns immutable pattern values captured for that revision
      */
     public TrinityCraftingGraphSnapshot(long revision, List<TrinityCraftingGraphPattern> patterns) {
+        this(revision, patterns, Map.of());
+    }
+
+    /** Captures immutable per-pattern fallback evidence separately from the graph's executable transitions. */
+    public TrinityCraftingGraphSnapshot(long revision, List<TrinityCraftingGraphPattern> patterns,
+                                        Map<TrinityPatternIdentity, TrinityPlanningDiagnostic> reusableInputFallbacks) {
         if (revision < 0L) {
             throw new IllegalArgumentException("A Trinity crafting graph revision cannot be negative");
         }
@@ -54,19 +63,46 @@ public final class TrinityCraftingGraphSnapshot {
 
         this.revision = revision;
         this.patterns = List.copyOf(sortedPatterns.values());
+        Object2ObjectLinkedOpenHashMap<TrinityPatternIdentity, TrinityPlanningDiagnostic> fallbacks = new Object2ObjectLinkedOpenHashMap<>();
+        for (TrinityPatternIdentity identity : sortedPatterns.keySet()) {
+            TrinityPlanningDiagnostic diagnostic = reusableInputFallbacks.get(identity);
+            if (diagnostic != null) {
+                fallbacks.put(identity, diagnostic);
+            }
+        }
+        if (fallbacks.size() != reusableInputFallbacks.size()) {
+            throw new IllegalArgumentException("Reusable input fallback must identify a pattern present in the graph");
+        }
+        this.reusableInputFallbacks = Object2ObjectMaps.unmodifiable(fallbacks);
 
         ObjectLinkedOpenHashSet<AEKey> encounteredKeys = new ObjectLinkedOpenHashSet<>();
         Object2ObjectLinkedOpenHashMap<AEKey, ObjectLinkedOpenHashSet<TrinityCraftingGraphPattern>> producerSets = new Object2ObjectLinkedOpenHashMap<>();
         Object2ObjectLinkedOpenHashMap<Item, ObjectLinkedOpenHashSet<TrinityCraftingGraphPattern>> itemProducerSets = new Object2ObjectLinkedOpenHashMap<>();
         for (TrinityCraftingGraphPattern pattern : this.patterns) {
-            for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
-                for (TrinityPatternPublicationSignature.Alternative alternative : input.alternatives()) {
-                    encounteredKeys.add(alternative.stack().what());
-                    if (alternative.remainingKey() != null) {
-                        encounteredKeys.add(alternative.remainingKey());
-                        producerSets
-                                .computeIfAbsent(alternative.remainingKey(), ignored -> new ObjectLinkedOpenHashSet<>())
-                                .add(pattern);
+            if (pattern.reusableBindings().isEmpty()) {
+                for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
+                    for (TrinityPatternPublicationSignature.Alternative alternative : input.alternatives()) {
+                        encounteredKeys.add(alternative.stack().what());
+                        if (alternative.remainingKey() != null) {
+                            encounteredKeys.add(alternative.remainingKey());
+                            producerSets
+                                    .computeIfAbsent(alternative.remainingKey(), ignored -> new ObjectLinkedOpenHashSet<>())
+                                    .add(pattern);
+                        }
+                    }
+                }
+            } else {
+                for (List<TrinityBoundPatternInput> assignment : pattern.reusableBindings()) {
+                    for (TrinityBoundPatternInput binding : assignment) {
+                        encounteredKeys.add(binding.template().what());
+                        if (binding.remainingKey() != null) {
+                            encounteredKeys.add(binding.remainingKey());
+                            producerSets.computeIfAbsent(binding.remainingKey(), ignored -> new ObjectLinkedOpenHashSet<>()).add(pattern);
+                        }
+                        for (GenericStack byproduct : binding.byproducts()) {
+                            encounteredKeys.add(byproduct.what());
+                            producerSets.computeIfAbsent(byproduct.what(), ignored -> new ObjectLinkedOpenHashSet<>()).add(pattern);
+                        }
                     }
                 }
             }
@@ -102,6 +138,11 @@ public final class TrinityCraftingGraphSnapshot {
      */
     public List<TrinityCraftingGraphPattern> patterns() {
         return this.patterns;
+    }
+
+    /** Returns immutable evidence for patterns whose reusable model was discarded in favor of original semantics. */
+    public Map<TrinityPatternIdentity, TrinityPlanningDiagnostic> reusableInputFallbacks() {
+        return this.reusableInputFallbacks;
     }
 
     /**
@@ -173,9 +214,17 @@ public final class TrinityCraftingGraphSnapshot {
                 if (!reachablePatterns.add(pattern)) {
                     continue;
                 }
-                for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
-                    for (TrinityPatternPublicationSignature.Alternative alternative : input.alternatives()) {
-                        pending.enqueue(alternative.stack().what());
+                if (pattern.reusableBindings().isEmpty()) {
+                    for (TrinityPatternPublicationSignature.Input input : pattern.inputs()) {
+                        for (TrinityPatternPublicationSignature.Alternative alternative : input.alternatives()) {
+                            pending.enqueue(alternative.stack().what());
+                        }
+                    }
+                } else {
+                    for (List<TrinityBoundPatternInput> assignment : pattern.reusableBindings()) {
+                        for (TrinityBoundPatternInput binding : assignment) {
+                            pending.enqueue(binding.template().what());
+                        }
                     }
                 }
             }
@@ -183,6 +232,13 @@ public final class TrinityCraftingGraphSnapshot {
         if (reachablePatterns.size() == this.patterns.size()) {
             return this;
         }
-        return new TrinityCraftingGraphSnapshot(this.revision, List.copyOf(reachablePatterns));
+        Object2ObjectLinkedOpenHashMap<TrinityPatternIdentity, TrinityPlanningDiagnostic> reachableFallbacks = new Object2ObjectLinkedOpenHashMap<>();
+        for (TrinityCraftingGraphPattern pattern : reachablePatterns) {
+            TrinityPlanningDiagnostic fallback = this.reusableInputFallbacks.get(pattern.identity());
+            if (fallback != null) {
+                reachableFallbacks.put(pattern.identity(), fallback);
+            }
+        }
+        return new TrinityCraftingGraphSnapshot(this.revision, List.copyOf(reachablePatterns), reachableFallbacks);
     }
 }

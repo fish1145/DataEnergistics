@@ -8,7 +8,17 @@ import com.fish_dan_.data_energistics.accessor.patternprovider.RedstoneTuningAwa
 import com.fish_dan_.data_energistics.ae2.patternprovider.PatternProviderBatching;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningAutoRequestHelper;
 import com.fish_dan_.data_energistics.ae2.patternprovider.RedstoneTuningMode;
+import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.reusable.AdaptiveReusableCraftingState;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingTarget;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingCustodyCensus;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingProviderAdapter;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.SlotStack;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.Target;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView.AppendReceipt;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.TargetedCountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
@@ -20,7 +30,16 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Dis
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderCapacitySnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.ProviderRoutingMode;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.BoundPatternInputProvider;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.NativeReusableCrafting;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint.Binding;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint.Host;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint.NativeResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession.Identity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession.Operation;
+import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 import com.fish_dan_.data_energistics.common.recipe.RecipeReloadEpoch;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 
 import appeng.api.config.Actionable;
@@ -60,6 +79,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -67,6 +88,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -78,8 +100,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.invoke.MethodHandle;
@@ -95,11 +119,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 public class AdaptivePatternProviderLogic extends PatternProviderLogic
-                                          implements PatternProviderLogicAccessor, TargetedCountedCraftingProvider, BoundPatternInputProvider {
+                                          implements PatternProviderLogicAccessor, TargetedCountedCraftingProvider, BoundPatternInputProvider, ReusableCraftingProviderAdapter {
 
     private static final String RESONATING_PATTERN_DETAILS_CLASS = "io.github.lounode.ae2cs.common.me.crafting.ResonatingPatternDetails";
     private static final String ADVANCED_AE_PATTERN_DETAILS_INTERFACE = "net.pedroksl.advanced_ae.common.patterns.IAdvPatternDetails";
@@ -139,6 +164,10 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     private @Nullable IStackWatcher craftingWatcher;
     private @Nullable Direction advancedSendDirection;
     private int worksInRound;
+    private AdaptiveReusableCraftingState reusableCrafting = new AdaptiveReusableCraftingState();
+    private @Nullable CompoundTag reusableItemHandoff;
+    private final Int2ObjectLinkedOpenHashMap<NativePatternSlot> nativePatternSlots = new Int2ObjectLinkedOpenHashMap<>();
+    private long nativeRecipeEpoch = RecipeReloadEpoch.current();
     private final @Nullable MethodHandle ae2csAdjacentMeStorageMethod;
     private boolean dataEnergistics$dispatchPulsePending;
     private int reconciledPatternSlotCount = -1;
@@ -221,10 +250,20 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         tag.put(NBT_ADVANCED_DIRECTION_MAP, directionMapTag);
 
         writePatternSlotOverflowToNBT(tag, registries);
+        tag.put(AdaptiveReusableCraftingState.NBT_KEY, this.reusableCrafting.writeToTag(registries));
     }
 
     @Override
     public void readFromNBT(CompoundTag tag, HolderLookup.Provider registries) {
+        AdaptiveReusableCraftingState restoredReusable;
+        if (tag.contains(AdaptiveReusableCraftingState.NBT_KEY)) {
+            if (!(tag.get(AdaptiveReusableCraftingState.NBT_KEY) instanceof CompoundTag reusableTag)) {
+                throw new IllegalArgumentException("Adaptive reusable state must be a compound");
+            }
+            restoredReusable = AdaptiveReusableCraftingState.readFromTag(reusableTag, registries);
+        } else {
+            restoredReusable = new AdaptiveReusableCraftingState();
+        }
         super.readFromNBT(tag, registries);
 
         this.craftedContents.clear();
@@ -266,6 +305,44 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         }
 
         readPatternSlotOverflowFromNBT(tag, registries);
+        this.reusableCrafting = restoredReusable;
+        this.reusableItemHandoff = null;
+    }
+
+    /** Dismantled physical items carry escrow independently from copyable MemoryCard settings. */
+    public void exportReusableItem(DataComponentMap.Builder builder, HolderLookup.Provider registries) {
+        CompoundTag handoff = this.reusableItemHandoff;
+        if (handoff == null) {
+            if (this.reusableCrafting.handoffPrepared()) {
+                throw new IllegalStateException("Persisted adaptive item handoff is unresolved; refusing a second asset copy");
+            }
+            handoff = this.reusableCrafting.prepareItemHandoff(registries);
+            this.reusableItemHandoff = handoff;
+            this.host.saveChanges();
+        }
+        CustomData previous = builder.build().get(DataComponents.CUSTOM_DATA);
+        CompoundTag custom = previous == null ? new CompoundTag() : previous.copyTag();
+        custom.put(AdaptiveReusableCraftingState.NBT_KEY, handoff.copy());
+        builder.set(DataComponents.CUSTOM_DATA, CustomData.of(custom));
+    }
+
+    public void importReusableItem(DataComponentMap components, HolderLookup.Provider registries) {
+        CustomData custom = components.get(DataComponents.CUSTOM_DATA);
+        if (custom == null || !custom.contains(AdaptiveReusableCraftingState.NBT_KEY)) {
+            return;
+        }
+        CompoundTag source = custom.copyTag();
+        if (!(source.get(AdaptiveReusableCraftingState.NBT_KEY) instanceof CompoundTag payload)) {
+            throw new IllegalArgumentException("Adaptive reusable item payload must be a compound");
+        }
+        AdaptiveReusableCraftingState restored = AdaptiveReusableCraftingState.readFromTag(payload, registries);
+        if (this.reusableCrafting.hasResidents()) {
+            throw new IllegalStateException("Cannot replace live adaptive reusable ownership during item placement");
+        }
+        this.reusableCrafting = restored;
+        this.reusableItemHandoff = null;
+        onHostStateChanged();
+        this.host.saveChanges();
     }
 
     /**
@@ -611,6 +688,246 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     }
 
     @Override
+    public List<Target> reusableTargets(IPatternDetails pattern, IActionSource source, ServerLevel level) {
+        if (!reusableNativeAvailable() || this.host.getBlockEntity().getLevel() != level || !(pattern instanceof IMolecularAssemblerSupportedPattern)) {
+            return List.of();
+        }
+        List<Target> targets = new ObjectArrayList<>();
+        for (var entry : this.nativePatternSlots.int2ObjectEntrySet()) {
+            if (entry.getValue().pattern().getDefinition().equals(pattern.getDefinition())) {
+                String identity = this.reusableCrafting.targetIdentity(entry.getIntKey());
+                targets.add(new Target(identity, CountedCraftingTarget.route(identity), Optional.of(AdaptiveReusableCraftingState.MODE)));
+            }
+        }
+        return List.copyOf(targets);
+    }
+
+    @Override
+    public @Nullable ReusableCraftingAdmission prepareReusable(ReusableCraftingRequest request) {
+        if (!reusableNativeAvailable() || this.host.getBlockEntity().getLevel() != request.level() ||
+                !request.target().mode().equals(Optional.of(AdaptiveReusableCraftingState.MODE))) {
+            return null;
+        }
+        int slot = -1;
+        NativePatternSlot nativePattern = null;
+        for (var entry : this.nativePatternSlots.int2ObjectEntrySet()) {
+            if (this.reusableCrafting.targetIdentity(entry.getIntKey()).equals(request.target().persistentIdentity()) &&
+                    entry.getValue().pattern().getDefinition().equals(request.pattern().getDefinition())) {
+                slot = entry.getIntKey();
+                nativePattern = entry.getValue();
+                break;
+            }
+        }
+        if (nativePattern == null) {
+            return null;
+        }
+        int nativeSlot = slot;
+        ResourceLocation recipe = nativePattern.recipe();
+        ReusableCraftingAdmission prepared = this.reusableCrafting.prepare(nativeSlot, recipe, request,
+                request.level().getGameTime(), availableReusableAdmissions(), reusableHost(nativeSlot, recipe));
+        if (prepared == null) {
+            return null;
+        }
+        return new ReusableCraftingAdmission() {
+
+            @Override
+            public long count() {
+                return prepared.count();
+            }
+
+            @Override
+            public List<SlotStack> physicalInputs() {
+                return prepared.physicalInputs();
+            }
+
+            @Override
+            public boolean replay() {
+                return prepared.replay();
+            }
+
+            @Override
+            public boolean hasTransferredInputOwnership() {
+                return prepared.hasTransferredInputOwnership();
+            }
+
+            @Override
+            public boolean commit(KeyCounter[] delivery) {
+                if (!prepared.replay() && (!reusableNativeAvailable() || prepared.count() > availableReusableAdmissions())) {
+                    return false;
+                }
+                boolean accepted = prepared.commit(delivery);
+                if (accepted && !prepared.replay()) {
+                    dataEnergistics$afterPushPattern();
+                }
+                return accepted;
+            }
+        };
+    }
+
+    @Override
+    public Optional<ReusableCraftingSessionView> reusableSession(UUID sessionId) {
+        AdaptiveReusableCraftingState.Slot slot = this.reusableCrafting.locate(sessionId);
+        return slot == null ? Optional.empty() : slot.endpoint().query(sessionId);
+    }
+
+    @Override
+    public ReusableCraftingCustodyCensus reusableCustody(String cpuOwner) {
+        var blockEntity = this.host.getBlockEntity();
+        return this.reusableCrafting.reusableCustody(cpuOwner, !blockEntity.isRemoved() && blockEntity.getLevel() instanceof ServerLevel);
+    }
+
+    @Override
+    public boolean requestReusableYield(ReusableCraftingRequest contender) {
+        if (!reusableNativeAvailable() || this.host.getBlockEntity().getLevel() != contender.level() ||
+                !contender.target().mode().equals(Optional.of(AdaptiveReusableCraftingState.MODE))) {
+            return false;
+        }
+        for (var entry : this.nativePatternSlots.int2ObjectEntrySet()) {
+            int index = entry.getIntKey();
+            if (this.reusableCrafting.targetIdentity(index).equals(contender.target().persistentIdentity())) {
+                AdaptiveReusableCraftingState.Slot resident = this.reusableCrafting.slot(index);
+                return resident != null && resident.endpoint().requestYield(contender, contender.level().getGameTime(),
+                        reusableHost(index, entry.getValue().recipe(), ReusableHostPurpose.YIELD));
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public Optional<AppendReceipt> reusableReceipt(UUID sessionId, long sequence) {
+        AdaptiveReusableCraftingState.Slot slot = this.reusableCrafting.locate(sessionId);
+        return slot == null ? Optional.empty() : slot.endpoint().receipt(sessionId, sequence);
+    }
+
+    @Override
+    public void closeReusableSession(UUID sessionId) {
+        AdaptiveReusableCraftingState.Slot slot = this.reusableCrafting.locate(sessionId);
+        if (slot != null) {
+            slot.endpoint().close(sessionId, reusableHost(slot.index(), slot.recipe()));
+        }
+    }
+
+    @Override
+    public boolean settleReusableSession(UUID sessionId, ReturnReceiver receiver) {
+        AdaptiveReusableCraftingState.Slot slot = this.reusableCrafting.locate(sessionId);
+        return slot != null && slot.endpoint().settle(sessionId, receiver, reusableHost(slot.index(), slot.recipe()));
+    }
+
+    private boolean reusableNativeAvailable() {
+        return !this.reusableCrafting.handoffPrepared() && isMeteoritePatternProvider() && this.mainNode.isActive() &&
+                !super.isBusy() && !this.host.getBlockEntity().isRemoved();
+    }
+
+    private long availableReusableAdmissions() {
+        return Math.max(0, getMeteoriteMaxWorksPerRound() - this.worksInRound - this.reusableCrafting.pendingOperations());
+    }
+
+    private Host reusableHost(int slot, ResourceLocation recipe) {
+        return reusableHost(slot, recipe, ReusableHostPurpose.EXECUTION);
+    }
+
+    private Host reusableHost(int slot, ResourceLocation recipe, ReusableHostPurpose purpose) {
+        return new Host() {
+
+            private @Nullable Binding checkedBinding;
+            private @Nullable NativePatternSlot checkedPattern;
+
+            @Override
+            public boolean isAvailable(Binding binding) {
+                NativePatternSlot current = nativePatternSlots.get(slot);
+                if (!reusableNativeAvailable() || current == null || !current.recipe().equals(recipe) ||
+                        !binding.identity().mode().equals(Optional.of(AdaptiveReusableCraftingState.MODE.toString())) ||
+                        binding.recipeId().isPresent() && !binding.recipeId().orElseThrow().equals(recipe.toString()) ||
+                        !binding.publicationIdentity().equals(current.identity())) {
+                    return false;
+                }
+                if (checkedPattern != current || !binding.equals(checkedBinding)) {
+                    var inputs = current.pattern().getInputs();
+                    for (var material : binding.consumed()) {
+                        if (!inputs[material.slot()].isValid(material.stack().what(), host.getBlockEntity().getLevel())) {
+                            return false;
+                        }
+                    }
+                    if (!NativeReusableCrafting.supports(current.pattern(), binding)) {
+                        return false;
+                    }
+                    checkedPattern = current;
+                    checkedBinding = binding;
+                }
+                return purpose == ReusableHostPurpose.YIELD || worksInRound < getMeteoriteMaxWorksPerRound() && hasMeteoriteEnergy();
+            }
+
+            @Override
+            public NativeResult execute(Binding binding, Operation operation) {
+                NativePatternSlot current = nativePatternSlots.get(slot);
+                var grid = getGrid();
+                if (current == null || grid == null || !(host.getBlockEntity().getLevel() instanceof ServerLevel level) ||
+                        worksInRound >= getMeteoriteMaxWorksPerRound()) {
+                    return NativeResult.paused();
+                }
+                double cost = getMeteoriteEnergyPerWork();
+                IEnergyService energy = grid.getEnergyService();
+                if (!tryConsumeMeteoriteEnergy()) {
+                    return NativeResult.paused();
+                }
+                worksInRound++;
+                NativeResult result = NativeReusableCrafting.execute(current.pattern(), binding, operation, level, recipe);
+                if (!result.executed()) {
+                    worksInRound--;
+                    energy.injectPower(cost, Actionable.MODULATE);
+                }
+                return result;
+            }
+
+            @Override
+            public void acceptOutputs(Identity identity, List<GenericStack> outputs) {
+                Object2LongOpenHashMap<AEKey> next = new Object2LongOpenHashMap<>(craftedContents);
+                for (GenericStack output : outputs) {
+                    next.put(output.what(), Math.addExact(next.getLong(output.what()), output.amount()));
+                }
+                craftedContents.clear();
+                craftedContents.putAll(next);
+            }
+
+            @Override
+            public void persistChanges() {
+                host.saveChanges();
+                mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
+            }
+        };
+    }
+
+    private boolean tickReusableCrafting() {
+        if (this.reusableCrafting.handoffPrepared() || !(this.host.getBlockEntity().getLevel() instanceof ServerLevel level)) {
+            return false;
+        }
+        if (this.nativeRecipeEpoch != RecipeReloadEpoch.current()) {
+            rebuildPatternsForConfiguredSlots();
+        }
+        boolean worked = false;
+        for (AdaptiveReusableCraftingState.Slot slot : this.reusableCrafting.slots()) {
+            if (!slot.endpoint().hasResidentSession()) {
+                continue;
+            }
+            Host host = reusableHost(slot.index(), slot.recipe());
+            if (slot.closing()) {
+                slot.close(host);
+            }
+            int budget = Math.max(0, getMeteoriteMaxWorksPerRound() - this.worksInRound);
+            worked |= slot.endpoint().tick(level.getGameTime(), budget, host) > 0;
+        }
+        return worked;
+    }
+
+    private record NativePatternSlot(IMolecularAssemblerSupportedPattern pattern, ResourceLocation recipe,
+                                     TrinityPatternIdentity identity) {}
+
+    private enum ReusableHostPurpose {
+        EXECUTION,
+        YIELD
+    }
+
+    @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
         boolean pushed;
 
@@ -784,6 +1101,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
 
     @Override
     public void clearContent() {
+        this.reusableCrafting.ensureCanClear();
         super.clearContent();
         this.craftedContents.clear();
         this.advancedDirectionalSendList.clear();
@@ -791,6 +1109,8 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
         this.advancedSendDirection = null;
         this.patternSlotOverflow.clear();
         this.reconciledPatternSlotCount = -1;
+        this.reusableCrafting = new AdaptiveReusableCraftingState();
+        this.reusableItemHandoff = null;
     }
 
     private boolean pushAdvancedAeDirectionalPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, boolean skipAvailabilityCheck) {
@@ -850,7 +1170,21 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     }
 
     private boolean pushMeteoritePattern(IMolecularAssemblerSupportedPattern pattern, KeyCounter[] inputHolder) {
-        if (this.worksInRound >= getMeteoriteMaxWorksPerRound() || super.isBusy() || !this.mainNode.isActive()) {
+        if (this.reusableCrafting.handoffPrepared() || availableReusableAdmissions() <= 0 || super.isBusy() || !this.mainNode.isActive()) {
+            return false;
+        }
+        boolean freeNativeSlot = false;
+        for (int slot = 0; slot < getConfiguredPatternSlotCount(); slot++) {
+            ItemStack installed = this.patternInventory.getStackInSlot(slot);
+            if (!installed.isEmpty() && AEItemKey.of(installed).equals(pattern.getDefinition())) {
+                AdaptiveReusableCraftingState.Slot resident = this.reusableCrafting.slot(slot);
+                if (resident == null || !resident.endpoint().hasResidentSession()) {
+                    freeNativeSlot = true;
+                    break;
+                }
+            }
+        }
+        if (!freeNativeSlot) {
             return false;
         }
 
@@ -912,6 +1246,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     private void rebuildPatternsForConfiguredSlots() {
         this.patterns.clear();
         this.patternInputs.clear();
+        this.nativePatternSlots.clear();
 
         var level = this.host.getBlockEntity().getLevel();
         int configuredSlotCount = getConfiguredPatternSlotCount();
@@ -923,9 +1258,28 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             }
 
             this.patterns.add(details);
+            if (level instanceof ServerLevel serverLevel && details instanceof IMolecularAssemblerSupportedPattern molecular) {
+                var resolution = DataEnergisticsEntrypointLoader.snapshot().trinityPatternRecipes().resolve(molecular);
+                if (resolution.isPresent()) {
+                    this.nativePatternSlots.put(slot, new NativePatternSlot(molecular, resolution.orElseThrow().recipeId(),
+                            TrinityPatternIdentity.capture(TrinityPatternPublicationSignature.capture(molecular), serverLevel.registryAccess())));
+                }
+            }
             for (var input : details.getInputs()) {
                 for (var possibleInput : input.getPossibleInputs()) {
                     this.patternInputs.add(possibleInput.what().dropSecondary());
+                }
+            }
+        }
+
+        boolean reloaded = this.nativeRecipeEpoch != RecipeReloadEpoch.current();
+        this.nativeRecipeEpoch = RecipeReloadEpoch.current();
+        if (!this.reusableCrafting.handoffPrepared()) {
+            for (AdaptiveReusableCraftingState.Slot slot : this.reusableCrafting.slots()) {
+                NativePatternSlot current = this.nativePatternSlots.get(slot.index());
+                if (slot.endpoint().hasResidentSession() && (reloaded || current == null ||
+                        !current.pattern().getDefinition().equals(slot.pattern()) || !current.recipe().equals(slot.recipe()))) {
+                    slot.requestClose();
                 }
             }
         }
@@ -1820,6 +2174,14 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
     }
 
     public void onHostStateChanged() {
+        if (!isMeteoritePatternProvider() && !this.reusableCrafting.handoffPrepared()) {
+            for (AdaptiveReusableCraftingState.Slot slot : this.reusableCrafting.slots()) {
+                if (slot.endpoint().hasResidentSession()) {
+                    slot.requestClose();
+                }
+            }
+            this.host.saveChanges();
+        }
         this.mainNode.ifPresent((grid, node) -> grid.getTickManager().alertDevice(node));
     }
 
@@ -2394,7 +2756,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
 
         @Override
         public TickingRequest getTickingRequest(IGridNode node) {
-            boolean sleeping = !invokeBaseHasWorkToDo() && !hasAdvancedDirectionalWork() && craftedContents.isEmpty() && getReturnInv().isEmpty() && !isResonatingPullEnabled();
+            boolean sleeping = !invokeBaseHasWorkToDo() && !hasAdvancedDirectionalWork() && craftedContents.isEmpty() && getReturnInv().isEmpty() && !isResonatingPullEnabled() && !reusableCrafting.hasResidents();
             return new TickingRequest(
                     TickRates.Interface,
                     sleeping);
@@ -2411,11 +2773,12 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
             couldDoWork = flushAdvancedDirectionalSendList() || couldDoWork;
             dataEnergistics$tryFinishDispatchPulse();
             couldDoWork = doResonatingPullWork() || couldDoWork;
+            couldDoWork = tickReusableCrafting() || couldDoWork;
             int before = craftedContents.size();
             flushCraftedOutputs();
             boolean workedForCrafter = craftedContents.size() != before || before > 0;
             couldDoWork = couldDoWork || workedForCrafter;
-            boolean hasWork = invokeBaseHasWorkToDo() || isResonatingPullEnabled() || hasAdvancedDirectionalWork() || !craftedContents.isEmpty() || !getReturnInv().isEmpty();
+            boolean hasWork = invokeBaseHasWorkToDo() || isResonatingPullEnabled() || hasAdvancedDirectionalWork() || !craftedContents.isEmpty() || !getReturnInv().isEmpty() || reusableCrafting.hasResidents();
             return hasWork ? (couldDoWork ? TickRateModulation.URGENT : TickRateModulation.SLOWER) : TickRateModulation.SLEEP;
         }
     }

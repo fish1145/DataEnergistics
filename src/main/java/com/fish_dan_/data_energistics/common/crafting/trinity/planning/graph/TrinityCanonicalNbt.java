@@ -18,7 +18,7 @@ import java.util.Base64;
 /**
  * Produces a deterministic NBT value encoding without relying on {@link CompoundTag} map iteration order.
  */
-final class TrinityCanonicalNbt {
+public final class TrinityCanonicalNbt {
 
     private TrinityCanonicalNbt() {}
 
@@ -28,7 +28,7 @@ final class TrinityCanonicalNbt {
      * @param tag immutable value to encode during server-thread capture
      * @return URL-safe canonical byte representation
      */
-    static String encode(Tag tag) {
+    public static String encode(Tag tag) {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (DataOutputStream output = new DataOutputStream(bytes)) {
             writeTag(output, tag);
