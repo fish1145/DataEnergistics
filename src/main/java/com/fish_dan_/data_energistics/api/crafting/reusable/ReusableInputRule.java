@@ -46,7 +46,7 @@ public record ReusableInputRule(ResourceLocation id, long revision, Kind kind, A
         if (kind == Kind.FIXED_DAMAGE) {
             int initialDamage = initialKey.toStack().getDamageValue();
             if (damagePerUse <= 0 || initialDamage < 0 || initialDamage >= breakAtDamage ||
-                    breakAtDamage > initialKey.toStack().getMaxDamage() || !transitions.isEmpty()) {
+                    breakAtDamage > (long) initialKey.toStack().getMaxDamage() + 1L || !transitions.isEmpty()) {
                 throw new IllegalArgumentException("Invalid fixed-damage tool contract");
             }
         } else if (damagePerUse != 0 || breakAtDamage != 0 || !exhaustionByproducts.isEmpty()) {
@@ -115,7 +115,8 @@ public record ReusableInputRule(ResourceLocation id, long revision, Kind kind, A
 
     /**
      * Defines deterministic loss with unchanged item and non-Damage components. Reaching the bound
-     * exhausts the tool on that use; this contract must come from authoritative recipe knowledge.
+     * exhausts the tool on that use; this contract must come from authoritative recipe knowledge. A bound of
+     * maxDamage + 1 is valid for recipes that allow a final use at maxDamage before exhausting the tool.
      *
      * @return fixed-loss rule; throws when the state or thresholds cannot describe a damageable item
      */
