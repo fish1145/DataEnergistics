@@ -9,7 +9,9 @@ import java.util.Optional;
  * The callback runs on the server thread during capacity capture and again immediately before dispatch preparation.
  * It must not reserve work, consume inputs, mutate the machine or retain the supplied context. An empty result means
  * that this registered machine type does not apply to the current pattern and lets ordinary insertion simulation
- * decide the capacity. A present zero is authoritative exhaustion and prevents fallback dispatch.
+ * decide the capacity. An opted-in counted crafting machine without an applicable observation is limited to one craft.
+ * A present zero is authoritative exhaustion and prevents fallback dispatch. Counted machines are observed again before
+ * committing their prepared batch, in addition to their own live input validation.
  * </p>
  */
 @FunctionalInterface
