@@ -198,6 +198,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
         helper.assertValueEqual(assetAmount(received.getFirst().returnedAssets(), tool(1)), 1L, "Reconciliation returns only verified actual successor");
         helper.assertValueEqual(assetAmount(received.getFirst().returnedAssets(), tool(0)), 0L, "Old tool is not reconstructed");
         helper.assertValueEqual(received.getFirst().receipts().getFirst().cancelled(), 1L, "Only the remaining operation is cancelled");
+        verifyRecordedResultRecovery(helper);
         helper.succeed();
     }
 
@@ -473,6 +474,37 @@ public final class PersistentReusableCraftingEndpointGameTest {
                 helper.getLevel().registryAccess());
     }
 
+    private static void verifyRecordedResultRecovery(GameTestHelper helper) {
+        PersistentReusableCraftingEndpoint endpoint = new PersistentReusableCraftingEndpoint(TARGET);
+        NativeHost host = new NativeHost();
+        UUID id = UUID.randomUUID();
+        ReusableCraftingAdmission opened = prepare(endpoint, request(helper, id, 0, 2, List.of(new SlotStack(0, stack(tool(0), 1)))), 0, host);
+        opened.commit(delivery(opened));
+        host.failAfterNative = true;
+        try {
+            endpoint.tick(1, 1, host);
+            helper.fail("Native result persistence failure was not reached");
+        } catch (IllegalStateException expected) {
+            helper.assertTrue(endpoint.snapshot().getFirst().recordedResult() != null, "Actual returned result survives the failing dirty callback");
+        }
+        PersistentReusableCraftingEndpoint restored = reload(endpoint, helper);
+        host.failPersist = false;
+        host.failAfterNative = false;
+        host.failNative = true;
+        host.available = false;
+        helper.assertValueEqual(restored.tick(2, 9, host), 0, "A restored result does not prove whether an older snapshot already published it");
+        helper.assertValueEqual(restored.query(id).orElseThrow().completed(), 0L, "Reload keeps the unresolved result quarantined");
+        helper.assertValueEqual(endpoint.tick(2, 9, host), 0, "Same-load recovery accounts an actual result without another native operation");
+        helper.assertValueEqual(endpoint.query(id).orElseThrow().completed(), 1L, "Exactly the previously executed operation is completed");
+        helper.assertValueEqual(host.amount(PRODUCT), 1L, "Verified unpublished output is delivered once");
+        endpoint.tick(3, 9, host);
+        helper.assertValueEqual(host.amount(PRODUCT), 1L, "Repeated ticks cannot replay the cleared result checkpoint");
+        List<Settlement> settled = new ObjectArrayList<>();
+        endpoint.settle(id, receipt -> settled.add(receipt), host);
+        helper.assertValueEqual(assetAmount(settled.getFirst().returnedAssets(), tool(1)), 1L, "Only the actual post-operation tool is returned");
+        helper.assertValueEqual(assetAmount(settled.getFirst().returnedAssets(), MATERIAL), 1L, "Only the unexecuted suffix material is refunded");
+    }
+
     /** Independent fixed-three-use native fixture; actual damage is produced without calling rule.advance. */
     private static final class NativeHost implements Host {
 
@@ -480,6 +512,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
         private boolean paused;
         private boolean failNative;
         private boolean failPersist;
+        private boolean failAfterNative;
         private Optional<TrinityPatternIdentity> publication = Optional.empty();
         private final List<GenericStack> pending = new ObjectArrayList<>();
 
@@ -508,6 +541,7 @@ public final class PersistentReusableCraftingEndpointGameTest {
                     successors.add(stack(AEItemKey.of(tool), held.stack().amount()));
                 }
             }
+            if (failAfterNative) failPersist = true;
             return new NativeResult(true, List.of(new ToolOutcome(0, successors, byproducts)), List.of(stack(PRODUCT, 1)), Optional.empty());
         }
 

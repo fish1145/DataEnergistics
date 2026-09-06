@@ -127,9 +127,17 @@ public final class PersistentReusableCraftingEndpoint {
         void persistChanges();
     }
 
+    /** Actual unpublished return; the active input escrow remains its accounting basis, not a second asset copy. */
+    record RecordedNativeResult(UUID loadedEpoch, long operationId, NativeResult result) {
+
+        RecordedNativeResult {
+            if (operationId < 0) throw new IllegalArgumentException("Recorded native result requires a valid operation id");
+        }
+    }
+
     /** Complete endpoint entry for its codec; revision is separate from the session's accounting counters. */
     record EntrySnapshot(Binding binding, ReusableInputSession session, long revision, long notBefore,
-                         boolean settlementAcknowledged, String failure) {}
+                         boolean settlementAcknowledged, String failure, @Nullable RecordedNativeResult recordedResult) {}
 
     private final String targetIdentity;
     private final Object2ObjectLinkedOpenHashMap<UUID, Entry> sessions = new Object2ObjectLinkedOpenHashMap<>();
@@ -206,7 +214,7 @@ public final class PersistentReusableCraftingEndpoint {
             return null;
         }
         Entry candidate = existing != null ? existing :
-                new Entry(binding, new ReusableInputSession(binding.identity(), binding.tools()), 0, currentTick, false, "");
+                new Entry(binding, new ReusableInputSession(binding.identity(), binding.tools()), 0, currentTick, false, "", null);
         try {
             candidate.session.validateAppend(append);
         } catch (IllegalArgumentException | IllegalStateException unavailable) {
@@ -257,6 +265,7 @@ public final class PersistentReusableCraftingEndpoint {
             return 0;
         }
         Entry entry = sessions.get(resident);
+        if (reconcileRecorded(entry, host)) return 0;
         if (entry.session.tick(currentTick)) {
             changed(entry, host);
         }
@@ -273,13 +282,18 @@ public final class PersistentReusableCraftingEndpoint {
             try {
                 changed(entry, host); // Active escrow is now part of the owning state if it is saved.
                 NativeResult result = host.execute(entry.binding, operation);
+                if (result.executed()) executed++;
+                entry.recordedResult = new RecordedNativeResult(custody.census(entry.binding.identity().cpuOwner()).loadedEpoch(), operation.id(), result);
+                changed(entry, host);
                 if (!result.executed()) {
                     entry.session.abortOperation(operation.id());
+                    entry.recordedResult = null;
                     changed(entry, host);
                     break;
                 }
                 complete(entry, operation, result);
-                executed++;
+                entry.recordedResult = null;
+                changed(entry, host);
                 publishOutputs(entry, host);
                 changed(entry, host);
                 if (visibleState(entry) != State.OPEN) {
@@ -306,14 +320,39 @@ public final class PersistentReusableCraftingEndpoint {
         if (operation == null) {
             throw new IllegalStateException("Session has no unresolved native operation");
         }
+        if (entry.recordedResult != null && !entry.recordedResult.result().equals(actual)) {
+            throw new IllegalArgumentException("Reconciliation contradicts the recorded native result");
+        }
         if (actual.executed()) {
             complete(entry, operation, actual);
         } else {
             entry.session.abortOperation(operation.id());
         }
+        entry.recordedResult = null;
         entry.session.close();
-        publishOutputs(entry, host);
         changed(entry, host);
+        if (publishOutputs(entry, host)) changed(entry, host);
+    }
+
+    /**
+     * A live recorded result has never been published. A restored checkpoint alone cannot prove that after rollback.
+     */
+    private boolean reconcileRecorded(Entry entry, Host host) {
+        RecordedNativeResult recorded = entry.recordedResult;
+        if (recorded == null || entry.recoveryAttempted ||
+                !recorded.loadedEpoch().equals(custody.census(entry.binding.identity().cpuOwner()).loadedEpoch())) {
+            return false;
+        }
+        entry.recoveryAttempted = true;
+        try {
+            reconcile(entry.binding.identity().sessionId(), recorded.result(), host);
+        } catch (RuntimeException failure) {
+            entry.failure = "Recorded native result " + recorded.operationId() + " requires reconciliation: " + failure.getMessage();
+            entry.session.close();
+            Data_Energistics.LOGGER.error("Reusable endpoint {} could not reconcile recorded result for session {} operation {}",
+                    targetIdentity, entry.binding.identity().sessionId(), recorded.operationId(), failure);
+        }
+        return true;
     }
 
     public void close(UUID sessionId, Host host) {
@@ -321,6 +360,7 @@ public final class PersistentReusableCraftingEndpoint {
         if (entry == null) {
             return;
         }
+        if (reconcileRecorded(entry, host)) return;
         State before = visibleState(entry);
         entry.session.close();
         if (before != visibleState(entry)) {
@@ -362,12 +402,14 @@ public final class PersistentReusableCraftingEndpoint {
         if (entry == null) {
             return false;
         }
+        reconcileRecorded(entry, host);
         if (entry.settlementAcknowledged) {
             return true;
         }
         if (entry.session.status() != ReusableInputSession.State.RETURN_PENDING && entry.session.status() != ReusableInputSession.State.CLOSED) {
             return false;
         }
+        if (!entry.failure.isEmpty()) changed(entry, host);
         if (publishOutputs(entry, host)) {
             changed(entry, host);
         }
@@ -399,7 +441,7 @@ public final class PersistentReusableCraftingEndpoint {
 
     List<EntrySnapshot> snapshot() {
         return sessions.values().stream().map(entry -> new EntrySnapshot(entry.binding, entry.session, entry.revision,
-                entry.notBefore, entry.settlementAcknowledged, entry.failure)).toList();
+                entry.notBefore, entry.settlementAcknowledged, entry.failure, entry.recordedResult)).toList();
     }
 
     static PersistentReusableCraftingEndpoint restore(String targetIdentity, List<EntrySnapshot> snapshots) {
@@ -421,7 +463,11 @@ public final class PersistentReusableCraftingEndpoint {
                 throw new IllegalArgumentException("Unsettled session cannot have an acknowledged endpoint receipt");
             }
             Entry entry = new Entry(snapshot.binding(), session, snapshot.revision(), snapshot.notBefore(),
-                    snapshot.settlementAcknowledged(), snapshot.failure());
+                    snapshot.settlementAcknowledged(), snapshot.failure(), snapshot.recordedResult());
+            if (entry.recordedResult != null && (session.activeOperation() == null ||
+                    session.activeOperation().id() != entry.recordedResult.operationId())) {
+                throw new IllegalArgumentException("Recorded native result has no matching execution escrow");
+            }
             result.sessions.put(identity.sessionId(), entry);
             result.custody.record(custodyEntry(entry));
             if (!entry.settlementAcknowledged) {
@@ -586,15 +632,18 @@ public final class PersistentReusableCraftingEndpoint {
         private long notBefore;
         private boolean settlementAcknowledged;
         private String failure;
+        private @Nullable RecordedNativeResult recordedResult;
+        private boolean recoveryAttempted;
 
         private Entry(Binding binding, ReusableInputSession session, long revision, long notBefore,
-                      boolean settlementAcknowledged, String failure) {
+                      boolean settlementAcknowledged, String failure, @Nullable RecordedNativeResult recordedResult) {
             this.binding = binding;
             this.session = session;
             this.revision = revision;
             this.notBefore = notBefore;
             this.settlementAcknowledged = settlementAcknowledged;
             this.failure = failure;
+            this.recordedResult = recordedResult;
         }
     }
 
