@@ -5,6 +5,8 @@ import com.fish_dan_.data_energistics.api.crafting.reusable.ReusableInputRule;
 import com.fish_dan_.data_energistics.api.crafting.reusable.ReusableInputRuleAdapter;
 import com.fish_dan_.data_energistics.api.registry.reusable.ReusableInputRules;
 
+import appeng.api.crafting.IPatternDetails;
+
 import net.minecraft.resources.ResourceLocation;
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -29,6 +31,11 @@ public final class FrozenReusableInputRules implements ReusableInputRules {
                 throw new IllegalStateException("Duplicate reusable input adapter: " + adapter.id());
             }
         }
+    }
+
+    @Override
+    public boolean mayMatch(IPatternDetails pattern, Optional<ResourceLocation> recipeId) {
+        return adapters.stream().anyMatch(adapter -> adapter.mayMatch(pattern, recipeId));
     }
 
     @Override

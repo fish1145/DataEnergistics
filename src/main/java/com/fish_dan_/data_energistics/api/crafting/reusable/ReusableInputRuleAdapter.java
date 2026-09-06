@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.api.crafting.reusable;
 
+import appeng.api.crafting.IPatternDetails;
+
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Optional;
@@ -13,6 +15,15 @@ public interface ReusableInputRuleAdapter {
 
     /** @return stable registration identity; never changes during the adapter lifetime */
     ResourceLocation id();
+
+    /**
+     * Cheap conservative filter before provider discovery or inventory-state expansion, on the server thread.
+     * False proves this adapter cannot claim any slot of the published pattern. True still requires full resolve
+     * validation. Existing adapters remain eligible without implementing an optional filter.
+     */
+    default boolean mayMatch(IPatternDetails pattern, Optional<ResourceLocation> recipeId) {
+        return true;
+    }
 
     /**
      * Captures a complete immutable rule with no live references or deferred callbacks.

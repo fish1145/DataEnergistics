@@ -150,6 +150,7 @@ public final class ReusableInputGraphCaptureService {
         private ReusableInputRules rules;
         private long epoch;
         private List<AEItemKey> inventory = List.of();
+        private boolean inventoryCaptured;
         private final List<TrinityCraftingGraphPattern> completed = new ObjectArrayList<>();
         private final List<List<Endpoint>> completedEndpoints = new ObjectArrayList<>();
         private final Map<TrinityPatternIdentity, TrinityPlanningDiagnostic> fallbacks = new Object2ObjectLinkedOpenHashMap<>();
@@ -230,6 +231,13 @@ public final class ReusableInputGraphCaptureService {
                 return;
             }
             if (endpointIndex < endpoints.size()) {
+                if (!inventoryCaptured) {
+                    ObjectLinkedOpenHashSet<AEItemKey> states = new ObjectLinkedOpenHashSet<>(source.visibleItemKeys());
+                    states.addAll(additionalStates);
+                    inventory = List.copyOf(states);
+                    inventoryCaptured = true;
+                    return;
+                }
                 Endpoint endpoint = endpoints.get(endpointIndex);
                 List<GenericStack> actual = new ObjectArrayList<>(pattern.inputs().size());
                 int firstItem = -1;
@@ -282,9 +290,8 @@ public final class ReusableInputGraphCaptureService {
             base = graph;
             rules = source.rules();
             epoch = source.modelEpoch();
-            ObjectLinkedOpenHashSet<AEItemKey> states = new ObjectLinkedOpenHashSet<>(source.visibleItemKeys());
-            states.addAll(additionalStates);
-            inventory = List.copyOf(states);
+            inventory = List.of();
+            inventoryCaptured = false;
             completed.clear();
             completedEndpoints.clear();
             fallbacks.clear();
@@ -338,6 +345,10 @@ public final class ReusableInputGraphCaptureService {
                         !TrinityPatternPublicationSignature.capture(live).equals(pattern.publication())) {
                     continue;
                 }
+                Optional<ResourceLocation> recipeId = source.recipeId(live);
+                if (!rules.mayMatch(live, recipeId)) {
+                    continue;
+                }
                 for (var providerId : source.publications().providerIdsFor(live)) {
                     var provider = source.publications().resolveLiveProvider(providerId);
                     if (provider == null) {
@@ -349,7 +360,7 @@ public final class ReusableInputGraphCaptureService {
                     }
                     for (Target executionTarget : supported.reusableTargets(live, actor, level)) {
                         if (targets.add(executionTarget)) {
-                            result.add(new Endpoint(live, supported, executionTarget, source.recipeId(live)));
+                            result.add(new Endpoint(live, supported, executionTarget, recipeId));
                         }
                     }
                 }
