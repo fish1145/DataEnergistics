@@ -15,18 +15,20 @@ public final class TrinityCraftingStatusEntry extends CraftingStatusEntry {
     private final BigInteger stored;
     private final BigInteger active;
     private final BigInteger pending;
+    private final BigInteger resident;
 
     /** A null key is allowed only in an incremental update whose serial already belongs to the receiving screen. */
     public TrinityCraftingStatusEntry(long serial, @Nullable AEKey key, BigInteger stored, BigInteger active,
-                                      BigInteger pending) {
+                                      BigInteger pending, BigInteger resident) {
         super(serial, key, TrinityAe2AmountProjection.toAe2Amount(stored),
                 TrinityAe2AmountProjection.toAe2Amount(active), TrinityAe2AmountProjection.toAe2Amount(pending));
-        if (serial < 0) {
-            throw new IllegalArgumentException("A crafting status entry requires a non-negative serial");
+        if (serial < 0 || resident.signum() < 0) {
+            throw new IllegalArgumentException("A crafting status entry requires non-negative serial and resident amount");
         }
         this.stored = stored;
         this.active = active;
         this.pending = pending;
+        this.resident = resident;
     }
 
     public BigInteger stored() {
@@ -41,6 +43,15 @@ public final class TrinityCraftingStatusEntry extends CraftingStatusEntry {
         return this.pending;
     }
 
+    public BigInteger resident() {
+        return this.resident;
+    }
+
+    @Override
+    public boolean isDeleted() {
+        return super.isDeleted() && this.resident.signum() == 0;
+    }
+
     @Override
     public int compareTo(CraftingStatusEntry other) {
         BigInteger otherWork = other instanceof TrinityCraftingStatusEntry exact ?
@@ -49,7 +60,7 @@ public final class TrinityCraftingStatusEntry extends CraftingStatusEntry {
         if (byWork != 0) {
             return byWork;
         }
-        BigInteger otherStored = other instanceof TrinityCraftingStatusEntry exact ? exact.stored : BigInteger.valueOf(other.getStoredAmount());
-        return otherStored.compareTo(this.stored);
+        BigInteger otherStored = other instanceof TrinityCraftingStatusEntry exact ? exact.stored.add(exact.resident) : BigInteger.valueOf(other.getStoredAmount());
+        return otherStored.compareTo(this.stored.add(this.resident));
     }
 }

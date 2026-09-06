@@ -76,6 +76,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.Reusa
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSettlement;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.planning.ReusableInputGraphCaptureAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.planning.ReusableReplanGraphCapture;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus.Phase;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputProjection;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
@@ -3722,6 +3724,7 @@ final class TrinityDataCoreCpuLogic {
 
     Set<AEKey> getStatusKeys() {
         Set<AEKey> keys = new ObjectLinkedOpenHashSet<>();
+        keys.addAll(this.reusableDispatch.residentAmounts().keySet());
         this.inventory.list.forEach(entry -> keys.add(entry.getKey()));
         keys.addAll(this.exactWorkingInventory.snapshot().keySet());
         if (this.job != null) {
@@ -3744,6 +3747,25 @@ final class TrinityDataCoreCpuLogic {
 
     BigInteger getPendingOutputs(AEKey template) {
         return this.job == null ? BigInteger.ZERO : this.job.exactPendingOutput(template);
+    }
+
+    TrinityReusableStatus reusableStatus() {
+        return this.quarantinedReusableState == null ? this.reusableDispatch.status() :
+                new TrinityReusableStatus(Phase.RECONCILIATION, 0, BigInteger.ZERO, BigInteger.ZERO, "Invalid resident custody snapshot");
+    }
+
+    BigInteger residentAmount(AEKey key) {
+        return this.reusableDispatch.residentAmounts().getOrDefault(key, BigInteger.ZERO);
+    }
+
+    /** Invalidates display rows without treating an observation reset as a newly available physical tool. */
+    void residentObservationChanged(Set<AEKey> keys) {
+        beginReusableMutation();
+        try {
+            keys.forEach(this::postChange);
+        } finally {
+            endReusableMutation();
+        }
     }
 
     void addListener(Consumer<AEKey> listener) {

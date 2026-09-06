@@ -22,6 +22,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.Reusa
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Session;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Submission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.SubmissionEntry;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus.Phase;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
 
@@ -38,13 +40,18 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -66,6 +73,8 @@ final class TrinityReusableDispatch {
     private final Object2ObjectOpenHashMap<CraftingProviderId, CensusStamp> checkedCustody = new Object2ObjectOpenHashMap<>();
     private @Nullable UUID ledgerOwner;
     private boolean custodyCovered = true;
+    private Map<AEKey, BigInteger> residentAmounts = Map.of();
+    private TrinityReusableStatus status = TrinityReusableStatus.EMPTY;
 
     TrinityReusableDispatch(TrinityDataCoreCpuLogic owner) {
         this.owner = owner;
@@ -75,12 +84,24 @@ final class TrinityReusableDispatch {
         return custodyCovered;
     }
 
+    TrinityReusableStatus status() {
+        return status;
+    }
+
+    Map<AEKey, BigInteger> residentAmounts() {
+        return residentAmounts;
+    }
+
     void resetObservation() {
+        Set<AEKey> previousKeys = residentAmounts.keySet();
         locations.clear();
         reported.clear();
         checkedCustody.clear();
         ledgerOwner = null;
         custodyCovered = false;
+        residentAmounts = Map.of();
+        status = TrinityReusableStatus.EMPTY;
+        owner.residentObservationChanged(previousKeys);
     }
 
     Result dispatch(TrinityDataCoreExecutingCraftingJob job, Work work, IPatternDetails pattern,
@@ -267,7 +288,10 @@ final class TrinityReusableDispatch {
             ledgerOwner = ledger.owner();
         }
         checkVisibleCustody(index, ledger);
-        if (ledger.hasRemoteEvidence()) return;
+        if (ledger.hasRemoteEvidence()) {
+            publishStatus(List.of());
+            return;
+        }
         List<Located> found = new ObjectArrayList<>();
         for (Session session : ledger.sessions()) {
             if (session.settled()) continue;
@@ -316,6 +340,62 @@ final class TrinityReusableDispatch {
             } finally {
                 owner.endReusableMutation();
             }
+        }
+        publishStatus(found);
+    }
+
+    private void publishStatus(List<Located> found) {
+        ReusableCpuSessionLedger ledger = owner.reusableLedger();
+        int sessions = 0;
+        for (Session session : ledger.sessions()) if (!session.settled()) sessions++;
+        Map<AEKey, BigInteger> amounts = new Object2ObjectOpenHashMap<>();
+        BigInteger held = BigInteger.ZERO;
+        BigInteger spares = BigInteger.ZERO;
+        Phase phase = Phase.NONE;
+        String diagnostic = "";
+        int observed = 0;
+        for (Located located : found) {
+            Session session = located.session();
+            if (session.settled()) continue;
+            observed++;
+            var view = located.view();
+            Int2ObjectOpenHashMap<BigInteger> bySlot = new Int2ObjectOpenHashMap<>();
+            for (SlotStack tool : view.heldTools()) {
+                BigInteger amount = BigInteger.valueOf(tool.stack().amount());
+                amounts.merge(tool.stack().what(), amount, BigInteger::add);
+                bySlot.merge(tool.slot(), amount, BigInteger::add);
+                held = held.add(amount);
+            }
+            for (var binding : session.bindings()) {
+                if (binding.reusableRule() != null) {
+                    BigInteger required = BigInteger.valueOf(binding.template().amount()).multiply(BigInteger.valueOf(binding.multiplier()));
+                    spares = spares.add(bySlot.getOrDefault(binding.slotIndex(), BigInteger.ZERO).subtract(required).max(BigInteger.ZERO));
+                }
+            }
+            Phase current = switch (view.state()) {
+                case FAULTED -> Phase.RECONCILIATION;
+                case CLOSING, RETURN_PENDING, CLOSED -> Phase.WAITING_RETURN;
+                case OPEN -> session.closing() ? Phase.WAITING_RETURN : view.heldTools().isEmpty() ? Phase.TOOLS_EXHAUSTED :
+                        view.accepted() == view.completed() + view.cancelled() ? Phase.WAITING_INPUT : Phase.RUNNING;
+            };
+            if (current.ordinal() > phase.ordinal()) phase = current;
+            if (diagnostic.isEmpty()) diagnostic = view.failure().orElse("");
+        }
+        if ((observed < sessions || !custodyCovered) && phase.ordinal() < Phase.UNREACHABLE.ordinal()) phase = Phase.UNREACHABLE;
+        if (ledger.hasUncertainOwnership()) {
+            phase = Phase.RECONCILIATION;
+            if (diagnostic.isEmpty()) {
+                diagnostic = ledger.hasRemoteEvidence() ? "Remote custody is absent from this CPU snapshot" :
+                        "CPU and executor custody could not be verified";
+            }
+        }
+        TrinityReusableStatus next = new TrinityReusableStatus(phase, sessions, held, spares, diagnostic);
+        status = next;
+        if (!residentAmounts.equals(amounts)) {
+            Set<AEKey> changed = new ObjectOpenHashSet<>(residentAmounts.keySet());
+            changed.addAll(amounts.keySet());
+            residentAmounts = Collections.unmodifiableMap(amounts);
+            owner.residentObservationChanged(changed);
         }
     }
 

@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.Cr
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuPartitionProfile;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.CpuSelectionMode;
@@ -199,6 +200,16 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      */
     public BigInteger getPendingOutputs(AEKey what) {
         return this.logic.getPendingOutputs(what);
+    }
+
+    /** Server-thread observation for status screens, not extractable CPU inventory. */
+    public BigInteger getResidentAmount(AEKey what) {
+        return this.logic.residentAmount(what);
+    }
+
+    /** Returns the last verified endpoint observation and any unresolved custody status. */
+    public TrinityReusableStatus getReusableStatus() {
+        return this.logic.reusableStatus();
     }
 
     /**
