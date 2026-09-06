@@ -16,6 +16,8 @@ brandonscore = "1.21.1-3.2.1.309"
 codechickenlib = "1.21.1-4.6.1.529"
 draconic-evolution = "1.21.1-3.1.4.633"
 modern-industrialization = "2.5.6"
+mystical-agriculture = "1.21.1-8.0.28"
+cucumber = "1.21.1-8.0.16"
 grandpower = "3.0.2"
 
 ## ftb mod ##
@@ -81,6 +83,8 @@ brandonscore        = { module = "com.brandon3055.brandonscore:BrandonsCore", ve
 codechickenlib      = { module = "io.codechicken:CodeChickenLib", version.ref = "codechickenlib" }
 draconic-evolution  = { module = "com.brandon3055.draconicevolution:Draconic-Evolution", version.ref = "draconic-evolution" }
 modern-industrialization = { module = "aztech:Modern-Industrialization", version.ref = "modern-industrialization" }
+mystical-agriculture = { module = "com.blakebr0.mysticalagriculture:MysticalAgriculture", version.ref = "mystical-agriculture" }
+cucumber            = { module = "com.blakebr0.cucumber:Cucumber", version.ref = "cucumber" }
 grandpower          = { module = "dev.technici4n:GrandPower", version.ref = "grandpower" }
 
 ftblibrary          = { module = "dev.ftb.mods:ftb-library-neoforge", version.ref = "ftblibrary" }
