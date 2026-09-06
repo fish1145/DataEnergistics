@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.in
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionNbtCodec;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.serialization.TrinityBigIntegerEncoding;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
 
@@ -28,8 +29,6 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.Level;
 
-import it.unimi.dsi.fastutil.objects.Object2LongMap;
-import it.unimi.dsi.fastutil.objects.Object2LongMaps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
@@ -41,8 +40,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.function.Function;
-
-import static com.fish_dan_.data_energistics.common.crafting.LongAmountMath.saturatingMultiplyNonNegative;
 
 /**
  * Persisted job state for one Trinity Data Core virtual CPU.
@@ -82,7 +79,7 @@ final class TrinityDataCoreExecutingCraftingJob {
     @Nullable
     private final TrinityPlanExecution planExecution;
     GenericStack finalOutput;
-    long remainingAmount;
+    BigInteger remainingAmount;
     boolean suspended;
     @Nullable
     Integer playerId;
@@ -103,7 +100,7 @@ final class TrinityDataCoreExecutingCraftingJob {
                                         CraftingLink link,
                                         @Nullable Integer playerId) {
         this.finalOutput = plan.finalOutput();
-        this.remainingAmount = this.finalOutput.amount();
+        this.remainingAmount = BigInteger.valueOf(this.finalOutput.amount());
         this.waitingFor = new TrinityExactKeyInventory(differenceListener::onCraftingDifference);
         this.timeTracker = new TrinityDataCoreElapsedTimeTracker();
         this.dynamicOutputs = new DynamicCraftingOutputLedger();
@@ -122,8 +119,8 @@ final class TrinityDataCoreExecutingCraftingJob {
                 long craftCount = times;
                 this.scheduledTasks.add(pattern, craftCount);
                 for (GenericStack output : pattern.getOutputs()) {
-                    long amount = saturatingMultiplyNonNegative(output.amount(), craftCount);
-                    amount = saturatingMultiplyNonNegative(amount, output.what().getAmountPerUnit());
+                    BigInteger amount = BigInteger.valueOf(output.amount()).multiply(BigInteger.valueOf(craftCount))
+                            .multiply(BigInteger.valueOf(output.what().getAmountPerUnit()));
                     this.timeTracker.addMaxItems(amount, output.what().getType());
                 }
             });
@@ -141,7 +138,10 @@ final class TrinityDataCoreExecutingCraftingJob {
         }
         this.link = new CraftingLink(data.getCompound(LINK_TAG), logic.cpu());
         this.finalOutput = GenericStack.readTag(registries, data.getCompound(FINAL_OUTPUT_TAG));
-        this.remainingAmount = data.getLong(REMAINING_AMOUNT_TAG);
+        this.remainingAmount = TrinityBigIntegerEncoding.readTag(data, REMAINING_AMOUNT_TAG, "job delivery remainder");
+        if (this.remainingAmount.signum() < 0 || this.finalOutput == null) {
+            throw new IllegalArgumentException("Persisted crafting job has an invalid delivery remainder");
+        }
         this.suspended = data.getBoolean(SUSPENDED_TAG);
         this.waitingFor = new TrinityExactKeyInventory(differenceListener::onCraftingDifference);
         this.waitingFor.readFromNBT(data.getList(WAITING_FOR_TAG, Tag.TAG_COMPOUND), registries);
@@ -159,14 +159,16 @@ final class TrinityDataCoreExecutingCraftingJob {
                     TickHandler.instance().getCurrentTick());
             this.timeTracker.restorePlanBaseline(this.planExecution.pendingOutputs());
             GenericStack executionOutput = this.planExecution.finalOutput();
-            if (this.finalOutput == null ||
-                    !this.finalOutput.what().equals(executionOutput.what()) ||
+            if (!this.finalOutput.what().equals(executionOutput.what()) ||
                     this.finalOutput.amount() != executionOutput.amount() ||
-                    this.remainingAmount != this.planExecution.deliveryRemaining()) {
+                    !this.remainingAmount.equals(this.planExecution.deliveryRemaining())) {
                 throw new IllegalArgumentException("Persisted Trinity plan job disagrees with its execution target");
             }
         } else {
             this.planExecution = null;
+            if (this.remainingAmount.compareTo(BigInteger.valueOf(this.finalOutput.amount())) > 0) {
+                throw new IllegalArgumentException("Persisted legacy job exceeds its requested output");
+            }
             Level level = logic.cpu().level();
             ListTag tasksTag = data.getList(TASKS_TAG, Tag.TAG_COMPOUND);
             for (int index = 0; index < tasksTag.size(); index++) {
@@ -218,7 +220,7 @@ final class TrinityDataCoreExecutingCraftingJob {
                     this.planExecution.save(registries, TickHandler.instance().getCurrentTick()));
         }
 
-        data.putLong(REMAINING_AMOUNT_TAG, this.remainingAmount);
+        data.putByteArray(REMAINING_AMOUNT_TAG, TrinityBigIntegerEncoding.encode(this.remainingAmount, "job delivery remainder"));
         data.putBoolean(SUSPENDED_TAG, this.suspended);
         if (this.playerId != null) {
             data.putInt(PLAYER_ID_TAG, this.playerId);
@@ -235,12 +237,12 @@ final class TrinityDataCoreExecutingCraftingJob {
     boolean isComplete() {
         if (this.planExecution != null) {
             return this.planExecution.productionComplete() &&
-                    this.planExecution.deliveryRemaining() == 0L &&
+                    this.planExecution.deliveryRemaining().signum() == 0 &&
                     this.planExecution.completionOffer().isEmpty() &&
                     this.dynamicOutputs.isEmpty() &&
                     this.waitingFor.isEmpty();
         }
-        return this.remainingAmount <= 0L && this.tasks.isEmpty() &&
+        return this.remainingAmount.signum() == 0 && this.tasks.isEmpty() &&
                 this.dynamicOutputs.isEmpty() && this.waitingFor.isEmpty();
     }
 
@@ -379,10 +381,10 @@ final class TrinityDataCoreExecutingCraftingJob {
         return DynamicCraftingOutputLedger.readFromTag(data.getCompound(DYNAMIC_OUTPUTS_TAG), registries);
     }
 
-    static Object2LongMap<AEKey> recoverCompletionContents(CompoundTag data,
-                                                           HolderLookup.Provider registries) {
+    static Map<AEKey, BigInteger> recoverCompletionContents(CompoundTag data,
+                                                            HolderLookup.Provider registries) {
         if (!data.contains(PLAN_EXECUTION_TAG, Tag.TAG_COMPOUND)) {
-            return Object2LongMaps.emptyMap();
+            return Map.of();
         }
         return TrinityExecutionNbtCodec.recoverCompletionContents(
                 data.getCompound(PLAN_EXECUTION_TAG),

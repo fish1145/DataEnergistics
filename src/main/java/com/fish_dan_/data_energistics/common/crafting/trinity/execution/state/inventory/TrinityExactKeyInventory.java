@@ -106,14 +106,7 @@ public final class TrinityExactKeyInventory {
                 throw new IllegalArgumentException("Exact output balances require compound entries");
             }
             AEKey key = AEKey.fromTagGeneric(registries, entry);
-            BigInteger amount;
-            if (entry.contains("#", Tag.TAG_LONG)) {
-                amount = BigInteger.valueOf(entry.getLong("#"));
-            } else if (entry.contains("#", Tag.TAG_BYTE_ARRAY)) {
-                amount = TrinityBigIntegerEncoding.decode(entry.getByteArray("#"), "exact output balance");
-            } else {
-                throw new IllegalArgumentException("Exact output balance is missing its amount");
-            }
+            BigInteger amount = TrinityBigIntegerEncoding.readTag(entry, "#", "exact output balance");
             if (key == null || amount.signum() < 0 || restored.putIfAbsent(key, amount) != null) {
                 throw new IllegalArgumentException("Exact output balances require unique keys and non-negative amounts");
             }

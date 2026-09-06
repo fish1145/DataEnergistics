@@ -385,13 +385,7 @@ final class DynamicCraftingOutputLedger {
     }
 
     private static BigInteger readAmount(CompoundTag tag) {
-        if (tag.contains(AMOUNT_TAG, Tag.TAG_LONG)) {
-            return BigInteger.valueOf(tag.getLong(AMOUNT_TAG));
-        }
-        if (!tag.contains(AMOUNT_TAG, Tag.TAG_BYTE_ARRAY)) {
-            throw new IllegalArgumentException("Dynamic output ledger amount is missing or invalid");
-        }
-        return TrinityBigIntegerEncoding.decode(tag.getByteArray(AMOUNT_TAG), "dynamic output ledger amount");
+        return TrinityBigIntegerEncoding.readTag(tag, AMOUNT_TAG, "dynamic output ledger amount");
     }
 
     private static Map<Item, Domain> domains(List<Registration> registrations) {
