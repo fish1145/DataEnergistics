@@ -31,6 +31,7 @@ import net.minecraft.world.level.Level;
 
 import org.jspecify.annotations.Nullable;
 
+import java.math.BigInteger;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
@@ -181,7 +182,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @param what requested key
      * @return amount this CPU is waiting for
      */
-    public long getWaitingFor(AEKey what) {
+    public BigInteger getWaitingFor(AEKey what) {
         return this.logic.getWaitingFor(what);
     }
 

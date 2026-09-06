@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.core.crafting;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 
 import appeng.api.config.CpuSelectionMode;
 import appeng.api.networking.crafting.ICraftingCPU;
@@ -140,7 +141,7 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
         ImmutableList.Builder<CraftingStatusEntry> entries = ImmutableList.builder();
         for (AEKey what : changes) {
             long storedAmount = cpu.getStored(what);
-            long activeAmount = cpu.getWaitingFor(what);
+            long activeAmount = TrinityAe2AmountProjection.toAe2Amount(cpu.getWaitingFor(what));
             long pendingAmount = cpu.getPendingOutputs(what);
             AEKey sentStack = what;
             if (!full && changes.getSerial(what) != null) {

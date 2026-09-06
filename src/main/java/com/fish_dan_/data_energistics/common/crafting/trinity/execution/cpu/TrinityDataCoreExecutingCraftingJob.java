@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.inventory.TrinityExactKeyInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionNbtCodec;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
@@ -18,7 +19,6 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.crafting.CraftingLink;
-import appeng.crafting.inv.ListCraftingInventory;
 import appeng.hooks.ticking.TickHandler;
 import appeng.me.service.CraftingService;
 
@@ -55,6 +55,7 @@ final class TrinityDataCoreExecutingCraftingJob {
 
     private static final String SCHEMA_VERSION_TAG = "schema_version";
     private static final int DYNAMIC_OUTPUT_SCHEMA_VERSION = 3;
+    private static final int EXACT_OUTPUT_SCHEMA_VERSION = 4;
     private static final String LINK_TAG = "link";
     private static final String PLAYER_ID_TAG = "player_id";
     private static final String FINAL_OUTPUT_TAG = "final_output";
@@ -73,7 +74,7 @@ final class TrinityDataCoreExecutingCraftingJob {
     private static final String DYNAMIC_OUTPUTS_TAG = "dynamic_outputs";
 
     final CraftingLink link;
-    final ListCraftingInventory waitingFor;
+    final TrinityExactKeyInventory waitingFor;
     private final ScheduledTasks scheduledTasks = new ScheduledTasks();
     final Map<IPatternDetails, TaskProgress> tasks = this.scheduledTasks.tasks();
     final TrinityDataCoreElapsedTimeTracker timeTracker;
@@ -103,7 +104,7 @@ final class TrinityDataCoreExecutingCraftingJob {
                                         @Nullable Integer playerId) {
         this.finalOutput = plan.finalOutput();
         this.remainingAmount = this.finalOutput.amount();
-        this.waitingFor = new ListCraftingInventory(differenceListener::onCraftingDifference);
+        this.waitingFor = new TrinityExactKeyInventory(differenceListener::onCraftingDifference);
         this.timeTracker = new TrinityDataCoreElapsedTimeTracker();
         this.dynamicOutputs = new DynamicCraftingOutputLedger();
         if (plan instanceof TrinityCraftingPlan trinityPlan) {
@@ -142,7 +143,7 @@ final class TrinityDataCoreExecutingCraftingJob {
         this.finalOutput = GenericStack.readTag(registries, data.getCompound(FINAL_OUTPUT_TAG));
         this.remainingAmount = data.getLong(REMAINING_AMOUNT_TAG);
         this.suspended = data.getBoolean(SUSPENDED_TAG);
-        this.waitingFor = new ListCraftingInventory(differenceListener::onCraftingDifference);
+        this.waitingFor = new TrinityExactKeyInventory(differenceListener::onCraftingDifference);
         this.waitingFor.readFromNBT(data.getList(WAITING_FOR_TAG, Tag.TAG_COMPOUND), registries);
         this.timeTracker = new TrinityDataCoreElapsedTimeTracker(data.getCompound(TIME_TRACKER_TAG));
         this.dynamicOutputs = readDynamicOutputs(data, registries);
@@ -179,7 +180,7 @@ final class TrinityDataCoreExecutingCraftingJob {
             }
         }
 
-        this.dynamicOutputs.validateInputAliases(logic.dynamicInputInventory());
+        this.dynamicOutputs.validateInputAliases(logic::dynamicInputAmount);
         IGrid grid = logic.cpu().grid();
         if (grid != null) {
             ((CraftingService) grid.getCraftingService()).addLink(this.link);
@@ -192,7 +193,7 @@ final class TrinityDataCoreExecutingCraftingJob {
      */
     CompoundTag writeToTag(HolderLookup.Provider registries) {
         CompoundTag data = new CompoundTag();
-        data.putInt(SCHEMA_VERSION_TAG, DYNAMIC_OUTPUT_SCHEMA_VERSION);
+        data.putInt(SCHEMA_VERSION_TAG, EXACT_OUTPUT_SCHEMA_VERSION);
 
         CompoundTag linkData = new CompoundTag();
         this.link.writeToNBT(linkData);
@@ -237,10 +238,10 @@ final class TrinityDataCoreExecutingCraftingJob {
                     this.planExecution.deliveryRemaining() == 0L &&
                     this.planExecution.completionOffer().isEmpty() &&
                     this.dynamicOutputs.isEmpty() &&
-                    this.waitingFor.list.isEmpty();
+                    this.waitingFor.isEmpty();
         }
         return this.remainingAmount <= 0L && this.tasks.isEmpty() &&
-                this.dynamicOutputs.isEmpty() && this.waitingFor.list.isEmpty();
+                this.dynamicOutputs.isEmpty() && this.waitingFor.isEmpty();
     }
 
     /**
@@ -359,11 +360,12 @@ final class TrinityDataCoreExecutingCraftingJob {
             return false;
         }
         int schemaVersion = data.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != DYNAMIC_OUTPUT_SCHEMA_VERSION) {
+        if (schemaVersion != DYNAMIC_OUTPUT_SCHEMA_VERSION && schemaVersion != EXACT_OUTPUT_SCHEMA_VERSION) {
             Data_Energistics.LOGGER.warn(
-                    "Ignoring persisted Trinity Data Core CPU job schema version {}; expected {}",
+                    "Ignoring persisted Trinity Data Core CPU job schema version {}; expected {} or {}",
                     schemaVersion,
-                    DYNAMIC_OUTPUT_SCHEMA_VERSION);
+                    DYNAMIC_OUTPUT_SCHEMA_VERSION,
+                    EXACT_OUTPUT_SCHEMA_VERSION);
             return false;
         }
         return true;

@@ -2,14 +2,17 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
 import appeng.api.stacks.AEKey;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntLists;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+
 import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.Set;
-import java.util.TreeMap;
 
 /**
  * Indexes the output amounts awaited by Trinity CPU workers so network return paths do not scan every worker.
@@ -29,12 +32,12 @@ final class TrinityCpuWaitingIndex {
     /**
      * Per-key entries retain exact totals and workers in routing order.
      */
-    private final Map<AEKey, WaitingEntry> entries = new HashMap<>();
+    private final Map<AEKey, WaitingEntry> entries = new Object2ObjectOpenHashMap<>();
 
     /**
      * Reverse membership makes worker removal proportional to that worker's requested key count.
      */
-    private final Map<Integer, Set<AEKey>> keysByWorker = new HashMap<>();
+    private final Int2ObjectOpenHashMap<Set<AEKey>> keysByWorker = new Int2ObjectOpenHashMap<>();
 
     /**
      * Replaces one worker's requested amount for a key.
@@ -43,16 +46,16 @@ final class TrinityCpuWaitingIndex {
      * @param what            requested AE2 key
      * @param requestedAmount current non-negative amount requested by the worker
      */
-    public void update(int workerNumber, AEKey what, long requestedAmount) {
+    public void update(int workerNumber, AEKey what, BigInteger requestedAmount) {
         if (workerNumber <= 0) {
             throw new IllegalArgumentException("Trinity waiting index worker number must be positive");
         }
-        if (requestedAmount < 0L) {
+        if (requestedAmount.signum() < 0) {
             throw new IllegalArgumentException("Trinity waiting index amount must not be negative");
         }
 
         WaitingEntry entry = this.entries.get(what);
-        if (requestedAmount == 0L) {
+        if (requestedAmount.signum() == 0) {
             if (entry != null) {
                 removeRequest(workerNumber, what, entry);
             }
@@ -63,14 +66,14 @@ final class TrinityCpuWaitingIndex {
             entry = new WaitingEntry();
             this.entries.put(what, entry);
         }
-        Long previousAmount = entry.amountsByWorker.put(workerNumber, requestedAmount);
+        BigInteger previousAmount = entry.amountsByWorker.put(workerNumber, requestedAmount);
         if (previousAmount != null) {
-            entry.exactTotal = entry.exactTotal.subtract(BigInteger.valueOf(previousAmount));
+            entry.exactTotal = entry.exactTotal.subtract(previousAmount);
         } else {
             entry.rebuildWorkerNumbers();
         }
-        entry.exactTotal = entry.exactTotal.add(BigInteger.valueOf(requestedAmount));
-        this.keysByWorker.computeIfAbsent(workerNumber, ignored -> new HashSet<>()).add(what);
+        entry.exactTotal = entry.exactTotal.add(requestedAmount);
+        this.keysByWorker.computeIfAbsent(workerNumber, ignored -> new ObjectOpenHashSet<>()).add(what);
     }
 
     /**
@@ -85,8 +88,8 @@ final class TrinityCpuWaitingIndex {
         }
         for (AEKey what : workerKeys) {
             WaitingEntry entry = this.entries.get(what);
-            long removedAmount = entry.amountsByWorker.remove(workerNumber);
-            entry.exactTotal = entry.exactTotal.subtract(BigInteger.valueOf(removedAmount));
+            BigInteger removedAmount = entry.amountsByWorker.remove(workerNumber);
+            entry.exactTotal = entry.exactTotal.subtract(removedAmount);
             if (entry.amountsByWorker.isEmpty()) {
                 this.entries.remove(what);
             } else {
@@ -141,11 +144,11 @@ final class TrinityCpuWaitingIndex {
      * Removes one key membership while keeping both forward and reverse indexes consistent.
      */
     private void removeRequest(int workerNumber, AEKey what, WaitingEntry entry) {
-        Long removedAmount = entry.amountsByWorker.remove(workerNumber);
+        BigInteger removedAmount = entry.amountsByWorker.remove(workerNumber);
         if (removedAmount == null) {
             return;
         }
-        entry.exactTotal = entry.exactTotal.subtract(BigInteger.valueOf(removedAmount));
+        entry.exactTotal = entry.exactTotal.subtract(removedAmount);
         Set<AEKey> workerKeys = this.keysByWorker.get(workerNumber);
         workerKeys.remove(what);
         if (workerKeys.isEmpty()) {
@@ -166,7 +169,7 @@ final class TrinityCpuWaitingIndex {
         /**
          * Worker amounts are ordered so returned outputs always visit the lowest CPU number first.
          */
-        private final NavigableMap<Integer, Long> amountsByWorker = new TreeMap<>();
+        private final Int2ObjectAVLTreeMap<BigInteger> amountsByWorker = new Int2ObjectAVLTreeMap<>();
 
         /**
          * Exact aggregate prevents saturation from losing information needed by later removals.
@@ -182,7 +185,7 @@ final class TrinityCpuWaitingIndex {
          * Rebuilds ordered routing after a worker enters or leaves this key.
          */
         private void rebuildWorkerNumbers() {
-            this.workerNumbers = List.copyOf(this.amountsByWorker.navigableKeySet());
+            this.workerNumbers = IntLists.unmodifiable(new IntArrayList(this.amountsByWorker.keySet()));
         }
     }
 }

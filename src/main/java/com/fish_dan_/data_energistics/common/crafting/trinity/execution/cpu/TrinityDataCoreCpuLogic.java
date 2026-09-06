@@ -105,7 +105,7 @@ import com.google.common.base.Preconditions;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
-import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -181,8 +181,8 @@ final class TrinityDataCoreCpuLogic {
         return this.cpu;
     }
 
-    KeyCounter dynamicInputInventory() {
-        return this.inventory.list;
+    BigInteger dynamicInputAmount(AEKey key) {
+        return this.exactWorkingInventory.totalAmount(key, this.inventory);
     }
 
     /**
@@ -626,7 +626,7 @@ final class TrinityDataCoreCpuLogic {
                         execution.failureReason().orElse("unknown runtime failure"));
                 finishJob(false);
             } else if (execution.deadlocked(
-                    !currentJob.waitingFor.list.isEmpty() || !currentJob.dynamicOutputs.isEmpty())) {
+                    !currentJob.waitingFor.isEmpty() || !currentJob.dynamicOutputs.isEmpty())) {
                         String reason = "RUNTIME_DEADLOCK: no ready, waiting, retry, planning or in-flight path remains";
                         execution.fail(reason);
                         Data_Energistics.LOGGER.error(
@@ -1053,7 +1053,7 @@ final class TrinityDataCoreCpuLogic {
      */
     private boolean advanceTrinityCompletion(TrinityDataCoreExecutingCraftingJob currentJob) {
         TrinityPlanExecution execution = currentJob.trinityExecution();
-        if (!execution.productionComplete() || !currentJob.waitingFor.list.isEmpty() ||
+        if (!execution.productionComplete() || !currentJob.waitingFor.isEmpty() ||
                 !currentJob.dynamicOutputs.isEmpty()) {
             return false;
         }
@@ -1228,7 +1228,7 @@ final class TrinityDataCoreCpuLogic {
 
             double prototypePower = CraftingCpuHelper.calculatePatternPower(prototype.inputHolder());
             maximumCount = limitByUnextractedInputAvailability(prototype.inputsPerCraft(), remainingLogicalCrafts);
-            maximumCount = limitByWaitingCapacity(currentJob, prototype.waitingPerCraft(), maximumCount);
+            maximumCount = limitByOutputChunkSize(currentJob, prototype.waitingPerCraft(), maximumCount);
             maximumCount = limitByEnergy(prototypePower, maximumCount, energyService);
             if (maximumCount <= 0L || dispatchWindow.isExhausted()) {
                 return settleProposal(workIdentity, asynchronousSelection, ProviderDispatchOutcome.NONE);
@@ -1398,7 +1398,7 @@ final class TrinityDataCoreCpuLogic {
                     ExtractedPatternInputs inputs = inputTransaction.inputs();
                     double powerPerCraft = CraftingCpuHelper.calculatePatternPower(inputs.inputHolder());
                     long currentMaximum = limitByInputAvailability(inputs.inputsPerCraft(), remainingLogicalCrafts);
-                    currentMaximum = limitByWaitingCapacity(currentJob, inputs.waitingPerCraft(), currentMaximum);
+                    currentMaximum = limitByOutputChunkSize(currentJob, inputs.waitingPerCraft(), currentMaximum);
                     currentMaximum = limitByEnergy(powerPerCraft, currentMaximum, energyService);
                     if (currentMaximum <= 0L || dispatchWindow.isExhausted()) {
                         break;
@@ -2111,13 +2111,13 @@ final class TrinityDataCoreCpuLogic {
         return count;
     }
 
-    private static long limitByWaitingCapacity(TrinityDataCoreExecutingCraftingJob currentJob,
+    private static long limitByOutputChunkSize(TrinityDataCoreExecutingCraftingJob currentJob,
                                                List<GenericStack> waitingPerCraft,
                                                long maximumCount) {
         long count = maximumCount;
         for (GenericStack waiting : sameItemPolicy(currentJob).normalizeStacks(waitingPerCraft)) {
-            long currentlyWaiting = currentJob.waitingFor.list.get(waiting.what());
-            count = Math.min(count, (Long.MAX_VALUE - currentlyWaiting) / waiting.amount());
+            // Only one physical submission is long-sized; accumulated in-flight ownership is exact.
+            count = Math.min(count, Long.MAX_VALUE / waiting.amount());
         }
         return count;
     }
@@ -2279,7 +2279,7 @@ final class TrinityDataCoreCpuLogic {
                     remainingCrafts);
             return null;
         }
-        if (limitByWaitingCapacity(currentJob, extractedInputs.waitingPerCraft(), count) < count) {
+        if (limitByOutputChunkSize(currentJob, extractedInputs.waitingPerCraft(), count) < count) {
             Data_Energistics.LOGGER.error("Trinity Data Core CPU cannot commit overflowing waiting counters");
             return null;
         }
@@ -2303,7 +2303,7 @@ final class TrinityDataCoreCpuLogic {
         ObjectArrayList<GenericStack> allExpectedPhysicalOutputs = new ObjectArrayList<>(expectedOutputs);
         allExpectedPhysicalOutputs.addAll(expectedContainerItems);
         if (currentJob.dynamicOutputs.evaluate(
-                currentJob.waitingFor.list,
+                currentJob.waitingFor.snapshot(),
                 List.copyOf(allExpectedPhysicalOutputs),
                 dynamicOutputs) == DynamicCraftingOutputLedger.DispatchSafety.CONFLICT) {
             return null;
@@ -2365,14 +2365,7 @@ final class TrinityDataCoreCpuLogic {
             DynamicCraftingOutputAdapters.ResolvedSemantics semantics = adapter.orElseThrow();
             for (DynamicCraftingOutput declaration : semantics.outputs()) {
                 AEItemKey plannedKey = (AEItemKey) declaration.plannedOutput().what();
-                long amount;
-                try {
-                    amount = Math.multiplyExact(declaration.plannedOutput().amount(), count);
-                } catch (ArithmeticException exception) {
-                    throw new DynamicCraftingOutputResolutionException(
-                            "Dynamic output amount overflow for adapter " + semantics.adapterId(),
-                            exception);
-                }
+                BigInteger amount = BigInteger.valueOf(declaration.plannedOutput().amount()).multiply(BigInteger.valueOf(count));
                 resolved.add(new DynamicCraftingOutputLedger.Registration(
                         plannedKey,
                         amount,
@@ -2384,15 +2377,8 @@ final class TrinityDataCoreCpuLogic {
         if (EncodedPatternDynamicOutput.isMarked(details.getDefinition())) {
             DynamicCraftingOutput declaration = EncodedPatternDynamicOutput.resolve(details);
             AEItemKey plannedKey = (AEItemKey) declaration.plannedOutput().what();
-            long markedAmount;
-            try {
-                markedAmount = Math.multiplyExact(declaration.plannedOutput().amount(), count);
-            } catch (ArithmeticException exception) {
-                throw new DynamicCraftingOutputResolutionException(
-                        "Encoded pattern output amount overflow for " + details.getDefinition(),
-                        exception);
-            }
-            if (amountFor(expectedOutputs, plannedKey) < markedAmount) {
+            BigInteger markedAmount = BigInteger.valueOf(declaration.plannedOutput().amount()).multiply(BigInteger.valueOf(count));
+            if (BigInteger.valueOf(amountFor(expectedOutputs, plannedKey)).compareTo(markedAmount) < 0) {
                 throw new DynamicCraftingOutputResolutionException(
                         "Encoded pattern output is not present in the prepared physical outputs for " +
                                 details.getDefinition());
@@ -2403,26 +2389,19 @@ final class TrinityDataCoreCpuLogic {
                                 details.getDefinition());
             }
 
-            long adapterAmount;
-            try {
-                adapterAmount = resolved.stream()
-                        .filter(registration -> registration.plannedKey().equals(plannedKey))
-                        .mapToLong(DynamicCraftingOutputLedger.Registration::amount)
-                        .reduce(0L, Math::addExact);
-            } catch (ArithmeticException exception) {
-                throw new DynamicCraftingOutputResolutionException(
-                        "Combined dynamic output amount overflow for " + details.getDefinition(),
-                        exception);
-            }
-            if (adapterAmount > markedAmount) {
+            BigInteger adapterAmount = resolved.stream()
+                    .filter(registration -> registration.plannedKey().equals(plannedKey))
+                    .map(DynamicCraftingOutputLedger.Registration::amount)
+                    .reduce(BigInteger.ZERO, BigInteger::add);
+            if (adapterAmount.compareTo(markedAmount) > 0) {
                 throw new DynamicCraftingOutputResolutionException(
                         "Registered dynamic output exceeds the encoded pattern output for " +
                                 details.getDefinition());
             }
-            if (adapterAmount < markedAmount) {
+            if (adapterAmount.compareTo(markedAmount) < 0) {
                 resolved.add(new DynamicCraftingOutputLedger.Registration(
                         plannedKey,
-                        markedAmount - adapterAmount,
+                        markedAmount.subtract(adapterAmount),
                         dynamicRoute(currentJob, plannedKey),
                         EncodedPatternDynamicOutput.SOURCE_ID));
             }
@@ -2433,23 +2412,23 @@ final class TrinityDataCoreCpuLogic {
             return List.copyOf(resolved);
         }
         ObjectArrayList<DynamicCraftingOutputLedger.Registration> normalized = new ObjectArrayList<>();
-        Object2LongOpenHashMap<AEKey> registeredAmounts = new Object2LongOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> registeredAmounts = new Object2ObjectLinkedOpenHashMap<>();
         for (DynamicCraftingOutputLedger.Registration registration : resolved) {
             AEItemKey key = (AEItemKey) policy.normalizeKey(registration.plannedKey());
             normalized.add(new DynamicCraftingOutputLedger.Registration(
                     key, registration.amount(), dynamicRoute(currentJob, key), registration.source()));
-            registeredAmounts.mergeLong(key, registration.amount(), Math::addExact);
+            registeredAmounts.merge(key, registration.amount(), BigInteger::add);
         }
         ObjectArrayList<GenericStack> physicalOutputs = new ObjectArrayList<>(expectedOutputs);
         physicalOutputs.addAll(expectedContainerItems);
         for (GenericStack output : policy.normalizeStacks(physicalOutputs)) {
             if (policy.allowsSameItem(output.what())) {
-                long remaining = output.amount() - registeredAmounts.getLong(output.what());
-                if (remaining < 0L) {
+                BigInteger remaining = BigInteger.valueOf(output.amount()).subtract(registeredAmounts.getOrDefault(output.what(), BigInteger.ZERO));
+                if (remaining.signum() < 0) {
                     throw new DynamicCraftingOutputResolutionException(
                             "Dynamic registrations exceed prepared same-item outputs for " + details.getDefinition());
                 }
-                if (remaining > 0L) {
+                if (remaining.signum() > 0) {
                     AEItemKey key = (AEItemKey) output.what();
                     normalized.add(new DynamicCraftingOutputLedger.Registration(
                             key, remaining, dynamicRoute(currentJob, key), EncodedPatternDynamicOutput.SOURCE_ID));
@@ -2744,14 +2723,12 @@ final class TrinityDataCoreCpuLogic {
                         currentJob.finalOutput.what());
                 return false;
             }
-            long waitingFor = currentJob.waitingFor.extract(
-                    completion.what(),
-                    Long.MAX_VALUE,
-                    Actionable.SIMULATE);
-            if (waitingFor != completion.amount()) {
+            BigInteger waitingFor = currentJob.waitingFor.amount(completion.what());
+            BigInteger completed = BigInteger.valueOf(completion.amount());
+            if (!waitingFor.equals(completed)) {
                 boolean productionFinished = currentJob.isTrinityPlan() ?
                         currentJob.trinityExecution().productionComplete() : currentJob.tasks.isEmpty();
-                if (productionFinished && waitingFor > completion.amount()) {
+                if (productionFinished && waitingFor.compareTo(completed) > 0) {
                     Data_Energistics.LOGGER.error(
                             "Trinity CPU {} completed order-package dispatches with {} waiting virtual units for {} but only {} were accepted",
                             this.cpu.number(),
@@ -2760,7 +2737,7 @@ final class TrinityDataCoreCpuLogic {
                             completion.amount());
                     return false;
                 }
-                if (waitingFor < completion.amount()) {
+                if (waitingFor.compareTo(completed) < 0) {
                     Data_Energistics.LOGGER.error(
                             "Trinity CPU {} received too many no-output virtual completion units for {}: waiting {}, received {}",
                             this.cpu.number(),
@@ -2852,7 +2829,7 @@ final class TrinityDataCoreCpuLogic {
     private static void addWaiting(TrinityDataCoreExecutingCraftingJob currentJob,
                                    List<GenericStack> additions) {
         for (GenericStack addition : additions) {
-            currentJob.waitingFor.list.add(addition.what(), addition.amount());
+            currentJob.waitingFor.insert(addition.what(), addition.amount(), Actionable.MODULATE);
         }
     }
 
@@ -3089,7 +3066,7 @@ final class TrinityDataCoreCpuLogic {
         long remainder = amount - exactAccepted;
         Optional<DynamicCraftingOutputLedger.Match> dynamicMatch = Optional.empty();
         if (remainder > 0L && what instanceof AEItemKey actualItem) {
-            dynamicMatch = currentJob.dynamicOutputs.match(actualItem, remainder, currentJob.waitingFor.list)
+            dynamicMatch = currentJob.dynamicOutputs.match(actualItem, remainder, currentJob.waitingFor.snapshot())
                     .filter(match -> !match.plannedKey().equals(what));
         }
         long dynamicAccepted = dynamicMatch.map(DynamicCraftingOutputLedger.Match::amount).orElse(0L);
@@ -3290,7 +3267,7 @@ final class TrinityDataCoreCpuLogic {
             if (!currentJob.tasks.isEmpty()) {
                 return TrinityWorkerSchedulingHint.ready();
             }
-            return currentJob.waitingFor.list.isEmpty() ?
+            return currentJob.waitingFor.isEmpty() ?
                     TrinityWorkerSchedulingHint.ready() :
                     TrinityWorkerSchedulingHint.waitingEvent();
         }
@@ -3372,20 +3349,18 @@ final class TrinityDataCoreCpuLogic {
         if (this.job == null) {
             return;
         }
-        for (var entry : this.job.waitingFor.list) {
-            waitingFor.add(entry.getKey());
-        }
+        waitingFor.addAll(this.job.waitingFor.snapshot().keySet());
     }
 
     /**
      * @param template requested key
      * @return amount this CPU is waiting for
      */
-    long getWaitingFor(AEKey template) {
+    BigInteger getWaitingFor(AEKey template) {
         if (this.job == null) {
-            return 0L;
+            return BigInteger.ZERO;
         }
-        return this.job.waitingFor.extract(template, Long.MAX_VALUE, Actionable.SIMULATE);
+        return this.job.waitingFor.amount(template);
     }
 
     /**
@@ -3608,7 +3583,8 @@ final class TrinityDataCoreCpuLogic {
         if (this.job == null) {
             return;
         }
-        out.addAll(this.job.waitingFor.list);
+        this.job.waitingFor.snapshot().forEach(
+                (key, amount) -> TrinityAe2AmountProjection.addToKeyCounter(out, key, amount));
         if (this.job.isTrinityPlan()) {
             for (Object2LongMap.Entry<AEKey> entry : this.job.trinityExecution().completionContents().object2LongEntrySet()) {
                 out.add(entry.getKey(), entry.getLongValue());
