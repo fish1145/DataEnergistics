@@ -148,6 +148,8 @@ public final class TrinityCyclePlanSelector {
         if (unitProof != null) {
             retainedSeed.putAll(unitProof.internalSeed());
         }
+        // Replenishable inputs are charged to this execution, not retained as an ever-growing restart reserve.
+        retainedSeed.keySet().removeAll(producibleInputs);
         int remainingStates = maxStates;
         int accumulatedStates = 0;
         long accumulatedNanos = 0L;
@@ -184,7 +186,11 @@ public final class TrinityCyclePlanSelector {
             }
             TrinityCycleSeedRequirement.fromSelection(selected, internalKeys)
                     .amounts()
-                    .forEach((key, amount) -> retainedSeed.merge(key, amount, BigInteger::max));
+                    .forEach((key, amount) -> {
+                        if (!producibleInputs.contains(key)) {
+                            retainedSeed.merge(key, amount, BigInteger::max);
+                        }
+                    });
             TrinityCycleDemand nextDemand = demand.withRetainedSeed(retainedSeed);
             if (nextDemand.equals(refinedDemand) || satisfiesFinalBounds(selected, nextDemand)) {
                 if (control.cancellationRequested()) {

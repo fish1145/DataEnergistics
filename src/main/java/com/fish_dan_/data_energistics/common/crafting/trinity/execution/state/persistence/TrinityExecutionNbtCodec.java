@@ -21,14 +21,12 @@ import net.minecraft.nbt.Tag;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2LongMap;
-import it.unimi.dsi.fastutil.objects.Object2LongMaps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
 import java.math.BigInteger;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,7 +38,8 @@ public final class TrinityExecutionNbtCodec {
 
     private static final int LONG_AMOUNT_SCHEMA = 5;
     private static final int BIG_INTEGER_SCHEMA = 6;
-    private static final int SCHEMA = 7;
+    private static final int SAME_ITEM_SCHEMA = 7;
+    private static final int SCHEMA = 8;
     private static final int MAX_BIG_INTEGER_BYTES = 512;
     private static final String PLAN_KIND = "trinity_compact";
     private static final String SCHEMA_TAG = "schema_version";
@@ -191,7 +190,7 @@ public final class TrinityExecutionNbtCodec {
         root.putString(QUANTITY_MODE_TAG, snapshot.quantityMode().name());
         root.put(SAME_ITEM_POLICY_TAG, saveKeys(snapshot.sameItemPolicy().representatives(), registries));
         root.put(TARGET_KEY_TAG, snapshot.targetKey().toTagGeneric(registries));
-        root.putLong(TARGET_AMOUNT_TAG, snapshot.targetAmount());
+        putBigInteger(root, TARGET_AMOUNT_TAG, snapshot.targetAmount());
         root.putString(STATUS_TAG, snapshot.status().name());
         root.putString(FAILURE_REASON_TAG, snapshot.failureReason());
         root.putLong(GENERATION_TAG, snapshot.generation());
@@ -200,9 +199,9 @@ public final class TrinityExecutionNbtCodec {
         root.put(REPEAT_BLOCKS_TAG, saveRepeatBlocks(snapshot.repeatBlocks()));
         root.put(SEED_RESERVE_TAG, saveBigAmounts(snapshot.seedReserve(), registries));
         root.putBoolean(COMPLETION_SEALED_TAG, snapshot.completionSealed());
-        root.putLong(COMPLETION_BUFFER_TAG, snapshot.completionBuffer());
-        root.put(ACTUAL_FINAL_OUTPUTS_TAG, saveLongAmounts(snapshot.actualFinalOutputs(), registries));
-        root.putLong(DELIVERY_REMAINING_TAG, snapshot.deliveryRemaining());
+        putBigInteger(root, COMPLETION_BUFFER_TAG, snapshot.completionBuffer());
+        root.put(ACTUAL_FINAL_OUTPUTS_TAG, saveBigAmounts(snapshot.actualFinalOutputs(), registries));
+        putBigInteger(root, DELIVERY_REMAINING_TAG, snapshot.deliveryRemaining());
         root.put(LEDGER_TAG, TrinityBorrowingLedgerNbtCodec.encode(snapshot.borrowingEntries(), registries));
         root.putLong(SAVED_AT_TICK_TAG, snapshot.savedAtTick());
         root.putLong(BUDGET_RETRY_AT_TAG, snapshot.budgetRetryAt());
@@ -219,26 +218,28 @@ public final class TrinityExecutionNbtCodec {
     public static TrinityExecutionSnapshot decode(CompoundTag tag, HolderLookup.Provider registries) {
         requireType(tag, SCHEMA_TAG, Tag.TAG_INT, "execution schema");
         int schema = tag.getInt(SCHEMA_TAG);
-        if (schema != LONG_AMOUNT_SCHEMA && schema != BIG_INTEGER_SCHEMA && schema != SCHEMA) {
+        if (schema != LONG_AMOUNT_SCHEMA && schema != BIG_INTEGER_SCHEMA && schema != SAME_ITEM_SCHEMA && schema != SCHEMA) {
             throw new IllegalArgumentException("Unsupported Trinity execution schema");
         }
-        requireFields(tag, schema >= SCHEMA ? ROOT_FIELDS : LEGACY_ROOT_FIELDS, "execution root");
+        requireFields(tag, schema >= SAME_ITEM_SCHEMA ? ROOT_FIELDS : LEGACY_ROOT_FIELDS, "execution root");
         requireType(tag, PLAN_KIND_TAG, Tag.TAG_STRING, "execution plan kind");
         requireType(tag, CATALOG_REVISION_TAG, Tag.TAG_LONG, "execution catalog revision");
         requireType(tag, QUANTITY_MODE_TAG, Tag.TAG_STRING, "execution quantity mode");
-        if (schema >= SCHEMA) {
+        if (schema >= SAME_ITEM_SCHEMA) {
             requireType(tag, SAME_ITEM_POLICY_TAG, Tag.TAG_LIST, "execution same-item policy");
         }
         requireType(tag, ACTUAL_FINAL_OUTPUTS_TAG, Tag.TAG_LIST, "execution actual final outputs");
         requireType(tag, TARGET_KEY_TAG, Tag.TAG_COMPOUND, "execution target key");
-        requireType(tag, TARGET_AMOUNT_TAG, Tag.TAG_LONG, "execution target amount");
+        int deliverySchema = schema >= SCHEMA ? SCHEMA : LONG_AMOUNT_SCHEMA;
+        int deliveryAmountType = schema >= SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG;
+        requireType(tag, TARGET_AMOUNT_TAG, deliveryAmountType, "execution target amount");
         requireType(tag, STATUS_TAG, Tag.TAG_STRING, "execution status");
         requireType(tag, FAILURE_REASON_TAG, Tag.TAG_STRING, "execution failure reason");
         requireType(tag, GENERATION_TAG, Tag.TAG_LONG, "execution generation");
         requireType(tag, STAGE_ORDER_TAG, Tag.TAG_INT_ARRAY, "execution stage order");
         requireType(tag, COMPLETION_SEALED_TAG, Tag.TAG_BYTE, "execution completion seal");
-        requireType(tag, COMPLETION_BUFFER_TAG, Tag.TAG_LONG, "execution completion buffer");
-        requireType(tag, DELIVERY_REMAINING_TAG, Tag.TAG_LONG, "execution delivery remainder");
+        requireType(tag, COMPLETION_BUFFER_TAG, deliveryAmountType, "execution completion buffer");
+        requireType(tag, DELIVERY_REMAINING_TAG, deliveryAmountType, "execution delivery remainder");
         requireType(tag, LEDGER_TAG, Tag.TAG_COMPOUND, "execution borrowing ledger");
         requireType(tag, SAVED_AT_TICK_TAG, Tag.TAG_LONG, "execution save tick");
         requireType(tag, BUDGET_RETRY_AT_TAG, Tag.TAG_LONG, "execution budget retry");
@@ -249,9 +250,9 @@ public final class TrinityExecutionNbtCodec {
         return new TrinityExecutionSnapshot(
                 nonNegative(tag.getLong(CATALOG_REVISION_TAG), "catalog revision"),
                 parseEnum(CraftingQuantityMode.class, tag.getString(QUANTITY_MODE_TAG), "quantity mode"),
-                schema >= SCHEMA ? readSameItemPolicy(tag, registries) : TrinitySameItemPolicy.empty(),
+                schema >= SAME_ITEM_SCHEMA ? readSameItemPolicy(tag, registries) : TrinitySameItemPolicy.empty(),
                 decodeKey(tag.getCompound(TARGET_KEY_TAG), registries, "execution target"),
-                tag.getLong(TARGET_AMOUNT_TAG),
+                readBigInteger(tag, TARGET_AMOUNT_TAG, deliverySchema),
                 parseEnum(TrinityPlanExecution.Status.class, tag.getString(STATUS_TAG), "execution status"),
                 tag.getString(FAILURE_REASON_TAG),
                 nonNegative(tag.getLong(GENERATION_TAG), "generation"),
@@ -260,9 +261,9 @@ public final class TrinityExecutionNbtCodec {
                 readRepeatBlocks(tag, schema),
                 readBigAmountMap(tag, SEED_RESERVE_TAG, registries, "seed reserve", false, schema),
                 tag.getBoolean(COMPLETION_SEALED_TAG),
-                tag.getLong(COMPLETION_BUFFER_TAG),
-                readLongAmountMap(tag, ACTUAL_FINAL_OUTPUTS_TAG, registries, "actual final output"),
-                tag.getLong(DELIVERY_REMAINING_TAG),
+                readBigInteger(tag, COMPLETION_BUFFER_TAG, deliverySchema),
+                readBigAmountMap(tag, ACTUAL_FINAL_OUTPUTS_TAG, registries, "actual final output", false, deliverySchema),
+                readBigInteger(tag, DELIVERY_REMAINING_TAG, deliverySchema),
                 TrinityBorrowingLedgerNbtCodec.decode(tag.getCompound(LEDGER_TAG), registries),
                 nonNegative(tag.getLong(SAVED_AT_TICK_TAG), "save tick"),
                 tag.getLong(BUDGET_RETRY_AT_TAG));
@@ -281,18 +282,20 @@ public final class TrinityExecutionNbtCodec {
      * @param registries server registry lookup used by AE key codecs
      * @return immutable keyed contents safe to move into CPU recovery inventory
      */
-    public static Object2LongMap<AEKey> recoverCompletionContents(CompoundTag tag,
-                                                                  HolderLookup.Provider registries) {
+    public static Map<AEKey, BigInteger> recoverCompletionContents(CompoundTag tag,
+                                                                   HolderLookup.Provider registries) {
         if (!tag.contains(SCHEMA_TAG, Tag.TAG_INT)) {
-            return Object2LongMaps.emptyMap();
+            return Map.of();
         }
         int schema = tag.getInt(SCHEMA_TAG);
-        if (schema != LONG_AMOUNT_SCHEMA && schema != BIG_INTEGER_SCHEMA && schema != SCHEMA) {
-            return Object2LongMaps.emptyMap();
+        if (schema != LONG_AMOUNT_SCHEMA && schema != BIG_INTEGER_SCHEMA && schema != SAME_ITEM_SCHEMA && schema != SCHEMA) {
+            return Map.of();
         }
 
-        Object2LongMap<AEKey> recovered = new Object2LongLinkedOpenHashMap<>();
-        long actualAmount = 0L;
+        int deliverySchema = schema >= SCHEMA ? SCHEMA : LONG_AMOUNT_SCHEMA;
+        int deliveryAmountType = schema >= SCHEMA ? Tag.TAG_BYTE_ARRAY : Tag.TAG_LONG;
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> recovered = new Object2ObjectLinkedOpenHashMap<>();
+        BigInteger actualAmount = BigInteger.ZERO;
         boolean actualLedgerComplete = true;
         Tag rawActualOutputs = tag.get(ACTUAL_FINAL_OUTPUTS_TAG);
         if (!(rawActualOutputs instanceof ListTag actualOutputs) ||
@@ -306,19 +309,19 @@ public final class TrinityExecutionNbtCodec {
                     if (!(encoded instanceof CompoundTag entry) ||
                             !entry.getAllKeys().equals(AMOUNT_FIELDS) ||
                             !entry.contains(KEY_TAG, Tag.TAG_COMPOUND) ||
-                            !entry.contains(AMOUNT_TAG, Tag.TAG_LONG)) {
+                            !entry.contains(AMOUNT_TAG, deliveryAmountType)) {
                         throw new IllegalArgumentException("Damaged actual final-output recovery entry");
                     }
                     AEKey key = decodeKey(
                             entry.getCompound(KEY_TAG),
                             registries,
                             "actual final-output recovery");
-                    long amount = entry.getLong(AMOUNT_TAG);
-                    if (amount <= 0L || recovered.containsKey(key)) {
+                    BigInteger amount = readBigInteger(entry, AMOUNT_TAG, deliverySchema);
+                    if (amount.signum() <= 0 || recovered.containsKey(key)) {
                         throw new IllegalArgumentException(
                                 "Actual final-output recovery requires unique positive entries");
                     }
-                    actualAmount = Math.addExact(actualAmount, amount);
+                    actualAmount = actualAmount.add(amount);
                     recovered.put(key, amount);
                 } catch (RuntimeException exception) {
                     actualLedgerComplete = false;
@@ -331,37 +334,37 @@ public final class TrinityExecutionNbtCodec {
 
         if (!tag.contains(COMPLETION_SEALED_TAG, Tag.TAG_BYTE) ||
                 !tag.getBoolean(COMPLETION_SEALED_TAG) ||
-                !tag.contains(COMPLETION_BUFFER_TAG, Tag.TAG_LONG)) {
-            return TrinityLongAmountSnapshot.owned(recovered);
+                !tag.contains(COMPLETION_BUFFER_TAG, deliveryAmountType)) {
+            return Collections.unmodifiableMap(recovered);
         }
-        long completionBuffer = tag.getLong(COMPLETION_BUFFER_TAG);
-        if (completionBuffer <= 0L || !actualLedgerComplete) {
-            return TrinityLongAmountSnapshot.owned(recovered);
-        }
-        long exactAmount;
+        BigInteger completionBuffer;
         try {
-            exactAmount = Math.subtractExact(completionBuffer, actualAmount);
-        } catch (ArithmeticException exception) {
+            completionBuffer = readBigInteger(tag, COMPLETION_BUFFER_TAG, deliverySchema);
+        } catch (IllegalArgumentException exception) {
             Data_Energistics.LOGGER.error(
-                    "Cannot recover an overflowing Trinity exact completion remainder",
+                    "Cannot recover a damaged Trinity exact completion amount",
                     exception);
-            return TrinityLongAmountSnapshot.owned(recovered);
+            return Collections.unmodifiableMap(recovered);
         }
-        if (exactAmount <= 0L || !tag.contains(TARGET_KEY_TAG, Tag.TAG_COMPOUND)) {
-            return TrinityLongAmountSnapshot.owned(recovered);
+        if (completionBuffer.signum() <= 0 || !actualLedgerComplete) {
+            return Collections.unmodifiableMap(recovered);
+        }
+        BigInteger exactAmount = completionBuffer.subtract(actualAmount);
+        if (exactAmount.signum() <= 0 || !tag.contains(TARGET_KEY_TAG, Tag.TAG_COMPOUND)) {
+            return Collections.unmodifiableMap(recovered);
         }
         try {
             AEKey targetKey = decodeKey(
                     tag.getCompound(TARGET_KEY_TAG),
                     registries,
                     "completion recovery target");
-            recovered.mergeLong(targetKey, exactAmount, Math::addExact);
+            recovered.merge(targetKey, exactAmount, BigInteger::add);
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error(
                     "Could not recover the exact Trinity completion remainder",
                     exception);
         }
-        return TrinityLongAmountSnapshot.owned(recovered);
+        return Collections.unmodifiableMap(recovered);
     }
 
     private static List<Integer> readStageOrder(CompoundTag root) {
@@ -530,28 +533,6 @@ public final class TrinityExecutionNbtCodec {
         return target;
     }
 
-    private static Object2LongMap<AEKey> readLongAmountMap(
-                                                           CompoundTag root,
-                                                           String field,
-                                                           HolderLookup.Provider registries,
-                                                           String role) {
-        ListTag entries = requireCompoundList(root, field, role);
-        Object2LongMap<AEKey> target = new Object2LongLinkedOpenHashMap<>();
-        for (Tag encoded : entries) {
-            CompoundTag entry = (CompoundTag) encoded;
-            requireFields(entry, AMOUNT_FIELDS, role + " entry");
-            requireType(entry, KEY_TAG, Tag.TAG_COMPOUND, role + " key");
-            requireType(entry, AMOUNT_TAG, Tag.TAG_LONG, role + " amount");
-            AEKey key = decodeKey(entry.getCompound(KEY_TAG), registries, role);
-            long amount = entry.getLong(AMOUNT_TAG);
-            if (amount <= 0L || target.containsKey(key)) {
-                throw new IllegalArgumentException("A Trinity " + role + " requires unique valid entries");
-            }
-            target.put(key, amount);
-        }
-        return target;
-    }
-
     private static List<Integer> readIndexes(CompoundTag tag, String field, String role) {
         requireType(tag, field, Tag.TAG_INT_ARRAY, role + " indexes");
         IntArrayList indexes = new IntArrayList();
@@ -655,17 +636,6 @@ public final class TrinityExecutionNbtCodec {
             putBigInteger(entry, AMOUNT_TAG, amount);
             encoded.add(entry);
         });
-        return encoded;
-    }
-
-    private static ListTag saveLongAmounts(Object2LongMap<AEKey> amounts, HolderLookup.Provider registries) {
-        ListTag encoded = new ListTag();
-        for (Object2LongMap.Entry<AEKey> amount : amounts.object2LongEntrySet()) {
-            CompoundTag entry = new CompoundTag();
-            entry.put(KEY_TAG, amount.getKey().toTagGeneric(registries));
-            entry.putLong(AMOUNT_TAG, amount.getLongValue());
-            encoded.add(entry);
-        }
         return encoded;
     }
 

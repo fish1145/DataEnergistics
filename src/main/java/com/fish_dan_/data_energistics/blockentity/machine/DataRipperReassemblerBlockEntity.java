@@ -341,18 +341,78 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
     @Override
     public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder, Direction ejectionDirection) {
         int patternColor = usesPatternInputColors() ? getPatternColor(patternDetails) : 0;
-        PatternPushState state = findPatternPushState(inputHolder, patternColor);
+        PatternPushState state = findPatternPushState(inputHolder, patternColor, 1L);
         if (state == null) {
             return false;
         }
 
+        commitPatternPush(patternDetails, state, patternColor);
+        return true;
+    }
+
+    /** Receives a counted batch using the same color-aware input simulation as the native AE2 entry point. */
+    protected final boolean pushCountedPatternInputs(IPatternDetails patternDetails, KeyCounter[] prototype, long count,
+                                                     Runnable transferOwnership) {
+        validatePatternBatch(prototype, count);
+        int patternColor = usesPatternInputColors() ? getPatternColor(patternDetails) : 0;
+        PatternPushState state = findPatternPushState(prototype, patternColor, count);
+        if (state == null) {
+            return false;
+        }
+        transferOwnership.run();
+        commitPatternPush(patternDetails, state, patternColor);
+        return true;
+    }
+
+    private void commitPatternPush(IPatternDetails patternDetails, PatternPushState state, int patternColor) {
         if (usesPatternInputColors()) {
             this.patternInputColorAssignments.putIfAbsent(patternDetails.getDefinition(), patternColor);
         }
         applyPatternPushState(state);
         saveChanges();
         markForClientUpdate();
-        return true;
+    }
+
+    /**
+     * Counts complete input groups against shared slots without reserving capacity or assigning a new pattern color.
+     */
+    protected final long getPatternInputCapacity(IPatternDetails patternDetails, KeyCounter[] prototype, long requestedCount) {
+        boolean hasInputs = validatePatternBatch(prototype, requestedCount);
+        if (!hasInputs) {
+            return 1L;
+        }
+        int patternColor = usesPatternInputColors() ? getPatternColor(patternDetails) : 0;
+        if (findPatternPushState(prototype, patternColor, requestedCount) != null) {
+            return requestedCount;
+        }
+        long lower = 0L;
+        long upper = requestedCount - 1L;
+        while (lower < upper) {
+            long candidate = lower + (upper - lower) / 2L + 1L;
+            if (findPatternPushState(prototype, patternColor, candidate) != null) {
+                lower = candidate;
+            } else {
+                upper = candidate - 1L;
+            }
+        }
+        return lower;
+    }
+
+    private static boolean validatePatternBatch(KeyCounter[] prototype, long count) {
+        if (count <= 0L) {
+            throw new IllegalArgumentException("Pattern batch count must be positive");
+        }
+        boolean hasInputs = false;
+        for (KeyCounter inputs : prototype) {
+            for (var input : inputs) {
+                long amount = input.getLongValue();
+                if (amount < 0L) {
+                    throw new IllegalArgumentException("Pattern batch input amounts must not be negative");
+                }
+                hasInputs |= amount > 0L;
+            }
+        }
+        return hasInputs;
     }
 
     public AppEngInternalInventory getStorageInventory() {
@@ -2038,10 +2098,10 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return tag;
     }
 
-    private @Nullable PatternPushState findPatternPushState(KeyCounter @Nullable [] inputHolder, int patternColor) {
+    private @Nullable PatternPushState findPatternPushState(KeyCounter @Nullable [] inputHolder, int patternColor, long count) {
         for (int channel = 0; channel < this.processingChannels.length; channel++) {
             PatternPushState state = createPatternPushState(channel, patternColor);
-            if (canAcceptPatternInputs(state, inputHolder)) {
+            if (canAcceptPatternInputs(state, inputHolder, count)) {
                 return state;
             }
         }
@@ -2074,14 +2134,15 @@ public class DataRipperReassemblerBlockEntity extends AENetworkedPoweredBlockEnt
         return slots;
     }
 
-    private boolean canAcceptPatternInputs(PatternPushState state, KeyCounter @Nullable [] inputHolder) {
+    private boolean canAcceptPatternInputs(PatternPushState state, KeyCounter @Nullable [] inputHolder, long count) {
         if (inputHolder == null) {
             return true;
         }
 
         for (KeyCounter inputs : inputHolder) {
             for (var input : inputs) {
-                if (!canAcceptPatternInput(state, input.getKey(), input.getLongValue())) {
+                long amount = input.getLongValue();
+                if (amount > Long.MAX_VALUE / count || !canAcceptPatternInput(state, input.getKey(), amount * count)) {
                     return false;
                 }
             }

@@ -1,14 +1,12 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
-
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import appeng.api.stacks.KeyCounter;
+
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 import java.math.BigInteger;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -23,14 +21,9 @@ import java.util.Set;
 final class TrinityScheduledOutputIndex {
 
     /**
-     * Largest amount exposed by AE2's long-based counters.
-     */
-    private static final BigInteger LONG_MAX = BigInteger.valueOf(Long.MAX_VALUE);
-
-    /**
      * Exact derived totals retained so a later decrement remains correct after public saturation.
      */
-    private final Map<AEKey, BigInteger> amounts = new HashMap<>();
+    private final Map<AEKey, BigInteger> amounts = new Object2ObjectOpenHashMap<>();
     /**
      * Immutable key view replaced only when membership changes.
      */
@@ -87,28 +80,13 @@ final class TrinityScheduledOutputIndex {
     }
 
     /**
-     * Returns the scheduled amount for one key, saturated to AE2's public long amount range.
+     * Returns the exact scheduled amount for one key.
      *
      * @param key output key
      * @return non-negative scheduled amount
      */
-    public long amount(AEKey key) {
-        BigInteger amount = this.amounts.get(key);
-        if (amount == null) {
-            return 0L;
-        }
-        return amount.compareTo(LONG_MAX) >= 0 ? Long.MAX_VALUE : amount.longValueExact();
-    }
-
-    /**
-     * Adds the current scheduled snapshot to an AE2 counter without allowing positive overflow.
-     *
-     * @param output destination counter
-     */
-    public void addTo(KeyCounter output) {
-        for (AEKey key : this.keys) {
-            TrinityAe2AmountProjection.addToKeyCounter(output, key, this.amounts.get(key));
-        }
+    public BigInteger amount(AEKey key) {
+        return this.amounts.getOrDefault(key, BigInteger.ZERO);
     }
 
     /**
@@ -139,7 +117,7 @@ final class TrinityScheduledOutputIndex {
             throw new IllegalArgumentException("Scheduled Trinity craft count must be positive: " + craftCount);
         }
         BigInteger count = BigInteger.valueOf(craftCount);
-        Map<AEKey, BigInteger> contributions = new HashMap<>();
+        Map<AEKey, BigInteger> contributions = new Object2ObjectOpenHashMap<>();
         for (GenericStack output : pattern.getOutputs()) {
             if (output.amount() <= 0L) {
                 throw new IllegalArgumentException(

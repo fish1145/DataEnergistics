@@ -10,7 +10,6 @@ import appeng.api.stacks.AEKey;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
@@ -52,7 +51,7 @@ public record TrinityExecutionSnapshot(
                                        CraftingQuantityMode quantityMode,
                                        TrinitySameItemPolicy sameItemPolicy,
                                        AEKey targetKey,
-                                       long targetAmount,
+                                       BigInteger targetAmount,
                                        TrinityPlanExecution.Status status,
                                        String failureReason,
                                        long generation,
@@ -61,9 +60,9 @@ public record TrinityExecutionSnapshot(
                                        List<RepeatBlock> repeatBlocks,
                                        Map<AEKey, BigInteger> seedReserve,
                                        boolean completionSealed,
-                                       long completionBuffer,
-                                       Object2LongMap<AEKey> actualFinalOutputs,
-                                       long deliveryRemaining,
+                                       BigInteger completionBuffer,
+                                       Map<AEKey, BigInteger> actualFinalOutputs,
+                                       BigInteger deliveryRemaining,
                                        Map<AEKey, TrinityBorrowingLedger.Balances> borrowingEntries,
                                        long savedAtTick,
                                        long budgetRetryAt) {
@@ -76,7 +75,7 @@ public record TrinityExecutionSnapshot(
         stageOrder = List.copyOf(stageOrder);
         repeatBlocks = List.copyOf(repeatBlocks);
         seedReserve = immutableBigAmounts(seedReserve, false, "seed reserve");
-        actualFinalOutputs = immutableLongAmounts(actualFinalOutputs, "actual final output");
+        actualFinalOutputs = immutableBigAmounts(actualFinalOutputs, false, "actual final output");
         borrowingEntries = immutableMap(borrowingEntries);
         if (savedAtTick < 0L) {
             throw new IllegalArgumentException("A Trinity execution save tick cannot be negative");
@@ -236,17 +235,6 @@ public record TrinityExecutionSnapshot(
             copied.put(key, amount);
         });
         return Collections.unmodifiableMap(copied);
-    }
-
-    private static Object2LongMap<AEKey> immutableLongAmounts(Object2LongMap<AEKey> source,
-                                                              String role) {
-        Object2LongMap<AEKey> copied = TrinityLongAmountSnapshot.copyOf(source);
-        for (Object2LongMap.Entry<AEKey> entry : copied.object2LongEntrySet()) {
-            if (entry.getLongValue() <= 0L) {
-                throw new IllegalArgumentException("A Trinity " + role + " contains an invalid amount");
-            }
-        }
-        return copied;
     }
 
     private static <E> Set<E> immutableSet(Set<E> source) {
