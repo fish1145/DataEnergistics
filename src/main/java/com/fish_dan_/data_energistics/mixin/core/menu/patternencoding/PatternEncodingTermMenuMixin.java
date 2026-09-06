@@ -535,13 +535,12 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                 return;
             }
 
-            this.encodedPatternSlot.set(encodedPattern);
-            ItemStack finalPattern = this.encodedPatternSlot.getItem();
+            // Publishing the slot re-enters broadcastChanges, so its recipe context must already be complete.
             EncodedPatternDynamicOutput.apply(
-                    finalPattern,
+                    encodedPattern,
                     this.mode == EncodingMode.PROCESSING && this.dataEnergistics$processingOutputSameItem);
             EncodedPatternRecipeReference.applyProcessingRecipeMetadata(
-                    finalPattern,
+                    encodedPattern,
                     PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
                             this,
                             data_energistics$getPreferenceSession(),
@@ -549,6 +548,7 @@ public abstract class PatternEncodingTermMenuMixin extends MEStorageMenu
                     PatternEncodingSourceHelper.resolveProcessingPatternRecipeId(
                             this,
                             data_energistics$getPreferenceSession()));
+            this.encodedPatternSlot.set(encodedPattern);
             dataEnergistics$forceSyncPatternProviders();
             encodedSuccessfully = true;
             PatternEncodingSourceHelper.writePendingTransferKeyInput(this.getPlayer(), null);
