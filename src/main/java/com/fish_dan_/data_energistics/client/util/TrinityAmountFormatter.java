@@ -24,7 +24,7 @@ public final class TrinityAmountFormatter {
             "U", "Tt", "Gt", "Mt", "St", "Ot", "Nt", "Dt", "Ct", "Lt", "Kt", "Jt", "It", "Ht", "Gtt", "Ett",
             "Dtt", "Ctt", "Btt", "Att"
     };
-    private static final BigInteger SCIENTIFIC_THRESHOLD = UNIT_BASE.pow(COMPACT_UNITS.length);
+    private static final BigDecimal SCIENTIFIC_THRESHOLD = new BigDecimal(UNIT_BASE.pow(COMPACT_UNITS.length));
 
     private TrinityAmountFormatter() {}
 
@@ -61,6 +61,11 @@ public final class TrinityAmountFormatter {
         return formatParts(value).text();
     }
 
+    /** Formats an exact amount expressed in display units, including fractional fluid units. */
+    public static String format(BigDecimal value) {
+        return formatParts(value).text();
+    }
+
     /**
      * Formats one {@code long} while keeping the numeric and unit portions separate for AE2 tooltip coloring.
      *
@@ -78,17 +83,21 @@ public final class TrinityAmountFormatter {
      * @return separated numeric text and compact unit
      */
     public static FormattedAmount formatParts(BigInteger value) {
+        return formatParts(new BigDecimal(value));
+    }
+
+    private static FormattedAmount formatParts(BigDecimal value) {
         if (value.signum() == 0) {
             return new FormattedAmount("0", "");
         }
 
-        BigInteger absoluteAmount = value.abs();
+        BigDecimal absoluteAmount = value.abs();
         if (absoluteAmount.compareTo(SCIENTIFIC_THRESHOLD) >= 0) {
             return new FormattedAmount(formatScientific(value), "");
         }
 
-        int unitIndex = (absoluteAmount.toString().length() - 1) / 3;
-        BigDecimal scaledAmount = new BigDecimal(absoluteAmount).movePointLeft(unitIndex * 3);
+        int unitIndex = Math.max(0, (absoluteAmount.precision() - absoluteAmount.scale() - 1) / 3);
+        BigDecimal scaledAmount = absoluteAmount.movePointLeft(unitIndex * 3);
         String digits = compactFormat().format(scaledAmount);
         if (value.signum() < 0) {
             digits = "-" + digits;
@@ -96,7 +105,7 @@ public final class TrinityAmountFormatter {
         return new FormattedAmount(digits, COMPACT_UNITS[unitIndex]);
     }
 
-    private static String formatScientific(BigInteger amount) {
+    private static String formatScientific(BigDecimal amount) {
         DecimalFormat format = decimalFormat("0.00E00");
         return format.format(amount);
     }

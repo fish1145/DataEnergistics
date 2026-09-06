@@ -3461,9 +3461,6 @@ final class TrinityDataCoreCpuLogic {
             this.jobRevision = Math.incrementExact(this.jobRevision);
             this.capacitySliceCursor = CraftingDispatchCursor.initial();
             this.proposalRetryAt = -1L;
-            if (this.job.finalOutput == null) {
-                finishJob(false);
-            }
         } catch (RuntimeException exception) {
             Data_Energistics.LOGGER.error("Ignoring invalid persisted Trinity Data Core CPU job", exception);
             this.job = null;
@@ -3544,34 +3541,30 @@ final class TrinityDataCoreCpuLogic {
         return recoveredExact && this.inventory.list.isEmpty();
     }
 
-    void getAllItems(KeyCounter out) {
-        out.addAll(this.inventory.list);
-        this.exactWorkingInventory.snapshot().forEach(
-                (key, amount) -> TrinityAe2AmountProjection.addToKeyCounter(out, key, amount));
-        if (this.job == null) {
-            return;
-        }
-        this.job.waitingFor.snapshot().forEach(
-                (key, amount) -> TrinityAe2AmountProjection.addToKeyCounter(out, key, amount));
-        if (this.job.isTrinityPlan()) {
-            for (var entry : this.job.trinityExecution().completionContents().entrySet()) {
-                TrinityAe2AmountProjection.addToKeyCounter(out, entry.getKey(), entry.getValue());
+    Set<AEKey> getStatusKeys() {
+        Set<AEKey> keys = new ObjectLinkedOpenHashSet<>();
+        this.inventory.list.forEach(entry -> keys.add(entry.getKey()));
+        keys.addAll(this.exactWorkingInventory.snapshot().keySet());
+        if (this.job != null) {
+            keys.addAll(this.job.waitingFor.snapshot().keySet());
+            keys.addAll(this.job.scheduledOutputKeys());
+            if (this.job.isTrinityPlan()) {
+                keys.addAll(this.job.trinityExecution().completionContents().keySet());
             }
         }
-        this.job.addScheduledOutputsTo(out);
+        return keys;
     }
 
-    long getStored(AEKey template) {
+    BigInteger getStored(AEKey template) {
         BigInteger stored = this.exactWorkingInventory.totalAmount(template, this.inventory);
         if (this.job == null || !this.job.isTrinityPlan()) {
-            return TrinityAe2AmountProjection.toAe2Amount(stored);
+            return stored;
         }
-        return TrinityAe2AmountProjection.toAe2Amount(
-                stored.add(this.job.trinityExecution().completionAmount(template)));
+        return stored.add(this.job.trinityExecution().completionAmount(template));
     }
 
-    long getPendingOutputs(AEKey template) {
-        return this.job == null ? 0L : this.job.getPendingOutputs(template);
+    BigInteger getPendingOutputs(AEKey template) {
+        return this.job == null ? BigInteger.ZERO : this.job.exactPendingOutput(template);
     }
 
     void addListener(Consumer<AEKey> listener) {

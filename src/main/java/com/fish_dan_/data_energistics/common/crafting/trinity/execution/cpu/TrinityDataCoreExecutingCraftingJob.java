@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.Tr
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.inventory.TrinityExactKeyInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionNbtCodec;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
-import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
 import com.fish_dan_.data_energistics.common.crafting.trinity.serialization.TrinityBigIntegerEncoding;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
@@ -18,7 +17,6 @@ import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import appeng.api.stacks.KeyCounter;
 import appeng.crafting.CraftingLink;
 import appeng.hooks.ticking.TickHandler;
 import appeng.me.service.CraftingService;
@@ -137,11 +135,12 @@ final class TrinityDataCoreExecutingCraftingJob {
             throw new IllegalArgumentException("Unsupported persisted Trinity Data Core CPU job schema");
         }
         this.link = new CraftingLink(data.getCompound(LINK_TAG), logic.cpu());
-        this.finalOutput = GenericStack.readTag(registries, data.getCompound(FINAL_OUTPUT_TAG));
+        GenericStack finalOutput = GenericStack.readTag(registries, data.getCompound(FINAL_OUTPUT_TAG));
         this.remainingAmount = TrinityBigIntegerEncoding.readTag(data, REMAINING_AMOUNT_TAG, "job delivery remainder");
-        if (this.remainingAmount.signum() < 0 || this.finalOutput == null) {
+        if (this.remainingAmount.signum() < 0 || finalOutput == null) {
             throw new IllegalArgumentException("Persisted crafting job has an invalid delivery remainder");
         }
+        this.finalOutput = finalOutput;
         this.suspended = data.getBoolean(SUSPENDED_TAG);
         this.waitingFor = new TrinityExactKeyInventory(differenceListener::onCraftingDifference);
         this.waitingFor.readFromNBT(data.getList(WAITING_FOR_TAG, Tag.TAG_COMPOUND), registries);
@@ -263,30 +262,18 @@ final class TrinityDataCoreExecutingCraftingJob {
         return this.planExecution;
     }
 
-    /**
-     * Returns the indexed amount still scheduled by undispatched tasks.
-     */
-    long getPendingOutputs(AEKey key) {
-        return TrinityAe2AmountProjection.toAe2Amount(exactPendingOutput(key));
-    }
-
     /** Returns the exact undispatched output amount for internal conservation checks. */
     BigInteger exactPendingOutput(AEKey key) {
         return this.planExecution == null ?
-                BigInteger.valueOf(this.scheduledTasks.pendingOutputs(key)) :
+                this.scheduledTasks.pendingOutputs(key) :
                 this.planExecution.pendingOutputs().getOrDefault(key, BigInteger.ZERO);
     }
 
     /**
-     * Adds every indexed undispatched output to the supplied aggregate.
+     * Returns the keys of all indexed undispatched outputs, without projecting their quantities.
      */
-    void addScheduledOutputsTo(KeyCounter output) {
-        if (this.planExecution == null) {
-            this.scheduledTasks.addOutputsTo(output);
-            return;
-        }
-        this.planExecution.pendingOutputs().forEach(
-                (key, amount) -> TrinityAe2AmountProjection.addToKeyCounter(output, key, amount));
+    Set<AEKey> scheduledOutputKeys() {
+        return this.planExecution == null ? this.scheduledTasks.outputs.keys() : this.planExecution.pendingOutputs().keySet();
     }
 
     /**
@@ -417,12 +404,8 @@ final class TrinityDataCoreExecutingCraftingJob {
             this.outputs.add(pattern, craftCount);
         }
 
-        long pendingOutputs(AEKey key) {
+        BigInteger pendingOutputs(AEKey key) {
             return this.outputs.amount(key);
-        }
-
-        void addOutputsTo(KeyCounter output) {
-            this.outputs.addTo(output);
         }
 
         void recordDispatch(IPatternDetails pattern, long craftCount) {

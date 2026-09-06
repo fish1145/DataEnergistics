@@ -1,10 +1,14 @@
 package com.fish_dan_.data_energistics.mixin.client.crafting;
 
+import com.fish_dan_.data_energistics.client.crafting.status.TrinityCraftingStatusAccess;
+import com.fish_dan_.data_energistics.client.crafting.status.TrinityCraftingStatusState;
+
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.me.crafting.CraftingCPUScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.core.localization.GuiText;
 import appeng.menu.me.crafting.CraftingCPUMenu;
+import appeng.menu.me.crafting.CraftingStatus;
 import appeng.menu.me.crafting.CraftingStatusMenu;
 
 import net.minecraft.ChatFormatting;
@@ -26,7 +30,20 @@ import java.util.concurrent.TimeUnit;
  * Replaces AE2's remaining-time estimate with cumulative elapsed time for the selected Trinity CPU.
  */
 @Mixin(CraftingCPUScreen.class)
-public abstract class CraftingCPUScreenMixin extends AEBaseScreen<CraftingCPUMenu> {
+public abstract class CraftingCPUScreenMixin extends AEBaseScreen<CraftingCPUMenu> implements TrinityCraftingStatusAccess {
+
+    @Unique
+    private final TrinityCraftingStatusState dataEnergistics$exactStatus = new TrinityCraftingStatusState();
+
+    @Override
+    public TrinityCraftingStatusState data_energistics$craftingStatusState() {
+        return this.dataEnergistics$exactStatus;
+    }
+
+    @Inject(method = "postUpdate", at = @At("HEAD"))
+    private void dataEnergistics$resetNativeStatus(CraftingStatus status, CallbackInfo ci) {
+        this.dataEnergistics$exactStatus.onNativeUpdate();
+    }
 
     @Unique
     private static final String DATA_ENERGISTICS_TRINITY_CPU_NAME_KEY = "block.data_energistics.trinity_data_core";
