@@ -1775,7 +1775,8 @@ final class TrinityDataCoreCpuLogic {
                                                                CraftingDispatchWindow dispatchWindow,
                                                                boolean nativeSingleCraftFallback,
                                                                boolean countedDispatch) {
-        if (nativeSingleCraftFallback && details == extractionDetails) {
+        if (nativeSingleCraftFallback && (details == extractionDetails ||
+                extractionDetails instanceof TrinityBoundPatternDetails bound && bound.preservesNativeInputs(details))) {
             return CountedCraftingProviderAdapters.prepareNativeSingleCraft(
                     provider,
                     details,
