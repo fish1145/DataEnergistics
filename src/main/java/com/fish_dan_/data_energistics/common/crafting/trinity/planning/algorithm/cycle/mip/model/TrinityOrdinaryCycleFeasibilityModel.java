@@ -438,7 +438,8 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         boolean exportsInternalKey = request.internalKeys().stream()
                 .anyMatch(request.demand().requiredNetChangeLowerBounds()::containsKey);
         for (AEKey key : request.internalKeys()) {
-            if (!request.demand().requiredNetChangeLowerBounds().containsKey(key)) {
+            if (!request.producibleInputs().contains(key) &&
+                    !request.demand().requiredNetChangeLowerBounds().containsKey(key)) {
                 int sign = exact.value().getOrDefault(key, BigInteger.ZERO).signum();
                 if (exportsInternalKey ? sign != 0 : sign < 0) {
                     return inexact("settled_internal", key.toString());
@@ -566,6 +567,10 @@ final class TrinityOrdinaryCycleFeasibilityModel implements TrinityCycleFeasibil
         boolean exportsInternalKey = request.internalKeys().stream()
                 .anyMatch(request.demand().requiredNetChangeLowerBounds()::containsKey);
         for (AEKey key : request.internalKeys()) {
+            // A returned ingredient may still be consumed overall when a proven predecessor supplies it.
+            if (request.producibleInputs().contains(key)) {
+                continue;
+            }
             Expression settlement = model.addExpression("settled_internal_" + settlementIndex++);
             setNetCoefficients(settlement, request, firingVariables, key);
             BigInteger requestedOutput = request.demand().requiredNetChangeLowerBounds().get(key);
