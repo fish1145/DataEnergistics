@@ -86,7 +86,7 @@ public final class TrinityJointCandidateEvaluator {
         }
         List<TrinityPatternVariant> orderedVariants = variants.stream().sorted().toList();
         Set<AEKey> externalKeys = externalReserveKeys(orderedVariants, internalKeys, demand);
-        CandidateAccounting accounting = accountCandidate(solution.firings(), internalKeys, demand)
+        CandidateAccounting accounting = accountCandidate(solution.firings(), internalKeys, demand, producibleInputs)
                 .orElseThrow(() -> new IllegalStateException(
                         "An exact Trinity MIP solution failed its demand accounting"));
         if (exceedsAvailable(accounting.externalInputs(), available, producibleInputs) ||
@@ -299,7 +299,8 @@ public final class TrinityJointCandidateEvaluator {
     private static Optional<CandidateAccounting> accountCandidate(
                                                                   Map<TrinityPatternVariant, BigInteger> firings,
                                                                   Set<AEKey> internalKeys,
-                                                                  TrinityCycleDemand demand) {
+                                                                  TrinityCycleDemand demand,
+                                                                  Set<AEKey> producibleInputs) {
         Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> net = new Object2ObjectLinkedOpenHashMap<>();
         firings.forEach((variant, count) -> variant.netChange().forEach(
                 (key, amount) -> net.merge(key, amount.multiply(count), BigInteger::add)));
@@ -312,7 +313,7 @@ public final class TrinityJointCandidateEvaluator {
             if (requested != null) {
                 return amount.compareTo(requested) < 0;
             }
-            return exportsInternalKey ? amount.signum() != 0 : amount.signum() < 0;
+            return !producibleInputs.contains(key) && (exportsInternalKey ? amount.signum() != 0 : amount.signum() < 0);
         })) {
             return Optional.empty();
         }

@@ -115,13 +115,17 @@ final class TrinityReusableDispatch {
             }
             if (!window.canAttempt(provider, pattern)) continue;
             List<Target> targets;
-            try (var capture = window.beginProviderCapacityCapture()) {
+            var capture = window.tryBeginProviderCapacityCapture();
+            if (capture == null) break;
+            try (capture) {
                 targets = List.copyOf(adapter.reusableTargets(pattern, owner.cpu().actionSource(), level));
             } catch (RuntimeException failure) {
                 report(work.patternIdentity().definitionEncoding(), failure);
                 continue;
             }
-            try (var submission = window.beginCountedSubmission(provider, pattern)) {
+            var submission = window.tryBeginSubmission(provider, pattern);
+            if (submission == null) break;
+            try (submission) {
                 for (Target target : targets) {
                     hadTarget = true;
                     if (!recipe.matches(target, owner.cpu().actionSource(), level, DataEnergisticsEntrypointLoader.snapshot().reusableInputs())) {
@@ -388,7 +392,7 @@ final class TrinityReusableDispatch {
             try {
                 var view = endpoint.adapter().reusableSession(session.id());
                 if (view.isPresent() && view.orElseThrow().heldTools().stream().anyMatch(tool -> missing.contains(tool.stack().what()) &&
-                        owner.getStored(tool.stack().what()) == 0L)) {
+                        owner.getStored(tool.stack().what()).signum() == 0)) {
                     ledger.close(session.id());
                     owner.cpu().markDirty();
                 }

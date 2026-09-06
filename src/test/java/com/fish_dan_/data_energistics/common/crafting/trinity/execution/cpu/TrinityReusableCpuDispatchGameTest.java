@@ -241,7 +241,7 @@ public final class TrinityReusableCpuDispatchGameTest {
                 worker = runtime.publishedCpus().stream().filter(cpu -> cpu.number() > 0).findFirst().orElseThrow();
                 if (scenario == Scenario.OLDER_CPU_SNAPSHOT) {
                     helper.assertTrue(worker.logic().reusableLedger().sessions().isEmpty(), "Snapshot precedes any reusable admission");
-                    helper.assertValueEqual(worker.getStored(tool()), 1L, "Pre-dispatch CPU owns the initial tool");
+                    helper.assertValueEqual(worker.getStored(tool()), BigInteger.ONE, "Pre-dispatch CPU owns the initial tool");
                     preDispatchSnapshot = Optional.of(worker.logic().writeToTag(helper.getLevel().registryAccess()));
                 }
                 return;
@@ -263,8 +263,8 @@ public final class TrinityReusableCpuDispatchGameTest {
                 if (view.failure().isPresent()) helper.fail("Native fixture was quarantined: " + view.failure().orElseThrow());
             });
             if (toolDelivered > toolReturned) {
-                helper.assertValueEqual(worker.getStored(tool()), 0L, "Resident tool must not also appear in consumable CPU inventory");
-                helper.assertValueEqual(worker.getWaitingFor(tool()), 0L, "Resident tool must not become an ordinary per-operation waiting output");
+                helper.assertValueEqual(worker.getStored(tool()), BigInteger.ZERO, "Resident tool must not also appear in consumable CPU inventory");
+                helper.assertValueEqual(worker.getWaitingFor(tool()), BigInteger.ZERO, "Resident tool must not become an ordinary per-operation waiting output");
             }
             if (!worker.isBusy() && !endpoint.hasResidentSession() && pendingOutputs.isEmpty()) {
                 helper.assertValueEqual(executed, (long) requested, "Only required physical operations execute, including after cancelled-suffix replanning");
@@ -304,8 +304,8 @@ public final class TrinityReusableCpuDispatchGameTest {
                 restoredOlderSnapshot = true;
                 helper.assertValueEqual(worker.logic().reusableLedger().ownerIdentity(), owner, "Current-format rollback preserves the same CPU owner");
                 helper.assertTrue(worker.logic().reusableLedger().sessions().isEmpty(), "Earlier CPU snapshot has no local knowledge of the accepted session");
-                helper.assertValueEqual(worker.getStored(tool()), 1L, "Earlier snapshot still contains the tool now physically held remotely");
-                helper.assertValueEqual(worker.getStored(material()), (long) requested, "Earlier snapshot still contains the original materials");
+                helper.assertValueEqual(worker.getStored(tool()), BigInteger.ONE, "Earlier snapshot still contains the tool now physically held remotely");
+                helper.assertValueEqual(worker.getStored(material()), BigInteger.valueOf(requested), "Earlier snapshot still contains the original materials");
                 return;
             }
             var ledger = worker.logic().reusableLedger();
@@ -326,7 +326,7 @@ public final class TrinityReusableCpuDispatchGameTest {
             }
             if (ticks - quarantineReloadTick < 5) return;
             helper.assertValueEqual(executed, 0L, "No native execution is fabricated to reconcile the fork");
-            helper.assertValueEqual(worker.getStored(tool()), 1L, "Quarantine preserves the ambiguous local snapshot without dispatching it");
+            helper.assertValueEqual(worker.getStored(tool()), BigInteger.ONE, "Quarantine preserves the ambiguous local snapshot without dispatching it");
             close();
             helper.succeed();
         }
@@ -450,7 +450,7 @@ public final class TrinityReusableCpuDispatchGameTest {
                     for (GenericStack asset : settlement.returnedAssets()) if (asset.what().equals(tool())) toolReturned += asset.amount();
                     long cancelled = settlement.receipts().stream().mapToLong(ReusableCraftingSessionView.AppendReceipt::cancelled).sum();
                     if (cancelled > 0L) {
-                        helper.assertValueEqual(worker.getWaitingFor(product()), 0L, "CPU settlement removes only cancelled unexecuted waiting output");
+                        helper.assertValueEqual(worker.getWaitingFor(product()), BigInteger.ZERO, "CPU settlement removes only cancelled unexecuted waiting output");
                         CompoundTag job = worker.logic().writeToTag(helper.getLevel().registryAccess()).getCompound("job");
                         CompoundTag time = job.getCompound("time_tracker");
                         BigInteger started = TrinityBigIntegerEncoding.decode(time.getCompound("started_work").getByteArray(product().getType().getId().toString()), "test started work");

@@ -61,12 +61,12 @@ public final class TrinityTargetPrincipalGameTest {
         helper.assertValueEqual(job.replanDemand(Map.of(target, BigInteger.valueOf(6L))).requested(), BigInteger.ONE,
                 "Replacement acquisition increases principal while released borrowing is excluded");
         AEItemKey actual = namedTarget();
-        job.trinityExecution().recordActualFinalOutput(actual, 1L);
+        job.trinityExecution().recordActualFinalOutput(actual, BigInteger.ONE);
         helper.assertTrue(job.replanDemand(Map.of(target, BigInteger.valueOf(6L))).noProduction(),
                 "Isolated actual output counts toward existing production without entering working inventory");
         var work = job.trinityExecution().pollDispatchable(1L, Set.of(), ignored -> true, true).orElseThrow();
         job.trinityExecution().recordAccepted(work, 3L, 3L);
-        job.trinityExecution().sealCompletion(2L);
+        job.trinityExecution().sealCompletion(BigInteger.TWO);
         helper.assertValueEqual(job.replanDemand(Map.of(target, BigInteger.valueOf(3L))).requested(), BigInteger.ONE,
                 "Sealed completion already includes the actual variant and must not count it twice");
         var restored = new TrinityDataCoreExecutingCraftingJob(job.writeToTag(helper.getLevel().registryAccess()),
@@ -91,7 +91,7 @@ public final class TrinityTargetPrincipalGameTest {
         TrinityDataCoreExecutingCraftingJob total = job(cpu, CraftingQuantityMode.FINAL_TOTAL, BigInteger.valueOf(10L));
         helper.assertValueEqual(total.replanDemand(Map.of(target, BigInteger.ONE)).requested(), BigInteger.valueOf(3L),
                 "FINAL_TOTAL requests the final total, leaving existing owned target consumption to the solver");
-        total.trinityExecution().recordActualFinalOutput(namedTarget(), 1L);
+        total.trinityExecution().recordActualFinalOutput(namedTarget(), BigInteger.ONE);
         helper.assertValueEqual(total.replanDemand(Map.of(target, BigInteger.ONE)).requested(), BigInteger.valueOf(2L),
                 "Isolated completion is excluded from the new FINAL_TOTAL request");
         helper.assertTrue(total.replanDemand(Map.of(target, BigInteger.valueOf(2L))).noProduction(),

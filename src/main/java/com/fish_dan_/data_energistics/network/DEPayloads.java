@@ -24,6 +24,7 @@ import com.fish_dan_.data_energistics.network.trinity.TrinityRefundPatternsPaylo
 import com.fish_dan_.data_energistics.network.trinity.TrinityRefundRetainedItemsPayload;
 import com.fish_dan_.data_energistics.network.trinity.crafting.progress.TrinityCraftConfirmPlanningProgressPayload;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftConfirmCyclePayload;
+import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftingStatusPayload;
 import com.fish_dan_.data_energistics.network.ui.HostUiRequestPayload;
 import com.fish_dan_.data_energistics.network.ui.HostUiResponsePayload;
 import com.fish_dan_.data_energistics.network.ui.UniversalTerminalCyclePayload;
@@ -39,6 +40,7 @@ public final class DEPayloads {
 
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("6");
+        registrar.playToClient(TrinityCraftingStatusPayload.TYPE, TrinityCraftingStatusPayload.STREAM_CODEC, TrinityCraftingStatusPayload::handle);
         registrar.playToClient(CraftingPlanGraphPayload.TYPE, CraftingPlanGraphPayload.STREAM_CODEC, CraftingPlanGraphPayload::handle);
         registrar.playToServer(CraftingPlanTreeActionPayload.TYPE, CraftingPlanTreeActionPayload.STREAM_CODEC, CraftingPlanTreeActionPayload::handle);
         registrar.playToServer(

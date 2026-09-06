@@ -1,11 +1,16 @@
 package com.fish_dan_.data_energistics.blockentity.machine;
 
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingMachine;
 import com.fish_dan_.data_energistics.integration.recipe.ExternalFactoryRecipeCatalog;
 import com.fish_dan_.data_energistics.recipe.reassembler.DataRipperReassemblerRecipe;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
+import appeng.api.crafting.IPatternDetails;
+import appeng.api.stacks.KeyCounter;
+
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -16,7 +21,8 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import org.jspecify.annotations.Nullable;
 
-public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipperReassemblerBlockEntity {
+public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipperReassemblerBlockEntity
+                                                                implements CountedCraftingMachine {
 
     public static final int PROCESSING_CHANNEL_COUNT = 3;
     public static final int ITEM_INPUT_SLOT_COUNT = 21;
@@ -32,6 +38,17 @@ public final class DataAsynchronousProcessingFactoryBlockEntity extends DataRipp
     public DataAsynchronousProcessingFactoryBlockEntity(BlockPos blockPos, BlockState blockState) {
         super(DEBlockEntities.DATA_ASYNCHRONOUS_PROCESSING_FACTORY_BLOCK_ENTITY.get(),
                 DEBlocks.DATA_ASYNCHRONOUS_PROCESSING_FACTORY.get(), blockPos, blockState);
+    }
+
+    /** Returns complete logical input groups that fit in this factory's shared, color-separated input buffers. */
+    public long getRemainingCraftingCapacity(IPatternDetails patternDetails, KeyCounter[] prototype, long requestedCount) {
+        return getPatternInputCapacity(patternDetails, prototype, requestedCount);
+    }
+
+    @Override
+    public boolean pushPatternBatch(IPatternDetails patternDetails, KeyCounter[] prototype, long count, Direction inputSide,
+                                    Runnable transferOwnership) {
+        return pushCountedPatternInputs(patternDetails, prototype, count, transferOwnership);
     }
 
     @Override

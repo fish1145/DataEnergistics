@@ -1,5 +1,72 @@
 # ChangeLog
 
+## Version [v3.2.0](https://github.com/fish1145/DataEnergistics/compare/v3.1.3-1.21...v3.2.0-1.21)
+### Added
+
+- 显示 Trinity 合成确认循环分色与执行统计 by @QiuYe-123 in [#202](https://github.com/fish1145/DataEnergistics/pull/202)
+- 调整 Trinity 核心档位与默认并行能力 by @QiuYe-123 in [#222](https://github.com/fish1145/DataEnergistics/pull/222)
+- 调整 Trinity 样板核心容量与原生 NBT 界面 by @QiuYe-123 in [#230](https://github.com/fish1145/DataEnergistics/pull/230)
+- 实现共振音叉、共振晶簇与 Echo 生产链 by @QiuYe-123 in [#187](https://github.com/fish1145/DataEnergistics/pull/187)
+- 新增空三位一体单元并修正容量判定 by @QiuYe-123 in [#233](https://github.com/fish1145/DataEnergistics/pull/233)
+- 调整残存数据矿石生成 by @fish1145 in [#237](https://github.com/fish1145/DataEnergistics/pull/237)
+- 修正 Trinity 无限容量与无效样板状态 by @QiuYe-123 in [#238](https://github.com/fish1145/DataEnergistics/pull/238)
+- 补充数据水晶母岩物品标签 by @fish1145 in [#241](https://github.com/fish1145/DataEnergistics/pull/241)
+- 调整维度解离总站配方 by @fish1145 in [#242](https://github.com/fish1145/DataEnergistics/pull/242)
+- 将数据资源显示名统一为二进制 by @QiuYe-123 in [#243](https://github.com/fish1145/DataEnergistics/pull/243)
+- 移除充压一体机模板要求并调整福鲁伊集合晶体管配方 by @fish1145 in [#236](https://github.com/fish1145/DataEnergistics/pull/236)
+- 调整内容平衡并完善客户端表现 by @QiuYe-123 in [#245](https://github.com/fish1145/DataEnergistics/pull/245)
+- 支持上传面板展开组内供应器 by @QiuYe-123 in [#248](https://github.com/fish1145/DataEnergistics/pull/248)
+- 新增独立合成计划树与确认页面 by @QiuYe-123 in [#252](https://github.com/fish1145/DataEnergistics/pull/252)
+- 优化合成树布局与线路渲染 by @QiuYe-123 in [#260](https://github.com/fish1145/DataEnergistics/pull/260)
+- 调整数据重组器与材料获取配方 by @fish1145 in [#266](https://github.com/fish1145/DataEnergistics/pull/266)
+- 移植 ME 光束成型器并支持聚能升级 by @QiuYe-123 in [#251](https://github.com/fish1145/DataEnergistics/pull/251)
+- 完善异步处理工厂模型与配方 by @fish1145 in [#264](https://github.com/fish1145/DataEnergistics/pull/264)
+- 扩展充压一体机模式与配方兼容 by @fish1145 in [#262](https://github.com/fish1145/DataEnergistics/pull/262)
+- 接入外部装配与反应配方 by @fish1145 in [#263](https://github.com/fish1145/DataEnergistics/pull/263)
+- 完善紫水晶粉与残存数据晶体内容 by @fish1145 in [#265](https://github.com/fish1145/DataEnergistics/pull/265)
+- 开放机器容量与样板上传事务 API by @QiuYe-123 in [#268](https://github.com/fish1145/DataEnergistics/pull/268)
+- 使用 NBT 重构 XEI 多方块页面 by @fish1145 in [#269](https://github.com/fish1145/DataEnergistics/pull/269)
+- 新增 Trinity CPU 专用合成计划确认页 by @QiuYe-123 in [#271](https://github.com/fish1145/DataEnergistics/pull/271)
+- 完善 ME 太阳能板连接外观与共享储能 by @fish1145 in [#270](https://github.com/fish1145/DataEnergistics/pull/270)
+
+### Fixed
+
+- 修复 Trinity 合成进度、CPU 状态与 LDLib2 界面 by @QiuYe-123 in [#220](https://github.com/fish1145/DataEnergistics/pull/220)
+- 调整样板管理搜索框占位文字与字号 by @QiuYe-123 in [#223](https://github.com/fish1145/DataEnergistics/pull/223)
+- 修复样板供应器阻挡模式批量派发 by @QiuYe-123 in [#221](https://github.com/fish1145/DataEnergistics/pull/221)
+- 修复数位化陨石压印模板掉落 by @QiuYe-123 in [#224](https://github.com/fish1145/DataEnergistics/pull/224)
+- 修复 Trinity 循环发配数量与多样板并发 by @QiuYe-123 in [#228](https://github.com/fish1145/DataEnergistics/pull/228)
+- 为 Trinity 交换仓增加服务相关 AE 耗电与频道占用 by @QiuYe-123 in [#229](https://github.com/fish1145/DataEnergistics/pull/229)
+- 修复数据充压机流体槽误触发配方查看 by @QiuYe-123 in [#232](https://github.com/fish1145/DataEnergistics/pull/232)
+- 修复 ME Controller 拆除导致的服务端崩溃 by @QiuYe-123 in [#239](https://github.com/fish1145/DataEnergistics/pull/239)
+- 修正空三位一体单元连接纹理引用 by @QiuYe-123 in [#240](https://github.com/fish1145/DataEnergistics/pull/240)
+- 优化 Trinity 规划的超时回退、模型与缓存 by @QiuYe-123 in [#244](https://github.com/fish1145/DataEnergistics/pull/244)
+- 修正并加速 Trinity 确定性环规划 by @QiuYe-123 in [#247](https://github.com/fish1145/DataEnergistics/pull/247)
+- 持久化样板配方信息并修正上传排序与滚轮 by @QiuYe-123 in [#250](https://github.com/fish1145/DataEnergistics/pull/250)
+- 修复循环缺料的快速可行性求解并清理冗余判断 by @QiuYe-123 in [#254](https://github.com/fish1145/DataEnergistics/pull/254)
+- 修复大型合成树展开与渲染并完善图像导出 by @QiuYe-123 in [#255](https://github.com/fish1145/DataEnergistics/pull/255)
+- 修复 Trinity 大数缺料误判与缺种子规划性能 by @QiuYe-123 in [#257](https://github.com/fish1145/DataEnergistics/pull/257)
+- 修复 Trinity 缓存清理与异步发配异常 by @QiuYe-123 in [#258](https://github.com/fish1145/DataEnergistics/pull/258)
+- 修复三位一体主机运行外观并适配 JEI 提示接口 by @QiuYe-123 in [#259](https://github.com/fish1145/DataEnergistics/pull/259)
+- 修正三位一体数据核心发光模型 by @fish1145 in [#267](https://github.com/fish1145/DataEnergistics/pull/267)
+- 移动冲压一体机 XEI 模式图标 by @QiuYe-123 in [#272](https://github.com/fish1145/DataEnergistics/pull/272)
+- 恢复三位一体核心正面花朵 by @QiuYe-123 in [#273](https://github.com/fish1145/DataEnergistics/pull/273)
+- 升级 JEI 与 LDLib 并适配新版槽位绑定 by @QiuYe-123 in [#275](https://github.com/fish1145/DataEnergistics/pull/275)
+- 右移冲压一体机 JEI/EMI 模式按钮 by @fish1145 in [#276](https://github.com/fish1145/DataEnergistics/pull/276)
+- 修复忽略 NBT 产物的规划与连续合成 by @QiuYe-123 in [#277](https://github.com/fish1145/DataEnergistics/pull/277)
+- 修复新版 JEI 配方填充提示崩溃 by @QiuYe-123 in [#278](https://github.com/fish1145/DataEnergistics/pull/278)
+
+### Changed
+
+- 重命名数位化磁盘及其注册 ID by @QiuYe-123 in [#225](https://github.com/fish1145/DataEnergistics/pull/225)
+- 重构配置分类并直接使用 Configuration 实例 by @QiuYe-123 in [#227](https://github.com/fish1145/DataEnergistics/pull/227)
+- 整理集成目录并重构 Tower 能量端点 by @QiuYe-123 in [#231](https://github.com/fish1145/DataEnergistics/pull/231)
+- 将数据资源显示名统一为二进制 by @QiuYe-123 in [#243](https://github.com/fish1145/DataEnergistics/pull/243)
+- 更新 1.21.1 开发依赖并移除 JUnit 测试 by @QiuYe-123 in [#246](https://github.com/fish1145/DataEnergistics/pull/246)
+- 清理 Trinity 规划与样板面板内部状态 by @QiuYe-123 in [#249](https://github.com/fish1145/DataEnergistics/pull/249)
+- 清理过时兼容并补齐 3.1.3 升级映射 by @QiuYe-123 in [#256](https://github.com/fish1145/DataEnergistics/pull/256)
+
+ 
 ## Version [v3.1.3](https://github.com/fish1145/DataEnergistics/compare/v3.1.2-1.21...v3.1.3-1.21)
 ### Fixed
 

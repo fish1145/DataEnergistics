@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.inventory.TrinityExactWorkingInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
 import appeng.api.config.Actionable;
@@ -21,7 +22,9 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
+import java.math.BigInteger;
 import java.util.List;
+import java.util.Map;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -103,32 +106,29 @@ public final class TrinitySameItemRuntimeInventoryGameTest {
                 new GenericStack(first, 3L),
                 new GenericStack(second, 4L));
 
-        List<GenericStack> extracted = TrinityCompletionInputExtractor.extract(
+        Map<AEKey, BigInteger> extracted = TrinityCompletionInputExtractor.extract(
                 policy(target),
                 target,
-                7L,
-                inventory);
+                BigInteger.valueOf(7L),
+                inventory, new TrinityExactWorkingInventory());
 
         helper.assertTrue(extracted != null, "The complete mixed-component delivery must be available");
         helper.assertValueEqual(extracted.size(), 3, "Delivery must retain all physical component slices");
-        assertStack(helper, extracted.get(0), target, 2L, "Exact target components must be delivered first");
-        KeyCounter extractedByKey = new KeyCounter();
-        long extractedTotal = 0L;
-        for (GenericStack slice : extracted) {
+        helper.assertTrue(extracted.keySet().iterator().next().equals(target) && extracted.get(target).equals(BigInteger.TWO),
+                "Exact target components must be delivered first");
+        BigInteger extractedTotal = BigInteger.ZERO;
+        for (var slice : extracted.entrySet()) {
             helper.assertTrue(
-                    slice.what().equals(target) || slice.what().equals(first) || slice.what().equals(second),
+                    slice.getKey().equals(target) || slice.getKey().equals(first) || slice.getKey().equals(second),
                     "Completion must not introduce an unrelated physical key");
-            extractedByKey.add(slice.what(), slice.amount());
-            extractedTotal = Math.addExact(extractedTotal, slice.amount());
+            extractedTotal = extractedTotal.add(slice.getValue());
         }
-        helper.assertValueEqual(extractedTotal, 7L, "Completion must extract exactly the target remainder");
-        helper.assertValueEqual(
-                extractedByKey.get(first) + inventory.list.get(first),
-                3L,
+        helper.assertTrue(extractedTotal.equals(BigInteger.valueOf(7L)), "Completion must extract exactly the target remainder");
+        helper.assertTrue(
+                extracted.get(first).add(BigInteger.valueOf(inventory.list.get(first))).equals(BigInteger.valueOf(3L)),
                 "First actual component quantity must be conserved");
-        helper.assertValueEqual(
-                extractedByKey.get(second) + inventory.list.get(second),
-                4L,
+        helper.assertTrue(
+                extracted.get(second).add(BigInteger.valueOf(inventory.list.get(second))).equals(BigInteger.valueOf(4L)),
                 "Second actual component quantity must be conserved");
         helper.assertValueEqual(
                 inventory.list.get(first) + inventory.list.get(second),
@@ -153,11 +153,11 @@ public final class TrinitySameItemRuntimeInventoryGameTest {
                 new GenericStack(target, 1L),
                 new GenericStack(actual, 1L));
 
-        List<GenericStack> extracted = TrinityCompletionInputExtractor.extract(
+        Map<AEKey, BigInteger> extracted = TrinityCompletionInputExtractor.extract(
                 policy(target),
                 target,
-                3L,
-                inventory);
+                BigInteger.valueOf(3L),
+                inventory, new TrinityExactWorkingInventory());
 
         helper.assertTrue(extracted == null, "An incomplete final delivery must be rejected atomically");
         helper.assertValueEqual(inventory.list.get(target), 1L, "Exact target extraction must roll back on shortage");
@@ -175,11 +175,11 @@ public final class TrinitySameItemRuntimeInventoryGameTest {
                 new GenericStack(target, 2L),
                 new GenericStack(actual, 3L));
 
-        List<GenericStack> extracted = TrinityCompletionInputExtractor.extract(
+        Map<AEKey, BigInteger> extracted = TrinityCompletionInputExtractor.extract(
                 policy(target),
                 target,
-                0L,
-                inventory);
+                BigInteger.ZERO,
+                inventory, new TrinityExactWorkingInventory());
 
         helper.assertTrue(extracted != null && extracted.isEmpty(), "A zero delivery request must complete with no slices");
         helper.assertValueEqual(inventory.list.get(target), 2L, "A zero request must preserve exact target inventory");

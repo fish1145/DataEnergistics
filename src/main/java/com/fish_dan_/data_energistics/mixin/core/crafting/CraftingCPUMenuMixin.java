@@ -1,24 +1,26 @@
 package com.fish_dan_.data_energistics.mixin.core.crafting;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCraftingStatusEntry;
+import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftingStatusPayload;
 
 import appeng.api.config.CpuSelectionMode;
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.stacks.AEKey;
-import appeng.api.stacks.KeyCounter;
 import appeng.core.network.clientbound.CraftingStatusPacket;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.me.common.IncrementalUpdateHelper;
 import appeng.menu.me.crafting.CraftingCPUMenu;
 import appeng.menu.me.crafting.CraftingStatus;
-import appeng.menu.me.crafting.CraftingStatusEntry;
 
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
+import net.neoforged.neoforge.network.PacketDistributor;
 
-import com.google.common.collect.ImmutableList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,6 +30,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 @Mixin(CraftingCPUMenu.class)
@@ -58,15 +61,23 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
     @Unique
     private boolean dataEnergistics$cachedSuspended;
 
+    @Unique
+    private long dataEnergistics$statusSequence;
+
     public CraftingCPUMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
         super(menuType, id, playerInventory, host);
     }
 
     @Inject(method = "setCPU", at = @At("HEAD"), cancellable = true)
-    private void dataEnergistics$setCPU(ICraftingCPU c, CallbackInfo ci) {
+    private void dataEnergistics$setCPU(@Nullable ICraftingCPU c, CallbackInfo ci) {
         if (this.dataEnergistics$cpu != null) {
             this.dataEnergistics$cpu.removeListener(this.cpuChangeListener);
             this.dataEnergistics$cpu = null;
+            if (c == null) {
+                // AE2 sees its native CPU field already null and otherwise skips clearing the previous Trinity table.
+                this.incrementalUpdateHelper.reset();
+                sendPacketToClient(new CraftingStatusPacket(this.containerId, CraftingStatus.EMPTY));
+            }
         }
         this.dataEnergistics$cachedSuspended = false;
         if (!(c instanceof TrinityDataCoreVirtualCpu trinityDataCoreCpu)) {
@@ -80,10 +91,8 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
         this.incrementalUpdateHelper.reset();
         this.dataEnergistics$cpu = trinityDataCoreCpu;
 
-        KeyCounter allItems = new KeyCounter();
-        trinityDataCoreCpu.getAllItems(allItems);
-        for (var entry : allItems) {
-            this.incrementalUpdateHelper.addChange(entry.getKey());
+        for (AEKey key : trinityDataCoreCpu.getStatusKeys()) {
+            this.incrementalUpdateHelper.addChange(key);
         }
         trinityDataCoreCpu.addListener(this.cpuChangeListener);
         ci.cancel();
@@ -122,48 +131,44 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
         this.cantStoreItems = this.dataEnergistics$cpu.isCantStoreItems();
         boolean suspended = this.dataEnergistics$cpu.isJobSuspended();
         if (this.incrementalUpdateHelper.hasChanges() || this.dataEnergistics$cachedSuspended != suspended) {
-            CraftingStatus status = dataEnergistics$createStatus(
+            var header = new TrinityCraftingStatusPayload.Header(this.incrementalUpdateHelper.isFullUpdate(),
+                    this.dataEnergistics$cpu.getElapsedTimeNanos(), this.dataEnergistics$cpu.getRemainingItemCount(),
+                    this.dataEnergistics$cpu.getStartItemCount(), suspended);
+            List<TrinityCraftingStatusEntry> entries = dataEnergistics$createStatusEntries(
                     this.incrementalUpdateHelper,
-                    this.dataEnergistics$cpu,
-                    suspended);
+                    this.dataEnergistics$cpu);
+            this.dataEnergistics$statusSequence = Math.incrementExact(this.dataEnergistics$statusSequence);
+            for (var payload : TrinityCraftingStatusPayload.batches(this.containerId, this.dataEnergistics$statusSequence, header, entries)) {
+                PacketDistributor.sendToPlayer((ServerPlayer) getPlayer(), payload);
+            }
             this.incrementalUpdateHelper.commitChanges();
             this.dataEnergistics$cachedSuspended = suspended;
-            sendPacketToClient(new CraftingStatusPacket(this.containerId, status));
         }
     }
 
     @Unique
-    private static CraftingStatus dataEnergistics$createStatus(IncrementalUpdateHelper changes,
-                                                               TrinityDataCoreVirtualCpu cpu,
-                                                               boolean suspended) {
+    private static List<TrinityCraftingStatusEntry> dataEnergistics$createStatusEntries(IncrementalUpdateHelper changes,
+                                                                                        TrinityDataCoreVirtualCpu cpu) {
         boolean full = changes.isFullUpdate();
-        ImmutableList.Builder<CraftingStatusEntry> entries = ImmutableList.builder();
+        List<TrinityCraftingStatusEntry> entries = new ObjectArrayList<>();
         for (AEKey what : changes) {
-            long storedAmount = cpu.getStored(what);
-            long activeAmount = cpu.getWaitingFor(what);
-            long pendingAmount = cpu.getPendingOutputs(what);
             AEKey sentStack = what;
             if (!full && changes.getSerial(what) != null) {
                 sentStack = null;
             }
 
-            CraftingStatusEntry entry = new CraftingStatusEntry(
+            TrinityCraftingStatusEntry entry = new TrinityCraftingStatusEntry(
                     changes.getOrAssignSerial(what),
                     sentStack,
-                    storedAmount,
-                    activeAmount,
-                    pendingAmount);
+                    cpu.getStored(what),
+                    cpu.getWaitingFor(what),
+                    cpu.getPendingOutputs(what));
             entries.add(entry);
             if (entry.isDeleted()) {
                 changes.removeSerial(what);
             }
         }
 
-        return new CraftingStatus(
-                full,
-                cpu.getElapsedTimeNanos(),
-                cpu.getRemainingItemCount(),
-                cpu.getStartItemCount(),
-                entries.build(), suspended);
+        return entries;
     }
 }

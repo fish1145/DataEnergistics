@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/0_data_energistics.md
-  title: Data Flow Components
+  title: Digitalization Components
   icon: data_energistics:data_flow_component_housing
   position: 2
 item_ids:
@@ -39,7 +39,7 @@ item_ids:
 - data_energistics:data_cell_infinity
 ---
 
-# Data Flow Components
+# Digitalization Components
 
 <Column>
   <Row>
@@ -55,13 +55,13 @@ item_ids:
   </Row>
 </Column>
 
-Data Flow components are a set of components built around Data Flow storage and finished products.
+Digitalization components are a set of components and finished products built around Data Flow (and Echo, which is not yet complete) storage.
 
 ---
 
 ## Storage Components
 
-Data Flow storage components determine the capacity level of the corresponding components. Currently, ten tiers are available, ranging from 1K to 256M.
+Digitalization storage components determine the capacity level of the corresponding components. Currently, ten tiers are available, ranging from 1K to 256M.
 
 <Column>
   <Row>
@@ -91,7 +91,7 @@ Data Flow storage components determine the capacity level of the corresponding c
 
 ## Component Housing
 
-Data Flow Component Housing is used to encapsulate storage components into usable components.
+Digitalization Component Housing is used to encapsulate storage components into usable components.
 
 <Row>
   <RecipeFor id="data_flow_component_housing" />
@@ -134,10 +134,10 @@ If it holds neither Data Flow nor Echo, you can Shift + right-click to disassemb
 
 ---
 
-# Upgrade  
+# Upgrade
 
 <Row>
-    <ItemLink id="ae2:energy_card"/>  
+    <ItemLink id="ae2:energy_card"/>
     <ItemImage id="ae2:energy_card" />
 </Row>
 Energy Card:
@@ -150,3 +150,5 @@ Maximum energy = base capacity × (1 + 8 × number of energy cards)
     <ItemImage id="data_cell_infinity" />
   </Row>
 A component formed by an unknown force that can infinitely retrieve Data Flow, Binary, and Echo; no one knows where it comes from or where it will go
+
+> In Survival mode, obtaining it has a 5% chance of killing you (you cannot withstand the enormous data volume).

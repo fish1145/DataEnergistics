@@ -192,7 +192,6 @@ public final class TrinitySameItemPolicyGameTest {
                 .orElseThrow()
                 .primaryOutput(), physicalOutput,
                 "Restored provider lookup must retain the raw primary output");
-
         helper.succeed();
     }
 

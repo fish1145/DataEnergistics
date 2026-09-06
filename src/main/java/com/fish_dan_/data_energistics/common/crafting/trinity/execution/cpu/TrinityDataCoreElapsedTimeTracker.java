@@ -56,11 +56,15 @@ final class TrinityDataCoreElapsedTimeTracker {
      * @param keyType AE key type for unit conversion
      */
     void addMaxItems(long amount, AEKeyType keyType) {
-        if (amount < 0L) {
+        addMaxItems(BigInteger.valueOf(amount), keyType);
+    }
+
+    void addMaxItems(BigInteger amount, AEKeyType keyType) {
+        if (amount.signum() < 0) {
             throw new IllegalArgumentException("Tracked Trinity work must be non-negative");
         }
         updateTime();
-        this.startedWorkByType.merge(keyType, BigInteger.valueOf(amount), BigInteger::add);
+        this.startedWorkByType.merge(keyType, amount, BigInteger::add);
     }
 
     /**
@@ -156,11 +160,15 @@ final class TrinityDataCoreElapsedTimeTracker {
      * @param keyType AE key type for unit conversion
      */
     void decrementItems(long amount, AEKeyType keyType) {
-        if (amount < 0L) {
+        decrementItems(BigInteger.valueOf(amount), keyType);
+    }
+
+    void decrementItems(BigInteger amount, AEKeyType keyType) {
+        if (amount.signum() < 0) {
             throw new IllegalArgumentException("Completed Trinity work must be non-negative");
         }
         updateTime();
-        this.completedWorkByType.merge(keyType, BigInteger.valueOf(amount), BigInteger::add);
+        this.completedWorkByType.merge(keyType, amount, BigInteger::add);
     }
 
     /**

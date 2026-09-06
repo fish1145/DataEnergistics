@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu;
 
 import com.fish_dan_.data_energistics.common.crafting.dynamic.DynamicCraftingOutputResolutionException;
+import com.fish_dan_.data_energistics.common.crafting.trinity.serialization.TrinityBigIntegerEncoding;
 
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -14,15 +15,16 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 
-import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Durable exact-template ledger for runtime outputs that may return a different item-component variant.
@@ -38,7 +40,7 @@ final class DynamicCraftingOutputLedger {
     private static final String ACTUAL_KEY_TAG = "actual_key";
 
     private final ObjectArrayList<MutableEntry> entries = new ObjectArrayList<>();
-    private final Object2LongLinkedOpenHashMap<AEItemKey> inputAliases = new Object2LongLinkedOpenHashMap<>();
+    private final Object2ObjectLinkedOpenHashMap<AEItemKey, BigInteger> inputAliases = new Object2ObjectLinkedOpenHashMap<>();
 
     /**
      * Output ownership route selected at provider-commit time.
@@ -57,12 +59,12 @@ final class DynamicCraftingOutputLedger {
      * @param source     adapter ID or request-local manual source
      */
     record Registration(AEItemKey plannedKey,
-                        long amount,
+                        BigInteger amount,
                         Route route,
                         ResourceLocation source) {
 
         Registration {
-            if (amount <= 0L) {
+            if (amount.signum() <= 0) {
                 throw new IllegalArgumentException("A dynamic output registration must be positive");
             }
         }
@@ -96,7 +98,7 @@ final class DynamicCraftingOutputLedger {
     /**
      * Rejects intrinsically ambiguous declarations and defers transient conflicts with already in-flight outputs.
      */
-    DispatchSafety evaluate(KeyCounter waitingFor,
+    DispatchSafety evaluate(Map<AEKey, BigInteger> waitingFor,
                             List<GenericStack> expectedPhysicalOutputs,
                             List<Registration> registrations) {
         Map<Item, Domain> activeDomains = domains(this.entries.stream()
@@ -112,15 +114,15 @@ final class DynamicCraftingOutputLedger {
                         "One provider push exposes multiple component templates in dynamic item domain " +
                                 dynamic.getValue().plannedKey().getItem());
             }
-            long expected = expectedPhysicalOutputs.stream()
+            BigInteger expected = expectedPhysicalOutputs.stream()
                     .filter(stack -> stack.what().equals(dynamic.getValue().plannedKey()))
-                    .mapToLong(GenericStack::amount)
-                    .reduce(0L, Math::addExact);
-            long registered = registrations.stream()
+                    .map(stack -> BigInteger.valueOf(stack.amount()))
+                    .reduce(BigInteger.ZERO, BigInteger::add);
+            BigInteger registered = registrations.stream()
                     .filter(value -> value.plannedKey().equals(dynamic.getValue().plannedKey()))
-                    .mapToLong(Registration::amount)
-                    .reduce(0L, Math::addExact);
-            if (registered > expected) {
+                    .map(Registration::amount)
+                    .reduce(BigInteger.ZERO, BigInteger::add);
+            if (registered.compareTo(expected) > 0) {
                 throw new DynamicCraftingOutputResolutionException(
                         "Dynamic output declaration exceeds the provider push output for " +
                                 dynamic.getValue().plannedKey());
@@ -141,18 +143,18 @@ final class DynamicCraftingOutputLedger {
                 if (!active.compatible(incoming.getValue())) {
                     return DispatchSafety.CONFLICT;
                 }
-                for (var waiting : waitingFor) {
+                for (var waiting : waitingFor.entrySet()) {
                     if (waiting.getKey() instanceof AEItemKey itemKey &&
                             itemKey.getItem() == incoming.getKey() &&
-                            !itemKey.equals(active.plannedKey()) && waiting.getLongValue() > 0L) {
+                            !itemKey.equals(active.plannedKey()) && waiting.getValue().signum() > 0) {
                         return DispatchSafety.CONFLICT;
                     }
                 }
                 continue;
             }
-            for (var waiting : waitingFor) {
+            for (var waiting : waitingFor.entrySet()) {
                 if (waiting.getKey() instanceof AEItemKey itemKey &&
-                        itemKey.getItem() == incoming.getKey() && waiting.getLongValue() > 0L) {
+                        itemKey.getItem() == incoming.getKey() && waiting.getValue().signum() > 0) {
                     return DispatchSafety.CONFLICT;
                 }
             }
@@ -169,7 +171,7 @@ final class DynamicCraftingOutputLedger {
             if (existing == null) {
                 this.entries.add(new MutableEntry(registration));
             } else {
-                existing.remaining = Math.addExact(existing.remaining, registration.amount());
+                existing.remaining = existing.remaining.add(registration.amount());
             }
         }
     }
@@ -183,23 +185,22 @@ final class DynamicCraftingOutputLedger {
      *
      * @param cancelledRegistrations positive cancelled amounts, not the original accepted totals
      * @throws IllegalStateException when an exact registration is absent or has insufficient remaining amount
-     * @throws ArithmeticException   when duplicate cancellation amounts overflow the long registration domain
      */
     Runnable prepareWithdrawal(List<Registration> cancelledRegistrations) {
-        Object2LongLinkedOpenHashMap<MutableEntry> withdrawals = new Object2LongLinkedOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<MutableEntry, BigInteger> withdrawals = new Object2ObjectLinkedOpenHashMap<>();
         for (Registration registration : cancelledRegistrations) {
             MutableEntry existing = this.entries.stream()
                     .filter(entry -> entry.matches(registration))
                     .findFirst()
                     .orElseThrow(() -> new IllegalStateException("Cancelled dynamic output registration is absent: " + registration));
-            withdrawals.mergeLong(existing, registration.amount(), Math::addExact);
+            withdrawals.merge(existing, registration.amount(), BigInteger::add);
         }
-        for (var withdrawal : withdrawals.object2LongEntrySet()) {
-            if (withdrawal.getLongValue() > withdrawal.getKey().remaining) {
+        for (var withdrawal : withdrawals.object2ObjectEntrySet()) {
+            if (withdrawal.getValue().compareTo(withdrawal.getKey().remaining) > 0) {
                 throw new IllegalStateException("Cancelled dynamic output exceeds its uncompleted registration: " +
                         withdrawal.getKey().registration());
             }
-            withdrawal.setValue(withdrawal.getKey().remaining - withdrawal.getLongValue());
+            withdrawal.setValue(withdrawal.getKey().remaining.subtract(withdrawal.getValue()));
         }
         return new Runnable() {
 
@@ -211,7 +212,7 @@ final class DynamicCraftingOutputLedger {
                     throw new IllegalStateException("A prepared dynamic withdrawal may only be applied once");
                 }
                 applied = true;
-                withdrawals.object2LongEntrySet().forEach(entry -> entry.getKey().remaining = entry.getLongValue());
+                withdrawals.object2ObjectEntrySet().forEach(entry -> entry.getKey().remaining = entry.getValue());
                 removeEmpty();
             }
         };
@@ -220,7 +221,7 @@ final class DynamicCraftingOutputLedger {
     /**
      * Finds a same-item entry after the exact waiting path has rejected the remaining actual stack.
      */
-    Optional<Match> match(AEItemKey actualKey, long maximumAmount, KeyCounter waitingFor) {
+    Optional<Match> match(AEItemKey actualKey, long maximumAmount, Map<AEKey, BigInteger> waitingFor) {
         if (maximumAmount <= 0L) {
             return Optional.empty();
         }
@@ -228,8 +229,8 @@ final class DynamicCraftingOutputLedger {
             if (entry.plannedKey.getItem() != actualKey.getItem()) {
                 continue;
             }
-            long exactWaiting = waitingFor.get(entry.plannedKey);
-            long amount = Math.min(maximumAmount, Math.min(entry.remaining, exactWaiting));
+            BigInteger exactWaiting = waitingFor.getOrDefault(entry.plannedKey, BigInteger.ZERO);
+            long amount = entry.remaining.min(exactWaiting).min(BigInteger.valueOf(maximumAmount)).longValueExact();
             if (amount > 0L) {
                 return Optional.of(entry.match(amount));
             }
@@ -246,8 +247,8 @@ final class DynamicCraftingOutputLedger {
             if (!entry.plannedKey.equals(exactKey) || remaining == 0L) {
                 continue;
             }
-            long consumed = Math.min(remaining, entry.remaining);
-            entry.remaining -= consumed;
+            long consumed = entry.remaining.min(BigInteger.valueOf(remaining)).longValueExact();
+            entry.remaining = entry.remaining.subtract(BigInteger.valueOf(consumed));
             remaining -= consumed;
         }
         removeEmpty();
@@ -261,10 +262,10 @@ final class DynamicCraftingOutputLedger {
             if (entry.plannedKey.equals(match.plannedKey()) &&
                     entry.route == match.route() &&
                     entry.source.equals(match.source())) {
-                if (amount > entry.remaining) {
+                if (BigInteger.valueOf(amount).compareTo(entry.remaining) > 0) {
                     throw new IllegalStateException("Dynamic output ledger changed after acceptance simulation");
                 }
-                entry.remaining -= amount;
+                entry.remaining = entry.remaining.subtract(BigInteger.valueOf(amount));
                 removeEmpty();
                 return;
             }
@@ -279,7 +280,7 @@ final class DynamicCraftingOutputLedger {
         if (amount <= 0L) {
             throw new IllegalArgumentException("A dynamic input alias must be a positive item amount");
         }
-        this.inputAliases.mergeLong(actualKey, amount, Math::addExact);
+        this.inputAliases.merge(actualKey, BigInteger.valueOf(amount), BigInteger::add);
     }
 
     /**
@@ -290,10 +291,10 @@ final class DynamicCraftingOutputLedger {
             return List.of();
         }
         ObjectArrayList<GenericStack> alternatives = new ObjectArrayList<>();
-        for (var alias : this.inputAliases.object2LongEntrySet()) {
+        for (var alias : this.inputAliases.object2ObjectEntrySet()) {
             if (alias.getKey().getItem() == plannedItem.getItem() &&
                     !alias.getKey().equals(plannedKey)) {
-                long available = Math.min(alias.getLongValue(), inventory.get(alias.getKey()));
+                long available = alias.getValue().min(BigInteger.valueOf(inventory.get(alias.getKey()))).longValueExact();
                 if (available > 0L) {
                     alternatives.add(new GenericStack(alias.getKey(), available));
                 }
@@ -314,22 +315,22 @@ final class DynamicCraftingOutputLedger {
             if (!(consumed.getKey() instanceof AEItemKey itemKey)) {
                 continue;
             }
-            long aliased = this.inputAliases.getLong(itemKey);
-            if (aliased == 0L) {
+            BigInteger aliased = this.inputAliases.getOrDefault(itemKey, BigInteger.ZERO);
+            if (aliased.signum() == 0) {
                 continue;
             }
-            long remaining = aliased - Math.min(aliased, consumed.getLongValue());
-            if (remaining == 0L) {
-                this.inputAliases.removeLong(itemKey);
+            BigInteger remaining = aliased.subtract(aliased.min(BigInteger.valueOf(consumed.getLongValue())));
+            if (remaining.signum() == 0) {
+                this.inputAliases.remove(itemKey);
             } else {
                 this.inputAliases.put(itemKey, remaining);
             }
         }
     }
 
-    void validateInputAliases(KeyCounter inventory) {
+    void validateInputAliases(Function<AEKey, BigInteger> inventory) {
         this.inputAliases.forEach((key, amount) -> {
-            if (amount <= 0L || inventory.get(key) < amount) {
+            if (amount.signum() <= 0 || inventory.apply(key).compareTo(amount) < 0) {
                 throw new IllegalArgumentException(
                         "Persisted same-item input ownership exceeds CPU inventory for " + key);
             }
@@ -342,7 +343,7 @@ final class DynamicCraftingOutputLedger {
         for (MutableEntry entry : this.entries) {
             CompoundTag tag = new CompoundTag();
             tag.put(KEY_TAG, entry.plannedKey.toTagGeneric(registries));
-            tag.putLong(AMOUNT_TAG, entry.remaining);
+            tag.putByteArray(AMOUNT_TAG, TrinityBigIntegerEncoding.encode(entry.remaining, "dynamic output allowance"));
             tag.putString(ROUTE_TAG, entry.route.name());
             tag.putString(SOURCE_TAG, entry.source.toString());
             encoded.add(tag);
@@ -352,7 +353,7 @@ final class DynamicCraftingOutputLedger {
         this.inputAliases.forEach((key, amount) -> {
             CompoundTag tag = new CompoundTag();
             tag.put(ACTUAL_KEY_TAG, key.toTagGeneric(registries));
-            tag.putLong(AMOUNT_TAG, amount);
+            tag.putByteArray(AMOUNT_TAG, TrinityBigIntegerEncoding.encode(amount, "dynamic input alias"));
             aliases.add(tag);
         });
         root.put(INPUT_ALIASES_TAG, aliases);
@@ -377,7 +378,6 @@ final class DynamicCraftingOutputLedger {
             if (!(value instanceof CompoundTag tag) ||
                     !tag.getAllKeys().equals(Set.of(KEY_TAG, AMOUNT_TAG, ROUTE_TAG, SOURCE_TAG)) ||
                     !tag.contains(KEY_TAG, Tag.TAG_COMPOUND) ||
-                    !tag.contains(AMOUNT_TAG, Tag.TAG_LONG) ||
                     !tag.contains(ROUTE_TAG, Tag.TAG_STRING) ||
                     !tag.contains(SOURCE_TAG, Tag.TAG_STRING)) {
                 throw new IllegalArgumentException("Damaged dynamic crafting output ledger entry");
@@ -394,7 +394,7 @@ final class DynamicCraftingOutputLedger {
             } catch (RuntimeException exception) {
                 throw new IllegalArgumentException("Damaged dynamic crafting output ledger metadata", exception);
             }
-            registrations.add(new Registration(itemKey, tag.getLong(AMOUNT_TAG), route, source));
+            registrations.add(new Registration(itemKey, readAmount(tag), route, source));
         }
         domains(registrations);
         ledger.register(registrations);
@@ -409,13 +409,13 @@ final class DynamicCraftingOutputLedger {
         for (Tag value : aliases) {
             if (!(value instanceof CompoundTag tag) ||
                     !tag.getAllKeys().equals(Set.of(ACTUAL_KEY_TAG, AMOUNT_TAG)) ||
-                    !tag.contains(ACTUAL_KEY_TAG, Tag.TAG_COMPOUND) ||
-                    !tag.contains(AMOUNT_TAG, Tag.TAG_LONG)) {
+                    !tag.contains(ACTUAL_KEY_TAG, Tag.TAG_COMPOUND)) {
                 throw new IllegalArgumentException("Damaged same-item input alias entry");
             }
             AEKey decoded = AEKey.fromTagGeneric(registries, tag.getCompound(ACTUAL_KEY_TAG));
-            if (!(decoded instanceof AEItemKey itemKey) || tag.getLong(AMOUNT_TAG) <= 0L ||
-                    ledger.inputAliases.putIfAbsent(itemKey, tag.getLong(AMOUNT_TAG)) != 0L) {
+            BigInteger amount = readAmount(tag);
+            if (!(decoded instanceof AEItemKey itemKey) || amount.signum() <= 0 ||
+                    ledger.inputAliases.putIfAbsent(itemKey, amount) != null) {
                 throw new IllegalArgumentException("Same-item input aliases require unique positive item entries");
             }
         }
@@ -423,7 +423,11 @@ final class DynamicCraftingOutputLedger {
     }
 
     private void removeEmpty() {
-        this.entries.removeIf(entry -> entry.remaining == 0L);
+        this.entries.removeIf(entry -> entry.remaining.signum() == 0);
+    }
+
+    private static BigInteger readAmount(CompoundTag tag) {
+        return TrinityBigIntegerEncoding.readTag(tag, AMOUNT_TAG, "dynamic output ledger amount");
     }
 
     private static Map<Item, Domain> domains(List<Registration> registrations) {
@@ -465,7 +469,7 @@ final class DynamicCraftingOutputLedger {
         private final AEItemKey plannedKey;
         private final Route route;
         private final ResourceLocation source;
-        private long remaining;
+        private BigInteger remaining;
 
         private MutableEntry(Registration registration) {
             this.plannedKey = registration.plannedKey();

@@ -1,7 +1,7 @@
 ---
 navigation:
   parent: data_energistics:items-blocks-machines/0_data_energistics.md
-  title: 数据流元件
+  title: 数位化元件
   icon: data_energistics:data_flow_component_housing
   position: 2
 item_ids:
@@ -39,7 +39,7 @@ item_ids:
 - data_energistics:data_cell_infinity
 ---
 
-# 数据流元件
+# 数位化元件
 
 <Column>
   <Row>
@@ -55,13 +55,13 @@ item_ids:
   </Row>
 </Column>
 
-数据流元件是一组围绕数据流存储构建的组件与成品元件。
+数位化元件是一组围绕数据流(与回响(暂未完工))存储构建的组件与成品元件。
 
 ---
 
 ##  存储组件
 
-数据流存储组件决定了对应元件的容量等级。当前提供了 1K 到 256M 的十个等级。
+数位化存储组件决定了对应元件的容量等级。当前提供了 1K 到 256M 的十个等级。
 
 <Column>
   <Row>
@@ -91,7 +91,7 @@ item_ids:
 
 ##  元件外壳
 
-数据流元件外壳用于将存储组件封装为可使用的元件。
+数位化元件外壳用于将存储组件封装为可使用的元件。
 
 <Row>
   <RecipeFor id="data_flow_component_housing" />
@@ -150,3 +150,5 @@ item_ids:
     <ItemImage id="data_cell_infinity" />
   </Row>
 一种未知力量形成的元件，能无限取出数据流、二进制以及回响，没有人知道它从何而来，也没有人知道它将会去哪
+
+> 生存模式获取有5%的概率使自身死亡(你无法承受庞大的数据量)

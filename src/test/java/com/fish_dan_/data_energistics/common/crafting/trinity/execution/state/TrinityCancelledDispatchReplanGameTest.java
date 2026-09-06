@@ -66,7 +66,7 @@ public final class TrinityCancelledDispatchReplanGameTest {
         var replacement = execution.pollDispatchable(3L, Set.of(), ignored -> true, true).orElseThrow();
         helper.assertTrue(replacement.generation() > outstanding.generation(), "Replacement cannot reuse a stale work generation");
         helper.assertValueEqual(replacement.maximumLogicalFirings(), 4L, "Replacement production may exceed remaining target delivery");
-        helper.assertValueEqual(execution.deliveryRemaining(), 2L, "More replacement production does not increase user delivery responsibility");
+        helper.assertValueEqual(execution.deliveryRemaining(), BigInteger.TWO, "More replacement production does not increase user delivery responsibility");
         execution.recordAccepted(replacement, 4L, 4L);
         helper.assertTrue(execution.productionComplete(), "Old stage can be fully dispatched before cancellation arrives");
         execution.replanAfterCancelledDispatch(4L);
@@ -76,7 +76,7 @@ public final class TrinityCancelledDispatchReplanGameTest {
                 "PLANNING with all old stages completed is a valid durable recovery state");
         helper.assertTrue(restored.productionComplete(), "Restore preserves completed dispatch history rather than reopening it");
         helper.assertTrue(restored.pollDispatchable(5L, Set.of(), ignored -> true, true).isEmpty(), "Restored recovery cannot dispatch old work");
-        helper.assertValueEqual(restored.deliveryRemaining(), 2L, "Restore retains original delivery responsibility");
+        helper.assertValueEqual(restored.deliveryRemaining(), BigInteger.TWO, "Restore retains original delivery responsibility");
         helper.succeed();
     }
 
@@ -92,13 +92,13 @@ public final class TrinityCancelledDispatchReplanGameTest {
         AEItemKey actual = AEItemKey.of(named);
         execution.borrowingLedger().reserve(paper, 1L);
         var borrowing = execution.borrowingLedger().entries();
-        execution.recordActualFinalOutput(actual, 1L);
+        execution.recordActualFinalOutput(actual, BigInteger.ONE);
         expectStateFailure(helper, () -> execution.finishReplanningWithoutProduction(10L));
         execution.replanAfterCancelledDispatch(11L);
         execution.finishReplanningWithoutProduction(11L);
         helper.assertValueEqual(execution.status(), TrinityPlanExecution.Status.COMPLETED, "Only production is retired");
-        helper.assertValueEqual(execution.deliveryRemaining(), 2L, "Unsent output is still owed to the requester");
-        helper.assertValueEqual(execution.actualFinalOutputAmount(), 1L, "Actual previously produced output survives");
+        helper.assertValueEqual(execution.deliveryRemaining(), BigInteger.TWO, "Unsent output is still owed to the requester");
+        helper.assertValueEqual(execution.actualFinalOutputAmount(), BigInteger.ONE, "Actual previously produced output survives");
         helper.assertTrue(execution.completionOffer().isEmpty(), "The method must not fabricate or seal a delivery");
         helper.assertValueEqual(execution.borrowingLedger().entries(), borrowing, "Borrowing ownership is independent of discarded production");
         CompoundTag retired = execution.save(helper.getLevel().registryAccess(), 11L);
@@ -111,7 +111,7 @@ public final class TrinityCancelledDispatchReplanGameTest {
         CompoundTag unmarked = retired.copy();
         unmarked.putBoolean("production_retired", false);
         expectInvalidSnapshot(helper, unmarked);
-        execution.sealCompletion(1L);
+        execution.sealCompletion(BigInteger.ONE);
         execution.recordDelivered(actual, 1L);
         var pendingDelivery = execution.completionOffer().orElseThrow();
         execution.replanAfterCancelledDispatch(12L);
@@ -120,9 +120,9 @@ public final class TrinityCancelledDispatchReplanGameTest {
         restored.finishReplanningWithoutProduction(13L);
         helper.assertValueEqual(restored.completionOffer().orElseThrow(), pendingDelivery,
                 "A previously sealed undelivered output is preserved exactly through recovery and reload");
-        helper.assertValueEqual(restored.deliveryRemaining(), 1L, "Already delivered output must never become owed again");
+        helper.assertValueEqual(restored.deliveryRemaining(), BigInteger.ONE, "Already delivered output must never become owed again");
         restored.recordDelivered(target, 1L);
-        helper.assertValueEqual(restored.deliveryRemaining(), 0L, "Only the actual delivery receipt finishes the responsibility");
+        helper.assertValueEqual(restored.deliveryRemaining(), BigInteger.ZERO, "Only the actual delivery receipt finishes the responsibility");
         helper.succeed();
     }
 

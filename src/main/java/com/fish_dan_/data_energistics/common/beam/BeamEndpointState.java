@@ -260,7 +260,7 @@ public final class BeamEndpointState {
         publish();
     }
 
-    /** Called before the managed node is removed; valid saved bindings survive chunk unloading. */
+    /** Releases beam records even after AE2 removes the physical edges; valid bindings survive chunk unloading. */
     public void disconnect() {
         while (!this.connections.isEmpty()) {
             this.connections.values().iterator().next().close();

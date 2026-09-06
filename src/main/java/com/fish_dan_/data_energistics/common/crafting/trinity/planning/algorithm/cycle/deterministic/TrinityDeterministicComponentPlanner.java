@@ -87,6 +87,11 @@ public final class TrinityDeterministicComponentPlanner {
         if (!component.cyclic() || maxStates <= 0) {
             throw new IllegalArgumentException("A deterministic Trinity component request is incomplete");
         }
+        TrinityPlanningAttempt<TrinityDeterministicComponentPlan> supplied = TrinitySuppliedSingleRecipePlanner.plan(
+                component, demand, available, producibleInputs, maxStates, control);
+        if (supplied.kind() != TrinityPlanningAttempt.Kind.NOT_APPLICABLE) {
+            return supplied;
+        }
         if (unitProof != null) {
             TrinityDeterministicApplicabilityResult cached = this.applicability.assess(
                     component,

@@ -38,6 +38,25 @@ public final class TrinityBoundPatternDetails implements IPatternDetails {
     }
 
     /**
+     * Whether this allocation can be delivered with the original provider pattern without rewriting emitted keys.
+     * Exact extraction bindings exist even when no same-item substitution occurred. Those bindings must not disable
+     * native single-craft fallback; genuine component substitutions still require a bound-input-aware provider.
+     */
+    public boolean preservesNativeInputs(IPatternDetails original) {
+        if (this.delegate != original) {
+            return false;
+        }
+        for (SlotBinding slot : this.slots) {
+            for (GenericStack actual : slot.actualInputs()) {
+                if (!actual.what().equals(slot.plannedTemplate().what())) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
      * Extracts this allocation exactly, rolling back all slices if any is no longer available. Successful extraction
      * appends the original physical outputs and actual container remainders to the supplied counters.
      */
