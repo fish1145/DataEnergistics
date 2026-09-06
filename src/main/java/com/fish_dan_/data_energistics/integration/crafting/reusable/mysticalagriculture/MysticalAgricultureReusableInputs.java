@@ -15,8 +15,6 @@ import appeng.api.stacks.AEItemKey;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.crafting.ShapedRecipe;
-import net.minecraft.world.item.crafting.ShapelessRecipe;
 import net.minecraft.world.item.enchantment.Enchantments;
 
 import com.blakebr0.mysticalagriculture.item.InfusionCrystalItem;
@@ -59,15 +57,7 @@ public final class MysticalAgricultureReusableInputs implements DataEnergisticsP
     @Override
     public Optional<ReusableInputRule> resolve(ReusableInputContext context) {
         AEItemKey key = (AEItemKey) context.actualInput().what();
-        if (!isCrystal(key.getItem()) || !NativeReusableCrafting.usesNativeRecipeValidation(context.pattern(), context.recipeId())) {
-            return Optional.empty();
-        }
-        var holder = context.level().getRecipeManager().byKey(context.recipeId().orElseThrow());
-        if (holder.isEmpty()) {
-            return Optional.empty();
-        }
-        var recipe = holder.orElseThrow().value();
-        if (recipe.getClass() != ShapedRecipe.class && recipe.getClass() != ShapelessRecipe.class) {
+        if (!isCrystal(key.getItem()) || !NativeReusableCrafting.usesStandardItemRemainders(context.pattern(), context.recipeId(), context.level())) {
             // A custom recipe may override remainders; its behavior needs its own authoritative adapter.
             return Optional.empty();
         }

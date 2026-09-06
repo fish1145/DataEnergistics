@@ -16,6 +16,7 @@ dependencies {
     compileOnly(forge.curios)
     compileOnly(forge.cucumber)
     compileOnly(forge.mystical.agriculture)
+    compileOnly(forge.ato)
 
     // AE2
     accessCompileOnly(forge.ae2)
@@ -90,6 +91,7 @@ dependencies {
     extraLocalRuntime(forge.sut)
     extraLocalRuntime(forge.cucumber)
     extraLocalRuntime(forge.mystical.agriculture)
+    extraLocalRuntime(forge.ato)
 
     // Runtime AE2 addons
     extraLocalRuntime(forge.ae2ji)

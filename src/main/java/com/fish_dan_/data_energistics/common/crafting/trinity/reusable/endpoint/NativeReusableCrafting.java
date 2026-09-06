@@ -24,7 +24,10 @@ import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.item.crafting.ShapelessRecipe;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -42,6 +45,16 @@ public final class NativeReusableCrafting {
 
     public static boolean usesNativeRecipeValidation(IPatternDetails pattern, Optional<ResourceLocation> recipeId) {
         return original(pattern) instanceof AECraftingPattern && recipeId.isPresent();
+    }
+
+    /** Only vanilla shaped/shapeless implementations prove that the recipe delegates remainders to its items. */
+    public static boolean usesStandardItemRemainders(IPatternDetails pattern, Optional<ResourceLocation> recipeId, ServerLevel level) {
+        if (!usesNativeRecipeValidation(pattern, recipeId)) {
+            return false;
+        }
+        var holder = level.getRecipeManager().byKey(recipeId.orElseThrow());
+        return holder.isPresent() && (holder.orElseThrow().value().getClass() == ShapedRecipe.class ||
+                holder.orElseThrow().value().getClass() == ShapelessRecipe.class);
     }
 
     /**
@@ -149,7 +162,7 @@ public final class NativeReusableCrafting {
                 outputs.add(actual);
                 continue;
             }
-            ReusableInputRule.Result prediction = rules.get(owner).advance(AEItemKey.of(grid.items().get(sparse)), 1);
+            ReusableInputRule.Result prediction = rules.get(owner).advance(grid.toolStates().get(sparse), 1);
             // Prediction identifies output roles only. Every recorded key/count comes from the actual remainder.
             if (actual.what().equals(prediction.successor())) {
                 successors.get(owner).add(new GenericStack(actual.what(), 1));
@@ -183,6 +196,7 @@ public final class NativeReusableCrafting {
         }
         int[] toolOwners = new int[GRID_SIZE];
         Arrays.fill(toolOwners, -1);
+        Int2ObjectMap<AEItemKey> toolStates = new Int2ObjectOpenHashMap<>();
         boolean encodedMapping = pattern instanceof AECraftingPattern;
         for (int source = 0; source < all.length; source++) {
             final int originalSlot = source;
@@ -212,6 +226,8 @@ public final class NativeReusableCrafting {
                 AEItemKey key = AEItemKey.of(actual);
                 if (held[originalSlot].get(key) > 0) {
                     toolOwners[sparse] = originalSlot;
+                    // Some item remainder hooks mutate the native grid stack in place.
+                    toolStates.put(sparse, key);
                     held[originalSlot].remove(key, 1);
                 }
             });
@@ -221,7 +237,7 @@ public final class NativeReusableCrafting {
                 throw new IllegalArgumentException("Native recipe did not consume the exact reusable slot input");
             }
         }
-        return new Grid(grid, toolOwners);
+        return new Grid(grid, toolOwners, toolStates);
     }
 
     private static ItemStack takeItem(KeyCounter counter) {
@@ -242,5 +258,5 @@ public final class NativeReusableCrafting {
         return result;
     }
 
-    private record Grid(List<ItemStack> items, int[] toolOwners) {}
+    private record Grid(List<ItemStack> items, int[] toolOwners, Int2ObjectMap<AEItemKey> toolStates) {}
 }

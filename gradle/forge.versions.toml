@@ -32,6 +32,7 @@ modernfix = "5HLHxQ2F" # 5.27.24+mc1.21.1
 bhc = "1.21.1-1.4.1"
 
 ## cursemaven ##
+ato = "7825464"
 spark = "6225208"
 guideme = "21.1.17"
 geckolib = "8350073"
@@ -97,6 +98,7 @@ modernfix           = { module = "maven.modrinth:modernfix", version.ref = "mode
 bhc                 = { module = "maven.modrinth:baubley-heart-canisters", version.ref = "bhc" }
 
 geckolib            = { module = "curse.maven:geckolib-388172", version.ref = "geckolib" }
+ato                 = { module = "curse.maven:ato-405593", version.ref = "ato" }
 glodium             = { module = "curse.maven:glodium-957920", version.ref = "glodium" }
 ae2ji               = { module = "curse.maven:ae2-jei-integration-1074338", version.ref = "ae2ji" }
 ae2ct               = { module = "curse.maven:ae2-crafting-tree-1086241", version.ref = "ae2ct" }
