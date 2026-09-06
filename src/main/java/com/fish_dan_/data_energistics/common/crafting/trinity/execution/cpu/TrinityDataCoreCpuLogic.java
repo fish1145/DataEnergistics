@@ -1216,7 +1216,11 @@ final class TrinityDataCoreCpuLogic {
         long currentTick;
         ProviderCapacityCapture capacityCapture;
         List<ProviderCapacitySnapshot> snapshots;
-        try (CraftingDispatchWindow.CapacityCaptureScope ignored = dispatchWindow.beginProviderCapacityCapture()) {
+        var capacityScope = dispatchWindow.tryBeginProviderCapacityCapture();
+        if (capacityScope == null) {
+            return settleProposal(workIdentity, asynchronousSelection, ProviderDispatchOutcome.NONE);
+        }
+        try (capacityScope) {
             prototype = capturePatternInputPrototype(extractionDetails, level);
             if (prototype == null || dispatchWindow.isExhausted()) {
                 return settleProposal(workIdentity, asynchronousSelection, ProviderDispatchOutcome.NONE);
@@ -1356,11 +1360,11 @@ final class TrinityDataCoreCpuLogic {
                 continue;
             }
 
-            try (CraftingDispatchWindow.SubmissionScope submission = beginProviderSubmission(
-                    dispatchWindow,
-                    provider,
-                    details,
-                    countedDispatch)) {
+            var submission = dispatchWindow.tryBeginSubmission(provider, details);
+            if (submission == null) {
+                break;
+            }
+            try (submission) {
                 if (providerBusy(provider, details, dispatchWindow)) {
                     if (asynchronousSelection) {
                         return resubmitAfterSelectedTargetFailure(
@@ -1800,16 +1804,6 @@ final class TrinityDataCoreCpuLogic {
         return countedDispatch ?
                 dispatchWindow.canAttemptCounted(provider, pattern, target) :
                 dispatchWindow.canAttempt(provider, pattern, target);
-    }
-
-    private static CraftingDispatchWindow.SubmissionScope beginProviderSubmission(
-                                                                                  CraftingDispatchWindow dispatchWindow,
-                                                                                  ICraftingProvider provider,
-                                                                                  IPatternDetails pattern,
-                                                                                  boolean countedDispatch) {
-        return countedDispatch ?
-                dispatchWindow.beginCountedSubmission(provider, pattern) :
-                dispatchWindow.beginSubmission(provider, pattern);
     }
 
     /**
