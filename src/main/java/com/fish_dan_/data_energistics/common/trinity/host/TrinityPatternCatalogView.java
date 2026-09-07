@@ -6,6 +6,7 @@ import net.minecraft.world.item.ItemStack;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,6 +49,32 @@ public record TrinityPatternCatalogView(long layoutRevision,
             copies.add(pattern.copy());
         }
         patterns = List.copyOf(copies);
+    }
+
+    /** ItemStack uses identity equality; unchanged copied pages must not become dirty on every sync tick. */
+    @Override
+    public boolean equals(@Nullable Object other) {
+        if (this == other) return true;
+        if (!(other instanceof TrinityPatternCatalogView page) || layoutRevision != page.layoutRevision ||
+                catalogRevision != page.catalogRevision || slotCount != page.slotCount ||
+                firstGlobalSlot != page.firstGlobalSlot || patterns.size() != page.patterns.size())
+            return false;
+        for (int index = 0; index < patterns.size(); index++) {
+            if (!ItemStack.matches(patterns.get(index), page.patterns.get(index))) return false;
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = Long.hashCode(layoutRevision);
+        hash = 31 * hash + Long.hashCode(catalogRevision);
+        hash = 31 * hash + slotCount;
+        hash = 31 * hash + firstGlobalSlot;
+        for (ItemStack pattern : patterns) {
+            hash = 31 * hash + (pattern.isEmpty() ? 0 : 31 * ItemStack.hashItemAndComponents(pattern) + pattern.getCount());
+        }
+        return hash;
     }
 
     /** Clamps a requested first slot so a full fixed viewport can reach the catalog tail. */
