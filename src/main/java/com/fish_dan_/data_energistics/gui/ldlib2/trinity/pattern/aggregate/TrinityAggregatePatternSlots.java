@@ -26,14 +26,12 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 import dev.vfyjxf.taffy.style.TaffyPosition;
+import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.function.IntConsumer;
 
 /**
@@ -43,7 +41,6 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
 
     private static final int SLOT_SIZE = 18;
     private static final float SEARCH_FONT_SIZE = 8F;
-    private static final int MAX_CACHED_PAGES = 16;
     private static final IGuiTexture PATTERN_ROW_BACKGROUND = SpriteTexture.of("data_energistics:textures/guis/model/model.png");
     private static final IGuiTexture OCCUPIED_PATTERN_SLOT_OVERLAY = SpriteTexture.of(
             "data_energistics:textures/guis/inventory_slot.png");
@@ -60,25 +57,17 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     private final TrinityPatternSlotActionSender slotActionSender;
     private final TrinityPatternQuickMoveSender quickMoveSender;
     private final TrinityAggregatePatternSearchIndex searchIndex;
-    private final List<LocalSlot> localSlots = new ArrayList<>(TrinityPatternCatalogView.PAGE_SIZE);
+    private final List<LocalSlot> localSlots = new ObjectArrayList<>(TrinityPatternCatalogView.PAGE_SIZE);
     private final int[] displayedGlobalSlots = new int[TrinityPatternCatalogView.PAGE_SIZE];
-    private final Map<Integer, TrinityPatternCatalogView> pageCache = new LinkedHashMap<>(MAX_CACHED_PAGES, 0.75F, true) {
+    private final List<SearchHit> searchHits = new ObjectArrayList<>();
+    private final IntLinkedOpenHashSet quickMoveSweepSlots = new IntLinkedOpenHashSet();
 
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<Integer, TrinityPatternCatalogView> eldest) {
-            return size() > MAX_CACHED_PAGES;
-        }
-    };
-    private final List<SearchHit> searchHits = new ArrayList<>();
-    private final LinkedHashSet<Integer> quickMoveSweepSlots = new LinkedHashSet<>();
-
-    private TrinityPatternCatalogView value = TrinityPatternCatalogView.EMPTY;
+    private final TrinityPatternViewport viewport = new TrinityPatternViewport();
     private TrinityPatternSearchMode searchMode = TrinityPatternSearchMode.INPUT_OUTPUT;
     private String query = "";
     private Language language = Language.getInstance();
     private Scroller.@Nullable Vertical scrollbar;
     private @Nullable Button searchModeButton;
-    private int physicalFirstGlobalSlot;
     private int requestedFirstGlobalSlot = -1;
     private int searchFirstResult;
     private int scanCoveredUntil;
@@ -143,6 +132,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
             addChild(itemSlot);
         }
         addEventListener(UIEvents.TICK, event -> refreshLanguage());
+        addEventListener(UIEvents.MOUSE_WHEEL, this::onMouseWheel);
         addEventListener(UIEvents.DRAG_END, this::finishQuickMoveSweep);
         internalSetup();
     }
@@ -150,7 +140,13 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     void bindControls(Scroller.Vertical scrollbar, TextField search, Button searchModeButton) {
         this.scrollbar = scrollbar;
         this.searchModeButton = searchModeButton;
+        scrollbar.setRange(0.0F, 1.0F);
         scrollbar.setOnValueChanged(this::setNormalizedPosition);
+        scrollbar.addEventListener(UIEvents.MOUSE_WHEEL, this::onMouseWheel, true);
+        scrollbar.headButton.setOnClick(event -> scrollRows(-1));
+        scrollbar.tailButton.setOnClick(event -> scrollRows(1));
+        scrollbar.scrollBar.addEventListener(UIEvents.DRAG_END,
+                event -> updateScrollbar(firstDisplayedSlot(), displayedEntryCount()));
         search.textFieldStyle(style -> style.fontSize(SEARCH_FONT_SIZE));
         search.setTextResponder(this::setQuery);
         updateSearchPlaceholder(search, false);
@@ -164,7 +160,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         });
         searchModeButton.setOnClick(event -> cycleSearchMode());
         updateSearchModePresentation();
-        updateScrollbar(0, 0);
+        updateScrollbar(firstDisplayedSlot(), displayedEntryCount());
     }
 
     private static void updateSearchPlaceholder(TextField search, boolean focused) {
@@ -183,35 +179,23 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
 
     @Override
     public TrinityPatternCatalogView getValue() {
-        return this.value;
+        return this.viewport.value();
     }
 
     @Override
     public TrinityAggregatePatternSlots setValue(@Nullable TrinityPatternCatalogView value, boolean notify) {
         TrinityPatternCatalogView next = value == null ? TrinityPatternCatalogView.EMPTY : value;
-        if (this.value.equals(next)) {
+        if (this.viewport.value().equals(next)) {
             return this;
         }
 
         if (this.quickMoveSweepActive && this.quickMoveSweepLayoutRevision != next.layoutRevision()) {
             clearQuickMoveSweep();
         }
-        boolean catalogChanged = !sameCatalog(this.value, next);
-        this.value = next;
-        if (catalogChanged) {
-            resetCatalog(next);
-        } else {
-            cachePage(next);
-            if (next.firstGlobalSlot() == this.requestedFirstGlobalSlot) {
-                this.requestedFirstGlobalSlot = -1;
-            }
-            if (hasQuery()) {
-                continueSearch();
-            } else {
-                this.physicalFirstGlobalSlot = next.firstGlobalSlot();
-                showPhysicalPage(next);
-            }
-        }
+        boolean catalogChanged = this.viewport.accept(next);
+        if (catalogChanged) resetCatalog();
+        else if (hasQuery()) continueSearch();
+        else showPhysicalWindow();
         if (notify) {
             notifyListeners();
         }
@@ -226,31 +210,12 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         super.onRemoved();
     }
 
-    private void resetCatalog(TrinityPatternCatalogView next) {
-        this.pageCache.clear();
+    private void resetCatalog() {
         this.searchHits.clear();
         this.searchIndex.clear();
         this.requestedFirstGlobalSlot = -1;
-        this.physicalFirstGlobalSlot = TrinityPatternCatalogView.normalizeFirstGlobalSlot(
-                this.physicalFirstGlobalSlot,
-                next.slotCount());
-        cachePage(next);
-        if (hasQuery()) {
-            restartSearch();
-        } else {
-            this.physicalFirstGlobalSlot = next.firstGlobalSlot();
-            showPhysicalPage(next);
-        }
-    }
-
-    private static boolean sameCatalog(TrinityPatternCatalogView left, TrinityPatternCatalogView right) {
-        return left.layoutRevision() == right.layoutRevision() &&
-                left.catalogRevision() == right.catalogRevision() &&
-                left.slotCount() == right.slotCount();
-    }
-
-    private void cachePage(TrinityPatternCatalogView page) {
-        this.pageCache.put(page.firstGlobalSlot(), page);
+        if (hasQuery()) restartSearch();
+        else showOrRequestPhysicalPage();
     }
 
     private void setQuery(String query) {
@@ -323,7 +288,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         this.searchHits.clear();
         this.searchFirstResult = 0;
         this.scanCoveredUntil = 0;
-        this.searchComplete = this.value.slotCount() == 0;
+        this.searchComplete = this.viewport.value().slotCount() == 0;
         this.requestedFirstGlobalSlot = -1;
         clearDisplayedSlots();
         refreshSearchResults();
@@ -336,8 +301,8 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         while (!this.searchComplete) {
             int requested = TrinityPatternCatalogView.normalizeFirstGlobalSlot(
                     this.scanCoveredUntil,
-                    this.value.slotCount());
-            TrinityPatternCatalogView page = this.pageCache.get(requested);
+                    this.viewport.value().slotCount());
+            TrinityPatternCatalogView page = this.viewport.page(requested);
             if (page == null) {
                 requestPage(requested);
                 return;
@@ -358,92 +323,100 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
                 }
             }
             this.scanCoveredUntil = pageEnd;
-            this.searchComplete = this.scanCoveredUntil >= this.value.slotCount();
+            this.searchComplete = this.scanCoveredUntil >= this.viewport.value().slotCount();
             refreshSearchResults();
         }
         refreshSearchResults();
     }
 
     private void showOrRequestPhysicalPage() {
-        int first = TrinityPatternCatalogView.normalizeFirstGlobalSlot(
-                this.physicalFirstGlobalSlot,
-                this.value.slotCount());
-        this.physicalFirstGlobalSlot = first;
-        TrinityPatternCatalogView cached = this.pageCache.get(first);
-        if (cached != null) {
-            showPhysicalPage(cached);
-        } else {
-            clearDisplayedSlots();
-            updateScrollbar(first, Math.max(0, this.value.slotCount() - TrinityPatternCatalogView.PAGE_SIZE));
-        }
-        requestPage(first);
+        showPhysicalWindow();
+        requestPage(this.viewport.requestedPage());
     }
 
-    private void showPhysicalPage(TrinityPatternCatalogView page) {
-        clearDisplayedSlots();
-        for (int index = 0; index < page.patterns().size(); index++) {
-            int globalSlot = page.firstGlobalSlot() + index;
-            this.displayedGlobalSlots[index] = globalSlot;
-            this.localSlots.get(index).set(page.patterns().get(index).copy());
+    private void showPhysicalWindow() {
+        int first = this.viewport.firstSlot();
+        int count = Math.min(TrinityPatternCatalogView.PAGE_SIZE, this.viewport.value().slotCount() - first);
+        for (int index = 0; index < TrinityPatternCatalogView.PAGE_SIZE; index++) {
+            ItemStack pattern = index < count ? this.viewport.pattern(first + index) : null;
+            setDisplayedSlot(index, pattern == null ? -1 : first + index, pattern == null ? ItemStack.EMPTY : pattern);
         }
-        int maximum = Math.max(0, page.slotCount() - TrinityPatternCatalogView.PAGE_SIZE);
-        updateScrollbar(page.firstGlobalSlot(), maximum);
+        updateScrollbar(first, this.viewport.value().slotCount());
     }
 
     private void refreshSearchResults() {
-        int maximum = Math.max(0, this.searchHits.size() - TrinityPatternCatalogView.PAGE_SIZE);
-        this.searchFirstResult = Math.clamp(this.searchFirstResult, 0, maximum);
-        clearDisplayedSlots();
-        int end = Math.min(
-                this.searchHits.size(),
-                Math.addExact(this.searchFirstResult, TrinityPatternCatalogView.PAGE_SIZE));
-        for (int resultIndex = this.searchFirstResult; resultIndex < end; resultIndex++) {
-            int viewIndex = resultIndex - this.searchFirstResult;
-            SearchHit hit = this.searchHits.get(resultIndex);
-            this.displayedGlobalSlots[viewIndex] = hit.globalSlot();
-            this.localSlots.get(viewIndex).set(hit.pattern().copy());
+        int maximum = TrinityPatternViewport.maximumRow(this.searchHits.size()) * TrinityPatternCatalogView.COLUMN_COUNT;
+        this.searchFirstResult = Math.min(this.searchFirstResult, maximum);
+        int count = Math.min(TrinityPatternCatalogView.PAGE_SIZE, this.searchHits.size() - this.searchFirstResult);
+        for (int index = 0; index < TrinityPatternCatalogView.PAGE_SIZE; index++) {
+            if (index < count) {
+                SearchHit hit = this.searchHits.get(this.searchFirstResult + index);
+                setDisplayedSlot(index, hit.globalSlot(), hit.pattern());
+            } else {
+                setDisplayedSlot(index, -1, ItemStack.EMPTY);
+            }
         }
-        updateScrollbar(this.searchFirstResult, maximum);
+        updateScrollbar(this.searchFirstResult, this.searchHits.size());
+    }
+
+    private void setDisplayedSlot(int index, int globalSlot, ItemStack pattern) {
+        this.displayedGlobalSlots[index] = globalSlot;
+        LocalSlot slot = this.localSlots.get(index);
+        if (!ItemStack.matches(slot.getItem(), pattern)) slot.set(pattern.copy());
     }
 
     private void clearDisplayedSlots() {
-        Arrays.fill(this.displayedGlobalSlots, -1);
-        for (LocalSlot localSlot : this.localSlots) {
-            localSlot.set(ItemStack.EMPTY);
-        }
+        for (int index = 0; index < TrinityPatternCatalogView.PAGE_SIZE; index++) setDisplayedSlot(index, -1, ItemStack.EMPTY);
+    }
+
+    private int displayedEntryCount() {
+        return hasQuery() ? this.searchHits.size() : this.viewport.value().slotCount();
+    }
+
+    private int firstDisplayedSlot() {
+        return hasQuery() ? this.searchFirstResult : this.viewport.firstSlot();
+    }
+
+    private void onMouseWheel(UIEvent event) {
+        if (event.deltaY == 0) return;
+        scrollRows(event.deltaY > 0 ? -1 : 1);
+        event.stopPropagation();
+    }
+
+    private void scrollRows(int rows) {
+        setFirstSlot(TrinityPatternViewport.scrollRows(firstDisplayedSlot(), rows, displayedEntryCount()));
     }
 
     private void setNormalizedPosition(float normalized) {
-        if (!this.level.isClientSide()) {
-            return;
-        }
+        setFirstSlot(TrinityPatternViewport.firstSlot(normalized, displayedEntryCount()));
+    }
+
+    private void setFirstSlot(int requested) {
+        if (!this.level.isClientSide()) return;
         if (hasQuery()) {
-            int maximum = Math.max(0, this.searchHits.size() - TrinityPatternCatalogView.PAGE_SIZE);
-            int requested = Math.round(Math.clamp(normalized, 0.0F, 1.0F) * maximum);
             if (requested != this.searchFirstResult) {
                 this.searchFirstResult = requested;
                 refreshSearchResults();
             }
-            return;
+        } else if (this.viewport.setFirstSlot(requested)) {
+            showOrRequestPhysicalPage();
         }
-
-        int maximum = Math.max(0, this.value.slotCount() - TrinityPatternCatalogView.PAGE_SIZE);
-        int requested = Math.round(Math.clamp(normalized, 0.0F, 1.0F) * maximum);
-        if (requested == this.physicalFirstGlobalSlot) {
-            return;
-        }
-        this.physicalFirstGlobalSlot = requested;
-        showOrRequestPhysicalPage();
     }
 
-    private void updateScrollbar(int position, int maximum) {
-        if (this.scrollbar == null) {
-            return;
-        }
-        boolean scrollable = maximum > 0;
+    private void updateScrollbar(int position, int count) {
+        if (this.scrollbar == null) return;
+        int maximumRow = TrinityPatternViewport.maximumRow(count);
+        boolean scrollable = maximumRow > 0;
         this.scrollbar.setActive(scrollable);
-        this.scrollbar.setAllowHitTest(scrollable);
-        this.scrollbar.setValue(scrollable ? (float) position / maximum : 0.0F, false);
+        this.scrollbar.selfAndAllChildren().forEach(element -> element.setAllowHitTest(scrollable));
+        this.scrollbar.scrollerStyle(style -> style.scrollDelta(scrollable ? 1.0F / maximumRow : 1.0F));
+        // The thumb follows the pointer while dragging; quantized rows and delayed page replies do not pull it back.
+        if (!this.scrollbar.isDragging()) {
+            int totalRows = maximumRow + TrinityPatternCatalogView.ROW_COUNT;
+            this.scrollbar.setScrollBarSize(Math.max(8.0F, 100.0F * TrinityPatternCatalogView.ROW_COUNT / totalRows));
+            this.scrollbar.setNormalizedValue(scrollable ?
+                    (float) (position / TrinityPatternCatalogView.COLUMN_COUNT) / maximumRow : 0.0F, false);
+        }
     }
 
     private void requestPage(int firstGlobalSlot) {
@@ -478,8 +451,8 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         }
         this.slotActionSender.send(
                 this.generation,
-                this.value.layoutRevision(),
-                this.value.catalogRevision(),
+                this.viewport.value().layoutRevision(),
+                this.viewport.value().catalogRevision(),
                 globalSlot,
                 action);
     }
@@ -492,7 +465,7 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
             return;
         }
         clearQuickMoveSweep();
-        this.quickMoveSweepLayoutRevision = this.value.layoutRevision();
+        this.quickMoveSweepLayoutRevision = this.viewport.value().layoutRevision();
         this.quickMoveSweepActive = addQuickMoveSweepSlot(viewIndex);
         if (this.quickMoveSweepActive) {
             startDrag(null, null);
