@@ -32,7 +32,6 @@ import java.util.function.Predicate;
 public final class DataEnergisticsJeiEntrypointLoader {
 
     private static final String REQUIRED_MODS_MEMBER = "requiredMods";
-    private static boolean initialized;
 
     private DataEnergisticsJeiEntrypointLoader() {}
 
@@ -40,13 +39,14 @@ public final class DataEnergisticsJeiEntrypointLoader {
      * Loads every eligible annotation entrypoint, freezes their successful registrations, and attaches those
      * registrations to JEI before generic fallback handlers are added.
      *
+     * <p>
+     * Each JEI restart opens a new registration cycle. Keep declarations and handlers local to this call
+     * so a reload neither skips registration nor reuses helpers from the previous JEI runtime.
+     * </p>
+     *
      * @param registration active Data Energistics JEI transfer registration phase
      */
-    public static synchronized void initialize(IRecipeTransferRegistration registration) {
-        if (initialized) {
-            throw new IllegalStateException("Data Energistics JEI entrypoints have already been initialized");
-        }
-
+    public static void initialize(IRecipeTransferRegistration registration) {
         JeiPluginRegistrationAccumulator registry = new JeiPluginRegistrationAccumulator();
         List<EntrypointCandidate> candidates = discoverCandidates();
         int loaded = 0;
@@ -74,7 +74,6 @@ public final class DataEnergisticsJeiEntrypointLoader {
         for (JeiRecipeTransferRegistration<?, ?> recipeTransferHandler : recipeTransferHandlers) {
             recipeTransferHandler.register(registration);
         }
-        initialized = true;
         Data_Energistics.LOGGER.info(
                 "Loaded {} of {} Data Energistics JEI plugins: {} recipe-transfer handlers",
                 loaded,

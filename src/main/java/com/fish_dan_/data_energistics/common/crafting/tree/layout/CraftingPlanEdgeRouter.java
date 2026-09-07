@@ -49,7 +49,7 @@ final class CraftingPlanEdgeRouter {
         if (requests.isEmpty()) return assemble(nodes, List.of(), spacing.boundaryPadding());
         var scene = new OrthogonalRoutingGraph(nodes, ports);
         var reservations = new OrthogonalSegmentReservations(scene.x, scene.y);
-        var search = new OrthogonalRouteSearch(scene, reservations, spacing.cellGap());
+        var search = new OrthogonalRouteSearch(scene, reservations);
         Int2IntMap depths = routingDepths(graph);
         double[] channelLanes = channelLanes(requests, nodeRanks, scene.x);
         List<Request> ordered = new ObjectArrayList<>(requests);
@@ -59,10 +59,8 @@ final class CraftingPlanEdgeRouter {
         Choice[] choices = new Choice[requests.size()];
         for (Request request : ordered) {
             if (Thread.currentThread().isInterrupted()) throw new CancellationException();
-            Choice choice = channelChoice(search, request, channelLanes[request.id()]);
-            if (choice == null) {
-                choice = search.route(request.source().ports, request.target().ports, request.group(), null, false);
-            }
+            Choice channel = channelChoice(search, request, channelLanes[request.id()]);
+            Choice choice = search.route(request.source().ports, request.target().ports, request.group(), channel, false);
             choices[request.id()] = choice;
             if (choice.reserved()) reservations.reserve(choice.points(), request.group());
         }
@@ -84,15 +82,13 @@ final class CraftingPlanEdgeRouter {
                 reservations.release(previous.points(), request.group());
                 var previousMetrics = reservations.measure(previous.points(), request.group());
                 if (previousMetrics == null) throw new IllegalStateException("Registered crafting-tree route lost its corridor");
-                double previousLimit = previous.baselineLength() + Math.min(previous.baselineLength() * 0.25, 2 * spacing.cellGap());
-                if (previousMetrics.crossings() == 0 && previousMetrics.length() <= previousLimit) {
+                if (previousMetrics.crossings() == 0) {
                     reservations.reserve(previous.points(), request.group());
                     continue;
                 }
                 Choice candidate = search.route(request.source().ports, request.target().ports, request.group(),
-                        new Choice(previous.points(), previousMetrics, previous.baselineLength(), true), true);
-                double limit = candidate.baselineLength() + Math.min(candidate.baselineLength() * 0.25, 2 * spacing.cellGap());
-                if (previousMetrics.length() > limit + OrthogonalSegmentReservations.EPSILON || OrthogonalRouteSearch.compare(candidate.metrics(), previousMetrics) < 0) {
+                        new Choice(previous.points(), previousMetrics, true), true);
+                if (OrthogonalRouteSearch.compare(candidate.metrics(), previousMetrics) < 0) {
                     choices[request.id()] = candidate;
                     changed = true;
                 }

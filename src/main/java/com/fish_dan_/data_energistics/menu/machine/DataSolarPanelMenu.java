@@ -18,9 +18,9 @@ public class DataSolarPanelMenu extends UpgradeableMenu<DataSolarPanelMenuHost> 
     @GuiSync(791)
     public boolean daytime;
     @GuiSync(792)
-    public int currentPower;
+    public double currentPower;
     @GuiSync(793)
-    public int maxPower;
+    public double maxPower;
     @GuiSync(794)
     public int generatedPower;
     @GuiSync(795)
@@ -44,8 +44,9 @@ public class DataSolarPanelMenu extends UpgradeableMenu<DataSolarPanelMenuHost> 
             var host = this.getHost();
             this.online = host.isOnline();
             this.daytime = host.isDaytime();
-            this.currentPower = (int) Math.round(host.getAECurrentPower());
-            this.maxPower = (int) Math.round(host.getAEMaxPower());
+            var storage = host.getEnergyStorageSnapshot();
+            this.currentPower = storage.stored();
+            this.maxPower = storage.capacity();
             this.generatedPower = (int) Math.round(host.getGeneratedPowerPerTick());
             this.speedCardCount = DataSolarPanelBlockEntity.getSpeedCardCount(host.getUpgrades());
             this.energyCardCount = DataSolarPanelBlockEntity.getEnergyCardCount(host.getUpgrades());
@@ -64,10 +65,6 @@ public class DataSolarPanelMenu extends UpgradeableMenu<DataSolarPanelMenuHost> 
     }
 
     private void setRedstoneControlled(Boolean enabled) {
-        if (enabled == null || this.getHost() == null) {
-            return;
-        }
-
         this.redstoneControlled = this.getHost().setRedstoneControlled(enabled);
         broadcastChanges();
     }

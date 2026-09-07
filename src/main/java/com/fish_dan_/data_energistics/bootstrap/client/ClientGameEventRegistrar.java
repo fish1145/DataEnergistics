@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.client.render.orbital.OrbitalProjectionVis
 import com.fish_dan_.data_energistics.client.ui.orbital.OrbitalControlClientBindings;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceSession;
 
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
@@ -26,6 +27,8 @@ final class ClientGameEventRegistrar {
         NeoForge.EVENT_BUS.addListener(ClientScreenEventHandler::onScreenOpening);
         NeoForge.EVENT_BUS.addListener(ClientScreenEventHandler::onScreenInitPost);
         NeoForge.EVENT_BUS.addListener(ClientScreenEventHandler::onScreenRenderPost);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, ClientScreenEventHandler::onContainerForeground);
+        NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, ClientScreenEventHandler::onRenderTooltip);
         NeoForge.EVENT_BUS.addListener(ClientGameEventRegistrar::onLoggingIn);
         NeoForge.EVENT_BUS.addListener(ClientGameEventRegistrar::onLoggingOut);
     }

@@ -52,6 +52,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     private static final double HOMING_HIT_MARGIN = 0.75D;
     private static final String TAG_DEALT_DAMAGE = "DealtDamage";
     private static final String TAG_DATA_DUST_DAMAGE_RATIO = "DataDustDamageRatio";
+    private static final String TAG_DATA_DUST_DAMAGE_RATIO_OVERRIDE = "DataDustDamageRatioOverride";
     private static final EntityDataAccessor<ItemStack> DATA_SABER_STACK = SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.ITEM_STACK);
     private static final EntityDataAccessor<Byte> ID_LOYALTY = SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BYTE);
     private static final EntityDataAccessor<Boolean> ID_FOIL = SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BOOLEAN);
@@ -63,6 +64,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     private ItemStack saberStack = ItemStack.EMPTY;
     private ItemStack weaponStack = ItemStack.EMPTY;
     private float dataDustDamageRatio = BASE_DATA_DUST_DAMAGE_RATIO;
+    private boolean dataDustDamageRatioOverride;
 
     public ThrownLightSaberEntity(EntityType<? extends ThrownLightSaberEntity> entityType, Level level) {
         super(entityType, level);
@@ -251,6 +253,12 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         }
     }
 
+    /** Overrides the true-damage ratio for a projectile launched by the matter-converging crossbow. */
+    public void setDataDustDamageRatio(float damageRatio) {
+        this.dataDustDamageRatio = Mth.clamp(damageRatio, 0.01F, 0.05F);
+        this.dataDustDamageRatioOverride = true;
+    }
+
     @Override
     protected ItemStack getDefaultPickupItem() {
         ItemStack stack = this.getPickupItemStackOrigin();
@@ -300,6 +308,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         tag.putBoolean("Homing", this.isHoming());
         tag.putInt("SaberEnergyCardCount", this.getSaberEnergyCardCount());
         tag.putFloat(TAG_DATA_DUST_DAMAGE_RATIO, this.dataDustDamageRatio);
+        tag.putBoolean(TAG_DATA_DUST_DAMAGE_RATIO_OVERRIDE, this.dataDustDamageRatioOverride);
         if (!this.weaponStack.isEmpty()) {
             tag.put("WeaponStack", this.weaponStack.save(this.registryAccess()));
         }
@@ -316,6 +325,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         this.entityData.set(ID_HOMING, tag.getBoolean("Homing"));
         this.entityData.set(ID_SABER_ENERGY_CARD_COUNT, Math.max(0, tag.getInt("SaberEnergyCardCount")));
         this.dataDustDamageRatio = Math.max(0.0F, tag.getFloat(TAG_DATA_DUST_DAMAGE_RATIO));
+        this.dataDustDamageRatioOverride = tag.getBoolean(TAG_DATA_DUST_DAMAGE_RATIO_OVERRIDE);
         if (tag.contains("WeaponStack", 10)) {
             this.weaponStack = ItemStack.parse(this.registryAccess(), tag.getCompound("WeaponStack"))
                     .orElse(ItemStack.EMPTY);
@@ -469,6 +479,9 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     }
 
     private float getDataDustDamageRatio() {
+        if (this.dataDustDamageRatioOverride) {
+            return Mth.clamp(this.dataDustDamageRatio, 0.01F, 0.05F);
+        }
         return BASE_DATA_DUST_DAMAGE_RATIO + this.getSaberEnergyCardCount() * DATA_DUST_DAMAGE_RATIO_PER_CARD;
     }
 

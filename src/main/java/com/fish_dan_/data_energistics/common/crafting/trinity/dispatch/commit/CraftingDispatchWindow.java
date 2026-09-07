@@ -289,36 +289,20 @@ public final class CraftingDispatchWindow {
     }
 
     /**
-     * Starts measuring one provider's complete server-thread preparation and submission path.
+     * Attempts to start measuring one provider's complete server-thread preparation and submission path.
      *
      * <p>
-     * Callers must first verify {@link #canAttempt(ICraftingProvider, IPatternDetails)} and must close the returned
-     * scope. Dispatch windows are server-thread confined and reject nested submission scopes.
+     * Earlier {@link #canAttempt(ICraftingProvider, IPatternDetails)} observations do not reserve time. An exhausted
+     * budget or unavailable provider returns {@code null}; a successful scope must be closed. Nested scopes remain
+     * programming errors in this server-thread-confined window.
      * </p>
      *
      * @param provider provider instance about to be prepared
      * @param pattern  exact pattern being prepared
-     * @return closeable scope that owns physical attempt acquisition for this provider path
+     * @return closeable scope that owns physical attempt acquisition, or null when this path must yield
      */
-    public SubmissionScope beginSubmission(ICraftingProvider provider, IPatternDetails pattern) {
-        return beginSubmission(provider, pattern, this.limits.maxAttemptsPerProvider());
-    }
-
-    /**
-     * Starts a counted provider path using the normal provider/grid physical-attempt budgets.
-     *
-     * @param provider counted provider instance about to be prepared
-     * @param pattern  exact pattern being prepared
-     * @return closeable counted submission scope
-     */
-    public SubmissionScope beginCountedSubmission(ICraftingProvider provider, IPatternDetails pattern) {
-        return beginSubmission(provider, pattern, this.limits.maxAttemptsPerProvider());
-    }
-
-    private SubmissionScope beginSubmission(
-                                            ICraftingProvider provider,
-                                            IPatternDetails pattern,
-                                            int providerAttemptLimit) {
+    @Nullable
+    public SubmissionScope tryBeginSubmission(ICraftingProvider provider, IPatternDetails pattern) {
         validateProvider(provider);
         validatePattern(pattern);
         if (this.activeSubmission != null) {
@@ -327,11 +311,12 @@ public final class CraftingDispatchWindow {
         if (this.activeCapacityCapture != null) {
             throw new IllegalStateException("Crafting dispatch submission cannot overlap capacity capture");
         }
+        int providerAttemptLimit = this.limits.maxAttemptsPerProvider();
         ProviderState state = this.states.get(provider);
         if (!hasCompletedGlobalCapacity() ||
                 !this.serverBudget.canStart(0L) ||
                 (state != null && !state.canAttempt(pattern, null, providerAttemptLimit))) {
-            throw new IllegalStateException("Crafting dispatch submission is unavailable");
+            return null;
         }
         MeasuredSubmissionScope submission = new MeasuredSubmissionScope(
                 provider,
@@ -350,25 +335,30 @@ public final class CraftingDispatchWindow {
     public boolean canCaptureProviderCapacity() {
         return this.activeSubmission == null &&
                 this.activeCapacityCapture == null &&
-                this.capacityCaptureNanos < this.limits.maxCapacityCaptureNanos() &&
+                hasProviderCapacityBudget();
+    }
+
+    private boolean hasProviderCapacityBudget() {
+        return this.capacityCaptureNanos < this.limits.maxCapacityCaptureNanos() &&
                 hasCompletedGlobalCapacity() &&
                 this.serverBudget.canStart(0L);
     }
 
     /**
-     * Starts measuring one read-only provider-capacity capture.
+     * Attempts to start measuring one read-only provider-capacity capture at the current budget boundary.
      *
-     * @return closeable scope that charges elapsed time only to the capacity-capture budget
+     * @return closeable scope that charges elapsed time only to the capacity-capture budget, or null when exhausted
      */
-    public CapacityCaptureScope beginProviderCapacityCapture() {
+    @Nullable
+    public CapacityCaptureScope tryBeginProviderCapacityCapture() {
         if (this.activeCapacityCapture != null) {
             throw new IllegalStateException("Provider capacity capture scopes must not be nested");
         }
         if (this.activeSubmission != null) {
             throw new IllegalStateException("Provider capacity capture cannot overlap crafting submission");
         }
-        if (!canCaptureProviderCapacity()) {
-            throw new IllegalStateException("Provider capacity capture budget is exhausted");
+        if (!hasProviderCapacityBudget()) {
+            return null;
         }
         MeasuredCapacityCaptureScope capture = new MeasuredCapacityCaptureScope(this.nanoClock.getAsLong());
         this.activeCapacityCapture = capture;

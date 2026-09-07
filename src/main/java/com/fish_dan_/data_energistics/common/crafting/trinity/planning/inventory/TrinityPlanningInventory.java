@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.inventory;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
+
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 
@@ -74,6 +76,28 @@ public record TrinityPlanningInventory(
             }
         });
         return frozen(combined, new ObjectOpenHashSet<>(this.unlimitedKeys));
+    }
+
+    /**
+     * Projects every exact amount into an authorised same-item accounting domain exactly once.
+     * Unlimited membership wins over finite amounts for the same representative.
+     */
+    public TrinityPlanningInventory normalized(TrinitySameItemPolicy policy) {
+        if (policy.isEmpty()) {
+            return this;
+        }
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> normalizedFinite = new Object2ObjectLinkedOpenHashMap<>();
+        ObjectOpenHashSet<AEKey> normalizedUnlimited = new ObjectOpenHashSet<>();
+        for (AEKey key : this.unlimitedKeys) {
+            normalizedUnlimited.add(policy.normalizeKey(key));
+        }
+        this.finiteAmounts.forEach((key, amount) -> {
+            AEKey normalized = policy.normalizeKey(key);
+            if (!normalizedUnlimited.contains(normalized)) {
+                normalizedFinite.merge(normalized, amount, BigInteger::add);
+            }
+        });
+        return frozen(normalizedFinite, normalizedUnlimited);
     }
 
     /** Returns exact finite availability, or zero for absent and unlimited keys. */

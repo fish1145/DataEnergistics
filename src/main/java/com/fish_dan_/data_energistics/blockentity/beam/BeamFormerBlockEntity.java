@@ -93,8 +93,9 @@ public final class BeamFormerBlockEntity extends AENetworkedBlockEntity implemen
 
     @Override
     public void setRemoved() {
-        this.beam.disconnect();
+        // Retire the entity before disconnect callbacks can publish its old block state back into the world.
         super.setRemoved();
+        this.beam.disconnect();
     }
 
     @Override

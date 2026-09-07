@@ -87,7 +87,7 @@ public final class CraftingPlanGraphRenderer {
                 RouteStyle style = this.segmentStyles.get(segmentId);
                 double width = styleScale * (highlightedSegments.contains(segmentId) ? CraftingPlanGraphRouteDrawing.HIGHLIGHT_WIDTH : CraftingPlanGraphRouteDrawing.STROKE_WIDTH);
                 double arrowSize = styleScale * CraftingPlanGraphRouteDrawing.ARROW_SIZE;
-                if (blocksArrow(segmentId, segment.from().x(), segment.from().y(), arrowSize)) continue;
+                if (blocksArrow(segmentId, segment, segment.from().x(), segment.from().y(), arrowSize)) continue;
                 // Layout routes encode demand, so this terminal marker points along actual material flow.
                 strokes.arrow(segment.to().x(), segment.to().y(), segment.from().x(), segment.from().y(),
                         arrowSize, width, style.color(0));
@@ -233,7 +233,7 @@ public final class CraftingPlanGraphRenderer {
             }
         }
         this.bridges.values().forEach(crossings -> crossings.sort(Comparator.comparingDouble(CraftingPlanRouteCrossing::y)));
-        this.underpasses.values().forEach(gaps -> gaps.sort(Comparator.comparingDouble(Underpass::x)));
+        for (var entry : this.underpasses.int2ObjectEntrySet()) entry.setValue(CraftingPlanRouteCrossing.mergeUnderpasses(entry.getValue()));
         this.nodeDrawings.clear();
         for (PlacedNode node : layout.nodes()) {
             AEKey key = key(node);
@@ -298,12 +298,12 @@ public final class CraftingPlanGraphRenderer {
                              @Nullable Bounds viewport, double viewportMargin) {
         ObjectList<CraftingPlanRouteCrossing> bridge = this.bridges.get(segmentId);
         ObjectList<Underpass> underpass = this.underpasses.get(segmentId);
-        if (bridge != null) {
+        if (underpass != null) {
+            drawUnderpass(strokes, segment, style, width, offset, runLength, bands, pixelScale,
+                    underpass, bridge, viewport, viewportMargin);
+        } else if (bridge != null) {
             drawBridge(strokes, segment, style, width, offset, runLength, bands, pixelScale, bridge, viewport,
                     viewportMargin);
-        } else if (underpass != null) {
-            drawUnderpass(strokes, segment, style, width, offset, runLength, bands,
-                    underpass, viewport, viewportMargin);
         } else {
             drawPiece(strokes, segment.from(), segment.to(), style, width, offset,
                     offset + Math.hypot(segment.to().x() - segment.from().x(), segment.to().y() - segment.from().y()), runLength, bands);
@@ -333,29 +333,48 @@ public final class CraftingPlanGraphRenderer {
     }
 
     private static void drawUnderpass(CraftingPlanGraphStrokes strokes, Segment segment, RouteStyle style, double width,
-                                      double offset, double runLength, int bands,
-                                      ObjectList<Underpass> underpasses, @Nullable Bounds viewport,
-                                      double viewportMargin) {
+                                      double offset, double runLength, int bands, float pixelScale,
+                                      ObjectList<Underpass> underpasses, @Nullable ObjectList<CraftingPlanRouteCrossing> bridges,
+                                      @Nullable Bounds viewport, double viewportMargin) {
         Point cursor = segment.from();
-        boolean forward = segment.to().x() > segment.from().x();
-        int first = underpassStart(underpasses,
-                viewport == null ? Double.NEGATIVE_INFINITY : viewport.x() - viewportMargin);
-        int last = underpassEnd(underpasses,
-                viewport == null ? Double.POSITIVE_INFINITY : viewport.x() + viewport.width() + viewportMargin);
+        boolean horizontal = segment.from().y() == segment.to().y();
+        double origin = coordinate(segment.from(), horizontal);
+        boolean forward = coordinate(segment.to(), horizontal) > origin;
+        int first = underpassStart(underpasses, viewport == null ? Double.NEGATIVE_INFINITY :
+                (horizontal ? viewport.x() : viewport.y()) - viewportMargin);
+        int last = underpassEnd(underpasses, viewport == null ? Double.POSITIVE_INFINITY :
+                (horizontal ? viewport.x() + viewport.width() : viewport.y() + viewport.height()) + viewportMargin);
         for (int index = forward ? first : last - 1; index >= first && index < last; index += forward ? 1 : -1) {
-            Underpass underpass = underpasses.get(index);
-            double center = underpass.x();
-            double gap = underpass.gapHalfWidth();
-            double near = center + (forward ? -gap : gap);
-            double far = center + (forward ? gap : -gap);
-            Point entry = new Point(near, segment.from().y());
-            Point exit = new Point(far, segment.from().y());
-            drawPiece(strokes, cursor, entry, style, width, offset + Math.abs(cursor.x() - segment.from().x()),
-                    offset + Math.abs(entry.x() - segment.from().x()), runLength, bands);
+            Underpass gap = underpasses.get(index);
+            double near = gap.x() + (forward ? -gap.gapHalfWidth() : gap.gapHalfWidth());
+            double far = gap.x() + (forward ? gap.gapHalfWidth() : -gap.gapHalfWidth());
+            Point entry = horizontal ? new Point(near, cursor.y()) : new Point(cursor.x(), near);
+            Point exit = horizontal ? new Point(far, cursor.y()) : new Point(cursor.x(), far);
+            drawBridgedInterval(strokes, segment, cursor, entry, style, width, offset, runLength, bands, pixelScale,
+                    bridges, viewport, viewportMargin);
             cursor = exit;
         }
-        drawPiece(strokes, cursor, segment.to(), style, width, offset + Math.abs(cursor.x() - segment.from().x()),
-                offset + Math.abs(segment.to().x() - segment.from().x()), runLength, bands);
+        drawBridgedInterval(strokes, segment, cursor, segment.to(), style, width, offset, runLength, bands, pixelScale,
+                bridges, viewport, viewportMargin);
+    }
+
+    private static void drawBridgedInterval(CraftingPlanGraphStrokes strokes, Segment segment, Point from, Point to,
+                                            RouteStyle style, double width, double offset, double runLength, int bands,
+                                            float pixelScale, @Nullable ObjectList<CraftingPlanRouteCrossing> bridges,
+                                            @Nullable Bounds viewport, double viewportMargin) {
+        boolean horizontal = segment.from().y() == segment.to().y();
+        double start = offset + Math.abs(coordinate(from, horizontal) - coordinate(segment.from(), horizontal));
+        if (bridges == null) {
+            drawPiece(strokes, from, to, style, width, start,
+                    start + Math.hypot(to.x() - from.x(), to.y() - from.y()), runLength, bands);
+        } else {
+            drawBridge(strokes, new Segment(from, to, segment.group(), segment.routeIds()), style, width, start,
+                    runLength, bands, pixelScale, bridges, viewport, viewportMargin);
+        }
+    }
+
+    private static double coordinate(Point point, boolean horizontal) {
+        return horizontal ? point.x() : point.y();
     }
 
     private static void drawBridge(CraftingPlanGraphStrokes strokes, Segment segment, RouteStyle style, double width,
@@ -363,22 +382,29 @@ public final class CraftingPlanGraphRenderer {
                                    ObjectList<CraftingPlanRouteCrossing> crossings, @Nullable Bounds viewport,
                                    double viewportMargin) {
         Point cursor = segment.from();
-        boolean downward = segment.to().y() > segment.from().y();
-        int first = crossingStart(crossings, viewport == null ? Double.NEGATIVE_INFINITY : viewport.y() - viewportMargin);
-        int last = crossingEnd(crossings,
-                viewport == null ? Double.POSITIVE_INFINITY : viewport.y() + viewport.height() + viewportMargin);
+        boolean horizontal = segment.from().y() == segment.to().y();
+        double origin = coordinate(segment.from(), horizontal);
+        double end = coordinate(segment.to(), horizontal);
+        boolean downward = end > origin;
+        double low = Math.min(origin, end);
+        double high = Math.max(origin, end);
+        int first = crossingStart(crossings, Math.max(low, viewport == null ? Double.NEGATIVE_INFINITY :
+                (horizontal ? viewport.x() : viewport.y()) - viewportMargin));
+        int last = crossingEnd(crossings, Math.min(high, viewport == null ? Double.POSITIVE_INFINITY :
+                (horizontal ? viewport.x() + viewport.width() : viewport.y() + viewport.height()) + viewportMargin));
         for (int index = downward ? first : last - 1; index >= first && index < last; index += downward ? 1 : -1) {
             CraftingPlanRouteCrossing crossing = crossings.get(index);
             double radius = crossing.radius();
-            Point entry = new Point(crossing.x(), crossing.y() + (downward ? -radius : radius));
-            Point exit = new Point(crossing.x(), crossing.y() + (downward ? radius : -radius));
-            drawPiece(strokes, cursor, entry, style, width, offset + Math.abs(cursor.y() - segment.from().y()),
-                    offset + Math.abs(entry.y() - segment.from().y()), runLength, bands);
+            if (crossing.y() - radius < low || crossing.y() + radius > high) continue;
+            Point entry = crossing.point(0, downward ? -radius : radius, horizontal);
+            Point exit = crossing.point(0, downward ? radius : -radius, horizontal);
+            drawPiece(strokes, cursor, entry, style, width, offset + Math.abs(coordinate(cursor, horizontal) - origin),
+                    offset + Math.abs(coordinate(entry, horizontal) - origin), runLength, bands);
             if (radius > CraftingPlanRouteCrossing.MAX_RADIUS) {
-                Point upper = new Point(crossing.x() + crossing.bend(), entry.y());
-                Point lower = new Point(crossing.x() + crossing.bend(), exit.y());
-                double entryOffset = offset + Math.abs(entry.y() - segment.from().y());
-                double exitOffset = offset + Math.abs(exit.y() - segment.from().y());
+                Point upper = crossing.point(crossing.bend(), downward ? -radius : radius, horizontal);
+                Point lower = crossing.point(crossing.bend(), downward ? radius : -radius, horizontal);
+                double entryOffset = offset + Math.abs(coordinate(entry, horizontal) - origin);
+                double exitOffset = offset + Math.abs(coordinate(exit, horizontal) - origin);
                 strokes.line(entry.x(), entry.y(), upper.x(), upper.y(), width,
                         bridgeColor(style, bands, entryOffset, runLength));
                 drawPiece(strokes, upper, lower, style, width, entryOffset, exitOffset, runLength, bands);
@@ -390,35 +416,36 @@ public final class CraftingPlanGraphRenderer {
             Point previous = entry;
             int steps = Math.clamp(2 * (int) Math.ceil(2 * Math.sqrt(radius * pixelScale)), 4, 128);
             for (int step = 1; step <= steps; step++) {
-                Point next = bridgePoint(crossing, downward ? step / (double) steps : 1 - step / (double) steps);
+                Point next = bridgePoint(crossing, downward ? step / (double) steps : 1 - step / (double) steps, horizontal);
                 drawPiece(strokes, previous, next, style, width,
-                        offset + Math.abs(previous.y() - segment.from().y()),
-                        offset + Math.abs(next.y() - segment.from().y()), runLength, bands);
+                        offset + Math.abs(coordinate(previous, horizontal) - origin),
+                        offset + Math.abs(coordinate(next, horizontal) - origin), runLength, bands);
                 previous = next;
             }
             cursor = exit;
         }
-        drawPiece(strokes, cursor, segment.to(), style, width, offset + Math.abs(cursor.y() - segment.from().y()),
-                offset + Math.abs(segment.to().y() - segment.from().y()), runLength, bands);
+        drawPiece(strokes, cursor, segment.to(), style, width, offset + Math.abs(coordinate(cursor, horizontal) - origin),
+                offset + Math.abs(end - origin), runLength, bands);
     }
 
     private static int bridgeColor(RouteStyle style, int bands, double offset, double runLength) {
         return bands == 1 ? style.lineColor() : style.color(Math.min(bands - 1, (int) (offset / runLength * bands)));
     }
 
-    private boolean blocksArrow(int segmentId, double x, double y, double size) {
+    private boolean blocksArrow(int segmentId, Segment segment, double x, double y, double size) {
+        double along = segment.from().y() == segment.to().y() ? x : y;
         ObjectList<CraftingPlanRouteCrossing> bridge = this.bridges.get(segmentId);
         if (bridge != null) for (CraftingPlanRouteCrossing crossing : bridge) {
-            if (Math.abs(y - crossing.y()) <= crossing.radius() + size) return true;
+            if (Math.abs(along - crossing.y()) <= crossing.radius() + size) return true;
         }
         ObjectList<Underpass> underpass = this.underpasses.get(segmentId);
         if (underpass != null) for (Underpass gap : underpass) {
-            if (Math.abs(x - gap.x()) <= gap.gapHalfWidth() + size) return true;
+            if (Math.abs(along - gap.x()) <= gap.gapHalfWidth() + size) return true;
         }
         return false;
     }
 
-    private static Point bridgePoint(CraftingPlanRouteCrossing crossing, double fraction) {
+    private static Point bridgePoint(CraftingPlanRouteCrossing crossing, double fraction, boolean horizontal) {
         double local = fraction <= 0.5 ? fraction * 2 : (fraction - 0.5) * 2;
         double bend = crossing.bend();
         double radius = crossing.radius();
@@ -429,8 +456,9 @@ public final class CraftingPlanGraphRenderer {
         double controlY = fraction <= 0.5 ? crossing.y() - radius : crossing.y() + radius;
         double endY = fraction <= 0.5 ? crossing.y() : crossing.y() + radius;
         double inverse = 1 - local;
-        return new Point(inverse * inverse * startX + 2 * inverse * local * controlX + local * local * endX,
-                inverse * inverse * startY + 2 * inverse * local * controlY + local * local * endY);
+        double across = inverse * inverse * startX + 2 * inverse * local * controlX + local * local * endX;
+        double along = inverse * inverse * startY + 2 * inverse * local * controlY + local * local * endY;
+        return horizontal ? new Point(along, across) : new Point(across, along);
     }
 
     private static int underpassStart(ObjectList<Underpass> underpasses, double coordinate) {

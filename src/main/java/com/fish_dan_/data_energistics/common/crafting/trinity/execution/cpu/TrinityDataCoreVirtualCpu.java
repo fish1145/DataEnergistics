@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.Cr
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.admission.TrinityPlanAdmission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.route.TrinityCraftingExecutionRoute;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuPartitionProfile;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.CpuSelectionMode;
@@ -22,7 +23,6 @@ import appeng.api.networking.energy.IEnergyService;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import appeng.api.stacks.KeyCounter;
 import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.me.service.CraftingService;
 
@@ -31,6 +31,7 @@ import net.minecraft.world.level.Level;
 
 import org.jspecify.annotations.Nullable;
 
+import java.math.BigInteger;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiFunction;
@@ -181,7 +182,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @param what requested key
      * @return amount this CPU is waiting for
      */
-    public long getWaitingFor(AEKey what) {
+    public BigInteger getWaitingFor(AEKey what) {
         return this.logic.getWaitingFor(what);
     }
 
@@ -189,7 +190,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @param what displayed key
      * @return amount currently stored inside the virtual CPU inventory
      */
-    public long getStored(AEKey what) {
+    public BigInteger getStored(AEKey what) {
         return this.logic.getStored(what);
     }
 
@@ -197,17 +198,27 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @param what displayed key
      * @return amount still scheduled by unpushed crafting tasks
      */
-    public long getPendingOutputs(AEKey what) {
+    public BigInteger getPendingOutputs(AEKey what) {
         return this.logic.getPendingOutputs(what);
     }
 
+    /** Server-thread observation for status screens, not extractable CPU inventory. */
+    public BigInteger getResidentAmount(AEKey what) {
+        return this.logic.residentAmount(what);
+    }
+
+    /** Returns the last verified endpoint observation and any unresolved custody status. */
+    public TrinityReusableStatus getReusableStatus() {
+        return this.logic.reusableStatus();
+    }
+
     /**
-     * Adds every key currently visible in AE2's CPU status table.
+     * Collects keys for the CPU status table without summing quantities in an AE2 long counter.
      *
-     * @param out destination counter
+     * @return independent key snapshot, captured on the server thread
      */
-    public void getAllItems(KeyCounter out) {
-        this.logic.getAllItems(out);
+    public Set<AEKey> getStatusKeys() {
+        return this.logic.getStatusKeys();
     }
 
     /**
@@ -311,7 +322,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
 
     @Override
     public boolean isBusy() {
-        return number() != 0 && this.logic.hasJob();
+        return number() != 0 && this.logic.isBusy();
     }
 
     /**
@@ -321,7 +332,7 @@ public final class TrinityDataCoreVirtualCpu implements ICraftingCPU {
      * @return whether job submission may be attempted
      */
     public boolean canAcceptJob() {
-        return number() == 0 ? this.runtime.canAcceptJob() : !this.logic.hasJob();
+        return number() == 0 ? this.runtime.canAcceptJob() : !this.logic.isBusy();
     }
 
     /**

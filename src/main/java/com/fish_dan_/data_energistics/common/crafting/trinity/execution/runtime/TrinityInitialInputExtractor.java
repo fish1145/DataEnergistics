@@ -3,19 +3,23 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime
 import com.fish_dan_.data_energistics.ae2.grid.FiniteNetworkStorageAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.inventory.TrinityExactWorkingInventory;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.MEStorage;
 import appeng.crafting.inv.ListCraftingInventory;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -46,19 +50,19 @@ public final class TrinityInitialInputExtractor {
                 cpuInventory,
                 exactInventory,
                 source,
+                plan.sameItemPolicy(),
                 false);
     }
 
-    /**
-     * Reserves the exact total required by a replacement plan, reusing material already owned by the CPU.
-     */
+    /** Reserves replacement inputs using the replacement plan's authorised logical item domains. */
     public static @Nullable GenericStack reserveReplacement(
                                                             Map<AEKey, BigInteger> requiredInputs,
+                                                            TrinitySameItemPolicy sameItemPolicy,
                                                             MEStorage network,
                                                             ListCraftingInventory cpuInventory,
                                                             TrinityExactWorkingInventory exactInventory,
                                                             IActionSource source) {
-        return reserve(requiredInputs, network, cpuInventory, exactInventory, source, true);
+        return reserve(requiredInputs, network, cpuInventory, exactInventory, source, sameItemPolicy, true);
     }
 
     private static @Nullable GenericStack reserve(
@@ -67,62 +71,108 @@ public final class TrinityInitialInputExtractor {
                                                   ListCraftingInventory cpuInventory,
                                                   TrinityExactWorkingInventory exactInventory,
                                                   IActionSource source,
+                                                  TrinitySameItemPolicy sameItemPolicy,
                                                   boolean reuseOwned) {
         Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> extractedOwnership = new Object2ObjectLinkedOpenHashMap<>();
         Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> unlimitedOwnership = new Object2ObjectLinkedOpenHashMap<>();
-        for (var input : requiredInputs.entrySet()) {
-            BigInteger alreadyOwned = reuseOwned ? exactInventory.totalAmount(input.getKey(), cpuInventory) : BigInteger.ZERO;
-            BigInteger remaining = input.getValue().subtract(alreadyOwned).max(BigInteger.ZERO);
-            if (remaining.signum() > 0 && network instanceof FiniteNetworkStorageAccess storageAccess &&
-                    storageAccess.exactAvailability(input.getKey(), source).unlimited()) {
-                exactInventory.deposit(input.getKey(), remaining, cpuInventory);
-                unlimitedOwnership.merge(input.getKey(), remaining, BigInteger::add);
-                continue;
-            }
-            while (remaining.signum() > 0) {
-                long requested = remaining.min(MAX_PHYSICAL_AMOUNT).longValueExact();
-                long extracted;
-                try {
-                    extracted = network.extract(input.getKey(), requested, Actionable.MODULATE, source);
-                } catch (RuntimeException exception) {
-                    rollback(
-                            network,
-                            cpuInventory,
-                            exactInventory,
-                            source,
-                            extractedOwnership,
-                            unlimitedOwnership);
-                    throw exception;
-                }
-                if (extracted == 0L) {
-                    rollback(
-                            network,
-                            cpuInventory,
-                            exactInventory,
-                            source,
-                            extractedOwnership,
-                            unlimitedOwnership);
-                    return new GenericStack(input.getKey(), remaining.min(MAX_PHYSICAL_AMOUNT).longValueExact());
-                }
-                if (extracted < 0L || extracted > requested) {
-                    if (extracted > 0L) {
-                        network.insert(input.getKey(), extracted, Actionable.MODULATE, source);
+        GenericStack missing = null;
+        extraction:
+        try {
+            for (var input : requiredInputs.entrySet()) {
+                BigInteger alreadyOwned = reuseOwned ? ownedAmount(
+                        input.getKey(),
+                        sameItemPolicy,
+                        cpuInventory,
+                        exactInventory) : BigInteger.ZERO;
+                BigInteger remaining = input.getValue().subtract(alreadyOwned).max(BigInteger.ZERO);
+                for (AEKey physicalKey : physicalCandidates(input.getKey(), sameItemPolicy, network)) {
+                    if (remaining.signum() == 0) {
+                        break;
                     }
-                    rollback(
-                            network,
-                            cpuInventory,
-                            exactInventory,
-                            source,
-                            extractedOwnership,
-                            unlimitedOwnership);
-                    throw new IllegalStateException("AE storage violated its extraction amount contract");
+                    if (network instanceof FiniteNetworkStorageAccess storageAccess &&
+                            storageAccess.exactAvailability(physicalKey, source).unlimited()) {
+                        exactInventory.deposit(physicalKey, remaining, cpuInventory);
+                        unlimitedOwnership.merge(physicalKey, remaining, BigInteger::add);
+                        remaining = BigInteger.ZERO;
+                        break;
+                    }
+                    while (remaining.signum() > 0) {
+                        long requested = remaining.min(MAX_PHYSICAL_AMOUNT).longValueExact();
+                        long extracted = network.extract(physicalKey, requested, Actionable.MODULATE, source);
+                        if (extracted == 0L) {
+                            break;
+                        }
+                        if (extracted < 0L || extracted > requested) {
+                            if (extracted > 0L) {
+                                network.insert(physicalKey, extracted, Actionable.MODULATE, source);
+                            }
+                            throw new IllegalStateException("AE storage violated its extraction amount contract");
+                        }
+                        exactInventory.deposit(physicalKey, extracted, cpuInventory);
+                        extractedOwnership.merge(physicalKey, BigInteger.valueOf(extracted), BigInteger::add);
+                        remaining = remaining.subtract(BigInteger.valueOf(extracted));
+                    }
                 }
-                exactInventory.deposit(input.getKey(), extracted, cpuInventory);
-                extractedOwnership.merge(input.getKey(), BigInteger.valueOf(extracted), BigInteger::add);
-                remaining = remaining.subtract(BigInteger.valueOf(extracted));
+                if (remaining.signum() > 0) {
+                    missing = new GenericStack(
+                            input.getKey(),
+                            remaining.min(MAX_PHYSICAL_AMOUNT).longValueExact());
+                    break extraction;
+                }
+            }
+        } catch (RuntimeException exception) {
+            rollback(network, cpuInventory, exactInventory, source, extractedOwnership, unlimitedOwnership);
+            throw exception;
+        }
+        if (missing != null) {
+            rollback(network, cpuInventory, exactInventory, source, extractedOwnership, unlimitedOwnership);
+        }
+        return missing;
+    }
+
+    private static BigInteger ownedAmount(AEKey plannedKey,
+                                          TrinitySameItemPolicy sameItemPolicy,
+                                          ListCraftingInventory cpuInventory,
+                                          TrinityExactWorkingInventory exactInventory) {
+        ObjectLinkedOpenHashSet<AEKey> physicalKeys = new ObjectLinkedOpenHashSet<>();
+        for (var entry : cpuInventory.list) {
+            if (sameLogicalKey(plannedKey, entry.getKey(), sameItemPolicy)) {
+                physicalKeys.add(entry.getKey());
             }
         }
-        return null;
+        for (AEKey key : exactInventory.snapshot().keySet()) {
+            if (sameLogicalKey(plannedKey, key, sameItemPolicy)) {
+                physicalKeys.add(key);
+            }
+        }
+        BigInteger owned = BigInteger.ZERO;
+        for (AEKey key : physicalKeys) {
+            owned = owned.add(exactInventory.totalAmount(key, cpuInventory));
+        }
+        return owned;
+    }
+
+    private static List<AEKey> physicalCandidates(AEKey plannedKey,
+                                                  TrinitySameItemPolicy sameItemPolicy,
+                                                  MEStorage network) {
+        ObjectLinkedOpenHashSet<AEKey> candidates = new ObjectLinkedOpenHashSet<>();
+        candidates.add(plannedKey);
+        if (sameItemPolicy.allowsSameItem(plannedKey)) {
+            for (var entry : network.getAvailableStacks()) {
+                if (sameLogicalKey(plannedKey, entry.getKey(), sameItemPolicy)) {
+                    candidates.add(entry.getKey());
+                }
+            }
+        }
+        return List.copyOf(candidates);
+    }
+
+    private static boolean sameLogicalKey(AEKey plannedKey,
+                                          AEKey physicalKey,
+                                          TrinitySameItemPolicy sameItemPolicy) {
+        return plannedKey.equals(physicalKey) ||
+                plannedKey instanceof AEItemKey && sameItemPolicy.allowsSameItem(plannedKey) &&
+                        sameItemPolicy.normalizeKey(physicalKey).equals(plannedKey);
     }
 
     private static void rollback(

@@ -5,12 +5,15 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressPhase;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressReporter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
 import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 import java.math.BigInteger;
@@ -32,41 +35,54 @@ public record TrinityPlanningInventorySnapshot(
                                                int sentinelProbes) {
 
     /**
-     * Captures one request without retaining the mutable network, action source, or cached counter.
+     * Captures exact non-authorised keys and every currently visible physical variant of an authorised item domain.
+     * Each physical key is probed once, then merged into its single request-local representative.
      *
-     * @param keys          exact graph keys relevant to the request
-     * @param liveInventory effective network storage used for exact mount inspection
-     * @param actionSource  request source used by AE2 security checks
+     * @param keys           exact graph keys relevant to the request
+     * @param sameItemPolicy request-local logical item domains
+     * @param liveInventory  effective network storage used for exact mount inspection
+     * @param actionSource   request source used by AE2 security checks
      * @return detached immutable planning inventory
-     * @throws CaptureException when a high-amount live extraction probe cannot be completed safely
+     * @throws CaptureException when an exact live availability probe cannot be completed safely
      */
     public static TrinityPlanningInventorySnapshot capture(
                                                            Collection<AEKey> keys,
+                                                           TrinitySameItemPolicy sameItemPolicy,
                                                            MEStorage liveInventory,
                                                            IActionSource actionSource,
                                                            TrinityPlanningProgressReporter progress) {
         Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> finiteAmounts = new Object2ObjectLinkedOpenHashMap<>();
         ObjectOpenHashSet<AEKey> unlimitedKeys = new ObjectOpenHashSet<>();
-        int totalKeys = keys.size();
+        ObjectLinkedOpenHashSet<AEKey> physicalKeys = new ObjectLinkedOpenHashSet<>(keys);
+        if (!sameItemPolicy.isEmpty()) {
+            for (var entry : liveInventory.getAvailableStacks()) {
+                if (entry.getKey() instanceof AEItemKey itemKey && sameItemPolicy.allowsSameItem(itemKey)) {
+                    physicalKeys.add(itemKey);
+                }
+            }
+        }
+        int totalKeys = physicalKeys.size();
         progress.publish(totalKeys == 0 ?
                 TrinityPlanningProgressSnapshot.withoutUnits(
                         TrinityPlanningProgressPhase.CAPTURING_INPUT,
                         TrinityPlanningProgressMeasure.NONE) :
                 TrinityPlanningProgressSnapshot.exact(TrinityPlanningProgressPhase.CAPTURING_INPUT, 0, totalKeys));
         int sentinelProbes = 0;
-        for (AEKey key : keys) {
+        for (AEKey key : physicalKeys) {
             sentinelProbes = Math.incrementExact(sentinelProbes);
             try {
                 if (!(liveInventory instanceof FiniteNetworkStorageAccess storageAccess)) {
                     throw new IllegalStateException("AE network storage does not expose exact mount availability");
                 }
                 TrinityAvailableAmount exact = storageAccess.exactAvailability(key, actionSource);
+                AEKey planningKey = sameItemPolicy.normalizeKey(key);
                 if (exact.unlimited()) {
-                    unlimitedKeys.add(key);
+                    unlimitedKeys.add(planningKey);
+                    finiteAmounts.remove(planningKey);
                 } else {
                     BigInteger finite = ((TrinityAvailableAmount.Finite) exact).amount();
-                    if (finite.signum() > 0) {
-                        finiteAmounts.put(key, finite);
+                    if (finite.signum() > 0 && !unlimitedKeys.contains(planningKey)) {
+                        finiteAmounts.merge(planningKey, finite, BigInteger::add);
                     }
                 }
             } catch (RuntimeException exception) {

@@ -3,13 +3,14 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.p
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityBorrowingLedger;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityBoundPatternInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
 import appeng.api.stacks.AEKey;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
@@ -28,6 +29,7 @@ import java.util.Set;
  *
  * @param catalogRevision    graph catalog revision used by the plan
  * @param quantityMode       requested delivery interpretation
+ * @param sameItemPolicy     logical item domains used by persisted stage balances
  * @param targetKey          final requested key
  * @param targetAmount       exact requested amount
  * @param status             durable execution status
@@ -44,12 +46,14 @@ import java.util.Set;
  * @param borrowingEntries   ownership-preserving dynamic borrowing history
  * @param savedAtTick        non-negative server tick used to convert retry deadlines across a restart
  * @param budgetRetryAt      next tick after a physical budget exhaustion, or {@code -1}
+ * @param productionRetired  whether recovery explicitly retired production while retaining output delivery ownership
  */
 public record TrinityExecutionSnapshot(
                                        long catalogRevision,
                                        CraftingQuantityMode quantityMode,
+                                       TrinitySameItemPolicy sameItemPolicy,
                                        AEKey targetKey,
-                                       long targetAmount,
+                                       BigInteger targetAmount,
                                        TrinityPlanExecution.Status status,
                                        String failureReason,
                                        long generation,
@@ -58,12 +62,13 @@ public record TrinityExecutionSnapshot(
                                        List<RepeatBlock> repeatBlocks,
                                        Map<AEKey, BigInteger> seedReserve,
                                        boolean completionSealed,
-                                       long completionBuffer,
-                                       Object2LongMap<AEKey> actualFinalOutputs,
-                                       long deliveryRemaining,
+                                       BigInteger completionBuffer,
+                                       Map<AEKey, BigInteger> actualFinalOutputs,
+                                       BigInteger deliveryRemaining,
                                        Map<AEKey, TrinityBorrowingLedger.Balances> borrowingEntries,
                                        long savedAtTick,
-                                       long budgetRetryAt) {
+                                       long budgetRetryAt,
+                                       boolean productionRetired) {
 
     /**
      * Copies ordered collections so persistence cannot mutate the live scheduler.
@@ -73,10 +78,18 @@ public record TrinityExecutionSnapshot(
         stageOrder = List.copyOf(stageOrder);
         repeatBlocks = List.copyOf(repeatBlocks);
         seedReserve = immutableBigAmounts(seedReserve, false, "seed reserve");
-        actualFinalOutputs = immutableLongAmounts(actualFinalOutputs, "actual final output");
+        actualFinalOutputs = immutableBigAmounts(actualFinalOutputs, false, "actual final output");
         borrowingEntries = immutableMap(borrowingEntries);
         if (savedAtTick < 0L) {
             throw new IllegalArgumentException("A Trinity execution save tick cannot be negative");
+        }
+        if (productionRetired) {
+            if (!stages.isEmpty() || !stageOrder.isEmpty() || !repeatBlocks.isEmpty() || !seedReserve.isEmpty() ||
+                    status != TrinityPlanExecution.Status.COMPLETED && status != TrinityPlanExecution.Status.PLANNING) {
+                throw new IllegalArgumentException("Retired Trinity production requires empty scheduling state and completed or recovery status");
+            }
+        } else if (stages.isEmpty() || stageOrder.isEmpty()) {
+            throw new IllegalArgumentException("A non-retired Trinity execution requires stages and stage order");
         }
     }
 
@@ -116,12 +129,14 @@ public record TrinityExecutionSnapshot(
                          BigInteger plannedCount,
                          Map<AEKey, BigInteger> outputs,
                          BigInteger remainingCount,
-                         boolean initialized) {
+                         boolean initialized,
+                         List<TrinityBoundPatternInput> exactBindings) {
 
         /**
          * Rejects cursors that could create work absent from the plan.
          */
         public Firing {
+            exactBindings = List.copyOf(exactBindings);
             outputs = immutableBigAmounts(outputs, false, "firing output");
             if (!outputs.containsKey(primaryOutput)) {
                 throw new IllegalArgumentException("A Trinity firing state must retain its primary output");
@@ -233,17 +248,6 @@ public record TrinityExecutionSnapshot(
             copied.put(key, amount);
         });
         return Collections.unmodifiableMap(copied);
-    }
-
-    private static Object2LongMap<AEKey> immutableLongAmounts(Object2LongMap<AEKey> source,
-                                                              String role) {
-        Object2LongMap<AEKey> copied = TrinityLongAmountSnapshot.copyOf(source);
-        for (Object2LongMap.Entry<AEKey> entry : copied.object2LongEntrySet()) {
-            if (entry.getLongValue() <= 0L) {
-                throw new IllegalArgumentException("A Trinity " + role + " contains an invalid amount");
-            }
-        }
-        return copied;
     }
 
     private static <E> Set<E> immutableSet(Set<E> source) {

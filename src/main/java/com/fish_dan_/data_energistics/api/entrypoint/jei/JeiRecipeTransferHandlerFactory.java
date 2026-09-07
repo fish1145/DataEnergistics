@@ -17,6 +17,10 @@ public interface JeiRecipeTransferHandlerFactory<T extends AbstractContainerMenu
     /**
      * Creates the handler using JEI's error factory for the active registration cycle.
      *
+     * <p>
+     * Create a new handler for each call; do not reuse a handler or helper from an earlier JEI runtime.
+     * </p>
+     *
      * @param transferHelper JEI helper that creates user-facing transfer errors
      * @return non-null handler matching the menu and recipe types declared to the registry
      */

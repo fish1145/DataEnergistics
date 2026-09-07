@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.ae2.patternprovider;
 
 import com.fish_dan_.data_energistics.accessor.patternprovider.PatternProviderBatchAccess;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingAdmission;
+import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingMachine;
 import com.fish_dan_.data_energistics.api.registry.machine.CraftingMachineScope;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingDispatchRejection;
@@ -32,9 +33,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -42,7 +43,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
- * Implements capacity-aware counted dispatch for AE2's ordinary external-inventory pattern-provider path.
+ * Implements capacity-aware counted dispatch to external inventories and opted-in crafting machines.
  *
  * <p>
  * Target discovery remains owned by AE2 through {@link PatternProviderBatchAccess}. This class only combines identical
@@ -52,33 +53,6 @@ import java.util.function.Function;
 public final class PatternProviderBatching {
 
     private PatternProviderBatching() {}
-
-    /**
-     * Prepares the standard AE2 target selected by the current round-robin cursor.
-     *
-     * <p>
-     * Result/pulse locking and dedicated crafting machines deliberately retain AE2's one-craft
-     * {@link ICraftingProvider#pushPattern} behavior. Blocking targets remain eligible for one capacity-sized batch
-     * while they contain no published pattern input.
-     * </p>
-     */
-    @Nullable
-    public static CountedCraftingAdmission prepareStandardBatch(
-                                                                PatternProviderLogic logic,
-                                                                PatternProviderBatchAccess access,
-                                                                IPatternDetails patternDetails,
-                                                                KeyCounter[] prototype,
-                                                                long requestedCount,
-                                                                Runnable afterCommit) {
-        return prepareStandardBatch(
-                logic,
-                access,
-                patternDetails,
-                prototype,
-                requestedCount,
-                afterCommit,
-                CraftingDispatchTargetAvailability.all()).admission();
-    }
 
     /**
      * Prepares AE2's ordinary provider route while retaining target-specific Blocking and capacity facts.
@@ -100,13 +74,36 @@ public final class PatternProviderBatching {
                                                                   long requestedCount,
                                                                   Runnable afterCommit,
                                                                   CraftingDispatchTargetAvailability targetAvailability) {
-        validatePreparation(patternDetails, prototype, requestedCount, afterCommit);
-        if (logic == null || access == null) {
-            throw new IllegalArgumentException("Pattern provider logic and batch access must not be null");
-        }
-        if (targetAvailability == null) {
-            throw new IllegalArgumentException("Crafting dispatch target availability must not be null");
-        }
+        return prepareStandardBatch(
+                logic,
+                access,
+                patternDetails,
+                patternDetails,
+                prototype,
+                requestedCount,
+                afterCommit,
+                targetAvailability);
+    }
+
+    /**
+     * Prepares AE2's ordinary provider route with a separately authorized input-emission binding.
+     *
+     * <p>
+     * Registered pattern identity remains authoritative for publication, blocking, capacity and success callbacks.
+     * Only the ordinary external-inventory commit uses {@code extractionDetails} to emit the already extracted keys.
+     * Dedicated crafting machines retain the registered pattern and their own validation semantics.
+     * </p>
+     */
+    public static CountedCraftingPreparation prepareStandardBatch(
+                                                                  PatternProviderLogic logic,
+                                                                  PatternProviderBatchAccess access,
+                                                                  IPatternDetails patternDetails,
+                                                                  IPatternDetails extractionDetails,
+                                                                  KeyCounter[] prototype,
+                                                                  long requestedCount,
+                                                                  Runnable afterCommit,
+                                                                  CraftingDispatchTargetAvailability targetAvailability) {
+        validateRequestedCount(requestedCount);
 
         if (!access.dataEnergistics$getSendList().isEmpty()) {
             return rejected(CraftingDispatchStatus.BUSY);
@@ -122,7 +119,8 @@ public final class PatternProviderBatching {
         }
 
         var lockMode = logic.getConfigManager().getSetting(Settings.LOCK_CRAFTING_MODE);
-        if (requiresSingleCraftPath(lockMode, false)) {
+        boolean singleCraftPath = requiresSingleCraftPath(lockMode, false);
+        if (singleCraftPath && patternDetails == extractionDetails) {
             return prepareSingle(
                     logic,
                     patternDetails,
@@ -130,18 +128,24 @@ public final class PatternProviderBatching {
                     requestedCount,
                     targetAvailability);
         }
+        requestedCount = boundInputBatchLimit(singleCraftPath, requestedCount);
         var blockEntity = access.dataEnergistics$getHost().getBlockEntity();
         var level = blockEntity.getLevel();
         if (level == null) {
             return rejected(CraftingDispatchStatus.OFFLINE);
         }
 
-        var possibleTargets = new ArrayList<PushTarget>();
+        var possibleTargets = new ObjectArrayList<PushTarget>();
+        var machineTargets = new ObjectArrayList<MachinePushTarget>();
         for (Direction direction : access.dataEnergistics$invokeGetActiveSides()) {
             var adjacentPosition = blockEntity.getBlockPos().relative(direction);
             var adjacentSide = direction.getOpposite();
             var craftingMachine = ICraftingMachine.of(level, adjacentPosition, adjacentSide);
             boolean dedicatedCraftingMachine = craftingMachine != null && craftingMachine.acceptsPlans();
+            if (!singleCraftPath && dedicatedCraftingMachine && craftingMachine instanceof CountedCraftingMachine machine) {
+                machineTargets.add(new MachinePushTarget(direction, machine));
+                continue;
+            }
             if (requiresSingleCraftPath(LockCraftingMode.NONE, dedicatedCraftingMachine)) {
                 if (targetAvailability.canAttempt(CraftingDispatchTarget.provider())) {
                     return prepareSingle(
@@ -157,29 +161,55 @@ public final class PatternProviderBatching {
                 continue;
             }
 
-            var target = access.dataEnergistics$invokeFindAdapter(direction);
-            if (target != null) {
-                possibleTargets.add(new PushTarget(direction, target));
+            if (patternDetails.supportsPushInputsToExternalInventory()) {
+                var target = access.dataEnergistics$invokeFindAdapter(direction);
+                if (target != null) {
+                    possibleTargets.add(new InventoryPushTarget(direction, target));
+                }
             }
         }
 
-        if (!patternDetails.supportsPushInputsToExternalInventory()) {
+        if (machineTargets.isEmpty() && !patternDetails.supportsPushInputsToExternalInventory()) {
             return rejected(CraftingDispatchStatus.REJECTED);
         }
 
-        List<CraftingDispatchRejection> rejections = new ArrayList<>();
-        int normalizedRoundRobin = rearrangeRoundRobin(
+        List<CraftingDispatchRejection> rejections = new ObjectArrayList<>();
+        int inventoryRoundRobin = rearrangeRoundRobin(
                 possibleTargets,
                 access.dataEnergistics$getRoundRobinIndex());
+        int machineRoundRobin = rearrangeRoundRobin(machineTargets, access.dataEnergistics$getRoundRobinIndex());
+        // Preserve AE2's machine-first order while fairly rotating destinations within each route kind.
+        possibleTargets.addAll(0, machineTargets);
         for (int targetOffset = 0; targetOffset < possibleTargets.size(); targetOffset++) {
             PushTarget possibleTarget = possibleTargets.get(targetOffset);
-            CraftingDispatchTarget dispatchTarget = targetFor(possibleTarget.direction());
+            CraftingDispatchTarget dispatchTarget = externalInventoryDispatchTarget(
+                    singleCraftPath,
+                    possibleTarget.direction());
             if (!targetAvailability.canAttempt(dispatchTarget)) {
                 continue;
             }
+            int nextRoundRobinIndex = targetOffset < machineTargets.size() ?
+                    nextRoundRobinIndex(machineRoundRobin, targetOffset) :
+                    nextRoundRobinIndex(inventoryRoundRobin, targetOffset - machineTargets.size());
+            Runnable onSuccess = () -> {
+                access.dataEnergistics$invokeOnPushPatternSuccess(patternDetails);
+                access.dataEnergistics$setRoundRobinIndex(nextRoundRobinIndex);
+                afterCommit.run();
+            };
+            if (possibleTarget instanceof MachinePushTarget(var direction, var machine)) {
+                var admission = prepareMachineBatch(
+                        machine, level, blockEntity.getBlockPos().relative(direction),
+                        direction.getOpposite(), patternDetails, prototype, requestedCount, onSuccess);
+                if (admission != null) {
+                    return CountedCraftingPreparation.accepted(admission, dispatchTarget, rejections);
+                }
+                rejections.add(CraftingDispatchRejection.targeted(CraftingDispatchStatus.NO_CAPACITY, dispatchTarget));
+                continue;
+            }
+            var inventoryTarget = (InventoryPushTarget) possibleTarget;
             if (isBlockedByTargetContents(
                     logic.isBlocking(),
-                    possibleTarget.target(),
+                    inventoryTarget.target(),
                     access.dataEnergistics$getPatternInputs())) {
                 rejections.add(CraftingDispatchRejection.targeted(
                         CraftingDispatchStatus.BLOCKED,
@@ -187,7 +217,7 @@ public final class PatternProviderBatching {
                 continue;
             }
 
-            long count = simulateCapacity(possibleTarget.target(), prototype, requestedCount);
+            long count = simulateCapacity(inventoryTarget.target(), prototype, requestedCount);
             if (count > 0L) {
                 var adjacentPosition = blockEntity.getBlockPos().relative(possibleTarget.direction());
                 var adjacentSide = possibleTarget.direction().getOpposite();
@@ -208,21 +238,18 @@ public final class PatternProviderBatching {
                         dispatchTarget));
                 continue;
             }
-            int nextRoundRobinIndex = nextRoundRobinIndex(normalizedRoundRobin, targetOffset);
             long admittedCount = count;
 
             return CountedCraftingPreparation.accepted(
                     ownershipAwareAdmission(admittedCount, prototype, (committedPrototype, transferOwnership) -> {
                         pushExpanded(
-                                patternDetails,
+                                extractionDetails,
                                 committedPrototype,
                                 admittedCount,
                                 access,
                                 possibleTarget.direction(),
                                 transferOwnership);
-                        access.dataEnergistics$invokeOnPushPatternSuccess(patternDetails);
-                        access.dataEnergistics$setRoundRobinIndex(nextRoundRobinIndex);
-                        afterCommit.run();
+                        onSuccess.run();
                         return true;
                     }),
                     dispatchTarget,
@@ -256,11 +283,8 @@ public final class PatternProviderBatching {
                                                                           long publicationRevision,
                                                                           long capacityRevision,
                                                                           long captureTick) {
-        validatePreparation(patternDetails, prototype, requestedCount, () -> {});
-        if (logic == null || access == null || providerId == null) {
-            throw new IllegalArgumentException("Pattern provider capacity context must not be null");
-        }
-        if (patternIdentity == null || patternIdentity.isBlank()) {
+        validateRequestedCount(requestedCount);
+        if (patternIdentity.isBlank()) {
             throw new IllegalArgumentException("Pattern provider capacity identity must not be blank");
         }
         if (publicationRevision < 0L || capacityRevision < 0L || captureTick < 0L) {
@@ -269,8 +293,7 @@ public final class PatternProviderBatching {
         if (!access.dataEnergistics$getSendList().isEmpty() ||
                 !access.dataEnergistics$getMainNode().isActive() ||
                 !access.dataEnergistics$getPatterns().contains(patternDetails) ||
-                logic.getCraftingLockedReason() != LockCraftingMode.NONE ||
-                !patternDetails.supportsPushInputsToExternalInventory()) {
+                logic.getCraftingLockedReason() != LockCraftingMode.NONE) {
             return List.of();
         }
 
@@ -289,13 +312,32 @@ public final class PatternProviderBatching {
                     captureTick));
         }
 
-        ArrayList<ProviderCapacitySnapshot> snapshots = new ArrayList<>();
+        ObjectArrayList<ProviderCapacitySnapshot> snapshots = new ObjectArrayList<>();
         boolean providerRouteCaptured = false;
         for (Direction direction : access.dataEnergistics$invokeGetActiveSides()) {
             var adjacentPosition = blockEntity.getBlockPos().relative(direction);
             var adjacentSide = direction.getOpposite();
             var craftingMachine = ICraftingMachine.of(level, adjacentPosition, adjacentSide);
             if (craftingMachine != null && craftingMachine.acceptsPlans()) {
+                if (craftingMachine instanceof CountedCraftingMachine) {
+                    Observation observation = CraftingMachineCapacityAdapters.capture(
+                            level, adjacentPosition, adjacentSide, patternDetails, prototype, requestedCount);
+                    snapshots.add(new ProviderCapacitySnapshot(
+                            providerId,
+                            targetFor(direction),
+                            Optional.of(observation == null ?
+                                    MachineTargetId.forBlockEntity(level.dimension(), adjacentPosition) :
+                                    machineTargetId(observation, level, adjacentPosition, adjacentSide)),
+                            patternIdentity,
+                            publicationRevision,
+                            capacityRevision,
+                            captureTick,
+                            ProviderRoutingMode.TARGETED,
+                            observation == null ? DispatchCapacity.Unknown.INSTANCE :
+                                    new DispatchCapacity.Known(observation.remainingLogicalCrafts()),
+                            new DispatchCapacity.Known(observation == null ? 1L : observation.remainingLogicalCrafts())));
+                    continue;
+                }
                 if (!providerRouteCaptured) {
                     snapshots.add(singleRouteSnapshot(
                             providerId,
@@ -310,6 +352,9 @@ public final class PatternProviderBatching {
                 continue;
             }
 
+            if (!patternDetails.supportsPushInputsToExternalInventory()) {
+                continue;
+            }
             PatternProviderTarget target = access.dataEnergistics$invokeFindAdapter(direction);
             if (target == null) {
                 continue;
@@ -351,6 +396,39 @@ public final class PatternProviderBatching {
         return List.copyOf(snapshots);
     }
 
+    /** Keeps a batch on its observed machine and transfers ownership at that machine's actual input-write boundary. */
+    private static @Nullable CountedCraftingAdmission prepareMachineBatch(
+                                                                          CountedCraftingMachine machine,
+                                                                          Level level,
+                                                                          BlockPos position,
+                                                                          Direction inputSide,
+                                                                          IPatternDetails patternDetails,
+                                                                          KeyCounter[] prototype,
+                                                                          long requestedCount,
+                                                                          Runnable onSuccess) {
+        Observation observation = CraftingMachineCapacityAdapters.capture(
+                level, position, inputSide, patternDetails, prototype, requestedCount);
+        long count = observation == null ? 1L : observation.remainingLogicalCrafts();
+        if (count == 0L) {
+            return null;
+        }
+        return ownershipAwareAdmission(count, prototype, (committedPrototype, transferOwnership) -> {
+            if (ICraftingMachine.of(level, position, inputSide) != machine || !machine.acceptsPlans()) {
+                return false;
+            }
+            Observation current = CraftingMachineCapacityAdapters.capture(
+                    level, position, inputSide, patternDetails, committedPrototype, count);
+            if ((current == null ? 1L : current.remainingLogicalCrafts()) < count) {
+                return false;
+            }
+            if (!machine.pushPatternBatch(patternDetails, committedPrototype, count, inputSide, transferOwnership)) {
+                return false;
+            }
+            onSuccess.run();
+            return true;
+        });
+    }
+
     /**
      * Re-simulates and prepares exactly one side selected from a current capacity snapshot.
      */
@@ -363,13 +441,33 @@ public final class PatternProviderBatching {
                                                                          long requestedCount,
                                                                          Runnable afterCommit,
                                                                          CraftingDispatchTarget target) {
-        if (target == null) {
-            throw new IllegalArgumentException("Pattern provider dispatch target must not be null");
-        }
+        return prepareStandardBatchForTarget(
+                logic,
+                access,
+                patternDetails,
+                patternDetails,
+                prototype,
+                requestedCount,
+                afterCommit,
+                target);
+    }
+
+    /** Re-simulates one selected ordinary side while retaining a separately authorized input binding. */
+    @Nullable
+    public static CountedCraftingAdmission prepareStandardBatchForTarget(
+                                                                         PatternProviderLogic logic,
+                                                                         PatternProviderBatchAccess access,
+                                                                         IPatternDetails patternDetails,
+                                                                         IPatternDetails extractionDetails,
+                                                                         KeyCounter[] prototype,
+                                                                         long requestedCount,
+                                                                         Runnable afterCommit,
+                                                                         CraftingDispatchTarget target) {
         CountedCraftingPreparation preparation = prepareStandardBatch(
                 logic,
                 access,
                 patternDetails,
+                extractionDetails,
                 prototype,
                 requestedCount,
                 afterCommit,
@@ -381,12 +479,13 @@ public final class PatternProviderBatching {
      * Selects the original one-craft provider path whenever batching could change lock or dedicated-machine semantics.
      */
     private static boolean requiresSingleCraftPath(LockCraftingMode lockMode, boolean dedicatedCraftingMachine) {
-        if (lockMode == null) {
-            throw new IllegalArgumentException("Pattern-provider lock mode must not be null");
-        }
         return lockMode == LockCraftingMode.LOCK_UNTIL_RESULT ||
                 lockMode == LockCraftingMode.LOCK_UNTIL_PULSE ||
                 dedicatedCraftingMachine;
+    }
+
+    static long boundInputBatchLimit(boolean singleCraftPath, long requestedCount) {
+        return singleCraftPath ? 1L : requestedCount;
     }
 
     /**
@@ -396,9 +495,6 @@ public final class PatternProviderBatching {
                                                      boolean blocking,
                                                      PatternProviderTarget target,
                                                      Set<AEKey> patternInputs) {
-        if (target == null || patternInputs == null) {
-            throw new IllegalArgumentException("Pattern-provider Blocking context must not be null");
-        }
         return blocking && target.containsPatternInput(patternInputs);
     }
 
@@ -408,7 +504,7 @@ public final class PatternProviderBatching {
                                                          IPatternDetails patternDetails,
                                                          KeyCounter[] prototype,
                                                          long requestedCount) {
-        validatePreparation(patternDetails, prototype, requestedCount, () -> {});
+        validateRequestedCount(requestedCount);
         return admission(1L, prototype, inputs -> provider.pushPattern(patternDetails, inputs));
     }
 
@@ -455,6 +551,10 @@ public final class PatternProviderBatching {
         return new CraftingDispatchTarget("side:" + direction.getName());
     }
 
+    static CraftingDispatchTarget externalInventoryDispatchTarget(boolean singleCraftPath, Direction direction) {
+        return singleCraftPath ? CraftingDispatchTarget.provider() : targetFor(direction);
+    }
+
     private static MachineTargetId machineTargetId(
                                                    @Nullable Observation observation,
                                                    Level level,
@@ -466,10 +566,6 @@ public final class PatternProviderBatching {
     }
 
     static long simulateCapacity(PatternProviderTarget target, KeyCounter[] prototype, long requestedCount) {
-        if (target == null || prototype == null) {
-            throw new IllegalArgumentException(
-                    "Pattern provider capacity target and input prototype must not be null");
-        }
         if (requestedCount <= 0L) {
             throw new IllegalArgumentException("requestedCount must be positive");
         }
@@ -492,26 +588,13 @@ public final class PatternProviderBatching {
     }
 
     static void pushExpanded(
-                             IPatternDetails patternDetails,
+                             IPatternDetails inputEmissionDetails,
                              KeyCounter[] prototype,
                              long count,
                              PatternProviderBatchAccess access,
                              Direction direction,
                              Runnable transferOwnership) {
-        if (patternDetails == null) {
-            throw new IllegalArgumentException(
-                    "Pattern details must not be null when expanding a pattern-provider batch");
-        }
-        if (access == null) {
-            throw new IllegalArgumentException("Pattern-provider batch access must not be null");
-        }
-        if (direction == null) {
-            throw new IllegalArgumentException("Pattern-provider batch direction must not be null");
-        }
-        if (transferOwnership == null) {
-            throw new IllegalArgumentException("Pattern-provider ownership callback must not be null");
-        }
-        List<GenericStack> expandedInputs = expandPatternInputs(patternDetails, prototype, count);
+        List<GenericStack> expandedInputs = expandPatternInputs(inputEmissionDetails, prototype, count);
         List<GenericStack> sendList = access.dataEnergistics$getSendList();
         if (!sendList.isEmpty()) {
             throw new IllegalStateException("Pattern provider received another batch while inputs were pending");
@@ -537,7 +620,7 @@ public final class PatternProviderBatching {
         PrototypeSnapshot prototypeSnapshot = copyAndAggregatePrototype(prototype);
         KeyCounter expectedInputs = prototypeSnapshot.aggregated();
         KeyCounter emittedInputs = new KeyCounter();
-        ArrayList<GenericStack> expandedInputs = new ArrayList<>();
+        ObjectArrayList<GenericStack> expandedInputs = new ObjectArrayList<>();
         KeyCounter[] perCraft = prototypeSnapshot.perCraft();
         patternDetails.pushInputsToExternalInventory(perCraft, (what, amount) -> {
             if (what == null) {
@@ -556,49 +639,12 @@ public final class PatternProviderBatching {
         return expandedInputs;
     }
 
-    static KeyCounter[] scalePrototype(KeyCounter[] prototype, long count) {
-        if (prototype == null) {
-            throw new IllegalArgumentException(
-                    "Pattern-provider input prototype must not be null when scaling a batch");
-        }
-        if (count <= 0L) {
-            throw new IllegalArgumentException("count must be positive");
-        }
-
-        KeyCounter[] expanded = new KeyCounter[prototype.length];
-        for (int index = 0; index < prototype.length; index++) {
-            KeyCounter source = prototype[index];
-            if (source == null) {
-                throw new IllegalArgumentException(
-                        "Pattern-provider input prototype counter at index " + index + " must not be null");
-            }
-            KeyCounter scaled = new KeyCounter();
-            for (var entry : source) {
-                long amount = entry.getLongValue();
-                if (amount < 0L) {
-                    throw new IllegalArgumentException("prototype amounts must not be negative");
-                }
-                if (amount > 0L) {
-                    scaled.add(entry.getKey(), Math.multiplyExact(amount, count));
-                }
-            }
-            expanded[index] = scaled;
-        }
-        return expanded;
-    }
-
     static CountedCraftingAdmission admission(
                                               long count,
                                               KeyCounter[] preparedPrototype,
                                               Function<KeyCounter[], Boolean> commit) {
         if (count <= 0L) {
             throw new IllegalArgumentException("count must be positive");
-        }
-        if (preparedPrototype == null) {
-            throw new IllegalArgumentException("Prepared pattern-provider input prototype must not be null");
-        }
-        if (commit == null) {
-            throw new IllegalArgumentException("Pattern-provider batch commit must not be null");
         }
         return new OneShotAdmission(count, preparedPrototype, (prototype, ignored) -> commit.apply(prototype));
     }
@@ -609,12 +655,6 @@ public final class PatternProviderBatching {
                                                             BiFunction<KeyCounter[], Runnable, Boolean> commit) {
         if (count <= 0L) {
             throw new IllegalArgumentException("count must be positive");
-        }
-        if (preparedPrototype == null) {
-            throw new IllegalArgumentException("Prepared pattern-provider input prototype must not be null");
-        }
-        if (commit == null) {
-            throw new IllegalArgumentException("Ownership-aware pattern-provider batch commit must not be null");
         }
         return new OneShotAdmission(count, preparedPrototype, commit);
     }
@@ -684,24 +724,13 @@ public final class PatternProviderBatching {
         return true;
     }
 
-    private static void validatePreparation(
-                                            IPatternDetails patternDetails,
-                                            KeyCounter[] prototype,
-                                            long requestedCount,
-                                            Runnable afterCommit) {
-        if (patternDetails == null || prototype == null) {
-            throw new IllegalArgumentException(
-                    "Pattern details and input prototype must not be null when preparing a pattern-provider batch");
-        }
-        if (afterCommit == null) {
-            throw new IllegalArgumentException("Pattern-provider post-commit action must not be null");
-        }
+    private static void validateRequestedCount(long requestedCount) {
         if (requestedCount <= 0L) {
             throw new IllegalArgumentException("requestedCount must be positive");
         }
     }
 
-    private static <T> int rearrangeRoundRobin(ArrayList<T> targets, int roundRobinIndex) {
+    private static <T> int rearrangeRoundRobin(List<T> targets, int roundRobinIndex) {
         if (targets.isEmpty()) {
             return roundRobinIndex;
         }
@@ -720,7 +749,16 @@ public final class PatternProviderBatching {
         return Math.addExact(Math.addExact(normalizedRoundRobin, acceptedTargetOffset), 1);
     }
 
-    private record PushTarget(Direction direction, PatternProviderTarget target) {}
+    /** One server-thread discovery result; inventory and machine submissions cannot be interchanged. */
+    private sealed interface PushTarget {
+
+        /** Returns the provider face fixed for this physical destination. */
+        Direction direction();
+    }
+
+    private record InventoryPushTarget(Direction direction, PatternProviderTarget target) implements PushTarget {}
+
+    private record MachinePushTarget(Direction direction, CountedCraftingMachine machine) implements PushTarget {}
 
     /** Holds the validated aggregate and per-craft copy produced during one prototype traversal. */
     private record PrototypeSnapshot(KeyCounter aggregated, KeyCounter[] perCraft) {}

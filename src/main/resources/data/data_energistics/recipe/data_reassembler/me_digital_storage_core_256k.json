@@ -29,6 +29,10 @@
 			{
 				"item": "data_energistics:complexified_biochips",
 				"count": 4
+			},
+			{
+				"item": "data_energistics:digisidian_memorize_ingot",
+				"count": 4
 			}
 		],
 		"fluids": [

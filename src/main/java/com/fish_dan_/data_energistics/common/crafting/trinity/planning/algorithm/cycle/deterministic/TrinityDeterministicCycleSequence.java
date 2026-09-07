@@ -6,6 +6,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 
 import appeng.api.stacks.AEKey;
 
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,23 +34,21 @@ public final class TrinityDeterministicCycleSequence {
     }
 
     /**
-     * @param component immutable cyclic component
-     * @param target    productive internal key
-     * @param available immutable inventory used only to choose an executable stable block order
+     * @param component        immutable cyclic component
+     * @param target           productive internal key or the requested boundary output of this component
+     * @param available        immutable inventory used only to choose an executable stable block order
+     * @param producibleInputs resources supplied by predecessor stages, not required in the internal startup stock
      * @return minimal positive integer cycle sequence, or empty when route choice remains ambiguous
      */
     public Optional<List<TrinityVariantFiring>> resolve(
                                                         TrinityStronglyConnectedComponent component,
                                                         AEKey target,
-                                                        Map<AEKey, BigInteger> available) {
+                                                        Map<AEKey, BigInteger> available,
+                                                        Set<AEKey> producibleInputs) {
         if (component == null || !component.cyclic() || target == null || available == null) {
             throw new IllegalArgumentException("A deterministic Trinity cycle sequence requires complete inputs");
         }
-        if (!component.keys().contains(target)) {
-            throw new IllegalArgumentException("The deterministic Trinity cycle target must belong to its component");
-        }
-
-        Optional<List<TrinityPatternVariant>> deterministic = deterministicVariants(component);
+        Optional<List<TrinityPatternVariant>> deterministic = deterministicVariants(component, target);
         if (deterministic.isEmpty()) {
             return Optional.empty();
         }
@@ -57,16 +57,24 @@ public final class TrinityDeterministicCycleSequence {
         if (ratio.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(orderBlocks(variants, ratio.orElseThrow(), available));
+        Set<AEKey> startupKeys = new ObjectOpenHashSet<>(component.keys());
+        startupKeys.removeAll(producibleInputs);
+        return Optional.of(orderBlocks(variants, ratio.orElseThrow(), available, startupKeys));
     }
 
     private static Optional<List<TrinityPatternVariant>> deterministicVariants(
-                                                                               TrinityStronglyConnectedComponent component) {
+                                                                               TrinityStronglyConnectedComponent component, AEKey target) {
         LinkedHashSet<TrinityPatternVariant> selected = new LinkedHashSet<>();
-        for (AEKey key : component.keys()) {
+        Set<AEKey> requiredKeys = new ObjectOpenHashSet<>(component.keys());
+        requiredKeys.add(target);
+        for (AEKey key : requiredKeys) {
             List<TrinityPatternVariant> producers = component.cycleVariants().stream()
-                    .filter(variant -> variant.outputs().containsKey(key))
+                    .filter(variant -> variant.netChange().getOrDefault(key, BigInteger.ZERO).signum() > 0)
                     .toList();
+            // A retained tool with zero effect everywhere is a startup requirement, not a producer choice.
+            if (producers.isEmpty() && component.cycleVariants().stream().noneMatch(variant -> variant.netChange().containsKey(key))) {
+                continue;
+            }
             if (producers.size() != 1) {
                 return Optional.empty();
             }
@@ -186,7 +194,13 @@ public final class TrinityDeterministicCycleSequence {
                                                   List<TrinityPatternVariant> variants,
                                                   List<BigInteger> ratio,
                                                   AEKey target) {
+        BigInteger targetGain = BigInteger.ZERO;
+        for (int index = 0; index < variants.size(); index++) {
+            targetGain = targetGain.add(variants.get(index).netChange().getOrDefault(target, BigInteger.ZERO).multiply(ratio.get(index)));
+        }
+        if (targetGain.signum() <= 0) return false;
         for (AEKey key : internalKeys) {
+            if (key.equals(target)) continue;
             BigInteger net = BigInteger.ZERO;
             for (int index = 0; index < variants.size(); index++) {
                 net = net.add(variants.get(index)
@@ -194,11 +208,7 @@ public final class TrinityDeterministicCycleSequence {
                         .getOrDefault(key, BigInteger.ZERO)
                         .multiply(ratio.get(index)));
             }
-            if (key.equals(target)) {
-                if (net.signum() <= 0) {
-                    return false;
-                }
-            } else if (net.signum() != 0) {
+            if (net.signum() != 0) {
                 return false;
             }
         }
@@ -208,7 +218,8 @@ public final class TrinityDeterministicCycleSequence {
     private static List<TrinityVariantFiring> orderBlocks(
                                                           List<TrinityPatternVariant> variants,
                                                           List<BigInteger> ratio,
-                                                          Map<AEKey, BigInteger> available) {
+                                                          Map<AEKey, BigInteger> available,
+                                                          Set<AEKey> internalKeys) {
         ArrayList<TrinityVariantFiring> remaining = new ArrayList<>(variants.size());
         for (int index = 0; index < variants.size(); index++) {
             remaining.add(new TrinityVariantFiring(variants.get(index), ratio.get(index)));
@@ -217,7 +228,7 @@ public final class TrinityDeterministicCycleSequence {
         ArrayList<TrinityVariantFiring> ordered = new ArrayList<>(remaining.size());
         while (!remaining.isEmpty()) {
             TrinityVariantFiring selected = remaining.stream()
-                    .filter(firing -> hasInputs(balances, requiredAtStart(firing)))
+                    .filter(firing -> hasInputs(balances, requiredAtStart(firing), internalKeys))
                     .findFirst()
                     .orElse(remaining.getFirst());
             remaining.remove(selected);
@@ -242,8 +253,9 @@ public final class TrinityDeterministicCycleSequence {
         return Collections.unmodifiableMap(required);
     }
 
-    private static boolean hasInputs(Map<AEKey, BigInteger> balances, Map<AEKey, BigInteger> required) {
-        return required.entrySet().stream().allMatch(entry -> balances
+    private static boolean hasInputs(Map<AEKey, BigInteger> balances, Map<AEKey, BigInteger> required, Set<AEKey> internalKeys) {
+        // Boundary materials are supplied by predecessor stages; only internal resources constrain cycle order.
+        return required.entrySet().stream().allMatch(entry -> !internalKeys.contains(entry.getKey()) || balances
                 .getOrDefault(entry.getKey(), BigInteger.ZERO)
                 .compareTo(entry.getValue()) >= 0);
     }

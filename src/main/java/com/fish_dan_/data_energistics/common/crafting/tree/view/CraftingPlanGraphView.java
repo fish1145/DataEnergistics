@@ -57,7 +57,7 @@ public final class CraftingPlanGraphView {
             incomingEdges.computeIfAbsent(edge.target(), unused -> new ObjectArrayList<>()).add(edge);
             outgoingEdges.computeIfAbsent(edge.source(), unused -> new ObjectArrayList<>()).add(edge);
         }
-        GraphComponents sourceComponents = GraphComponents.find(sourceNodes.keySet(), sourceOutgoing);
+        GraphComponents sourceComponents = GraphComponents.find(graph, sourceNodes.keySet(), sourceOutgoing);
         for (Node node : sourceNodes.values()) {
             if (!(node instanceof Process process) || !process.cycleIds().isEmpty() || sourceComponents.cyclicComponents().contains(sourceComponents.componentByNode().get(node.id()))) {
                 continue;
@@ -101,7 +101,7 @@ public final class CraftingPlanGraphView {
         outgoing.values().forEach(list -> list.sort(IntComparators.NATURAL_COMPARATOR));
         reverse.values().forEach(list -> list.sort(IntComparators.NATURAL_COMPARATOR));
         displayChildren.values().forEach(list -> list.sort(IntComparators.NATURAL_COMPARATOR));
-        components = GraphComponents.find(outgoing.keySet(), outgoing);
+        components = GraphComponents.find(graph, outgoing.keySet(), outgoing);
         componentChildren = new IntList[components.members().size()];
         for (int component = 0; component < componentChildren.length; component++) {
             IntSet children = new IntAVLTreeSet();

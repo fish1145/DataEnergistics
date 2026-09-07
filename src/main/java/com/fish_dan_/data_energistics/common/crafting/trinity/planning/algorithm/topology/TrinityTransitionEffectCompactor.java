@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.planning.algorithm.topology;
 
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityBoundPatternInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
 
 import appeng.api.stacks.AEKey;
@@ -42,7 +43,10 @@ public final class TrinityTransitionEffectCompactor {
                                     AEKey primaryOutput,
                                     Map<AEKey, BigInteger> inputs,
                                     Map<AEKey, BigInteger> declaredOutputs,
-                                    Map<AEKey, BigInteger> outputs) {
+                                    Map<AEKey, BigInteger> outputs,
+                                    Map<AEKey, BigInteger> physicalInputs,
+                                    Map<AEKey, BigInteger> physicalOutputs,
+                                    List<TrinityBoundPatternInput> exactBindings) {
 
         private static TransitionEffect from(TrinityPatternVariant variant) {
             if (variant == null) {
@@ -52,7 +56,10 @@ public final class TrinityTransitionEffectCompactor {
                     variant.primaryOutput(),
                     variant.inputs(),
                     variant.declaredOutputs(),
-                    variant.outputs());
+                    variant.outputs(),
+                    variant.physicalInputs(),
+                    variant.physicalOutputs(),
+                    variant.requiresExactBinding() ? variant.bindings() : List.of());
         }
     }
 }

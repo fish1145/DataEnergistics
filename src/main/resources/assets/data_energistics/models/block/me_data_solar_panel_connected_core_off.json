@@ -1,0 +1,6 @@
+{
+	"parent": "data_energistics:block/solar_panel_connected_core",
+	"textures": {
+		"panel": "data_energistics:block/solar_panel/me_data_solar_panel_off"
+	}
+}

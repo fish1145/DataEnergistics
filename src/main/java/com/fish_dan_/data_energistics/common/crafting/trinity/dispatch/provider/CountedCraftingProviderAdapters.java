@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingCapac
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingProviderAdapter;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingRoutingMode;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingTarget;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingProviderAdapter;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.ProviderCapacityView;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.capacity.TargetedCountedCraftingProvider;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.commit.CountedCraftingPreparation;
@@ -22,6 +23,8 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Pro
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.KeyCounter;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -114,6 +117,41 @@ public final class CountedCraftingProviderAdapters {
                                                      long requestedCount,
                                                      ProviderCapacitySnapshot snapshot,
                                                      CraftingDispatchTargetAvailability targetAvailability) {
+        return prepare(
+                provider,
+                patternDetails,
+                patternDetails,
+                prototype,
+                requestedCount,
+                snapshot,
+                targetAvailability);
+    }
+
+    /**
+     * Prepares one route while retaining a separately authorized CPU-side input binding.
+     *
+     * <p>
+     * Public and registered provider adapters continue to receive only {@code patternDetails}. The separate extraction
+     * view is visible exclusively to providers implementing the internal {@link BoundPatternInputProvider} contract.
+     * </p>
+     *
+     * @param provider           current live provider
+     * @param patternDetails     registered pattern selected by the crafting plan
+     * @param extractionDetails  CPU-side pattern exposing the authorized actual input binding
+     * @param prototype          read-only exact per-craft input prototype
+     * @param requestedCount     positive maximum logical craft count offered to the route
+     * @param snapshot           current revalidated capacity snapshot
+     * @param targetAvailability current dispatch-window target filter
+     * @return accepted one-shot admission or explicit rejection facts
+     */
+    public static CountedCraftingPreparation prepare(
+                                                     ICraftingProvider provider,
+                                                     IPatternDetails patternDetails,
+                                                     IPatternDetails extractionDetails,
+                                                     KeyCounter[] prototype,
+                                                     long requestedCount,
+                                                     ProviderCapacitySnapshot snapshot,
+                                                     CraftingDispatchTargetAvailability targetAvailability) {
         if (requestedCount <= 0L) {
             throw new IllegalArgumentException("Requested counted crafting amount must be positive: " + requestedCount);
         }
@@ -123,6 +161,7 @@ public final class CountedCraftingProviderAdapters {
         return resolve(provider).prepare().prepare(
                 new PreparationContext(
                         patternDetails,
+                        extractionDetails,
                         prototype,
                         requestedCount,
                         snapshot,
@@ -147,10 +186,6 @@ public final class CountedCraftingProviderAdapters {
                                                                       ICraftingProvider provider,
                                                                       IPatternDetails patternDetails,
                                                                       CraftingDispatchTargetAvailability targetAvailability) {
-        if (provider == null || patternDetails == null || targetAvailability == null) {
-            throw new IllegalArgumentException(
-                    "Native crafting preparation requires provider, pattern and target availability");
-        }
         CraftingDispatchTarget target = CraftingDispatchTarget.provider();
         if (!targetAvailability.canAttempt(target)) {
             return unavailableTarget(target);
@@ -194,6 +229,15 @@ public final class CountedCraftingProviderAdapters {
      */
     public static boolean supportsCountedDispatch(ICraftingProvider provider) {
         return REGISTRY.find(provider) != null || provider instanceof CountedCraftingProvider;
+    }
+
+    /** Resolves the optional durable-session capability without bypassing an explicitly registered legacy adapter. */
+    public static @Nullable ReusableCraftingProviderAdapter reusableAdapter(ICraftingProvider provider) {
+        CountedCraftingProviderAdapter registered = REGISTRY.find(provider);
+        if (registered != null) {
+            return registered instanceof ReusableCraftingProviderAdapter reusable ? reusable : null;
+        }
+        return provider instanceof ReusableCraftingProviderAdapter reusable ? reusable : null;
     }
 
     static CountedCraftingPreparation prepareProviderTarget(
@@ -362,6 +406,29 @@ public final class CountedCraftingProviderAdapters {
     private static CountedCraftingPreparation prepareLegacyTargeted(
                                                                     TargetedCountedCraftingProvider provider,
                                                                     PreparationContext context) {
+        if (context.patternDetails() != context.extractionDetails() &&
+                provider instanceof BoundPatternInputProvider boundProvider) {
+            if (context.snapshot().routingMode() != ProviderRoutingMode.TARGETED) {
+                return boundProvider.prepareBoundInputBatch(
+                        context.patternDetails(),
+                        context.extractionDetails(),
+                        context.prototype(),
+                        context.requestedCount(),
+                        context.targetAvailability());
+            }
+            CraftingDispatchTarget target = context.snapshot().route();
+            if (!context.targetAvailability().canAttempt(target)) {
+                return unavailableTarget(target);
+            }
+            CountedCraftingAdmission admission = boundProvider.prepareBoundInputBatchForTarget(
+                    context.patternDetails(),
+                    context.extractionDetails(),
+                    context.prototype(),
+                    context.requestedCount(),
+                    target);
+            return admission == null ? unavailableTarget(target) :
+                    CountedCraftingPreparation.accepted(admission, target);
+        }
         if (context.snapshot().routingMode() != ProviderRoutingMode.TARGETED) {
             return provider.prepareBatch(
                     context.patternDetails(),
@@ -475,6 +542,7 @@ public final class CountedCraftingProviderAdapters {
      */
     private record PreparationContext(
                                       IPatternDetails patternDetails,
+                                      IPatternDetails extractionDetails,
                                       KeyCounter[] prototype,
                                       long requestedCount,
                                       ProviderCapacitySnapshot snapshot,

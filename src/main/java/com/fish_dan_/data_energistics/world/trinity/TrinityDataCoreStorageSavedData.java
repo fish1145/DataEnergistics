@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.world.trinity;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCanonicalNbt;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityDataCoreStorageProfile;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageStatus;
 import com.fish_dan_.data_energistics.common.trinity.host.TrinityDataCoreStorageView;
@@ -18,15 +19,22 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 
+import com.google.common.hash.Hashing;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.logging.log4j.Logger;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
  * World-level storage contents for Trinity Data Core hosts, keyed by the storage UUID carried by the host item.
@@ -36,7 +44,9 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String DATA_NAME = Data_Energistics.MODID + "_trinity_data_core_storage";
     private static final String SCHEMA_VERSION_TAG = "schema_version";
-    private static final int SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
+    private static final int INVENTORY_ONLY_SCHEMA_VERSION = 1;
+    private static final String DETACHED_RUNTIMES_TAG = "detached_cpu_runtimes";
     private static final String HOSTS_TAG = "hosts";
     private static final String HOST_ID_TAG = "host_id";
     private static final String ENTRIES_TAG = "entries";
@@ -48,6 +58,8 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
             TrinityDataCoreStorageSavedData::load);
 
     private final Object2ObjectOpenHashMap<UUID, HostState> hosts = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectLinkedOpenHashMap<RecoveryKey, DetachedRuntime> detachedRuntimes = new Object2ObjectLinkedOpenHashMap<>();
+    private final List<Tag> quarantinedRuntimeRecords = new ObjectArrayList<>();
 
     public static TrinityDataCoreStorageSavedData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
@@ -60,12 +72,15 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
             return data;
         }
         int schemaVersion = tag.getInt(SCHEMA_VERSION_TAG);
-        if (schemaVersion != SCHEMA_VERSION) {
+        if (schemaVersion != INVENTORY_ONLY_SCHEMA_VERSION && schemaVersion != SCHEMA_VERSION) {
             LOGGER.warn(
                     "Ignoring Trinity Data Core storage SavedData schema version {}; expected {}",
                     schemaVersion,
                     SCHEMA_VERSION);
             return data;
+        }
+        if (schemaVersion == SCHEMA_VERSION) {
+            data.readDetachedRuntimes(tag);
         }
         Tag hostsTag = tag.get(HOSTS_TAG);
         if (!(hostsTag instanceof ListTag hostList)) {
@@ -239,7 +254,224 @@ public class TrinityDataCoreStorageSavedData extends SavedData {
             }
         }
         tag.put(HOSTS_TAG, hostList);
+        ListTag journal = new ListTag();
+        for (var entry : this.detachedRuntimes.object2ObjectEntrySet()) {
+            journal.add(writeDetachedRuntime(entry.getKey(), entry.getValue()));
+        }
+        for (Tag quarantined : this.quarantinedRuntimeRecords) {
+            CompoundTag preserved = new CompoundTag();
+            preserved.put("quarantine_raw", quarantined.copy());
+            journal.add(preserved);
+        }
+        tag.put(DETACHED_RUNTIMES_TAG, journal);
         return tag;
+    }
+
+    /** Full host identity and one removal generation; old item copies cannot claim a later generation. */
+    public record RecoveryKey(UUID hostId, UUID storageId, UUID removalToken) {}
+
+    /** CLAIMED is recorded before the importer callback; no non-AVAILABLE state automatically grants assets again. */
+    public enum RecoveryStatus {
+        AVAILABLE,
+        CLAIMED,
+        RESTORED,
+        UNVERIFIED,
+        FAILED
+    }
+
+    /** Read-only forensic copy. The original snapshot remains in SavedData after both success and failure. */
+    public record RecoverySnapshot(RecoveryKey key, RecoveryStatus status, String fingerprint,
+                                   @Nullable UUID claimant, String failure, CompoundTag runtime) {
+
+        public RecoverySnapshot {
+            runtime = runtime.copy();
+        }
+
+        @Override
+        public CompoundTag runtime() {
+            return runtime.copy();
+        }
+    }
+
+    /** Stores only the post-cancellation, post-local-recovery remainder. Repeated identical removal is a no-op. */
+    public void storeDetachedRuntime(RecoveryKey key, CompoundTag runtime) {
+        String fingerprint = runtimeFingerprint(runtime);
+        DetachedRuntime previous = this.detachedRuntimes.get(key);
+        if (previous != null) {
+            if (!previous.fingerprint.equals(fingerprint)) {
+                previous.status = RecoveryStatus.UNVERIFIED;
+                previous.failure = "Conflicting snapshots for the same host removal token";
+                this.quarantinedRuntimeRecords.add(writeDetachedRuntime(key, new DetachedRuntime(runtime, fingerprint)));
+                setDirty();
+                throw new IllegalStateException(previous.failure);
+            }
+            return;
+        }
+        this.detachedRuntimes.put(key, new DetachedRuntime(runtime, fingerprint));
+        setDirty();
+    }
+
+    /** Preserves a host-level ambiguous source without making its local assets automatically claimable. */
+    public void quarantineDetachedRuntime(RecoveryKey key, CompoundTag runtime, String reason) {
+        DetachedRuntime evidence = new DetachedRuntime(runtime, runtimeFingerprint(runtime));
+        evidence.status = RecoveryStatus.UNVERIFIED;
+        evidence.failure = reason;
+        DetachedRuntime previous = this.detachedRuntimes.putIfAbsent(key, evidence);
+        if (previous != null) {
+            if (!previous.fingerprint.equals(evidence.fingerprint)) {
+                this.quarantinedRuntimeRecords.add(writeDetachedRuntime(key, evidence));
+            }
+            previous.status = RecoveryStatus.UNVERIFIED;
+            previous.failure = reason;
+        }
+        setDirty();
+    }
+
+    /**
+     * Invokes import at most once for this journal generation. setDirty is not a synchronous disk transaction;
+     * source snapshots and claim evidence are retained so an interrupted or failed transfer remains diagnosable.
+     * The importer returns true only after checking that its restored worker state preserves the supplied snapshot.
+     */
+    public Optional<RecoveryStatus> claimDetachedRuntime(RecoveryKey key, UUID claimant, Predicate<CompoundTag> importer) {
+        DetachedRuntime entry = this.detachedRuntimes.get(key);
+        if (entry == null) {
+            return Optional.empty();
+        }
+        if (entry.status != RecoveryStatus.AVAILABLE) {
+            return Optional.of(entry.status);
+        }
+        entry.claimant = claimant;
+        entry.status = RecoveryStatus.CLAIMED;
+        setDirty();
+        try {
+            boolean verified = importer.test(entry.runtime.copy());
+            if (entry.status != RecoveryStatus.CLAIMED) {
+                return Optional.of(entry.status);
+            }
+            if (verified) {
+                entry.status = RecoveryStatus.RESTORED;
+            } else {
+                entry.status = RecoveryStatus.UNVERIFIED;
+                entry.failure = "Restored CPU runtime differs from the retained removal snapshot";
+            }
+        } catch (RuntimeException exception) {
+            entry.status = RecoveryStatus.FAILED;
+            entry.failure = exception.toString();
+            LOGGER.error("Failed to restore detached Trinity CPU state for host {} storage {} removal {}; snapshot retained",
+                    key.hostId(), key.storageId(), key.removalToken(), exception);
+        }
+        setDirty();
+        return Optional.of(entry.status);
+    }
+
+    public Optional<RecoverySnapshot> detachedRuntime(RecoveryKey key) {
+        DetachedRuntime entry = this.detachedRuntimes.get(key);
+        return entry == null ? Optional.empty() : Optional.of(new RecoverySnapshot(key, entry.status, entry.fingerprint,
+                entry.claimant, entry.failure, entry.runtime));
+    }
+
+    /** A reloaded source or unproven recipient must not resume custody also retained by a removal journal. */
+    public boolean requiresCpuRecoveryReconciliation(UUID hostId, UUID storageId, @Nullable UUID appliedToken, UUID claimant) {
+        RecoveryKey latestKey = null;
+        DetachedRuntime latest = null;
+        for (var entry : this.detachedRuntimes.object2ObjectEntrySet()) {
+            if (entry.getKey().hostId().equals(hostId) && entry.getKey().storageId().equals(storageId)) {
+                latestKey = entry.getKey();
+                latest = entry.getValue();
+            }
+        }
+        return latest != null && !(latestKey.removalToken().equals(appliedToken) && latest.status == RecoveryStatus.RESTORED &&
+                claimant.equals(latest.claimant));
+    }
+
+    public static String runtimeFingerprint(CompoundTag runtime) {
+        return Hashing.sha256().hashString(TrinityCanonicalNbt.encode(runtime), StandardCharsets.UTF_8).toString();
+    }
+
+    private void readDetachedRuntimes(CompoundTag tag) {
+        if (!(tag.get(DETACHED_RUNTIMES_TAG) instanceof ListTag entries)) {
+            Tag damaged = tag.get(DETACHED_RUNTIMES_TAG);
+            CompoundTag evidence = new CompoundTag();
+            if (damaged != null) {
+                evidence.put("invalid_journal", damaged.copy());
+            } else {
+                evidence.putBoolean("missing_journal", true);
+            }
+            this.quarantinedRuntimeRecords.add(evidence);
+            LOGGER.error("Trinity storage schema two has a missing or malformed detached CPU journal; retaining evidence");
+            return;
+        }
+        for (Tag raw : entries) {
+            try {
+                if (raw instanceof CompoundTag preserved && preserved.getAllKeys().size() == 1 && preserved.contains("quarantine_raw")) {
+                    this.quarantinedRuntimeRecords.add(preserved.get("quarantine_raw").copy());
+                    continue;
+                }
+                if (!(raw instanceof CompoundTag entry) || !entry.hasUUID("host") || !entry.hasUUID("storage") ||
+                        !entry.hasUUID("removal") || !entry.contains("status", Tag.TAG_STRING) ||
+                        !entry.contains("fingerprint", Tag.TAG_STRING) || !entry.contains("failure", Tag.TAG_STRING) ||
+                        !(entry.get("runtime") instanceof CompoundTag runtime)) {
+                    throw new IllegalArgumentException("Incomplete detached CPU journal entry");
+                }
+                RecoveryKey key = new RecoveryKey(entry.getUUID("host"), entry.getUUID("storage"), entry.getUUID("removal"));
+                DetachedRuntime restored = new DetachedRuntime(runtime, entry.getString("fingerprint"));
+                restored.status = RecoveryStatus.valueOf(entry.getString("status"));
+                restored.failure = entry.getString("failure");
+                if (entry.contains("claimant")) {
+                    if (!entry.hasUUID("claimant")) {
+                        throw new IllegalArgumentException("Invalid detached CPU claimant identity");
+                    }
+                    restored.claimant = entry.getUUID("claimant");
+                }
+                if (restored.status == RecoveryStatus.AVAILABLE && restored.claimant != null ||
+                        (restored.status == RecoveryStatus.CLAIMED || restored.status == RecoveryStatus.RESTORED ||
+                                restored.status == RecoveryStatus.FAILED) && restored.claimant == null) {
+                    throw new IllegalArgumentException("Detached CPU journal status contradicts its claim marker");
+                }
+                if (!runtimeFingerprint(runtime).equals(restored.fingerprint)) {
+                    restored.status = RecoveryStatus.UNVERIFIED;
+                    restored.failure = "Detached CPU snapshot fingerprint mismatch";
+                }
+                DetachedRuntime duplicate = this.detachedRuntimes.putIfAbsent(key, restored);
+                if (duplicate != null) {
+                    duplicate.status = RecoveryStatus.UNVERIFIED;
+                    duplicate.failure = "Duplicate detached CPU journal identity";
+                    throw new IllegalArgumentException(duplicate.failure);
+                }
+            } catch (IllegalArgumentException exception) {
+                this.quarantinedRuntimeRecords.add(raw.copy());
+                LOGGER.error("Retaining malformed detached Trinity CPU journal entry without granting its assets", exception);
+            }
+        }
+    }
+
+    private static CompoundTag writeDetachedRuntime(RecoveryKey key, DetachedRuntime entry) {
+        CompoundTag tag = new CompoundTag();
+        tag.putUUID("host", key.hostId());
+        tag.putUUID("storage", key.storageId());
+        tag.putUUID("removal", key.removalToken());
+        tag.putString("status", entry.status.name());
+        tag.putString("fingerprint", entry.fingerprint);
+        tag.putString("failure", entry.failure);
+        tag.put("runtime", entry.runtime.copy());
+        if (entry.claimant != null) {
+            tag.putUUID("claimant", entry.claimant);
+        }
+        return tag;
+    }
+
+    private static final class DetachedRuntime {
+
+        private final CompoundTag runtime;
+        private final String fingerprint;
+        private RecoveryStatus status = RecoveryStatus.AVAILABLE;
+        private @Nullable UUID claimant;
+        private String failure = "";
+
+        private DetachedRuntime(CompoundTag runtime, String fingerprint) {
+            this.runtime = runtime.copy();
+            this.fingerprint = fingerprint;
+        }
     }
 
     private static void readEntries(HolderLookup.Provider registries,

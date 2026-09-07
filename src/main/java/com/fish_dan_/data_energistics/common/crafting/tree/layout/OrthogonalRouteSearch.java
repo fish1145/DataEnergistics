@@ -14,19 +14,17 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 
-/** Fast orthogonal routing: cheap shapes first, sparse A* only when every cheap shape is blocked. */
+/** Shortest obstacle-free orthogonal routes: cheap shapes bound an admissible, length-first sparse A* search. */
 final class OrthogonalRouteSearch {
 
     private static final double EPSILON = OrthogonalSegmentReservations.EPSILON;
     private static final int MAXIMUM_MEASURED_QUICK_PATHS = 24;
     private final OrthogonalRoutingGraph graph;
     private final OrthogonalSegmentReservations reservations;
-    private final double maximumDetour;
 
-    OrthogonalRouteSearch(OrthogonalRoutingGraph graph, OrthogonalSegmentReservations reservations, double nodeGap) {
+    OrthogonalRouteSearch(OrthogonalRoutingGraph graph, OrthogonalSegmentReservations reservations) {
         this.graph = graph;
         this.reservations = reservations;
-        maximumDetour = 2 * nodeGap;
     }
 
     @Nullable
@@ -39,7 +37,7 @@ final class OrthogonalRouteSearch {
         RawCandidate raw = rawCandidate(source, target, core, group, true, true);
         if (raw == null) return null;
         Candidate candidate = measure(raw, group);
-        return candidate == null ? null : new Choice(candidate.points(), candidate.metrics(), candidate.metrics().length(), true);
+        return candidate == null ? null : new Choice(candidate.points(), candidate.metrics(), true);
     }
 
     Choice route(List<Port> sourcePorts, List<Port> targetPorts, CraftingPlanRouteGroup group,
@@ -60,25 +58,29 @@ final class OrthogonalRouteSearch {
                 break;
             }
         }
-        if (shortest == null && !sources.isEmpty() && !targets.isEmpty()) shortest = search(sources, targets, group, true);
+        if (!sources.isEmpty() && !targets.isEmpty() &&
+                (shortest == null || shortest.metrics().length() > lowerBound(sources, targets) + EPSILON)) {
+            RawCandidate candidate = searchCandidate(sources, targets, group, true,
+                    shortest == null ? Double.POSITIVE_INFINITY : shortest.metrics().length());
+            if (candidate != null) shortest = measure(candidate, group);
+        }
         if (shortest == null) {
             List<RawCandidate> localFallback = quickCandidates(clearSources, clearTargets, group, false);
             localFallback.sort(OrthogonalRouteSearch::compareRaw);
-            if (!localFallback.isEmpty()) {
-                RawCandidate fallback = localFallback.getFirst();
-                return new Choice(fallback.points(), new Metrics(fallback.length(), 0, fallback.bends(), 0),
-                        fallback.length(), false);
+            RawCandidate fallback = localFallback.isEmpty() ? null : localFallback.getFirst();
+            if (fallback == null || fallback.length() > lowerBound(clearSources, clearTargets) + EPSILON) {
+                RawCandidate candidate = searchCandidate(clearSources, clearTargets, group, false,
+                        fallback == null ? Double.POSITIVE_INFINITY : fallback.length());
+                if (candidate != null) fallback = candidate;
             }
-            RawCandidate fallback = searchCandidate(clearSources, clearTargets, group, false);
             if (fallback == null) throw new IllegalStateException("No obstacle-free crafting-tree connection for " + group);
-            return new Choice(fallback.points(), new Metrics(fallback.length(), 0, fallback.bends(), 0),
-                    fallback.length(), false);
+            return new Choice(fallback.points(), new Metrics(fallback.length(), 0, fallback.bends(), 0), false);
         }
         double baseline = shortest.metrics().length();
         if (!improveCrossings || shortest.metrics().crossings() == 0) {
-            return new Choice(shortest.points(), shortest.metrics(), baseline, true);
+            return new Choice(shortest.points(), shortest.metrics(), true);
         }
-        double limit = baseline + Math.min(baseline * 0.25, maximumDetour);
+        double limit = baseline;
         Candidate best = shortest;
         int measuredPaths = 0;
         for (RawCandidate candidate : quick) {
@@ -86,7 +88,7 @@ final class OrthogonalRouteSearch {
             Candidate measured = measure(candidate, group);
             if (measured != null && compare(measured.metrics(), best.metrics()) < 0) best = measured;
         }
-        return new Choice(best.points(), best.metrics(), baseline, true);
+        return new Choice(best.points(), best.metrics(), true);
     }
 
     private List<RawCandidate> quickCandidates(List<Port> sources, List<Port> targets,
@@ -120,26 +122,14 @@ final class OrthogonalRouteSearch {
         return result;
     }
 
-    private @Nullable Candidate search(List<Port> sources, List<Port> targets, CraftingPlanRouteGroup group,
-                                       boolean respectReservations) {
-        RawCandidate candidate = searchCandidate(sources, targets, group, respectReservations);
-        return candidate == null ? null : measure(candidate, group);
+    private static double lowerBound(List<Port> sources, List<Port> targets) {
+        double result = Double.POSITIVE_INFINITY;
+        for (Port source : sources) result = Math.min(result, distance(source.anchor(), source.stub()) + heuristic(source.stub(), targets));
+        return result;
     }
 
     private @Nullable RawCandidate searchCandidate(List<Port> sources, List<Port> targets,
-                                                   CraftingPlanRouteGroup group, boolean respectReservations) {
-        SearchWindow penaltyWindow = SearchWindow.around(sources, targets, maximumDetour);
-        for (int expansion : new int[] { 1, 2, 4, 8 }) {
-            RawCandidate candidate = searchRaw(sources, targets, group, respectReservations,
-                    penaltyWindow.expand(expansion), penaltyWindow);
-            if (candidate != null) return candidate;
-        }
-        return searchRaw(sources, targets, group, respectReservations, SearchWindow.UNBOUNDED, penaltyWindow);
-    }
-
-    private @Nullable RawCandidate searchRaw(List<Port> sources, List<Port> targets, CraftingPlanRouteGroup group,
-                                             boolean respectReservations, SearchWindow limit,
-                                             SearchWindow penaltyWindow) {
+                                                   CraftingPlanRouteGroup group, boolean respectReservations, double upperBound) {
         List<Long2ObjectMap<Label>> labels = new ObjectArrayList<>(4);
         for (int heading = 0; heading < 4; heading++) labels.add(new Long2ObjectOpenHashMap<>());
         Comparator<Label> order = Comparator.comparingDouble((Label label) -> label.estimate)
@@ -150,12 +140,13 @@ final class OrthogonalRouteSearch {
         for (Port source : sources) {
             double length = distance(source.anchor(), source.stub());
             Label label = new Label(graph.key(source.stub()), heading(source.anchor(), source.stub()), source,
-                    null, length, length, length + heuristic(source.stub(), targets), 0, ordinal++);
+                    null, length, length + heuristic(source.stub(), targets), 0, ordinal++);
             if (retain(label, labels)) pending.enqueue(label);
         }
         while (!pending.isEmpty()) {
             if (Thread.currentThread().isInterrupted()) throw new CancellationException();
             Label label = pending.dequeue();
+            if (label.estimate >= upperBound - EPSILON) return null;
             if (!label.active) continue;
             Point current = graph.point(label.point);
             for (Port target : targets) {
@@ -166,14 +157,14 @@ final class OrthogonalRouteSearch {
             }
             for (long next : graph.neighbors(label.point, targets, reservations, group, respectReservations)) {
                 Point to = graph.point(next);
-                if (!limit.contains(to)) continue;
                 int direction = heading(current, to);
                 if (direction == (label.heading + 2) % 4) continue;
                 double edgeLength = distance(current, to);
                 double length = label.length + edgeLength;
-                double cost = label.cost + edgeLength + 4 * penaltyWindow.outsideLength(current, to);
-                Label candidate = new Label(next, direction, label.source, label, length, cost,
-                        cost + heuristic(to, targets), label.bends + (direction == label.heading ? 0 : 1), ordinal++);
+                double estimate = length + heuristic(to, targets);
+                if (estimate >= upperBound - EPSILON) continue;
+                Label candidate = new Label(next, direction, label.source, label, length,
+                        estimate, label.bends + (direction == label.heading ? 0 : 1), ordinal++);
                 if (retain(candidate, labels)) pending.enqueue(candidate);
             }
         }
@@ -183,7 +174,7 @@ final class OrthogonalRouteSearch {
     private static boolean retain(Label candidate, List<Long2ObjectMap<Label>> index) {
         Long2ObjectMap<Label> labels = index.get(candidate.heading);
         Label existing = labels.get(candidate.point);
-        if (existing != null && (existing.cost < candidate.cost - EPSILON || Math.abs(existing.cost - candidate.cost) <= EPSILON && existing.bends <= candidate.bends)) return false;
+        if (existing != null && (existing.length < candidate.length - EPSILON || Math.abs(existing.length - candidate.length) <= EPSILON && existing.bends <= candidate.bends)) return false;
         if (existing != null) existing.active = false;
         labels.put(candidate.point, candidate);
         return true;
@@ -310,9 +301,9 @@ final class OrthogonalRouteSearch {
     }
 
     static int compare(Metrics left, Metrics right) {
-        int value = Integer.compare(left.crossings(), right.crossings());
-        if (value == 0) value = Double.compare(left.length(), right.length());
+        int value = Double.compare(left.length(), right.length());
         if (value == 0) value = Integer.compare(left.bends(), right.bends());
+        if (value == 0) value = Integer.compare(left.crossings(), right.crossings());
         if (value == 0) value = Double.compare(right.sharedLength(), left.sharedLength());
         return value;
     }
@@ -327,65 +318,11 @@ final class OrthogonalRouteSearch {
         return length == 0 ? Integer.compare(left.bends(), right.metrics().bends()) : length;
     }
 
-    record Choice(List<Point> points, Metrics metrics, double baselineLength, boolean reserved) {}
+    record Choice(List<Point> points, Metrics metrics, boolean reserved) {}
 
     private record Candidate(List<Point> points, Metrics metrics) {}
 
     private record RawCandidate(List<Point> points, double length, int bends) {}
-
-    private record SearchWindow(double minX, double minY, double maxX, double maxY) {
-
-        private static final SearchWindow UNBOUNDED = new SearchWindow(Double.NEGATIVE_INFINITY,
-                Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
-
-        private static SearchWindow around(List<Port> sources, List<Port> targets, double padding) {
-            double minX = Double.POSITIVE_INFINITY;
-            double minY = Double.POSITIVE_INFINITY;
-            double maxX = Double.NEGATIVE_INFINITY;
-            double maxY = Double.NEGATIVE_INFINITY;
-            for (Port port : sources) {
-                minX = Math.min(minX, port.anchor().x());
-                minY = Math.min(minY, port.anchor().y());
-                maxX = Math.max(maxX, port.anchor().x());
-                maxY = Math.max(maxY, port.anchor().y());
-            }
-            for (Port port : targets) {
-                minX = Math.min(minX, port.anchor().x());
-                minY = Math.min(minY, port.anchor().y());
-                maxX = Math.max(maxX, port.anchor().x());
-                maxY = Math.max(maxY, port.anchor().y());
-            }
-            return new SearchWindow(minX - padding, minY - padding, maxX + padding, maxY + padding);
-        }
-
-        private SearchWindow expand(double factor) {
-            double centerX = (minX + maxX) / 2;
-            double centerY = (minY + maxY) / 2;
-            double halfWidth = (maxX - minX) * factor / 2;
-            double halfHeight = (maxY - minY) * factor / 2;
-            return new SearchWindow(centerX - halfWidth, centerY - halfHeight,
-                    centerX + halfWidth, centerY + halfHeight);
-        }
-
-        private boolean contains(Point point) {
-            return point.x() >= minX && point.x() <= maxX && point.y() >= minY && point.y() <= maxY;
-        }
-
-        private double outsideLength(Point from, Point to) {
-            if (from.y() == to.y()) {
-                double length = Math.abs(to.x() - from.x());
-                if (from.y() < minY || from.y() > maxY) return length;
-                return length - overlap(from.x(), to.x(), minX, maxX);
-            }
-            double length = Math.abs(to.y() - from.y());
-            if (from.x() < minX || from.x() > maxX) return length;
-            return length - overlap(from.y(), to.y(), minY, maxY);
-        }
-
-        private static double overlap(double first, double second, double minimum, double maximum) {
-            return Math.max(0, Math.min(Math.max(first, second), maximum) - Math.max(Math.min(first, second), minimum));
-        }
-    }
 
     private static final class Label {
 
@@ -394,20 +331,18 @@ final class OrthogonalRouteSearch {
         private final Port source;
         private final @Nullable Label previous;
         private final double length;
-        private final double cost;
         private final double estimate;
         private final int bends;
         private final long ordinal;
         private boolean active = true;
 
         private Label(long point, int heading, Port source, @Nullable Label previous, double length,
-                      double cost, double estimate, int bends, long ordinal) {
+                      double estimate, int bends, long ordinal) {
             this.point = point;
             this.heading = heading;
             this.source = source;
             this.previous = previous;
             this.length = length;
-            this.cost = cost;
             this.estimate = estimate;
             this.bends = bends;
             this.ordinal = ordinal;

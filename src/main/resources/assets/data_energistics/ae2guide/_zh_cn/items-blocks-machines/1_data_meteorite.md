@@ -109,17 +109,20 @@ item_ids:
   <IsometricCamera yaw="0" pitch="25" />
 </GameScene>
 
-即散显性二进制是挖掘数位陨石（掉落概率如上图表格）与挖掘残存数据矿（必定掉落1～3个）
-附近的即散显性二进制会互相吸引并自动合并，名称会显示包含的二进制数量，每个实体最多容纳8份二进制；数量达到8份时，实体尺寸约为单份二进制的2倍。
+即散显性二进制是挖掘数位陨石（掉落概率如上图表格）与挖掘残存数据矿（必定掉落1～3个)  
+
+>附近的即散显性二进制会互相吸引并自动合并，名称会显示包含的二进制数量，每个实体最多容纳8份二进制；数量达到8份时，实体尺寸约为单份二进制的2倍。
 >⚠当你一分钟置之不理时，它将会消散  
 > 
 当他出现于世界中，你需要使用
+
 <Row> 
     <ItemLink id="data_energistics:radix_containment_sphere" />
     <ItemImage id="data_energistics:radix_containment_sphere" />
 </Row>  
     <RecipeFor id="data_energistics:radix_containment_sphere" />
-进行捕捉,当能量耗空时它会被销毁里面的二进制也会被销毁
+
+进行捕捉,当球体能量耗空时，会以每 100t 在世界内泄漏一个显性二进制
   
 
 你也可以制作一个
@@ -138,15 +141,20 @@ item_ids:
   <IsometricCamera yaw="150" pitch="25" />
 </GameScene>
 
-伴随变种陨石而来，但一般只生成在砸向平原的陨石  
-  
+伴随变种陨石而来，但一般只生成在砸向平原的陨石
+
+<Row>  
+    <ItemImage id="data_energistics:me_vacuum" />
+</Row>  
 
 你也可以制作一个
+
 <Row>
     <ItemLink id="data_energistics:me_vacuum" />
     <ItemImage id="data_energistics:me_vacuum" />
 </Row>  
     <RecipeFor id="data_energistics:me_vacuum" />
+
 将装载流体磁盘进行范围性吸取  
 >⚠它有约等于两倍龙息的伤害，请小心行事
 >

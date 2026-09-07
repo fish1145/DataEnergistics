@@ -51,4 +51,23 @@ public interface PatternProviderBatchBridge {
                                                                     long requestedCount,
                                                                     Runnable afterCommit,
                                                                     CraftingDispatchTargetAvailability targetAvailability);
+
+    /**
+     * Prepares the standard route while using a separately authorized pattern for external-inventory input emission.
+     *
+     * @param patternDetails     registered pattern retained for publication and routing checks
+     * @param extractionDetails  CPU-side binding whose input emission resolves the actual extracted keys
+     * @param prototype          one exact per-craft input prototype
+     * @param requestedCount     positive maximum logical craft count
+     * @param afterCommit        callback invoked after AE2 has accepted and flushed the physical submission
+     * @param targetAvailability current-window target filter
+     * @return accepted admission or explicit rejection facts
+     */
+    CountedCraftingPreparation dataEnergistics$prepareStandardBoundInputBatch(
+                                                                              IPatternDetails patternDetails,
+                                                                              IPatternDetails extractionDetails,
+                                                                              KeyCounter[] prototype,
+                                                                              long requestedCount,
+                                                                              Runnable afterCommit,
+                                                                              CraftingDispatchTargetAvailability targetAvailability);
 }

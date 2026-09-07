@@ -7,10 +7,13 @@ import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.widgets.VerticalButtonBar;
 import appeng.menu.AEBaseMenu;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.client.event.ContainerScreenEvent;
+import net.neoforged.neoforge.client.event.RenderTooltipEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 
 import org.apache.logging.log4j.Logger;
@@ -75,6 +78,42 @@ public final class UniversalTerminalScreenHook {
         }
 
         ensureControlsPresent(screen);
+        UniversalTerminalSelectorPanel panel = SELECTOR_PANELS.get(screen);
+        if (panel != null && panel.isOpen()) {
+            panel.renderForegroundTooltip(event.getGuiGraphics(), event.getMouseX(), event.getMouseY());
+        }
+    }
+
+    public static void onContainerForeground(ContainerScreenEvent.Render.Foreground event) {
+        var screen = event.getContainerScreen();
+        UniversalTerminalSelectorPanel panel = SELECTOR_PANELS.get(screen);
+        if (panel == null || !panel.isOpen()) {
+            return;
+        }
+        var graphics = event.getGuiGraphics();
+        graphics.flush();
+        var pose = graphics.pose();
+        pose.pushPose();
+        try {
+            pose.translate(-screen.getGuiLeft(), -screen.getGuiTop(), 0.0F);
+            panel.renderForeground(graphics, event.getMouseX(), event.getMouseY());
+        } finally {
+            pose.popPose();
+            graphics.flush();
+        }
+    }
+
+    /** Lets the selector's final tooltip pass bypass lower-layer tooltip suppression. */
+    public static boolean isRenderingSelectorTooltip() {
+        UniversalTerminalSelectorPanel panel = SELECTOR_PANELS.get(Minecraft.getInstance().screen);
+        return panel != null && panel.isRenderingTooltip();
+    }
+
+    public static void onRenderTooltip(RenderTooltipEvent.Pre event) {
+        UniversalTerminalSelectorPanel panel = SELECTOR_PANELS.get(Minecraft.getInstance().screen);
+        if (panel != null && panel.isMouseOver(event.getX(), event.getY())) {
+            event.setCanceled(true);
+        }
     }
 
     static void rememberSelectorState(boolean open, int page) {

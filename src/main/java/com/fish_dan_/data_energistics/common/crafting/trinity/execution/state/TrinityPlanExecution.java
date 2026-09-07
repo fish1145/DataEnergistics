@@ -6,13 +6,15 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.pe
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.RepeatBlock;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.Stage;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityExecutionSnapshot.WaitKind;
-import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.persistence.TrinityLongAmountSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityBoundPatternInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.projection.TrinityAe2AmountProjection;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -28,8 +30,6 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
-import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -114,12 +114,14 @@ public final class TrinityPlanExecution {
                        AEKey primaryOutput,
                        int plannedVariantOrdinal,
                        long maximumLogicalFirings,
-                       boolean cycle) {
+                       boolean cycle,
+                       List<TrinityBoundPatternInput> exactBindings) {
 
         /**
          * Rejects incomplete or non-dispatchable offers before provider code receives them.
          */
         public Work {
+            exactBindings = List.copyOf(exactBindings);
             if (generation < 0L || stageIndex < 0 || firingIndex < 0 ||
                     plannedVariantOrdinal < 0 ||
                     maximumLogicalFirings <= 0L) {
@@ -148,7 +150,7 @@ public final class TrinityPlanExecution {
     }
 
     private final AEKey targetKey;
-    private final long targetAmount;
+    private final BigInteger targetAmount;
     private final Int2ObjectLinkedOpenHashMap<StageState> stages = new Int2ObjectLinkedOpenHashMap<>();
     private final IntArrayList stageOrder = new IntArrayList();
     private final Int2ObjectLinkedOpenHashMap<RepeatState> repeatBlocks = new Int2ObjectLinkedOpenHashMap<>();
@@ -166,6 +168,7 @@ public final class TrinityPlanExecution {
 
     private long catalogRevision;
     private CraftingQuantityMode quantityMode;
+    private TrinitySameItemPolicy sameItemPolicy = TrinitySameItemPolicy.empty();
     private long generation;
     private long durableRevision;
     /**
@@ -173,18 +176,19 @@ public final class TrinityPlanExecution {
      */
     private final Int2ObjectLinkedOpenHashMap<Work> leasedWorks = new Int2ObjectLinkedOpenHashMap<>();
     private boolean planning;
+    private boolean productionRetired;
     private boolean failed;
     private String failureReason = "";
     private long budgetRetryAt = -1L;
     private boolean completionSealed;
-    private long completionBuffer;
-    private long deliveryRemaining;
-    private final Object2LongMap<AEKey> actualFinalOutputs = new Object2LongLinkedOpenHashMap<>();
+    private BigInteger completionBuffer = BigInteger.ZERO;
+    private BigInteger deliveryRemaining;
+    private final Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> actualFinalOutputs = new Object2ObjectLinkedOpenHashMap<>();
 
     private TrinityPlanExecution(AEKey targetKey,
-                                 long targetAmount,
+                                 BigInteger targetAmount,
                                  TrinityBorrowingLedger borrowingLedger) {
-        if (targetAmount <= 0L) {
+        if (targetAmount.signum() <= 0) {
             throw new IllegalArgumentException("A Trinity execution requires a positive target amount");
         }
         this.targetKey = targetKey;
@@ -207,7 +211,7 @@ public final class TrinityPlanExecution {
         GenericStack output = plan.finalOutput();
         TrinityPlanExecution execution = new TrinityPlanExecution(
                 output.what(),
-                output.amount(),
+                BigInteger.valueOf(output.amount()),
                 new TrinityBorrowingLedger());
         execution.installPlan(plan);
         execution.rebuildTransientState(currentTick);
@@ -233,6 +237,8 @@ public final class TrinityPlanExecution {
                 new TrinityBorrowingLedger(snapshot.borrowingEntries()));
         restored.catalogRevision = snapshot.catalogRevision();
         restored.quantityMode = snapshot.quantityMode();
+        restored.sameItemPolicy = snapshot.sameItemPolicy();
+        restored.productionRetired = snapshot.productionRetired();
         restored.generation = snapshot.generation();
         restored.failureReason = snapshot.failureReason();
         restored.completionSealed = snapshot.completionSealed();
@@ -281,7 +287,7 @@ public final class TrinityPlanExecution {
         if (persistedStatus != Status.BUDGET_EXHAUSTED && restored.budgetRetryAt != -1L) {
             throw new IllegalArgumentException("A Trinity non-budget state cannot retain a budget retry tick");
         }
-        if ((persistedStatus == Status.COMPLETED) != restored.productionComplete()) {
+        if (persistedStatus != Status.PLANNING && (persistedStatus == Status.COMPLETED) != restored.productionComplete()) {
             throw new IllegalArgumentException("A Trinity completed status must match all persisted stage cursors");
         }
         restored.validatePersistedStatusShape(persistedStatus);
@@ -365,7 +371,7 @@ public final class TrinityPlanExecution {
      * @return immutable requested delivery stack
      */
     public GenericStack finalOutput() {
-        return new GenericStack(this.targetKey, this.targetAmount);
+        return new GenericStack(this.targetKey, TrinityAe2AmountProjection.toAe2Amount(this.targetAmount));
     }
 
     /**
@@ -407,6 +413,46 @@ public final class TrinityPlanExecution {
         }
 
         return allowNewLease ? dequeueEligibleWork(inspectedStages) : Optional.empty();
+    }
+
+    /**
+     * Recreates only the transient lease for a durable provider acceptance not yet recorded in this
+     * execution snapshot. A changed generation or firing identity is not recoverable. The returned
+     * work retains the current remaining-count bound; no acceptance or output is applied here.
+     *
+     * @param expected    frozen work attached to the accepted provider submission
+     * @param currentTick current server tick used by the existing dispatchability gate
+     * @return matching current or restored lease, or empty while stale or not dispatchable
+     */
+    public Optional<Work> recoverAcceptedWork(Work expected, long currentTick) {
+        requireTick(currentTick);
+        if (expected.generation() != this.generation) {
+            return Optional.empty();
+        }
+        Work leased = this.leasedWorks.get(expected.stageIndex());
+        if (leased != null) {
+            return sameAcceptedFiring(leased, expected) ? Optional.of(leased) : Optional.empty();
+        }
+        StageState stage = this.stages.get(expected.stageIndex());
+        if (stage == null || stage.completed || stage.currentFiring != expected.firingIndex() || stage.currentFiring >= stage.firings.size()) {
+            return Optional.empty();
+        }
+        FiringState firing = stage.firings.get(stage.currentFiring);
+        if (!firing.patternIdentity.equals(expected.patternIdentity()) || !firing.primaryOutput.equals(expected.primaryOutput()) ||
+                firing.variantOrdinal != expected.plannedVariantOrdinal() || stage.cycle != expected.cycle() ||
+                !firing.exactBindings.equals(expected.exactBindings())) {
+            return Optional.empty();
+        }
+        IntOpenHashSet excluded = new IntOpenHashSet(this.stages.keySet());
+        excluded.remove(expected.stageIndex());
+        return pollDispatchable(currentTick, excluded, work -> sameAcceptedFiring(work, expected), true);
+    }
+
+    private static boolean sameAcceptedFiring(Work actual, Work expected) {
+        return actual.generation() == expected.generation() && actual.stageIndex() == expected.stageIndex() &&
+                actual.firingIndex() == expected.firingIndex() && actual.patternIdentity().equals(expected.patternIdentity()) &&
+                actual.primaryOutput().equals(expected.primaryOutput()) && actual.plannedVariantOrdinal() == expected.plannedVariantOrdinal() &&
+                actual.cycle() == expected.cycle() && actual.exactBindings().equals(expected.exactBindings());
     }
 
     /**
@@ -477,7 +523,7 @@ public final class TrinityPlanExecution {
      */
     public void registerInputKeys(int stageIndex, Set<AEKey> keys) {
         StageState stage = requireStage(stageIndex);
-        Set<AEKey> copied = copyKeys(keys);
+        Set<AEKey> copied = normalizeObservedKeys(keys);
         boolean changed = false;
         for (AEKey key : copied) {
             if (stage.inputKeys.add(key)) {
@@ -497,7 +543,8 @@ public final class TrinityPlanExecution {
      * @return whether at least one waiting stage was released
      */
     public boolean wake(AEKey key) {
-        IntSet indexed = this.inputStageIndex.get(key);
+        AEKey observedKey = this.sameItemPolicy.normalizeKey(key);
+        IntSet indexed = this.inputStageIndex.get(observedKey);
         if (indexed == null || indexed.isEmpty()) {
             return false;
         }
@@ -505,7 +552,7 @@ public final class TrinityPlanExecution {
         for (int stageIndex : indexed.toIntArray()) {
             StageState stage = requireStage(stageIndex);
             if ((stage.waitKind == WaitKind.INPUT || stage.waitKind == WaitKind.DYNAMIC_INPUT) &&
-                    stage.waitingKeys.contains(key)) {
+                    stage.waitingKeys.contains(observedKey)) {
                 clearWait(stage);
                 enqueueIfEligible(stage);
                 released = true;
@@ -524,7 +571,7 @@ public final class TrinityPlanExecution {
      * @param keys material keys that can satisfy the wait
      */
     public void deferInput(Work work, Set<AEKey> keys) {
-        Set<AEKey> copied = copyNonEmptyKeys(keys, "input wait");
+        Set<AEKey> copied = normalizeNonEmptyObservedKeys(keys, "input wait");
         StageState stage = releaseCurrentWork(work);
         registerInputKeys(stage.index, copied);
         beginWait(stage, WaitKind.INPUT, copied, -1L);
@@ -542,7 +589,7 @@ public final class TrinityPlanExecution {
     public void deferDynamicInput(Work work, Set<AEKey> keys, long currentTick, int maxRetryTicks) {
         requireTick(currentTick);
         requireRetryCap(maxRetryTicks);
-        Set<AEKey> copied = copyNonEmptyKeys(keys, "dynamic input wait");
+        Set<AEKey> copied = normalizeNonEmptyObservedKeys(keys, "dynamic input wait");
         StageState stage = requireCurrentWork(work);
         if (!stage.cycle) {
             throw new IllegalStateException("Only a Trinity cycle stage may wait for dynamic material selection");
@@ -587,6 +634,48 @@ public final class TrinityPlanExecution {
     }
 
     /**
+     * Retires outstanding work leases after an already accepted dispatch was cancelled. Old firing
+     * and cycle cursors are historical facts and are not rewound. The caller must settle in-flight
+     * output and cancellation accounting before installing a replacement, and must suppress delivery
+     * completion while status() is PLANNING even if every old stage was already dispatched.
+     *
+     * @param currentTick current server tick
+     */
+    public void replanAfterCancelledDispatch(long currentTick) {
+        requireTick(currentTick);
+        if (this.failed) {
+            throw new IllegalStateException("A failed Trinity execution cannot restart cancelled dispatches");
+        }
+        this.generation = Math.addExact(this.generation, 1L);
+        this.planning = true;
+        this.budgetRetryAt = -1L;
+        rebuildTransientState(currentTick);
+        markDurableMutation();
+    }
+
+    /**
+     * Finishes a recovery episode when the CPU has already secured all required final assets.
+     * Clears only obsolete production state. No output is created, sealed or delivered here;
+     * delivery responsibility, actual final variants and borrowing ownership remain unchanged.
+     *
+     * @param currentTick current server tick after the caller's settled inventory check
+     */
+    public void finishReplanningWithoutProduction(long currentTick) {
+        requireTick(currentTick);
+        if (!this.planning) {
+            throw new IllegalStateException("Trinity recovery can omit production only while planning");
+        }
+        long nextGeneration = Math.addExact(this.generation, 1L);
+        clearInstalledProduction();
+        this.productionRetired = true;
+        this.generation = nextGeneration;
+        this.planning = false;
+        this.budgetRetryAt = -1L;
+        rebuildTransientState(currentTick);
+        markDurableMutation();
+    }
+
+    /**
      * Replaces all remaining stage cursors after a successful replan while retaining ledger and completion ownership.
      *
      * @param replacement replacement plan for the remaining request
@@ -594,12 +683,12 @@ public final class TrinityPlanExecution {
      */
     public void replaceRemainingPlan(TrinityCraftingPlan replacement, long currentTick) {
         requireTick(currentTick);
-        if (!this.planning) {
-            throw new IllegalStateException("A Trinity replacement plan is accepted only while planning");
+        if (!this.planning || this.completionSealed) {
+            throw new IllegalStateException("A Trinity replacement plan requires unsealed planning state");
         }
         GenericStack output = replacement.finalOutput();
         if (!this.targetKey.equals(output.what()) || replacement.quantityMode() != this.quantityMode ||
-                output.amount() > this.deliveryRemaining) {
+                output.amount() <= 0L) {
             throw new IllegalArgumentException("A Trinity replacement plan must preserve target and quantity semantics");
         }
         long nextGeneration = Math.addExact(this.generation, 1L);
@@ -816,7 +905,7 @@ public final class TrinityPlanExecution {
         return Collections.unmodifiableMap(outputs);
     }
 
-    private static void addDagPendingOutputs(Map<AEKey, BigInteger> outputs, StageState stage) {
+    private void addDagPendingOutputs(Map<AEKey, BigInteger> outputs, StageState stage) {
         if (stage.completed) {
             return;
         }
@@ -863,14 +952,14 @@ public final class TrinityPlanExecution {
         return activeCount.add(laterCount);
     }
 
-    private static void mergePendingOutputs(Map<AEKey, BigInteger> outputs,
-                                            FiringState firing,
-                                            BigInteger firingCount) {
+    private void mergePendingOutputs(Map<AEKey, BigInteger> outputs,
+                                     FiringState firing,
+                                     BigInteger firingCount) {
         if (firingCount.signum() == 0) {
             return;
         }
         firing.outputs.forEach((key, perFiring) -> outputs.merge(
-                key,
+                this.sameItemPolicy.normalizeKey(key),
                 perFiring.multiply(firingCount),
                 BigInteger::add));
     }
@@ -899,14 +988,14 @@ public final class TrinityPlanExecution {
      *
      * @param amount exact amount moved into the completion buffer
      */
-    public void sealCompletion(long amount) {
-        long actualAmount = actualFinalOutputAmount();
-        if (!productionComplete() || this.failed || this.completionSealed || amount < 0L ||
-                Math.addExact(amount, actualAmount) != this.deliveryRemaining) {
+    public void sealCompletion(BigInteger amount) {
+        BigInteger actualAmount = actualFinalOutputAmount();
+        if (!productionComplete() || this.failed || this.completionSealed || amount.signum() < 0 ||
+                !amount.add(actualAmount).equals(this.deliveryRemaining)) {
             throw new IllegalStateException("A Trinity completion buffer requires one exact post-production delivery seal");
         }
         this.completionSealed = true;
-        this.completionBuffer = Math.addExact(amount, actualAmount);
+        this.completionBuffer = amount.add(actualAmount);
         markDurableMutation();
     }
 
@@ -916,24 +1005,24 @@ public final class TrinityPlanExecution {
      * @param actualKey actual machine-returned key with all Data Components intact
      * @param amount    positive accepted amount
      */
-    public void recordActualFinalOutput(AEItemKey actualKey, long amount) {
-        if (this.completionSealed || amount <= 0L || !(this.targetKey instanceof AEItemKey targetItem) ||
+    public void recordActualFinalOutput(AEItemKey actualKey, BigInteger amount) {
+        if (this.completionSealed || amount.signum() <= 0 || !(this.targetKey instanceof AEItemKey targetItem) ||
                 actualKey.getItem() != targetItem.getItem()) {
             throw new IllegalArgumentException("An actual Trinity final output must match the requested registered item");
         }
-        long actualAmount = actualFinalOutputAmount();
-        if (amount > this.deliveryRemaining - actualAmount) {
+        BigInteger actualAmount = actualFinalOutputAmount();
+        if (amount.compareTo(this.deliveryRemaining.subtract(actualAmount)) > 0) {
             throw new IllegalArgumentException("Actual Trinity final outputs exceed the undelivered request");
         }
-        this.actualFinalOutputs.mergeLong(actualKey, amount, Math::addExact);
+        this.actualFinalOutputs.merge(actualKey, amount, BigInteger::add);
         markDurableMutation();
     }
 
     /**
      * @return total actual variants already owned for final delivery
      */
-    public long actualFinalOutputAmount() {
-        return this.actualFinalOutputs.values().longStream().reduce(0L, Math::addExact);
+    public BigInteger actualFinalOutputAmount() {
+        return this.actualFinalOutputs.values().stream().reduce(BigInteger.ZERO, BigInteger::add);
     }
 
     /**
@@ -946,15 +1035,15 @@ public final class TrinityPlanExecution {
      *
      * @param amount exact remaining target amount completed virtually
      */
-    public void completeVirtually(long amount) {
+    public void completeVirtually(BigInteger amount) {
         if (!productionComplete() || this.failed || this.completionSealed ||
-                !this.actualFinalOutputs.isEmpty() || amount != this.deliveryRemaining) {
+                !this.actualFinalOutputs.isEmpty() || !amount.equals(this.deliveryRemaining)) {
             throw new IllegalStateException(
                     "A Trinity virtual completion requires the exact remaining target after production completes");
         }
         this.completionSealed = true;
-        this.completionBuffer = 0L;
-        this.deliveryRemaining = 0L;
+        this.completionBuffer = BigInteger.ZERO;
+        this.deliveryRemaining = BigInteger.ZERO;
         markDurableMutation();
     }
 
@@ -962,15 +1051,13 @@ public final class TrinityPlanExecution {
      * @return immutable offer from the isolated completion buffer
      */
     public Optional<GenericStack> completionOffer() {
-        if (!this.completionSealed || this.completionBuffer == 0L) {
+        if (!this.completionSealed || this.completionBuffer.signum() == 0) {
             return Optional.empty();
         }
-        for (Object2LongMap.Entry<AEKey> entry : this.actualFinalOutputs.object2LongEntrySet()) {
-            if (entry.getLongValue() > 0L) {
-                return Optional.of(new GenericStack(entry.getKey(), entry.getLongValue()));
-            }
+        for (var entry : this.actualFinalOutputs.object2ObjectEntrySet()) {
+            return Optional.of(new GenericStack(entry.getKey(), TrinityAe2AmountProjection.toAe2Amount(entry.getValue())));
         }
-        return Optional.of(new GenericStack(this.targetKey, this.completionBuffer));
+        return Optional.of(new GenericStack(this.targetKey, TrinityAe2AmountProjection.toAe2Amount(this.completionBuffer)));
     }
 
     /**
@@ -979,26 +1066,27 @@ public final class TrinityPlanExecution {
      * @param acceptedAmount positive amount accepted from the completion offer
      */
     public void recordDelivered(AEKey acceptedKey, long acceptedAmount) {
-        if (!this.completionSealed || acceptedAmount <= 0L || acceptedAmount > this.completionBuffer ||
-                acceptedAmount > this.deliveryRemaining) {
+        BigInteger delivered = BigInteger.valueOf(acceptedAmount);
+        if (!this.completionSealed || acceptedAmount <= 0L || delivered.compareTo(this.completionBuffer) > 0 ||
+                delivered.compareTo(this.deliveryRemaining) > 0) {
             throw new IllegalArgumentException("A Trinity delivery must deduct a positive accepted completion amount");
         }
         if (this.actualFinalOutputs.containsKey(acceptedKey)) {
-            long actualAmount = this.actualFinalOutputs.getLong(acceptedKey);
-            if (acceptedAmount > actualAmount) {
+            BigInteger actualAmount = this.actualFinalOutputs.get(acceptedKey);
+            if (delivered.compareTo(actualAmount) > 0) {
                 throw new IllegalArgumentException("A Trinity delivery exceeds its actual final-output variant");
             }
-            if (acceptedAmount == actualAmount) {
-                this.actualFinalOutputs.removeLong(acceptedKey);
+            if (delivered.equals(actualAmount)) {
+                this.actualFinalOutputs.remove(acceptedKey);
             } else {
-                this.actualFinalOutputs.put(acceptedKey, actualAmount - acceptedAmount);
+                this.actualFinalOutputs.put(acceptedKey, actualAmount.subtract(delivered));
             }
-        } else if (!this.targetKey.equals(acceptedKey) || acceptedAmount >
-                Math.subtractExact(this.completionBuffer, actualFinalOutputAmount())) {
+        } else if (!this.targetKey.equals(acceptedKey) || delivered.compareTo(
+                this.completionBuffer.subtract(actualFinalOutputAmount())) > 0) {
                     throw new IllegalArgumentException("A Trinity delivery key is absent from its completion buffer");
                 }
-        this.completionBuffer -= acceptedAmount;
-        this.deliveryRemaining -= acceptedAmount;
+        this.completionBuffer = this.completionBuffer.subtract(delivered);
+        this.deliveryRemaining = this.deliveryRemaining.subtract(delivered);
         markDurableMutation();
     }
 
@@ -1007,34 +1095,34 @@ public final class TrinityPlanExecution {
      *
      * @return released stack, or empty when the buffer contains nothing
      */
-    public Object2LongMap<AEKey> releaseCompletionForStandalone() {
-        Object2LongMap<AEKey> released = new Object2LongLinkedOpenHashMap<>(this.actualFinalOutputs);
-        long actualAmount = actualFinalOutputAmount();
+    public Map<AEKey, BigInteger> releaseCompletionForStandalone() {
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> released = new Object2ObjectLinkedOpenHashMap<>(this.actualFinalOutputs);
+        BigInteger actualAmount = actualFinalOutputAmount();
         if (this.completionSealed) {
-            long exactAmount = Math.subtractExact(this.completionBuffer, actualAmount);
-            if (exactAmount > 0L) {
-                released.mergeLong(this.targetKey, exactAmount, Math::addExact);
+            BigInteger exactAmount = this.completionBuffer.subtract(actualAmount);
+            if (exactAmount.signum() > 0) {
+                released.merge(this.targetKey, exactAmount, BigInteger::add);
             }
-            this.deliveryRemaining = Math.subtractExact(this.deliveryRemaining, this.completionBuffer);
-            this.completionBuffer = 0L;
+            this.deliveryRemaining = this.deliveryRemaining.subtract(this.completionBuffer);
+            this.completionBuffer = BigInteger.ZERO;
         }
         if (!this.actualFinalOutputs.isEmpty() || !released.isEmpty()) {
             this.actualFinalOutputs.clear();
             markDurableMutation();
         }
-        return TrinityLongAmountSnapshot.owned(released);
+        return Collections.unmodifiableMap(released);
     }
 
     /**
      * Returns the exact amount owned in the isolated completion state for one key.
      */
-    public long completionAmount(AEKey key) {
+    public BigInteger completionAmount(AEKey key) {
         if (!this.completionSealed) {
-            return this.actualFinalOutputs.getLong(key);
+            return this.actualFinalOutputs.getOrDefault(key, BigInteger.ZERO);
         }
-        long actual = this.actualFinalOutputs.getLong(key);
+        BigInteger actual = this.actualFinalOutputs.getOrDefault(key, BigInteger.ZERO);
         if (this.targetKey.equals(key)) {
-            return Math.addExact(actual, Math.subtractExact(this.completionBuffer, actualFinalOutputAmount()));
+            return actual.add(this.completionBuffer.subtract(actualFinalOutputAmount()));
         }
         return actual;
     }
@@ -1042,21 +1130,21 @@ public final class TrinityPlanExecution {
     /**
      * @return immutable keyed contents currently isolated from ordinary working inventory
      */
-    public Object2LongMap<AEKey> completionContents() {
-        Object2LongMap<AEKey> contents = new Object2LongLinkedOpenHashMap<>(this.actualFinalOutputs);
+    public Map<AEKey, BigInteger> completionContents() {
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> contents = new Object2ObjectLinkedOpenHashMap<>(this.actualFinalOutputs);
         if (this.completionSealed) {
-            long exactAmount = Math.subtractExact(this.completionBuffer, actualFinalOutputAmount());
-            if (exactAmount > 0L) {
-                contents.mergeLong(this.targetKey, exactAmount, Math::addExact);
+            BigInteger exactAmount = this.completionBuffer.subtract(actualFinalOutputAmount());
+            if (exactAmount.signum() > 0) {
+                contents.merge(this.targetKey, exactAmount, BigInteger::add);
             }
         }
-        return TrinityLongAmountSnapshot.owned(contents);
+        return Collections.unmodifiableMap(contents);
     }
 
     /**
      * @return exact requested target amount not yet delivered or released
      */
-    public long deliveryRemaining() {
+    public BigInteger deliveryRemaining() {
         return this.deliveryRemaining;
     }
 
@@ -1072,6 +1160,11 @@ public final class TrinityPlanExecution {
      */
     public long durableRevision() {
         return this.durableRevision;
+    }
+
+    /** Returns the persisted logical item domains used by stage balances and runtime input selection. */
+    public TrinitySameItemPolicy sameItemPolicy() {
+        return this.sameItemPolicy;
     }
 
     /**
@@ -1096,6 +1189,7 @@ public final class TrinityPlanExecution {
         return new TrinityExecutionSnapshot(
                 this.catalogRevision,
                 this.quantityMode,
+                this.sameItemPolicy,
                 this.targetKey,
                 this.targetAmount,
                 status(),
@@ -1111,17 +1205,16 @@ public final class TrinityPlanExecution {
                 this.deliveryRemaining,
                 this.borrowingLedger.entries(),
                 currentTick,
-                this.budgetRetryAt);
+                this.budgetRetryAt,
+                this.productionRetired);
     }
 
     private void installPlan(TrinityCraftingPlan plan) {
+        this.productionRetired = false;
         this.catalogRevision = plan.catalogRevision();
         this.quantityMode = plan.quantityMode();
-        this.stages.clear();
-        this.stageOrder.clear();
-        this.repeatBlocks.clear();
-        this.repeatByStage.clear();
-        this.seedReserve.clear();
+        this.sameItemPolicy = plan.sameItemPolicy();
+        clearInstalledProduction();
 
         for (TrinityPlanStage planStage : plan.stages()) {
             StageState stage = StageState.fromPlan(planStage);
@@ -1146,32 +1239,53 @@ public final class TrinityPlanExecution {
     }
 
     private void adoptInstalledPlan(TrinityPlanExecution prepared) {
+        this.productionRetired = prepared.productionRetired;
         this.catalogRevision = prepared.catalogRevision;
         this.quantityMode = prepared.quantityMode;
-        this.stages.clear();
+        this.sameItemPolicy = prepared.sameItemPolicy;
+        clearInstalledProduction();
         this.stages.putAll(prepared.stages);
-        this.stageOrder.clear();
         this.stageOrder.addAll(prepared.stageOrder);
-        this.repeatBlocks.clear();
         this.repeatBlocks.putAll(prepared.repeatBlocks);
-        this.repeatByStage.clear();
         this.repeatByStage.putAll(prepared.repeatByStage);
-        this.seedReserve.clear();
         this.seedReserve.putAll(prepared.seedReserve);
+    }
+
+    private void clearInstalledProduction() {
+        this.stages.clear();
+        this.stageOrder.clear();
+        this.repeatBlocks.clear();
+        this.repeatByStage.clear();
+        this.seedReserve.clear();
     }
 
     private void validateInstalledPlan() {
         if (this.catalogRevision < 0L ||
                 this.stageOrder.size() != this.stages.size() ||
-                !new IntOpenHashSet(this.stageOrder).equals(this.stages.keySet())) {
+                !new IntOpenHashSet(this.stageOrder).equals(this.stages.keySet()) ||
+                !this.sameItemPolicy.normalizeKey(this.targetKey).equals(this.targetKey) ||
+                !normalizedKeys(this.seedReserve.keySet())) {
             throw new IllegalArgumentException("A Trinity execution requires complete plan metadata and stage order");
         }
         for (StageState stage : this.stages.values()) {
             if (!this.stages.keySet().containsAll(stage.dependencies) ||
-                    stage.cycle != this.repeatByStage.containsKey(stage.index)) {
+                    stage.cycle != this.repeatByStage.containsKey(stage.index) ||
+                    !normalizedKeys(stage.requiredAtStart.keySet()) ||
+                    !normalizedKeys(stage.netChange.keySet()) ||
+                    !normalizedKeys(stage.inputKeys) ||
+                    !normalizedKeys(stage.waitingKeys)) {
                 throw new IllegalArgumentException("A Trinity execution plan has inconsistent dependencies or cycle membership");
             }
         }
+    }
+
+    private boolean normalizedKeys(Iterable<AEKey> keys) {
+        for (AEKey key : keys) {
+            if (!this.sameItemPolicy.normalizeKey(key).equals(key)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void validateRestoredCursors() {
@@ -1257,36 +1371,36 @@ public final class TrinityPlanExecution {
     }
 
     private void validateCompletionState() {
-        if (this.completionBuffer < 0L || this.deliveryRemaining < 0L ||
-                this.deliveryRemaining > this.targetAmount || this.completionBuffer > this.deliveryRemaining) {
+        if (this.completionBuffer.signum() < 0 || this.deliveryRemaining.signum() < 0 ||
+                this.deliveryRemaining.compareTo(this.targetAmount) > 0 || this.completionBuffer.compareTo(this.deliveryRemaining) > 0) {
             throw new IllegalArgumentException("A Trinity completion buffer contains impossible delivery amounts");
         }
         AEItemKey targetItem = this.targetKey instanceof AEItemKey itemKey ? itemKey : null;
         if (targetItem == null && !this.actualFinalOutputs.isEmpty()) {
             throw new IllegalArgumentException("Only item targets can retain actual final-output variants");
         }
-        long actualAmount = 0L;
+        BigInteger actualAmount = BigInteger.ZERO;
         if (targetItem != null) {
-            for (Object2LongMap.Entry<AEKey> entry : this.actualFinalOutputs.object2LongEntrySet()) {
-                if (!(entry.getKey() instanceof AEItemKey itemKey) || entry.getLongValue() <= 0L ||
+            for (var entry : this.actualFinalOutputs.object2ObjectEntrySet()) {
+                if (!(entry.getKey() instanceof AEItemKey itemKey) || entry.getValue().signum() <= 0 ||
                         itemKey.getItem() != targetItem.getItem()) {
                     throw new IllegalArgumentException(
                             "A Trinity actual final-output buffer contains an invalid item variant");
                 }
-                actualAmount = Math.addExact(actualAmount, entry.getLongValue());
+                actualAmount = actualAmount.add(entry.getValue());
             }
         }
-        if (actualAmount > this.deliveryRemaining || this.completionSealed && actualAmount > this.completionBuffer) {
+        if (actualAmount.compareTo(this.deliveryRemaining) > 0 || this.completionSealed && actualAmount.compareTo(this.completionBuffer) > 0) {
             throw new IllegalArgumentException("A Trinity actual final-output buffer exceeds remaining delivery ownership");
         }
         if (!this.completionSealed &&
-                (this.completionBuffer != 0L || this.deliveryRemaining != this.targetAmount)) {
+                (this.completionBuffer.signum() != 0 || !this.deliveryRemaining.equals(this.targetAmount))) {
             throw new IllegalArgumentException("An unsealed Trinity completion buffer cannot record delivery progress");
         }
         if (this.completionSealed && !productionComplete()) {
             throw new IllegalArgumentException("A Trinity completion buffer cannot be sealed before production completes");
         }
-        if (this.completionSealed && this.completionBuffer != this.deliveryRemaining) {
+        if (this.completionSealed && !this.completionBuffer.equals(this.deliveryRemaining)) {
             throw new IllegalArgumentException("A sealed Trinity completion buffer must own every undelivered target unit");
         }
     }
@@ -1326,8 +1440,8 @@ public final class TrinityPlanExecution {
                 }
             }
             case PLANNING -> {
-                if (!this.planning || this.failed || productionComplete()) {
-                    throw new IllegalArgumentException("A Trinity planning status requires unfinished non-failed work");
+                if (!this.planning || this.failed) {
+                    throw new IllegalArgumentException("A Trinity planning status requires non-failed suspended dispatch");
                 }
             }
             case BUDGET_EXHAUSTED -> {
@@ -1477,7 +1591,8 @@ public final class TrinityPlanExecution {
                 firing.primaryOutput,
                 firing.variantOrdinal,
                 physicalWindow(maximum),
-                stage.cycle);
+                stage.cycle,
+                firing.exactBindings);
     }
 
     private void initializeCurrentFiring(StageState stage) {
@@ -1672,16 +1787,18 @@ public final class TrinityPlanExecution {
         return repeat;
     }
 
-    private static Set<AEKey> copyKeys(Set<AEKey> keys) {
-        return Collections.unmodifiableSet(new ObjectLinkedOpenHashSet<>(keys));
+    private Set<AEKey> normalizeObservedKeys(Set<AEKey> keys) {
+        ObjectLinkedOpenHashSet<AEKey> normalized = new ObjectLinkedOpenHashSet<>();
+        keys.forEach(key -> normalized.add(this.sameItemPolicy.normalizeKey(key)));
+        return Collections.unmodifiableSet(normalized);
     }
 
-    private static Set<AEKey> copyNonEmptyKeys(Set<AEKey> keys, String role) {
-        Set<AEKey> copied = copyKeys(keys);
-        if (copied.isEmpty()) {
+    private Set<AEKey> normalizeNonEmptyObservedKeys(Set<AEKey> keys, String role) {
+        Set<AEKey> normalized = normalizeObservedKeys(keys);
+        if (normalized.isEmpty()) {
             throw new IllegalArgumentException("A Trinity " + role + " requires at least one key");
         }
-        return copied;
+        return normalized;
     }
 
     private static void requireTick(long currentTick) {
@@ -1831,6 +1948,7 @@ public final class TrinityPlanExecution {
         private final int variantOrdinal;
         private final BigInteger plannedCount;
         private final Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> outputs;
+        private final List<TrinityBoundPatternInput> exactBindings;
         private BigInteger remainingCount;
         private boolean initialized;
 
@@ -1840,7 +1958,8 @@ public final class TrinityPlanExecution {
                             BigInteger plannedCount,
                             Map<AEKey, BigInteger> outputs,
                             BigInteger remainingCount,
-                            boolean initialized) {
+                            boolean initialized,
+                            List<TrinityBoundPatternInput> exactBindings) {
             if (variantOrdinal < 0 || plannedCount.signum() <= 0 || remainingCount.signum() < 0 ||
                     (!initialized && remainingCount.signum() != 0)) {
                 throw new IllegalArgumentException("A Trinity firing state contains an invalid signature or cursor");
@@ -1852,6 +1971,7 @@ public final class TrinityPlanExecution {
             this.outputs = copyOutputs(outputs);
             this.remainingCount = remainingCount;
             this.initialized = initialized;
+            this.exactBindings = List.copyOf(exactBindings);
         }
 
         private static FiringState fromPlan(TrinityPlanPatternFiring firing, boolean cycle) {
@@ -1863,7 +1983,8 @@ public final class TrinityPlanExecution {
                     count,
                     firing.outputs(),
                     cycle ? BigInteger.ZERO : count,
-                    !cycle);
+                    !cycle,
+                    firing.exactBindings());
         }
 
         private static FiringState fromSnapshot(Firing snapshot) {
@@ -1874,7 +1995,8 @@ public final class TrinityPlanExecution {
                     snapshot.plannedCount(),
                     snapshot.outputs(),
                     snapshot.remainingCount(),
-                    snapshot.initialized());
+                    snapshot.initialized(),
+                    snapshot.exactBindings());
         }
 
         private Firing snapshot() {
@@ -1885,7 +2007,8 @@ public final class TrinityPlanExecution {
                     this.plannedCount,
                     this.outputs,
                     this.remainingCount,
-                    this.initialized);
+                    this.initialized,
+                    this.exactBindings);
         }
 
         private static Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> copyOutputs(Map<AEKey, BigInteger> source) {

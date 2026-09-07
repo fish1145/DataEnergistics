@@ -235,6 +235,10 @@ public final class TrinityRadixModelAssembler {
         boolean exportsInternalKey = request.internalKeys().stream()
                 .anyMatch(request.demand().requiredNetChangeLowerBounds()::containsKey);
         for (AEKey key : request.internalKeys()) {
+            // Required net production is already constrained above; external supply may cover consumption, not output.
+            if (request.producibleInputs().contains(key)) {
+                continue;
+            }
             String name = "settled_internal_" + settlementIndex++;
             Object2ObjectLinkedOpenHashMap<TrinityRadixVariable, BigInteger> terms = netTerms(request, key, firingVariables);
             BigInteger requestedOutput = request.demand().requiredNetChangeLowerBounds().get(key);

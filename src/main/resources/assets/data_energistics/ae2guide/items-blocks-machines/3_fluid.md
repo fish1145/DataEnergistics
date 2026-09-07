@@ -38,11 +38,12 @@ This fluid itself does not continuously cause damage, but it constantly disrupts
 
 ## Data Corrosion Liquid Bucket
 
-Data Corrosive Liquid is highly corrosive; living beings exposed to it will suffer extremely high damage. It may also form around digital fossil meteorites.
+Data Corrosion Liquid is highly corrosive; living beings exposed to it will suffer extremely high damage. It may also form around digitized meteorites.
 
 <Column>
   <Row>
     <ItemImage id="data_energistics:data_corrosion_liquid_bucket" scale="3" />
+    <Recipe id="data_energistics:data_reassembler/data_corrosion_liquid_bucket" />
   </Row>
 </Column>
 

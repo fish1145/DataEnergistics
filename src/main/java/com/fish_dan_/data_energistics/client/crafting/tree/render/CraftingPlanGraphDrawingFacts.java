@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.client.crafting.tree.render;
 
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanRouteGroup.Style;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
+import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanCycleMembership;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
@@ -23,11 +24,12 @@ public final class CraftingPlanGraphDrawingFacts {
 
     public CraftingPlanGraphDrawingFacts(CraftingPlanGraph graph) {
         ObjectArrayList<CraftingPlanGraph.Cycle> orderedCycles = new ObjectArrayList<>(graph.cycles());
+        var memberships = CraftingPlanCycleMembership.collect(graph);
         orderedCycles.sort(Comparator.comparingInt(CraftingPlanGraph.Cycle::ordinal));
         for (var cycle : orderedCycles) {
             CycleMark mark = new CycleMark(cycle.id(), cycle.ordinal(), CraftingPlanGraphPalette.cycle(cycle.ordinal()));
             this.cycles.put(cycle.id(), mark);
-            for (int node : cycle.nodeIds()) this.nodes.computeIfAbsent(node, unused -> new ObjectArrayList<>()).add(mark);
+            for (int node : memberships.get(cycle.id())) this.nodes.computeIfAbsent(node, unused -> new ObjectArrayList<>()).add(mark);
         }
         for (var entry : Int2ObjectMaps.fastIterable(this.nodes)) {
             this.labels.put(entry.getIntKey(), label(entry.getValue()));
