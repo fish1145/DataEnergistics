@@ -177,6 +177,48 @@ final class DynamicCraftingOutputLedger {
     }
 
     /**
+     * Withdraws only uncompleted registrations identified by their frozen key, route and source.
+     * Duplicate requests are summed before checking remaining amounts. Every lookup and amount check
+     * completes before returning, so an invalid cancellation cannot partially consume another registration.
+     * This does not remove actual input aliases or adjust the CPU's separate exact waiting counter.
+     * The returned one-shot action must run in the same server callback without intervening ledger mutations.
+     *
+     * @param cancelledRegistrations positive cancelled amounts, not the original accepted totals
+     * @throws IllegalStateException when an exact registration is absent or has insufficient remaining amount
+     */
+    Runnable prepareWithdrawal(List<Registration> cancelledRegistrations) {
+        Object2ObjectLinkedOpenHashMap<MutableEntry, BigInteger> withdrawals = new Object2ObjectLinkedOpenHashMap<>();
+        for (Registration registration : cancelledRegistrations) {
+            MutableEntry existing = this.entries.stream()
+                    .filter(entry -> entry.matches(registration))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("Cancelled dynamic output registration is absent: " + registration));
+            withdrawals.merge(existing, registration.amount(), BigInteger::add);
+        }
+        for (var withdrawal : withdrawals.object2ObjectEntrySet()) {
+            if (withdrawal.getValue().compareTo(withdrawal.getKey().remaining) > 0) {
+                throw new IllegalStateException("Cancelled dynamic output exceeds its uncompleted registration: " +
+                        withdrawal.getKey().registration());
+            }
+            withdrawal.setValue(withdrawal.getKey().remaining.subtract(withdrawal.getValue()));
+        }
+        return new Runnable() {
+
+            private boolean applied;
+
+            @Override
+            public void run() {
+                if (applied) {
+                    throw new IllegalStateException("A prepared dynamic withdrawal may only be applied once");
+                }
+                applied = true;
+                withdrawals.object2ObjectEntrySet().forEach(entry -> entry.getKey().remaining = entry.getValue());
+                removeEmpty();
+            }
+        };
+    }
+
+    /**
      * Finds a same-item entry after the exact waiting path has rejected the remaining actual stack.
      */
     Optional<Match> match(AEItemKey actualKey, long maximumAmount, Map<AEKey, BigInteger> waitingFor) {

@@ -14,6 +14,7 @@ import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadW
 import com.fish_dan_.data_energistics.api.registry.machine.upload.PatternUploadWorkstationRegistration;
 import com.fish_dan_.data_energistics.blockentity.machine.DataAsynchronousProcessingFactoryBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.machine.DataIntegratedChargerBlockEntity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.rules.VanillaRetainedInputRules;
 
 import java.util.Optional;
 
@@ -38,6 +39,7 @@ public final class CraftingMachineBuiltIns implements DataEnergisticsPlugin {
 
     @Override
     public void register(DataEnergisticsRegistry registry) {
+        registry.reusableInputs().register(new VanillaRetainedInputRules());
         registry.craftingMachines().registerCapacity(
                 CraftingMachineCapacityRegistration.blockEntity(
                         Data_Energistics.id("asynchronous_factory_capacity"),

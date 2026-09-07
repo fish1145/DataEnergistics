@@ -40,7 +40,7 @@ public final class DEPayloads {
 
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("6");
-        registrar.playToClient(TrinityCraftingStatusPayload.TYPE, TrinityCraftingStatusPayload.STREAM_CODEC, TrinityCraftingStatusPayload::handle);
+        registrar.versioned("7").playToClient(TrinityCraftingStatusPayload.TYPE, TrinityCraftingStatusPayload.STREAM_CODEC, TrinityCraftingStatusPayload::handle);
         registrar.playToClient(CraftingPlanGraphPayload.TYPE, CraftingPlanGraphPayload.STREAM_CODEC, CraftingPlanGraphPayload::handle);
         registrar.playToServer(CraftingPlanTreeActionPayload.TYPE, CraftingPlanTreeActionPayload.STREAM_CODEC, CraftingPlanTreeActionPayload::handle);
         registrar.playToServer(

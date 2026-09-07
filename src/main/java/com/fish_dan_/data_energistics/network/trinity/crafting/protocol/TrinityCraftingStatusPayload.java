@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.network.trinity.crafting.protocol;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.serialization.TrinityBigIntegerEncoding;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCraftingStatusEntry;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus.Phase;
 import com.fish_dan_.data_energistics.network.trinity.crafting.client.TrinityCraftingStatusClientHandler;
 
 import appeng.api.stacks.AEKey;
@@ -38,7 +40,9 @@ public record TrinityCraftingStatusPayload(int containerId, long sequence, int b
 
     private TrinityCraftingStatusPayload(RegistryFriendlyByteBuf buffer) {
         this(buffer.readVarInt(), buffer.readVarLong(), buffer.readVarInt(), buffer.readVarInt(),
-                new Header(buffer.readBoolean(), buffer.readVarLong(), buffer.readVarLong(), buffer.readVarLong(), buffer.readBoolean()),
+                new Header(buffer.readBoolean(), buffer.readVarLong(), buffer.readVarLong(), buffer.readVarLong(), buffer.readBoolean(),
+                        new TrinityReusableStatus(buffer.readEnum(Phase.class), buffer.readVarInt(), readAmount(buffer), readAmount(buffer),
+                                buffer.readUtf(TrinityReusableStatus.MAX_DIAGNOSTIC_LENGTH))),
                 readEntries(buffer));
     }
 
@@ -75,6 +79,12 @@ public record TrinityCraftingStatusPayload(int containerId, long sequence, int b
         buffer.writeVarLong(this.header.remainingWork());
         buffer.writeVarLong(this.header.startWork());
         buffer.writeBoolean(this.header.suspended());
+        TrinityReusableStatus reusable = this.header.reusable();
+        buffer.writeEnum(reusable.phase());
+        buffer.writeVarInt(reusable.sessions());
+        writeAmount(buffer, reusable.heldTools());
+        writeAmount(buffer, reusable.spareTools());
+        buffer.writeUtf(reusable.diagnostic(), TrinityReusableStatus.MAX_DIAGNOSTIC_LENGTH);
         buffer.writeVarInt(this.entries.size());
         for (TrinityCraftingStatusEntry entry : this.entries) {
             buffer.writeVarLong(entry.getSerial());
@@ -82,6 +92,7 @@ public record TrinityCraftingStatusPayload(int containerId, long sequence, int b
             writeAmount(buffer, entry.stored());
             writeAmount(buffer, entry.active());
             writeAmount(buffer, entry.pending());
+            writeAmount(buffer, entry.resident());
         }
     }
 
@@ -93,7 +104,7 @@ public record TrinityCraftingStatusPayload(int containerId, long sequence, int b
         List<TrinityCraftingStatusEntry> entries = new ObjectArrayList<>(size);
         for (int i = 0; i < size; i++) {
             entries.add(new TrinityCraftingStatusEntry(buffer.readVarLong(), AEKey.readOptionalKey(buffer),
-                    readAmount(buffer), readAmount(buffer), readAmount(buffer)));
+                    readAmount(buffer), readAmount(buffer), readAmount(buffer), readAmount(buffer)));
         }
         return entries;
     }
@@ -107,7 +118,7 @@ public record TrinityCraftingStatusPayload(int containerId, long sequence, int b
     }
 
     /** Time and AE2's normalized progress scale, not material counts or an ownership ledger. */
-    public record Header(boolean full, long elapsedTime, long remainingWork, long startWork, boolean suspended) {
+    public record Header(boolean full, long elapsedTime, long remainingWork, long startWork, boolean suspended, TrinityReusableStatus reusable) {
 
         public Header {
             if (elapsedTime < 0 || remainingWork < 0 || startWork < remainingWork) {

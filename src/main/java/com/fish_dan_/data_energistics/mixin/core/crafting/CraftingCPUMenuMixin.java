@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.mixin.core.crafting;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityDataCoreVirtualCpu;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityCraftingStatusEntry;
+import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus;
 import com.fish_dan_.data_energistics.network.trinity.crafting.protocol.TrinityCraftingStatusPayload;
 
 import appeng.api.config.CpuSelectionMode;
@@ -63,6 +64,12 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
 
     @Unique
     private long dataEnergistics$statusSequence;
+
+    @Unique
+    private TrinityReusableStatus dataEnergistics$cachedReusable = TrinityReusableStatus.EMPTY;
+
+    @Unique
+    private long dataEnergistics$lastStatusTick;
 
     public CraftingCPUMenuMixin(MenuType<?> menuType, int id, Inventory playerInventory, Object host) {
         super(menuType, id, playerInventory, host);
@@ -130,10 +137,14 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
         this.schedulingMode = this.dataEnergistics$cpu.getSelectionMode();
         this.cantStoreItems = this.dataEnergistics$cpu.isCantStoreItems();
         boolean suspended = this.dataEnergistics$cpu.isJobSuspended();
-        if (this.incrementalUpdateHelper.hasChanges() || this.dataEnergistics$cachedSuspended != suspended) {
+        TrinityReusableStatus reusable = this.dataEnergistics$cpu.getReusableStatus();
+        long tick = getPlayer().level().getGameTime();
+        if (this.incrementalUpdateHelper.hasChanges() || this.dataEnergistics$cachedSuspended != suspended ||
+                !this.dataEnergistics$cachedReusable.equals(reusable) ||
+                this.dataEnergistics$cpu.isBusy() && tick - this.dataEnergistics$lastStatusTick >= 20L) {
             var header = new TrinityCraftingStatusPayload.Header(this.incrementalUpdateHelper.isFullUpdate(),
                     this.dataEnergistics$cpu.getElapsedTimeNanos(), this.dataEnergistics$cpu.getRemainingItemCount(),
-                    this.dataEnergistics$cpu.getStartItemCount(), suspended);
+                    this.dataEnergistics$cpu.getStartItemCount(), suspended, reusable);
             List<TrinityCraftingStatusEntry> entries = dataEnergistics$createStatusEntries(
                     this.incrementalUpdateHelper,
                     this.dataEnergistics$cpu);
@@ -143,6 +154,8 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
             }
             this.incrementalUpdateHelper.commitChanges();
             this.dataEnergistics$cachedSuspended = suspended;
+            this.dataEnergistics$cachedReusable = reusable;
+            this.dataEnergistics$lastStatusTick = tick;
         }
     }
 
@@ -162,7 +175,8 @@ public abstract class CraftingCPUMenuMixin extends AEBaseMenu {
                     sentStack,
                     cpu.getStored(what),
                     cpu.getWaitingFor(what),
-                    cpu.getPendingOutputs(what));
+                    cpu.getPendingOutputs(what),
+                    cpu.getResidentAmount(what));
             entries.add(entry);
             if (entry.isDeleted()) {
                 changes.removeSerial(what);

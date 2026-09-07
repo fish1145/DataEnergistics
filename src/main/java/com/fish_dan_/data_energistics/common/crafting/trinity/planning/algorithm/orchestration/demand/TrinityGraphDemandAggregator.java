@@ -471,7 +471,8 @@ public final class TrinityGraphDemandAggregator {
             }
             ObjectOpenHashSet<AEKey> demandedCycleKeys = new ObjectOpenHashSet<>(internalRequirements.keySet());
             demandedCycleKeys.addAll(requestedCycleOutputs.keySet());
-            TrinityCycleUnitProof unitProof = selectUnitProof(component, demandedCycleKeys);
+            Set<AEKey> producibleInputs = producibleInputs(component);
+            TrinityCycleUnitProof unitProof = selectUnitProof(component, demandedCycleKeys, producibleInputs);
             Map<AEKey, BigInteger> retainedSeed = unitProof == null ? Map.of() : unitProof.internalSeed();
             for (Map.Entry<AEKey, BigInteger> requirement : internalRequirements.entrySet()) {
                 AEKey key = requirement.getKey();
@@ -531,7 +532,6 @@ public final class TrinityGraphDemandAggregator {
             if (!retainedSeed.isEmpty()) {
                 cycleDemand = cycleDemand.withRetainedSeed(retainedSeed);
             }
-            Set<AEKey> producibleInputs = producibleInputs(component);
             return Optional.of(new CyclePreparation(
                     internalRequirements,
                     cycleDemand,
@@ -541,12 +541,13 @@ public final class TrinityGraphDemandAggregator {
 
         private @Nullable TrinityCycleUnitProof selectUnitProof(
                                                                 TrinityStronglyConnectedComponent component,
-                                                                Set<AEKey> demandedKeys) {
+                                                                Set<AEKey> demandedKeys,
+                                                                Set<AEKey> producibleInputs) {
             for (AEKey key : component.keys()) {
                 if (demandedKeys.contains(key)) {
                     TrinityCycleUnitProof proof = this.cycleUnitProofs.get(key);
                     if (proof != null) {
-                        return proof.instantiate(this.inventory, component.keys());
+                        return proof.instantiate(this.inventory, component.keys(), producibleInputs);
                     }
                 }
             }
