@@ -1,5 +1,26 @@
 # ChangeLog
 
+## Version [v3.2.1](https://github.com/fish1145/DataEnergistics/compare/v3.2.0-1.21...v3.2.1-1.21)
+### Added
+
+- Trinity 可复用输入与跨批次驻留 by @QiuYe-123 in [#279](https://github.com/fish1145/DataEnergistics/pull/279)
+- 完善数位核心与订单包裹配方、聚能卡弹药及指南资源 by @fish1145 in [#289](https://github.com/fish1145/DataEnergistics/pull/289)
+
+### Fixed
+
+- 修复在线光束方块扳手拆卸后重新生成 by @QiuYe-123 in [#282](https://github.com/fish1145/DataEnergistics/pull/282)
+- 修复异步工厂批量发配与超大合成任务数量溢出 by @QiuYe-123 in [#283](https://github.com/fish1145/DataEnergistics/pull/283)
+- 修复样板编码时配方上下文被槽位回调清空 by @QiuYe-123 in [#284](https://github.com/fish1145/DataEnergistics/pull/284)
+- 修复样板上传页面的帧率下降与渲染层级冲突 by @QiuYe-123 in [#285](https://github.com/fish1145/DataEnergistics/pull/285)
+- 修复通用终端选择面板层级并移除多余纹理 by @QiuYe-123 in [#286](https://github.com/fish1145/DataEnergistics/pull/286)
+- 修复 JEI 重载时入口重复初始化导致注册失败 by @QiuYe-123 in [#288](https://github.com/fish1145/DataEnergistics/pull/288)
+- 修复三位一体样板管理滚动过快、拖动回跳和轨道越界 by @QiuYe-123 in [#290](https://github.com/fish1145/DataEnergistics/pull/290)
+
+### Changed
+
+- 重构合成图排布、循环边界与连线 by @QiuYe-123 in [#287](https://github.com/fish1145/DataEnergistics/pull/287)
+
+ 
 ## Version [v3.2.0](https://github.com/fish1145/DataEnergistics/compare/v3.1.3-1.21...v3.2.0-1.21)
 ### Added
 
