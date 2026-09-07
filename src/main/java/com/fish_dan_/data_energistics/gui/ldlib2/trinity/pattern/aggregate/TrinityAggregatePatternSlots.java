@@ -40,6 +40,8 @@ import java.util.function.IntConsumer;
 final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatternCatalogView> {
 
     private static final int SLOT_SIZE = 18;
+    private static final int VIEW_TOP = 6;
+    private static final int VIEW_HEIGHT = TrinityPatternCatalogView.ROW_COUNT * SLOT_SIZE;
     private static final float SEARCH_FONT_SIZE = 8F;
     private static final IGuiTexture PATTERN_ROW_BACKGROUND = SpriteTexture.of("data_energistics:textures/guis/model/model.png");
     private static final IGuiTexture OCCUPIED_PATTERN_SLOT_OVERLAY = SpriteTexture.of(
@@ -94,9 +96,9 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
         layout(layout -> layout
                 .positionType(TaffyPosition.ABSOLUTE)
                 .left(4)
-                .top(6)
+                .top(VIEW_TOP)
                 .width(TrinityPatternCatalogView.COLUMN_COUNT * SLOT_SIZE)
-                .height(TrinityPatternCatalogView.ROW_COUNT * SLOT_SIZE));
+                .height(VIEW_HEIGHT));
         for (int row = 0; row < TrinityPatternCatalogView.ROW_COUNT; row++) {
             UIElement background = new UIElement();
             background.setId(id + "_row_" + row);
@@ -140,11 +142,16 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     void bindControls(Scroller.Vertical scrollbar, TextField search, Button searchModeButton) {
         this.scrollbar = scrollbar;
         this.searchModeButton = searchModeButton;
+        // The authored rail exceeds the viewport; hidden arrows also reserve space unless removed from layout.
+        scrollbar.headButton.setDisplay(false);
+        scrollbar.tailButton.setDisplay(false);
+        scrollbar.layout(layout -> layout.top(VIEW_TOP).height(VIEW_HEIGHT).gapRow(0));
+        scrollbar.scrollContainer.layout(layout -> layout.heightPercent(100));
+        // LDLib2 computes travel from the thumb percentage, so the authored 15px cap must not shorten it.
+        scrollbar.scrollBar.layout(layout -> layout.maxHeightPercent(100));
         scrollbar.setRange(0.0F, 1.0F);
         scrollbar.setOnValueChanged(this::setNormalizedPosition);
         scrollbar.addEventListener(UIEvents.MOUSE_WHEEL, this::onMouseWheel, true);
-        scrollbar.headButton.setOnClick(event -> scrollRows(-1));
-        scrollbar.tailButton.setOnClick(event -> scrollRows(1));
         scrollbar.scrollBar.addEventListener(UIEvents.DRAG_END,
                 event -> updateScrollbar(firstDisplayedSlot(), displayedEntryCount()));
         search.textFieldStyle(style -> style.fontSize(SEARCH_FONT_SIZE));
