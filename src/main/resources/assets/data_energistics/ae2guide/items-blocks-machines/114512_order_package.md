@@ -10,7 +10,7 @@ navigation:
 
 <Row>
   <ItemImage id="data_energistics:order_package" scale="6" />
-  <ItemImage id="data_energistics:order_package" />
+  <RecipeFor id="data_energistics:order_package" />
 </Row>
 
 An Order Package is a special item for **virtual orders**. It is not an actual item, fluid, or data resource. Instead, it carries a target AEKey as a requested output. When an Order Package with a target is written into a pattern, the crafting system interprets it as a request for that resource.
