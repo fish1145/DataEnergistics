@@ -1,9 +1,12 @@
 package com.fish_dan_.data_energistics.common.crafting.tree.layout;
 
+import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
+import it.unimi.dsi.fastutil.doubles.DoubleComparators;
 import it.unimi.dsi.fastutil.ints.Int2DoubleMap;
 import it.unimi.dsi.fastutil.ints.Int2DoubleOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -15,8 +18,8 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 
 /**
- * Packs dependency branches into disjoint vertical bands. A shared block has one placement owner,
- * but all its original edges remain in the graph. No recursion or iterative force/crossing search is needed.
+ * Keeps dependency branches contiguous, then packs each column around its neighbours' median.
+ * A shared block has one ordering owner, not a duplicated subtree or a permanently reserved empty band.
  */
 final class CraftingPlanBranchPlacement {
 
@@ -57,38 +60,71 @@ final class CraftingPlanBranchPlacement {
             if (owner < 0) roots.add(block.id());
             else owned.get(owner).add(block.id());
         }
-        roots.sort(Comparator.comparingInt(order::get));
-        for (IntList children : owned.values()) children.sort(Comparator.comparingInt(order::get));
+        roots.sort((left, right) -> Integer.compare(order.get(left), order.get(right)));
+        for (IntList children : owned.values()) children.sort((left, right) -> Integer.compare(order.get(left), order.get(right)));
 
-        Int2DoubleMap spans = new Int2DoubleOpenHashMap();
-        Int2DoubleMap childSpans = new Int2DoubleOpenHashMap();
-        for (int index = topological.size() - 1; index >= 0; index--) {
-            checkInterrupted();
-            Block block = topological.get(index);
-            IntList children = owned.get(block.id());
-            double childSpan = 0;
-            for (int child : children) childSpan += spans.get(child);
-            if (!children.isEmpty()) childSpan += (children.size() - 1) * gap;
-            childSpans.put(block.id(), childSpan);
-            spans.put(block.id(), Math.max(block.height(), childSpan));
-        }
-
-        Int2DoubleMap centers = new Int2DoubleOpenHashMap();
-        double top = 0;
-        for (int root : roots) {
-            centers.put(root, top + spans.get(root) / 2);
-            top += spans.get(root) + gap;
-        }
-        // Owners always precede their children in rank order, including edges that skip columns.
+        Int2ObjectMap<IntList> parents = new Int2ObjectOpenHashMap<>();
+        Int2ObjectMap<List<Block>> layers = new Int2ObjectAVLTreeMap<>();
         for (Block block : topological) {
-            checkInterrupted();
-            double childTop = centers.get(block.id()) - childSpans.get(block.id()) / 2;
-            for (int child : owned.get(block.id())) {
-                centers.put(child, childTop + spans.get(child) / 2);
-                childTop += spans.get(child) + gap;
+            parents.put(block.id(), new IntArrayList());
+            layers.computeIfAbsent(block.rank(), unused -> new ObjectArrayList<>()).add(block);
+        }
+        for (Block block : topological) {
+            for (int child : block.dependencies()) {
+                if (byId.get(child).rank() > block.rank()) parents.get(child).add(block.id());
             }
         }
+        order.clear();
+        for (int root : roots) {
+            IntArrayList pending = new IntArrayList();
+            pending.push(root);
+            while (!pending.isEmpty()) {
+                int id = pending.popInt();
+                order.put(id, order.size());
+                IntList children = owned.get(id);
+                for (int index = children.size() - 1; index >= 0; index--) pending.push(children.getInt(index));
+            }
+        }
+        List<List<Block>> columns = new ObjectArrayList<>(layers.values());
+        for (List<Block> column : columns) column.sort(Comparator.comparingInt(block -> order.get(block.id())));
+        Int2DoubleMap centers = new Int2DoubleOpenHashMap();
+        for (List<Block> column : columns) pack(column, parents, centers, gap);
+        // Anchor leaves once, then center their ancestors. Re-pulling siblings toward their common parent
+        // after this pass would undo single-chain alignment and make the entire tree drift on every sweep.
+        for (int index = columns.size() - 1; index >= 0; index--) pack(columns.get(index), owned, centers, gap);
         return centers;
+    }
+
+    /** Linear isotonic packing: the closest median positions that preserve order and non-overlap. */
+    private static void pack(List<Block> column, Int2ObjectMap<IntList> neighbours, Int2DoubleMap centers, double gap) {
+        checkInterrupted();
+        int count = column.size();
+        double[] offsets = new double[count];
+        double[] sums = new double[count];
+        int[] sizes = new int[count];
+        int groups = 0;
+        DoubleArrayList positions = new DoubleArrayList();
+        for (int index = 0; index < count; index++) {
+            Block block = column.get(index);
+            if (index > 0) offsets[index] = offsets[index - 1] + (column.get(index - 1).height() + block.height()) / 2 + gap;
+            positions.clear();
+            for (int neighbour : neighbours.get(block.id())) positions.add(centers.get(neighbour));
+            positions.sort(DoubleComparators.NATURAL_COMPARATOR);
+            double desired = positions.isEmpty() ? centers.get(block.id()) :
+                    (positions.getDouble((positions.size() - 1) / 2) + positions.getDouble(positions.size() / 2)) / 2;
+            sums[groups] = desired - offsets[index];
+            sizes[groups++] = 1;
+            while (groups > 1 && sums[groups - 2] / sizes[groups - 2] > sums[groups - 1] / sizes[groups - 1]) {
+                sums[groups - 2] += sums[groups - 1];
+                sizes[groups - 2] += sizes[groups - 1];
+                groups--;
+            }
+        }
+        int index = 0;
+        for (int group = 0; group < groups; group++) {
+            double position = sums[group] / sizes[group];
+            for (int member = 0; member < sizes[group]; member++, index++) centers.put(column.get(index).id(), position + offsets[index]);
+        }
     }
 
     private static boolean preferredOwner(Block candidate, Block previous, Int2IntMap order, Int2IntMap trees) {

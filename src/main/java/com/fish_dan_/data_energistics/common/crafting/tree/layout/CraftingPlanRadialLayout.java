@@ -88,7 +88,7 @@ public final class CraftingPlanRadialLayout {
             block.envelope = Math.hypot(block.width, block.height) / 2;
             minY = Math.min(minY, block.minY);
             maxY = Math.max(maxY, block.maxY);
-            if (block != root) rings.computeIfAbsent(Math.max(1, block.rank), unused -> new ObjectArrayList<>()).add(block);
+            if (block != root) rings.computeIfAbsent(block.rank + 1, unused -> new ObjectArrayList<>()).add(block);
         }
         double span = maxY - minY + 2 * gap;
         double previousRadius = 0;
