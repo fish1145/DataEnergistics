@@ -68,11 +68,8 @@ public final class CraftingPlanGraphRouteDrawing {
         double high = Math.max(a, b);
         for (int index = first; index <= last; index++) {
             int segmentId = run.segmentIds().getInt(index);
-            if (!vertical) {
-                List<Underpass> gaps = underpasses.get(segmentId);
-                if (gaps != null && blocksUnderpassArrow(gaps, low, high)) return true;
-                continue;
-            }
+            List<Underpass> gaps = underpasses.get(segmentId);
+            if (gaps != null && blocksUnderpassArrow(gaps, low, high)) return true;
             List<CraftingPlanRouteCrossing> crossings = bridges.get(segmentId);
             if (crossings == null) continue;
             int left = 0;
