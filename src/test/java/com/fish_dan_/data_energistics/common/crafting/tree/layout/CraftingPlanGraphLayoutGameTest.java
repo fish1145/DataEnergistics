@@ -61,6 +61,20 @@ public final class CraftingPlanGraphLayoutGameTest {
             for (var edge : view.edges()) helper.assertTrue(placed.get(edge.source()).x() < placed.get(edge.target()).x(),
                     "Dependencies must advance from the requested item to the right");
             assertNodesAndEdges(helper, graph, layout);
+            Layout radial = CraftingPlanRadialLayout.layout(view, compact);
+            var radialNodes = index(radial);
+            PlacedNode root = radialNodes.get(0);
+            for (var edge : view.edges()) helper.assertTrue(radius(radialNodes.get(edge.source()), root) < radius(radialNodes.get(edge.target()), root),
+                    "Radial dependencies must advance to an outer ring");
+            PlacedNode first = radialNodes.get(1);
+            PlacedNode last = radialNodes.get(3);
+            double ax = first.x() + first.width() / 2 - root.x() - root.width() / 2;
+            double ay = center(first) - center(root);
+            double bx = last.x() + last.width() / 2 - root.x() - root.width() / 2;
+            double by = center(last) - center(root);
+            helper.assertTrue(Math.abs(ax * by - ay * bx) < 0.000001,
+                    "A radial single-child chain must retain its branch sector");
+            assertNodesAndEdges(helper, graph, radial);
         }
         helper.succeed();
     }
@@ -137,6 +151,7 @@ public final class CraftingPlanGraphLayoutGameTest {
         helper.assertTrue(nodes.get(2).viewNode().componentId() == nodes.get(4).viewNode().componentId(),
                 "Internal circulation must share the declared loop's component");
         assertNodesAndEdges(helper, graph, layout);
+        assertNodesAndEdges(helper, graph, CraftingPlanRadialLayout.layout(view, true));
         helper.succeed();
     }
 
@@ -170,6 +185,10 @@ public final class CraftingPlanGraphLayoutGameTest {
 
     private static double center(PlacedNode node) {
         return node.y() + node.height() / 2;
+    }
+
+    private static double radius(PlacedNode node, PlacedNode root) {
+        return Math.hypot(node.x() + node.width() / 2 - root.x() - root.width() / 2, center(node) - center(root));
     }
 
     private static void assertNodesAndEdges(GameTestHelper helper, CraftingPlanGraph graph, Layout layout) {

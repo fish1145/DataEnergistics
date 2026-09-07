@@ -40,6 +40,12 @@ public final class CraftingPlanGraphLayout {
             return new Layout(List.of(), List.of(), new Bounds(0, 0, 0, 0),
                     CraftingPlanRouteGeometry.EMPTY, List.of());
         }
+        Placement placement = place(graph, compact);
+        return CraftingPlanEdgeRouter.route(graph, placement.nodes(), placement.spacing(), placement.ranks());
+    }
+
+    /** Shared dependency ranks and branch order, without paying for orthogonal routing in radial mode. */
+    static Placement place(ViewGraph graph, boolean compact) {
         Spacing spacing = compact ? Spacing.COMPACT : Spacing.RELAXED;
         // Retain the perimeter calculation's virtual axes, then publish upright cards with rank along X.
         double cellWidth = compact ? 40 : 46;
@@ -114,7 +120,7 @@ public final class CraftingPlanGraphLayout {
         Int2IntMap channelTracks = channelTracks(graph, placed, nodeRanks);
         positionDepth(layers, spacing, channelTracks);
         for (Group group : groups.values()) placeNodes(group, compact, cellWidth, cellHeight, spacing, placed);
-        return CraftingPlanEdgeRouter.route(graph, new ObjectArrayList<>(placed.values()), spacing, nodeRanks);
+        return new Placement(new ObjectArrayList<>(placed.values()), spacing, nodeRanks);
     }
 
     private static void orderCycle(Group group, Int2ObjectMap<ViewNode> nodes, Int2ObjectMap<IntList> outgoing) {
@@ -296,6 +302,8 @@ public final class CraftingPlanGraphLayout {
     }
 
     public record Point(double x, double y) {}
+
+    record Placement(List<PlacedNode> nodes, Spacing spacing, Int2IntMap ranks) {}
 
     public record Bounds(double x, double y, double width, double height) {}
 
