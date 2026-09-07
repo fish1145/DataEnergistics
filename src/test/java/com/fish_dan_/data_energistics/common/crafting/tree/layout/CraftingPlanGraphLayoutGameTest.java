@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Layout;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
+import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Cycle;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Edge;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Header;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph.Kind;
@@ -31,6 +32,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.math.BigInteger;
 import java.util.List;
+import java.util.Map;
 
 /** Numeric layout regressions; no rendering, client, optional mods or screenshot assertions. */
 @PrefixGameTestTemplate(false)
@@ -46,7 +48,8 @@ public final class CraftingPlanGraphLayoutGameTest {
                 material(5, Items.DIRT), material(6, Items.SAND), process(7, Items.DIAMOND),
                 process(8, Items.IRON_INGOT), process(9, Items.GOLD_INGOT)),
                 new int[][] { { 0, 7 }, { 7, 1 }, { 7, 2 }, { 1, 8 }, { 8, 3 },
-                        { 2, 9 }, { 9, 4 }, { 9, 5 }, { 9, 6 } });
+                        { 2, 9 }, { 9, 4 }, { 9, 5 }, { 9, 6 } },
+                List.of());
         for (boolean compact : new boolean[] { false, true }) {
             var view = new CraftingPlanGraphView(graph).visible(Expansion.empty(), false);
             Layout layout = CraftingPlanGraphLayout.layout(view, compact);
@@ -67,7 +70,7 @@ public final class CraftingPlanGraphLayoutGameTest {
         CraftingPlanGraph graph = graph(List.of(material(0, Items.DIAMOND), material(1, Items.IRON_INGOT),
                 material(2, Items.GOLD_INGOT), material(3, Items.COAL), process(4, Items.DIAMOND),
                 process(5, Items.IRON_INGOT), process(6, Items.GOLD_INGOT)),
-                new int[][] { { 0, 4 }, { 4, 1 }, { 4, 2 }, { 1, 5 }, { 5, 3 }, { 2, 6 }, { 6, 3 } });
+                new int[][] { { 0, 4 }, { 4, 1 }, { 4, 2 }, { 1, 5 }, { 5, 3 }, { 2, 6 }, { 6, 3 } }, List.of());
         var projection = new CraftingPlanGraphView(graph);
         var view = projection.visible(Expansion.empty(), false);
         Layout layout = CraftingPlanGraphLayout.layout(view, false);
@@ -85,6 +88,58 @@ public final class CraftingPlanGraphLayoutGameTest {
         helper.succeed();
     }
 
+    @GameTest(template = "empty_5x5")
+    public static void keepsSamePatternSupplierAndSeedOutsideDeclaredLoop(GameTestHelper helper) {
+        var diamond = AEItemKey.of(Items.DIAMOND);
+        var iron = AEItemKey.of(Items.IRON_INGOT);
+        CraftingPlanGraph graph = graph(List.of(material(0, Items.DIAMOND), material(1, Items.IRON_INGOT),
+                new Process(2, 0, "shared-pattern", 0, diamond, BigInteger.ONE, false, List.of()),
+                new Process(3, 1, "shared-pattern", 0, diamond, BigInteger.TWO, false, List.of(0)),
+                new Process(4, 2, "return-pattern", 0, iron, BigInteger.TWO, false, List.of(0))),
+                new int[][] { { 0, 2 }, { 2, 1 }, { 0, 3 }, { 3, 1 }, { 1, 4 }, { 4, 0 } },
+                List.of(new Cycle(0, 1, List.of(0, 1, 3, 4), List.of(1, 2), BigInteger.TWO,
+                        Map.of(iron, BigInteger.ONE), Map.of())));
+        var projection = new CraftingPlanGraphView(graph);
+        var view = projection.visible(Expansion.empty(), false);
+        Layout layout = CraftingPlanGraphLayout.layout(view, false);
+        var nodes = index(layout);
+        helper.assertFalse(nodes.get(2).viewNode().cyclic(), "The same-pattern prefix must not be absorbed into the loop");
+        helper.assertFalse(nodes.get(1).viewNode().cyclic(), "The startup seed is an outside supply, not an in-loop material");
+        helper.assertTrue(nodes.get(3).viewNode().cyclic() && nodes.get(4).viewNode().cyclic(),
+                "Declared loop stages must remain grouped even when their materials are external boundaries");
+        helper.assertTrue(nodes.get(1).x() > nodes.get(3).x() && nodes.get(1).x() > nodes.get(4).x(),
+                "The loop must request its shared seed from an external supply column on the right");
+        var folded = projection.visible(projection.setCollapsed(Expansion.empty(), 3, true), false);
+        helper.assertTrue(folded.nodes().stream().anyMatch(node -> node.id() == 2),
+                "Folding the loop must not hide the independently used same-pattern supplier");
+        assertNodesAndEdges(helper, graph, layout);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty_5x5")
+    public static void retainsInternalCirculationButKeepsSeedAndProductOutside(GameTestHelper helper) {
+        var diamond = AEItemKey.of(Items.DIAMOND);
+        var iron = AEItemKey.of(Items.IRON_INGOT);
+        var gold = AEItemKey.of(Items.GOLD_INGOT);
+        CraftingPlanGraph graph = graph(List.of(material(0, Items.DIAMOND), material(1, Items.IRON_INGOT),
+                material(2, Items.GOLD_INGOT),
+                new Process(3, 0, "loop-input", 0, gold, BigInteger.TWO, false, List.of(0)),
+                new Process(4, 1, "loop-output", 0, diamond, BigInteger.TWO, false, List.of(0))),
+                new int[][] { { 0, 4 }, { 4, 2 }, { 2, 3 }, { 3, 1 }, { 1, 4 } },
+                List.of(new Cycle(0, 1, List.of(0, 1, 2, 3, 4), List.of(0, 1), BigInteger.TWO,
+                        Map.of(iron, BigInteger.ONE), Map.of(diamond, BigInteger.TWO))));
+        var view = new CraftingPlanGraphView(graph).visible(Expansion.empty(), false);
+        Layout layout = CraftingPlanGraphLayout.layout(view, true);
+        var nodes = index(layout);
+        helper.assertFalse(nodes.get(0).viewNode().cyclic(), "Requested product must remain outside the loop");
+        helper.assertFalse(nodes.get(1).viewNode().cyclic(), "Initial stock must remain an external supply");
+        helper.assertTrue(nodes.get(2).viewNode().cyclic(), "A material used only for internal circulation belongs to the loop");
+        helper.assertTrue(nodes.get(2).viewNode().componentId() == nodes.get(4).viewNode().componentId(),
+                "Internal circulation must share the declared loop's component");
+        assertNodesAndEdges(helper, graph, layout);
+        helper.succeed();
+    }
+
     private static Material material(int id, Item item) {
         return new Material(id, AEItemKey.of(item), BigInteger.ONE, BigInteger.ZERO, BigInteger.ONE,
                 BigInteger.ZERO, BigInteger.ZERO, 0);
@@ -94,7 +149,7 @@ public final class CraftingPlanGraphLayoutGameTest {
         return new Process(id, id, "layout/" + id, 0, AEItemKey.of(output), BigInteger.ONE, false, List.of());
     }
 
-    private static CraftingPlanGraph graph(List<Node> nodes, int[][] connections) {
+    private static CraftingPlanGraph graph(List<Node> nodes, int[][] connections, List<Cycle> cycles) {
         var byId = new Int2ObjectOpenHashMap<Node>();
         for (Node node : nodes) byId.put(node.id(), node);
         List<Edge> edges = new ObjectArrayList<>();
@@ -104,7 +159,7 @@ public final class CraftingPlanGraphLayoutGameTest {
         }
         Header header = new Header(AEItemKey.of(Items.DIAMOND), BigInteger.ONE, BigInteger.ZERO,
                 Kind.EXACT, CraftingQuantityMode.NET_NEW, 0, Component.empty());
-        return new CraftingPlanGraph(header, 0, nodes, edges, List.of());
+        return new CraftingPlanGraph(header, 0, nodes, edges, cycles);
     }
 
     private static Int2ObjectOpenHashMap<PlacedNode> index(Layout layout) {

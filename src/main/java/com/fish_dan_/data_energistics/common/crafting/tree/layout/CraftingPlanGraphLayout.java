@@ -18,6 +18,7 @@ import it.unimi.dsi.fastutil.ints.IntAVLTreeSet;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntComparators;
 import it.unimi.dsi.fastutil.ints.IntHeapPriorityQueue;
+import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
@@ -27,6 +28,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 
 /** Rooted dependency branches run left to right; shared materials and cyclic components retain one placement. */
 public final class CraftingPlanGraphLayout {
@@ -72,6 +74,7 @@ public final class CraftingPlanGraphLayout {
             }
             configureSlots(group, cellWidth, cellHeight, spacing, portCounts);
         }
+        retainForwardDependencies(groups, rootComponent);
         IntHeapPriorityQueue ready = new IntHeapPriorityQueue();
         for (Group group : groups.values()) {
             group.remainingParents = group.parents.size();
@@ -118,23 +121,63 @@ public final class CraftingPlanGraphLayout {
         IntArrayList pending = new IntArrayList();
         IntSet visited = new IntOpenHashSet();
         List<ViewNode> ordered = new ObjectArrayList<>();
-        pending.push(group.nodes.getFirst().id());
-        while (!pending.isEmpty()) {
-            int id = pending.popInt();
-            if (!visited.add(id)) {
-                continue;
-            }
-            ordered.add(nodes.get(id));
-            IntList children = outgoing.get(id);
-            for (int index = children.size() - 1; index >= 0; index--) {
-                int child = children.getInt(index);
-                if (nodes.get(child).componentId() == group.id && !visited.contains(child)) {
-                    pending.push(child);
+        // Removing boundary supplies from the ring can disconnect its local drawing; retain every stage instance.
+        for (ViewNode start : group.nodes) {
+            pending.push(start.id());
+            while (!pending.isEmpty()) {
+                int id = pending.popInt();
+                if (!visited.add(id)) continue;
+                ordered.add(nodes.get(id));
+                IntList children = outgoing.get(id);
+                for (int index = children.size() - 1; index >= 0; index--) {
+                    int child = children.getInt(index);
+                    if (nodes.get(child).componentId() == group.id && !visited.contains(child)) pending.push(child);
                 }
             }
         }
         group.nodes.clear();
         group.nodes.addAll(ordered);
+    }
+
+    /** Feedback stays routed, but must not pull an outside supply or same-pattern prefix into the cycle's rank. */
+    private static void retainForwardDependencies(Int2ObjectMap<Group> groups, int rootComponent) {
+        for (Group cycle : groups.values()) {
+            if (!cycle.cyclic) continue;
+            for (int childId : cycle.children) {
+                Group supply = groups.get(childId);
+                if (!supply.cyclic && childId != rootComponent && supply.children.remove(cycle.id)) {
+                    cycle.parents.remove(childId);
+                }
+            }
+        }
+        Int2IntMap state = new Int2IntOpenHashMap();
+        visitDependencies(groups.get(rootComponent), groups, state);
+        for (Group group : groups.values()) {
+            if (state.get(group.id) == 0) visitDependencies(group, groups, state);
+        }
+    }
+
+    private static void visitDependencies(Group root, Int2ObjectMap<Group> groups, Int2IntMap state) {
+        ObjectArrayList<DependencyWalk> pending = new ObjectArrayList<>();
+        state.put(root.id, 1);
+        pending.push(new DependencyWalk(root, root.children.iterator()));
+        while (!pending.isEmpty()) {
+            if (Thread.currentThread().isInterrupted()) throw new CancellationException();
+            DependencyWalk walk = pending.top();
+            if (!walk.children().hasNext()) {
+                state.put(walk.group().id, 2);
+                pending.pop();
+                continue;
+            }
+            Group child = groups.get(walk.children().nextInt());
+            if (state.get(child.id) == 1) {
+                walk.children().remove();
+                child.parents.remove(walk.group().id);
+            } else if (state.get(child.id) == 0) {
+                state.put(child.id, 1);
+                pending.push(new DependencyWalk(child, child.children.iterator()));
+            }
+        }
     }
 
     private static void configureSlots(Group group, double cellWidth, double cellHeight, Spacing spacing,
@@ -316,6 +359,8 @@ public final class CraftingPlanGraphLayout {
     private record ChannelEvent(double coordinate, int delta) {}
 
     private record NodePort(int node, boolean source, Style style, int destination) {}
+
+    private record DependencyWalk(Group group, IntIterator children) {}
 
     private static final class Group {
 
