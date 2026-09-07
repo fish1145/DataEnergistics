@@ -97,7 +97,7 @@ public final class TrinityDeterministicComponentPlanner {
                     component,
                     demand,
                     unitProof,
-                    available);
+                    available, producibleInputs);
             if (cached.kind() == TrinityDeterministicApplicabilityResult.Kind.APPLICABLE) {
                 TrinityPlanningAttempt<TrinityDeterministicComponentPlan> attempted = attemptBasis(
                         component,
@@ -121,7 +121,7 @@ public final class TrinityDeterministicComponentPlanner {
                     component,
                     demand,
                     reservoir,
-                    available);
+                    available, producibleInputs);
             if (assessed.kind() == TrinityDeterministicApplicabilityResult.Kind.SKIP_RESERVOIR) {
                 continue;
             }

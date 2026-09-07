@@ -224,6 +224,73 @@ public final class ReusableInputGraphGameTest {
                     "1000 final items need 85000 tier upgrades and exactly 85 thousand-use tools");
             helper.assertValueEqual(tiered.result().value().initialExpectedInputs().get(material), BigInteger.valueOf(256000),
                     "All four tiers still consume their full raw material requirement");
+
+            var forwardGraph = new TrinityCraftingGraphSnapshot(3L, List.of(factory,
+                    tierPatterns.get(1), tierPatterns.get(3), tierPatterns.get(5), tierPatterns.get(7)));
+            for (BigInteger amount : List.of(BigInteger.valueOf(1000), BigInteger.TEN.pow(18))) {
+                var forward = computation.calculate(new TrinityPlanningInput(1L, forwardGraph, output, amount,
+                        CraftingQuantityMode.NET_NEW, new TrinityPlanningInventory(Map.of(), Set.of(material, shard)), request.limits()),
+                        TrinityPlanningProgressReporter.none());
+                if (!forward.result().successful()) helper.fail("Fixed-wear startup tools must not require MIP: " + forward.result().diagnostic());
+                var plan = forward.result().value();
+                BigInteger tools = amount.multiply(BigInteger.valueOf(85)).add(BigInteger.valueOf(999)).divide(BigInteger.valueOf(1000));
+                helper.assertValueEqual(plan.patternFirings().get(factory.identity()), tools, "Large orders manufacture only the tools required by total uses");
+                helper.assertValueEqual(plan.statistics().solverPasses(), 0, "A zero-net fixed tool is a startup resource, not a producer branch");
+                Data_Energistics.LOGGER.info("Fixed-wear planning regression count={} nanos={} states={} tools={} solverPasses={}",
+                        amount, plan.statistics().planningNanos(), plan.statistics().scheduleStates(), tools, plan.statistics().solverPasses());
+            }
+        }
+        helper.succeed();
+    }
+
+    @TestHolder("reusable_graph_retained_tool_is_not_an_additional_producer_in_its_own_recipe_cycle")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 400)
+    public static void retainedToolIsNotAnAdditionalProducerInItsOwnRecipeCycle(GameTestHelper helper) throws Exception {
+        var tiers = List.of(AEItemKey.of(Items.REDSTONE), AEItemKey.of(Items.IRON_INGOT), AEItemKey.of(Items.GOLD_INGOT),
+                AEItemKey.of(Items.EMERALD), AEItemKey.of(Items.DIAMOND));
+        AEItemKey tool = tool(0);
+        AEItemKey rawGem = AEItemKey.of(Items.PRISMARINE_SHARD);
+        AEItemKey upgradedGem = AEItemKey.of(Items.LAPIS_LAZULI);
+        AEItemKey shard = AEItemKey.of(Items.STICK);
+        var patterns = new ObjectArrayList<TrinityCraftingGraphPattern>();
+        var rule = ReusableInputRule.unchanged(RULE_ID, 1, tool);
+        for (int tier = 1; tier < tiers.size(); tier++) {
+            var publication = new TrinityPatternPublicationSignature(AEItemKey.of(Items.CRAFTING_TABLE), List.of(
+                    new Input(4, List.of(new Alternative(stack(tiers.get(tier - 1)), null))),
+                    new Input(1, List.of(new Alternative(stack(tool), tool)))), List.of(stack(tiers.get(tier))), false);
+            patterns.add(new TrinityCraftingGraphPattern(TrinityPatternIdentity.capture(publication, helper.getLevel().registryAccess()), publication,
+                    List.of(List.of(new TrinityBoundPatternInput(0, 0, stack(tiers.get(tier - 1)), 4, null), bound(1, 0, rule, 1, 1)))));
+        }
+        var gemRecipe = new TrinityPatternPublicationSignature(AEItemKey.of(Items.FURNACE), List.of(
+                new Input(2, List.of(new Alternative(stack(tiers.getLast()), null))),
+                new Input(1, List.of(new Alternative(stack(rawGem), null)))), List.of(stack(upgradedGem)), false);
+        patterns.add(new TrinityCraftingGraphPattern(TrinityPatternIdentity.capture(gemRecipe, helper.getLevel().registryAccess()), gemRecipe));
+        var toolRecipe = new TrinityPatternPublicationSignature(AEItemKey.of(Items.CHEST), List.of(
+                new Input(4, List.of(new Alternative(stack(tiers.getLast()), null))),
+                new Input(4, List.of(new Alternative(stack(shard), null))),
+                new Input(1, List.of(new Alternative(stack(upgradedGem), null)))), List.of(stack(tool)), false);
+        var factory = new TrinityCraftingGraphPattern(TrinityPatternIdentity.capture(toolRecipe, helper.getLevel().registryAccess()), toolRecipe);
+        patterns.add(factory);
+        var graph = new TrinityCraftingGraphSnapshot(1, patterns);
+        var inventory = new TrinityPlanningInventory(Map.of(tool, BigInteger.valueOf(75489), tiers.get(1), BigInteger.valueOf(4227072),
+                tiers.getLast(), BigInteger.valueOf(656354)), Set.of(tiers.getFirst(), rawGem, shard));
+        try (var cache = TrinityComputationCache.create(Runnable::run)) {
+            var computation = TrinityPlanningComputation.create(cache, TrinityGraphPlanner.pipeline());
+            for (BigInteger amount : List.of(BigInteger.valueOf(1000), BigInteger.valueOf(1_000_000), BigInteger.TEN.pow(18))) {
+                for (AEItemKey target : List.of(tool, tiers.getLast())) {
+                    var result = computation.calculate(new TrinityPlanningInput(1, graph, target, amount, CraftingQuantityMode.NET_NEW,
+                            inventory, new TrinityPlanningLimits(64, 128, 500000, 10000)), TrinityPlanningProgressReporter.none());
+                    if (!result.result().successful()) helper.fail("Retained-tool feedback must remain exactly plannable: " + result.result().diagnostic());
+                    var plan = result.result().value();
+                    var producer = target.equals(tool) ? factory : patterns.get(3);
+                    helper.assertValueEqual(plan.patternFirings().get(producer.identity()), amount,
+                            "Large starting inventory cannot inflate the requested quantity into a larger feasible circulation");
+                    helper.assertValueEqual(plan.statistics().solverPasses(), 0, "Returning the same tool does not introduce a producer choice or require MIP");
+                    Data_Energistics.LOGGER.info("Retained-input planning regression target={} count={} nanos={} states={} solverPasses={}",
+                            target, amount, plan.statistics().planningNanos(), plan.statistics().scheduleStates(), plan.statistics().solverPasses());
+                }
+            }
         }
         helper.succeed();
     }

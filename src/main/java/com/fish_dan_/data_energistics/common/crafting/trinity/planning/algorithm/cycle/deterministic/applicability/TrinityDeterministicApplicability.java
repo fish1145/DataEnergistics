@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Determines whether one reservoir yields the unique productive basis required by the deterministic fast path.
@@ -45,11 +46,12 @@ public final class TrinityDeterministicApplicability {
                                                           TrinityStronglyConnectedComponent component,
                                                           TrinityCycleDemand demand,
                                                           AEKey reservoir,
-                                                          Map<AEKey, BigInteger> available) {
+                                                          Map<AEKey, BigInteger> available,
+                                                          Set<AEKey> producibleInputs) {
         Optional<List<TrinityVariantFiring>> primitive = this.cycleSequence.resolve(
                 component,
                 reservoir,
-                available);
+                available, producibleInputs);
         if (primitive.isEmpty()) {
             return TrinityDeterministicApplicabilityResult.skip();
         }
@@ -75,13 +77,14 @@ public final class TrinityDeterministicApplicability {
                                                           TrinityStronglyConnectedComponent component,
                                                           TrinityCycleDemand demand,
                                                           TrinityCycleUnitProof unitProof,
-                                                          Map<AEKey, BigInteger> available) {
+                                                          Map<AEKey, BigInteger> available,
+                                                          Set<AEKey> producibleInputs) {
         if (!component.keys().contains(unitProof.reservoir()) ||
                 !new ObjectOpenHashSet<>(unitProof.firings().keySet())
                         .equals(new ObjectOpenHashSet<>(component.cycleVariants()))) {
             return TrinityDeterministicApplicabilityResult.skip();
         }
-        TrinityCycleUnitProof instantiated = unitProof.instantiate(available, component.keys());
+        TrinityCycleUnitProof instantiated = unitProof.instantiate(available, component.keys(), producibleInputs);
         LinkedHashMap<TrinityPatternVariant, BigInteger> firings = TrinityDeterministicFiringMath.aggregate(instantiated.order());
         Map<AEKey, BigInteger> net = TrinityDeterministicFiringMath.netChange(firings);
         if (!firings.equals(instantiated.firings()) || !net.equals(instantiated.netChange()) ||
