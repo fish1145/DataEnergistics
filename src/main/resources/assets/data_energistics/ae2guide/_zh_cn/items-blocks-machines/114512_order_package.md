@@ -10,7 +10,7 @@ navigation:
 
 <Row>
   <ItemImage id="data_energistics:order_package" scale="6" />
-    <ItemImage id="data_energistics:order_package" />
+    <RecipeFor id="data_energistics:order_package" />
 </Row>
 
 订单包裹是一种用于 **虚拟下单** 的特殊物品。它本身不是实际的物品、流体或数据资源，而是携带一个“目标 AEKey”的订单输出。将带有目标的订单包裹写入样板后，合成系统会把它解释为对该目标资源发起一次合成请求。
