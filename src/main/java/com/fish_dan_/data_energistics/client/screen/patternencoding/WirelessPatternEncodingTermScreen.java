@@ -17,6 +17,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodin
 import appeng.api.stacks.AEItemKey;
 import appeng.client.Point;
 import appeng.client.gui.Icon;
+import appeng.client.gui.StackWithBounds;
 import appeng.client.gui.me.common.StackSizeRenderer;
 import appeng.client.gui.style.Blitter;
 import appeng.client.gui.style.ScreenStyle;
@@ -57,7 +58,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class WirelessPatternEncodingTermScreen extends WETScreen
-                                               implements Ae2NativeSlotHighlight, PreviewLayerTooltipScreen,
+                                               implements Ae2NativeSlotHighlight, PatternEncodingPreviewLayerScreen,
                                                PatternProviderLeafPanelHost {
 
     private static final ResourceLocation AE2_UPLOAD_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/upload.png");
@@ -66,7 +67,6 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
     private static final ResourceLocation AE2_BUTTON_DISABLED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/gui/sprites/button_disabled.png");
     private static final ResourceLocation AE2_SMALL_SCROLLBAR_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "small_scroller");
     private static final ResourceLocation AE2_SMALL_SCROLLBAR_DISABLED_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "small_scroller_disabled");
-    private static final float PREVIEW_LAYER_Z = 400.0F;
     private static final Component PANEL_TITLE = Component.translatable("screen.data_energistics.pattern_writer_preview.panel_title");
     private static final Component EMPTY_STATE_TEXT = Component.translatable("screen.data_energistics.pattern_writer_preview.empty_state");
     private static final Component ENCODE_BUTTON_HINT = Component.translatable("screen.data_energistics.pattern_writer_preview.encode_button_hint");
@@ -117,6 +117,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
     private final FractionalScrollbarWheel previewWheel = new FractionalScrollbarWheel();
     private boolean previewVisible;
     private boolean renderingPreviewTooltip;
+    private float previewPartialTicks;
     private boolean previewScrollbarDragging;
     private long selectedPatternProviderId = -1L;
     private long renamingProviderId = -1L;
@@ -197,6 +198,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         super.containerTick();
         PatternEncodingPreferencesClient.flushDeferredSnapshot(this.menu);
         this.leafPanel.tick();
+        if (this.pendingParentSelectionLeafDigest != null) this.pendingParentSelectionTicks++;
         this.suppressRenameKeyChar = false;
         if (this.previewVisible) {
             this.previewScrollbar.tick();
@@ -205,14 +207,6 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (handleBlankPatternSlotClick(mouseX, mouseY, button)) {
-            return true;
-        }
-
-        if (Minecraft.getInstance().options.keyPickItem.matchesMouse(button) && triggerBlankPatternAutoCraft(mouseX, mouseY)) {
-            return true;
-        }
-
         if (this.leafPanel.mouseClicked(mouseX, mouseY, button)) {
             return true;
         }
@@ -222,6 +216,13 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         }
 
         if (this.providerSearchBox != null && AETextFieldInteraction.clearOnRightClick(this.providerSearchBox, mouseX, mouseY, button)) {
+            return true;
+        }
+        if (this.providerSearchBox != null && this.providerSearchBox.isVisible() && this.providerSearchBox.isMouseOver(mouseX, mouseY)) {
+            if (this.providerSearchBox.mouseClicked(mouseX, mouseY, button)) {
+                setFocused(this.providerSearchBox);
+                if (button == 0) setDragging(true);
+            }
             return true;
         }
 
@@ -256,7 +257,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
             }
         }
 
-        if (button == 0 && isOverEncodeButton(mouseX, mouseY)) {
+        if (button == 0 && !isPreviewLayerAt(mouseX, mouseY) && isOverEncodeButton(mouseX, mouseY)) {
             if (!isUploadEnabled()) {
                 closePreviewPanels();
                 boolean handled = super.mouseClicked(mouseX, mouseY, button);
@@ -273,7 +274,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
             return handled || isOverEncodeButton(mouseX, mouseY);
         }
 
-        if (button == 1 && isOverEncodeButton(mouseX, mouseY)) {
+        if (button == 1 && !isPreviewLayerAt(mouseX, mouseY) && isOverEncodeButton(mouseX, mouseY)) {
             if (!isUploadEnabled()) {
                 closePreviewPanels();
                 this.menu.encode();
@@ -328,6 +329,9 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
             }
         }
 
+        if (isPreviewLayerAt(mouseX, mouseY)) return true;
+        if (handleBlankPatternSlotClick(mouseX, mouseY, button)) return true;
+        if (Minecraft.getInstance().options.keyPickItem.matchesMouse(button) && triggerBlankPatternAutoCraft(mouseX, mouseY)) return true;
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
@@ -440,6 +444,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+        this.previewPartialTicks = partialTicks;
         invalidatePreviewLayout();
         deferPreviewLayerWidgets();
         try {
@@ -449,9 +454,42 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         }
 
         if (this.previewVisible) {
-            renderPreviewLayer(guiGraphics, mouseX, mouseY, partialTicks);
             renderPreviewLayerTooltips(guiGraphics, mouseX, mouseY);
         }
+    }
+
+    @Override
+    public void renderPreviewForeground(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (!this.previewVisible) return;
+        // Native widget updates have finished; all foreground drawing and hit tests share these final bounds.
+        invalidatePreviewLayout();
+        restorePreviewLayerWidgets();
+        if (isPreviewLayerAt(mouseX, mouseY)) this.hoveredSlot = null;
+        graphics.flush();
+        var pose = graphics.pose();
+        pose.pushPose();
+        try {
+            pose.translate(-this.leftPos, -this.topPos, 0.0F);
+            renderPreviewLayer(graphics, mouseX, mouseY, this.previewPartialTicks);
+        } finally {
+            pose.popPose();
+            graphics.flush();
+        }
+    }
+
+    @Override
+    protected boolean isHovering(Slot slot, double mouseX, double mouseY) {
+        return !isPreviewLayerAt(mouseX, mouseY) && super.isHovering(slot, mouseX, mouseY);
+    }
+
+    @Override
+    protected boolean hasClickedOutside(double mouseX, double mouseY, int guiLeft, int guiTop, int button) {
+        return !isPreviewLayerAt(mouseX, mouseY) && super.hasClickedOutside(mouseX, mouseY, guiLeft, guiTop, button);
+    }
+
+    @Override
+    public @Nullable StackWithBounds getStackUnderMouse(double mouseX, double mouseY) {
+        return isPreviewLayerAt(mouseX, mouseY) ? null : super.getStackUnderMouse(mouseX, mouseY);
     }
 
     @Override
@@ -511,8 +549,12 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
 
     @Override
     public boolean shouldSuppressUnderlyingTooltip(int mouseX, int mouseY) {
-        return this.previewVisible && !this.renderingPreviewTooltip &&
-                (isOverPreviewLayer(mouseX, mouseY) || this.leafPanel.isOver(mouseX, mouseY));
+        return !this.renderingPreviewTooltip && isPreviewLayerAt(mouseX, mouseY);
+    }
+
+    @Override
+    public boolean isPreviewLayerAt(double mouseX, double mouseY) {
+        return this.previewVisible && (isOverPreviewLayer((int) mouseX, (int) mouseY) || this.leafPanel.isOver(mouseX, mouseY));
     }
 
     private boolean isOverPreviewLayer(int mouseX, int mouseY) {
@@ -580,7 +622,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
     private void renderPreviewLayer(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
         PoseStack poseStack = guiGraphics.pose();
         poseStack.pushPose();
-        poseStack.translate(0.0F, 0.0F, PREVIEW_LAYER_Z);
+        poseStack.translate(0.0F, 0.0F, PatternEncodingPreviewLayers.PANEL_Z);
         try {
             Rect2i previewBounds = getPreviewPanelBounds();
             guiGraphics.blit(AE2_UPLOAD_TEXTURE,
@@ -605,7 +647,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         boolean wasRenderingPreviewTooltip = this.renderingPreviewTooltip;
         poseStack.pushPose();
         try {
-            poseStack.translate(0.0F, 0.0F, PREVIEW_LAYER_Z);
+            poseStack.translate(0.0F, 0.0F, PatternEncodingPreviewLayers.TOOLTIP_OFFSET_Z);
             this.renderingPreviewTooltip = true;
             if (this.leafPanel.isOver(mouseX, mouseY)) {
                 this.leafPanel.renderTooltips(guiGraphics, mouseX, mouseY);
@@ -692,7 +734,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
             if (!iconStack.isEmpty()) {
                 int iconX = bounds.getX() + PROVIDER_ICON_X_PADDING;
                 int iconY = bounds.getY() + (bounds.getHeight() - PROVIDER_ICON_SIZE) / 2;
-                guiGraphics.renderItem(iconStack, iconX, iconY);
+                PatternEncodingPreviewLayers.renderIcon(guiGraphics, iconStack, iconX, iconY);
                 nameStartX = iconX + PROVIDER_ICON_SIZE + 2;
             }
 
@@ -1016,7 +1058,6 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
                 return true;
             }
         }
-        this.pendingParentSelectionTicks++;
         if (this.pendingParentSelectionTicks > 40) {
             this.pendingParentSelectionLeafDigest = null;
             this.pendingParentSelectionTicks = 0;
@@ -1380,7 +1421,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
             this.providerRenameBox.setValue(provider.displayName().getString());
             this.providerRenameBox.setVisible(true);
             this.providerRenameBox.active = true;
-            this.providerRenameBox.setFocused(true);
+            setFocused(this.providerRenameBox);
         }
     }
 
@@ -1576,6 +1617,12 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
     @Override
     public <W extends AbstractWidget> W registerLeafPanelWidget(W widget) {
         return this.addRenderableWidget(widget);
+    }
+
+    @Override
+    public void focusLeafPanelWidget(AbstractWidget widget, boolean dragging) {
+        setFocused(widget);
+        setDragging(dragging);
     }
 
     @Override

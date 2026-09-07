@@ -83,7 +83,6 @@ final class PatternProviderLeafPanel {
     private static final float NAME_SCALE = 0.68F;
     private static final float COUNT_SCALE = 0.62F;
     private static final float LOCATION_SCALE = 0.52F;
-    private static final float DETAIL_LAYER_Z = 200.0F;
     private static final int COLOR_TITLE = 0x000000;
     private static final int COLOR_TEXT = 0xE7E7E7;
     private static final int COLOR_LOCATION = 0xB8B8B8;
@@ -264,10 +263,12 @@ final class PatternProviderLeafPanel {
             return true;
         }
         if (this.renameBox.visible && this.renameBox.isMouseOver(mouseX, mouseY)) {
-            return this.renameBox.mouseClicked(mouseX, mouseY, button);
+            if (this.renameBox.mouseClicked(mouseX, mouseY, button)) this.host.focusLeafPanelWidget(this.renameBox, button == 0);
+            return true;
         }
         if (this.searchBox.visible && this.searchBox.isMouseOver(mouseX, mouseY)) {
-            return this.searchBox.mouseClicked(mouseX, mouseY, button);
+            if (this.searchBox.mouseClicked(mouseX, mouseY, button)) this.host.focusLeafPanelWidget(this.searchBox, button == 0);
+            return true;
         }
         if (isMouseOver(this.dragButton, mouseX, mouseY)) {
             if (button == 0) {
@@ -396,7 +397,7 @@ final class PatternProviderLeafPanel {
         updateWidgets();
         PoseStack pose = graphics.pose();
         pose.pushPose();
-        pose.translate(0.0F, 0.0F, DETAIL_LAYER_Z);
+        pose.translate(0.0F, 0.0F, PatternEncodingPreviewLayers.DETAIL_OFFSET_Z);
         try {
             Rect2i bounds = getBounds();
             graphics.blit(PANEL_TEXTURE, bounds.getX(), bounds.getY(), 0, 0, 0, WIDTH, HEIGHT, WIDTH, HEIGHT);
@@ -416,39 +417,32 @@ final class PatternProviderLeafPanel {
         if (!this.visible) {
             return;
         }
-        PoseStack pose = graphics.pose();
-        pose.pushPose();
-        pose.translate(0.0F, 0.0F, DETAIL_LAYER_Z);
-        try {
-            LeafRow row = getRowUnderMouse(mouseX, mouseY);
-            if (row != null) {
-                ObjectArrayList<Component> tooltip = new ObjectArrayList<>();
-                tooltip.add(row.leaf().displayName().copy());
-                tooltip.add(locationTooltip(row));
-                tooltip.add(Component.translatable("screen.data_energistics.pattern_writer_preview.provider.upload"));
-                tooltip.add(row.leaf().openable() ? Component.translatable(
-                        "screen.data_energistics.pattern_writer_preview.provider.open",
-                        DEKeyMappings.OPEN_PATTERN_PROVIDER.getTranslatedKeyMessage()) :
-                        Component.translatable(
-                                "screen.data_energistics.pattern_writer_preview.leaf_open_unavailable"));
-                if (row.leaf().renameable()) {
-                    tooltip.add(Component.translatable(
-                            "screen.data_energistics.pattern_writer_preview.provider.rename",
-                            DEKeyMappings.RENAME_PATTERN_PROVIDER.getTranslatedKeyMessage()));
-                }
+        LeafRow row = getRowUnderMouse(mouseX, mouseY);
+        if (row != null) {
+            ObjectArrayList<Component> tooltip = new ObjectArrayList<>();
+            tooltip.add(row.leaf().displayName().copy());
+            tooltip.add(locationTooltip(row));
+            tooltip.add(Component.translatable("screen.data_energistics.pattern_writer_preview.provider.upload"));
+            tooltip.add(row.leaf().openable() ? Component.translatable(
+                    "screen.data_energistics.pattern_writer_preview.provider.open",
+                    DEKeyMappings.OPEN_PATTERN_PROVIDER.getTranslatedKeyMessage()) :
+                    Component.translatable(
+                            "screen.data_energistics.pattern_writer_preview.leaf_open_unavailable"));
+            if (row.leaf().renameable()) {
                 tooltip.add(Component.translatable(
-                        "screen.data_energistics.pattern_writer_preview.provider.slots",
-                        row.leaf().usedPatternSlotCount(), row.leaf().patternSlotCount()));
-                ObjectArrayList<FormattedCharSequence> formattedTooltip = new ObjectArrayList<>(tooltip.size());
-                tooltip.forEach(line -> formattedTooltip.add(line.getVisualOrderText()));
-                graphics.renderTooltip(this.host.leafPanelFont(), formattedTooltip, mouseX, mouseY);
-                return;
+                        "screen.data_energistics.pattern_writer_preview.provider.rename",
+                        DEKeyMappings.RENAME_PATTERN_PROVIDER.getTranslatedKeyMessage()));
             }
-            if (isMouseOver(this.dragButton, mouseX, mouseY)) {
-                graphics.renderTooltip(this.host.leafPanelFont(), this.dragButton.getMessage(), mouseX, mouseY);
-            }
-        } finally {
-            pose.popPose();
+            tooltip.add(Component.translatable(
+                    "screen.data_energistics.pattern_writer_preview.provider.slots",
+                    row.leaf().usedPatternSlotCount(), row.leaf().patternSlotCount()));
+            ObjectArrayList<FormattedCharSequence> formattedTooltip = new ObjectArrayList<>(tooltip.size());
+            tooltip.forEach(line -> formattedTooltip.add(line.getVisualOrderText()));
+            graphics.renderTooltip(this.host.leafPanelFont(), formattedTooltip, mouseX, mouseY);
+            return;
+        }
+        if (isMouseOver(this.dragButton, mouseX, mouseY)) {
+            graphics.renderTooltip(this.host.leafPanelFont(), this.dragButton.getMessage(), mouseX, mouseY);
         }
     }
 
@@ -470,7 +464,7 @@ final class PatternProviderLeafPanel {
         this.renamingLeafDigest = row.leaf().providerDigest();
         this.searchBox.setFocused(false);
         this.renameBox.setValue(row.leaf().displayName().getString());
-        this.renameBox.setFocused(true);
+        this.host.focusLeafPanelWidget(this.renameBox, false);
         updateWidgets();
     }
 
@@ -597,7 +591,7 @@ final class PatternProviderLeafPanel {
             if (!icon.isEmpty()) {
                 int iconX = bounds.getX() + ICON_X_PADDING;
                 int iconY = bounds.getY() + (ROW_HEIGHT - ICON_SIZE) / 2;
-                graphics.renderItem(icon, iconX, iconY);
+                PatternEncodingPreviewLayers.renderIcon(graphics, icon, iconX, iconY);
                 nameX = iconX + ICON_SIZE + 2;
             }
             String count = row.leaf().usedPatternSlotCount() + "/" + row.leaf().patternSlotCount();

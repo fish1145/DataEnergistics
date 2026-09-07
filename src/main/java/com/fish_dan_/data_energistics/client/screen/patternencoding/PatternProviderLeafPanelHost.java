@@ -46,5 +46,8 @@ interface PatternProviderLeafPanelHost {
 
     <W extends AbstractWidget> W registerLeafPanelWidget(W widget);
 
+    /** Transfers native focus and optional left-button drag capture to an accepted panel widget. */
+    void focusLeafPanelWidget(AbstractWidget widget, boolean dragging);
+
     void selectRenamedProviderLeaf(String providerDigest);
 }
