@@ -113,7 +113,7 @@ public final class NativeReusableCrafting {
     public static boolean supports(IMolecularAssemblerSupportedPattern pattern, Binding binding) {
         List<ToolDelivery> initial = binding.tools().stream().map(tool -> new ToolDelivery(tool.slot(), new GenericStack(tool.rule().initialKey(), tool.heldAmount()))).toList();
         try {
-            materialize(pattern, binding, new Operation(0, 0, binding.consumed(), initial));
+            materialize(pattern, binding, new Operation(0, 0, 1, binding.consumed(), initial));
             return true;
         } catch (IllegalArgumentException unsupported) {
             return false;

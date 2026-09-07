@@ -74,6 +74,7 @@ public final class ReusableInputSessionNbtCodec {
             CompoundTag entry = new CompoundTag();
             entry.putLong("id", active.id());
             entry.putLong("append", active.appendSequence());
+            entry.putLong("count", active.count());
             entry.put("consumed", encodeInputs(active.consumed(), registries));
             entry.put("tools", encodeTools(active.tools(), registries));
             tag.put("active", entry);
@@ -113,7 +114,7 @@ public final class ReusableInputSessionNbtCodec {
         Operation active = null;
         if (tag.contains("active")) {
             CompoundTag entry = compound(tag, "active");
-            active = new Operation(number(entry, "id"), number(entry, "append"),
+            active = new Operation(number(entry, "id"), number(entry, "append"), number(entry, "count"),
                     decodeInputs(entry, "consumed", registries), decodeTools(entry, "tools", registries));
         }
         return ReusableInputSession.restore(new Snapshot(identity, contracts, State.valueOf(string(tag, "state")), appends,

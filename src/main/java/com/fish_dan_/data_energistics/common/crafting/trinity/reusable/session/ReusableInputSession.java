@@ -109,11 +109,11 @@ public final class ReusableInputSession {
         }
     }
 
-    /** Native execution input escrow. Tool and consumed portions remain separate even at the same slot/key. */
-    public record Operation(long id, long appendSequence, List<SlotInput> consumed, List<ToolDelivery> tools) {
+    /** Native batch escrow. Consumed amounts cover count uses; tools are the one actual simultaneously held set. */
+    public record Operation(long id, long appendSequence, long count, List<SlotInput> consumed, List<ToolDelivery> tools) {
 
         public Operation {
-            if (id < 0 || appendSequence < 0) {
+            if (id < 0 || appendSequence < 0 || count <= 0) {
                 throw new IllegalArgumentException("Invalid operation identity");
             }
             consumed = List.copyOf(consumed);
@@ -335,8 +335,10 @@ public final class ReusableInputSession {
         return true;
     }
 
-    /** Transfers exactly one complete operation to execution escrow; empty means there is no runnable append. */
-    public Optional<Operation> beginOperation() {
+    /** Takes one complete tool set and the largest safe prefix of the current append, bounded by the host. */
+    public Optional<Operation> beginOperation(long maximum) {
+        if (maximum < 0) throw new IllegalArgumentException("Negative reusable batch limit");
+        if (maximum == 0) return Optional.empty();
         if (state != State.OPEN || active != null) {
             return Optional.empty();
         }
@@ -344,6 +346,7 @@ public final class ReusableInputSession {
             return Optional.empty();
         }
         AppendSnapshot append = appends.get(pendingAppends.firstLong());
+        long count = Math.min(maximum, append.request().operations() - append.completed() - append.cancelled());
         List<ToolDelivery> selected = new ObjectArrayList<>();
         Int2ObjectLinkedOpenHashMap<List<GenericStack>> retained = new Int2ObjectLinkedOpenHashMap<>(tools);
         for (SlotContract contract : contracts.values()) {
@@ -363,6 +366,10 @@ public final class ReusableInputSession {
                     GenericStack selection = new GenericStack(stack.what(), amount);
                     selected.add(new ToolDelivery(contract.slot(), selection));
                     taken.add(selection);
+                    count = Math.min(count, contract.rule().guaranteedUses((AEItemKey) stack.what()));
+                    if (contract.rule().kind() == ReusableInputRule.Kind.TRANSITIONS ||
+                            exact != null && contract.rule().kind() != ReusableInputRule.Kind.UNCHANGED)
+                        count = 1L;
                     needed -= amount;
                 }
             }
@@ -372,8 +379,9 @@ public final class ReusableInputSession {
             retained.put(contract.slot(), SessionAssets.subtract(tools.get(contract.slot()), taken));
         }
         long followingId = Math.incrementExact(nextOperation);
-        List<GenericStack> remaining = SessionAssets.subtract(append.remainingMaterials(), materials(append.request().consumedPerOperation()));
-        Operation operation = new Operation(nextOperation, append.request().sequence(), append.request().consumedPerOperation(), selected);
+        List<SlotInput> consumed = scaledInputs(append.request().consumedPerOperation(), count);
+        List<GenericStack> remaining = SessionAssets.subtract(append.remainingMaterials(), materials(consumed));
+        Operation operation = new Operation(nextOperation, append.request().sequence(), count, consumed, selected);
         // Verify deterministic byproduct arithmetic before any native execution is allowed to occur.
         predictedOutcomes(operation);
         tools.putAll(retained);
@@ -392,7 +400,7 @@ public final class ReusableInputSession {
             byproducts.put(contract.slot(), List.of());
         }
         for (ToolDelivery delivery : operation.tools()) {
-            ReusableInputRule.Result result = requireContract(delivery.slot()).rule().advance((AEItemKey) delivery.stack().what(), 1);
+            ReusableInputRule.Result result = requireContract(delivery.slot()).rule().advance((AEItemKey) delivery.stack().what(), operation.count());
             if (result.successor() != null) {
                 successors.put(delivery.slot(), SessionAssets.merge(successors.get(delivery.slot()),
                         List.of(new GenericStack(result.successor(), delivery.stack().amount()))));
@@ -452,14 +460,14 @@ public final class ReusableInputSession {
         }
         long totalExhausted = Math.addExact(exhaustedTools, exhausted);
         AppendSnapshot append = appends.get(operation.appendSequence());
-        AppendSnapshot advanced = new AppendSnapshot(append.request(), Math.incrementExact(append.completed()),
+        AppendSnapshot advanced = new AppendSnapshot(append.request(), Math.addExact(append.completed(), operation.count()),
                 append.cancelled(), append.remainingMaterials());
-        updateStateReservations(append.request(), -1L);
+        updateStateReservations(append.request(), -operation.count());
         tools.putAll(newTools);
         outputs = newOutputs;
         exhaustedTools = totalExhausted;
         appends.put(operation.appendSequence(), advanced);
-        completedCount++;
+        completedCount += operation.count(); // The accepted total was checked before ownership transfer.
         if (advanced.completed() + advanced.cancelled() == advanced.request().operations()) {
             pendingAppends.dequeueLong();
         }
@@ -688,7 +696,7 @@ public final class ReusableInputSession {
             }
             long waiting = append.request().operations() - append.completed() - append.cancelled();
             if (active != null && active.appendSequence() == append.request().sequence()) {
-                waiting--;
+                waiting -= active.count();
             }
             if (waiting < 0 || !SessionAssets.counts(append.remainingMaterials()).equals(SessionAssets.counts(
                     SessionAssets.multiply(materials(append.request().consumedPerOperation()), waiting)))) {
@@ -707,7 +715,7 @@ public final class ReusableInputSession {
                 throw new IllegalArgumentException("Persisted execution escrow has no matching append");
             }
             AppendSnapshot append = appends.get(active.appendSequence());
-            if (active.id() >= nextOperation || !active.consumed().equals(append.request().consumedPerOperation())) {
+            if (active.id() >= nextOperation || !active.consumed().equals(scaledInputs(append.request().consumedPerOperation(), active.count()))) {
                 throw new IllegalArgumentException("Persisted execution escrow has no matching append");
             }
             Int2ObjectLinkedOpenHashMap<List<GenericStack>> activeTools = new Int2ObjectLinkedOpenHashMap<>();
@@ -715,9 +723,12 @@ public final class ReusableInputSession {
                 activeTools.put(contract.slot(), List.of());
             }
             for (ToolDelivery tool : active.tools()) {
-                requireContract(tool.slot()).rule().guaranteedUses((AEItemKey) tool.stack().what());
+                if (requireContract(tool.slot()).rule().guaranteedUses((AEItemKey) tool.stack().what()) < active.count()) {
+                    throw new IllegalArgumentException("Persisted batch exceeds the actual tool lifetime");
+                }
                 AEItemKey expected = append.request().operationStates().get(tool.slot());
-                if (expected != null && !expected.equals(tool.stack().what())) {
+                if (expected != null && (!expected.equals(tool.stack().what()) || active.count() > 1 &&
+                        requireContract(tool.slot()).rule().kind() != ReusableInputRule.Kind.UNCHANGED)) {
                     throw new IllegalArgumentException("Persisted execution tool does not match its exact append state");
                 }
                 activeTools.put(tool.slot(), SessionAssets.merge(activeTools.get(tool.slot()), List.of(tool.stack())));
@@ -819,6 +830,11 @@ public final class ReusableInputSession {
             throw new IllegalArgumentException("Unknown active operation identity");
         }
         return active;
+    }
+
+    private static List<SlotInput> scaledInputs(List<SlotInput> inputs, long count) {
+        return inputs.stream().map(input -> new SlotInput(input.slot(), new GenericStack(input.stack().what(),
+                Math.multiplyExact(input.stack().amount(), count)))).toList();
     }
 
     private static void requireAcknowledgment(ReturnBatch batch, List<GenericStack> exactAssets) {

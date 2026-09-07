@@ -113,7 +113,16 @@ public final class PersistentReusableCraftingEndpoint {
          */
         boolean isAvailable(Binding binding);
 
-        /** Execute exactly one operation using its actual escrow and return all native tool outcomes. */
+        /**
+         * Read-only maximum logical uses per native call. Zero pauses; one preserves individual execution.
+         * Hosts opting into larger batches must guarantee equivalent outputs and aggregate side effects,
+         * and include their current work/energy bounds. Called after isAvailable on the same server thread.
+         */
+        default long maximumBatch(Binding binding) {
+            return 1L;
+        }
+
+        /** Execute the whole escrow count atomically and return actual final tools plus total batch outputs. */
         NativeResult execute(Binding binding, Operation operation);
 
         /**
@@ -256,9 +265,9 @@ public final class PersistentReusableCraftingEndpoint {
         return requireEntry(sessionId).session.reservedToolUses(slot, state);
     }
 
-    /** Uses at most operationBudget native operations; callers share this budget with their legacy batch queue. */
-    public int tick(long currentTick, int operationBudget, Host host) {
-        if (currentTick < 0 || operationBudget < 0) {
+    /** Uses at most batchBudget native calls. Hosts independently bound logical work and energy per batch. */
+    public int tick(long currentTick, int batchBudget, Host host) {
+        if (currentTick < 0 || batchBudget < 0) {
             throw new IllegalArgumentException("Invalid reusable execution tick or budget");
         }
         if (resident == null) {
@@ -273,8 +282,8 @@ public final class PersistentReusableCraftingEndpoint {
             return 0;
         }
         int executed = 0;
-        while (executed < operationBudget && host.isAvailable(entry.binding)) {
-            Optional<Operation> next = entry.session.beginOperation();
+        while (executed < batchBudget && host.isAvailable(entry.binding)) {
+            Optional<Operation> next = entry.session.beginOperation(host.maximumBatch(entry.binding));
             if (next.isEmpty()) {
                 break;
             }

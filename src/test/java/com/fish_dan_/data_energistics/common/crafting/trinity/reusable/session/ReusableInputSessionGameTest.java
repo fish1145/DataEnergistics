@@ -60,7 +60,10 @@ public final class ReusableInputSessionGameTest {
         }
         helper.assertValueEqual(session.reservedToolUses(0, tool(0)), 1000L, "Exact unchanged tool covers all sequentially reserved appends");
         for (int sequence = 0; sequence < 10; sequence++) {
-            execute(session, 100);
+            Operation batch = session.beginOperation(Long.MAX_VALUE).orElseThrow();
+            helper.assertValueEqual(batch.count(), 100L, "The entire unchanged append executes in one native call");
+            helper.assertValueEqual(batch.consumed().getFirst().stack().amount(), 100L, "Batch escrow owns all consumed materials");
+            session.completeOperation(batch.id(), session.predictedOutcomes(batch), List.of(stack(OUTPUT, batch.count())));
             helper.assertTrue(session.returnOutbox().isEmpty(), "Completing an append cannot return its resident tool");
             helper.assertValueEqual(amount(session.heldTools().get(0), tool(0)), 1L, "There is still one actual tool");
             session = reload(session, helper);
@@ -79,13 +82,15 @@ public final class ReusableInputSessionGameTest {
     @GameTest(template = "empty_5x5")
     public static void threeHundredToolUsesLeaveFiftyAfterTwoHundredFifty(GameTestHelper helper) {
         ReusableInputSession session = session(finite(), 1, Ownership.CPU_SUPPLIED);
-        session.acceptAppend(append(1, 100, List.of(delivery(0, 3))));
-        execute(session, 100);
-        session.acceptAppend(append(2, 100, List.of()));
-        execute(session, 100);
-        session = reload(session, helper);
-        session.acceptAppend(append(3, 50, List.of()));
-        execute(session, 50);
+        session.acceptAppend(append(1, 250, List.of(delivery(0, 3))));
+        for (long expected : new long[] { 100, 100, 50 }) {
+            Operation batch = session.beginOperation(Long.MAX_VALUE).orElseThrow();
+            helper.assertValueEqual(batch.count(), expected, "Each call reaches this tool's exhaustion or the append boundary");
+            helper.assertValueEqual(batch.tools().getFirst().stack().amount(), 1L, "Batch size cannot multiply the held tool");
+            session.completeOperation(batch.id(), session.predictedOutcomes(batch), List.of(stack(OUTPUT, batch.count())));
+            session = reload(session, helper);
+        }
+        helper.assertValueEqual(session.completed(), 250L, "Three native calls still account for all 250 logical operations");
         helper.assertValueEqual(session.heldTools().get(0), List.of(stack(tool(50), 1)),
                 "Single-tool slot exhausts each physical tool before using its spare");
         helper.assertValueEqual(session.exhaustedTools(), 2L, "Only two tools exhausted");
@@ -148,7 +153,7 @@ public final class ReusableInputSessionGameTest {
         ReusableInputSession session = session(unchanged(), 1, Ownership.CPU_SUPPLIED);
         session.acceptAppend(new Append(1, 10, List.of(new SlotInput(0, stack(tool(0), 1))),
                 List.of(stack(tool(0), 10)), List.of(delivery(0, 1)), Int2ObjectMaps.emptyMap()));
-        Operation active = session.beginOperation().orElseThrow();
+        Operation active = session.beginOperation(1).orElseThrow();
         helper.assertValueEqual(active.consumed().getFirst().slot(), 0, "Consumed portion keeps the native slot");
         helper.assertValueEqual(active.tools().getFirst().slot(), 0, "Held portion keeps the same native slot");
         session.completeOperation(active.id(), session.predictedOutcomes(active), List.of(stack(OUTPUT, 1)));
@@ -212,14 +217,14 @@ public final class ReusableInputSessionGameTest {
     public static void interruptedOperationQuarantinesOldAssetsUntilActualResult(GameTestHelper helper) {
         ReusableInputSession session = session(finite(), 1, Ownership.CPU_SUPPLIED);
         session.acceptAppend(append(1, 3, List.of(delivery(0, 1))));
-        Operation active = session.beginOperation().orElseThrow();
+        Operation active = session.beginOperation(1).orElseThrow();
         session.close();
         helper.assertValueEqual(session.status(), State.CLOSING, "Close waits for active native execution");
         ReusableInputSession restored = reload(session, helper);
         helper.assertValueEqual(restored.status(), State.FAULTED, "Restart cannot assume whether native execution happened");
         restored.close();
         helper.assertTrue(restored.returnOutbox().isEmpty(), "Old escrow tools cannot be refunded before reconciliation");
-        helper.assertTrue(restored.beginOperation().isEmpty(), "A quarantined operation cannot execute twice");
+        helper.assertTrue(restored.beginOperation(1).isEmpty(), "A quarantined operation cannot execute twice");
         restored.completeOperation(active.id(), restored.predictedOutcomes(active), List.of(stack(OUTPUT, 1)));
         helper.assertValueEqual(restored.status(), State.FAULTED, "Reconciliation does not silently restart execution");
         restored.close();
@@ -238,7 +243,7 @@ public final class ReusableInputSessionGameTest {
     public static void unexpectedNativeRemainderPreservesActualAssetsAndFaults(GameTestHelper helper) {
         ReusableInputSession session = session(finite(), 1, Ownership.CPU_SUPPLIED);
         session.acceptAppend(append(1, 2, List.of(delivery(0, 1))));
-        Operation active = session.beginOperation().orElseThrow();
+        Operation active = session.beginOperation(1).orElseThrow();
         boolean matched = session.completeOperation(active.id(), List.of(new ToolOutcome(0,
                 List.of(stack(tool(9), 1)), List.of(stack(SCRAP, 3)))), List.of(stack(OUTPUT, 1)));
         helper.assertTrue(!matched, "Unexpected loss and byproducts differ from frozen prediction");
@@ -258,7 +263,7 @@ public final class ReusableInputSessionGameTest {
     public static void invalidNativeReportsLeaveExecutionEscrowIntact(GameTestHelper helper) {
         ReusableInputSession session = session(finite(), 1, Ownership.CPU_SUPPLIED);
         session.acceptAppend(append(1, 1, List.of(delivery(0, 1))));
-        Operation active = session.beginOperation().orElseThrow();
+        Operation active = session.beginOperation(1).orElseThrow();
         var before = session.snapshot();
         List<ToolOutcome> predicted = session.predictedOutcomes(active);
         ToolOutcome outcome = predicted.getFirst();
@@ -282,7 +287,7 @@ public final class ReusableInputSessionGameTest {
     public static void nativeFailureAndAbortKeepDistinctAssetOwnership(GameTestHelper helper) {
         ReusableInputSession aborted = session(finite(), 1, Ownership.CPU_SUPPLIED);
         aborted.acceptAppend(append(1, 2, List.of(delivery(0, 1))));
-        Operation unexecuted = aborted.beginOperation().orElseThrow();
+        Operation unexecuted = aborted.beginOperation(1).orElseThrow();
         aborted.close();
         aborted.abortOperation(unexecuted.id());
         helper.assertValueEqual(amount(aborted.returnOutbox().getFirst().assets(), MATERIAL), 2L,
@@ -290,7 +295,7 @@ public final class ReusableInputSessionGameTest {
         helper.assertValueEqual(aborted.completed(), 0L, "Abort is not a completed operation");
         ReusableInputSession failed = session(finite(), 1, Ownership.CPU_SUPPLIED);
         failed.acceptAppend(append(1, 2, List.of(delivery(0, 1))));
-        Operation executed = failed.beginOperation().orElseThrow();
+        Operation executed = failed.beginOperation(1).orElseThrow();
         failed.faultOperation(executed.id(), List.of(new ToolOutcome(0, List.of(), List.of(stack(SCRAP, 1)))),
                 List.of(), "Native inventory callback failed after tool exhaustion");
         failed.close();
@@ -315,7 +320,7 @@ public final class ReusableInputSessionGameTest {
         contested.acceptAppend(append(1, 100, List.of(delivery(0, 1))));
         helper.assertTrue(contested.requestYield(100), "Explicit competition signal latches its deadline while busy");
         helper.assertTrue(!contested.tick(100), "Competition starts its own grace period while busy");
-        Operation active = contested.beginOperation().orElseThrow();
+        Operation active = contested.beginOperation(1).orElseThrow();
         helper.assertTrue(!contested.requestYield(119), "A repeat signal cannot restart the active operation's grace period");
         helper.assertTrue(!contested.tick(119), "Competition before boundary keeps native operation active");
         helper.assertTrue(contested.tick(120), "Twenty competing ticks request safe-point closure");
@@ -386,7 +391,7 @@ public final class ReusableInputSessionGameTest {
         helper.assertValueEqual(session.pending(), 163L, "Pending cache includes the current partial append");
         helper.assertValueEqual(session.appendSnapshot(45).orElseThrow().completed(), 2L,
                 "Reload selects the partial append after forty-five completed predecessors");
-        Operation current = session.beginOperation().orElseThrow();
+        Operation current = session.beginOperation(1).orElseThrow();
         helper.assertValueEqual(current.appendSequence(), 45L, "Execution cursor resumes at the first unfinished append");
         session.completeOperation(current.id(), session.predictedOutcomes(current), List.of());
         execute(session, 22);
@@ -440,7 +445,7 @@ public final class ReusableInputSessionGameTest {
 
     private static void execute(ReusableInputSession session, long operations) {
         for (long index = 0; index < operations; index++) {
-            Operation operation = session.beginOperation().orElseThrow();
+            Operation operation = session.beginOperation(1).orElseThrow();
             if (!session.completeOperation(operation.id(), session.predictedOutcomes(operation), List.of(stack(OUTPUT, 1)))) {
                 throw new IllegalStateException("Predicted test execution failed its own frozen contract");
             }
