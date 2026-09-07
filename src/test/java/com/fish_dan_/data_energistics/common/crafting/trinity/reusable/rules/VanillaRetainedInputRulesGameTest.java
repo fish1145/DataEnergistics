@@ -4,11 +4,24 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.api.crafting.dispatch.CountedCraftingTarget;
 import com.fish_dan_.data_energistics.api.crafting.reusable.ReusableInputContext;
 import com.fish_dan_.data_energistics.api.crafting.reusable.ReusableInputContext.Ownership;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.Input;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.SlotStack;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.Target;
+import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.Tool;
+import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.TrinityReusableCraftingHost;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.TrinityReusableSlot;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
+import com.fish_dan_.data_energistics.common.trinity.core.TrinityPatternCoreTier;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
+import com.fish_dan_.data_energistics.common.trinity.pattern.PersistentTrinityPatternCore;
+import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
 
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
 import appeng.core.definitions.AEItems;
 import appeng.crafting.pattern.AECraftingPattern;
 
@@ -38,6 +51,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -88,6 +102,8 @@ public final class VanillaRetainedInputRulesGameTest {
             exact.add(new GenericStack(template.what(), Math.multiplyExact(template.amount(), slot.getMultiplier())));
         }
         int retained = 0;
+        List<Input> requirements = new ObjectArrayList<>();
+        List<SlotStack> tools = new ObjectArrayList<>();
         for (int slot = 0; slot < exact.size(); slot++) {
             var context = ReusableInputContext.builder().pattern(pattern).actualInput(exact.get(slot)).exactInputs(exact).inputSlot(slot)
                     .ownership(Ownership.CPU_SUPPLIED).actionSource(IActionSource.empty()).level(level).recipeId(Optional.of(recipeId))
@@ -98,8 +114,12 @@ public final class VanillaRetainedInputRulesGameTest {
                 helper.assertValueEqual(rule.orElseThrow().advance(AEItemKey.of(original), 1_000).successor(), AEItemKey.of(original),
                         "Frozen rule preserves every original component across repeated uses");
                 retained++;
+                requirements.add(new Input(slot, List.of(), Optional.of(new Tool(exact.get(slot).amount(), Ownership.CPU_SUPPLIED,
+                        rule.orElseThrow(), Optional.of(AEItemKey.of(original))))));
+                tools.add(new SlotStack(slot, exact.get(slot)));
             } else {
                 helper.assertTrue(rule.isEmpty(), "Ordinary material cannot become a reusable input");
+                requirements.add(new Input(slot, List.of(exact.get(slot)), Optional.empty()));
             }
         }
         helper.assertValueEqual(retained, 1, "Exactly one original slot is retained");
@@ -107,5 +127,34 @@ public final class VanillaRetainedInputRulesGameTest {
         helper.assertTrue(ItemStack.isSameItemSameComponents(remaining.getFirst(), original) && remaining.getFirst().getCount() == 1,
                 "Actual vanilla execution agrees with the declared exact successor");
         helper.assertTrue(remaining.get(1).isEmpty(), "Actual vanilla execution consumes the blank material");
+
+        var core = new PersistentTrinityPatternCore(TrinityPatternCoreTier.STANDARD.patternCapacity(), ignored -> pattern,
+                ignored -> Optional.of(new TrinityPatternRecipeIdResolution(recipeId, recipeId)), ignored -> {});
+        core.trySetPattern(0, encoded);
+        var route = new PatternRoute(UUID.randomUUID(), core.coreId(), 0);
+        var host = new TrinityReusableCraftingHost(core, route, level, () -> true);
+        UUID session = UUID.randomUUID();
+        String target = TrinityReusableSlot.targetIdentity(core.coreId(), 0);
+        var request = new ReusableCraftingRequest(session, UUID.randomUUID(), "cpu:vanilla-batch", 0,
+                new Target(target, CountedCraftingTarget.route(target), Optional.empty()), new RoutedCraftingPatternDetails(route, pattern),
+                requirements, tools, 1000, Optional.of(recipeId), IActionSource.empty(), level);
+        var admission = core.prepareReusable(route, request, 0, host);
+        if (admission == null) throw new IllegalStateException("Native retained recipe rejected its batch");
+        KeyCounter[] delivery = new KeyCounter[requirements.size()];
+        Arrays.setAll(delivery, ignored -> new KeyCounter());
+        admission.physicalInputs().forEach(value -> delivery[value.slot()].add(value.stack().what(), value.stack().amount()));
+        helper.assertTrue(admission.commit(delivery), "The core accepts real batch materials and one original");
+        var endpoint = core.reusableSlot(0).endpoint();
+        helper.assertValueEqual(endpoint.tick(1, 1, host), 1, "One native batch call is enough");
+        helper.assertValueEqual(endpoint.query(session).orElseThrow().completed(), 1000L,
+                "The real core and vanilla recipe complete all 1000 uses in one call");
+        helper.assertValueEqual(core.pendingOutputs(route).stream().mapToLong(value -> value.amount()).sum(), 1000L,
+                "All 1000 actual copies enter the existing output queue");
+        endpoint.close(session, host);
+        helper.assertTrue(endpoint.settle(session, settlement -> {
+            helper.assertValueEqual(settlement.returnedAssets(), List.of(new GenericStack(AEItemKey.of(original), 1)),
+                    "The original is returned once, not multiplied by the batch size");
+            return true;
+        }, host), "The completed native batch settles normally");
     }
 }

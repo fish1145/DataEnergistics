@@ -99,14 +99,14 @@ public final class TrinityReusableCpuDispatchGameTest {
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 1800)
     public static void reusesOneToolForAThousandRealOperations(GameTestHelper helper) {
-        run(helper, new Fixture(helper, 1000, 17, Scenario.CONTINUOUS));
+        run(helper, new Fixture(helper, 1000, 1000, Scenario.CONTINUOUS));
     }
 
-    @TestHolder("cpu_dispatch_spends_tool_lifetimes_across_real_capacity_limited_appends")
+    @TestHolder("cpu_dispatch_completes_batches_at_actual_tool_lifetime_boundaries")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 1800)
-    public static void spendsToolLifetimesAcrossRealCapacityLimitedAppends(GameTestHelper helper) {
-        run(helper, new Fixture(helper, 250, 17, Scenario.DURABILITY));
+    public static void completesBatchesAtActualToolLifetimeBoundaries(GameTestHelper helper) {
+        run(helper, new Fixture(helper, 250, 250, Scenario.DURABILITY));
     }
 
     @TestHolder("cpu_dispatch_cancelled_suffix_settles_and_replans_without_repeating_completed_output")
@@ -199,6 +199,7 @@ public final class TrinityReusableCpuDispatchGameTest {
         private long materialDelivered;
         private long toolReturned;
         private long exhaustedTools;
+        private long nativeCalls;
         private long admissions;
         private boolean closedSuffix;
         private boolean cancellationChecked;
@@ -293,14 +294,19 @@ public final class TrinityReusableCpuDispatchGameTest {
                     helper.assertValueEqual(toolDelivered, 3L, "Only three real tools are transferred across all appends");
                     helper.assertValueEqual(toolReturned, 1L, "Only the surviving tool is returned");
                     helper.assertValueEqual(exhaustedTools, 2L, "Two tools are legally exhausted");
+                    helper.assertValueEqual(nativeCalls, 3L, "250 uses execute as three native batches: 100, 100, 50");
                 } else {
                     helper.assertValueEqual(stock.get(tool()), 1L, "One actual tool returns after custody closes");
                     helper.assertValueEqual(toolDelivered, (long) sessions.size(), "Each continuous session receives its tool only once");
                     helper.assertValueEqual(toolReturned, (long) sessions.size(), "Each session returns its tool only once");
                 }
-                helper.assertTrue(admissions > 1L, "The fixture must pass through partial-capacity appends");
-                if (scenario == Scenario.CANCEL) helper.assertTrue(cancellationChecked && sessions.size() == 2, "Cancelled suffix must settle then resume in one new session");
-                else helper.assertValueEqual(sessions.size(), 1, "All thousand operations share a single resident tool session");
+                if (scenario == Scenario.CANCEL) {
+                    helper.assertTrue(admissions > 1L, "Cancellation fixture must pass through partial-capacity appends");
+                    helper.assertTrue(cancellationChecked && sessions.size() == 2, "Cancelled suffix must settle then resume in one new session");
+                } else {
+                    helper.assertValueEqual(sessions.size(), 1, "All operations share one resident tool session");
+                    if (scenario == Scenario.CONTINUOUS) helper.assertValueEqual(nativeCalls, 1L, "1000 unchanged uses complete in one native batch");
+                }
                 KeyCounter[] sample = { new KeyCounter(), new KeyCounter() };
                 sample[0].add(tool(), 1L);
                 sample[1].add(material(), 1L);
@@ -495,18 +501,24 @@ public final class TrinityReusableCpuDispatchGameTest {
         }
 
         @Override
+        public long maximumBatch(Binding binding) {
+            return scenario == Scenario.CONTINUOUS || scenario == Scenario.DURABILITY ? Long.MAX_VALUE : 1L;
+        }
+
+        @Override
         public NativeResult execute(Binding binding, Operation operation) {
-            if (operation.consumed().size() != 1 || !operation.consumed().getFirst().stack().equals(new GenericStack(material(), 1L)) ||
+            if (operation.consumed().size() != 1 || !operation.consumed().getFirst().stack().equals(new GenericStack(material(), operation.count())) ||
                     operation.tools().size() != 1 || operation.tools().getFirst().stack().amount() != 1L ||
                     !(operation.tools().getFirst().stack().what() instanceof AEItemKey actualTool) ||
                     !(pattern.lifetime() ? FixedToolIdentity.matches(pattern.rule(), actualTool) : actualTool.equals(tool()))) {
                 throw new IllegalStateException("Native fixture received incorrect physical material/tool escrow");
             }
-            executed++;
+            nativeCalls++;
+            executed += operation.count();
             consumed += operation.consumed().getFirst().stack().amount();
-            var successor = pattern.rule().advance((AEItemKey) operation.tools().getFirst().stack().what(), 1).successor();
+            var successor = pattern.rule().advance((AEItemKey) operation.tools().getFirst().stack().what(), operation.count()).successor();
             return new NativeResult(true, List.of(new ToolOutcome(0, successor == null ? List.of() : List.of(new GenericStack(successor, 1)), List.of())),
-                    List.of(new GenericStack(product(), 1L)), Optional.empty());
+                    List.of(new GenericStack(product(), operation.count())), Optional.empty());
         }
 
         @Override

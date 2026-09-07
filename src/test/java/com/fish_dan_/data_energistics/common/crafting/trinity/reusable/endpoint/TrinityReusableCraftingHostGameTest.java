@@ -12,10 +12,18 @@ import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCra
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingRequest.Tool;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView.Settlement;
 import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeIdResolution;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint.Binding;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession.Identity;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession.Operation;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession.SlotContract;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession.SlotInput;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession.ToolDelivery;
 import com.fish_dan_.data_energistics.common.trinity.core.TrinityPatternCoreTier;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PatternRoute;
 import com.fish_dan_.data_energistics.common.trinity.pattern.PersistentTrinityPatternCore;
 import com.fish_dan_.data_energistics.common.trinity.pattern.RoutedCraftingPatternDetails;
+import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -159,6 +167,31 @@ public final class TrinityReusableCraftingHostGameTest {
         List<GenericStack> invalid = List.of(new GenericStack(AEItemKey.of(Items.STONE), 4));
         helper.assertTrue(!NativeReusableCrafting.matches(pattern, invalid, new IntOpenHashSet(new int[] { 0 }), Optional.of(recipeId), helper.getLevel()),
                 "Declaring a reusable slot cannot bypass the native recipe's real ingredient checks");
+        helper.succeed();
+    }
+
+    @TestHolder("trinity_native_batch_uses_actual_final_remainder_without_multiplying_tools")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void nativeBatchUsesActualFinalRemainderWithoutMultiplyingTools(GameTestHelper helper) {
+        var pattern = new NativePattern();
+        var rule = ReusableInputRule.fixedDamage(RECIPE, 1, tool(0), 1, 3, List.of(new GenericStack(SCRAP, 1)));
+        var identity = new Identity(UUID.randomUUID(), UUID.randomUUID(), "cpu:native-batch", "native-batch", pattern.getDefinition(), Optional.empty());
+        var binding = new Binding(identity, TrinityPatternIdentity.capture(TrinityPatternPublicationSignature.capture(pattern), helper.getLevel().registryAccess()),
+                2, List.of(new SlotInput(1, new GenericStack(MATERIAL, 1))),
+                List.of(new SlotContract(0, 1, Ownership.CPU_SUPPLIED, rule)), Optional.of(RECIPE.toString()));
+        for (long count : new long[] { 2, 3 }) {
+            var operation = new Operation(count, 0, count, List.of(new SlotInput(1, new GenericStack(MATERIAL, count))),
+                    List.of(new ToolDelivery(0, new GenericStack(tool(0), 1))));
+            var result = NativeReusableCrafting.execute(pattern, binding, operation, helper.getLevel(), RECIPE);
+            helper.assertTrue(result.executed(), "Declared fixed-wear batch completes");
+            helper.assertValueEqual(result.outputs(), List.of(new GenericStack(PRODUCT, count)), "Only ordinary outputs scale by the logical count");
+            helper.assertValueEqual(result.tools().getFirst().successors(), count == 2 ? List.of(new GenericStack(tool(2), 1)) : List.of(),
+                    "Actual native remainder is one final-state tool or legal exhaustion");
+            helper.assertValueEqual(result.tools().getFirst().byproducts(), count == 3 ? List.of(new GenericStack(SCRAP, 1)) : List.of(),
+                    "Exhaustion byproduct occurs once, not once per use");
+        }
+        helper.assertValueEqual(pattern.remainderCalls, 2, "Two batches use two actual remainder calls, not five");
         helper.succeed();
     }
 

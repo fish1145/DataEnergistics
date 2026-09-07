@@ -34,6 +34,7 @@ public final class TrinityReusableCraftingHost implements Host {
     private long validatedRevision = -1;
     private @Nullable TrinityPatternIdentity publication;
     private @Nullable Binding materializedBinding;
+    private long batchLimit = 1L;
 
     public TrinityReusableCraftingHost(PersistentTrinityPatternCore core, PatternRoute route, ServerLevel level, BooleanSupplier authorized) {
         this.core = core;
@@ -76,8 +77,14 @@ public final class TrinityReusableCraftingHost implements Host {
                 return false;
             }
             materializedBinding = binding;
+            batchLimit = NativeReusableCrafting.maximumBatch(pattern, binding, level, cached.recipeResolution().recipeId());
         }
         return true;
+    }
+
+    @Override
+    public long maximumBatch(Binding binding) {
+        return batchLimit;
     }
 
     @Override

@@ -70,7 +70,7 @@ import java.util.UUID;
  */
 public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity implements TrinityPatternCore {
 
-    private static final int REUSABLE_OPERATIONS_PER_SLOT_TICK = 64;
+    private static final int REUSABLE_BATCHES_PER_SLOT_TICK = 64;
 
     /**
      * Tracks whether level-dependent pattern state has been committed or must remain quarantined.
@@ -220,7 +220,7 @@ public final class TrinityPatternCoreBlockEntity extends AEBaseBlockEntity imple
             if (reusable.closeRequested()) {
                 reusable.closeSessions(host);
             }
-            return reusable.endpoint().tick(currentTick, REUSABLE_OPERATIONS_PER_SLOT_TICK, host);
+            return reusable.endpoint().tick(currentTick, REUSABLE_BATCHES_PER_SLOT_TICK, host);
         }
         if (!runtimeBindingsCurrent()) {
             return 0;

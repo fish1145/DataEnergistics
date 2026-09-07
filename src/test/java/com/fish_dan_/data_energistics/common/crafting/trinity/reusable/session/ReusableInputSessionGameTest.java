@@ -217,7 +217,7 @@ public final class ReusableInputSessionGameTest {
     public static void interruptedOperationQuarantinesOldAssetsUntilActualResult(GameTestHelper helper) {
         ReusableInputSession session = session(finite(), 1, Ownership.CPU_SUPPLIED);
         session.acceptAppend(append(1, 3, List.of(delivery(0, 1))));
-        Operation active = session.beginOperation(1).orElseThrow();
+        Operation active = session.beginOperation(2).orElseThrow();
         session.close();
         helper.assertValueEqual(session.status(), State.CLOSING, "Close waits for active native execution");
         ReusableInputSession restored = reload(session, helper);
@@ -225,15 +225,16 @@ public final class ReusableInputSessionGameTest {
         restored.close();
         helper.assertTrue(restored.returnOutbox().isEmpty(), "Old escrow tools cannot be refunded before reconciliation");
         helper.assertTrue(restored.beginOperation(1).isEmpty(), "A quarantined operation cannot execute twice");
-        restored.completeOperation(active.id(), restored.predictedOutcomes(active), List.of(stack(OUTPUT, 1)));
+        helper.assertValueEqual(restored.activeOperation().count(), 2L, "Restart retains the whole unresolved batch, not a single-use escrow");
+        restored.completeOperation(active.id(), restored.predictedOutcomes(active), List.of(stack(OUTPUT, 2)));
         helper.assertValueEqual(restored.status(), State.FAULTED, "Reconciliation does not silently restart execution");
         restored.close();
         ReusableInputSession settled = reload(restored, helper);
         helper.assertValueEqual(settled.status(), State.RETURN_PENDING, "Settled actual assets await directed refund");
         List<GenericStack> refund = settled.returnOutbox().getFirst().assets();
-        helper.assertValueEqual(amount(refund, tool(1)), 1L, "Only the actual successor is returned");
+        helper.assertValueEqual(amount(refund, tool(2)), 1L, "Only the actual batch successor is returned");
         helper.assertValueEqual(amount(refund, tool(0)), 0L, "The pre-execution tool is not reconstructed");
-        helper.assertValueEqual(amount(refund, MATERIAL), 2L, "Only materials for unexecuted operations are returned");
+        helper.assertValueEqual(amount(refund, MATERIAL), 1L, "Only materials outside the completed batch are returned");
         helper.succeed();
     }
 
@@ -287,7 +288,7 @@ public final class ReusableInputSessionGameTest {
     public static void nativeFailureAndAbortKeepDistinctAssetOwnership(GameTestHelper helper) {
         ReusableInputSession aborted = session(finite(), 1, Ownership.CPU_SUPPLIED);
         aborted.acceptAppend(append(1, 2, List.of(delivery(0, 1))));
-        Operation unexecuted = aborted.beginOperation(1).orElseThrow();
+        Operation unexecuted = aborted.beginOperation(2).orElseThrow();
         aborted.close();
         aborted.abortOperation(unexecuted.id());
         helper.assertValueEqual(amount(aborted.returnOutbox().getFirst().assets(), MATERIAL), 2L,

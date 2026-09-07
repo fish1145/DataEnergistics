@@ -22,6 +22,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.BannerDuplicateRecipe;
+import net.minecraft.world.item.crafting.BookCloningRecipe;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.ShapedRecipe;
@@ -36,7 +38,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-/** Materializes real per-slot escrow, executes the native recipe once, and classifies actual grid remainders. */
+/** Materializes real per-slot escrow and executes one native batch with actual final grid remainders. */
 public final class NativeReusableCrafting {
 
     private static final int GRID_SIZE = 9;
@@ -120,9 +122,38 @@ public final class NativeReusableCrafting {
         }
     }
 
+    /** Only known deterministic recipes may scale one native result like the core's ordinary counted batches. */
+    public static long maximumBatch(IMolecularAssemblerSupportedPattern pattern, Binding binding,
+                                    ServerLevel level, ResourceLocation recipeId) {
+        boolean unchanged = binding.tools().stream().allMatch(tool -> tool.rule().kind() == ReusableInputRule.Kind.UNCHANGED);
+        if (binding.tools().stream().anyMatch(tool -> tool.rule().kind() == ReusableInputRule.Kind.TRANSITIONS ||
+                !tool.rule().exhaustionByproducts().isEmpty()))
+            return 1L;
+        var recipe = level.getRecipeManager().byKey(recipeId).orElse(null);
+        boolean retainedVanilla = unchanged && usesNativeRecipeValidation(pattern, Optional.of(recipeId)) && recipe != null &&
+                (recipe.value().getClass() == BookCloningRecipe.class || recipe.value().getClass() == BannerDuplicateRecipe.class);
+        if (!retainedVanilla && !hasDamageIndependentInputs(pattern, Optional.of(recipeId), level)) return 1L;
+        long limit = Long.MAX_VALUE;
+        for (GenericStack output : pattern.getOutputs()) limit = Math.min(limit, Long.MAX_VALUE / output.amount());
+        return limit;
+    }
+
     public static NativeResult execute(IMolecularAssemblerSupportedPattern pattern, Binding binding, Operation operation,
                                        ServerLevel level, ResourceLocation recipeId) {
-        Grid grid = materialize(pattern, binding, operation);
+        // The rule already proves the intermediate uses. Evaluate the last use with its exact pre-use state,
+        // so exhaustion and the surviving tool still come from the real recipe's remainder callback.
+        Int2ObjectMap<ReusableInputRule> rules = new Int2ObjectOpenHashMap<>();
+        binding.tools().forEach(tool -> rules.put(tool.slot(), tool.rule()));
+        Operation sample = operation;
+        if (operation.count() > 1) {
+            List<ToolDelivery> lastTools = new ObjectArrayList<>();
+            for (ToolDelivery tool : operation.tools()) {
+                var state = rules.get(tool.slot()).advance((AEItemKey) tool.stack().what(), operation.count() - 1).successor();
+                lastTools.add(new ToolDelivery(tool.slot(), new GenericStack(state, tool.stack().amount())));
+            }
+            sample = new Operation(operation.id(), operation.appendSequence(), 1, binding.consumed(), lastTools);
+        }
+        Grid grid = materialize(pattern, binding, sample);
         CraftingInput.Positioned positioned = CraftingInput.ofPositioned(3, 3, grid.items());
         CraftingInput input = positioned.input();
         CraftingRecipe actualRecipe = null;
@@ -149,14 +180,12 @@ public final class NativeReusableCrafting {
         }
         Int2ObjectOpenHashMap<List<GenericStack>> successors = new Int2ObjectOpenHashMap<>();
         Int2ObjectOpenHashMap<List<GenericStack>> byproducts = new Int2ObjectOpenHashMap<>();
-        Int2ObjectOpenHashMap<ReusableInputRule> rules = new Int2ObjectOpenHashMap<>();
         binding.tools().forEach(tool -> {
             successors.put(tool.slot(), new ObjectArrayList<>());
             byproducts.put(tool.slot(), new ObjectArrayList<>());
-            rules.put(tool.slot(), tool.rule());
         });
         List<GenericStack> outputs = new ObjectArrayList<>();
-        outputs.add(new GenericStack(AEItemKey.of(output), output.getCount()));
+        outputs.add(new GenericStack(AEItemKey.of(output), Math.multiplyExact(output.getCount(), operation.count())));
         for (int index = 0; index < input.size(); index++) {
             ItemStack remainder = remainders.get(index);
             if (remainder.isEmpty()) {
@@ -166,7 +195,7 @@ public final class NativeReusableCrafting {
             int owner = grid.toolOwners()[sparse];
             GenericStack actual = new GenericStack(AEItemKey.of(remainder), remainder.getCount());
             if (owner < 0) {
-                outputs.add(actual);
+                outputs.add(new GenericStack(actual.what(), Math.multiplyExact(actual.amount(), operation.count())));
                 continue;
             }
             ReusableInputRule.Result prediction = rules.get(owner).advance(grid.toolStates().get(sparse), 1);

@@ -831,6 +831,7 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
 
             private @Nullable Binding checkedBinding;
             private @Nullable NativePatternSlot checkedPattern;
+            private long batchLimit = 1L;
 
             @Override
             public boolean isAvailable(Binding binding) {
@@ -853,8 +854,20 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
                     }
                     checkedPattern = current;
                     checkedBinding = binding;
+                    batchLimit = NativeReusableCrafting.maximumBatch(current.pattern(), binding,
+                            (ServerLevel) host.getBlockEntity().getLevel(), recipe);
                 }
                 return purpose == ReusableHostPurpose.YIELD || worksInRound < getMeteoriteMaxWorksPerRound() && hasMeteoriteEnergy();
+            }
+
+            @Override
+            public long maximumBatch(Binding binding) {
+                var grid = getGrid();
+                if (grid == null) return 0L;
+                long workLimit = Math.min(batchLimit, Math.max(0, getMeteoriteMaxWorksPerRound() - worksInRound));
+                double perWork = getMeteoriteEnergyPerWork();
+                double available = grid.getEnergyService().extractAEPower(perWork * workLimit, Actionable.SIMULATE, PowerMultiplier.ONE);
+                return Math.min(workLimit, (long) ((available + METEORITE_ENERGY_TOLERANCE) / perWork));
             }
 
             @Override
@@ -862,19 +875,22 @@ public class AdaptivePatternProviderLogic extends PatternProviderLogic
                 NativePatternSlot current = nativePatternSlots.get(slot);
                 var grid = getGrid();
                 if (current == null || grid == null || !(host.getBlockEntity().getLevel() instanceof ServerLevel level) ||
-                        worksInRound >= getMeteoriteMaxWorksPerRound()) {
+                        operation.count() > getMeteoriteMaxWorksPerRound() - worksInRound) {
                     return NativeResult.paused();
                 }
-                double cost = getMeteoriteEnergyPerWork();
+                double cost = getMeteoriteEnergyPerWork() * operation.count();
                 IEnergyService energy = grid.getEnergyService();
-                if (!tryConsumeMeteoriteEnergy()) {
+                double extracted = energy.extractAEPower(cost, Actionable.MODULATE, PowerMultiplier.ONE);
+                if (!isMeteoriteEnergyRequirementMet(extracted, cost)) {
+                    energy.injectPower(extracted, Actionable.MODULATE);
                     return NativeResult.paused();
                 }
-                worksInRound++;
+                int count = Math.toIntExact(operation.count());
+                worksInRound += count;
                 NativeResult result = NativeReusableCrafting.execute(current.pattern(), binding, operation, level, recipe);
                 if (!result.executed()) {
-                    worksInRound--;
-                    energy.injectPower(cost, Actionable.MODULATE);
+                    worksInRound -= count;
+                    energy.injectPower(extracted, Actionable.MODULATE);
                 }
                 return result;
             }
