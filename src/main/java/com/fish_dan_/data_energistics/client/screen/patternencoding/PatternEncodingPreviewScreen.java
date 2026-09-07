@@ -472,6 +472,8 @@ public class PatternEncodingPreviewScreen<T extends PatternEncodingTermMenu> ext
         pose.pushPose();
         try {
             pose.translate(-this.leftPos, -this.topPos, 0.0F);
+            PatternEncodingPreviewLayers.clearCoveredDepth(graphics, getPreviewInteractiveBounds());
+            PatternEncodingPreviewLayers.clearCoveredDepth(graphics, this.leafPanel.getInteractiveBounds());
             renderPreviewLayer(graphics, mouseX, mouseY, this.previewPartialTicks);
         } finally {
             pose.popPose();
