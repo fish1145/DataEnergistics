@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.client.screen.base.AETextFieldInteraction;
 import com.fish_dan_.data_energistics.client.util.PinyinUtil;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu.SyncedPatternProviderList;
 
 import appeng.client.Point;
 import appeng.client.gui.style.Blitter;
@@ -100,6 +101,8 @@ final class PatternProviderLeafPanel {
     private ObjectList<LeafRow> allRows = ObjectLists.emptyList();
     private ObjectList<LeafRow> visibleRows = ObjectLists.emptyList();
     private PatternEncodingPreviewMenu.SyncedPatternProvider openedGroup;
+    private @Nullable SyncedPatternProviderList providerSnapshot;
+    private @Nullable Rect2i boundsCache;
     private AETextField searchBox;
     private AETextField renameBox;
     private PatternEncodingPreviewDragButton dragButton;
@@ -124,6 +127,7 @@ final class PatternProviderLeafPanel {
     }
 
     void init() {
+        invalidateLayout();
         PatternEncodingPreferencesClient.providerDetailPanelPosition().ifPresentOrElse(position -> {
             this.relativeX = position.relativeX();
             this.relativeY = position.relativeY();
@@ -157,6 +161,7 @@ final class PatternProviderLeafPanel {
     void open(PatternEncodingPreviewMenu.SyncedPatternProvider group) {
         boolean changedGroup = !this.visible || this.openedGroup.id() != group.id();
         this.openedGroup = group;
+        this.providerSnapshot = this.host.leafPanelMenu().data_energistics$getSyncedPatternProviderState();
         this.visible = true;
         rebuildRows(group);
         if (changedGroup) {
@@ -171,6 +176,9 @@ final class PatternProviderLeafPanel {
         if (!this.visible) {
             return;
         }
+        var snapshot = this.host.leafPanelMenu().data_energistics$getSyncedPatternProviderState();
+        if (snapshot == this.providerSnapshot) return;
+        this.providerSnapshot = snapshot;
         PatternEncodingPreviewMenu.SyncedPatternProvider refreshed = findGroup(this.openedGroup.id());
         if (refreshed == null || refreshed.leaves().size() < 2) {
             close();
@@ -186,7 +194,7 @@ final class PatternProviderLeafPanel {
 
     void setLayerWidgetsDeferred(boolean deferred) {
         this.layerWidgetsDeferred = deferred;
-        updateWidgets();
+        updateWidgetVisibility();
     }
 
     void tick() {
@@ -203,6 +211,7 @@ final class PatternProviderLeafPanel {
     void close() {
         this.visible = false;
         this.openedGroup = null;
+        this.providerSnapshot = null;
         this.allRows = ObjectLists.emptyList();
         this.visibleRows = ObjectLists.emptyList();
         this.dragging = false;
@@ -384,6 +393,7 @@ final class PatternProviderLeafPanel {
         if (!this.visible) {
             return;
         }
+        updateWidgets();
         PoseStack pose = graphics.pose();
         pose.pushPose();
         pose.translate(0.0F, 0.0F, DETAIL_LAYER_Z);
@@ -657,28 +667,34 @@ final class PatternProviderLeafPanel {
                 .blit(graphics);
     }
 
-    private void updateWidgets() {
-        Rect2i bounds = getBounds();
+    private void updateWidgetVisibility() {
         boolean widgetsVisible = this.visible && !this.layerWidgetsDeferred;
         boolean searchVisible = widgetsVisible && !isRenaming();
-        this.searchBox.setX(bounds.getX() + SEARCH_X);
-        this.searchBox.setY(bounds.getY() + SEARCH_Y);
-        this.searchBox.setWidth(SEARCH_WIDTH);
-        this.searchBox.setHeight(SEARCH_HEIGHT);
         this.searchBox.setVisible(searchVisible);
         this.searchBox.active = searchVisible;
         if (!searchVisible && !this.layerWidgetsDeferred) {
             this.searchBox.setFocused(false);
         }
+        this.renameBox.setVisible(widgetsVisible && isRenaming());
+        this.renameBox.active = widgetsVisible && isRenaming();
+        this.dragButton.setVisibility(widgetsVisible);
+        this.scrollbar.setVisible(widgetsVisible && this.visibleRows.size() > VISIBLE_ROWS);
+    }
+
+    private void updateWidgets() {
+        updateWidgetVisibility();
+        if (!this.visible) return;
+        Rect2i bounds = getBounds();
+        this.searchBox.setX(bounds.getX() + SEARCH_X);
+        this.searchBox.setY(bounds.getY() + SEARCH_Y);
+        this.searchBox.setWidth(SEARCH_WIDTH);
+        this.searchBox.setHeight(SEARCH_HEIGHT);
         this.renameBox.setX(bounds.getX() + SEARCH_X);
         this.renameBox.setY(bounds.getY() + SEARCH_Y);
         this.renameBox.setWidth(SEARCH_WIDTH);
         this.renameBox.setHeight(SEARCH_HEIGHT);
-        this.renameBox.setVisible(widgetsVisible && isRenaming());
-        this.renameBox.active = widgetsVisible && isRenaming();
         this.dragButton.setX(bounds.getX() + bounds.getWidth() - this.dragButton.getWidth() - DRAG_RIGHT_PADDING);
         this.dragButton.setY(bounds.getY() + DRAG_TOP_PADDING);
-        this.dragButton.setVisibility(widgetsVisible);
         updateScrollbar();
     }
 
@@ -764,6 +780,15 @@ final class PatternProviderLeafPanel {
     }
 
     private Rect2i getBounds() {
+        if (this.boundsCache == null) this.boundsCache = calculateBounds();
+        return this.boundsCache;
+    }
+
+    void invalidateLayout() {
+        this.boundsCache = null;
+    }
+
+    private Rect2i calculateBounds() {
         if (!this.customPosition) {
             return defaultBounds();
         }
@@ -785,6 +810,7 @@ final class PatternProviderLeafPanel {
         this.relativeX = bounds.getX() - this.host.leafPanelGuiLeft();
         this.relativeY = bounds.getY() - this.host.leafPanelGuiTop();
         this.customPosition = true;
+        invalidateLayout();
         updateWidgets();
     }
 

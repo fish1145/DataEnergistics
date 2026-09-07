@@ -10,6 +10,7 @@ import com.fish_dan_.data_energistics.menu.patternencoding.BlankPatternProxyMenu
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceMenu;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewLayoutAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu.SyncedPatternProviderList;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingSourceAware;
 import com.fish_dan_.data_energistics.menu.patternencoding.source.PatternEncodingSourceHelper;
 
@@ -50,6 +51,7 @@ import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectLists;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ReferenceSet;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;
@@ -128,16 +130,21 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
     private PatternEncodingPreviewDragButton previewDragButton;
     private ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> cachedVisibleProviders = ObjectLists.emptyList();
     private boolean visibleProvidersCacheDirty = true;
+    private boolean providerSelectionDirty = true;
+    private @Nullable SyncedPatternProviderList visibleProviderState;
+    private @Nullable Rect2i previewPanelBounds;
+    private @Nullable Rect2i defaultPreviewPanelBounds;
+    private @Nullable ObjectList<Rect2i> occupiedPreviewAnchorZones;
     private boolean previewPanelDragging;
     private int previewPanelDragOffsetX;
     private int previewPanelDragOffsetY;
     private int previewPanelCurrentOffsetX;
     private int previewPanelCurrentOffsetY;
-    private Rect2i previewPanelDragBaseBounds;
+    private @Nullable Rect2i previewPanelDragBaseBounds;
     private boolean previewLayerWidgetRenderingDeferred;
     private final PatternProviderLeafPanel leafPanel;
     private PatternProviderSearchContext providerSearchContext = PatternProviderSearchContext.resolve(null);
-    private String pendingParentSelectionLeafDigest;
+    private @Nullable String pendingParentSelectionLeafDigest;
     private int pendingParentSelectionTicks;
 
     public WirelessPatternEncodingTermScreen(WETMenu menu, Inventory playerInventory, Component title, ScreenStyle style) {
@@ -149,6 +156,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
 
     @Override
     public void init() {
+        invalidatePreviewLayout();
         super.init();
         PatternEncodingPreferencesClient.initializeMenu(this.menu);
         this.encodePatternWidget = resolveEncodePatternWidget();
@@ -178,7 +186,6 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         updateRecipeTypeToggleButton();
         updatePreviewDragButton();
         refreshProviderSearchContext(false);
-        invalidateVisibleProvidersCache();
         syncProviderSelection();
         this.leafPanel.updateProviderSnapshot();
         updatePreviewScrollbar();
@@ -240,6 +247,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
                 this.previewPanelCurrentOffsetY = 0;
                 this.previewPanelDragging = false;
                 this.previewPanelDragBaseBounds = null;
+                invalidatePreviewLayout();
                 updatePreviewDragButton();
                 updatePreviewScrollbar();
                 updateProviderSearchBox();
@@ -432,6 +440,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+        invalidatePreviewLayout();
         deferPreviewLayerWidgets();
         try {
             super.render(guiGraphics, mouseX, mouseY, partialTicks);
@@ -773,6 +782,12 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         if (this.providerSearchBox == null) {
             return;
         }
+        if (!this.previewVisible) {
+            this.providerSearchBox.setVisible(false);
+            this.providerSearchBox.active = false;
+            this.providerSearchBox.setFocused(false);
+            return;
+        }
         Rect2i previewBounds = getPreviewPanelBounds();
         this.providerSearchBox.setX(previewBounds.getX() + PANEL_SEARCH_X);
         this.providerSearchBox.setY(previewBounds.getY() + PANEL_SEARCH_Y);
@@ -788,6 +803,11 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
 
     private void updateProviderRenameBox() {
         if (this.providerRenameBox == null) {
+            return;
+        }
+        if (!isRenamingProvider()) {
+            this.providerRenameBox.setVisible(false);
+            this.providerRenameBox.active = false;
             return;
         }
 
@@ -867,6 +887,8 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
                 defaultBounds.getHeight());
         this.previewPanelCurrentOffsetX = draggedBounds.getX() - defaultBounds.getX();
         this.previewPanelCurrentOffsetY = draggedBounds.getY() - defaultBounds.getY();
+        this.previewPanelBounds = draggedBounds;
+        this.leafPanel.invalidateLayout();
         updatePreviewDragButton();
         updatePreviewScrollbar();
         updateProviderSearchBox();
@@ -926,6 +948,10 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
     }
 
     private void updatePreviewScrollbar() {
+        if (!this.previewVisible) {
+            this.previewScrollbar.setVisible(false);
+            return;
+        }
         int hiddenRows = Math.max(0, getVisibleProviders().size() - PROVIDER_VISIBLE_ROWS);
         Rect2i scrollbarBounds = getPreviewScrollbarBounds();
         this.previewScrollbar.setPosition(new Point(scrollbarBounds.getX(), scrollbarBounds.getY()));
@@ -942,6 +968,8 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
     private void syncProviderSelection() {
         syncProviderLocationFromRecordedWorkstation();
         ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> providers = getVisibleProviders();
+        if (!this.providerSelectionDirty && this.pendingParentSelectionLeafDigest == null) return;
+        this.providerSelectionDirty = false;
         if (providers.isEmpty()) {
             this.selectedPatternProviderId = -1L;
             this.renamingProviderId = -1L;
@@ -1010,6 +1038,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         }
 
         this.lastLocatedWorkstationId = workstationId;
+        this.providerSelectionDirty = true;
         this.previewScrollbar.setCurrentScroll(0);
         this.selectedPatternProviderId = -1L;
     }
@@ -1033,11 +1062,16 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
     }
 
     private ObjectList<PatternEncodingPreviewMenu.SyncedPatternProvider> getVisibleProviders() {
+        var providerState = previewBridge().data_energistics$getSyncedPatternProviderState();
+        if (providerState != this.visibleProviderState) {
+            this.visibleProviderState = providerState;
+            this.visibleProvidersCacheDirty = true;
+            this.providerSelectionDirty = true;
+        }
         if (!this.visibleProvidersCacheDirty) {
             return this.cachedVisibleProviders;
         }
 
-        PatternEncodingPreviewMenu.SyncedPatternProviderList providerState = previewBridge().data_energistics$getSyncedPatternProviderState();
         String query = this.providerSearchBox != null ? this.providerSearchBox.getValue() : "";
         this.cachedVisibleProviders = PatternProviderDisplayOrder.order(
                 providerState,
@@ -1051,20 +1085,36 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
 
     private void invalidateVisibleProvidersCache() {
         this.visibleProvidersCacheDirty = true;
+        this.providerSelectionDirty = true;
     }
 
     private Rect2i getPreviewPanelBounds() {
+        if (this.previewPanelBounds != null) return this.previewPanelBounds;
         Rect2i defaultBounds = getDefaultPreviewPanelBounds();
         int offsetX = this.previewPanelDragging ? this.previewPanelCurrentOffsetX : previewLayout().data_energistics$getPreviewPanelOffsetX();
         int offsetY = this.previewPanelDragging ? this.previewPanelCurrentOffsetY : previewLayout().data_energistics$getPreviewPanelOffsetY();
-        return clampPreviewPanelBounds(
+        this.previewPanelBounds = clampPreviewPanelBounds(
                 defaultBounds.getX() + offsetX,
                 defaultBounds.getY() + offsetY,
                 defaultBounds.getWidth(),
                 defaultBounds.getHeight());
+        return this.previewPanelBounds;
     }
 
     private Rect2i getDefaultPreviewPanelBounds() {
+        if (this.previewPanelDragging && this.previewPanelDragBaseBounds != null) return this.previewPanelDragBaseBounds;
+        if (this.defaultPreviewPanelBounds == null) this.defaultPreviewPanelBounds = calculateDefaultPreviewPanelBounds();
+        return this.defaultPreviewPanelBounds;
+    }
+
+    private void invalidatePreviewLayout() {
+        this.previewPanelBounds = null;
+        this.defaultPreviewPanelBounds = null;
+        this.occupiedPreviewAnchorZones = null;
+        this.leafPanel.invalidateLayout();
+    }
+
+    private Rect2i calculateDefaultPreviewPanelBounds() {
         Rect2i encodeButtonBounds = getEncodeButtonBounds();
         int preferredY = this.topPos + PANEL_Y_OFFSET;
         return PatternEncodingPreviewPlacement.findBestBounds(
@@ -1123,6 +1173,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
     }
 
     private ObjectList<Rect2i> getOccupiedPreviewAnchorZones() {
+        if (this.occupiedPreviewAnchorZones != null) return this.occupiedPreviewAnchorZones;
         ObjectArrayList<Rect2i> zones = new ObjectArrayList<>(super.getExclusionZones());
         zones.add(new Rect2i(this.leftPos, this.topPos, this.imageWidth, this.imageHeight));
         ReferenceSet<AbstractWidget> seenWidgets = new ReferenceOpenHashSet<>();
@@ -1134,6 +1185,7 @@ public class WirelessPatternEncodingTermScreen extends WETScreen
         for (AbstractWidget widget : this.widgets.widgets.values()) {
             addOccupiedPreviewAnchorWidget(zones, seenWidgets, widget);
         }
+        this.occupiedPreviewAnchorZones = zones;
         return zones;
     }
 
