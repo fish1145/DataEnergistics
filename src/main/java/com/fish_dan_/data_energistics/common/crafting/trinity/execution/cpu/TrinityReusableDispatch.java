@@ -15,6 +15,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.Cra
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.model.CraftingProviderId;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CountedCraftingProviderAdapters;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityReusableRecipe.ResidentTools;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.runtime.TrinityBorrowingTransaction;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.state.TrinityPlanExecution.Work;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger;
@@ -22,6 +23,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.Reusa
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Session;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.Submission;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSessionLedger.SubmissionEntry;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.rules.FixedToolIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus.Phase;
 import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
@@ -39,7 +41,6 @@ import appeng.crafting.execution.CraftingCpuHelper;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 
-import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -161,7 +162,7 @@ final class TrinityReusableDispatch {
                     if (session != null && (view == null || view.state() != State.OPEN)) {
                         continue;
                     }
-                    Int2LongOpenHashMap free = freeTools(recipe, session, view);
+                    var free = freeTools(recipe, session, view);
                     KeyCounter inventory = owner.reusableAvailability(job, work);
                     long limit = owner.reusableOfferLimit(job, work, recipe, outputs, power, energy, free);
                     TrinityReusableRecipe.Offer offer = recipe.offer(limit, inventory, tool -> free.get(tool.slot()));
@@ -218,7 +219,8 @@ final class TrinityReusableDispatch {
         boolean opened = ledger.session(id) == null;
         owner.beginReusableMutation();
         try {
-            Optional<TrinityBorrowingTransaction> borrowing = owner.borrowReusableInputs(physical);
+            Optional<TrinityBorrowingTransaction> borrowing = owner.borrowReusableInputs(physical.stream()
+                    .filter(input -> !work.exactBindings().get(input.slot()).lifetimeBudget()).toList());
             if (borrowing.isEmpty()) {
                 return false;
             }
@@ -499,6 +501,8 @@ final class TrinityReusableDispatch {
             if (old.reusableRule() == null ? !old.equals(next) : next.reusableRule() == null ||
                     !old.reusableRule().id().equals(next.reusableRule().id()) || old.reusableRule().revision() != next.reusableRule().revision() ||
                     old.reusableRule().kind() != next.reusableRule().kind() ||
+                    old.lifetimeBudget() != next.lifetimeBudget() ||
+                    old.lifetimeBudget() && !FixedToolIdentity.key(old.reusableRule().initialKey()).equals(FixedToolIdentity.key(next.reusableRule().initialKey())) ||
                     old.reusableRule().damagePerUse() != next.reusableRule().damagePerUse() ||
                     old.reusableRule().breakAtDamage() != next.reusableRule().breakAtDamage() ||
                     !old.reusableRule().transitions().equals(next.reusableRule().transitions()) ||
@@ -509,30 +513,33 @@ final class TrinityReusableDispatch {
         return true;
     }
 
-    private static Int2LongOpenHashMap freeTools(TrinityReusableRecipe recipe, @Nullable Session session, @Nullable ReusableCraftingSessionView view) {
-        Int2LongOpenHashMap free = new Int2LongOpenHashMap();
+    private static Int2ObjectOpenHashMap<ResidentTools> freeTools(TrinityReusableRecipe recipe, @Nullable Session session, @Nullable ReusableCraftingSessionView view) {
+        var free = new Int2ObjectOpenHashMap<ResidentTools>();
+        free.defaultReturnValue(ResidentTools.EMPTY);
         if (view == null) return free;
         for (var required : recipe.tools()) {
-            long amount = 0L;
+            List<GenericStack> heldTools = new ObjectArrayList<>();
             for (SlotStack held : view.heldTools()) {
-                if (held.slot() == required.slot() && held.stack().what().equals(required.state())) amount = Math.addExact(amount, held.stack().amount());
+                if (held.slot() == required.slot() && required.accepts(held.stack().what())) heldTools.add(held.stack());
             }
-            if (!required.unchanged()) {
+            long committed = 0L;
+            if (required.lifetime()) {
+                committed = view.accepted() - view.completed() - view.cancelled();
+            } else if (!required.unchanged()) {
                 for (SubmissionEntry entry : session.pendingSubmissions()) {
                     var binding = entry.submission().work().exactBindings().get(required.slot());
                     if (binding.template().what().equals(required.state())) {
-                        long reserved = Math.multiplyExact(entry.submission().count() - entry.submission().completed(), required.held());
-                        amount -= Math.min(amount, reserved);
+                        committed = Math.addExact(committed, entry.submission().count() - entry.submission().completed());
                     }
                 }
             }
-            free.put(required.slot(), Math.max(0L, amount));
+            free.put(required.slot(), new ResidentTools(List.copyOf(heldTools), committed));
         }
         return free;
     }
 
     private static void validatePhysical(TrinityReusableRecipe recipe, List<SlotStack> physical, long count,
-                                         List<SlotStack> offered, Int2LongOpenHashMap resident) {
+                                         List<SlotStack> offered, Int2ObjectOpenHashMap<ResidentTools> resident) {
         for (int slot = 0; slot < recipe.inputs().size(); slot++) {
             Object2LongLinkedOpenHashMap<AEKey> amounts = new Object2LongLinkedOpenHashMap<>();
             for (SlotStack item : physical) {
@@ -547,15 +554,24 @@ final class TrinityReusableDispatch {
                 else amounts.put(material.what(), left);
             }
             if (input.tool().isPresent()) {
-                var tool = input.tool().orElseThrow();
-                var key = tool.operationState().orElseThrow();
-                long supplied = amounts.removeLong(key);
-                long offeredCount = 0L;
-                for (SlotStack item : offered) if (item.slot() == slot && item.stack().what().equals(key)) offeredCount += item.stack().amount();
-                long needed = key.equals(tool.rule().advance(key, 1).successor()) ? tool.heldAmount() : Math.multiplyExact(tool.heldAmount(), count);
-                if (supplied > offeredCount || supplied < needed - Math.min(needed, resident.get(slot))) {
-                    throw new IllegalStateException("Reusable delivery contradicts supplied or resident tool quantities");
+                int toolSlot = slot;
+                var tool = recipe.tools().stream().filter(value -> value.slot() == toolSlot).findFirst().orElseThrow();
+                var held = resident.get(slot);
+                List<GenericStack> total = new ObjectArrayList<>(held.tools());
+                for (var supplied : amounts.object2LongEntrySet()) {
+                    long offeredCount = 0L;
+                    for (SlotStack item : offered) if (item.slot() == slot && item.stack().what().equals(supplied.getKey())) {
+                        offeredCount = Math.addExact(offeredCount, item.stack().amount());
+                    }
+                    if (!tool.accepts(supplied.getKey()) || supplied.getLongValue() > offeredCount) {
+                        throw new IllegalStateException("Reusable delivery contains a tool not offered by the CPU");
+                    }
+                    total.add(new GenericStack(supplied.getKey(), supplied.getLongValue()));
                 }
+                if (TrinityReusableRecipe.remainingCapacity(tool, total,
+                        BigInteger.valueOf(count).add(BigInteger.valueOf(held.committed()))).signum() > 0)
+                    throw new IllegalStateException("Reusable delivery does not cover the uncommitted tool-use budget");
+                amounts.clear();
             }
             if (!amounts.isEmpty()) throw new IllegalStateException("Reusable delivery contains undeclared physical assets");
         }

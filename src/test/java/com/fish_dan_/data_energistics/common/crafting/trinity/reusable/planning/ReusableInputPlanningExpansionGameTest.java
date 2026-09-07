@@ -59,7 +59,7 @@ public final class ReusableInputPlanningExpansionGameTest {
                 TrinityPlanningControl.unbounded());
         helper.assertTrue(result instanceof ReusableInputPlanningExpansion.Captured, "Complete contextual capture should fit");
         helper.assertValueEqual(((ReusableInputPlanningExpansion.Captured) result).bindings().size(), 8,
-                "Every reached tool state is reconsidered with each legal material assignment");
+                "State-dependent custom input matching retains its exact transitions for each material assignment");
         for (List<TrinityBoundPatternInput> assignment : ((ReusableInputPlanningExpansion.Captured) result).bindings()) {
             ReusableInputRule rule = assignment.getFirst().reusableRule();
             helper.assertTrue(rule != null, "Tool slot retains its explicit rule");
@@ -100,7 +100,7 @@ public final class ReusableInputPlanningExpansionGameTest {
         TestPattern pattern = new TestPattern(3, false);
         ReusableInputRules rules = input -> input.inputSlot() == 0 ? Optional.of(ReusableInputRule.fixedDamage(
                 RULE_ID, 1L, (AEItemKey) input.actualInput().what(), 1, 4, List.of())) : Optional.empty();
-        var limit = ReusableInputPlanningExpansion.capture(context(helper, pattern), List.of(), rules, 3,
+        var limit = ReusableInputPlanningExpansion.capture(context(helper, pattern), List.of(tool(1), tool(2), tool(3)), rules, 3,
                 TrinityPlanningControl.unbounded());
         helper.assertTrue(limit instanceof ReusableInputPlanningExpansion.Stopped, "One state beyond the limit rejects capture");
         helper.assertValueEqual(((ReusableInputPlanningExpansion.Stopped) limit).reason(),

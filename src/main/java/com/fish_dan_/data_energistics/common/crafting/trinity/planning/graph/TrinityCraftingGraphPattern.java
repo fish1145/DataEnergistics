@@ -3,11 +3,16 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
 
 import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
+import java.math.BigInteger;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Immutable planner-facing transition captured from one AE crafting pattern.
@@ -19,10 +24,12 @@ import java.util.List;
  */
 public record TrinityCraftingGraphPattern(TrinityPatternIdentity identity,
                                           TrinityPatternPublicationSignature publication,
-                                          List<List<TrinityBoundPatternInput>> reusableBindings) {
+                                          List<List<TrinityBoundPatternInput>> reusableBindings,
+                                          Map<AEKey, BigInteger> lifetimeTools) {
 
     public TrinityCraftingGraphPattern {
         reusableBindings = reusableBindings.stream().map(List::copyOf).toList();
+        lifetimeTools = Object2ObjectMaps.unmodifiable(new Object2ObjectLinkedOpenHashMap<>(lifetimeTools));
         ObjectOpenHashSet<List<TrinityBoundPatternInput>> unique = new ObjectOpenHashSet<>();
         for (List<TrinityBoundPatternInput> assignment : reusableBindings) {
             if (assignment.size() != publication.inputs().size() || !unique.add(assignment)) {
@@ -35,6 +42,11 @@ public record TrinityCraftingGraphPattern(TrinityPatternIdentity identity,
                 }
             }
         }
+    }
+
+    public TrinityCraftingGraphPattern(TrinityPatternIdentity identity, TrinityPatternPublicationSignature publication,
+                                       List<List<TrinityBoundPatternInput>> reusableBindings) {
+        this(identity, publication, reusableBindings, Map.of());
     }
 
     /** Retains the original provider-only graph representation when no request-local rule was captured. */

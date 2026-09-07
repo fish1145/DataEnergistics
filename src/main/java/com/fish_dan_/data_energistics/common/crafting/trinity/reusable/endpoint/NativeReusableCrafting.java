@@ -57,6 +57,13 @@ public final class NativeReusableCrafting {
                 holder.orElseThrow().value().getClass() == ShapelessRecipe.class);
     }
 
+    /** Simple vanilla ingredients match items/tags independently of Damage; custom component predicates do not. */
+    public static boolean hasDamageIndependentInputs(IPatternDetails pattern, Optional<ResourceLocation> recipeId, ServerLevel level) {
+        if (!usesStandardItemRemainders(pattern, recipeId, level)) return false;
+        var recipe = level.getRecipeManager().byKey(recipeId.orElseThrow()).orElseThrow().value();
+        return recipe.getIngredients().stream().allMatch(ingredient -> ingredient.isSimple());
+    }
+
     /**
      * Server-thread candidate validation shared by planning, exact selection and native execution. Only slots
      * already proven reusable may advance beyond the encoded key; ordinary input substitution restrictions remain.

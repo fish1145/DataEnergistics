@@ -29,7 +29,8 @@ public record TrinityBoundPatternInput(
                                        long multiplier,
                                        @Nullable AEKey remainingKey,
                                        @Nullable ReusableInputRule reusableRule,
-                                       List<GenericStack> byproducts) {
+                                       List<GenericStack> byproducts,
+                                       boolean lifetimeBudget) {
 
     /**
      * Rejects incomplete bindings before exact quantities are derived.
@@ -40,6 +41,10 @@ public record TrinityBoundPatternInput(
             throw new IllegalArgumentException("A Trinity bound input requires a legal slot, template and multiplier");
         }
         byproducts = List.copyOf(byproducts);
+        if (lifetimeBudget && (reusableRule == null || reusableRule.kind() != ReusableInputRule.Kind.FIXED_DAMAGE ||
+                !reusableRule.exhaustionByproducts().isEmpty())) {
+            throw new IllegalArgumentException("A continuous fixed-wear binding needs a proved lifetime without side products");
+        }
         if (reusableRule == null && !byproducts.isEmpty()) {
             throw new IllegalArgumentException("Legacy input bindings cannot declare reusable-tool byproducts");
         }
@@ -52,6 +57,18 @@ public record TrinityBoundPatternInput(
                 throw new IllegalArgumentException("Reusable binding must retain the exact one-use transition");
             }
         }
+    }
+
+    /** A discrete transition binding, used when the recipe's matching contract is state-dependent. */
+    public TrinityBoundPatternInput(int slotIndex, int alternativeIndex, GenericStack template, long multiplier,
+                                    @Nullable AEKey remainingKey, @Nullable ReusableInputRule reusableRule,
+                                    List<GenericStack> byproducts) {
+        this(slotIndex, alternativeIndex, template, multiplier, remainingKey, reusableRule, byproducts, false);
+    }
+
+    /** Only bindings whose input matching accepts the whole fixed-wear lifetime expose this budget. */
+    public @Nullable ReusableInputRule lifetimeRule() {
+        return lifetimeBudget ? reusableRule : null;
     }
 
     /** Captures the unchanged legacy per-template remainder contract. */

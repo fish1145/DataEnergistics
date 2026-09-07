@@ -34,6 +34,7 @@ public final class TrinityBoundInputSnapshotCodec {
                 entry.put("remainder", binding.remainingKey().toTagGeneric(registries));
             }
             entry.putBoolean("reusable", binding.reusableRule() != null);
+            entry.putBoolean("lifetime_budget", binding.lifetimeBudget());
             if (binding.reusableRule() != null) {
                 entry.put("rule", ReusableInputRuleNbtCodec.encode(binding.reusableRule(), registries));
             }
@@ -58,6 +59,7 @@ public final class TrinityBoundInputSnapshotCodec {
             require(entry, "multiplier", Tag.TAG_LONG);
             require(entry, "has_remainder", Tag.TAG_BYTE);
             require(entry, "reusable", Tag.TAG_BYTE);
+            require(entry, "lifetime_budget", Tag.TAG_BYTE);
             if (entry.getInt("slot") != result.size()) {
                 throw new IllegalArgumentException("Exact input binding slots must be contiguous and ordered");
             }
@@ -95,7 +97,7 @@ public final class TrinityBoundInputSnapshotCodec {
                 byproducts.add(stack);
             }
             result.add(new TrinityBoundPatternInput(entry.getInt("slot"), entry.getInt("alternative"), template,
-                    entry.getLong("multiplier"), remaining, rule, byproducts));
+                    entry.getLong("multiplier"), remaining, rule, byproducts, entry.getBoolean("lifetime_budget")));
         }
         return List.copyOf(result);
     }

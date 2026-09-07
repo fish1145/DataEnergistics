@@ -75,7 +75,7 @@ public record ReusableCraftingRequest(UUID sessionId, UUID jobId, String cpuOwne
 
     /**
      * Frozen held-unit contract. An operationState constrains every operation in this append to that exact key;
-     * captured CPU firings always provide it. Empty allows a native caller's deterministic consecutive state chain.
+     * explicit state-table firings provide it. Empty permits deterministic lifetime-budgeted consecutive uses.
      */
     public record Tool(long heldAmount, Ownership ownership, ReusableInputRule rule, Optional<AEItemKey> operationState) {
 

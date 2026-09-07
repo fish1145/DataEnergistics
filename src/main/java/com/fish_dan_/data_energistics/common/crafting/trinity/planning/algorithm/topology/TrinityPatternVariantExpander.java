@@ -9,7 +9,10 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.Tri
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphPattern;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCraftingGraphSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternVariant;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.rules.FixedToolIdentity;
 import com.fish_dan_.data_energistics.common.trinity.pattern.TrinityPatternPublicationSignature;
+
+import appeng.api.stacks.GenericStack;
 
 import net.minecraft.network.chat.Component;
 
@@ -102,10 +105,18 @@ public final class TrinityPatternVariantExpander {
                 if (state != StopState.RUNNING) {
                     return stopped(state);
                 }
-                List<TrinityBoundPatternInput> assignment = pattern.reusableBindings().get(ordinal);
+                List<TrinityBoundPatternInput> assignment = pattern.reusableBindings().get(ordinal).stream().map(binding -> {
+                    var lifetime = binding.lifetimeRule();
+                    if (lifetime == null) return binding;
+                    var rule = FixedToolIdentity.rule(lifetime);
+                    var transition = rule.advance(rule.initialKey(), 1L);
+                    return new TrinityBoundPatternInput(binding.slotIndex(), 0,
+                            new GenericStack(rule.initialKey(), binding.template().amount()), binding.multiplier(),
+                            transition.successor(), rule, transition.byproducts(), true);
+                }).toList();
                 variants.add(TrinityPatternVariant.create(pattern.identity(), pattern.outputs().getFirst().what(),
                         ordinal, assignment.stream().map(TrinityBoundPatternInput::alternativeIndex).toList(),
-                        assignment, pattern.outputs(), true));
+                        assignment, pattern.outputs(), true, pattern.lifetimeTools()));
             }
             return TrinityAlgorithmResult.success(ObjectLists.unmodifiable(variants));
         }

@@ -85,8 +85,7 @@ public final class TrinityGraphPlanAssembler {
                     false));
             stageOrder.add(stageIndex);
             mergePatternFiring(patternFirings, firing.variant(), firing.count());
-            mergeScaled(stackRequests, firing.variant().inputs(), firing.count());
-            mergeScaled(stackRequests, firing.variant().outputs(), firing.count());
+            chargeStacks(stackRequests, firing.variant(), firing.count());
         }
         List<TrinityPlanStage> plannedStages = TrinityStageDependencyPlanner.plan(
                 acyclicPlan.externalInputs(),
@@ -160,8 +159,7 @@ public final class TrinityGraphPlanAssembler {
                 stageOrder.add(stageIndex);
                 mergePatternFiring(patternFirings, acyclic.variant(), acyclic.count());
                 mergeScaled(netChange, acyclic.variant().netChange(), acyclic.count());
-                mergeScaled(stackRequests, acyclic.variant().inputs(), acyclic.count());
-                mergeScaled(stackRequests, acyclic.variant().outputs(), acyclic.count());
+                chargeStacks(stackRequests, acyclic.variant(), acyclic.count());
                 continue;
             }
 
@@ -185,8 +183,7 @@ public final class TrinityGraphPlanAssembler {
                 blockStages.add(stageIndex);
                 BigInteger totalCount = batch.count().multiply(cycle.repetitions());
                 mergePatternFiring(patternFirings, batch.variant(), totalCount);
-                mergeScaled(stackRequests, batch.variant().inputs(), totalCount);
-                mergeScaled(stackRequests, batch.variant().outputs(), totalCount);
+                chargeStacks(stackRequests, batch.variant(), totalCount);
             }
             repeatBlocks.add(new TrinityCycleRepeatBlock(
                     repeatIndex++,
@@ -297,8 +294,17 @@ public final class TrinityGraphPlanAssembler {
         if (context == null || assembly == null) {
             throw new IllegalArgumentException("A Trinity final plan assembly request is incomplete");
         }
+        var stackRequests = new Object2ObjectLinkedOpenHashMap<>(assembly.stackRequests());
+        var tools = new Object2ObjectLinkedOpenHashMap<AEKey, BigInteger>();
+        for (var stage : assembly.stages()) for (var firing : stage.firings()) for (var binding : firing.exactBindings()) {
+            if (binding.lifetimeBudget()) {
+                AEKey key = binding.template().what();
+                tools.merge(key, stage.requiredAtStart().getOrDefault(key, binding.consumedAmount()), BigInteger::max);
+            }
+        }
+        tools.forEach((key, amount) -> stackRequests.merge(key, amount.multiply(BigInteger.TWO), BigInteger::add));
         BigInteger bytes = this.byteEstimator.estimate(new TrinityPlanByteEstimateInput(
-                assembly.stackRequests(),
+                stackRequests,
                 sum(assembly.patternFirings()),
                 BigInteger.valueOf(assembly.stages().size())));
         long elapsedNanos = Math.max(
@@ -356,8 +362,7 @@ public final class TrinityGraphPlanAssembler {
                     true));
             stageOrder.add(stageIndex);
             mergePatternFiring(patternFirings, batch.variant(), batch.count());
-            mergeScaled(stackRequests, batch.variant().inputs(), batch.count());
-            mergeScaled(stackRequests, batch.variant().outputs(), batch.count());
+            chargeStacks(stackRequests, batch.variant(), batch.count());
         }
     }
 
@@ -481,6 +486,16 @@ public final class TrinityGraphPlanAssembler {
                                            TrinityPatternVariant variant,
                                            BigInteger count) {
         firings.merge(variant.patternIdentity(), count, BigInteger::add);
+    }
+
+    /** Retained tools occupy physical units once; their lifetime budget is not a per-operation stack transfer. */
+    private static void chargeStacks(Map<AEKey, BigInteger> requests, TrinityPatternVariant variant, BigInteger count) {
+        for (var amounts : List.of(variant.inputs(), variant.outputs())) {
+            amounts.forEach((key, amount) -> {
+                BigInteger physical = amount.subtract(variant.lifetimeTools().getOrDefault(key, BigInteger.ZERO));
+                if (physical.signum() > 0) requests.merge(key, physical.multiply(count), BigInteger::add);
+            });
+        }
     }
 
     private static void mergeScaled(

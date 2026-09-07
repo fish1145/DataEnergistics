@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu;
 
+import com.fish_dan_.data_energistics.api.crafting.reusable.ReusableInputRule;
 import com.fish_dan_.data_energistics.api.crafting.reusable.dispatch.ReusableCraftingSessionView.Settlement;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityCanonicalNbt;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.rules.FixedToolIdentity;
 
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -36,12 +38,18 @@ public final class ReusableCpuSettlement {
             throw new IllegalStateException("CPU-supplied session cannot release machine-owned tools");
         }
         Map<AEKey, BigInteger> expected = new Object2ObjectOpenHashMap<>();
+        Map<ReusableInputRule, FixedToolSettlement> lifetimes = new Object2ObjectOpenHashMap<>();
         BigInteger exhausted = BigInteger.ZERO;
         for (var receipt : settlement.receipts()) {
             var submission = session.submission(receipt.sequence());
             var bindings = submission.work().exactBindings();
             for (var delivered : submission.physicalInputs()) {
-                if (bindings.get(delivered.slot()).reusableRule() != null) {
+                var binding = bindings.get(delivered.slot());
+                var lifetime = binding.lifetimeRule();
+                if (lifetime != null) {
+                    var rule = FixedToolIdentity.rule(lifetime);
+                    lifetimes.computeIfAbsent(rule, FixedToolSettlement::new).deliver((AEItemKey) delivered.stack().what(), delivered.stack().amount());
+                } else if (binding.reusableRule() != null) {
                     add(expected, delivered.stack().what(), BigInteger.valueOf(delivered.stack().amount()));
                 }
             }
@@ -49,6 +57,11 @@ public final class ReusableCpuSettlement {
                 BigInteger units = binding.consumedAmount();
                 if (binding.reusableRule() == null) {
                     add(expected, binding.template().what(), units.multiply(BigInteger.valueOf(receipt.cancelled())));
+                    continue;
+                }
+                if (binding.lifetimeBudget()) {
+                    var rule = FixedToolIdentity.rule(binding.reusableRule());
+                    lifetimes.computeIfAbsent(rule, FixedToolSettlement::new).completed(binding.slotIndex(), units, receipt.completed());
                     continue;
                 }
                 BigInteger used = units.multiply(BigInteger.valueOf(receipt.completed()));
@@ -62,7 +75,15 @@ public final class ReusableCpuSettlement {
                 }
             }
         }
-        if (!exhausted.equals(BigInteger.valueOf(settlement.exhaustedTools())) || !expected.equals(amounts(settlement.returnedAssets()))) {
+        Map<AEKey, BigInteger> remaining = amounts(settlement.returnedAssets());
+        for (var entry : expected.entrySet()) {
+            if (entry.getValue().signum() < 0 || remaining.getOrDefault(entry.getKey(), BigInteger.ZERO).compareTo(entry.getValue()) < 0) {
+                throw new IllegalStateException("Reusable return omitted expected material or tool units");
+            }
+            add(remaining, entry.getKey(), entry.getValue().negate());
+        }
+        for (var budget : lifetimes.values()) exhausted = exhausted.add(budget.verify(remaining));
+        if (!exhausted.equals(BigInteger.valueOf(settlement.exhaustedTools())) || !remaining.isEmpty()) {
             throw new IllegalStateException("Reusable return does not conserve delivered materials and exact tool transitions");
         }
     }

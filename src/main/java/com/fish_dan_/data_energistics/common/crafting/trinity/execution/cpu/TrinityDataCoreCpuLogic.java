@@ -41,6 +41,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.provider.CraftingProviderPublicationIndex;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.selection.WorkerOperationTracker;
 import com.fish_dan_.data_energistics.common.crafting.trinity.dispatch.server.CraftingDispatchStepResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.execution.cpu.TrinityReusableRecipe.ResidentTools;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityBoundPatternDetails;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityPatternResolver;
 import com.fish_dan_.data_energistics.common.crafting.trinity.execution.pattern.TrinityPatternSelector;
@@ -76,6 +77,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.Reusa
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.cpu.ReusableCpuSettlement;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.planning.ReusableInputGraphCaptureAccess;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.planning.ReusableReplanGraphCapture;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.rules.FixedToolIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus;
 import com.fish_dan_.data_energistics.common.crafting.trinity.status.TrinityReusableStatus.Phase;
 import com.fish_dan_.data_energistics.common.crafting.virtual.VirtualCraftingOutputAdapters;
@@ -119,7 +121,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 
 import com.google.common.base.Preconditions;
-import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
@@ -3909,6 +3911,16 @@ final class TrinityDataCoreCpuLogic {
         IGrid grid = this.cpu.grid();
         Set<AEKey> seen = new ObjectOpenHashSet<>();
         for (var binding : work.exactBindings()) {
+            var lifetime = binding.lifetimeRule();
+            if (lifetime != null) {
+                for (var entry : this.inventory.list) {
+                    AEKey candidate = entry.getKey();
+                    if (candidate instanceof AEItemKey item && FixedToolIdentity.matches(lifetime, item) && seen.add(candidate)) {
+                        available.add(candidate, entry.getLongValue());
+                    }
+                }
+                continue;
+            }
             AEKey key = binding.template().what();
             if (seen.add(key)) {
                 long count = this.inventory.list.get(key);
@@ -3935,14 +3947,22 @@ final class TrinityDataCoreCpuLogic {
     }
 
     long reusableOfferLimit(TrinityDataCoreExecutingCraftingJob currentJob, TrinityPlanExecution.Work work, TrinityReusableRecipe recipe,
-                            OutputContract outputs, double power, IEnergyService energy, Int2LongOpenHashMap resident) {
+                            OutputContract outputs, double power, IEnergyService energy, Int2ObjectMap<ResidentTools> resident) {
         long maximum = work.maximumLogicalFirings();
         IGrid grid = this.cpu.grid();
         if (grid == null) return 0L;
         if (work.cycle()) {
             maximum = currentJob.trinityExecution().maximumCycleLogicalFirings(work, (key, useful) -> {
+                // Lifetime tools are gated by the physical offer and executor admission, not a stationary seed count.
+                for (var tool : recipe.tools()) if (tool.lifetime() && tool.state().equals(key)) return useful;
                 BigInteger available = combinedCycleSeedAvailability(grid.getStorageService().getInventory(), currentJob.trinityExecution().sameItemPolicy(), key, useful);
-                for (var tool : recipe.tools()) if (tool.state().equals(key)) available = available.add(BigInteger.valueOf(resident.get(tool.slot())));
+                for (var tool : recipe.tools()) if (tool.state().equals(key)) {
+                    var held = resident.get(tool.slot());
+                    BigInteger units = BigInteger.ZERO;
+                    for (GenericStack stack : held.tools()) units = units.add(BigInteger.valueOf(stack.amount()));
+                    if (!tool.unchanged()) units = units.subtract(BigInteger.valueOf(held.committed()).multiply(BigInteger.valueOf(tool.held()))).max(BigInteger.ZERO);
+                    available = available.add(units);
+                }
                 return available.min(useful);
             }).maximumLogicalFirings();
         }
@@ -4032,7 +4052,10 @@ final class TrinityDataCoreCpuLogic {
     }
 
     void wakeReusableTool(AEKey key) {
-        if (this.job != null && this.job.isTrinityPlan()) this.job.trinityExecution().wake(key);
+        if (this.job != null && this.job.isTrinityPlan()) {
+            this.job.trinityExecution().wake(key);
+            if (key instanceof AEItemKey item && item.isDamaged()) this.job.trinityExecution().wake(FixedToolIdentity.key(item));
+        }
         postChange(key);
     }
 

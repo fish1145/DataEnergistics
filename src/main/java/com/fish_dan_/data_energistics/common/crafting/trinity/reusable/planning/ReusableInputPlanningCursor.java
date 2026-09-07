@@ -56,6 +56,7 @@ public final class ReusableInputPlanningCursor {
     private final Thread owner = Thread.currentThread();
     private final IPatternDetails.IInput[] inputs;
     private final boolean nativeValidation;
+    private final boolean damageIndependentInputs;
     private final Object2ObjectAVLTreeMap<String, AEItemKey> sortedInventory = new Object2ObjectAVLTreeMap<>();
     private final List<AEItemKey> orderedInventory = new ObjectArrayList<>();
     private final List<ObjectLinkedOpenHashSet<GenericStack>> original = new ObjectArrayList<>();
@@ -91,6 +92,7 @@ public final class ReusableInputPlanningCursor {
         this.control = control;
         this.inputs = context.pattern().getInputs();
         this.nativeValidation = NativeReusableCrafting.usesNativeRecipeValidation(context.pattern(), context.recipeId());
+        this.damageIndependentInputs = NativeReusableCrafting.hasDamageIndependentInputs(context.pattern(), context.recipeId(), context.level());
     }
 
     /**
@@ -304,7 +306,8 @@ public final class ReusableInputPlanningCursor {
         } else {
             ReusableInputRule.Result transition = rule.advance((AEItemKey) template.what(), 1L);
             captured.add(new TrinityBoundPatternInput(slot, alternative, template, inputs[slot].getMultiplier(),
-                    transition.successor(), rule, transition.byproducts()));
+                    transition.successor(), rule, transition.byproducts(), damageIndependentInputs &&
+                            rule.kind() == ReusableInputRule.Kind.FIXED_DAMAGE && rule.exhaustionByproducts().isEmpty()));
             reusable = true;
         }
         slot++;
@@ -330,7 +333,7 @@ public final class ReusableInputPlanningCursor {
             return;
         }
         TrinityBoundPatternInput binding = captured.get(slot++);
-        if (binding.reusableRule() != null && binding.remainingKey() != null &&
+        if (!binding.lifetimeBudget() && binding.reusableRule() != null && binding.remainingKey() != null &&
                 !binding.remainingKey().equals(binding.template().what()) &&
                 (nativeValidation || inputs[binding.slotIndex()].isValid(binding.remainingKey(), context.level()))) {
             List<GenericStack> next = new ObjectArrayList<>(assignment);

@@ -21,12 +21,14 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQ
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityBoundPatternInput;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph.TrinityPatternIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCraftingPlan;
+import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityCycleRepeatBlock;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanPatternFiring;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.plan.TrinityPlanStage;
 import com.fish_dan_.data_energistics.common.crafting.trinity.profile.TrinityDataCoreCpuContribution;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint.Binding;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.endpoint.PersistentReusableCraftingEndpoint.NativeResult;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.rules.FixedToolIdentity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession.Identity;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession.Operation;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.session.ReusableInputSession.ToolOutcome;
@@ -100,6 +102,13 @@ public final class TrinityReusableCpuDispatchGameTest {
         run(helper, new Fixture(helper, 1000, 17, Scenario.CONTINUOUS));
     }
 
+    @TestHolder("cpu_dispatch_spends_tool_lifetimes_across_real_capacity_limited_appends")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 1800)
+    public static void spendsToolLifetimesAcrossRealCapacityLimitedAppends(GameTestHelper helper) {
+        run(helper, new Fixture(helper, 250, 17, Scenario.DURABILITY));
+    }
+
     @TestHolder("cpu_dispatch_cancelled_suffix_settles_and_replans_without_repeating_completed_output")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 1800)
@@ -116,6 +125,7 @@ public final class TrinityReusableCpuDispatchGameTest {
 
     private enum Scenario {
         CONTINUOUS,
+        DURABILITY,
         CANCEL,
         OLDER_CPU_SNAPSHOT
     }
@@ -148,9 +158,9 @@ public final class TrinityReusableCpuDispatchGameTest {
 
                 @Override
                 public Optional<ReusableInputRule> resolve(ReusableInputContext context) {
-                    return context.pattern() instanceof FixturePattern && context.inputSlot() == 0 &&
+                    return context.pattern() instanceof FixturePattern pattern && context.inputSlot() == 0 &&
                             context.actualInput().what().equals(tool()) && context.machineMode().equals(Optional.of(MODE)) ?
-                                    Optional.of(ReusableInputRule.unchanged(RULE, 1L, tool())) : Optional.empty();
+                                    Optional.of(pattern.rule()) : Optional.empty();
                 }
             });
         }
@@ -168,7 +178,7 @@ public final class TrinityReusableCpuDispatchGameTest {
         private final int requested;
         private final int capacity;
         private final Scenario scenario;
-        private final FixturePattern pattern = new FixturePattern();
+        private final FixturePattern pattern;
         private final KeyCounter stock = new KeyCounter();
         private final KeyCounter pendingOutputs = new KeyCounter();
         private final ObjectOpenHashSet<UUID> settled = new ObjectOpenHashSet<>();
@@ -188,6 +198,7 @@ public final class TrinityReusableCpuDispatchGameTest {
         private long toolDelivered;
         private long materialDelivered;
         private long toolReturned;
+        private long exhaustedTools;
         private long admissions;
         private boolean closedSuffix;
         private boolean cancellationChecked;
@@ -203,11 +214,12 @@ public final class TrinityReusableCpuDispatchGameTest {
             this.requested = requested;
             this.capacity = capacity;
             this.scenario = scenario;
+            this.pattern = new FixturePattern(scenario == Scenario.DURABILITY);
             String identity = "cpu-dispatch-fixture-" + UUID.randomUUID();
             this.endpoint = new PersistentReusableCraftingEndpoint(identity);
             this.target = new Target(identity, CountedCraftingTarget.route("fixture"), Optional.of(MODE));
             this.publication = TrinityPatternIdentity.capture(TrinityPatternPublicationSignature.capture(pattern), helper.getLevel().registryAccess());
-            stock.add(tool(), 1L);
+            stock.add(tool(), scenario == Scenario.DURABILITY ? 3L : 1L);
             stock.add(material(), requested);
             node = GridHelper.createManagedNode(this, (owner, changed) -> {})
                     .setInWorldNode(false).setIdlePowerUsage(0D)
@@ -236,7 +248,7 @@ public final class TrinityReusableCpuDispatchGameTest {
                 helper.assertTrue(DataEnergisticsEntrypointLoader.snapshot().reusableInputs().resolve(context).isPresent(),
                         "Test-only reusable rule plugin must be discovered by normal common-setup scanning");
                 powerAtSubmit = power;
-                var submitted = runtime.submitJob(grid, plan(requested, publication), host.accessActionSource(), null);
+                var submitted = runtime.submitJob(grid, plan(requested, publication, pattern), host.accessActionSource(), null);
                 helper.assertTrue(submitted.successful(), "A real runtime worker must accept the fixture plan: " + submitted.errorCode());
                 worker = runtime.publishedCpus().stream().filter(cpu -> cpu.number() > 0).findFirst().orElseThrow();
                 if (scenario == Scenario.OLDER_CPU_SNAPSHOT) {
@@ -263,7 +275,10 @@ public final class TrinityReusableCpuDispatchGameTest {
                 if (view.failure().isPresent()) helper.fail("Native fixture was quarantined: " + view.failure().orElseThrow());
             });
             if (toolDelivered > toolReturned) {
-                helper.assertValueEqual(worker.getStored(tool()), BigInteger.ZERO, "Resident tool must not also appear in consumable CPU inventory");
+                if (scenario == Scenario.DURABILITY) {
+                    helper.assertTrue(worker.getStored(tool()).add(BigInteger.valueOf(toolDelivered)).compareTo(BigInteger.valueOf(3)) <= 0,
+                            "Delivered tools cannot remain duplicated in the CPU's spare inventory");
+                } else helper.assertValueEqual(worker.getStored(tool()), BigInteger.ZERO, "Resident tool must not also appear in consumable CPU inventory");
                 helper.assertValueEqual(worker.getWaitingFor(tool()), BigInteger.ZERO, "Resident tool must not become an ordinary per-operation waiting output");
             }
             if (!worker.isBusy() && !endpoint.hasResidentSession() && pendingOutputs.isEmpty()) {
@@ -271,10 +286,19 @@ public final class TrinityReusableCpuDispatchGameTest {
                 helper.assertValueEqual(consumed, (long) requested, "Material consumption matches actual operations");
                 helper.assertValueEqual(stock.get(product()), (long) requested, "Only actually produced outputs reach final network storage");
                 helper.assertValueEqual(stock.get(material()), 0L, "All and only the required material was consumed");
-                helper.assertValueEqual(stock.get(tool()), 1L, "One actual tool returns after custody closes");
+                if (scenario == Scenario.DURABILITY) {
+                    var remaining = pattern.rule().advance(tool(), 50).successor();
+                    helper.assertValueEqual(stock.get(remaining), 1L, "250 uses leave one real half-used tool");
+                    helper.assertValueEqual(stock.get(tool()), 0L, "No pristine tool may be synthesized on return");
+                    helper.assertValueEqual(toolDelivered, 3L, "Only three real tools are transferred across all appends");
+                    helper.assertValueEqual(toolReturned, 1L, "Only the surviving tool is returned");
+                    helper.assertValueEqual(exhaustedTools, 2L, "Two tools are legally exhausted");
+                } else {
+                    helper.assertValueEqual(stock.get(tool()), 1L, "One actual tool returns after custody closes");
+                    helper.assertValueEqual(toolDelivered, (long) sessions.size(), "Each continuous session receives its tool only once");
+                    helper.assertValueEqual(toolReturned, (long) sessions.size(), "Each session returns its tool only once");
+                }
                 helper.assertTrue(admissions > 1L, "The fixture must pass through partial-capacity appends");
-                helper.assertValueEqual(toolDelivered, (long) sessions.size(), "Each continuous session receives its tool only once");
-                helper.assertValueEqual(toolReturned, (long) sessions.size(), "Each session returns its tool only once");
                 if (scenario == Scenario.CANCEL) helper.assertTrue(cancellationChecked && sessions.size() == 2, "Cancelled suffix must settle then resume in one new session");
                 else helper.assertValueEqual(sessions.size(), 1, "All thousand operations share a single resident tool session");
                 KeyCounter[] sample = { new KeyCounter(), new KeyCounter() };
@@ -447,7 +471,8 @@ public final class TrinityReusableCpuDispatchGameTest {
             return endpoint.settle(sessionId, settlement -> {
                 if (!receiver.receive(settlement)) return false;
                 if (settled.add(sessionId)) {
-                    for (GenericStack asset : settlement.returnedAssets()) if (asset.what().equals(tool())) toolReturned += asset.amount();
+                    for (GenericStack asset : settlement.returnedAssets()) if (asset.what() instanceof AEItemKey item && item.getItem() == tool().getItem()) toolReturned += asset.amount();
+                    exhaustedTools += settlement.exhaustedTools();
                     long cancelled = settlement.receipts().stream().mapToLong(ReusableCraftingSessionView.AppendReceipt::cancelled).sum();
                     if (cancelled > 0L) {
                         helper.assertValueEqual(worker.getWaitingFor(product()), BigInteger.ZERO, "CPU settlement removes only cancelled unexecuted waiting output");
@@ -472,12 +497,15 @@ public final class TrinityReusableCpuDispatchGameTest {
         @Override
         public NativeResult execute(Binding binding, Operation operation) {
             if (operation.consumed().size() != 1 || !operation.consumed().getFirst().stack().equals(new GenericStack(material(), 1L)) ||
-                    operation.tools().size() != 1 || !operation.tools().getFirst().stack().equals(new GenericStack(tool(), 1L))) {
+                    operation.tools().size() != 1 || operation.tools().getFirst().stack().amount() != 1L ||
+                    !(operation.tools().getFirst().stack().what() instanceof AEItemKey actualTool) ||
+                    !(pattern.lifetime() ? FixedToolIdentity.matches(pattern.rule(), actualTool) : actualTool.equals(tool()))) {
                 throw new IllegalStateException("Native fixture received incorrect physical material/tool escrow");
             }
             executed++;
             consumed += operation.consumed().getFirst().stack().amount();
-            return new NativeResult(true, List.of(new ToolOutcome(0, List.of(operation.tools().getFirst().stack()), List.of())),
+            var successor = pattern.rule().advance((AEItemKey) operation.tools().getFirst().stack().what(), 1).successor();
+            return new NativeResult(true, List.of(new ToolOutcome(0, successor == null ? List.of() : List.of(new GenericStack(successor, 1)), List.of())),
                     List.of(new GenericStack(product(), 1L)), Optional.empty());
         }
 
@@ -577,12 +605,17 @@ public final class TrinityReusableCpuDispatchGameTest {
         }
     }
 
-    private record FixturePattern() implements IPatternDetails {
+    private record FixturePattern(boolean lifetime) implements IPatternDetails {
+
+        ReusableInputRule rule() {
+            return lifetime ? ReusableInputRule.fixedDamage(RULE, 1L, tool(), 1, 100, List.of()) :
+                    ReusableInputRule.unchanged(RULE, 1L, tool());
+        }
 
         @Override
         public AEItemKey getDefinition() {
             ItemStack definition = new ItemStack(Items.PAPER);
-            definition.set(DataComponents.CUSTOM_NAME, Component.literal("cpu-dispatch-fixture-pattern"));
+            definition.set(DataComponents.CUSTOM_NAME, Component.literal("cpu-dispatch-fixture-pattern-" + lifetime));
             return AEItemKey.of(definition);
         }
 
@@ -620,19 +653,23 @@ public final class TrinityReusableCpuDispatchGameTest {
         }
     }
 
-    private static TrinityCraftingPlan plan(int count, TrinityPatternIdentity identity) {
+    private static TrinityCraftingPlan plan(int count, TrinityPatternIdentity identity, FixturePattern pattern) {
         BigInteger total = BigInteger.valueOf(count);
-        ReusableInputRule rule = ReusableInputRule.unchanged(RULE, 1L, tool());
-        List<TrinityBoundPatternInput> bindings = List.of(new TrinityBoundPatternInput(0, 0, new GenericStack(tool(), 1L), 1L, tool(), rule, List.of()),
+        ReusableInputRule rule = pattern.rule();
+        List<TrinityBoundPatternInput> bindings = List.of(new TrinityBoundPatternInput(0, 0, new GenericStack(tool(), 1L), 1L,
+                rule.advance(tool(), 1).successor(), rule, List.of(), pattern.lifetime()),
                 new TrinityBoundPatternInput(1, 0, new GenericStack(material(), 1L), 1L, null));
-        var firing = new TrinityPlanPatternFiring(identity, product(), 0, total, Map.of(tool(), BigInteger.ONE, material(), BigInteger.ONE),
-                Map.of(product(), BigInteger.ONE), Map.of(tool(), BigInteger.ONE), bindings);
-        Map<AEKey, BigInteger> initial = Map.of(tool(), BigInteger.ONE, material(), total);
+        var firing = new TrinityPlanPatternFiring(identity, product(), 0, total,
+                pattern.lifetime() ? Map.of(material(), BigInteger.ONE) : Map.of(tool(), BigInteger.ONE, material(), BigInteger.ONE),
+                Map.of(product(), BigInteger.ONE), pattern.lifetime() ? Map.of() : Map.of(tool(), BigInteger.ONE), bindings);
+        Map<AEKey, BigInteger> initial = Map.of(tool(), pattern.lifetime() ? BigInteger.valueOf(3) : BigInteger.ONE, material(), total);
         Map<AEKey, BigInteger> delta = Map.of(material(), total.negate(), product(), total);
-        var stage = new TrinityPlanStage(0, false, Set.of(), List.of(firing), initial, delta);
-        return TrinityCraftingPlan.builder().finalOutput(new GenericStack(product(), count)).bytes(BigInteger.valueOf(1024L))
+        var stage = new TrinityPlanStage(0, pattern.lifetime(), Set.of(), List.of(firing), initial, delta);
+        var builder = TrinityCraftingPlan.builder().finalOutput(new GenericStack(product(), count)).bytes(BigInteger.valueOf(1024L))
                 .catalogRevision(1L).quantityMode(CraftingQuantityMode.NET_NEW).initialExpectedInputs(initial)
-                .patternFirings(Map.of(identity, total)).stages(List.of(stage)).stageOrder(List.of(0)).targetNetChange(delta).build();
+                .patternFirings(Map.of(identity, total)).stages(List.of(stage)).stageOrder(List.of(0)).targetNetChange(delta);
+        if (pattern.lifetime()) builder.minimumSeed(initial).cycleRepeatBlocks(List.of(new TrinityCycleRepeatBlock(0, List.of(0), BigInteger.ONE, initial, delta)));
+        return builder.build();
     }
 
     private static AEItemKey tool() {
