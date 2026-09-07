@@ -17,6 +17,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -25,7 +28,7 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
     private static final ResourceLocation AE2_PANEL_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/universal_terminal_selector.png");
     private static final ResourceLocation CUSTOM_PANEL_TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/gui/universal_terminal_selector.png");
     private static final ResourceLocation FALLBACK_PANEL_TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/part/entity_speed_ticker_back.png");
-    private static final ResourceLocation SLOT_TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/item/portable_cell_screen.png");
+    private static final ResourceLocation SLOT_TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/item/cell/portable_cell_screen.png");
     private static ResourceLocation resolvedPanelTexture;
     private static final int TEXTURE_SIZE = 16;
     private static final int PANEL_WIDTH = 96;
@@ -42,11 +45,18 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
     private static final int NEXT_X = 60;
     private static final int PAGE_BUTTON_Y = 92;
     private static final int PANEL_Y_OFFSET = 32;
+    // Above slot/pattern decorations at 300, below the carried item at 382.
+    private static final float PANEL_Z = 340.0F;
+    private static final float ITEM_Z = 20.0F;
+    private static final float NATIVE_ITEM_Z = 150.0F;
 
     private final Screen screen;
     private final Supplier<AEBaseMenu> menuSupplier;
+    @Setter
     private UniversalTerminalCycleButton anchorButton;
+    @Getter
     private boolean open;
+    private boolean renderingTooltip;
     private int page;
 
     public UniversalTerminalSelectorPanel(Screen screen, Supplier<AEBaseMenu> menuSupplier,
@@ -59,16 +69,8 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
         this.active = false;
     }
 
-    public void setAnchorButton(UniversalTerminalCycleButton anchorButton) {
-        this.anchorButton = anchorButton;
-    }
-
     public void toggleOpen() {
         setOpen(!this.open);
-    }
-
-    public boolean isOpen() {
-        return this.open;
     }
 
     public void restoreState(boolean open, int page) {
@@ -101,12 +103,39 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
 
         updatePosition();
         clampPage();
+        // Keep widget layout current, but draw after container slots in the foreground event.
+    }
 
-        renderPanelBackground(guiGraphics);
-        renderCards(guiGraphics, mouseX, mouseY);
-        renderPageButtons(guiGraphics, mouseX, mouseY);
-        renderPageLabel(guiGraphics);
-        renderTooltip(guiGraphics, mouseX, mouseY);
+    void renderForeground(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        var pose = guiGraphics.pose();
+        pose.pushPose();
+        try {
+            pose.translate(0.0F, 0.0F, PANEL_Z);
+            renderPanelBackground(guiGraphics);
+            renderCards(guiGraphics, mouseX, mouseY);
+            renderPageButtons(guiGraphics, mouseX, mouseY);
+            renderPageLabel(guiGraphics);
+        } finally {
+            pose.popPose();
+        }
+    }
+
+    boolean isRenderingTooltip() {
+        return this.renderingTooltip;
+    }
+
+    void renderForegroundTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        var pose = guiGraphics.pose();
+        pose.pushPose();
+        this.renderingTooltip = true;
+        try {
+            // Native tooltips add 400; keep this final pass above carried-item decorations at 432.
+            pose.translate(0.0F, 0.0F, 100.0F);
+            renderTooltip(guiGraphics, mouseX, mouseY);
+        } finally {
+            this.renderingTooltip = false;
+            pose.popPose();
+        }
     }
 
     @Override
@@ -174,16 +203,23 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
             boolean selected = terminalName != null && terminalName.equals(activeTerminal);
 
             Icon background = hovered ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : (selected ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND);
-            background.getBlitter().dest(cardX - 1, cardY - 1, 20, 20).zOffset(18).blit(guiGraphics);
-            guiGraphics.blit(SLOT_TEXTURE, cardX, cardY, 0, 0.0F, 0.0F, CARD_SIZE, CARD_SIZE, TEXTURE_SIZE, TEXTURE_SIZE);
+            background.getBlitter().dest(cardX - 1, cardY - 1, 20, 20).zOffset(1).blit(guiGraphics);
+            guiGraphics.blit(SLOT_TEXTURE, cardX, cardY, 2, 0.0F, 0.0F, CARD_SIZE, CARD_SIZE, TEXTURE_SIZE, TEXTURE_SIZE);
 
             if (terminalName != null) {
                 ItemStack icon = !entry.stack().isEmpty() ? entry.stack().copy() : UniversalTerminalData.getMenuIcon(terminalName);
                 if (!icon.isEmpty()) {
-                    guiGraphics.renderItem(icon, cardX + 1, cardY + 1, 0, 20);
+                    var pose = guiGraphics.pose();
+                    pose.pushPose();
+                    try {
+                        pose.translate(0.0F, 0.0F, ITEM_Z - NATIVE_ITEM_Z);
+                        guiGraphics.renderItem(icon, cardX + 1, cardY + 1);
+                    } finally {
+                        pose.popPose();
+                    }
                 }
                 if (selected) {
-                    Icon.OVERLAY_ON.getBlitter().dest(cardX + 10, cardY + 10, 8, 8).zOffset(21).blit(guiGraphics);
+                    Icon.OVERLAY_ON.getBlitter().dest(cardX + 10, cardY + 10, 8, 8).zOffset(32).blit(guiGraphics);
                 }
             }
         }
@@ -207,12 +243,12 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
         } else {
             background = Icon.TOOLBAR_BUTTON_BACKGROUND;
         }
-        background.getBlitter().dest(x - 1, y - 1, PAGE_BUTTON_SIZE + 2, PAGE_BUTTON_SIZE + 2).zOffset(18).blit(guiGraphics);
-        guiGraphics.blit(SLOT_TEXTURE, x, y, 0, 0.0F, 0.0F, PAGE_BUTTON_SIZE, PAGE_BUTTON_SIZE, TEXTURE_SIZE, TEXTURE_SIZE);
+        background.getBlitter().dest(x - 1, y - 1, PAGE_BUTTON_SIZE + 2, PAGE_BUTTON_SIZE + 2).zOffset(1).blit(guiGraphics);
+        guiGraphics.blit(SLOT_TEXTURE, x, y, 2, 0.0F, 0.0F, PAGE_BUTTON_SIZE, PAGE_BUTTON_SIZE, TEXTURE_SIZE, TEXTURE_SIZE);
         (forward ? Icon.ARROW_RIGHT : Icon.ARROW_LEFT)
                 .getBlitter()
                 .dest(x, y, PAGE_BUTTON_SIZE, PAGE_BUTTON_SIZE)
-                .zOffset(19)
+                .zOffset(3)
                 .blit(guiGraphics);
     }
 
