@@ -28,7 +28,6 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
     private static final ResourceLocation AE2_PANEL_TEXTURE = ResourceLocation.fromNamespaceAndPath("ae2", "textures/guis/universal_terminal_selector.png");
     private static final ResourceLocation CUSTOM_PANEL_TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/gui/universal_terminal_selector.png");
     private static final ResourceLocation FALLBACK_PANEL_TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/part/entity_speed_ticker_back.png");
-    private static final ResourceLocation SLOT_TEXTURE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "textures/item/cell/portable_cell_screen.png");
     private static ResourceLocation resolvedPanelTexture;
     private static final int TEXTURE_SIZE = 16;
     private static final int PANEL_WIDTH = 96;
@@ -204,7 +203,6 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
 
             Icon background = hovered ? Icon.TOOLBAR_BUTTON_BACKGROUND_HOVER : (selected ? Icon.TOOLBAR_BUTTON_BACKGROUND_FOCUS : Icon.TOOLBAR_BUTTON_BACKGROUND);
             background.getBlitter().dest(cardX - 1, cardY - 1, 20, 20).zOffset(1).blit(guiGraphics);
-            guiGraphics.blit(SLOT_TEXTURE, cardX, cardY, 2, 0.0F, 0.0F, CARD_SIZE, CARD_SIZE, TEXTURE_SIZE, TEXTURE_SIZE);
 
             if (terminalName != null) {
                 ItemStack icon = !entry.stack().isEmpty() ? entry.stack().copy() : UniversalTerminalData.getMenuIcon(terminalName);
@@ -244,7 +242,6 @@ public class UniversalTerminalSelectorPanel extends AbstractWidget {
             background = Icon.TOOLBAR_BUTTON_BACKGROUND;
         }
         background.getBlitter().dest(x - 1, y - 1, PAGE_BUTTON_SIZE + 2, PAGE_BUTTON_SIZE + 2).zOffset(1).blit(guiGraphics);
-        guiGraphics.blit(SLOT_TEXTURE, x, y, 2, 0.0F, 0.0F, PAGE_BUTTON_SIZE, PAGE_BUTTON_SIZE, TEXTURE_SIZE, TEXTURE_SIZE);
         (forward ? Icon.ARROW_RIGHT : Icon.ARROW_LEFT)
                 .getBlitter()
                 .dest(x, y, PAGE_BUTTON_SIZE, PAGE_BUTTON_SIZE)
