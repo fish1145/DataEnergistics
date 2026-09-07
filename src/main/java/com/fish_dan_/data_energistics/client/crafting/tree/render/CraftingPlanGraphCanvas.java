@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGr
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.Layout;
 import com.fish_dan_.data_energistics.common.crafting.tree.layout.CraftingPlanGraphLayout.PlacedNode;
 import com.fish_dan_.data_energistics.common.crafting.tree.model.CraftingPlanGraph;
+import com.fish_dan_.data_energistics.common.crafting.tree.view.CraftingPlanCycleMembership;
 
 import com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
@@ -21,6 +22,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import org.joml.Vector2f;
 import org.jspecify.annotations.Nullable;
 
@@ -37,6 +39,7 @@ public final class CraftingPlanGraphCanvas extends GraphView {
     private final Int2ObjectMap<IntArrayList> incidentRoutes = new Int2ObjectOpenHashMap<>();
     private final IntOpenHashSet highlighted = new IntOpenHashSet();
     private final IntOpenHashSet highlightedRoutes = new IntOpenHashSet();
+    private final Int2ObjectMap<IntSet> cycleMembers = new Int2ObjectOpenHashMap<>();
     private final CraftingPlanSegmentSelection highlightedSegments = new CraftingPlanSegmentSelection();
     private int highlightedNode = -1;
 
@@ -59,6 +62,7 @@ public final class CraftingPlanGraphCanvas extends GraphView {
         this.renderer = null;
         this.graphLayout = null;
         this.incidentRoutes.clear();
+        this.cycleMembers.clear();
         this.selectedNode = -1;
         this.highlightedNode = -1;
         this.highlighted.clear();
@@ -68,7 +72,11 @@ public final class CraftingPlanGraphCanvas extends GraphView {
 
     public void show(CraftingPlanGraph graph, Layout layout) {
         boolean presentationChanged = this.graph != graph || this.graphLayout != layout;
-        if (this.graph != graph) this.renderer = new CraftingPlanGraphRenderer(graph);
+        if (this.graph != graph) {
+            this.renderer = new CraftingPlanGraphRenderer(graph);
+            this.cycleMembers.clear();
+            this.cycleMembers.putAll(CraftingPlanCycleMembership.collect(graph));
+        }
         this.graph = graph;
         this.graphLayout = layout;
         if (presentationChanged) {
@@ -190,8 +198,8 @@ public final class CraftingPlanGraphCanvas extends GraphView {
         this.highlightedRoutes.clear();
         this.highlightedSegments.clear();
         if (nodeId < 0 || this.graph == null || this.graphLayout == null) return;
-        for (var cycle : this.graph.cycles()) {
-            if (cycle.nodeIds().contains(nodeId)) this.highlighted.addAll(cycle.nodeIds());
+        for (var members : this.cycleMembers.values()) {
+            if (members.contains(nodeId)) this.highlighted.addAll(members);
         }
         if (this.highlighted.isEmpty()) {
             IntArrayList routes = this.incidentRoutes.get(nodeId);
