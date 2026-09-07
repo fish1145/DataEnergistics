@@ -142,10 +142,10 @@ final class TrinityAggregatePatternSlots extends BindableUIElement<TrinityPatter
     void bindControls(Scroller.Vertical scrollbar, TextField search, Button searchModeButton) {
         this.scrollbar = scrollbar;
         this.searchModeButton = searchModeButton;
-        // The authored rail exceeds the viewport; hidden arrows also reserve space unless removed from layout.
+        // home.png's rail spans y=2..152, beyond the inset pattern rows; hidden arrows must not reserve space.
         scrollbar.headButton.setDisplay(false);
         scrollbar.tailButton.setDisplay(false);
-        scrollbar.layout(layout -> layout.top(VIEW_TOP).height(VIEW_HEIGHT).gapRow(0));
+        scrollbar.layout(layout -> layout.top(2).height(150).gapRow(0));
         scrollbar.scrollContainer.layout(layout -> layout.heightPercent(100));
         // LDLib2 computes travel from the thumb percentage, so the authored 15px cap must not shorten it.
         scrollbar.scrollBar.layout(layout -> layout.maxHeightPercent(100));
