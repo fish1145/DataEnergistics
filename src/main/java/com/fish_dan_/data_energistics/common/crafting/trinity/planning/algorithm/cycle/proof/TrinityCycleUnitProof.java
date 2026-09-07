@@ -44,7 +44,7 @@ public record TrinityCycleUnitProof(
                                                          TrinityStronglyConnectedComponent component,
                                                          AEKey reservoir) {
         Optional<List<TrinityVariantFiring>> resolved = TrinityDeterministicCycleSequence.create()
-                .resolve(component, reservoir, Map.of());
+                .resolve(component, reservoir, Map.of(), Set.of());
         if (resolved.isEmpty() || !completeUniqueRoute(component, resolved.orElseThrow())) {
             return Optional.empty();
         }
@@ -72,13 +72,17 @@ public record TrinityCycleUnitProof(
      */
     public TrinityCycleUnitProof instantiate(
                                              Map<AEKey, BigInteger> available,
-                                             List<AEKey> internalKeys) {
+                                             List<AEKey> internalKeys,
+                                             Set<AEKey> producibleInputs) {
         ObjectArrayList<TrinityVariantFiring> remaining = new ObjectArrayList<>(order);
         ObjectArrayList<TrinityVariantFiring> ordered = new ObjectArrayList<>(order.size());
         Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> balances = new Object2ObjectLinkedOpenHashMap<>(available);
+        Set<AEKey> internal = new ObjectOpenHashSet<>(internalKeys);
+        Set<AEKey> startupKeys = new ObjectOpenHashSet<>(internal);
+        startupKeys.removeAll(producibleInputs);
         while (!remaining.isEmpty()) {
             TrinityVariantFiring selected = remaining.stream()
-                    .filter(firing -> hasInputs(balances, requiredAtStart(firing)))
+                    .filter(firing -> hasInputs(balances, requiredAtStart(firing), startupKeys))
                     .findFirst()
                     .orElse(remaining.getFirst());
             remaining.remove(selected);
@@ -89,7 +93,6 @@ public record TrinityCycleUnitProof(
                     BigInteger::add));
         }
         Map<AEKey, BigInteger> minimumInputs = TrinityCycleSeedRequirement.minimumInputs(ordered);
-        Set<AEKey> internal = new ObjectOpenHashSet<>(internalKeys);
         Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> newInternalSeed = new Object2ObjectLinkedOpenHashMap<>();
         Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> newExternalInput = new Object2ObjectLinkedOpenHashMap<>();
         minimumInputs.forEach((key, amount) -> (internal.contains(key) ? newInternalSeed : newExternalInput)
@@ -115,8 +118,9 @@ public record TrinityCycleUnitProof(
 
     private static boolean hasInputs(
                                      Map<AEKey, BigInteger> balances,
-                                     Map<AEKey, BigInteger> required) {
-        return required.entrySet().stream().allMatch(entry -> balances
+                                     Map<AEKey, BigInteger> required,
+                                     Set<AEKey> internalKeys) {
+        return required.entrySet().stream().allMatch(entry -> !internalKeys.contains(entry.getKey()) || balances
                 .getOrDefault(entry.getKey(), BigInteger.ZERO)
                 .compareTo(entry.getValue()) >= 0);
     }
@@ -130,9 +134,10 @@ public record TrinityCycleUnitProof(
                 !selected.equals(new ObjectOpenHashSet<>(component.cycleVariants()))) {
             return false;
         }
-        return component.keys().stream().allMatch(key -> component.cycleVariants().stream()
-                .filter(variant -> variant.outputs().containsKey(key))
-                .limit(2L)
-                .count() == 1L);
+        return component.keys().stream().allMatch(key -> component.cycleVariants().stream().noneMatch(variant -> variant.netChange().containsKey(key)) ||
+                component.cycleVariants().stream()
+                        .filter(variant -> variant.netChange().getOrDefault(key, BigInteger.ZERO).signum() > 0)
+                        .limit(2L)
+                        .count() == 1L);
     }
 }

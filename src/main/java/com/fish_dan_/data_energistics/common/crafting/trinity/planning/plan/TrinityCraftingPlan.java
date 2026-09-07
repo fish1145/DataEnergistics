@@ -39,6 +39,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
     private final CraftingQuantityMode quantityMode;
     private final TrinitySameItemPolicy sameItemPolicy;
     private final Map<AEKey, BigInteger> initialExpectedInputs;
+    private final Map<AEKey, BigInteger> physicalInitialInputs;
     private final Map<TrinityPatternIdentity, BigInteger> patternFirings;
     private final Map<AEKey, BigInteger> plannedOutputs;
     private final List<TrinityPlanStage> stages;
@@ -69,6 +70,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
         this.initialExpectedInputs = TrinityPlanAmounts.validatePositive(
                 builder.initialExpectedInputs,
                 "initial expected input");
+        this.physicalInitialInputs = this.initialExpectedInputs;
         this.patternFirings = validatePatternFirings(builder.patternFirings);
         this.stages = validateStages(builder.stages);
         this.stageOrder = validateStageOrder(builder.stageOrder, this.stages);
@@ -101,7 +103,8 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
                 "emitted item");
     }
 
-    private TrinityCraftingPlan(TrinityCraftingPlan source, TrinityPlanningStatistics statistics) {
+    private TrinityCraftingPlan(TrinityCraftingPlan source, TrinityPlanningStatistics statistics,
+                                Map<AEKey, BigInteger> physicalInitialInputs) {
         this.finalOutput = source.finalOutput;
         this.exactBytes = source.exactBytes;
         this.multiplePaths = source.multiplePaths;
@@ -109,6 +112,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
         this.quantityMode = source.quantityMode;
         this.sameItemPolicy = source.sameItemPolicy;
         this.initialExpectedInputs = source.initialExpectedInputs;
+        this.physicalInitialInputs = TrinityPlanAmounts.validatePositive(physicalInitialInputs, "physical initial input");
         this.patternFirings = source.patternFirings;
         this.plannedOutputs = source.plannedOutputs;
         this.stages = source.stages;
@@ -435,7 +439,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
 
     @Override
     public KeyCounter usedItems() {
-        return TrinityAe2AmountProjection.toKeyCounter(this.initialExpectedInputs);
+        return TrinityAe2AmountProjection.toKeyCounter(this.physicalInitialInputs);
     }
 
     @Override
@@ -479,7 +483,7 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
      * @return exact external initial materials, including seed that no preceding stage can produce
      */
     public Map<AEKey, BigInteger> initialExpectedInputs() {
-        return this.initialExpectedInputs;
+        return this.physicalInitialInputs;
     }
 
     /**
@@ -545,7 +549,12 @@ public final class TrinityCraftingPlan implements TrinityCpuExecutablePlan {
      * @return independent plan view that leaves a cached plan untouched
      */
     public TrinityCraftingPlan withPlanningStatistics(TrinityPlanningStatistics value) {
-        return new TrinityCraftingPlan(this, value);
+        return new TrinityCraftingPlan(this, value, this.physicalInitialInputs);
+    }
+
+    /** Binds canonical tool reservations to the actual states withdrawn from this request's inventory. */
+    public TrinityCraftingPlan withPhysicalInitialInputs(Map<AEKey, BigInteger> physicalInputs) {
+        return new TrinityCraftingPlan(this, this.statistics, physicalInputs);
     }
 
     /**

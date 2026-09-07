@@ -270,6 +270,9 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     @Override
     public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder) {
         super.exportSettings(mode, builder);
+        if (mode == SettingsFrom.DISMANTLE_ITEM && getBlockEntity().getLevel() instanceof ServerLevel serverLevel) {
+            getLogic().exportReusableItem(builder, serverLevel.registryAccess());
+        }
         if (mode != SettingsFrom.MEMORY_CARD) {
             return;
         }
@@ -281,6 +284,9 @@ public class AdaptivePatternProviderPart extends PatternProviderPart implements 
     public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
         if (mode != SettingsFrom.MEMORY_CARD) {
             super.importSettings(mode, input, player);
+            if (mode == SettingsFrom.DISMANTLE_ITEM && getBlockEntity().getLevel() instanceof ServerLevel serverLevel) {
+                getLogic().importReusableItem(input, serverLevel.registryAccess());
+            }
             return;
         }
 

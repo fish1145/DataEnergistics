@@ -292,6 +292,12 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     @Override
     public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
         super.exportSettings(mode, builder, player);
+        if (mode == SettingsFrom.DISMANTLE_ITEM && this.getLevel() instanceof ServerLevel serverLevel) {
+            AdaptivePatternProviderLogic logic = getAdaptiveLogic();
+            if (logic != null) {
+                logic.exportReusableItem(builder, serverLevel.registryAccess());
+            }
+        }
         if (mode != SettingsFrom.MEMORY_CARD) {
             return;
         }
@@ -303,6 +309,12 @@ public class AdaptivePatternProviderBlockEntity extends PatternProviderBlockEnti
     public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
         if (mode != SettingsFrom.MEMORY_CARD) {
             super.importSettings(mode, input, player);
+            if (mode == SettingsFrom.DISMANTLE_ITEM && this.getLevel() instanceof ServerLevel serverLevel) {
+                AdaptivePatternProviderLogic logic = getAdaptiveLogic();
+                if (logic != null) {
+                    logic.importReusableItem(input, serverLevel.registryAccess());
+                }
+            }
             return;
         }
 

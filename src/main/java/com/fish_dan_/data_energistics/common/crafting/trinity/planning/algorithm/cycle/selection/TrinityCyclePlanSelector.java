@@ -148,6 +148,8 @@ public final class TrinityCyclePlanSelector {
         if (unitProof != null) {
             retainedSeed.putAll(unitProof.internalSeed());
         }
+        // Replenishable inputs are charged to this execution, not retained as an ever-growing restart reserve.
+        retainedSeed.keySet().removeAll(producibleInputs);
         int remainingStates = maxStates;
         int accumulatedStates = 0;
         long accumulatedNanos = 0L;
@@ -184,7 +186,11 @@ public final class TrinityCyclePlanSelector {
             }
             TrinityCycleSeedRequirement.fromSelection(selected, internalKeys)
                     .amounts()
-                    .forEach((key, amount) -> retainedSeed.merge(key, amount, BigInteger::max));
+                    .forEach((key, amount) -> {
+                        if (!producibleInputs.contains(key)) {
+                            retainedSeed.merge(key, amount, BigInteger::max);
+                        }
+                    });
             TrinityCycleDemand nextDemand = demand.withRetainedSeed(retainedSeed);
             if (nextDemand.equals(refinedDemand) || satisfiesFinalBounds(selected, nextDemand)) {
                 if (control.cancellationRequested()) {
@@ -272,7 +278,7 @@ public final class TrinityCyclePlanSelector {
             Optional<List<TrinityVariantFiring>> deterministicOrder = unitProof != null &&
                     unitProof.reservoir().equals(request.target()) ?
                             Optional.of(unitProof.order()) :
-                            this.deterministicCycleSequence.resolve(component, request.target(), inventory);
+                            this.deterministicCycleSequence.resolve(component, request.target(), inventory, producible);
             if (deterministicOrder.isPresent() && completeUniqueRoute(
                     component,
                     deterministicOrder.orElseThrow())) {
@@ -438,10 +444,7 @@ public final class TrinityCyclePlanSelector {
                 .entrySet()
                 .iterator()
                 .next();
-        if (!component.keys().contains(net.getKey())) {
-            return Optional.empty();
-        }
-        if (demand.netNewKeys().contains(net.getKey()) ||
+        if (!component.keys().contains(net.getKey()) || demand.netNewKeys().contains(net.getKey()) ||
                 !demand.finalBalanceLowerBounds().containsKey(net.getKey())) {
             return Optional.of(new ScalarDemand(
                     net.getKey(),
@@ -464,10 +467,11 @@ public final class TrinityCyclePlanSelector {
                 !selected.equals(new ObjectOpenHashSet<>(component.cycleVariants()))) {
             return false;
         }
-        return component.keys().stream().allMatch(key -> component.cycleVariants().stream()
-                .filter(variant -> variant.outputs().containsKey(key))
-                .limit(2L)
-                .count() == 1L);
+        return component.keys().stream().allMatch(key -> component.cycleVariants().stream().noneMatch(variant -> variant.netChange().containsKey(key)) ||
+                component.cycleVariants().stream()
+                        .filter(variant -> variant.netChange().getOrDefault(key, BigInteger.ZERO).signum() > 0)
+                        .limit(2L)
+                        .count() == 1L);
     }
 
     private static Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> maximumAmounts(

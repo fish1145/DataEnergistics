@@ -14,6 +14,11 @@ public interface DataEnergisticsJeiPlugin {
     /**
      * Declares JEI integrations owned by this plugin.
      *
+     * <p>
+     * JEI may repeat this phase after recipes reload or the client reconnects. A fresh plugin instance and
+     * registry are supplied for each cycle; the registry is valid only for this callback.
+     * </p>
+     *
      * @param registry plugin-scoped JEI registration surface
      */
     void register(DataEnergisticsJeiRegistry registry);

@@ -2,10 +2,12 @@ package com.fish_dan_.data_energistics.common.crafting.trinity.planning.graph;
 
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
 
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
 import java.math.BigInteger;
 import java.util.Collections;
@@ -15,17 +17,19 @@ import java.util.Map;
 /**
  * One immutable, fully bound transition in the Trinity crafting hypergraph.
  *
- * @param patternIdentity     stable parent pattern semantics
- * @param primaryOutput       primary output used to resolve the live provider pattern on the server thread
- * @param ordinal             deterministic Cartesian binding ordinal for that pattern
- * @param alternativeOrdinals selected alternative index for every ordered input slot
- * @param bindings            exact physical input bindings retained for live pattern selection
- * @param inputs              logical per-firing consumption used by planning balances
- * @param declaredOutputs     exact pattern-declared outputs, excluding input remainders
- * @param outputs             logical declared outputs plus remaining keys used by planning balances
- * @param netChange           logical signed {@code outputs - inputs}
- * @param physicalInputs      exact component-aware consumption represented by {@code bindings}
- * @param physicalOutputs     exact declared outputs plus exact input remainders
+ * @param patternIdentity      stable parent pattern semantics
+ * @param primaryOutput        primary output used to resolve the live provider pattern on the server thread
+ * @param ordinal              deterministic Cartesian binding ordinal for that pattern
+ * @param alternativeOrdinals  selected alternative index for every ordered input slot
+ * @param bindings             exact physical input bindings retained for live pattern selection
+ * @param inputs               logical per-firing consumption used by planning balances
+ * @param declaredOutputs      exact pattern-declared outputs, excluding input remainders
+ * @param outputs              logical declared outputs plus remaining keys used by planning balances
+ * @param netChange            logical signed {@code outputs - inputs}
+ * @param physicalInputs       exact component-aware consumption represented by {@code bindings}
+ * @param physicalOutputs      exact declared outputs plus exact input remainders
+ * @param requiresExactBinding whether execution must retain this complete server-captured assignment instead of
+ *                             decoding a legacy ordinal
  */
 public record TrinityPatternVariant(
                                     TrinityPatternIdentity patternIdentity,
@@ -38,7 +42,9 @@ public record TrinityPatternVariant(
                                     Map<AEKey, BigInteger> outputs,
                                     Map<AEKey, BigInteger> netChange,
                                     Map<AEKey, BigInteger> physicalInputs,
-                                    Map<AEKey, BigInteger> physicalOutputs)
+                                    Map<AEKey, BigInteger> physicalOutputs,
+                                    boolean requiresExactBinding,
+                                    Map<AEKey, BigInteger> lifetimeTools)
         implements Comparable<TrinityPatternVariant> {
 
     /**
@@ -63,6 +69,7 @@ public record TrinityPatternVariant(
         outputs = copyPositive(outputs, "outputs");
         physicalInputs = copyPositive(physicalInputs, "physical inputs");
         physicalOutputs = copyPositive(physicalOutputs, "physical outputs");
+        lifetimeTools = copyPositive(lifetimeTools, "lifetime tool reservations");
         if (!declaredOutputs.containsKey(primaryOutput)) {
             throw new IllegalArgumentException("A Trinity pattern variant must retain its primary output");
         }
@@ -96,13 +103,40 @@ public record TrinityPatternVariant(
                                                List<Integer> alternativeOrdinals,
                                                List<TrinityBoundPatternInput> bindings,
                                                List<GenericStack> declaredOutputs) {
+        return create(patternIdentity, primaryOutput, ordinal, alternativeOrdinals, bindings, declaredOutputs, false);
+    }
+
+    /** Creates either a legacy Cartesian variant or an explicitly frozen complete assignment. */
+    public static TrinityPatternVariant create(TrinityPatternIdentity patternIdentity,
+                                               AEKey primaryOutput,
+                                               int ordinal,
+                                               List<Integer> alternativeOrdinals,
+                                               List<TrinityBoundPatternInput> bindings,
+                                               List<GenericStack> declaredOutputs,
+                                               boolean requiresExactBinding) {
+        return create(patternIdentity, primaryOutput, ordinal, alternativeOrdinals, bindings, declaredOutputs,
+                requiresExactBinding, Map.of());
+    }
+
+    public static TrinityPatternVariant create(TrinityPatternIdentity patternIdentity, AEKey primaryOutput,
+                                               int ordinal, List<Integer> alternativeOrdinals,
+                                               List<TrinityBoundPatternInput> bindings, List<GenericStack> declaredOutputs,
+                                               boolean requiresExactBinding, Map<AEKey, BigInteger> reservations) {
         Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> inputs = new Object2ObjectLinkedOpenHashMap<>();
         Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> declared = new Object2ObjectLinkedOpenHashMap<>();
         Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> outputs = new Object2ObjectLinkedOpenHashMap<>();
+        Object2ObjectLinkedOpenHashMap<AEKey, BigInteger> tools = new Object2ObjectLinkedOpenHashMap<>();
         for (TrinityBoundPatternInput binding : bindings) {
+            if (binding.lifetimeBudget()) {
+                merge(tools, binding.template().what(), binding.consumedAmount());
+                continue;
+            }
             merge(inputs, binding.template().what(), binding.consumedAmount());
             if (binding.remainingKey() != null) {
                 merge(outputs, binding.remainingKey(), binding.remainingAmount());
+            }
+            for (GenericStack byproduct : binding.byproducts()) {
+                merge(outputs, byproduct.what(), BigInteger.valueOf(byproduct.amount()).multiply(binding.consumedAmount()));
             }
         }
         for (GenericStack output : declaredOutputs) {
@@ -113,6 +147,13 @@ public record TrinityPatternVariant(
             merge(declared, output.what(), amount);
             merge(outputs, output.what(), amount);
         }
+        var physicalInputs = new Object2ObjectLinkedOpenHashMap<>(inputs);
+        var physicalOutputs = new Object2ObjectLinkedOpenHashMap<>(outputs);
+        tools.replaceAll((key, held) -> held.max(reservations.getOrDefault(key, BigInteger.ZERO)));
+        tools.forEach((key, held) -> {
+            merge(inputs, key, held);
+            merge(outputs, key, held);
+        });
         return new TrinityPatternVariant(
                 patternIdentity,
                 primaryOutput,
@@ -123,8 +164,10 @@ public record TrinityPatternVariant(
                 declared,
                 outputs,
                 calculateNetChange(inputs, outputs),
-                inputs,
-                outputs);
+                physicalInputs,
+                physicalOutputs,
+                requiresExactBinding,
+                tools);
     }
 
     /**
@@ -132,8 +175,26 @@ public record TrinityPatternVariant(
      * identity, binding, declared-output and remainder data remains unchanged.
      */
     public TrinityPatternVariant normalized(TrinitySameItemPolicy policy) {
+        ObjectLinkedOpenHashSet<AEItemKey> exactTools = new ObjectLinkedOpenHashSet<>();
+        for (TrinityBoundPatternInput binding : this.bindings) {
+            if (binding.reusableRule() != null) {
+                exactTools.add(binding.reusableRule().initialKey());
+                if (binding.remainingKey() instanceof AEItemKey successor) {
+                    exactTools.add(successor);
+                }
+            }
+        }
+        policy = policy.preservingExactItems(exactTools);
         Map<AEKey, BigInteger> normalizedInputs = policy.normalizeAmounts(this.physicalInputs);
         Map<AEKey, BigInteger> normalizedOutputs = policy.normalizeAmounts(this.physicalOutputs);
+        if (!lifetimeTools.isEmpty()) {
+            normalizedInputs = new Object2ObjectLinkedOpenHashMap<>(normalizedInputs);
+            normalizedOutputs = new Object2ObjectLinkedOpenHashMap<>(normalizedOutputs);
+            for (var tool : lifetimeTools.entrySet()) {
+                normalizedInputs.merge(tool.getKey(), tool.getValue(), BigInteger::add);
+                normalizedOutputs.merge(tool.getKey(), tool.getValue(), BigInteger::add);
+            }
+        }
         if (normalizedInputs.equals(this.inputs) && normalizedOutputs.equals(this.outputs)) {
             return this;
         }
@@ -148,7 +209,9 @@ public record TrinityPatternVariant(
                 normalizedOutputs,
                 calculateNetChange(normalizedInputs, normalizedOutputs),
                 this.physicalInputs,
-                this.physicalOutputs);
+                this.physicalOutputs,
+                this.requiresExactBinding,
+                this.lifetimeTools);
     }
 
     /** Returns exact physical input remainders without mixing them with logical planning representatives. */

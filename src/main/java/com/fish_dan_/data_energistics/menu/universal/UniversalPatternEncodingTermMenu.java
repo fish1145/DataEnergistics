@@ -195,14 +195,13 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                 return;
             }
 
-            encodedPatternInv.setItemDirect(0, encodedPattern);
-            ItemStack finalPattern = encodedPatternInv.getStackInSlot(0);
+            // Inventory callbacks must observe the completed pattern, including this transfer's metadata.
             EncodedPatternDynamicOutput.apply(
-                    finalPattern,
+                    encodedPattern,
                     this.mode == EncodingMode.PROCESSING &&
                             ((PatternOutputMatchMenu) this).data_energistics$isProcessingOutputSameItem());
             EncodedPatternRecipeReference.applyProcessingRecipeMetadata(
-                    finalPattern,
+                    encodedPattern,
                     PatternEncodingSourceHelper.resolveProcessingPatternRecipeType(
                             this,
                             data_energistics$getPreferenceSession(),
@@ -210,6 +209,7 @@ public class UniversalPatternEncodingTermMenu extends PatternEncodingTermMenu
                     PatternEncodingSourceHelper.resolveProcessingPatternRecipeId(
                             this,
                             data_energistics$getPreferenceSession()));
+            encodedPatternInv.setItemDirect(0, encodedPattern);
             syncPatternProvidersIfNeeded(true);
             encodedSuccessfully = true;
         } finally {

@@ -86,6 +86,7 @@
 		"ae2cs.Ae2CsUpgradeablePatternProviderGuiMixin",
 		"client.crafting.CPUSelectionListMixin",
 		"client.crafting.CraftingCPUScreenMixin",
+		"client.crafting.CraftingStatusTableRendererMixin",
 		"client.crafting.CraftAmountScreenMixin",
 		"client.crafting.CraftConfirmScreenMixin",
 		"client.crafting.CraftConfirmTableRendererMixin",

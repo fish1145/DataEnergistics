@@ -28,6 +28,7 @@ import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.progress.TrinityPlanningProgressSnapshot;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.request.TrinityPlanningLimits;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.sameitem.TrinitySameItemPolicy;
+import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.planning.ReusableToolBudget;
 
 import appeng.api.stacks.AEKey;
 
@@ -98,14 +99,58 @@ public final class TrinityPlanningComputation {
     public TrinityPlanningComputationResult calculate(TrinityPlanningInput input,
                                                       TrinityPlanningProgressReporter progress)
                                                                                                 throws InterruptedException, ExecutionException {
+        long started = this.nanoClock.getAsLong();
+        TrinityPlanningSession session = TrinityPlanningSession.create(() -> false, this.nanoClock,
+                TimeUnit.MILLISECONDS.toNanos(input.limits().planningBudgetMs()), progress);
+        try {
+            var budget = new ReusableToolBudget(input.graph().reachableSubgraph(input.target()), input.inventory());
+            if (budget.isEmpty()) return calculateMaterial(input, progress, session);
+            var inventory = budget.planningInventory();
+            var reservations = new Object2ObjectLinkedOpenHashMap<AEKey, BigInteger>();
+            long chargedStates = 0L;
+            while (chargedStates < input.limits().maxScheduleStates()) {
+                var material = new TrinityPlanningInput(input.gridScope(), budget.reserve(input.graph(), reservations),
+                        input.target(), input.requestedAmount(), input.quantityMode(), inventory, input.limits());
+                var result = calculateMaterial(material, progress, session);
+                if (!result.result().successful()) return new TrinityPlanningComputationResult(result.result(),
+                        result.cachePath(), elapsedSince(started), result.cacheStatistics());
+                var plan = result.result().value();
+                boolean changed = false;
+                for (var entry : budget.requiredTools(plan).entrySet()) {
+                    if (entry.getValue().compareTo(reservations.getOrDefault(entry.getKey(), BigInteger.ONE)) > 0) {
+                        reservations.put(entry.getKey(), entry.getValue());
+                        changed = true;
+                    }
+                }
+                if (!changed) {
+                    long elapsed = elapsedSince(started);
+                    var stats = plan.statistics().withRequestMetrics(elapsed, elapsed, session.mipNanos(),
+                            session.solverPasses(), session.solverModels(), session.jointStates(), session.routeStates());
+                    plan = plan.withPhysicalInitialInputs(budget.physicalInputs(plan.initialExpectedInputs())).withPlanningStatistics(stats);
+                    return new TrinityPlanningComputationResult(TrinityAlgorithmResult.success(plan), result.cachePath(),
+                            elapsed, result.cacheStatistics());
+                }
+                chargedStates += Math.max(1, plan.statistics().scheduleStates());
+            }
+            return new TrinityPlanningComputationResult(TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.ORDER_SEARCH_LIMIT,
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.search_limit"),
+                    Map.of("phase", "reusable_capacity", "states", Long.toString(chargedStates)))), PlanningCachePath.MISS);
+        } catch (ReusableToolBudget.Unsupported unsupported) {
+            return new TrinityPlanningComputationResult(TrinityAlgorithmResult.failure(new TrinityPlanningDiagnostic(
+                    TrinityPlanningDiagnosticCode.UNSUPPORTED_PATTERN,
+                    Component.translatable("gui.data_energistics.trinity_planning.diagnostic.unsupported_pattern"),
+                    Map.of("phase", "reusable_capacity", "reason", unsupported.getMessage()))), PlanningCachePath.MISS);
+        }
+    }
+
+    private TrinityPlanningComputationResult calculateMaterial(TrinityPlanningInput input,
+                                                               TrinityPlanningProgressReporter progress,
+                                                               TrinityPlanningSession session)
+                                                                                               throws InterruptedException, ExecutionException {
         long startedNanos = this.nanoClock.getAsLong();
         this.cache.invalidateRevision(input.gridScope(), input.graph().revision());
         TrinityPlanningLimits limits = input.limits();
-        TrinityPlanningSession session = TrinityPlanningSession.create(
-                () -> false,
-                this.nanoClock,
-                TimeUnit.MILLISECONDS.toNanos(limits.planningBudgetMs()),
-                progress);
         TrinityPlanningControl feasibilityControl = session.feasibilityControl();
         CacheTrace cacheTrace = new CacheTrace();
         progress.publish(TrinityPlanningProgressSnapshot.withoutUnits(
@@ -115,7 +160,7 @@ public final class TrinityPlanningComputation {
                 input.gridScope(),
                 TrinityComputationNamespace.REACHABLE_GRAPH,
                 input.graph().revision(),
-                new ReachableGraphKey(input.target()),
+                new ReachableGraphKey(input.target(), input.graph().patterns(), input.graph().reusableInputFallbacks()),
                 () -> TrinityCachedComputation.cacheable(input.graph().reachableSubgraph(input.target())));
         int patternCount = reachable.value().patterns().size();
         progress.publish(patternCount == 0 ?
@@ -126,7 +171,7 @@ public final class TrinityPlanningComputation {
         TrinitySameItemPolicy sameItemPolicy = reachable.value().sameItemPolicy(input.target());
         CompiledGraphKey compiledKey = new CompiledGraphKey(
                 input.target(),
-                reachable.value().patterns().stream().map(TrinityCraftingGraphPattern::identity).toList(),
+                reachable.value().patterns(),
                 sameItemPolicy,
                 STRUCTURE_VERSION);
         TrinityComputationValue<TrinityAlgorithmResult<TrinityCompiledGraph>> compiled = this.cache.computeInline(
@@ -238,7 +283,7 @@ public final class TrinityPlanningComputation {
                             gridScope,
                             TrinityComputationNamespace.PATTERN_EXPANSION,
                             TrinityComputationCache.SEMANTIC_REVISION,
-                            new PatternExpansionKey(pattern.identity(), PATTERN_EXPANSION_VERSION),
+                            new PatternExpansionKey(pattern, PATTERN_EXPANSION_VERSION),
                             () -> cacheSuccessful(this.pipeline.expandPattern(
                                     pattern,
                                     limits.maxBindingVariants(),
@@ -604,15 +649,16 @@ public final class TrinityPlanningComputation {
                 TrinityCachedComputation.transientValue(result);
     }
 
-    private record ReachableGraphKey(AEKey target) {}
+    private record ReachableGraphKey(AEKey target, List<TrinityCraftingGraphPattern> patterns,
+                                     Map<TrinityPatternIdentity, TrinityPlanningDiagnostic> reusableInputFallbacks) {}
 
     private record CompiledGraphKey(
                                     AEKey target,
-                                    List<TrinityPatternIdentity> patternIdentities,
+                                    List<TrinityCraftingGraphPattern> patterns,
                                     TrinitySameItemPolicy sameItemPolicy,
                                     int structureVersion) {}
 
-    private record PatternExpansionKey(TrinityPatternIdentity identity, int expansionVersion) {}
+    private record PatternExpansionKey(TrinityCraftingGraphPattern pattern, int expansionVersion) {}
 
     private record RouteFamilyKey(
                                   AEKey output,
