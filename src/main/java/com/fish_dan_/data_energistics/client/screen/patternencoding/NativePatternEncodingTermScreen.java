@@ -70,6 +70,7 @@ public class NativePatternEncodingTermScreen extends PatternEncodingPreviewScree
 
     @Override
     public @Nullable StackWithBounds dataEnergistics$getGenericStackUnderMouse(double mouseX, double mouseY) {
+        if (isPreviewLayerAt(mouseX, mouseY)) return null;
         Slot slot = this.hoveredSlot;
         if (!isProcessingInputSlot(slot)) {
             return null;

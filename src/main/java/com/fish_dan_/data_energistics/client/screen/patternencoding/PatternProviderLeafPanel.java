@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.client.screen.base.AETextFieldInteraction;
 import com.fish_dan_.data_energistics.client.util.PinyinUtil;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu;
+import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreviewMenu.SyncedPatternProviderList;
 
 import appeng.client.Point;
 import appeng.client.gui.style.Blitter;
@@ -82,7 +83,6 @@ final class PatternProviderLeafPanel {
     private static final float NAME_SCALE = 0.68F;
     private static final float COUNT_SCALE = 0.62F;
     private static final float LOCATION_SCALE = 0.52F;
-    private static final float DETAIL_LAYER_Z = 200.0F;
     private static final int COLOR_TITLE = 0x000000;
     private static final int COLOR_TEXT = 0xE7E7E7;
     private static final int COLOR_LOCATION = 0xB8B8B8;
@@ -100,6 +100,8 @@ final class PatternProviderLeafPanel {
     private ObjectList<LeafRow> allRows = ObjectLists.emptyList();
     private ObjectList<LeafRow> visibleRows = ObjectLists.emptyList();
     private PatternEncodingPreviewMenu.SyncedPatternProvider openedGroup;
+    private @Nullable SyncedPatternProviderList providerSnapshot;
+    private @Nullable Rect2i boundsCache;
     private AETextField searchBox;
     private AETextField renameBox;
     private PatternEncodingPreviewDragButton dragButton;
@@ -124,6 +126,7 @@ final class PatternProviderLeafPanel {
     }
 
     void init() {
+        invalidateLayout();
         PatternEncodingPreferencesClient.providerDetailPanelPosition().ifPresentOrElse(position -> {
             this.relativeX = position.relativeX();
             this.relativeY = position.relativeY();
@@ -157,6 +160,7 @@ final class PatternProviderLeafPanel {
     void open(PatternEncodingPreviewMenu.SyncedPatternProvider group) {
         boolean changedGroup = !this.visible || this.openedGroup.id() != group.id();
         this.openedGroup = group;
+        this.providerSnapshot = this.host.leafPanelMenu().data_energistics$getSyncedPatternProviderState();
         this.visible = true;
         rebuildRows(group);
         if (changedGroup) {
@@ -171,6 +175,9 @@ final class PatternProviderLeafPanel {
         if (!this.visible) {
             return;
         }
+        var snapshot = this.host.leafPanelMenu().data_energistics$getSyncedPatternProviderState();
+        if (snapshot == this.providerSnapshot) return;
+        this.providerSnapshot = snapshot;
         PatternEncodingPreviewMenu.SyncedPatternProvider refreshed = findGroup(this.openedGroup.id());
         if (refreshed == null || refreshed.leaves().size() < 2) {
             close();
@@ -186,7 +193,7 @@ final class PatternProviderLeafPanel {
 
     void setLayerWidgetsDeferred(boolean deferred) {
         this.layerWidgetsDeferred = deferred;
-        updateWidgets();
+        updateWidgetVisibility();
     }
 
     void tick() {
@@ -203,6 +210,7 @@ final class PatternProviderLeafPanel {
     void close() {
         this.visible = false;
         this.openedGroup = null;
+        this.providerSnapshot = null;
         this.allRows = ObjectLists.emptyList();
         this.visibleRows = ObjectLists.emptyList();
         this.dragging = false;
@@ -255,10 +263,12 @@ final class PatternProviderLeafPanel {
             return true;
         }
         if (this.renameBox.visible && this.renameBox.isMouseOver(mouseX, mouseY)) {
-            return this.renameBox.mouseClicked(mouseX, mouseY, button);
+            if (this.renameBox.mouseClicked(mouseX, mouseY, button)) this.host.focusLeafPanelWidget(this.renameBox, button == 0);
+            return true;
         }
         if (this.searchBox.visible && this.searchBox.isMouseOver(mouseX, mouseY)) {
-            return this.searchBox.mouseClicked(mouseX, mouseY, button);
+            if (this.searchBox.mouseClicked(mouseX, mouseY, button)) this.host.focusLeafPanelWidget(this.searchBox, button == 0);
+            return true;
         }
         if (isMouseOver(this.dragButton, mouseX, mouseY)) {
             if (button == 0) {
@@ -384,9 +394,10 @@ final class PatternProviderLeafPanel {
         if (!this.visible) {
             return;
         }
+        updateWidgets();
         PoseStack pose = graphics.pose();
         pose.pushPose();
-        pose.translate(0.0F, 0.0F, DETAIL_LAYER_Z);
+        pose.translate(0.0F, 0.0F, PatternEncodingPreviewLayers.DETAIL_OFFSET_Z);
         try {
             Rect2i bounds = getBounds();
             graphics.blit(PANEL_TEXTURE, bounds.getX(), bounds.getY(), 0, 0, 0, WIDTH, HEIGHT, WIDTH, HEIGHT);
@@ -406,39 +417,32 @@ final class PatternProviderLeafPanel {
         if (!this.visible) {
             return;
         }
-        PoseStack pose = graphics.pose();
-        pose.pushPose();
-        pose.translate(0.0F, 0.0F, DETAIL_LAYER_Z);
-        try {
-            LeafRow row = getRowUnderMouse(mouseX, mouseY);
-            if (row != null) {
-                ObjectArrayList<Component> tooltip = new ObjectArrayList<>();
-                tooltip.add(row.leaf().displayName().copy());
-                tooltip.add(locationTooltip(row));
-                tooltip.add(Component.translatable("screen.data_energistics.pattern_writer_preview.provider.upload"));
-                tooltip.add(row.leaf().openable() ? Component.translatable(
-                        "screen.data_energistics.pattern_writer_preview.provider.open",
-                        DEKeyMappings.OPEN_PATTERN_PROVIDER.getTranslatedKeyMessage()) :
-                        Component.translatable(
-                                "screen.data_energistics.pattern_writer_preview.leaf_open_unavailable"));
-                if (row.leaf().renameable()) {
-                    tooltip.add(Component.translatable(
-                            "screen.data_energistics.pattern_writer_preview.provider.rename",
-                            DEKeyMappings.RENAME_PATTERN_PROVIDER.getTranslatedKeyMessage()));
-                }
+        LeafRow row = getRowUnderMouse(mouseX, mouseY);
+        if (row != null) {
+            ObjectArrayList<Component> tooltip = new ObjectArrayList<>();
+            tooltip.add(row.leaf().displayName().copy());
+            tooltip.add(locationTooltip(row));
+            tooltip.add(Component.translatable("screen.data_energistics.pattern_writer_preview.provider.upload"));
+            tooltip.add(row.leaf().openable() ? Component.translatable(
+                    "screen.data_energistics.pattern_writer_preview.provider.open",
+                    DEKeyMappings.OPEN_PATTERN_PROVIDER.getTranslatedKeyMessage()) :
+                    Component.translatable(
+                            "screen.data_energistics.pattern_writer_preview.leaf_open_unavailable"));
+            if (row.leaf().renameable()) {
                 tooltip.add(Component.translatable(
-                        "screen.data_energistics.pattern_writer_preview.provider.slots",
-                        row.leaf().usedPatternSlotCount(), row.leaf().patternSlotCount()));
-                ObjectArrayList<FormattedCharSequence> formattedTooltip = new ObjectArrayList<>(tooltip.size());
-                tooltip.forEach(line -> formattedTooltip.add(line.getVisualOrderText()));
-                graphics.renderTooltip(this.host.leafPanelFont(), formattedTooltip, mouseX, mouseY);
-                return;
+                        "screen.data_energistics.pattern_writer_preview.provider.rename",
+                        DEKeyMappings.RENAME_PATTERN_PROVIDER.getTranslatedKeyMessage()));
             }
-            if (isMouseOver(this.dragButton, mouseX, mouseY)) {
-                graphics.renderTooltip(this.host.leafPanelFont(), this.dragButton.getMessage(), mouseX, mouseY);
-            }
-        } finally {
-            pose.popPose();
+            tooltip.add(Component.translatable(
+                    "screen.data_energistics.pattern_writer_preview.provider.slots",
+                    row.leaf().usedPatternSlotCount(), row.leaf().patternSlotCount()));
+            ObjectArrayList<FormattedCharSequence> formattedTooltip = new ObjectArrayList<>(tooltip.size());
+            tooltip.forEach(line -> formattedTooltip.add(line.getVisualOrderText()));
+            graphics.renderTooltip(this.host.leafPanelFont(), formattedTooltip, mouseX, mouseY);
+            return;
+        }
+        if (isMouseOver(this.dragButton, mouseX, mouseY)) {
+            graphics.renderTooltip(this.host.leafPanelFont(), this.dragButton.getMessage(), mouseX, mouseY);
         }
     }
 
@@ -460,7 +464,7 @@ final class PatternProviderLeafPanel {
         this.renamingLeafDigest = row.leaf().providerDigest();
         this.searchBox.setFocused(false);
         this.renameBox.setValue(row.leaf().displayName().getString());
-        this.renameBox.setFocused(true);
+        this.host.focusLeafPanelWidget(this.renameBox, false);
         updateWidgets();
     }
 
@@ -587,7 +591,7 @@ final class PatternProviderLeafPanel {
             if (!icon.isEmpty()) {
                 int iconX = bounds.getX() + ICON_X_PADDING;
                 int iconY = bounds.getY() + (ROW_HEIGHT - ICON_SIZE) / 2;
-                graphics.renderItem(icon, iconX, iconY);
+                PatternEncodingPreviewLayers.renderIcon(graphics, icon, iconX, iconY);
                 nameX = iconX + ICON_SIZE + 2;
             }
             String count = row.leaf().usedPatternSlotCount() + "/" + row.leaf().patternSlotCount();
@@ -657,28 +661,34 @@ final class PatternProviderLeafPanel {
                 .blit(graphics);
     }
 
-    private void updateWidgets() {
-        Rect2i bounds = getBounds();
+    private void updateWidgetVisibility() {
         boolean widgetsVisible = this.visible && !this.layerWidgetsDeferred;
         boolean searchVisible = widgetsVisible && !isRenaming();
-        this.searchBox.setX(bounds.getX() + SEARCH_X);
-        this.searchBox.setY(bounds.getY() + SEARCH_Y);
-        this.searchBox.setWidth(SEARCH_WIDTH);
-        this.searchBox.setHeight(SEARCH_HEIGHT);
         this.searchBox.setVisible(searchVisible);
         this.searchBox.active = searchVisible;
         if (!searchVisible && !this.layerWidgetsDeferred) {
             this.searchBox.setFocused(false);
         }
+        this.renameBox.setVisible(widgetsVisible && isRenaming());
+        this.renameBox.active = widgetsVisible && isRenaming();
+        this.dragButton.setVisibility(widgetsVisible);
+        this.scrollbar.setVisible(widgetsVisible && this.visibleRows.size() > VISIBLE_ROWS);
+    }
+
+    private void updateWidgets() {
+        updateWidgetVisibility();
+        if (!this.visible) return;
+        Rect2i bounds = getBounds();
+        this.searchBox.setX(bounds.getX() + SEARCH_X);
+        this.searchBox.setY(bounds.getY() + SEARCH_Y);
+        this.searchBox.setWidth(SEARCH_WIDTH);
+        this.searchBox.setHeight(SEARCH_HEIGHT);
         this.renameBox.setX(bounds.getX() + SEARCH_X);
         this.renameBox.setY(bounds.getY() + SEARCH_Y);
         this.renameBox.setWidth(SEARCH_WIDTH);
         this.renameBox.setHeight(SEARCH_HEIGHT);
-        this.renameBox.setVisible(widgetsVisible && isRenaming());
-        this.renameBox.active = widgetsVisible && isRenaming();
         this.dragButton.setX(bounds.getX() + bounds.getWidth() - this.dragButton.getWidth() - DRAG_RIGHT_PADDING);
         this.dragButton.setY(bounds.getY() + DRAG_TOP_PADDING);
-        this.dragButton.setVisibility(widgetsVisible);
         updateScrollbar();
     }
 
@@ -764,6 +774,15 @@ final class PatternProviderLeafPanel {
     }
 
     private Rect2i getBounds() {
+        if (this.boundsCache == null) this.boundsCache = calculateBounds();
+        return this.boundsCache;
+    }
+
+    void invalidateLayout() {
+        this.boundsCache = null;
+    }
+
+    private Rect2i calculateBounds() {
         if (!this.customPosition) {
             return defaultBounds();
         }
@@ -785,6 +804,7 @@ final class PatternProviderLeafPanel {
         this.relativeX = bounds.getX() - this.host.leafPanelGuiLeft();
         this.relativeY = bounds.getY() - this.host.leafPanelGuiTop();
         this.customPosition = true;
+        invalidateLayout();
         updateWidgets();
     }
 
