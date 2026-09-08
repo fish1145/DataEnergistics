@@ -54,6 +54,9 @@ dependencies {
 
     // Energy integrations
     compileOnly(forge.brandonscore)
+    compileOnly(forge.draconic.evolution)
+    testCompileOnly(forge.brandonscore)
+    testCompileOnly(forge.draconic.evolution)
     compileOnly(forge.oritech)
     compileOnly(forge.modern.industrialization)
     compileOnly(forge.grandpower)

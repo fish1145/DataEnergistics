@@ -74,6 +74,7 @@
 		"core.world.ProjectileUtilMixin",
 		"core.world.SonicBoomMixin",
 		"core.world.VibrationSystemListenerMixin",
+		"draconic.GuardianEncounterCleanupInvoker",
 		"extendedae.ExtendedAePatternProviderPartMixin",
 		"extendedae.ExtendedAeInfinityCellInventoryMixin",
 		"extendedae.ExtendedInscriberThreadMixin",
