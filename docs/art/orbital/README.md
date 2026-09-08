@@ -32,6 +32,8 @@ manager and atlas pipeline; no static copies of baked quads or GPU buffers survi
 
 - Main rail length: 512 world blocks, aligned along X. The core is offset toward the mass driver, with four
   focusing rings on the opposite end and a downward-facing containment cradle.
+- The primary construct stays 2048 blocks above its dimension's build-height limit (Y=2368 in the Overworld).
+  Server snapshots and the world preview share this altitude; target-side firing echoes keep their own placement.
 - Full detail: up to 1024 blocks, eight rail sections per side and sixteen segments per ring.
 - Reduced detail: up to 4096 blocks, simplified module meshes and eight segments per ring.
 - Distant detail: two long rail sections per side, the same core/cradle and four simplified rings. Overall scale

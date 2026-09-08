@@ -229,7 +229,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     public List<OrbitalProjectionVisualSnapshot> publicVisualProjections(ServerLevel level, long gameTime) {
         requireServerThread(level.getServer());
         ResourceLocation dimensionId = level.dimension().location();
-        int projectionY = level.getMaxBuildHeight() + 320;
+        int projectionY = level.getMaxBuildHeight() + OrbitalProjectionVisualSnapshot.ALTITUDE_ABOVE_BUILD_LIMIT;
         return this.weapons.values().stream()
                 .sorted(Comparator.comparing(OrbitalWeaponRecord::weaponId))
                 .filter(weapon -> weapon.lifecycle().hasProjection())

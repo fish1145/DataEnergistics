@@ -39,6 +39,7 @@ public final class OrbitalWorldRenderPreview {
     private static boolean captured;
     private static int view;
     private static int ticks;
+    private static long visualRevision;
 
     private OrbitalWorldRenderPreview() {}
 
@@ -76,7 +77,7 @@ public final class OrbitalWorldRenderPreview {
             captured = false;
         }
         int distance = view == 2 ? 6000 : 600;
-        int projectionY = client.level.getMaxBuildHeight() + 320;
+        int projectionY = client.level.getMaxBuildHeight() + OrbitalProjectionVisualSnapshot.ALTITUDE_ABOVE_BUILD_LIMIT;
         if (view == 3) {
             distance = 450;
             projectionY = client.level.getMaxBuildHeight() + 96;
@@ -87,7 +88,9 @@ public final class OrbitalWorldRenderPreview {
         client.player.setXRot(pitch);
         client.player.xRotO = pitch;
         BlockPos anchor = client.player.blockPosition().offset(0, 0, distance);
-        long revision = client.level.getGameTime() + 1_000_000;
+        // Scenario switches must reach the cache even while server world time stalls during loading.
+        long revision = Math.max(visualRevision + 1, client.level.getGameTime() + 1_000_000);
+        visualRevision = revision;
         var dimension = client.level.dimension().location();
         List<OrbitalProjectionVisualSnapshot> projections = view == 3 ? List.of() : List.of(
                 new OrbitalProjectionVisualSnapshot(new UUID(0, 1), dimension, anchor, projectionY,

@@ -21,6 +21,9 @@ public record OrbitalProjectionVisualSnapshot(
                                               long animationTime,
                                               long randomSeed) {
 
+    /** Vertical clearance of the primary construct above the dimension's exclusive build-height limit. */
+    public static final int ALTITUDE_ABOVE_BUILD_LIMIT = 2048;
+
     public OrbitalProjectionVisualSnapshot {
         anchor = anchor.immutable();
         if (redeploymentTicksRemaining < 0 || animationTime < 0L || randomSeed < 0L) {
