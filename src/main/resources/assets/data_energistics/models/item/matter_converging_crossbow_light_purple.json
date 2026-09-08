@@ -539,6 +539,12 @@
 					"uv": [16, 2.5, 14.5, 3],
 					"texture": "#0"
 				}
+			},
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
 			}
 		},
 		{
@@ -576,6 +582,12 @@
 					"uv": [16, 2.5, 14.5, 3],
 					"texture": "#0"
 				}
+			},
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
 			}
 		},
 		{
@@ -613,6 +625,12 @@
 					"uv": [16, 2.5, 14.5, 3],
 					"texture": "#0"
 				}
+			},
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
 			}
 		},
 		{
@@ -953,6 +971,12 @@
 					"uv": [15, 1, 16, 0.5],
 					"texture": "#0"
 				}
+			},
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
 			}
 		},
 		{
@@ -985,6 +1009,12 @@
 					"uv": [15, 0.5, 16, 1],
 					"texture": "#0"
 				}
+			},
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
 			}
 		},
 		{
@@ -1017,6 +1047,12 @@
 					"uv": [15, 0.5, 16, 1],
 					"texture": "#0"
 				}
+			},
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
 			}
 		},
 		{
@@ -1049,6 +1085,12 @@
 					"uv": [15, 0.5, 16, 1],
 					"texture": "#0"
 				}
+			},
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
 			}
 		},
 		{
@@ -1081,6 +1123,12 @@
 					"uv": [15, 1, 16, 0.5],
 					"texture": "#0"
 				}
+			},
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
 			}
 		},
 		{
@@ -1113,6 +1161,12 @@
 					"uv": [15, 1, 16, 0.5],
 					"texture": "#0"
 				}
+			},
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
 			}
 		},
 		{
@@ -1829,5 +1883,6 @@
 			"rotation": [0, 90, 0],
 			"translation": [0, 0, -1.5]
 		}
-	}
+	},
+	"render_type": "minecraft:translucent"
 }

@@ -553,7 +553,13 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "rail"
+			"deployment": "rail",
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
+			}
 		},
 		{
 			"name": "mainGun",
@@ -981,7 +987,13 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "rail"
+			"deployment": "rail",
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
+			}
 		},
 		{
 			"name": "detail6",
@@ -1080,7 +1092,13 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "rail"
+			"deployment": "rail",
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
+			}
 		},
 		{
 			"name": "detail6",
@@ -1762,5 +1780,6 @@
 			"rotation": [0, 90, 0],
 			"translation": [0, 0, -1.5]
 		}
-	}
+	},
+	"render_type": "minecraft:translucent"
 }

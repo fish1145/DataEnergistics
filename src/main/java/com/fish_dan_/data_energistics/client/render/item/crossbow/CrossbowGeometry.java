@@ -47,9 +47,10 @@ public final class CrossbowGeometry implements IUnbakedGeometry<CrossbowGeometry
         List<Part> ammo = bakeParts(this.specialAmmo, context, spriteGetter, bakery);
         Matrix4f root = modelState.getRotation().applyOrigin(new Vector3f(0.5F))
                 .compose(context.getRootTransform()).getMatrix();
+        ResourceLocation renderType = context.getRenderTypeHint();
         var builder = IModelBuilder.of(false, context.useBlockLight(), true, context.getTransforms(),
                 ItemOverrides.EMPTY, spriteGetter.apply(context.getMaterial("particle")),
-                context.getRenderType(ResourceLocation.withDefaultNamespace("cutout")));
+                context.getRenderType(renderType != null ? renderType : ResourceLocation.withDefaultNamespace("translucent")));
         render(frames, ammo, CrossbowAnimation.Pose.stationary(false), false, root).forEach(builder::addUnculledFace);
         return new CrossbowBakedModel(builder.build(), frames, ammo, root, overrides);
     }

@@ -1762,5 +1762,6 @@
 			"rotation": [0, 90, 0],
 			"translation": [0, 0, -1.5]
 		}
-	}
+	},
+	"render_type": "minecraft:translucent"
 }

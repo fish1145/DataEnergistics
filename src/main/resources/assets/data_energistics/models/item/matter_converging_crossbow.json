@@ -40,5 +40,6 @@
 		"off": "data_energistics:model_poses/item/matter_converging_crossbow/off.json",
 		"on": "data_energistics:models/item/matter_converging_crossbow/on.json",
 		"light_saber": "data_energistics:models/item/matter_converging_crossbow/light_saber.json"
-	}
+	},
+	"render_type": "minecraft:translucent"
 }
