@@ -46,6 +46,8 @@ manager and atlas pipeline; no static copies of baked quads or GPU buffers survi
   confined to the rendered batches and restored afterwards.
 - Animation uses a pause-aware client clock anchored to public server revisions. Delayed baselines cannot rewind
   cosmetic time. Attack phases, beam targets and damage remain server-authoritative.
+- The four main focusing rings rotate independently around the rail axis, with alternating directions and
+  periods of 12, 16, 20 and 24 seconds at 20 ticks per second. This idle motion does not require an active attack.
 
 ## Verification
 

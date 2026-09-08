@@ -36,7 +36,9 @@ public final class OrbitalConstructModel {
         payload(poses, renderer, -32, -50 + Mth.sin(turn) * 1.2, 0, 16, slowTurn);
         for (int ring = 0; ring < 4; ring++) {
             float radius = 38 + (ring == 1 || ring == 2 ? 5 : 0) + spread;
-            float rotation = ring % 2 == 0 ? slowTurn : -slowTurn;
+            // Independent counter-rotation makes each active ring's motion visible from the ground.
+            float ringTurn = OrbitalAnimationClock.angle(time, seed, 240 + ring * 80);
+            float rotation = ring % 2 == 0 ? ringTurn : -ringTurn;
             ring(poses, renderer, detail, 72 + ring * 42, radius, 7, rotation);
         }
         if (detail == Detail.FULL) {
