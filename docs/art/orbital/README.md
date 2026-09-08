@@ -60,30 +60,6 @@ variable; the following commands do not set a private cache path:
 The six new GameTests cover sparse-baseline timing, pause/reconnect behavior, precision in old worlds, LOD
 boundaries/detail budgets, angular-size preservation, transformed culling bounds and nearby world scale.
 
-For native model screenshots, without loading or changing a saved world:
-
-```powershell
-.\gradlew.bat --init-script docs/art/orbital/preview.init.gradle runGameTestClient
-```
-
-The init script adds the already-declared test framework to this client run's runtime classpath and sets the
-opt-in `DE_ORBITAL_MODEL_PREVIEW` environment flag. It does not change saved Gradle configuration. Dismiss any
-third-party mod update prompt to reach the title screen. The test fixture then captures seven views to
-`run/gametest/client/screenshots/orbital-model-*.png` and exits. These are actual Minecraft renders of the production
-assembly, not generated illustrations.
-
-To exercise the real world renderer, first copy a stopped GameTest world's `world/` directory into
-`run/gametest/client/saves/OrbitalRenderVerification/`, without replacing an existing destination, then run:
-
-```powershell
-.\gradlew.bat --init-script docs/art/orbital/world-preview.init.gradle runGameTestClient
-```
-
-The fixture requires this exact isolated save name. It switches its local test player to spectator, establishes
-daylight, and publishes synthetic client-only visual snapshots without creating weapons, damage or attacks.
-It captures deployed, redeploying, distant and three-array firing views through the real level-render stage.
-Screenshots use the `orbital-world-*.png` prefix. It restores its temporary GUI/focus options and exits after capture.
-
 The 2026-09-08 verification passed all 232 required GameTests, including the six new math regressions. Native
 model previews and world-stage smoke captures were checked at 1536 x 864 with Sodium and Iris installed and no
 shader pack selected. All 15 models loaded with the 1024 atlas and four mipmap levels. Arbitrary shader packs,
