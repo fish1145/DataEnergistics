@@ -1,0 +1,103 @@
+{
+	"credit": "Data Energistics orbital construct",
+	"ambientocclusion": false,
+	"textures": {
+		"atlas": "data_energistics:block/orbital/construct",
+		"particle": "data_energistics:block/orbital/construct"
+	},
+	"elements": [
+		{
+			"from": [0, 4, 4],
+			"to": [16, 12, 12],
+			"shade": true,
+			"faces": {
+				"north": {
+					"uv": [8.15, 4.15, 11.85, 7.85],
+					"texture": "#atlas"
+				},
+				"south": {
+					"uv": [8.15, 4.15, 11.85, 7.85],
+					"texture": "#atlas"
+				},
+				"east": {
+					"uv": [0.15, 4.15, 3.85, 7.85],
+					"texture": "#atlas"
+				},
+				"west": {
+					"uv": [0.15, 4.15, 3.85, 7.85],
+					"texture": "#atlas"
+				},
+				"up": {
+					"uv": [0.15, 4.15, 3.85, 7.85],
+					"texture": "#atlas"
+				},
+				"down": {
+					"uv": [0.15, 4.15, 3.85, 7.85],
+					"texture": "#atlas"
+				}
+			}
+		},
+		{
+			"from": [1, 2, 2],
+			"to": [4, 14, 14],
+			"shade": true,
+			"faces": {
+				"north": {
+					"uv": [8.15, 0.15, 11.85, 3.85],
+					"texture": "#atlas"
+				},
+				"south": {
+					"uv": [8.15, 0.15, 11.85, 3.85],
+					"texture": "#atlas"
+				},
+				"east": {
+					"uv": [8.15, 0.15, 11.85, 3.85],
+					"texture": "#atlas"
+				},
+				"west": {
+					"uv": [8.15, 0.15, 11.85, 3.85],
+					"texture": "#atlas"
+				},
+				"up": {
+					"uv": [8.15, 0.15, 11.85, 3.85],
+					"texture": "#atlas"
+				},
+				"down": {
+					"uv": [8.15, 0.15, 11.85, 3.85],
+					"texture": "#atlas"
+				}
+			}
+		},
+		{
+			"from": [12, 2, 2],
+			"to": [15, 14, 14],
+			"shade": true,
+			"faces": {
+				"north": {
+					"uv": [8.15, 0.15, 11.85, 3.85],
+					"texture": "#atlas"
+				},
+				"south": {
+					"uv": [8.15, 0.15, 11.85, 3.85],
+					"texture": "#atlas"
+				},
+				"east": {
+					"uv": [8.15, 0.15, 11.85, 3.85],
+					"texture": "#atlas"
+				},
+				"west": {
+					"uv": [8.15, 0.15, 11.85, 3.85],
+					"texture": "#atlas"
+				},
+				"up": {
+					"uv": [8.15, 0.15, 11.85, 3.85],
+					"texture": "#atlas"
+				},
+				"down": {
+					"uv": [8.15, 0.15, 11.85, 3.85],
+					"texture": "#atlas"
+				}
+			}
+		}
+	]
+}

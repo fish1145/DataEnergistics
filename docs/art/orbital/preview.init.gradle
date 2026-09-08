@@ -1,0 +1,10 @@
+gradle.projectsEvaluated {
+    rootProject.configurations.clientExtraRuntimeClasspath.extendsFrom(rootProject.configurations.testImplementation)
+    rootProject.neoForge.runs.named('gameTestClient') {
+        environment('DE_ORBITAL_MODEL_PREVIEW', 'true')
+        programArgument('--width')
+        programArgument('1536')
+        programArgument('--height')
+        programArgument('864')
+    }
+}

@@ -1,0 +1,16 @@
+gradle.projectsEvaluated {
+    def verificationWorld = rootProject.file('run/gametest/client/saves/OrbitalRenderVerification/level.dat')
+    if (!verificationWorld.isFile()) {
+        throw new GradleException('Copy a stopped GameTest world to run/gametest/client/saves/OrbitalRenderVerification first.')
+    }
+    rootProject.configurations.clientExtraRuntimeClasspath.extendsFrom(rootProject.configurations.testImplementation)
+    rootProject.neoForge.runs.named('gameTestClient') {
+        environment('DE_ORBITAL_WORLD_PREVIEW', 'true')
+        programArgument('--width')
+        programArgument('1536')
+        programArgument('--height')
+        programArgument('864')
+        programArgument('--quickPlaySingleplayer')
+        programArgument('OrbitalRenderVerification')
+    }
+}

@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.client.render.item.DataMeteoriteCompassBak
 import com.fish_dan_.data_energistics.client.render.item.MeVacuumBakedModel;
 import com.fish_dan_.data_energistics.client.render.item.OrderPackageBakedModel;
 import com.fish_dan_.data_energistics.client.render.item.OrderPackageItemRenderer;
+import com.fish_dan_.data_energistics.client.render.orbital.model.OrbitalModelPart;
 import com.fish_dan_.data_energistics.registry.DEStorageCells;
 
 import appeng.api.client.StorageCellModels;
@@ -39,6 +40,7 @@ final class ClientModelRegistrar {
         event.register(DataSanctumRenderer.BLACK_HOLE_MODEL);
         event.register(DataSanctumRenderer.PORTAL_MODEL);
         event.register(OrderPackageItemRenderer.MARKED_BADGE_MODEL);
+        OrbitalModelPart.registerModels(event);
     }
 
     static void modifyBakingResult(ModelEvent.ModifyBakingResult event) {

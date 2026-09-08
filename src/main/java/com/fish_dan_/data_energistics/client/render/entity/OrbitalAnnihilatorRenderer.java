@@ -1,21 +1,23 @@
 package com.fish_dan_.data_energistics.client.render.entity;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.render.orbital.animation.OrbitalAnimationClock;
+import com.fish_dan_.data_energistics.client.render.orbital.model.OrbitalConstructModel;
+import com.fish_dan_.data_energistics.client.render.orbital.model.OrbitalModelRenderer;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
 
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 
-/** Minimal placeholder renderer for the server-authoritative orbital payload. */
+/** Textured containment hardware and emissive digital core for the descending server-authoritative payload. */
 public final class OrbitalAnnihilatorRenderer extends EntityRenderer<OrbitalAnnihilatorProjectileEntity> {
 
-    private static final ResourceLocation WHITE_TEXTURE = ResourceLocation.withDefaultNamespace("textures/misc/white.png");
+    private static final ResourceLocation TEXTURE = Data_Energistics.id("textures/block/orbital/construct.png");
 
     public OrbitalAnnihilatorRenderer(EntityRendererProvider.Context context) {
         super(context);
@@ -23,34 +25,26 @@ public final class OrbitalAnnihilatorRenderer extends EntityRenderer<OrbitalAnni
 
     @Override
     public void render(OrbitalAnnihilatorProjectileEntity entity, float entityYaw, float partialTick,
-                       PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
-        poseStack.pushPose();
-        poseStack.scale(0.18F, 0.8F, 0.18F);
-        VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityTranslucent(WHITE_TEXTURE));
-        PoseStack.Pose pose = poseStack.last();
-        float progress = (entity.flightTicks() + partialTick) / OrbitalAnnihilatorProjectileEntity.FLIGHT_TICKS;
-        int red = 80 + (int) (progress * 120.0F);
-        int green = 180 + (int) (progress * 60.0F);
-        vertex(consumer, pose, -1.0F, 0.0F, 0.0F, red, green, 255, packedLight);
-        vertex(consumer, pose, 1.0F, 0.0F, 0.0F, red, green, 255, packedLight);
-        vertex(consumer, pose, 1.0F, 1.0F, 0.0F, red, green, 255, packedLight);
-        vertex(consumer, pose, -1.0F, 1.0F, 0.0F, red, green, 255, packedLight);
-        poseStack.popPose();
-        super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
+                       PoseStack poses, MultiBufferSource buffers, int packedLight) {
+        double time = entity.level().getGameTime() + (double) partialTick;
+        float rotation = OrbitalAnimationClock.angle(time, entity.getId(), 100);
+        OrbitalModelRenderer body = new OrbitalModelRenderer(buffers.getBuffer(OrbitalModelRenderer.SOLID),
+                true, false, packedLight, 1, 1, 1, 1);
+        OrbitalConstructModel.payload(poses, body, 0, 0.6, 0, 1.4F, rotation);
+        OrbitalModelRenderer light = new OrbitalModelRenderer(buffers.getBuffer(OrbitalModelRenderer.EMISSIVE),
+                true, true, packedLight, 1, 1, 1, 0.9F);
+        OrbitalConstructModel.payload(poses, light, 0, 0.6, 0, 1.4F, rotation);
+        super.render(entity, entityYaw, partialTick, poses, buffers, packedLight);
+    }
+
+    @Override
+    public boolean shouldRender(OrbitalAnnihilatorProjectileEntity entity, Frustum frustum,
+                                double cameraX, double cameraY, double cameraZ) {
+        return entity.shouldRender(cameraX, cameraY, cameraZ) && frustum.isVisible(entity.getBoundingBox().inflate(1.2));
     }
 
     @Override
     public ResourceLocation getTextureLocation(OrbitalAnnihilatorProjectileEntity entity) {
-        return WHITE_TEXTURE;
-    }
-
-    private static void vertex(VertexConsumer consumer, PoseStack.Pose pose, float x, float y, float z,
-                               int red, int green, int blue, int packedLight) {
-        consumer.addVertex(pose, x, y, z)
-                .setColor(red, green, blue, 230)
-                .setUv(x < 0.0F ? 0.0F : 1.0F, y)
-                .setOverlay(OverlayTexture.NO_OVERLAY)
-                .setLight(packedLight)
-                .setNormal(pose, 0.0F, 1.0F, 0.0F);
+        return TEXTURE;
     }
 }

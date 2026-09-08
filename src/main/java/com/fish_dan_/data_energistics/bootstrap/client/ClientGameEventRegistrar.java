@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.client.preferences.PatternEncodingClientPr
 import com.fish_dan_.data_energistics.client.preferences.PatternUploadSucceededClientHandler;
 import com.fish_dan_.data_energistics.client.render.orbital.OrbitalAttackVisualClientState;
 import com.fish_dan_.data_energistics.client.render.orbital.OrbitalProjectionVisualClientState;
+import com.fish_dan_.data_energistics.client.render.orbital.OrbitalWorldProjectionRenderer;
 import com.fish_dan_.data_energistics.client.ui.orbital.OrbitalControlClientBindings;
 import com.fish_dan_.data_energistics.menu.patternencoding.PatternEncodingPreferenceSession;
 
@@ -45,6 +46,7 @@ final class ClientGameEventRegistrar {
         OrbitalControlClientBindings.clear();
         OrbitalAttackVisualClientState.clear();
         OrbitalProjectionVisualClientState.clear();
+        OrbitalWorldProjectionRenderer.releaseBuffers();
         OrbitalControlHudClientState.clear();
         PatternEncodingClientPreferencesAccess.deactivateServerProfile();
     }

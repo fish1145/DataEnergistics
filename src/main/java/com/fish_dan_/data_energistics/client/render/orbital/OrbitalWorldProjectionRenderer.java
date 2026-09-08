@@ -1,6 +1,13 @@
 package com.fish_dan_.data_energistics.client.render.orbital;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.render.orbital.animation.OrbitalAnimationClock;
+import com.fish_dan_.data_energistics.client.render.orbital.geometry.OrbitalBeamMesh;
+import com.fish_dan_.data_energistics.client.render.orbital.geometry.OrbitalProjectionPlacement;
+import com.fish_dan_.data_energistics.client.render.orbital.geometry.OrbitalProjectionPlacement.Detail;
+import com.fish_dan_.data_energistics.client.render.orbital.geometry.OrbitalRenderBuffers;
+import com.fish_dan_.data_energistics.client.render.orbital.model.OrbitalConstructModel;
+import com.fish_dan_.data_energistics.client.render.orbital.model.OrbitalModelRenderer;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackVisualSnapshot;
@@ -9,7 +16,7 @@ import com.fish_dan_.data_energistics.orbital.projection.OrbitalProjectionVisual
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
@@ -22,32 +29,31 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Draws the server-authoritative orbital visual caches as batched placeholder geometry.
- *
- * <p>
- * The renderer owns no gameplay state and never predicts attack progress. It provides the complete culling, LOD and
- * batching path now, while dedicated textures and baked meshes can replace individual geometry methods later without
- * changing network or lifecycle behavior.
- * </p>
- */
+/** Renders resource-backed orbital constructs without creating entities, querying chunks, or advancing gameplay. */
 @EventBusSubscriber(modid = Data_Energistics.MODID, value = Dist.CLIENT)
 public final class OrbitalWorldProjectionRenderer {
 
-    private static final double FULL_DETAIL_DISTANCE_SQUARED = 1_024.0D * 1_024.0D;
-    private static final double REDUCED_DETAIL_DISTANCE_SQUARED = 4_096.0D * 4_096.0D;
-    private static final double MAX_RENDER_DISTANCE_SQUARED = 16_384.0D * 16_384.0D;
-    private static final int MAX_FULL_DETAIL_PROJECTIONS = 4;
+    private static final int MAX_FULL_DETAIL = 4;
     private static final int MAX_VISIBLE_PROJECTIONS = 64;
     private static final int MAX_VISIBLE_ATTACK_ECHOES = 32;
-    private static final RenderType LINES = RenderType.lines();
+    private static final double MAX_DISTANCE_SQUARED = OrbitalProjectionPlacement.MAX_DISTANCE * OrbitalProjectionPlacement.MAX_DISTANCE;
+    private static final int SKY_LIGHT = LightTexture.pack(4, 15);
+    private static final OrbitalAnimationClock PROJECTION_CLOCK = new OrbitalAnimationClock();
+    private static final OrbitalAnimationClock ATTACK_CLOCK = new OrbitalAnimationClock();
+    private static @Nullable OrbitalRenderBuffers renderBuffers;
+    private static final RenderType[] PASSES = {
+            OrbitalModelRenderer.SOLID, OrbitalModelRenderer.HOLOGRAM, OrbitalModelRenderer.EMISSIVE,
+            OrbitalBeamMesh.RENDER_TYPE
+    };
 
     private OrbitalWorldProjectionRenderer() {}
 
@@ -56,400 +62,211 @@ public final class OrbitalWorldProjectionRenderer {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
             return;
         }
-
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
         if (level == null) {
             return;
         }
-        ResourceLocation dimensionId = level.dimension().location();
-        List<OrbitalProjectionVisualSnapshot> projections = projectionBaseline(dimensionId);
-        List<OrbitalAttackVisualSnapshot> attacks = attackBaseline(dimensionId);
+        Vec3 camera = event.getCamera().getPosition();
+        double far = minecraft.gameRenderer.getDepthFar();
+        List<ProjectionDraw> projections = visibleProjections(event, level, camera, far);
+        List<AttackDraw> attacks = visibleAttacks(event, level, camera, far);
         if (projections.isEmpty() && attacks.isEmpty()) {
             return;
         }
-
-        Vec3 camera = event.getCamera().getPosition();
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(true);
-        MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
-        VertexConsumer consumer = buffers.getBuffer(LINES);
-        PoseStack poseStack = event.getPoseStack();
-        boolean rendered = false;
-
-        poseStack.pushPose();
-        poseStack.translate(-camera.x, -camera.y, -camera.z);
-
-        ArrayList<OrbitalProjectionVisualSnapshot> orderedProjections = new ArrayList<>(projections);
-        orderedProjections.sort(Comparator.comparingDouble(projection -> projectionDistanceSquared(camera, projection)));
-        int fullDetailCount = 0;
-        int visibleProjectionCount = 0;
-        for (OrbitalProjectionVisualSnapshot projection : orderedProjections) {
-            if (visibleProjectionCount >= MAX_VISIBLE_PROJECTIONS) {
-                break;
-            }
-            double distanceSquared = projectionDistanceSquared(camera, projection);
-            if (distanceSquared > MAX_RENDER_DISTANCE_SQUARED) {
-                continue;
-            }
-            AABB bounds = projectionBounds(projection);
-            if (!event.getFrustum().isVisible(bounds)) {
-                continue;
-            }
-
-            Detail detail;
-            if (distanceSquared <= FULL_DETAIL_DISTANCE_SQUARED && fullDetailCount < MAX_FULL_DETAIL_PROJECTIONS) {
-                detail = Detail.FULL;
-                fullDetailCount++;
-            } else if (distanceSquared <= REDUCED_DETAIL_DISTANCE_SQUARED) {
-                detail = Detail.REDUCED;
-            } else {
-                detail = Detail.IMPOSTOR;
-            }
-            renderProjection(poseStack, consumer, projection, detail, partialTick);
-            visibleProjectionCount++;
-            rendered = true;
+        double projectionTime = PROJECTION_CLOCK.sample(OrbitalProjectionVisualClientState.revision(), level.getGameTime(), partialTick);
+        double attackTime = ATTACK_CLOCK.sample(OrbitalAttackVisualClientState.revision(), level.getGameTime(), partialTick);
+        if (renderBuffers == null) {
+            renderBuffers = new OrbitalRenderBuffers();
         }
-
-        ArrayList<OrbitalAttackVisualSnapshot> orderedAttacks = new ArrayList<>(attacks);
-        orderedAttacks.sort(Comparator.comparingDouble(attack -> attackDistanceSquared(camera, level, attack)));
-        int visibleAttackCount = 0;
-        for (OrbitalAttackVisualSnapshot attack : orderedAttacks) {
-            if (visibleAttackCount >= MAX_VISIBLE_ATTACK_ECHOES) {
-                break;
+        MultiBufferSource.BufferSource buffers = renderBuffers.source();
+        float fogStart = RenderSystem.getShaderFogStart();
+        float fogEnd = RenderSystem.getShaderFogEnd();
+        try {
+            RenderSystem.setShaderFogStart((float) far * 0.9F);
+            RenderSystem.setShaderFogEnd((float) far);
+            for (int pass = 0; pass < 3; pass++) {
+                VertexConsumer consumer = buffers.getBuffer(PASSES[pass]);
+                for (ProjectionDraw draw : projections) {
+                    renderProjection(event.getPoseStack(), consumer, draw, projectionTime, pass);
+                }
+                if (pass != 0) {
+                    for (AttackDraw draw : attacks) {
+                        renderAttack(event.getPoseStack(), consumer, draw, attackTime, pass == 2);
+                    }
+                }
+                buffers.endBatch(PASSES[pass]);
             }
-            double distanceSquared = attackDistanceSquared(camera, level, attack);
-            if (distanceSquared > MAX_RENDER_DISTANCE_SQUARED) {
-                continue;
+            renderEffects(event.getPoseStack(), buffers.getBuffer(OrbitalBeamMesh.RENDER_TYPE),
+                    projections, attacks, projectionTime, attackTime);
+        } finally {
+            for (RenderType type : PASSES) {
+                buffers.endBatch(type);
             }
-            AABB bounds = attackBounds(level, attack);
-            if (!event.getFrustum().isVisible(bounds)) {
-                continue;
-            }
-            Detail detail = distanceSquared <= FULL_DETAIL_DISTANCE_SQUARED ? Detail.FULL : (distanceSquared <= REDUCED_DETAIL_DISTANCE_SQUARED ? Detail.REDUCED : Detail.IMPOSTOR);
-            renderAttackEcho(poseStack, consumer, level, attack, detail, partialTick);
-            visibleAttackCount++;
-            rendered = true;
-        }
-
-        poseStack.popPose();
-        if (rendered) {
-            buffers.endBatch(LINES);
+            RenderSystem.setShaderFogStart(fogStart);
+            RenderSystem.setShaderFogEnd(fogEnd);
         }
     }
 
-    private static List<OrbitalProjectionVisualSnapshot> projectionBaseline(ResourceLocation dimensionId) {
-        if (!dimensionId.equals(OrbitalProjectionVisualClientState.dimensionId())) {
+    private static List<ProjectionDraw> visibleProjections(RenderLevelStageEvent event, ClientLevel level,
+                                                           Vec3 camera, double far) {
+        ResourceLocation dimension = level.dimension().location();
+        if (!dimension.equals(OrbitalProjectionVisualClientState.dimensionId())) {
             return List.of();
         }
-        return OrbitalProjectionVisualClientState.projections();
-    }
-
-    private static List<OrbitalAttackVisualSnapshot> attackBaseline(ResourceLocation dimensionId) {
-        if (!dimensionId.equals(OrbitalAttackVisualClientState.dimensionId())) {
-            return List.of();
-        }
-        return OrbitalAttackVisualClientState.attacks();
-    }
-
-    private static double projectionDistanceSquared(Vec3 camera, OrbitalProjectionVisualSnapshot projection) {
-        return camera.distanceToSqr(
-                projection.anchor().getX() + 0.5D,
-                projection.projectionY(),
-                projection.anchor().getZ() + 0.5D);
-    }
-
-    private static double attackDistanceSquared(
-                                                Vec3 camera,
-                                                ClientLevel level,
-                                                OrbitalAttackVisualSnapshot attack) {
-        return camera.distanceToSqr(
-                attack.target().getX() + 0.5D,
-                attackEchoY(level, attack),
-                attack.target().getZ() + 0.5D);
-    }
-
-    private static AABB projectionBounds(OrbitalProjectionVisualSnapshot projection) {
-        double centerX = projection.anchor().getX() + 0.5D;
-        double centerZ = projection.anchor().getZ() + 0.5D;
-        return new AABB(
-                centerX - 260.0D,
-                projection.projectionY() - 72.0D,
-                centerZ - 72.0D,
-                centerX + 260.0D,
-                projection.projectionY() + 72.0D,
-                centerZ + 72.0D);
-    }
-
-    private static AABB attackBounds(ClientLevel level, OrbitalAttackVisualSnapshot attack) {
-        double centerX = attack.target().getX() + 0.5D;
-        double centerZ = attack.target().getZ() + 0.5D;
-        double echoY = attackEchoY(level, attack);
-        double radius = Math.max(72.0D, attack.effectRadius());
-        return new AABB(
-                Math.min(centerX - radius, attack.effectPosition().getX()),
-                Math.min(Math.min(attack.target().getY(), attack.effectPosition().getY()), echoY - 72.0D),
-                Math.min(centerZ - radius, attack.effectPosition().getZ()),
-                Math.max(centerX + radius, attack.effectPosition().getX() + 1.0D),
-                echoY + 72.0D,
-                Math.max(centerZ + radius, attack.effectPosition().getZ() + 1.0D));
-    }
-
-    private static void renderProjection(
-                                         PoseStack poseStack,
-                                         VertexConsumer consumer,
-                                         OrbitalProjectionVisualSnapshot projection,
-                                         Detail detail,
-                                         float partialTick) {
-        double centerX = projection.anchor().getX() + 0.5D;
-        double centerY = projection.projectionY();
-        double centerZ = projection.anchor().getZ() + 0.5D;
-        float pulse = pulse(projection.animationTime(), projection.randomSeed(), partialTick, 0.08F);
-        float alpha = projection.lifecycleState() == OrbitalWeaponLifecycleState.REDEPLOYING ? 0.25F + 0.45F * pulse : (projection.lifecycleState() == OrbitalWeaponLifecycleState.RESERVE_GRACE ? 0.42F : 0.78F);
-        float red = projection.lifecycleState() == OrbitalWeaponLifecycleState.RESERVE_GRACE ? 0.90F : 0.20F;
-        float green = projection.lifecycleState() == OrbitalWeaponLifecycleState.RESERVE_GRACE ? 0.45F : 0.78F;
-        float blue = 1.0F;
-
-        if (detail == Detail.IMPOSTOR) {
-            renderBox(poseStack, consumer, box(centerX, centerY, centerZ, 48.0D, 16.0D, 16.0D), red, green, blue, alpha);
-            renderBox(
-                    poseStack,
-                    consumer,
-                    new AABB(
-                            centerX - 0.5D,
-                            projection.anchor().getY() + 0.5D,
-                            centerZ - 0.5D,
-                            centerX + 0.5D,
-                            centerY,
-                            centerZ + 0.5D),
-                    red,
-                    green,
-                    blue,
-                    0.25F + 0.30F * pulse);
-            return;
-        }
-
-        renderBox(poseStack, consumer, box(centerX, centerY, centerZ, 64.0D, 32.0D, 32.0D), red, green, blue, alpha);
-        renderBox(poseStack, consumer, box(centerX, centerY + 20.0D, centerZ, 120.0D, 4.0D, 4.0D), red, green, blue, alpha);
-        renderBox(poseStack, consumer, box(centerX, centerY - 20.0D, centerZ, 120.0D, 4.0D, 4.0D), red, green, blue, alpha);
-        renderBox(poseStack, consumer, box(centerX, centerY, centerZ - 18.0D, 480.0D, 5.0D, 5.0D), red, green, blue, alpha);
-        renderBox(poseStack, consumer, box(centerX, centerY, centerZ + 18.0D, 480.0D, 5.0D, 5.0D), red, green, blue, alpha);
-        renderBox(poseStack, consumer, box(centerX + 96.0D, centerY, centerZ, 8.0D, 88.0D, 88.0D), red, green, blue, alpha);
-        renderBox(poseStack, consumer, box(centerX - 176.0D, centerY, centerZ, 64.0D, 36.0D, 52.0D), red, green, blue, alpha);
-
-        if (detail == Detail.REDUCED) {
-            return;
-        }
-
-        for (int offset = -224; offset <= 224; offset += 32) {
-            float segmentAlpha = projection.lifecycleState() == OrbitalWeaponLifecycleState.REDEPLOYING && Math.floorMod(offset / 32 + (int) projection.animationTime() / 4, 3) == 0 ? alpha * 0.18F : alpha;
-            renderBox(
-                    poseStack,
-                    consumer,
-                    box(centerX + offset, centerY, centerZ, 18.0D, 42.0D, 52.0D),
-                    red,
-                    green,
-                    blue,
-                    segmentAlpha);
-        }
-        for (int ring = 0; ring < 4; ring++) {
-            double size = 32.0D + ring * 16.0D;
-            renderBox(
-                    poseStack,
-                    consumer,
-                    box(centerX + 96.0D + ring * 6.0D, centerY, centerZ, 2.0D, size, size),
-                    0.35F,
-                    0.85F,
-                    1.0F,
-                    alpha * (0.55F + pulse * 0.35F));
-        }
-        renderBox(poseStack, consumer, box(centerX - 96.0D, centerY, centerZ - 12.0D, 96.0D, 3.0D, 3.0D), 0.65F, 0.92F, 1.0F, alpha);
-        renderBox(poseStack, consumer, box(centerX - 96.0D, centerY, centerZ + 12.0D, 96.0D, 3.0D, 3.0D), 0.65F, 0.92F, 1.0F, alpha);
-    }
-
-    private static void renderAttackEcho(
-                                         PoseStack poseStack,
-                                         VertexConsumer consumer,
-                                         ClientLevel level,
-                                         OrbitalAttackVisualSnapshot attack,
-                                         Detail detail,
-                                         float partialTick) {
-        double centerX = attack.target().getX() + 0.5D;
-        double centerY = attackEchoY(level, attack);
-        double centerZ = attack.target().getZ() + 0.5D;
-        float pulse = pulse(attack.phaseAge(), attack.randomSeed(), partialTick, 0.12F);
-        float alpha = attack.phase() == OrbitalAttackPhase.RESERVED_WARNING ? 0.35F + 0.55F * pulse : 0.82F;
-        float[] color = attackColor(attack.mode());
-        BlockPos beamPosition = attack.phase() == OrbitalAttackPhase.DELIVERY ? attack.effectPosition() : attack.target();
-        double beamX = beamPosition.getX() + 0.5D;
-        double beamZ = beamPosition.getZ() + 0.5D;
-        double beamMinY = Math.min(beamPosition.getY(), centerY);
-        double beamMaxY = Math.max(beamPosition.getY(), centerY);
-
-        renderBox(
-                poseStack,
-                consumer,
-                new AABB(
-                        beamX - 0.5D,
-                        beamMinY,
-                        beamZ - 0.5D,
-                        beamX + 0.5D,
-                        beamMaxY,
-                        beamZ + 0.5D),
-                color[0],
-                color[1],
-                color[2],
-                alpha * 0.55F);
-        if (detail == Detail.IMPOSTOR) {
-            renderBox(poseStack, consumer, box(centerX, centerY, centerZ, 24.0D, 12.0D, 24.0D), color[0], color[1], color[2], alpha);
-            return;
-        }
-
-        switch (attack.mode()) {
-            case KINETIC -> renderKineticEcho(poseStack, consumer, centerX, centerY, centerZ, detail, color, alpha);
-            case DIRECTED_ENERGY -> renderDirectedEcho(
-                    poseStack,
-                    consumer,
-                    centerX,
-                    centerY,
-                    centerZ,
-                    attack.effectRadius(),
-                    detail,
-                    color,
-                    alpha,
-                    pulse);
-            case DIGITAL_ANNIHILATION -> renderDigitalEcho(
-                    poseStack,
-                    consumer,
-                    centerX,
-                    centerY,
-                    centerZ,
-                    attack.target().getY(),
-                    attack.effectRadius(),
-                    detail,
-                    color,
-                    alpha);
-        }
-    }
-
-    private static void renderKineticEcho(
-                                          PoseStack poseStack,
-                                          VertexConsumer consumer,
-                                          double x,
-                                          double y,
-                                          double z,
-                                          Detail detail,
-                                          float[] color,
-                                          float alpha) {
-        renderBox(poseStack, consumer, box(x, y, z - 10.0D, 72.0D, 5.0D, 5.0D), color[0], color[1], color[2], alpha);
-        renderBox(poseStack, consumer, box(x, y, z + 10.0D, 72.0D, 5.0D, 5.0D), color[0], color[1], color[2], alpha);
-        renderBox(poseStack, consumer, box(x, y, z, 20.0D, 32.0D, 44.0D), color[0], color[1], color[2], alpha);
-        if (detail == Detail.FULL) {
-            for (int offset = -32; offset <= 32; offset += 16) {
-                renderBox(poseStack, consumer, box(x + offset, y, z, 3.0D, 22.0D, 34.0D), color[0], color[1], color[2], alpha * 0.8F);
+        List<OrbitalProjectionVisualSnapshot> ordered = new ArrayList<>(OrbitalProjectionVisualClientState.projections());
+        ordered.sort(Comparator.comparingDouble(snapshot -> projectionOrigin(snapshot).distanceToSqr(camera)));
+        List<ProjectionDraw> result = new ArrayList<>();
+        int fullDetail = 0;
+        for (OrbitalProjectionVisualSnapshot snapshot : ordered) {
+            Vec3 origin = projectionOrigin(snapshot);
+            double distance = origin.distanceToSqr(camera);
+            if (distance > MAX_DISTANCE_SQUARED || result.size() >= MAX_VISIBLE_PROJECTIONS) {
+                break;
+            }
+            Detail detail = OrbitalProjectionPlacement.detail(distance, fullDetail < MAX_FULL_DETAIL);
+            AABB localBounds = OrbitalConstructModel.BOUNDS;
+            if (detail == Detail.DISTANT) {
+                localBounds = localBounds.minmax(new AABB(-1, snapshot.anchor().getY() - origin.y, -1, 1, 0, 1));
+            }
+            OrbitalProjectionPlacement placement = OrbitalProjectionPlacement.create(camera, origin, localBounds, far);
+            if (event.getFrustum().isVisible(placement.bounds())) {
+                result.add(new ProjectionDraw(snapshot, placement, detail));
+                if (detail == Detail.FULL) {
+                    fullDetail++;
+                }
             }
         }
+        // Translucent construct instances are submitted back-to-front; quads within a material batch are also sorted.
+        return result.reversed();
     }
 
-    private static void renderDirectedEcho(
-                                           PoseStack poseStack,
-                                           VertexConsumer consumer,
-                                           double x,
-                                           double y,
-                                           double z,
-                                           int effectRadius,
-                                           Detail detail,
-                                           float[] color,
-                                           float alpha,
-                                           float pulse) {
-        int rings = detail == Detail.FULL ? 5 : 3;
-        for (int ring = 0; ring < rings; ring++) {
-            double size = Math.max(32.0D, effectRadius * 2.0D * (ring + 1.0D) / rings);
-            renderBox(
-                    poseStack,
-                    consumer,
-                    box(x, y + ring * 4.0D, z, size, 2.0D, size),
-                    color[0],
-                    color[1],
-                    color[2],
-                    alpha * (0.55F + pulse * 0.35F));
+    private static List<AttackDraw> visibleAttacks(RenderLevelStageEvent event, ClientLevel level,
+                                                   Vec3 camera, double far) {
+        if (!level.dimension().location().equals(OrbitalAttackVisualClientState.dimensionId())) {
+            return List.of();
         }
-        renderBox(poseStack, consumer, box(x, y + 18.0D, z, 18.0D, 36.0D, 18.0D), color[0], color[1], color[2], alpha);
+        List<OrbitalAttackVisualSnapshot> ordered = new ArrayList<>(OrbitalAttackVisualClientState.attacks());
+        ordered.sort(Comparator.comparingDouble(snapshot -> attackOrigin(level, snapshot).distanceToSqr(camera)));
+        List<AttackDraw> result = new ArrayList<>();
+        int fullDetail = 0;
+        for (OrbitalAttackVisualSnapshot snapshot : ordered) {
+            Vec3 origin = attackOrigin(level, snapshot);
+            double distance = origin.distanceToSqr(camera);
+            if (distance > MAX_DISTANCE_SQUARED || result.size() >= MAX_VISIBLE_ATTACK_ECHOES) {
+                break;
+            }
+            Detail detail = OrbitalProjectionPlacement.detail(distance, fullDetail < MAX_FULL_DETAIL);
+            double radius = Math.max(1, snapshot.effectRadius()) + 4.0;
+            Vec3 effect = Vec3.atCenterOf(snapshot.effectPosition()).subtract(origin);
+            double targetY = snapshot.target().getY() - origin.y;
+            AABB localBounds = OrbitalConstructModel.ECHO_BOUNDS
+                    .minmax(new AABB(-radius, targetY, -radius, radius, targetY + 1, radius))
+                    .minmax(new AABB(effect, effect).inflate(8));
+            OrbitalProjectionPlacement placement = OrbitalProjectionPlacement.create(camera, origin, localBounds, far);
+            if (event.getFrustum().isVisible(placement.bounds())) {
+                result.add(new AttackDraw(snapshot, origin, placement, detail));
+                if (detail == Detail.FULL) {
+                    fullDetail++;
+                }
+            }
+        }
+        return result.reversed();
     }
 
-    private static void renderDigitalEcho(
-                                          PoseStack poseStack,
-                                          VertexConsumer consumer,
-                                          double x,
-                                          double y,
-                                          double z,
-                                          int targetY,
-                                          int effectRadius,
-                                          Detail detail,
-                                          float[] color,
-                                          float alpha) {
-        renderBox(poseStack, consumer, box(x, y, z, 52.0D, 28.0D, 52.0D), color[0], color[1], color[2], alpha);
-        renderBox(poseStack, consumer, box(x, y - 26.0D, z, 14.0D, 48.0D, 14.0D), color[0], color[1], color[2], alpha);
-        if (detail == Detail.FULL) {
-            renderBox(
-                    poseStack,
-                    consumer,
-                    box(x, targetY, z, effectRadius * 2.0D, 2.0D, effectRadius * 2.0D),
-                    color[0],
-                    color[1],
-                    color[2],
-                    alpha * 0.32F);
-            renderBox(poseStack, consumer, box(x - 22.0D, y, z, 5.0D, 44.0D, 44.0D), color[0], color[1], color[2], alpha * 0.75F);
-            renderBox(poseStack, consumer, box(x + 22.0D, y, z, 5.0D, 44.0D, 44.0D), color[0], color[1], color[2], alpha * 0.75F);
+    private static void renderProjection(PoseStack poses, VertexConsumer consumer, ProjectionDraw draw,
+                                         double time, int pass) {
+        OrbitalWeaponLifecycleState state = draw.snapshot().lifecycleState();
+        boolean redeploying = state == OrbitalWeaponLifecycleState.REDEPLOYING;
+        if ((pass == 0 && redeploying) || (pass == 1 && !redeploying)) {
+            return;
+        }
+        boolean emissive = pass == 2;
+        float pulse = pulse(time, draw.snapshot().randomSeed());
+        float alpha = redeploying ? 0.32F + 0.25F * pulse : 1;
+        float brightness = state == OrbitalWeaponLifecycleState.RESERVE_GRACE ? 0.5F : 1;
+        OrbitalModelRenderer renderer = new OrbitalModelRenderer(consumer, draw.detail() == Detail.FULL,
+                emissive, SKY_LIGHT, brightness, brightness, brightness,
+                emissive ? alpha * (0.7F + pulse * 0.3F) : alpha);
+        beginPlacement(poses, draw.placement());
+        OrbitalConstructModel.render(poses, renderer, draw.detail(), time, draw.snapshot().randomSeed(), redeploying);
+        poses.popPose();
+    }
+
+    private static void renderAttack(PoseStack poses, VertexConsumer consumer, AttackDraw draw,
+                                     double time, boolean emissive) {
+        boolean charging = draw.snapshot().phase() == OrbitalAttackPhase.RESERVED_WARNING;
+        float alpha = charging ? 0.38F + 0.18F * pulse(time, draw.snapshot().randomSeed()) : 0.76F;
+        OrbitalModelRenderer renderer = new OrbitalModelRenderer(consumer, draw.detail() == Detail.FULL,
+                emissive, SKY_LIGHT, 0.8F, 0.94F, 1, emissive ? 0.9F : alpha);
+        beginPlacement(poses, draw.placement());
+        OrbitalConstructModel.echo(poses, renderer, draw.detail(), draw.snapshot().mode(), time,
+                draw.snapshot().randomSeed(), charging);
+        poses.popPose();
+    }
+
+    private static void renderEffects(PoseStack poses, VertexConsumer consumer, List<ProjectionDraw> projections,
+                                      List<AttackDraw> attacks, double projectionTime, double attackTime) {
+        for (ProjectionDraw draw : projections) {
+            if (draw.detail() != Detail.DISTANT) {
+                continue;
+            }
+            beginPlacement(poses, draw.placement());
+            OrbitalBeamMesh.beam(poses, consumer, 0, 0,
+                    draw.snapshot().anchor().getY() - draw.snapshot().projectionY(), 0, 0.65F,
+                    projectionTime, 0.35F, 0.9F, 1, 0.5F);
+            poses.popPose();
+        }
+        for (AttackDraw draw : attacks) {
+            OrbitalAttackVisualSnapshot snapshot = draw.snapshot();
+            BlockPos position = snapshot.phase() == OrbitalAttackPhase.DELIVERY ? snapshot.effectPosition() : snapshot.target();
+            Vec3 effect = Vec3.atCenterOf(position).subtract(draw.origin());
+            boolean warning = snapshot.phase() == OrbitalAttackPhase.RESERVED_WARNING;
+            float red = snapshot.mode() == OrbitalAttackMode.DIRECTED_ENERGY ? 0.8F : 0.3F;
+            float green = snapshot.mode() == OrbitalAttackMode.DIRECTED_ENERGY ? 0.5F : 0.95F;
+            float blue = snapshot.mode() == OrbitalAttackMode.DIGITAL_ANNIHILATION ? 0.75F : 1;
+            float width = warning ? 0.35F : (snapshot.mode() == OrbitalAttackMode.DIRECTED_ENERGY ? 3 : 1.2F);
+            beginPlacement(poses, draw.placement());
+            OrbitalBeamMesh.beam(poses, consumer, effect.x, effect.z, effect.y, 0, width,
+                    attackTime, red, green, blue, warning ? 0.32F : 0.85F);
+            OrbitalBeamMesh.targetRing(poses, consumer, 0, snapshot.target().getY() + 0.08 - draw.origin().y, 0,
+                    Math.max(1, snapshot.effectRadius()), red, green, blue, warning ? 0.3F : 0.55F);
+            poses.popPose();
         }
     }
 
-    private static float[] attackColor(OrbitalAttackMode mode) {
-        return switch (mode) {
-            case KINETIC -> new float[] { 0.40F, 0.82F, 1.0F };
-            case DIRECTED_ENERGY -> new float[] { 0.85F, 0.35F, 1.0F };
-            case DIGITAL_ANNIHILATION -> new float[] { 0.20F, 1.0F, 0.78F };
-        };
+    private static void beginPlacement(PoseStack poses, OrbitalProjectionPlacement placement) {
+        poses.pushPose();
+        Vec3 offset = placement.cameraOffset();
+        poses.translate(offset.x, offset.y, offset.z);
+        poses.scale(placement.scale(), placement.scale(), placement.scale());
     }
 
-    private static double attackEchoY(ClientLevel level, OrbitalAttackVisualSnapshot attack) {
-        return Math.max(level.getMaxBuildHeight() + 96.0D, attack.target().getY() + 96.0D);
+    private static Vec3 projectionOrigin(OrbitalProjectionVisualSnapshot snapshot) {
+        return new Vec3(snapshot.anchor().getX() + 0.5, snapshot.projectionY(), snapshot.anchor().getZ() + 0.5);
     }
 
-    private static float pulse(long time, long seed, float partialTick, float speed) {
-        float phase = (time + partialTick + Math.floorMod(seed, 10_000L)) * speed;
-        return 0.5F + 0.5F * Mth.sin(phase);
+    private static Vec3 attackOrigin(ClientLevel level, OrbitalAttackVisualSnapshot snapshot) {
+        double y = Math.max(level.getMaxBuildHeight() + 96.0, snapshot.target().getY() + 96.0);
+        return new Vec3(snapshot.target().getX() + 0.5, y, snapshot.target().getZ() + 0.5);
     }
 
-    private static AABB box(
-                            double centerX,
-                            double centerY,
-                            double centerZ,
-                            double sizeX,
-                            double sizeY,
-                            double sizeZ) {
-        return new AABB(
-                centerX - sizeX * 0.5D,
-                centerY - sizeY * 0.5D,
-                centerZ - sizeZ * 0.5D,
-                centerX + sizeX * 0.5D,
-                centerY + sizeY * 0.5D,
-                centerZ + sizeZ * 0.5D);
+    private static float pulse(double time, long seed) {
+        return 0.5F + 0.5F * Mth.sin(OrbitalAnimationClock.angle(time, seed, 80));
     }
 
-    private static void renderBox(
-                                  PoseStack poseStack,
-                                  VertexConsumer consumer,
-                                  AABB box,
-                                  float red,
-                                  float green,
-                                  float blue,
-                                  float alpha) {
-        LevelRenderer.renderLineBox(poseStack, consumer, box, red, green, blue, alpha);
+    /** Releases native scratch memory when the client leaves its server; the next world allocates it lazily. */
+    public static void releaseBuffers() {
+        if (renderBuffers != null) {
+            renderBuffers.close();
+            renderBuffers = null;
+        }
     }
 
-    private enum Detail {
-        FULL,
-        REDUCED,
-        IMPOSTOR
-    }
+    private record ProjectionDraw(OrbitalProjectionVisualSnapshot snapshot, OrbitalProjectionPlacement placement,
+                                  Detail detail) {}
+
+    private record AttackDraw(OrbitalAttackVisualSnapshot snapshot, Vec3 origin, OrbitalProjectionPlacement placement,
+                              Detail detail) {}
 }
