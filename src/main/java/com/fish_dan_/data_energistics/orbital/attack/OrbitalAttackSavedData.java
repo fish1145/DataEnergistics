@@ -1221,6 +1221,8 @@ public final class OrbitalAttackSavedData extends SavedData {
         try {
             int mutationBudget = this.terrainWorkScheduler.reserveMutationBudget(current.attackId());
             if (mutationBudget <= 0) {
+                OrbitalDirectedEnergyStrike.eraseCurrentBeam(level, current.target(), geometry, current.workCursor(),
+                        entityErasureFor(current.attackId()));
                 updateAttack(server, current, current.withWorkState(OrbitalAttackWorkState.WAITING_FOR_BUDGET));
                 return;
             }

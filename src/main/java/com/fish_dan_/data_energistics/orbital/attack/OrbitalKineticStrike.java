@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamScan;
 import com.fish_dan_.data_energistics.orbital.attack.entity.OrbitalEntityErasure;
+import com.fish_dan_.data_energistics.orbital.attack.entity.geometry.OrbitalEntityHitGeometry;
 import com.fish_dan_.data_energistics.orbital.attack.entity.strike.OrbitalErasureStrike;
 
 import net.minecraft.core.BlockPos;
@@ -115,10 +117,23 @@ public final class OrbitalKineticStrike {
                                            OrbitalAttackGeometry.Kinetic geometry,
                                            OrbitalErasureStrike strike) {
         Vec3 center = Vec3.atCenterOf(target);
-        AABB area = new AABB(center, center).inflate(geometry.shockwaveRadius());
-        long radiusSquared = (long) geometry.shockwaveRadius() * geometry.shockwaveRadius();
+        int bottom = columnBottom(level, target, geometry);
+        double top = OrbitalBeamScan.muzzle(target, level.getMaxBuildHeight() - 1).y;
+        double columnExtent = geometry.columnRadius() + 0.5;
+        int craterBottom = (int) Math.max(level.getMinBuildHeight(), (long) target.getY() - geometry.craterDepth());
+        double craterExtent = geometry.craterRadius() + 0.5;
+        AABB area = new AABB(center, center).inflate(geometry.shockwaveRadius())
+                .minmax(new AABB(center.x - craterExtent, craterBottom, center.z - craterExtent,
+                        center.x + craterExtent, target.getY(), center.z + craterExtent))
+                .inflate(OrbitalEntityHitGeometry.CONTACT_EPSILON);
         for (Entity entity : level.getEntities((Entity) null, area,
-                candidate -> candidate.position().distanceToSqr(center) <= radiusSquared)) {
+                candidate -> OrbitalEntityHitGeometry.intersectsSphere(candidate.getBoundingBox(), center, geometry.shockwaveRadius()) || OrbitalEntityHitGeometry.intersectsCrater(candidate.getBoundingBox(), target, geometry, craterBottom))) {
+            OrbitalEntityErasure.eraseHit(entity, strike);
+        }
+        AABB column = new AABB(center.x - columnExtent, bottom, center.z - columnExtent,
+                center.x + columnExtent, top, center.z + columnExtent).inflate(OrbitalEntityHitGeometry.CONTACT_EPSILON);
+        for (Entity entity : level.getEntities((Entity) null, column,
+                candidate -> OrbitalEntityHitGeometry.intersectsVerticalColumn(candidate.getBoundingBox(), center, geometry.columnRadius(), bottom, top))) {
             OrbitalEntityErasure.eraseHit(entity, strike);
         }
     }
@@ -132,10 +147,12 @@ public final class OrbitalKineticStrike {
                                     BlockPos target,
                                     OrbitalAttackGeometry.Kinetic geometry) {
         int top = level.getMaxBuildHeight() - 1;
-        int bottom = (int) Math.max(
-                level.getMinBuildHeight(),
-                (long) target.getY() - geometry.columnDepth());
+        int bottom = columnBottom(level, target, geometry);
         return Math.max(0, top - bottom + 1);
+    }
+
+    private static int columnBottom(ServerLevel level, BlockPos target, OrbitalAttackGeometry.Kinetic geometry) {
+        return (int) Math.max(level.getMinBuildHeight(), (long) target.getY() - geometry.columnDepth());
     }
 
     private static int craterHeight(

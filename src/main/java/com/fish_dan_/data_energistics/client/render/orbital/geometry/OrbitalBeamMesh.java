@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.client.render.orbital.geometry;
 
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamVolume;
+
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
@@ -9,7 +11,6 @@ import net.minecraft.world.phys.Vec3;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import org.joml.Quaternionf;
 
 /** Textured beam volumes and horizontal target rings, batched independently of the construct's material passes. */
 public final class OrbitalBeamMesh {
@@ -30,7 +31,7 @@ public final class OrbitalBeamMesh {
         Vec3 direction = delta.scale(1.0 / length);
         poses.pushPose();
         poses.translate(start.x, start.y, start.z);
-        poses.mulPose(new Quaternionf().rotationTo(0, 1, 0, (float) direction.x, (float) direction.y, (float) direction.z));
+        poses.mulPose(OrbitalBeamVolume.orientation(direction));
         beam(poses, consumer, 0, 0, 0, length, width, time, red, green, blue, alpha);
         poses.popPose();
     }

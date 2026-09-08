@@ -15,6 +15,7 @@ import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamPath;
 import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamScan;
 import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamScan.Segment;
 import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamSweep;
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamVolume;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 import com.fish_dan_.data_energistics.orbital.projection.OrbitalProjectionVisualSnapshot;
 
@@ -240,7 +241,7 @@ public final class OrbitalWorldProjectionRenderer {
             float red = snapshot.mode() == OrbitalAttackMode.DIRECTED_ENERGY ? 0.8F : 0.3F;
             float green = snapshot.mode() == OrbitalAttackMode.DIRECTED_ENERGY ? 0.5F : 0.95F;
             float blue = snapshot.mode() == OrbitalAttackMode.DIGITAL_ANNIHILATION ? 0.75F : 1;
-            float width = warning ? 0.35F : (snapshot.mode() == OrbitalAttackMode.DIRECTED_ENERGY ? 3 : 1.2F);
+            float width = warning ? 0.35F : (snapshot.mode() == OrbitalAttackMode.DIRECTED_ENERGY ? OrbitalBeamVolume.RADIUS : 1.2F);
             beginPlacement(poses, draw.placement());
             if (snapshot.mode() == OrbitalAttackMode.DIRECTED_ENERGY) {
                 if (warning || snapshot.beamSweep() == null) {

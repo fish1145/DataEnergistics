@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfig
 import com.fish_dan_.data_energistics.entity.explosive.DigitalAnnihilationWork.Settings;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.attack.entity.OrbitalEntityErasure;
+import com.fish_dan_.data_energistics.orbital.attack.entity.geometry.OrbitalEntityHitGeometry;
 import com.fish_dan_.data_energistics.orbital.attack.entity.strike.OrbitalErasureStrike;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEEntities;
@@ -436,7 +437,9 @@ public class DataNukePrimedEntity extends PrimedTnt {
         double centerX = getCenterX();
         double centerY = getCenterY();
         double centerZ = getCenterZ();
-        AABB bounds = new AABB(
+        Vec3 center = new Vec3(centerX, centerY, centerZ);
+        boolean orbital = this.orbitalAttackId != null;
+        AABB bounds = orbital ? new AABB(center, center).inflate(radius + OrbitalEntityHitGeometry.CONTACT_EPSILON) : new AABB(
                 centerX - radius,
                 Math.max(level.getMinBuildHeight(), centerY - radius),
                 centerZ - radius,
@@ -445,7 +448,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
                 centerZ + radius);
         double radiusSqr = radius * radius;
         List<Entity> entities = level.getEntities(this, bounds,
-                entity -> distanceToCenterSqr(entity, centerX, centerY, centerZ) <= radiusSqr);
+                entity -> orbital ? OrbitalEntityHitGeometry.intersectsSphere(entity.getBoundingBox(), center, radius) : distanceToCenterSqr(entity, centerX, centerY, centerZ) <= radiusSqr);
         OrbitalErasureStrike strike = this.orbitalAttackId == null ? null : OrbitalAttackSavedData.get(((ServerLevel) level).getServer()).entityErasureFor(this.orbitalAttackId);
 
         for (Entity entity : entities) {

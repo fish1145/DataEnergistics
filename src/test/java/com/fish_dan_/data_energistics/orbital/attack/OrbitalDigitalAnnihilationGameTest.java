@@ -85,6 +85,8 @@ public final class OrbitalDigitalAnnihilationGameTest {
         AtomicReference<UUID> attackId = new AtomicReference<>();
         AtomicReference<Double> payloadStartY = new AtomicReference<>();
         AtomicReference<GameTestPlayer> victim = new AtomicReference<>();
+        AtomicReference<GameTestPlayer> boundaryVictim = new AtomicReference<>();
+        AtomicReference<GameTestPlayer> outsideVictim = new AtomicReference<>();
 
         helper.startSequence()
                 .thenIdle(40)
@@ -206,17 +208,33 @@ public final class OrbitalDigitalAnnihilationGameTest {
                         }
                     });
                     victim.set(spawned);
+                    OrbitalAttackGeometry.DigitalAnnihilation geometry = (OrbitalAttackGeometry.DigitalAnnihilation) attacks.find(attackId.get()).orElseThrow().geometry();
+                    double radius = geometry.centerEntityConsumeRadius();
+                    GameTestPlayer boundary = playerHelper.makeTickingMockServerPlayerInLevel(GameType.SURVIVAL);
+                    boundary.moveTo(absoluteTarget.getX() + 0.5 + radius + 0.25, absoluteTarget.getY() - 0.4, absoluteTarget.getZ() + 0.5);
+                    boundary.setNoGravity(true);
+                    boundary.setInvulnerable(true);
+                    boundaryVictim.set(boundary);
+                    GameTestPlayer outside = playerHelper.makeTickingMockServerPlayerInLevel(GameType.SURVIVAL);
+                    outside.moveTo(absoluteTarget.getX() + 0.5 + radius + 2, absoluteTarget.getY() - 0.4, absoluteTarget.getZ() + 0.5);
+                    outside.setNoGravity(true);
+                    outside.setInvulnerable(true);
+                    outsideVictim.set(outside);
                 })
                 .thenWaitUntil(() -> helper.assertFalse(victim.get().isAlive(),
                         "The activated orbital fuse must erase the player despite a cancelled damage event"))
                 .thenExecute(() -> {
                     OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
+                    boolean boundaryWasHit = !boundaryVictim.get().isAlive();
+                    boolean outsideSurvived = outsideVictim.get().isAlive();
                     helper.assertTrue(
                             attacks.adminAbort(server, attackId.get()),
                             "The active orbital payload must remain abortable after its first entity erasure");
                     helper.assertTrue(
                             level.getEntity(delivery.payloadEntityId()) == null,
                             "Aborting the materialized fuse must remove its live payload entity");
+                    helper.assertTrue(boundaryWasHit, "The first active sphere must hit an intersecting player body even when the feet point is outside");
+                    helper.assertTrue(outsideSurvived, "A player whose entire body is outside the active sphere must survive");
                 })
                 .thenSucceed();
     }

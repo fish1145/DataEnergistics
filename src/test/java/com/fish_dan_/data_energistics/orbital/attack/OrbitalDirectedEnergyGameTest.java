@@ -57,7 +57,7 @@ public final class OrbitalDirectedEnergyGameTest {
     private static final BlockPos SNAPSHOT_DEPTH_INSIDE = TARGET.below(2);
     private static final BlockPos SNAPSHOT_DEPTH_OUTSIDE = TARGET.below(4);
     private static final BlockPos SNAPSHOT_INNER_VICTIM = TARGET.offset(0, 0, 1);
-    private static final BlockPos SNAPSHOT_OUTER_VICTIM = TARGET.offset(0, 0, 3);
+    private static final BlockPos SNAPSHOT_OUTER_VICTIM = TARGET.offset(0, 0, 5);
 
     private OrbitalDirectedEnergyGameTest() {}
 
@@ -283,7 +283,7 @@ public final class OrbitalDirectedEnergyGameTest {
                             "The captured beam volume must erase a real in-radius entity");
                     helper.assertTrue(
                             outerVictim.get().isAlive(),
-                            "The selected radius must leave a real out-of-radius entity unharmed");
+                            "The captured scan radius plus beam width must leave a fully outside entity unharmed");
                 })
                 .thenExecute(() -> {
                     innerVictim.get().discard();

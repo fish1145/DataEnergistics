@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.orbital.attack;
 
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamScan;
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamVolume;
 import com.fish_dan_.data_energistics.orbital.attack.entity.OrbitalEntityErasure;
 import com.fish_dan_.data_energistics.orbital.attack.entity.strike.OrbitalErasureStrike;
 
@@ -11,7 +12,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.AABB;
 
 import java.util.function.Predicate;
 
@@ -72,8 +72,7 @@ public final class OrbitalDirectedEnergyStrike {
 
     /**
      * Processes a caller-governed slice and stops before accessing the first disk column whose FULL chunk is pending.
-     * Entities are erased when the advancing beam first intersects their occupied volume; entities below the
-     * current beam position remain untouched until the scan reaches them.
+     * Entity contact uses each completed ray's full visible prism, with a flat end at the processed frontier.
      */
     public static WorkSlice applyBudget(
                                         ServerLevel level,
@@ -98,12 +97,13 @@ public final class OrbitalDirectedEnergyStrike {
         OrbitalBeamScan.Walker walker = scan.walker(cursor);
         long next = cursor;
         int visited = 0;
+        boolean waitingForChunk = false;
         while (next < total && visited < mutationBudget) {
             BlockPos position = walker.position();
             if (!chunkReady.test(new ChunkPos(position))) {
-                return new WorkSlice(next, total, false, true);
+                waitingForChunk = true;
+                break;
             }
-            eraseBeamEntities(level, position, strike);
             if (!level.getBlockState(position).isAir()) {
                 level.setBlock(
                         position,
@@ -114,7 +114,19 @@ public final class OrbitalDirectedEnergyStrike {
             visited++;
             walker.advance();
         }
-        return new WorkSlice(next, total, next == total, false);
+        // One entity query per processed ray rather than querying the entire shaft for every individual voxel.
+        for (OrbitalBeamScan.Segment beam : scan.completedBeams(cursor, next, Integer.MAX_VALUE)) {
+            eraseBeamEntities(level, beam, strike);
+        }
+        return new WorkSlice(next, total, next == total, waitingForChunk);
+    }
+
+    /** The held beam stays dangerous while terrain waits for its next budget; no cursor or block work is advanced. */
+    public static void eraseCurrentBeam(ServerLevel level, BlockPos target, OrbitalAttackGeometry.DirectedEnergy geometry,
+                                        long cursor, OrbitalErasureStrike strike) {
+        if (cursor > 0) {
+            eraseBeamEntities(level, scan(level, target, geometry).beamAt(cursor - 1), strike);
+        }
     }
 
     /** Shared trajectory for world mutation and synchronized rendering. No world/chunk access is performed. */
@@ -147,16 +159,10 @@ public final class OrbitalDirectedEnergyStrike {
 
     private static void eraseBeamEntities(
                                           ServerLevel level,
-                                          BlockPos column,
+                                          OrbitalBeamScan.Segment segment,
                                           OrbitalErasureStrike strike) {
-        AABB beam = new AABB(
-                column.getX(),
-                column.getY(),
-                column.getZ(),
-                column.getX() + 1.0D,
-                column.getY() + 1.0D,
-                column.getZ() + 1.0D);
-        for (Entity entity : level.getEntities(null, beam)) {
+        OrbitalBeamVolume beam = new OrbitalBeamVolume(segment);
+        for (Entity entity : level.getEntities((Entity) null, beam.bounds(), candidate -> beam.intersects(candidate.getBoundingBox()))) {
             OrbitalEntityErasure.eraseHit(entity, strike);
         }
     }

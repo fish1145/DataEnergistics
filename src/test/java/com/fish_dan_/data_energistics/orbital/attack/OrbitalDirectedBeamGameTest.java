@@ -72,14 +72,16 @@ public final class OrbitalDirectedBeamGameTest {
         helper.assertFalse(unique.contains(untouched), "The decoy must lie outside the ray");
         level.setBlock(untouched, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
         ItemEntity hit = marker(helper, visited.getFirst());
+        Vec3 contact = scan.beamAt(from).tip().subtract(fullRay.tip().subtract(muzzle).normalize().scale(0.5));
+        hit.setPos(contact.x, contact.y - 0.125, contact.z);
         ItemEntity missed = marker(helper, untouched);
         OrbitalErasureStrike strike = new OrbitalErasureStrike(UUID.randomUUID(), null, Set.of());
-        var waiting = OrbitalDirectedEnergyStrike.applyBudget(level, target, geometry, from, strike, 1, chunk -> false);
-        helper.assertValueEqual(waiting.nextCursor(), from, "A pending chunk must consume no cursor work");
+        var waiting = OrbitalDirectedEnergyStrike.applyBudget(level, target, geometry, 0, strike, 1, chunk -> false);
+        helper.assertValueEqual(waiting.nextCursor(), 0L, "The first pending chunk must consume no cursor work");
         helper.assertTrue(level.getBlockState(visited.getFirst()).is(Blocks.STONE) && !hit.isRemoved(),
-                "Neither blocks nor entities may be touched before the chunk is ready");
+                "A beam with no processed prefix must not affect blocks or entities before its first chunk is ready");
         var first = OrbitalDirectedEnergyStrike.applyBudget(level, target, geometry, from, strike, 1, chunk -> true);
-        helper.assertTrue(hit.isRemoved() && !missed.isRemoved(), "First contact must erase only the beam's occupied voxel");
+        helper.assertTrue(hit.isRemoved() && !missed.isRemoved(), "Contact with the processed beam volume must erase its target and preserve an outside target");
         helper.assertTrue(level.getBlockState(visited.get(1)).is(Blocks.STONE), "The next unvisited voxel must remain intact");
         saved.putLong("work_cursor", first.nextCursor());
         saved.put("erasure_journal", strike.save());
