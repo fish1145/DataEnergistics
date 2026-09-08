@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfig
 import com.fish_dan_.data_energistics.entity.explosive.DigitalAnnihilationWork.Settings;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.attack.entity.OrbitalEntityErasure;
+import com.fish_dan_.data_energistics.orbital.attack.entity.strike.OrbitalErasureStrike;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 
@@ -445,10 +446,11 @@ public class DataNukePrimedEntity extends PrimedTnt {
         double radiusSqr = radius * radius;
         List<Entity> entities = level.getEntities(this, bounds,
                 entity -> distanceToCenterSqr(entity, centerX, centerY, centerZ) <= radiusSqr);
+        OrbitalErasureStrike strike = this.orbitalAttackId == null ? null : OrbitalAttackSavedData.get(((ServerLevel) level).getServer()).entityErasureFor(this.orbitalAttackId);
 
         for (Entity entity : entities) {
-            if (this.orbitalAttackId != null) {
-                OrbitalEntityErasure.eraseHit(entity, this.damageExemptions);
+            if (strike != null) {
+                OrbitalEntityErasure.eraseHit(entity, strike);
             } else if (!isConsumableEntity(entity)) {
                 continue;
             } else if (entity instanceof ServerPlayer player) {

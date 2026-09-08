@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
 import com.fish_dan_.data_energistics.orbital.attack.entity.OrbitalEntityErasure;
+import com.fish_dan_.data_energistics.orbital.attack.entity.strike.OrbitalErasureStrike;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -13,8 +14,6 @@ import net.minecraft.world.phys.Vec3;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
-import java.util.Set;
-import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
@@ -114,13 +113,13 @@ public final class OrbitalKineticStrike {
                                            ServerLevel level,
                                            BlockPos target,
                                            OrbitalAttackGeometry.Kinetic geometry,
-                                           Set<UUID> exemptions) {
+                                           OrbitalErasureStrike strike) {
         Vec3 center = Vec3.atCenterOf(target);
         AABB area = new AABB(center, center).inflate(geometry.shockwaveRadius());
         long radiusSquared = (long) geometry.shockwaveRadius() * geometry.shockwaveRadius();
         for (Entity entity : level.getEntities((Entity) null, area,
                 candidate -> candidate.position().distanceToSqr(center) <= radiusSquared)) {
-            OrbitalEntityErasure.eraseHit(entity, exemptions);
+            OrbitalEntityErasure.eraseHit(entity, strike);
         }
     }
 

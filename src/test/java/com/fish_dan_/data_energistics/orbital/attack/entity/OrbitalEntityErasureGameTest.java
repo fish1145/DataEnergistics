@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackGeometry.Kinet
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyStrike;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalKineticStrike;
+import com.fish_dan_.data_energistics.orbital.attack.entity.strike.OrbitalErasureStrike;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -59,7 +60,8 @@ public final class OrbitalEntityErasureGameTest {
         helper.assertTrue(level.addFreshEntity(item), "The non-living target must enter the server world");
 
         OrbitalKineticStrike.eraseImpactEntities(level, target,
-                new OrbitalAttackGeometry.Kinetic(1, 1, 1, 1, 6, KineticCraterProfile.BOWL), Set.of(exempt.getUUID()));
+                new OrbitalAttackGeometry.Kinetic(1, 1, 1, 1, 6, KineticCraterProfile.BOWL),
+                new OrbitalErasureStrike(UUID.randomUUID(), null, Set.of(exempt.getUUID())));
         helper.assertTrue(victim.isRemoved(), "Impact must immediately erase an invulnerable high-health target with a totem");
         helper.assertTrue(item.isRemoved(), "Impact must erase non-living targets in the same volume");
         helper.startSequence().thenIdle(2).thenExecute(() -> {
@@ -84,16 +86,16 @@ public final class OrbitalEntityErasureGameTest {
         helper.assertTrue(level.addFreshEntity(lowerItem), "The lower target must enter the server world");
         var geometry = new OrbitalAttackGeometry.DirectedEnergy(1, OrbitalDirectedEnergyDepth.DEPTH_32, 4);
         long cursor = level.getMaxBuildHeight() - 1L - (target.getY() + 2L);
-        Set<UUID> exemptions = Set.of(exempt.getUUID());
+        OrbitalErasureStrike strike = new OrbitalErasureStrike(UUID.randomUUID(), null, Set.of(exempt.getUUID()));
 
-        var above = OrbitalDirectedEnergyStrike.applyBudget(level, target, geometry, cursor, exemptions, 1,
+        var above = OrbitalDirectedEnergyStrike.applyBudget(level, target, geometry, cursor, strike, 1,
                 chunk -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null);
         helper.assertTrue(victim.isAlive(), "A beam cell above the target must not erase it early");
-        var contact = OrbitalDirectedEnergyStrike.applyBudget(level, target, geometry, above.nextCursor(), exemptions, 1,
+        var contact = OrbitalDirectedEnergyStrike.applyBudget(level, target, geometry, above.nextCursor(), strike, 1,
                 chunk -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null);
         helper.assertTrue(victim.isRemoved(), "Touching the head must erase the target without waiting to reach its feet");
         helper.assertTrue(lowerItem.isAlive(), "An item below the current beam cell must remain until the beam reaches it");
-        OrbitalDirectedEnergyStrike.applyBudget(level, target, geometry, contact.nextCursor(), exemptions, 1,
+        OrbitalDirectedEnergyStrike.applyBudget(level, target, geometry, contact.nextCursor(), strike, 1,
                 chunk -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null);
         helper.assertTrue(lowerItem.isRemoved(), "The next beam cell must erase the lower non-living target");
         helper.assertTrue(exempt.isAlive(), "The overlapping exempt target must survive the complete contact sequence");
@@ -125,7 +127,8 @@ public final class OrbitalEntityErasureGameTest {
         });
 
         OrbitalKineticStrike.eraseImpactEntities(level, helper.absolutePos(TARGET),
-                new OrbitalAttackGeometry.Kinetic(1, 1, 1, 1, 6, KineticCraterProfile.BOWL), Set.of(exempt.getUUID()));
+                new OrbitalAttackGeometry.Kinetic(1, 1, 1, 1, 6, KineticCraterProfile.BOWL),
+                new OrbitalErasureStrike(UUID.randomUUID(), null, Set.of(exempt.getUUID())));
         helper.assertFalse(victim.isAlive(), "Damage cancellation and a totem must not prevent orbital player erasure");
         helper.assertFalse(victim.isRemoved(), "The connected player must retain its entity until normal respawn");
         helper.assertTrue(victim.getOutboundPackets(ClientboundPlayerCombatKillPacket.class).findAny().isPresent(),

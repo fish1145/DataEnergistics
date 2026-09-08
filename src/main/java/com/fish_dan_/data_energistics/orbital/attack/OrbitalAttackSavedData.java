@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjec
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackGeometry.KineticCraterProfile;
 import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamPath;
 import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamSweep;
+import com.fish_dan_.data_energistics.orbital.attack.entity.strike.OrbitalErasureStrike;
 import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalAttackWorkState;
 import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalTerrainWorkScheduler;
 import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalTerrainWorkScheduler.ChunkReadiness;
@@ -95,6 +96,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String AE_ESCROW_TAG = "ae_escrow";
     private static final String EXEMPTIONS_TAG = "damage_exemptions";
     private static final String UUID_TAG = "uuid";
+    private static final String ERASURE_JOURNAL_TAG = "erasure_journal";
     private static final Factory<OrbitalAttackSavedData> FACTORY = new Factory<>(
             OrbitalAttackSavedData::new,
             OrbitalAttackSavedData::load);
@@ -102,6 +104,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     private final Map<UUID, OrbitalAttackRecord> attacks = new Object2ObjectLinkedOpenHashMap<>();
     private final Object2LongOpenHashMap<UUID> phaseStartedAt = new Object2LongOpenHashMap<>();
     private final Object2ObjectOpenHashMap<UUID, BeamFrame> beamFrames = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectOpenHashMap<UUID, OrbitalErasureStrike> erasureStrikes = new Object2ObjectOpenHashMap<>();
     private final OrbitalTerrainWorkScheduler terrainWorkScheduler = new OrbitalTerrainWorkScheduler();
     private int roundRobinOffset;
 
@@ -119,6 +122,27 @@ public final class OrbitalAttackSavedData extends SavedData {
      */
     public Optional<OrbitalAttackRecord> find(UUID attackId) {
         return Optional.ofNullable(this.attacks.get(attackId));
+    }
+
+    /**
+     * Enters server-thread entity work for a registered attack, marking its mutable deduplication/results journal
+     * dirty before callbacks can run. The caller must keep this exact journal across all slices of the strike.
+     */
+    public OrbitalErasureStrike entityErasureFor(UUID attackId) {
+        OrbitalErasureStrike strike = requireErasureStrike(attackId);
+        if (!strike.usable()) {
+            throw new IllegalStateException("Orbital erasure journal requires recovery: " + attackId);
+        }
+        setDirty();
+        return strike;
+    }
+
+    private OrbitalErasureStrike requireErasureStrike(UUID attackId) {
+        OrbitalErasureStrike strike = this.erasureStrikes.get(attackId);
+        if (strike == null) {
+            throw new IllegalStateException("Orbital attack has no erasure journal: " + attackId);
+        }
+        return strike;
     }
 
     /**
@@ -145,7 +169,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     public boolean retryFaulted(MinecraftServer server, UUID attackId) {
         requireServerThread(server);
         OrbitalAttackRecord current = this.attacks.get(attackId);
-        if (current == null || current.phase() != OrbitalAttackPhase.FAULTED) {
+        if (current == null || current.phase() != OrbitalAttackPhase.FAULTED || !requireErasureStrike(attackId).usable()) {
             return false;
         }
         discardPayload(server, current);
@@ -358,7 +382,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 cost.aeEnergy())) {
             return Optional.empty();
         }
-        registerAttack(server, warning);
+        registerAttack(server, warning, actorId);
         return Optional.of(warning);
     }
 
@@ -439,7 +463,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 cost.aeEnergy())) {
             return Optional.empty();
         }
-        registerAttack(server, warning);
+        registerAttack(server, warning, actorId);
         return Optional.of(warning);
     }
 
@@ -504,7 +528,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 cost.aeEnergy())) {
             return Optional.empty();
         }
-        registerAttack(server, warning);
+        registerAttack(server, warning, actorId);
         return Optional.of(warning);
     }
 
@@ -599,6 +623,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     public void tick(MinecraftServer server) {
         requireServerThread(server);
         this.beamFrames.clear();
+        this.erasureStrikes.keySet().removeIf(attackId -> !this.attacks.containsKey(attackId));
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         long gameTime = server.overworld().getGameTime();
         boolean phaseTimesChanged = this.phaseStartedAt.keySet().removeIf(attackId -> !this.attacks.containsKey(attackId));
@@ -656,13 +681,13 @@ public final class OrbitalAttackSavedData extends SavedData {
         ListTag attackList = new ListTag();
         this.attacks.values()
                 .stream()
-                .map(attack -> writeAttack(attack, requirePhaseStartedAt(attack.attackId())))
+                .map(attack -> writeAttack(attack, requirePhaseStartedAt(attack.attackId()), requireErasureStrike(attack.attackId())))
                 .forEach(attackList::add);
         tag.put(ATTACKS_TAG, attackList);
         return tag;
     }
 
-    private static OrbitalAttackSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
+    static OrbitalAttackSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
         OrbitalAttackSavedData data = new OrbitalAttackSavedData();
         if (!tag.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT) || tag.getInt(SCHEMA_VERSION_TAG) != SCHEMA_VERSION) {
             LOGGER.warn("Ignoring orbital attack SavedData with an unsupported schema");
@@ -681,6 +706,23 @@ public final class OrbitalAttackSavedData extends SavedData {
             if (attack == null || data.attacks.putIfAbsent(attack.attackId(), attack) != null) {
                 LOGGER.warn("Ignoring invalid or duplicate orbital attack record");
             } else {
+                OrbitalErasureStrike strike;
+                try {
+                    if (attackTag.contains(ERASURE_JOURNAL_TAG) && !attackTag.contains(ERASURE_JOURNAL_TAG, Tag.TAG_COMPOUND)) {
+                        throw new IllegalArgumentException("Erasure journal is not a compound");
+                    }
+                    strike = OrbitalErasureStrike.load(attack.attackId(), attack.damageExemptions(),
+                            attackTag.contains(ERASURE_JOURNAL_TAG) ? attackTag.getCompound(ERASURE_JOURNAL_TAG) : null);
+                } catch (IllegalArgumentException failure) {
+                    LOGGER.error("Orbital attack {} has an unreadable erasure journal; escrow is retained and replay is disabled",
+                            attack.attackId(), failure);
+                    strike = OrbitalErasureStrike.quarantined(attack.attackId(), attack.damageExemptions());
+                }
+                data.erasureStrikes.put(attack.attackId(), strike);
+                if (!strike.usable()) {
+                    data.attacks.put(attack.attackId(), attack.faulted("Unreadable erasure journal; entity work cannot safely replay"));
+                    data.setDirty();
+                }
                 data.phaseStartedAt.put(
                         attack.attackId(),
                         attackTag.getLong(PHASE_STARTED_AT_TAG));
@@ -696,8 +738,9 @@ public final class OrbitalAttackSavedData extends SavedData {
         return this.phaseStartedAt.getLong(attackId);
     }
 
-    private static CompoundTag writeAttack(OrbitalAttackRecord attack, long phaseStartedAt) {
+    private static CompoundTag writeAttack(OrbitalAttackRecord attack, long phaseStartedAt, OrbitalErasureStrike strike) {
         CompoundTag tag = new CompoundTag();
+        tag.put(ERASURE_JOURNAL_TAG, strike.save());
         tag.putUUID(ATTACK_ID_TAG, attack.attackId());
         tag.putUUID(WEAPON_ID_TAG, attack.weaponId());
         tag.putString(MODE_TAG, attack.mode().name());
@@ -1134,7 +1177,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                         level,
                         delivery.target(),
                         geometry,
-                        delivery.damageExemptions());
+                        entityErasureFor(delivery.attackId()));
                 delivery = delivery.markImpactApplied();
             }
 
@@ -1187,7 +1230,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                     current.target(),
                     geometry,
                     current.workCursor(),
-                    current.damageExemptions(),
+                    entityErasureFor(current.attackId()),
                     mutationBudget,
                     chunk -> this.terrainWorkScheduler.prepareChunk(level, current.attackId(), chunk) == ChunkReadiness.READY);
             int visited = Math.toIntExact(slice.nextCursor() - previousCursor);
@@ -1335,8 +1378,9 @@ public final class OrbitalAttackSavedData extends SavedData {
         };
     }
 
-    private void registerAttack(MinecraftServer server, OrbitalAttackRecord attack) {
+    private void registerAttack(MinecraftServer server, OrbitalAttackRecord attack, UUID initiatorId) {
         this.attacks.put(attack.attackId(), attack);
+        this.erasureStrikes.put(attack.attackId(), new OrbitalErasureStrike(attack.attackId(), initiatorId, attack.damageExemptions()));
         this.phaseStartedAt.put(attack.attackId(), server.overworld().getGameTime());
         setDirty();
     }

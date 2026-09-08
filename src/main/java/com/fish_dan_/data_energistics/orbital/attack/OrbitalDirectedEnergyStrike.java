@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.orbital.attack;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamScan;
 import com.fish_dan_.data_energistics.orbital.attack.entity.OrbitalEntityErasure;
+import com.fish_dan_.data_energistics.orbital.attack.entity.strike.OrbitalErasureStrike;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -12,8 +13,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 
-import java.util.Set;
-import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
@@ -81,7 +80,7 @@ public final class OrbitalDirectedEnergyStrike {
                                         BlockPos target,
                                         OrbitalAttackGeometry.DirectedEnergy geometry,
                                         long cursor,
-                                        Set<UUID> exemptions,
+                                        OrbitalErasureStrike strike,
                                         int mutationBudget,
                                         Predicate<ChunkPos> chunkReady) {
         OrbitalBeamScan scan = scan(level, target, geometry);
@@ -104,7 +103,7 @@ public final class OrbitalDirectedEnergyStrike {
             if (!chunkReady.test(new ChunkPos(position))) {
                 return new WorkSlice(next, total, false, true);
             }
-            eraseBeamEntities(level, position, exemptions);
+            eraseBeamEntities(level, position, strike);
             if (!level.getBlockState(position).isAir()) {
                 level.setBlock(
                         position,
@@ -149,7 +148,7 @@ public final class OrbitalDirectedEnergyStrike {
     private static void eraseBeamEntities(
                                           ServerLevel level,
                                           BlockPos column,
-                                          Set<UUID> exemptions) {
+                                          OrbitalErasureStrike strike) {
         AABB beam = new AABB(
                 column.getX(),
                 column.getY(),
@@ -158,7 +157,7 @@ public final class OrbitalDirectedEnergyStrike {
                 column.getY() + 1.0D,
                 column.getZ() + 1.0D);
         for (Entity entity : level.getEntities(null, beam)) {
-            OrbitalEntityErasure.eraseHit(entity, exemptions);
+            OrbitalEntityErasure.eraseHit(entity, strike);
         }
     }
 

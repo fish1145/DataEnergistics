@@ -18,6 +18,7 @@ import com.fish_dan_.data_energistics.integration.curios.CuriosOrbitalControlTer
 import com.fish_dan_.data_energistics.integration.ftb.ultimine.DataCrystalPickaxeFtbUltimineCompat;
 import com.fish_dan_.data_energistics.integration.map.ftbchunks.FtbChunksOrbitalClaimHints;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotKeyContainerItemStrategy;
+import com.fish_dan_.data_energistics.orbital.attack.entity.lifecycle.OrbitalErasureAttachments;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlPlayerMenu;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointChunkTickets;
 import com.fish_dan_.data_energistics.orbital.map.OrbitalClaimHints;
@@ -53,6 +54,7 @@ public class CommonProxy {
         DEFluids.register(modEventBus);
         DEGameEvents.register(modEventBus);
         DEDataComponents.register(modEventBus);
+        OrbitalErasureAttachments.register(modEventBus);
         DEBlocks.register(modEventBus);
         DEItems.register(modEventBus);
         DEMobEffects.register(modEventBus);
