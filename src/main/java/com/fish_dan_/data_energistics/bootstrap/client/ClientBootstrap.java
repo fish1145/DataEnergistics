@@ -1,7 +1,9 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridgeAccess;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsTextureEditorResources;
+import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowModelLoader;
 import com.fish_dan_.data_energistics.client.runtime.ClientRuntimeBridge;
 
 import net.neoforged.bus.api.IEventBus;
@@ -74,6 +76,11 @@ public final class ClientBootstrap {
         @SubscribeEvent
         public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
             ClientRendererRegistrar.register(event);
+        }
+
+        @SubscribeEvent
+        public static void onRegisterGeometryLoaders(ModelEvent.RegisterGeometryLoaders event) {
+            event.register(Data_Energistics.id("matter_converging_crossbow"), new CrossbowModelLoader());
         }
 
         @SubscribeEvent

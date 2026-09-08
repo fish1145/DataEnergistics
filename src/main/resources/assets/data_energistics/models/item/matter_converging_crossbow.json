@@ -1,23 +1,44 @@
 {
-	"parent": "data_energistics:item/matter_converging_crossbow_0",
-	"overrides": [
-		{
-			"predicate": {
-				"data_energistics:load_stage": 0.2
-			},
-			"model": "data_energistics:item/matter_converging_crossbow_1"
+	"loader": "data_energistics:matter_converging_crossbow",
+	"textures": {
+		"0": "data_energistics:item/tool_weapon/matter_converging_crossbow/matter_converging_crossbow",
+		"particle": "data_energistics:item/tool_weapon/matter_converging_crossbow/matter_converging_crossbow",
+		"light": "data_energistics:item/tool_weapon/light_saber/light"
+	},
+	"display": {
+		"thirdperson_righthand": {
+			"translation": [0, 2.25, -2],
+			"scale": [0.6, 0.6, 0.6]
 		},
-		{
-			"predicate": {
-				"data_energistics:load_stage": 0.6
-			},
-			"model": "data_energistics:item/matter_converging_crossbow_2"
+		"thirdperson_lefthand": {
+			"translation": [0, 2.25, -2],
+			"scale": [0.6, 0.6, 0.6]
 		},
-		{
-			"predicate": {
-				"data_energistics:loaded_special_light_saber": 0.5
-			},
-			"model": "data_energistics:item/matter_converging_crossbow_light_purple"
+		"firstperson_righthand": {
+			"scale": [0.75, 0.75, 0.75]
+		},
+		"firstperson_lefthand": {
+			"scale": [0.75, 0.75, 0.75]
+		},
+		"ground": {
+			"scale": [0.4, 0.4, 0.4]
+		},
+		"gui": {
+			"rotation": [30, -135, 0],
+			"translation": [0, 0.5, 0],
+			"scale": [0.4, 0.4, 0.4]
+		},
+		"fixed": {
+			"rotation": [0, 90, 0],
+			"translation": [0, 0, -1.5]
 		}
-	]
+	},
+	"poses": {
+		"0": "data_energistics:models/item/matter_converging_crossbow/0.json",
+		"1": "data_energistics:models/item/matter_converging_crossbow/1.json",
+		"2": "data_energistics:models/item/matter_converging_crossbow/2.json",
+		"off": "data_energistics:model_poses/item/matter_converging_crossbow/off.json",
+		"on": "data_energistics:models/item/matter_converging_crossbow/on.json",
+		"light_saber": "data_energistics:models/item/matter_converging_crossbow/light_saber.json"
+	}
 }
