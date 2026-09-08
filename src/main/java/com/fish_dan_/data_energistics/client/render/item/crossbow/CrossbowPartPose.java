@@ -29,7 +29,7 @@ record CrossbowPartPose(Vector3f center, Quaternionf rotation, Vector3f size) {
             orientation.rotationY(-(float) Math.atan2(span.z, span.x));
         }
         float motionProgress = switch (group) {
-            case BOW -> string ? stringProgress : pose.bowRotation();
+            case BOW -> string ? pose.draw() : pose.bowRotation();
             case STRAP -> pose.bowSlide();
             case RAIL -> pose.railDeployment();
             case FRAME -> 0.0F;
