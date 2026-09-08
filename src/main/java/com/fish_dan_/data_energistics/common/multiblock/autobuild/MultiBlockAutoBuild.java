@@ -536,25 +536,42 @@ public interface MultiBlockAutoBuild {
     /**
      * Reports whether the complete operation committed and how much of the requested structure was already reusable.
      *
-     * @param success true only when every planned placement committed
+     * @param success true when the transaction committed all placements that had available materials
      * @param placed  number of blocks or parts published; zero after a pre-publication rollback
      * @param reused  number of non-air pattern positions that already matched during preflight
+     * @param missing number of positions skipped because no selected material was available
      * @param failure first failure, absent after a successful commit
      */
-    record Result(boolean success, int placed, int reused, @Nullable Failure failure) {
+    record Result(boolean success, int placed, int reused, int missing, @Nullable Failure failure) {
+
+        public Result {
+            if (placed < 0 || reused < 0 || missing < 0) {
+                throw new IllegalArgumentException("Auto-build result counts cannot be negative");
+            }
+            if (success && failure != null) {
+                throw new IllegalArgumentException("Successful auto-build result cannot contain a failure");
+            }
+        }
 
         /**
          * Creates a successful committed result.
          */
         public static Result success(int placed, int reused) {
-            return new Result(true, placed, reused, null);
+            return success(placed, reused, 0);
+        }
+
+        /**
+         * Creates a successful result while retaining the number of positions deferred for missing materials.
+         */
+        public static Result success(int placed, int reused, int missing) {
+            return new Result(true, placed, reused, missing, null);
         }
 
         /**
          * Creates a failed result after the transaction has left no committed placement.
          */
         public static Result failure(int reused, Failure failure) {
-            return new Result(false, 0, reused, failure);
+            return new Result(false, 0, reused, 0, failure);
         }
 
         /**
@@ -562,7 +579,14 @@ public interface MultiBlockAutoBuild {
          * while already published world state remains observable.
          */
         public static Result publishFailure(int placed, int reused, Failure failure) {
-            return new Result(false, placed, reused, failure);
+            return new Result(false, placed, reused, 0, failure);
+        }
+
+        /**
+         * Creates a publication failure while retaining the number of positions deferred for missing materials.
+         */
+        public static Result publishFailure(int placed, int reused, int missing, Failure failure) {
+            return new Result(false, placed, reused, missing, failure);
         }
     }
 
@@ -587,7 +611,8 @@ public interface MultiBlockAutoBuild {
          */
         BLOCKED,
         /**
-         * The player inventory cannot satisfy every planned placement.
+         * A planned position has no available material candidate. The transaction may continue with other positions;
+         * this type is retained for callers that explicitly reject partial allocation.
          */
         MISSING_MATERIAL,
         /**

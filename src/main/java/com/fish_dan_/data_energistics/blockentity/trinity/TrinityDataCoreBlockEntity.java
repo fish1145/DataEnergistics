@@ -955,14 +955,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private static void reportAutoBuildResult(Player player, int structureIndex, Result result) {
-        int missing = 0;
+        int missing = result.missing();
         int blocked = 0;
         int unloaded = 0;
         int placeFailed = 0;
         Failure failure = result.failure();
         if (failure != null) {
             switch (failure.type()) {
-                case MISSING_MATERIAL -> missing = 1;
+                case MISSING_MATERIAL -> missing = Math.max(missing, 1);
                 case BLOCKED -> blocked = 1;
                 case UNLOADED -> unloaded = 1;
                 default -> placeFailed = 1;
