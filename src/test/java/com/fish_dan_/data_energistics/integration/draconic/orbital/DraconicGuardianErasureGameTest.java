@@ -59,6 +59,12 @@ public final class DraconicGuardianErasureGameTest {
             fixture.manager().write(ended);
             helper.assertTrue(ended.getBoolean("guardian_killed"), "The real guardian settlement must record its defeated state");
             helper.assertValueEqual(hearts(helper.getLevel(), fixture.arena()), before + 1, "The kill entry point must produce one dragon heart");
+            var generated = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(fixture.arena().above(20)).inflate(2),
+                    item -> strike.result(item.getUUID()).map(result -> result.outcome() == OrbitalErasureOutcome.EXEMPT).orElse(false));
+            helper.assertValueEqual(generated.size(), 1, "The producing strike must protect exactly its newly generated reward");
+            helper.assertValueEqual(OrbitalEntityErasure.eraseHit(generated.getFirst(), strike), OrbitalErasureOutcome.ALREADY_HANDLED,
+                    "A continuing beam or sphere must not erase its own guardian reward");
+            helper.assertFalse(generated.getFirst().isRemoved(), "The reward must survive subsequent contact from the same strike");
             for (var anotherPart : fixture.guardian().getParts()) {
                 OrbitalEntityErasure.eraseHit(anotherPart, strike);
             }

@@ -6,11 +6,15 @@ import com.fish_dan_.data_energistics.orbital.attack.entity.strike.OrbitalErasur
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Entity.RemovalReason;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.phys.AABB;
 
 import com.brandon3055.brandonscore.worldentity.WorldEntity;
 import com.brandon3055.brandonscore.worldentity.WorldEntityHandler;
 import com.brandon3055.draconicevolution.entity.guardian.DraconicGuardianEntity;
 import com.brandon3055.draconicevolution.entity.guardian.GuardianFightManager;
+import com.brandon3055.draconicevolution.init.DEContent;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
 import java.util.UUID;
@@ -29,6 +33,8 @@ public final class DraconicGuardianErasureAdapter {
         DraconicGuardianEntity guardian = (DraconicGuardianEntity) target;
         GuardianFightManager encounter = null;
         boolean committed = false;
+        AABB rewardArea = null;
+        ObjectOpenHashSet<UUID> previousRewards = new ObjectOpenHashSet<>();
         try {
             encounter = findEncounter(guardian);
             if (encounter != null) {
@@ -40,6 +46,10 @@ public final class DraconicGuardianErasureAdapter {
                     return OrbitalErasureOutcome.ALREADY_HANDLED;
                 }
                 guardian.setFightManager(encounter);
+                rewardArea = new AABB(encounter.getArenaOrigin().above(20)).inflate(1);
+                for (ItemEntity reward : guardian.level().getEntitiesOfClass(ItemEntity.class, rewardArea, DraconicGuardianErasureAdapter::isGuardianHeart)) {
+                    previousRewards.add(reward.getUUID());
+                }
             }
             committed = true;
             // This method already performs guardianUpdate + processDragonDeath. Never call either again here.
@@ -59,7 +69,23 @@ public final class DraconicGuardianErasureAdapter {
             Data_Energistics.LOGGER.error("Guardian erasure {} for strike {} and guardian {} ended {}; settlement is not replayed",
                     execution, strike.strikeId(), guardian.getUUID(), committed ? "partially" : "before commitment", failure);
             return committed ? OrbitalErasureOutcome.PARTIAL_FAILURE : OrbitalErasureOutcome.FAILED_BEFORE_COMMIT;
+        } finally {
+            if (committed && rewardArea != null) {
+                // The same continuing beam/sphere must not immediately erase the reward its own encounter produced.
+                for (ItemEntity reward : guardian.level().getEntitiesOfClass(ItemEntity.class, rewardArea, DraconicGuardianErasureAdapter::isGuardianHeart)) {
+                    if (!previousRewards.contains(reward.getUUID())) {
+                        UUID claim = strike.begin(reward.getUUID());
+                        if (claim != null) {
+                            strike.complete(reward.getUUID(), claim, OrbitalErasureOutcome.EXEMPT);
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    private static boolean isGuardianHeart(ItemEntity item) {
+        return item.getItem().is(DEContent.DRAGON_HEART.get()) && item.getPersistentData().getBoolean("guardian_heart");
     }
 
     private static @Nullable GuardianFightManager findEncounter(DraconicGuardianEntity guardian) {
