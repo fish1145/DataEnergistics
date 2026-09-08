@@ -11,6 +11,10 @@ import com.fish_dan_.data_energistics.client.render.orbital.model.OrbitalModelRe
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackVisualSnapshot;
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamPath;
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamScan;
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamScan.Segment;
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamSweep;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
 import com.fish_dan_.data_energistics.orbital.projection.OrbitalProjectionVisualSnapshot;
 
@@ -32,9 +36,9 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -115,9 +119,9 @@ public final class OrbitalWorldProjectionRenderer {
         if (!dimension.equals(OrbitalProjectionVisualClientState.dimensionId())) {
             return List.of();
         }
-        List<OrbitalProjectionVisualSnapshot> ordered = new ArrayList<>(OrbitalProjectionVisualClientState.projections());
+        List<OrbitalProjectionVisualSnapshot> ordered = new ObjectArrayList<>(OrbitalProjectionVisualClientState.projections());
         ordered.sort(Comparator.comparingDouble(snapshot -> projectionOrigin(snapshot).distanceToSqr(camera)));
-        List<ProjectionDraw> result = new ArrayList<>();
+        List<ProjectionDraw> result = new ObjectArrayList<>();
         int fullDetail = 0;
         for (OrbitalProjectionVisualSnapshot snapshot : ordered) {
             Vec3 origin = projectionOrigin(snapshot);
@@ -147,9 +151,9 @@ public final class OrbitalWorldProjectionRenderer {
         if (!level.dimension().location().equals(OrbitalAttackVisualClientState.dimensionId())) {
             return List.of();
         }
-        List<OrbitalAttackVisualSnapshot> ordered = new ArrayList<>(OrbitalAttackVisualClientState.attacks());
+        List<OrbitalAttackVisualSnapshot> ordered = new ObjectArrayList<>(OrbitalAttackVisualClientState.attacks());
         ordered.sort(Comparator.comparingDouble(snapshot -> attackOrigin(level, snapshot).distanceToSqr(camera)));
-        List<AttackDraw> result = new ArrayList<>();
+        List<AttackDraw> result = new ObjectArrayList<>();
         int fullDetail = 0;
         for (OrbitalAttackVisualSnapshot snapshot : ordered) {
             Vec3 origin = attackOrigin(level, snapshot);
@@ -164,9 +168,15 @@ public final class OrbitalWorldProjectionRenderer {
             AABB localBounds = OrbitalConstructModel.ECHO_BOUNDS
                     .minmax(new AABB(-radius, targetY, -radius, radius, targetY + 1, radius))
                     .minmax(new AABB(effect, effect).inflate(8));
+            OrbitalBeamSweep sweep = snapshot.beamSweep();
+            List<Segment> beams = sweep == null ? List.of() : sweep.scan(snapshot.target(), snapshot.effectRadius())
+                    .completedBeams(sweep.fromCursor(), snapshot.workCursor(), detail == Detail.FULL ? 32 : 8);
+            for (Segment beam : beams) {
+                localBounds = localBounds.minmax(new AABB(beam.origin().subtract(origin), beam.tip().subtract(origin)).inflate(1));
+            }
             OrbitalProjectionPlacement placement = OrbitalProjectionPlacement.create(camera, origin, localBounds, far);
             if (event.getFrustum().isVisible(placement.bounds())) {
-                result.add(new AttackDraw(snapshot, origin, placement, detail));
+                result.add(new AttackDraw(snapshot, origin, placement, detail, beams));
                 if (detail == Detail.FULL) {
                     fullDetail++;
                 }
@@ -201,6 +211,10 @@ public final class OrbitalWorldProjectionRenderer {
         OrbitalModelRenderer renderer = new OrbitalModelRenderer(consumer, draw.detail() == Detail.FULL,
                 emissive, SKY_LIGHT, 0.8F, 0.94F, 1, emissive ? 0.9F : alpha);
         beginPlacement(poses, draw.placement());
+        if (draw.snapshot().mode() == OrbitalAttackMode.DIRECTED_ENERGY) {
+            Vec3 aim = draw.beams().isEmpty() ? Vec3.atCenterOf(draw.snapshot().target()) : draw.beams().getLast().tip();
+            OrbitalConstructModel.aimDirectedEcho(poses, aim.subtract(draw.origin()));
+        }
         OrbitalConstructModel.echo(poses, renderer, draw.detail(), draw.snapshot().mode(), time,
                 draw.snapshot().randomSeed(), charging);
         poses.popPose();
@@ -228,6 +242,24 @@ public final class OrbitalWorldProjectionRenderer {
             float blue = snapshot.mode() == OrbitalAttackMode.DIGITAL_ANNIHILATION ? 0.75F : 1;
             float width = warning ? 0.35F : (snapshot.mode() == OrbitalAttackMode.DIRECTED_ENERGY ? 3 : 1.2F);
             beginPlacement(poses, draw.placement());
+            if (snapshot.mode() == OrbitalAttackMode.DIRECTED_ENERGY) {
+                if (warning || snapshot.beamSweep() == null) {
+                    OrbitalBeamMesh.beam(poses, consumer, Vec3.ZERO, effect, 0.35F,
+                            attackTime, red, green, blue, 0.32F);
+                    OrbitalBeamMesh.targetRing(poses, consumer, 0, snapshot.target().getY() + 0.08 - draw.origin().y, 0,
+                            Math.max(1, snapshot.effectRadius()), red, green, blue, 0.3F);
+                } else {
+                    for (int index = 0; index < draw.beams().size(); index++) {
+                        Segment beam = draw.beams().get(index);
+                        boolean current = index == draw.beams().size() - 1;
+                        OrbitalBeamMesh.beam(poses, consumer, beam.origin().subtract(draw.origin()),
+                                beam.tip().subtract(draw.origin()), current ? width : width * 0.35F,
+                                attackTime, red, green, blue, current ? 0.85F : 0.12F);
+                    }
+                }
+                poses.popPose();
+                continue;
+            }
             OrbitalBeamMesh.beam(poses, consumer, effect.x, effect.z, effect.y, 0, width,
                     attackTime, red, green, blue, warning ? 0.32F : 0.85F);
             OrbitalBeamMesh.targetRing(poses, consumer, 0, snapshot.target().getY() + 0.08 - draw.origin().y, 0,
@@ -248,6 +280,13 @@ public final class OrbitalWorldProjectionRenderer {
     }
 
     private static Vec3 attackOrigin(ClientLevel level, OrbitalAttackVisualSnapshot snapshot) {
+        OrbitalBeamSweep sweep = snapshot.beamSweep();
+        if (sweep != null) {
+            if (sweep.path() == OrbitalBeamPath.VERTICAL_COLUMNS && snapshot.workCursor() > 0) {
+                return sweep.scan(snapshot.target(), snapshot.effectRadius()).beamAt(snapshot.workCursor() - 1).origin();
+            }
+            return OrbitalBeamScan.muzzle(snapshot.target(), sweep.topY());
+        }
         double y = Math.max(level.getMaxBuildHeight() + 96.0, snapshot.target().getY() + 96.0);
         return new Vec3(snapshot.target().getX() + 0.5, y, snapshot.target().getZ() + 0.5);
     }
@@ -268,5 +307,5 @@ public final class OrbitalWorldProjectionRenderer {
                                   Detail detail) {}
 
     private record AttackDraw(OrbitalAttackVisualSnapshot snapshot, Vec3 origin, OrbitalProjectionPlacement placement,
-                              Detail detail) {}
+                              Detail detail, List<Segment> beams) {}
 }

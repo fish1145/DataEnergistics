@@ -6,17 +6,26 @@ import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import org.joml.Quaternionf;
 
 /** Shared module assembly for the persistent construct, the three firing echoes, and the physical payload. */
 public final class OrbitalConstructModel {
 
     public static final AABB BOUNDS = new AABB(-266, -84, -64, 266, 64, 64);
-    public static final AABB ECHO_BOUNDS = new AABB(-64, -84, -64, 64, 64, 64);
+    public static final AABB ECHO_BOUNDS = new AABB(-96, -96, -96, 96, 96, 96);
 
     private OrbitalConstructModel() {}
+
+    /** Places the front face at the fixed muzzle and points the complete barrel along the authoritative beam. */
+    public static void aimDirectedEcho(PoseStack poses, Vec3 direction) {
+        Vec3 unit = direction.normalize();
+        poses.mulPose(new Quaternionf().rotationTo(0, -1, 0, (float) unit.x, (float) unit.y, (float) unit.z));
+        poses.translate(0, 20.5, 0);
+    }
 
     /** Renders one material pass in construct-local coordinates; the pose stack is restored before return. */
     public static void render(PoseStack poses, OrbitalModelRenderer renderer, Detail detail,

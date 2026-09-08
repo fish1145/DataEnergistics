@@ -11,7 +11,8 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.HashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+
 import java.util.List;
 import java.util.Map;
 
@@ -26,13 +27,10 @@ public final class OrbitalAttackVisualTicker {
     public void onServerTickPost(ServerTickEvent.Post event) {
         MinecraftServer server = event.getServer();
         long gameTime = server.overworld().getGameTime();
-        if (gameTime % PUBLISH_INTERVAL != 0L) {
-            return;
-        }
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
-        Map<ResourceLocation, List<OrbitalAttackVisualsPayload>> attackBatches = new HashMap<>();
-        Map<ResourceLocation, List<OrbitalProjectionVisualsPayload>> projectionBatches = new HashMap<>();
+        Map<ResourceLocation, List<OrbitalAttackVisualsPayload>> attackBatches = new Object2ObjectOpenHashMap<>();
+        Map<ResourceLocation, List<OrbitalProjectionVisualsPayload>> projectionBatches = new Object2ObjectOpenHashMap<>();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             ResourceLocation dimensionId = player.level().dimension().location();
             List<OrbitalAttackVisualsPayload> dimensionAttacks = attackBatches.computeIfAbsent(
@@ -41,17 +39,17 @@ public final class OrbitalAttackVisualTicker {
                             gameTime,
                             dimensionId,
                             attacks.publicVisuals(player.serverLevel(), gameTime)));
-            List<OrbitalProjectionVisualsPayload> dimensionProjections = projectionBatches.computeIfAbsent(
-                    dimensionId,
-                    ignored -> OrbitalProjectionVisualsPayload.batches(
-                            gameTime,
-                            dimensionId,
-                            weapons.publicVisualProjections(player.serverLevel(), gameTime)));
             for (OrbitalAttackVisualsPayload payload : dimensionAttacks) {
                 PacketDistributor.sendToPlayer(player, payload);
             }
-            for (OrbitalProjectionVisualsPayload payload : dimensionProjections) {
-                PacketDistributor.sendToPlayer(player, payload);
+            if (gameTime % PUBLISH_INTERVAL == 0L) {
+                List<OrbitalProjectionVisualsPayload> dimensionProjections = projectionBatches.computeIfAbsent(
+                        dimensionId,
+                        ignored -> OrbitalProjectionVisualsPayload.batches(gameTime, dimensionId,
+                                weapons.publicVisualProjections(player.serverLevel(), gameTime)));
+                for (OrbitalProjectionVisualsPayload payload : dimensionProjections) {
+                    PacketDistributor.sendToPlayer(player, payload);
+                }
             }
         }
     }

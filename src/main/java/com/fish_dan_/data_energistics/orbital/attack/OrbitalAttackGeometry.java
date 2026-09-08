@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamPath;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -123,7 +124,8 @@ public sealed interface OrbitalAttackGeometry
     record DirectedEnergy(
                           int radius,
                           OrbitalDirectedEnergyDepth depth,
-                          int depthBlocks)
+                          int depthBlocks,
+                          OrbitalBeamPath path)
             implements OrbitalAttackGeometry {
 
         public static final int DEFAULT_MIN_RADIUS = 16;
@@ -134,6 +136,11 @@ public sealed interface OrbitalAttackGeometry
         public static final int DEFAULT_DEEP_DEPTH = 512;
         public static final int MAX_SUPPORTED_RADIUS = 256;
         public static final int MAX_SUPPORTED_DEPTH = 8_192;
+
+        /** New scans use rays aimed from the fixed muzzle. */
+        public DirectedEnergy(int radius, OrbitalDirectedEnergyDepth depth, int depthBlocks) {
+            this(radius, depth, depthBlocks, OrbitalBeamPath.AIMED_RAYS);
+        }
 
         public DirectedEnergy {
             OrbitalDirectedEnergyStrike.validateSupportedRadius(radius);
@@ -158,15 +165,22 @@ public sealed interface OrbitalAttackGeometry
         }
 
         /** Normalizes numeric NBT values without consulting mutable live configuration. */
+        public static DirectedEnergy fromPersisted(int radius, OrbitalDirectedEnergyDepth depth, int depthBlocks) {
+            return fromPersisted(radius, depth, depthBlocks, OrbitalBeamPath.VERTICAL_COLUMNS);
+        }
+
+        /** Restores the explicit traversal format alongside the captured numeric geometry. */
         public static DirectedEnergy fromPersisted(
                                                    int radius,
                                                    OrbitalDirectedEnergyDepth depth,
-                                                   int depthBlocks) {
+                                                   int depthBlocks,
+                                                   OrbitalBeamPath path) {
             int normalizedDepth = depth == OrbitalDirectedEnergyDepth.THROUGH ? 0 : Math.clamp(depthBlocks, 1, MAX_SUPPORTED_DEPTH);
             return new DirectedEnergy(
                     Math.clamp(radius, 1, MAX_SUPPORTED_RADIUS),
                     depth,
-                    normalizedDepth);
+                    normalizedDepth,
+                    path);
         }
 
         @Override

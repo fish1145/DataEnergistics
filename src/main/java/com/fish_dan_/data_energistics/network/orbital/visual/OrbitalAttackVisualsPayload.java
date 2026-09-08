@@ -5,6 +5,8 @@ import com.fish_dan_.data_energistics.client.render.orbital.OrbitalAttackVisualC
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackVisualSnapshot;
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamPath;
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamSweep;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -13,7 +15,8 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -62,7 +65,7 @@ public record OrbitalAttackVisualsPayload(
         List<OrbitalAttackVisualSnapshot> immutable = List.copyOf(attacks);
         int totalCount = immutable.size();
         int batchCount = totalCount == 0 ? 1 : ((totalCount - 1) / MAX_ATTACKS) + 1;
-        ArrayList<OrbitalAttackVisualsPayload> batches = new ArrayList<>(batchCount);
+        List<OrbitalAttackVisualsPayload> batches = new ObjectArrayList<>(batchCount);
         for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {
             int from = batchIndex * MAX_ATTACKS;
             int to = Math.min(totalCount, from + MAX_ATTACKS);
@@ -109,6 +112,14 @@ public record OrbitalAttackVisualsPayload(
             buffer.writeVarLong(attack.randomSeed());
             buffer.writeVarLong(attack.workCursor());
             buffer.writeVarLong(attack.totalWork());
+            OrbitalBeamSweep sweep = attack.beamSweep();
+            buffer.writeBoolean(sweep != null);
+            if (sweep != null) {
+                buffer.writeInt(sweep.topY());
+                buffer.writeInt(sweep.bottomY());
+                buffer.writeEnum(sweep.path());
+                buffer.writeVarLong(sweep.fromCursor());
+            }
         }
     }
 
@@ -131,7 +142,7 @@ public record OrbitalAttackVisualsPayload(
         if (count < 0 || count > MAX_ATTACKS) {
             throw new IllegalArgumentException("Orbital visual attack count exceeds " + MAX_ATTACKS);
         }
-        ArrayList<OrbitalAttackVisualSnapshot> attacks = new ArrayList<>(count);
+        List<OrbitalAttackVisualSnapshot> attacks = new ObjectArrayList<>(count);
         for (int index = 0; index < count; index++) {
             UUID attackId = buffer.readUUID();
             int modeOrdinal = buffer.readVarInt();
@@ -152,7 +163,9 @@ public record OrbitalAttackVisualsPayload(
                     buffer.readVarLong(),
                     buffer.readVarLong(),
                     buffer.readVarLong(),
-                    buffer.readVarLong()));
+                    buffer.readVarLong(),
+                    buffer.readBoolean() ? new OrbitalBeamSweep(buffer.readInt(), buffer.readInt(),
+                            buffer.readEnum(OrbitalBeamPath.class), buffer.readVarLong()) : null));
         }
         return new Decoded(revision, dimensionId, batchIndex, batchCount, totalCount, List.copyOf(attacks));
     }

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamScan;
 import com.fish_dan_.data_energistics.orbital.attack.entity.OrbitalEntityErasure;
 
 import net.minecraft.core.BlockPos;
@@ -11,10 +12,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
-
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -23,15 +20,11 @@ import java.util.function.Predicate;
  * Deterministic, budgeted work geometry for the spiral directed-energy attack.
  *
  * <p>
- * The ordered disk columns are generated once per radius and then addressed by a persisted cursor. A column is
- * visited exactly once, while each Y position in that column consumes one bounded work slot. No block access occurs
- * after the caller has acquired the current position's FULL chunk through the asynchronous terrain scheduler.
+ * The fixed muzzle aims through ordered disk coordinates. Every voxel crossed by each ray consumes one bounded
+ * work slot. The same traversal supplies the public beam geometry; world access waits for the current FULL chunk.
  * </p>
  */
 public final class OrbitalDirectedEnergyStrike {
-
-    private static final int MAX_CACHED_RADII = 16;
-    private static final Int2ObjectLinkedOpenHashMap<List<Offset>> DISK_OFFSETS = new Int2ObjectLinkedOpenHashMap<>(MAX_CACHED_RADII);
 
     private OrbitalDirectedEnergyStrike() {}
 
@@ -60,13 +53,7 @@ public final class OrbitalDirectedEnergyStrike {
      * Returns the total deterministic block positions in one captured scan geometry.
      */
     public static long totalWork(ServerLevel level, BlockPos target, OrbitalAttackGeometry.DirectedEnergy geometry) {
-        int bottomY = geometry.bottomY(level, target.getY());
-        int topY = level.getMaxBuildHeight() - 1;
-        int height = Math.max(0, topY - bottomY + 1);
-        if (height == 0) {
-            throw new IllegalArgumentException("Directed-energy geometry has no vertical work range");
-        }
-        return Math.multiplyExact(scheduledCoordinateCount(geometry.radius()), height);
+        return scan(level, target, geometry).totalWork();
     }
 
     /** Returns the exact beam block position represented by a persisted public work cursor. */
@@ -75,16 +62,13 @@ public final class OrbitalDirectedEnergyStrike {
                                         BlockPos target,
                                         OrbitalAttackGeometry.DirectedEnergy geometry,
                                         long cursor) {
-        List<Offset> offsets = offsetsFor(geometry.radius());
-        int bottomY = geometry.bottomY(level, target.getY());
-        int topY = level.getMaxBuildHeight() - 1;
-        int height = Math.max(0, topY - bottomY + 1);
-        long total = Math.multiplyExact((long) offsets.size(), height);
-        if (height == 0 || cursor < 0L || cursor > total) {
+        OrbitalBeamScan scan = scan(level, target, geometry);
+        long total = scan.totalWork();
+        if (cursor < 0L || cursor > total) {
             throw new IllegalArgumentException("Directed-energy work cursor is outside its geometry");
         }
         long positionCursor = cursor == total ? total - 1L : cursor;
-        return positionAt(target, offsets, topY, height, positionCursor);
+        return scan.walker(positionCursor).position();
     }
 
     /**
@@ -100,25 +84,23 @@ public final class OrbitalDirectedEnergyStrike {
                                         Set<UUID> exemptions,
                                         int mutationBudget,
                                         Predicate<ChunkPos> chunkReady) {
-        List<Offset> offsets = offsetsFor(geometry.radius());
-        int bottomY = geometry.bottomY(level, target.getY());
-        int topY = level.getMaxBuildHeight() - 1;
-        int height = Math.max(0, topY - bottomY + 1);
-        if (height == 0) {
-            throw new IllegalArgumentException("Directed-energy geometry has no vertical work range");
-        }
-        long total = Math.multiplyExact((long) offsets.size(), height);
+        OrbitalBeamScan scan = scan(level, target, geometry);
+        long total = scan.totalWork();
         if (cursor < 0L || cursor > total) {
             throw new IllegalArgumentException("Directed-energy work cursor is outside its geometry");
         }
         if (mutationBudget <= 0) {
             throw new IllegalArgumentException("Directed-energy mutation budget must be positive");
         }
+        if (cursor == total) {
+            return new WorkSlice(cursor, total, true, false);
+        }
 
+        OrbitalBeamScan.Walker walker = scan.walker(cursor);
         long next = cursor;
         int visited = 0;
         while (next < total && visited < mutationBudget) {
-            BlockPos position = positionAt(target, offsets, topY, height, next);
+            BlockPos position = walker.position();
             if (!chunkReady.test(new ChunkPos(position))) {
                 return new WorkSlice(next, total, false, true);
             }
@@ -131,21 +113,15 @@ public final class OrbitalDirectedEnergyStrike {
             }
             next++;
             visited++;
+            walker.advance();
         }
         return new WorkSlice(next, total, next == total, false);
     }
 
-    private static BlockPos positionAt(
-                                       BlockPos target,
-                                       List<Offset> offsets,
-                                       int topY,
-                                       int height,
-                                       long cursor) {
-        int offsetIndex = (int) (cursor / height);
-        int yOffset = (int) (cursor % height);
-        Offset offset = offsets.get(offsetIndex);
-        int y = topY - yOffset;
-        return target.offset(offset.x(), y - target.getY(), offset.z());
+    /** Shared trajectory for world mutation and synchronized rendering. No world/chunk access is performed. */
+    public static OrbitalBeamScan scan(ServerLevel level, BlockPos target, OrbitalAttackGeometry.DirectedEnergy geometry) {
+        return new OrbitalBeamScan(target, level.getMaxBuildHeight() - 1, geometry.bottomY(level, target.getY()),
+                geometry.radius(), geometry.path());
     }
 
     /** Validates a player-selected radius against the current server grid. */
@@ -170,46 +146,6 @@ public final class OrbitalDirectedEnergyStrike {
         }
     }
 
-    private static synchronized List<Offset> offsetsFor(int radius) {
-        validateSupportedRadius(radius);
-        List<Offset> offsets = DISK_OFFSETS.computeIfAbsent(radius, OrbitalDirectedEnergyStrike::buildOffsets);
-        DISK_OFFSETS.getAndMoveToLast(radius);
-        if (DISK_OFFSETS.size() > MAX_CACHED_RADII) {
-            DISK_OFFSETS.removeFirst();
-        }
-        return offsets;
-    }
-
-    private static List<Offset> buildOffsets(int radius) {
-        int side = radius * 2 + 1;
-        int total = Math.multiplyExact(side, side);
-        ArrayList<Offset> result = new ArrayList<>();
-        int x = 0;
-        int z = 0;
-        int directionX = 1;
-        int directionZ = 0;
-        int segmentLength = 1;
-        int segmentProgress = 0;
-        int segmentCount = 0;
-        for (int emitted = 0; emitted < total; emitted++) {
-            if ((long) x * x + (long) z * z <= (long) radius * radius) {
-                result.add(new Offset(x, z));
-            }
-            x += directionX;
-            z += directionZ;
-            if (++segmentProgress == segmentLength) {
-                segmentProgress = 0;
-                int rotatedX = -directionZ;
-                directionZ = directionX;
-                directionX = rotatedX;
-                if (++segmentCount % 2 == 0) {
-                    segmentLength++;
-                }
-            }
-        }
-        return List.copyOf(result);
-    }
-
     private static void eraseBeamEntities(
                                           ServerLevel level,
                                           BlockPos column,
@@ -225,8 +161,6 @@ public final class OrbitalDirectedEnergyStrike {
             OrbitalEntityErasure.eraseHit(entity, exemptions);
         }
     }
-
-    private record Offset(int x, int z) {}
 
     /** Result of one bounded directed-energy geometry slice. */
     public record WorkSlice(long nextCursor, long totalWork, boolean complete, boolean waitingForChunk) {

@@ -5,9 +5,11 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import org.joml.Quaternionf;
 
 /** Textured beam volumes and horizontal target rings, batched independently of the construct's material passes. */
 public final class OrbitalBeamMesh {
@@ -16,6 +18,22 @@ public final class OrbitalBeamMesh {
     public static final RenderType RENDER_TYPE = RenderType.beaconBeam(TEXTURE, true);
 
     private OrbitalBeamMesh() {}
+
+    /** Draws an aimed beam from its actual muzzle to its server-completed frontier. */
+    public static void beam(PoseStack poses, VertexConsumer consumer, Vec3 start, Vec3 end, float width,
+                            double time, float red, float green, float blue, float alpha) {
+        Vec3 delta = end.subtract(start);
+        float length = (float) delta.length();
+        if (length < 0.01F) {
+            return;
+        }
+        Vec3 direction = delta.scale(1.0 / length);
+        poses.pushPose();
+        poses.translate(start.x, start.y, start.z);
+        poses.mulPose(new Quaternionf().rotationTo(0, 1, 0, (float) direction.x, (float) direction.y, (float) direction.z));
+        beam(poses, consumer, 0, 0, 0, length, width, time, red, green, blue, alpha);
+        poses.popPose();
+    }
 
     public static void beam(PoseStack poses, VertexConsumer consumer, double x, double z, double startY,
                             double endY, float width, double time, float red, float green, float blue, float alpha) {

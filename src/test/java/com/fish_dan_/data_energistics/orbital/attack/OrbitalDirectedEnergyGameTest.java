@@ -139,6 +139,12 @@ public final class OrbitalDirectedEnergyGameTest {
                             attack.phase() == OrbitalAttackPhase.RESERVED_WARNING,
                             "The directed-energy scan must eventually commit");
                     helper.assertTrue(victim.get().isRemoved(), "The real beam must erase the immune high-health target");
+                    OrbitalAttackVisualSnapshot visual = attacks.publicVisuals(level, server.overworld().getGameTime()).stream()
+                            .filter(candidate -> candidate.attackId().equals(attack.attackId())).findFirst().orElseThrow();
+                    helper.assertTrue(visual.beamSweep() != null, "Registered attacks must publish their actual beam trajectory");
+                    helper.assertValueEqual(visual.effectPosition(), OrbitalDirectedEnergyStrike.workPosition(level, target,
+                            (OrbitalAttackGeometry.DirectedEnergy) attack.geometry(), visual.workCursor() - 1),
+                            "Registered visuals must refer to the last visited voxel, never the next work item");
                 })
                 .thenWaitUntil(() -> {
                     OrbitalAttackRecord attack = attacks.find(attackId.get()).orElseThrow();

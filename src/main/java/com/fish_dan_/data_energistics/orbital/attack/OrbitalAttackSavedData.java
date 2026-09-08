@@ -6,6 +6,8 @@ import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.explosive.DigitalAnnihilationWork;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackGeometry.KineticCraterProfile;
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamPath;
+import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamSweep;
 import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalAttackWorkState;
 import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalTerrainWorkScheduler;
 import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalTerrainWorkScheduler.ChunkReadiness;
@@ -38,7 +40,6 @@ import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -69,6 +70,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String GEOMETRY_RADIUS_TAG = "geometry_radius";
     private static final String GEOMETRY_DEPTH_TAG = "geometry_depth";
     private static final String GEOMETRY_DEPTH_BLOCKS_TAG = "geometry_depth_blocks";
+    private static final String BEAM_PATH_TAG = "beam_path";
     private static final String KINETIC_COLUMN_RADIUS_TAG = "kinetic_column_radius";
     private static final String KINETIC_COLUMN_DEPTH_TAG = "kinetic_column_depth";
     private static final String KINETIC_CRATER_RADIUS_TAG = "kinetic_crater_radius";
@@ -100,6 +102,7 @@ public final class OrbitalAttackSavedData extends SavedData {
 
     private final Map<UUID, OrbitalAttackRecord> attacks = new LinkedHashMap<>();
     private final Object2LongOpenHashMap<UUID> phaseStartedAt = new Object2LongOpenHashMap<>();
+    private final Object2ObjectOpenHashMap<UUID, BeamFrame> beamFrames = new Object2ObjectOpenHashMap<>();
     private final OrbitalTerrainWorkScheduler terrainWorkScheduler = new OrbitalTerrainWorkScheduler();
     private int roundRobinOffset;
 
@@ -239,8 +242,11 @@ public final class OrbitalAttackSavedData extends SavedData {
      */
     public List<OrbitalAttackVisualSnapshot> publicVisuals(ServerLevel level, long gameTime) {
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
-        ArrayList<OrbitalAttackVisualSnapshot> visuals = new ArrayList<>();
-        for (OrbitalAttackRecord attack : this.attacks.values()) {
+        List<OrbitalAttackVisualSnapshot> visuals = new ObjectArrayList<>();
+        for (OrbitalAttackRecord storedAttack : this.attacks.values()) {
+            BeamFrame frame = this.beamFrames.get(storedAttack.attackId());
+            // Retain the last delivered span for this tick even if the persisted attack just entered cooldown.
+            OrbitalAttackRecord attack = frame == null ? storedAttack : frame.attack();
             if (!attack.dimensionId().equals(level.dimension().location()) || (attack.phase() != OrbitalAttackPhase.RESERVED_WARNING && attack.phase() != OrbitalAttackPhase.COMMITTED && attack.phase() != OrbitalAttackPhase.DELIVERY)) {
                 continue;
             }
@@ -262,7 +268,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                             level,
                             attack.target(),
                             geometry,
-                            attack.workCursor());
+                            Math.max(0, attack.workCursor() - 1));
                     yield new VisualEffect(effectPosition, geometry.radius(), totalWork);
                 }
                 case DIGITAL_ANNIHILATION -> {
@@ -285,7 +291,9 @@ public final class OrbitalAttackSavedData extends SavedData {
                     phaseAge,
                     randomSeed,
                     attack.workCursor(),
-                    visualEffect.totalWork()));
+                    visualEffect.totalWork(),
+                    attack.geometry() instanceof OrbitalAttackGeometry.DirectedEnergy geometry ? new OrbitalBeamSweep(level.getMaxBuildHeight() - 1, geometry.bottomY(level, attack.target().getY()),
+                            geometry.path(), frame == null ? attack.workCursor() : frame.fromCursor()) : null));
         }
         return visuals.stream()
                 .sorted(Comparator.comparing(OrbitalAttackVisualSnapshot::attackId))
@@ -591,6 +599,7 @@ public final class OrbitalAttackSavedData extends SavedData {
      */
     public void tick(MinecraftServer server) {
         requireServerThread(server);
+        this.beamFrames.clear();
         DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
         long gameTime = server.overworld().getGameTime();
         boolean phaseTimesChanged = this.phaseStartedAt.keySet().removeIf(attackId -> !this.attacks.containsKey(attackId));
@@ -710,6 +719,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 tag.putInt(GEOMETRY_RADIUS_TAG, directedEnergy.radius());
                 tag.putString(GEOMETRY_DEPTH_TAG, directedEnergy.depth().name());
                 tag.putInt(GEOMETRY_DEPTH_BLOCKS_TAG, directedEnergy.depthBlocks());
+                tag.putString(BEAM_PATH_TAG, directedEnergy.path().name());
             }
             case OrbitalAttackGeometry.DigitalAnnihilation digital -> {
                 tag.putInt(DIGITAL_WORK_INTERVAL_TAG, digital.workIntervalTicks());
@@ -827,7 +837,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 craterProfile);
     }
 
-    private static OrbitalAttackGeometry.DirectedEnergy readDirectedEnergyGeometry(CompoundTag tag) {
+    static OrbitalAttackGeometry.DirectedEnergy readDirectedEnergyGeometry(CompoundTag tag) {
         if (!tag.contains(GEOMETRY_RADIUS_TAG, Tag.TAG_INT) || !tag.contains(GEOMETRY_DEPTH_TAG, Tag.TAG_STRING) || !tag.contains(GEOMETRY_DEPTH_BLOCKS_TAG, Tag.TAG_INT)) {
             throw new IllegalArgumentException("Incomplete persisted directed-energy geometry");
         }
@@ -835,7 +845,8 @@ public final class OrbitalAttackSavedData extends SavedData {
         return OrbitalAttackGeometry.DirectedEnergy.fromPersisted(
                 tag.getInt(GEOMETRY_RADIUS_TAG),
                 depth,
-                tag.getInt(GEOMETRY_DEPTH_BLOCKS_TAG));
+                tag.getInt(GEOMETRY_DEPTH_BLOCKS_TAG),
+                tag.contains(BEAM_PATH_TAG) ? OrbitalBeamPath.valueOf(tag.getString(BEAM_PATH_TAG)) : OrbitalBeamPath.VERTICAL_COLUMNS);
     }
 
     private static OrbitalAttackGeometry.DigitalAnnihilation readDigitalAnnihilationGeometry(
@@ -1189,6 +1200,9 @@ public final class OrbitalAttackSavedData extends SavedData {
             }
             OrbitalAttackWorkState workState = slice.waitingForChunk() ? persistedWorkState(readiness) : OrbitalAttackWorkState.WORKING;
             OrbitalAttackRecord updated = current.withWork(slice.nextCursor(), workState);
+            if (visited > 0) {
+                this.beamFrames.put(current.attackId(), new BeamFrame(updated, previousCursor));
+            }
             if (slice.complete()) {
                 finishAttack(server, current, updated);
                 return;
@@ -1204,6 +1218,7 @@ public final class OrbitalAttackSavedData extends SavedData {
      */
     public void releaseRuntimeResources(MinecraftServer server) {
         requireServerThread(server);
+        this.beamFrames.clear();
         this.terrainWorkScheduler.releaseAll(server);
     }
 
@@ -1379,6 +1394,8 @@ public final class OrbitalAttackSavedData extends SavedData {
         }
         return !level.getWorldBorder().isWithinBounds(target) || !level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius)) || !level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius));
     }
+
+    private record BeamFrame(OrbitalAttackRecord attack, long fromCursor) {}
 
     private record VisualEffect(BlockPos position, int radius, long totalWork) {}
 
