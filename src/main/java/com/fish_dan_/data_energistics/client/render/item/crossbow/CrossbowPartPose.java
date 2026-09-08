@@ -10,8 +10,9 @@ record CrossbowPartPose(Vector3f center, Quaternionf rotation, Vector3f size) {
                          CrossbowAnimation.Pose pose) {
         float progress = group.progress(pose);
         boolean string = motion == CrossbowMotion.LEFT_STRING || motion == CrossbowMotion.RIGHT_STRING;
+        float stringProgress = 0.5F * pose.bowPosition() + 0.5F * pose.draw();
         float positionProgress = group == CrossbowDeployment.BOW ? pose.bowPosition() : progress;
-        float rotationProgress = group == CrossbowDeployment.BOW ? string ? pose.draw() : pose.bowRotation() : progress;
+        float rotationProgress = group == CrossbowDeployment.BOW ? string ? stringProgress : pose.bowRotation() : progress;
         Vector3f position = new Vector3f(this.center);
         if (group == CrossbowDeployment.BOW || group == CrossbowDeployment.STRAP) {
             // Move the still-folded bow out of its housing as one assembly.
@@ -28,7 +29,7 @@ record CrossbowPartPose(Vector3f center, Quaternionf rotation, Vector3f size) {
             orientation.rotationY(-(float) Math.atan2(span.z, span.x));
         }
         float motionProgress = switch (group) {
-            case BOW -> string ? pose.draw() : pose.bowRotation();
+            case BOW -> string ? stringProgress : pose.bowRotation();
             case STRAP -> pose.bowSlide();
             case RAIL -> pose.railDeployment();
             case FRAME -> 0.0F;
