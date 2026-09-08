@@ -74,6 +74,10 @@ public final class CrossbowGeometry implements IUnbakedGeometry<CrossbowGeometry
         for (int i = 0; i < active.size(); i++) {
             Part from = folded.get(i);
             Part to = active.get(i);
+            if ((to.motion == CrossbowMotion.LEFT_STRING || to.motion == CrossbowMotion.RIGHT_STRING) && pose.draw() <= 0.001F && !special) {
+                // The bow limbs deploy empty; the string leaves its housing only when charging starts.
+                continue;
+            }
             float deployment = to.deployment.progress(pose);
             Matrix4f transform = new Matrix4f(root).mul(from.pose.transformTo(to.pose, to.deployment, to.motion, pose));
             append(quads, deployment == 0.0F ? from.quads : to.quads, transform);
