@@ -13,6 +13,7 @@
 		"ae2cs.Ae2CsPatternProviderLogicMixin",
 		"ae2cs.Ae2CsUpgradeablePatternProviderMenuMixin",
 		"ae2ct.TrinityCraftingPlanSummaryProjectionMixin",
+		"ae2lt.OrbitalCelestweaveProtectionMixin",
 		"appliedcreate.AppliedCreatePatternProviderBlockEntityMixin",
 		"appliedcreate.AppliedCreatePatternProviderLogicMixin",
 		"core.accessor.ae2.AEBaseBlockEntityNameAccessor",

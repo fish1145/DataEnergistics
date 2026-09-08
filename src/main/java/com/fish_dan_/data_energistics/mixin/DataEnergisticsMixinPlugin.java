@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.mixin;
 
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.integration.ae2lt.orbital.CelestweaveErasureHooks;
 import com.fish_dan_.data_energistics.mixin.configuration.DataEnergisticsEarlyConfig;
 
 import net.neoforged.fml.ModList;
@@ -28,6 +30,7 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
         addModCompatMixin("ae2cs", "ae2cs.");
         addModCompatMixin("appliedcreate", "appliedcreate.");
         addModCompatMixin("draconicevolution", "draconic.");
+        addModCompatMixin("ae2lt", "ae2lt.");
         addModCompatMixin("extendedae", "extendedae.");
         addModCompatMixin("extendedae_plus", "extendedaeplus.");
         addModCompatMixin("ae2jeiintegration", "jei.");
@@ -99,7 +102,15 @@ public final class DataEnergisticsMixinPlugin implements IMixinConfigPlugin {
     }
 
     @Override
-    public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
+    public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
+        if (mixinClassName.equals(MIXIN_PACKAGE + "ae2lt.OrbitalCelestweaveProtectionMixin")) {
+            List<String> missing = CelestweaveErasureHooks.missingMethods(targetClass);
+            if (!missing.isEmpty()) {
+                Data_Energistics.LOGGER.warn("LT orbital erasure compatibility skipped missing methods on {}: {}; vanilla termination remains active",
+                        targetClassName, missing);
+            }
+        }
+    }
 
     @Override
     public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
