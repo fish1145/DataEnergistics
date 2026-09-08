@@ -48,6 +48,11 @@ sourceSets {
         runtimeClasspath += client.output + client.runtimeClasspath + extra.runtimeClasspath
     }
 
+    clienttest {
+        compileClasspath += client.output + extra.compileClasspath + test.output + test.compileClasspath
+        runtimeClasspath += client.output + client.runtimeClasspath + extra.runtimeClasspath + test.output + test.runtimeClasspath
+    }
+
 }
 
 configurations {

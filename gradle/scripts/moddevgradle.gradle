@@ -23,7 +23,14 @@ neoForge {
         "${mod_id}" {
             sourceSet(sourceSets.main)
             sourceSet(sourceSets.client)
+            sourceSet(sourceSets.extra)
+            sourceSet(sourceSets.clientExtra)
+        }
+        "${mod_id}_gametest" {
+            sourceSet(sourceSets.main)
+            sourceSet(sourceSets.client)
             sourceSet(sourceSets.test)
+            sourceSet(sourceSets.clienttest)
             sourceSet(sourceSets.extra)
             sourceSet(sourceSets.clientExtra)
         }
@@ -91,7 +98,7 @@ neoForge {
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.
         // By default, the server will crash when no gametests are provided.
-        // The gametest system is also enabled by default for other run configs under the /test command.
+        // Test classes and their runtime dependencies are loaded only by the two GameTest runs.
         gameTestServer {
             type = "gameTestServer"
             sourceSet = sourceSets.test
@@ -104,7 +111,8 @@ neoForge {
 
         gameTestClient {
             client()
-            sourceSet = sourceSets.clientExtra
+
+            sourceSet = sourceSets.clienttest
             ideName = "Game Tests (Client)"
 
             gameDirectory.set(file('run/gametest/client'))
@@ -126,6 +134,8 @@ neoForge {
         }
 
         configureEach {
+            loadedMods = [mods.getByName(name in ['gameTestServer', 'gameTestClient']
+                    ? "${project.mod_id}_gametest" : project.mod_id)]
             systemProperty 'forge.logging.markers', 'REGISTRIES'
             jvmArgument('-ea:com.fish_dan_.data_energistics...')
             logLevel = Level.INFO
