@@ -16,7 +16,7 @@ public final class CrossbowFirstPersonPose {
         return new Matrix4f()
                 .rotateY(radians(-yawLag * aim)).rotateX(radians(-pitchLag * aim))
                 .translate(side * (0.50F * relaxed - 0.12F * swingArc),
-                        -0.41F - 0.23F * relaxed - 0.60F * equipped * relaxed + 0.05F * swingArc,
+                        -0.52F - 0.23F * relaxed - 0.60F * equipped * relaxed + 0.05F * swingArc,
                         -0.68F - 0.12F * relaxed - 0.06F * swingArc)
                 .rotateXYZ(radians(8.0F * relaxed), radians(side * 8.0F * relaxed), radians(side * -6.0F * relaxed));
     }

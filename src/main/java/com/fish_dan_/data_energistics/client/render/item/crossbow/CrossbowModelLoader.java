@@ -74,7 +74,7 @@ public final class CrossbowModelLoader implements IGeometryLoader<CrossbowGeomet
                 }
                 CrossbowMotion motion = CrossbowMotion.valueOf(GsonHelper.getAsString(element, "motion", "fixed").toUpperCase(Locale.ROOT));
                 CrossbowDeployment deployment = CrossbowDeployment.valueOf(GsonHelper.getAsString(element, "deployment", "frame").toUpperCase(Locale.ROOT));
-                result.add(new CrossbowGeometry.Element(cube, center, rotation, size, motion, deployment));
+                result.add(new CrossbowGeometry.Element(cube, new CrossbowPartPose(center, rotation, size), motion, deployment));
             }
             return List.copyOf(result);
         } catch (IOException | IllegalArgumentException exception) {

@@ -685,7 +685,7 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "frame"
+			"deployment": "strap"
 		},
 		{
 			"from": [4.4999, 4.7499, 21.9999],
@@ -705,7 +705,7 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "frame"
+			"deployment": "strap"
 		},
 		{
 			"from": [7.9999, 0.9999, 21.9999],
@@ -728,7 +728,7 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "frame"
+			"deployment": "strap"
 		},
 		{
 			"from": [7.7499, 0.9999, 21.9999],
@@ -751,7 +751,7 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "frame"
+			"deployment": "strap"
 		},
 		{
 			"name": "railOuter",
@@ -1187,7 +1187,7 @@
 				}
 			},
 			"motion": "left_string",
-			"deployment": "frame"
+			"deployment": "bow"
 		},
 		{
 			"from": [3.75, 6.5, 10.07],
@@ -1226,7 +1226,7 @@
 				}
 			},
 			"motion": "right_string",
-			"deployment": "frame"
+			"deployment": "bow"
 		},
 		{
 			"from": [8.94975, 6, 7.94975],
@@ -1261,7 +1261,7 @@
 				}
 			},
 			"motion": "right_limb",
-			"deployment": "frame"
+			"deployment": "bow"
 		},
 		{
 			"from": [9.999, 5.999, 4.999],
@@ -1295,7 +1295,7 @@
 				}
 			},
 			"motion": "right_limb",
-			"deployment": "frame"
+			"deployment": "bow"
 		},
 		{
 			"from": [7, 6, 6],
@@ -1334,7 +1334,7 @@
 				}
 			},
 			"motion": "right_limb",
-			"deployment": "frame"
+			"deployment": "bow"
 		},
 		{
 			"from": [5, 6, 3.25],
@@ -1366,7 +1366,7 @@
 					"tintindex": 2
 				}
 			},
-			"deployment": "frame"
+			"deployment": "bow"
 		},
 		{
 			"from": [5, 6, 6],
@@ -1405,7 +1405,7 @@
 				}
 			},
 			"motion": "left_limb",
-			"deployment": "frame"
+			"deployment": "bow"
 		},
 		{
 			"from": [6.05025, 6, 7.94975],
@@ -1443,7 +1443,7 @@
 				}
 			},
 			"motion": "left_limb",
-			"deployment": "frame"
+			"deployment": "bow"
 		},
 		{
 			"from": [-1.001, 5.999, 4.999],
@@ -1477,7 +1477,7 @@
 				}
 			},
 			"motion": "left_limb",
-			"deployment": "frame"
+			"deployment": "bow"
 		},
 		{
 			"name": "cube_outline",
@@ -1522,7 +1522,7 @@
 				}
 			},
 			"motion": "left_string",
-			"deployment": "frame"
+			"deployment": "bow"
 		},
 		{
 			"name": "cube_outline",
@@ -1567,7 +1567,7 @@
 				}
 			},
 			"motion": "right_string",
-			"deployment": "frame"
+			"deployment": "bow"
 		},
 		{
 			"name": "cube_outline",
@@ -1600,7 +1600,7 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "frame"
+			"deployment": "bow"
 		},
 		{
 			"from": [6.9999, 5.9999, 3.9999],

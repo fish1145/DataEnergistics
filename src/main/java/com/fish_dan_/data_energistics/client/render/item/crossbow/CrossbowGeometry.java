@@ -20,7 +20,6 @@ import net.neoforged.neoforge.client.model.geometry.IUnbakedGeometry;
 
 import com.mojang.math.Transformation;
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -63,7 +62,7 @@ public final class CrossbowGeometry implements IUnbakedGeometry<CrossbowGeometry
                     new Vector3f(-8.0F), new Vector3f(8.0F), face,
                     sprites.apply(context.getMaterial(face.texture())), direction,
                     BlockModelRotation.X0_Y0, null, element.cube.shade)));
-            return new Part(List.copyOf(faces), element.center, element.rotation, element.size, element.motion, element.deployment);
+            return new Part(List.copyOf(faces), element.pose, element.motion, element.deployment);
         }).toList();
     }
 
@@ -76,17 +75,12 @@ public final class CrossbowGeometry implements IUnbakedGeometry<CrossbowGeometry
             Part from = folded.get(i);
             Part to = active.get(i);
             float deployment = to.deployment.progress(pose);
-            Vector3f center = new Vector3f(from.center).lerp(to.center, deployment);
-            Quaternionf rotation = new Quaternionf(from.rotation).slerp(to.rotation, deployment);
-            Vector3f size = new Vector3f(from.size).lerp(to.size, deployment);
-            Matrix4f transform = new Matrix4f(root)
-                    .mul(to.motion.transform(pose.draw() * pose.railDeployment()))
-                    .translate(center).rotate(rotation).scale(size);
+            Matrix4f transform = new Matrix4f(root).mul(from.pose.transformTo(to.pose, to.deployment, to.motion, pose));
             append(quads, deployment == 0.0F ? from.quads : to.quads, transform);
         }
         if (special && pose.railDeployment() == 1.0F) {
             for (Part part : specialAmmo) {
-                Matrix4f transform = new Matrix4f(root).translate(part.center).rotate(part.rotation).scale(part.size);
+                Matrix4f transform = new Matrix4f(root).translate(part.pose.center()).rotate(part.pose.rotation()).scale(part.pose.size());
                 int start = quads.size();
                 append(quads, part.quads, transform);
                 for (int i = start; i < quads.size(); i++) {
@@ -117,9 +111,7 @@ public final class CrossbowGeometry implements IUnbakedGeometry<CrossbowGeometry
         }
     }
 
-    record Element(BlockElement cube, Vector3f center, Quaternionf rotation, Vector3f size,
-                   CrossbowMotion motion, CrossbowDeployment deployment) {}
+    record Element(BlockElement cube, CrossbowPartPose pose, CrossbowMotion motion, CrossbowDeployment deployment) {}
 
-    record Part(List<BakedQuad> quads, Vector3f center, Quaternionf rotation, Vector3f size,
-                CrossbowMotion motion, CrossbowDeployment deployment) {}
+    record Part(List<BakedQuad> quads, CrossbowPartPose pose, CrossbowMotion motion, CrossbowDeployment deployment) {}
 }

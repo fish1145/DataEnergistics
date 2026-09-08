@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.client.render.item.crossbow;
 /** Visual state for one entity hand, sampled on the render thread in game ticks. */
 public final class CrossbowAnimation {
 
-    private static final float DEPLOY_TICKS = 10.0F;
+    private static final float DEPLOY_TICKS = 36.0F;
     private static final float RELEASE_TICKS = 3.0F;
 
     private float lastTime = Float.NaN;
@@ -19,7 +19,7 @@ public final class CrossbowAnimation {
             throw new IllegalArgumentException("Crossbow animation requires finite time and progress in [0, 1]");
         }
         if (Float.isNaN(this.lastTime) || time < this.lastTime || time - this.lastTime > 10.0F) {
-            this.deployment = using && progress > 0.0F ? 1.0F : 0.0F;
+            this.deployment = 0.0F;
             this.draw = charged ? 1.0F : using ? progress : 0.0F;
             this.releaseDraw = 0.0F;
             this.drawing = using || charged;
@@ -54,11 +54,15 @@ public final class CrossbowAnimation {
     public record Pose(float deployment, float draw, int stage) {
 
         public float frameDeployment() {
-            return smooth(clamp(this.deployment / 0.4F));
+            return smooth(clamp((this.deployment * DEPLOY_TICKS - 10.0F) / 12.0F));
+        }
+
+        public float bowSlide() {
+            return smooth(clamp(this.deployment * DEPLOY_TICKS / 10.0F));
         }
 
         public float railDeployment() {
-            return smooth(clamp((this.deployment - 0.4F) / 0.6F));
+            return smooth(clamp((this.deployment * DEPLOY_TICKS - 24.0F) / 12.0F));
         }
 
         public static Pose stationary(boolean charged) {
