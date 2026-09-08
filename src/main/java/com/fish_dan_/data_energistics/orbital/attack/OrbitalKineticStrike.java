@@ -85,18 +85,21 @@ public final class OrbitalKineticStrike {
         if (mutationBudget <= 0) {
             throw new IllegalArgumentException("Kinetic strike mutation budget must be positive");
         }
+        long columnWork = segmentSize(columnHeight(level, target, geometry), column.coordinateCount());
         long next = cursor;
         int visited = 0;
         while (next < total && visited < mutationBudget) {
             BlockPos position = positionAt(level, target, geometry, column, crater, next);
-            if (!chunkReady.test(new ChunkPos(position))) {
-                return new WorkSlice(next, total, false, true);
-            }
-            if (!level.getBlockState(position).isAir()) {
-                level.setBlock(
-                        position,
-                        Blocks.AIR.defaultBlockState(),
-                        Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
+            if (next < columnWork || geometry.containsCraterPosition(target, position)) {
+                if (!chunkReady.test(new ChunkPos(position))) {
+                    return new WorkSlice(next, total, false, true);
+                }
+                if (!level.getBlockState(position).isAir()) {
+                    level.setBlock(
+                            position,
+                            Blocks.AIR.defaultBlockState(),
+                            Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
+                }
             }
             next++;
             visited++;

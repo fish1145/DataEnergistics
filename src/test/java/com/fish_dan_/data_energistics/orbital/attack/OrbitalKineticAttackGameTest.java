@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackGeometry.KineticCraterProfile;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlActionDispatcher;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalTargetYMode;
@@ -56,6 +57,7 @@ public final class OrbitalKineticAttackGameTest {
     private static final BlockPos VICTIM = TARGET.offset(10, 0, 0);
     private static final BlockPos SNAPSHOT_COLUMN_OUTSIDE = TARGET.offset(4, 0, 0);
     private static final BlockPos SNAPSHOT_CRATER_INSIDE = TARGET.offset(2, -1, 0);
+    private static final BlockPos SNAPSHOT_CRATER_WALL = TARGET.offset(2, -2, 0);
     private static final BlockPos SNAPSHOT_CRATER_OUTSIDE = TARGET.offset(4, -1, 0);
     private static final BlockPos SNAPSHOT_DEPTH_INSIDE = TARGET.below(2);
     private static final BlockPos SNAPSHOT_DEPTH_OUTSIDE = TARGET.below(4);
@@ -375,6 +377,7 @@ public final class OrbitalKineticAttackGameTest {
         helper.setBlock(TARGET, Blocks.STONE);
         helper.setBlock(SNAPSHOT_COLUMN_OUTSIDE, Blocks.STONE);
         helper.setBlock(SNAPSHOT_CRATER_INSIDE, Blocks.STONE);
+        helper.setBlock(SNAPSHOT_CRATER_WALL, Blocks.STONE);
         helper.setBlock(SNAPSHOT_CRATER_OUTSIDE, Blocks.STONE);
         helper.setBlock(SNAPSHOT_DEPTH_INSIDE, Blocks.STONE);
         helper.setBlock(SNAPSHOT_DEPTH_OUTSIDE, Blocks.STONE);
@@ -429,6 +432,9 @@ public final class OrbitalKineticAttackGameTest {
                     helper.assertTrue(
                             level.getBlockState(absoluteCraterInside).isAir(),
                             "The confirmed kinetic crater must remove its in-range marker");
+                    helper.assertTrue(
+                            level.getBlockState(helper.absolutePos(SNAPSHOT_CRATER_WALL)).is(Blocks.STONE),
+                            "A newly confirmed attack must retain the sloping bowl wall below its outer rim");
                     helper.assertTrue(
                             level.getBlockState(absoluteColumnOutside).is(Blocks.STONE),
                             "A later, wider live column must not expand an already confirmed attack");
@@ -629,7 +635,8 @@ public final class OrbitalKineticAttackGameTest {
                     this.columnDepth,
                     this.craterRadius,
                     this.craterDepth,
-                    this.shockwaveRadius);
+                    this.shockwaveRadius,
+                    KineticCraterProfile.BOWL);
         }
     }
 

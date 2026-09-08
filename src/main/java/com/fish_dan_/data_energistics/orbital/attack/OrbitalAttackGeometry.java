@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.orbital.attack;
 
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 
 /**
@@ -19,13 +20,22 @@ public sealed interface OrbitalAttackGeometry
 
     OrbitalAttackMode mode();
 
+    /** Persisted crater profile keeps already-confirmed terrain work stable across the bowl-shape upgrade. */
+    enum KineticCraterProfile {
+        /** Original constant-radius layers, retained for attacks saved before a profile was recorded. */
+        CYLINDER,
+        /** Successively narrower layers form a bowl while retaining the independent central penetration column. */
+        BOWL
+    }
+
     /** Terrain and entity-erasure volumes frozen when an instantaneous kinetic strike is confirmed. */
     record Kinetic(
                    int columnRadius,
                    int columnDepth,
                    int craterRadius,
                    int craterDepth,
-                   int shockwaveRadius)
+                   int shockwaveRadius,
+                   KineticCraterProfile craterProfile)
             implements OrbitalAttackGeometry {
 
         public static final int DEFAULT_COLUMN_RADIUS = 8;
@@ -56,7 +66,8 @@ public sealed interface OrbitalAttackGeometry
                     settings.kineticColumnDepth,
                     settings.kineticCraterRadius,
                     settings.kineticCraterDepth,
-                    settings.kineticShockwaveRadius);
+                    settings.kineticShockwaveRadius,
+                    KineticCraterProfile.BOWL);
         }
 
         /** Normalizes untrusted persisted numbers once at the SavedData boundary. */
@@ -65,13 +76,31 @@ public sealed interface OrbitalAttackGeometry
                                             int columnDepth,
                                             int craterRadius,
                                             int craterDepth,
-                                            int shockwaveRadius) {
+                                            int shockwaveRadius,
+                                            KineticCraterProfile craterProfile) {
             return new Kinetic(
                     Math.clamp(columnRadius, 1, MAX_TERRAIN_RADIUS),
                     Math.clamp(columnDepth, 1, MAX_TERRAIN_DEPTH),
                     Math.clamp(craterRadius, 1, MAX_TERRAIN_RADIUS),
                     Math.clamp(craterDepth, 1, MAX_TERRAIN_DEPTH),
-                    Math.clamp(shockwaveRadius, 1, MAX_SHOCKWAVE_RADIUS));
+                    Math.clamp(shockwaveRadius, 1, MAX_SHOCKWAVE_RADIUS),
+                    craterProfile);
+        }
+
+        /**
+         * Tests one candidate from the captured cylindrical crater stream without accessing the world. The caller
+         * must supply a position inside that stream. Keeping its indexing unchanged preserves budget accounting and
+         * persisted cursors; the bowl only filters the blocks retained along its sloping sides.
+         */
+        public boolean containsCraterPosition(BlockPos target, BlockPos position) {
+            if (this.craterProfile == KineticCraterProfile.CYLINDER) {
+                return true;
+            }
+            long offsetX = position.getX() - (long) target.getX();
+            long offsetZ = position.getZ() - (long) target.getZ();
+            int layer = target.getY() - 1 - position.getY();
+            long radiusSquared = (long) this.craterRadius * this.craterRadius;
+            return (offsetX * offsetX + offsetZ * offsetZ) * this.craterDepth <= radiusSquared * (this.craterDepth - layer);
         }
 
         /** Largest horizontal radius touched by the budgeted terrain worker. */

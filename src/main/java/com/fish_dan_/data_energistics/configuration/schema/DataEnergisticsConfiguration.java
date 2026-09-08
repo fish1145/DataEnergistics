@@ -752,7 +752,7 @@ public final class DataEnergisticsConfiguration {
         public int kineticCraterRadius = OrbitalAttackGeometry.Kinetic.DEFAULT_CRATER_RADIUS;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Depth of the shallow crater below a kinetic impact.", "动能攻击命中点下方浅陨坑的深度。" })
+        @Configurable.Comment({ "Maximum depth of the bowl-shaped crater below a kinetic impact.", "动能攻击命中点下方碗状陨石坑的最大深度。" })
         @Configurable.Range(min = 1, max = OrbitalAttackGeometry.Kinetic.MAX_TERRAIN_DEPTH)
         public int kineticCraterDepth = OrbitalAttackGeometry.Kinetic.DEFAULT_CRATER_DEPTH;
 

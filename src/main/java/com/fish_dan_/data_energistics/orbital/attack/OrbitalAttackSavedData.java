@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfig
 import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.explosive.DigitalAnnihilationWork;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackGeometry.KineticCraterProfile;
 import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalAttackWorkState;
 import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalTerrainWorkScheduler;
 import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalTerrainWorkScheduler.ChunkReadiness;
@@ -72,6 +73,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String KINETIC_COLUMN_DEPTH_TAG = "kinetic_column_depth";
     private static final String KINETIC_CRATER_RADIUS_TAG = "kinetic_crater_radius";
     private static final String KINETIC_CRATER_DEPTH_TAG = "kinetic_crater_depth";
+    private static final String KINETIC_CRATER_PROFILE_TAG = "kinetic_crater_profile";
     private static final String KINETIC_SHOCKWAVE_RADIUS_TAG = "kinetic_shockwave_radius";
     private static final String DIGITAL_WORK_INTERVAL_TAG = "digital_work_interval";
     private static final String DIGITAL_MAX_RADIUS_TAG = "digital_max_radius";
@@ -701,6 +703,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 tag.putInt(KINETIC_COLUMN_DEPTH_TAG, kinetic.columnDepth());
                 tag.putInt(KINETIC_CRATER_RADIUS_TAG, kinetic.craterRadius());
                 tag.putInt(KINETIC_CRATER_DEPTH_TAG, kinetic.craterDepth());
+                tag.putString(KINETIC_CRATER_PROFILE_TAG, kinetic.craterProfile().name());
                 tag.putInt(KINETIC_SHOCKWAVE_RADIUS_TAG, kinetic.shockwaveRadius());
             }
             case OrbitalAttackGeometry.DirectedEnergy directedEnergy -> {
@@ -808,17 +811,20 @@ public final class OrbitalAttackSavedData extends SavedData {
         return Set.copyOf(exemptions);
     }
 
-    private static OrbitalAttackGeometry.Kinetic readKineticGeometry(CompoundTag tag) {
+    /** Decodes the kinetic geometry boundary, retaining the original profile of pre-upgrade saved attacks. */
+    static OrbitalAttackGeometry.Kinetic readKineticGeometry(CompoundTag tag) {
         boolean hasCompleteGeometry = tag.contains(KINETIC_COLUMN_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_COLUMN_DEPTH_TAG, Tag.TAG_INT) && tag.contains(KINETIC_CRATER_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_CRATER_DEPTH_TAG, Tag.TAG_INT) && tag.contains(KINETIC_SHOCKWAVE_RADIUS_TAG, Tag.TAG_INT);
         if (!hasCompleteGeometry) {
             throw new IllegalArgumentException("Incomplete persisted kinetic attack geometry");
         }
+        KineticCraterProfile craterProfile = tag.contains(KINETIC_CRATER_PROFILE_TAG) ? KineticCraterProfile.valueOf(tag.getString(KINETIC_CRATER_PROFILE_TAG)) : KineticCraterProfile.CYLINDER;
         return OrbitalAttackGeometry.Kinetic.fromPersisted(
                 tag.getInt(KINETIC_COLUMN_RADIUS_TAG),
                 tag.getInt(KINETIC_COLUMN_DEPTH_TAG),
                 tag.getInt(KINETIC_CRATER_RADIUS_TAG),
                 tag.getInt(KINETIC_CRATER_DEPTH_TAG),
-                tag.getInt(KINETIC_SHOCKWAVE_RADIUS_TAG));
+                tag.getInt(KINETIC_SHOCKWAVE_RADIUS_TAG),
+                craterProfile);
     }
 
     private static OrbitalAttackGeometry.DirectedEnergy readDirectedEnergyGeometry(CompoundTag tag) {
