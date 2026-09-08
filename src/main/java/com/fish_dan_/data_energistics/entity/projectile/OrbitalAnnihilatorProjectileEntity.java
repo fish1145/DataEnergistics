@@ -24,9 +24,9 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -204,7 +204,7 @@ public final class OrbitalAnnihilatorProjectileEntity extends Entity {
             this.persistedStateFailure = "invalid projectile exemptions";
             return;
         }
-        HashSet<UUID> exemptions = new HashSet<>();
+        Set<UUID> exemptions = new ObjectOpenHashSet<>();
         for (Tag rawExemption : exemptionList) {
             if (!(rawExemption instanceof CompoundTag exemption) || !exemption.hasUUID(TAG_UUID) || !exemptions.add(exemption.getUUID(TAG_UUID))) {
                 this.persistedStateFailure = "invalid projectile exemption entry";

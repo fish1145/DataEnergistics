@@ -33,6 +33,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.AABB;
 
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -41,8 +42,6 @@ import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -100,7 +99,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             OrbitalAttackSavedData::new,
             OrbitalAttackSavedData::load);
 
-    private final Map<UUID, OrbitalAttackRecord> attacks = new LinkedHashMap<>();
+    private final Map<UUID, OrbitalAttackRecord> attacks = new Object2ObjectLinkedOpenHashMap<>();
     private final Object2LongOpenHashMap<UUID> phaseStartedAt = new Object2LongOpenHashMap<>();
     private final Object2ObjectOpenHashMap<UUID, BeamFrame> beamFrames = new Object2ObjectOpenHashMap<>();
     private final OrbitalTerrainWorkScheduler terrainWorkScheduler = new OrbitalTerrainWorkScheduler();
@@ -812,7 +811,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (!(rawExemptions instanceof ListTag exemptionList)) {
             return null;
         }
-        HashSet<UUID> exemptions = new HashSet<>();
+        Set<UUID> exemptions = new ObjectOpenHashSet<>();
         for (Tag rawExemption : exemptionList) {
             if (!(rawExemption instanceof CompoundTag exemption) || !exemption.hasUUID(UUID_TAG) || !exemptions.add(exemption.getUUID(UUID_TAG))) {
                 return null;

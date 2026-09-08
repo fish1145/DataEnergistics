@@ -7,8 +7,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /** Client cache for complete, dimension-scoped primary projection baselines. */
@@ -45,7 +45,7 @@ public final class OrbitalProjectionVisualClientState {
             return;
         }
 
-        ArrayList<OrbitalProjectionVisualSnapshot> complete = new ArrayList<>(pendingTotalCount);
+        List<OrbitalProjectionVisualSnapshot> complete = new ObjectArrayList<>(pendingTotalCount);
         for (int index = 0; index < pendingBatchCount; index++) {
             if (!pendingBatches.containsKey(index)) {
                 return;

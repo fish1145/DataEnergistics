@@ -25,6 +25,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
@@ -664,7 +665,7 @@ public final class OrbitalControlDashboard {
         if (minimum < 1 || maximum < minimum || step < 1) {
             throw new IllegalStateException("Invalid directed-energy radius configuration");
         }
-        ObjectArrayList<Integer> options = new ObjectArrayList<>();
+        IntArrayList options = new IntArrayList();
         for (long radius = minimum; radius <= maximum; radius += step) {
             options.add((int) radius);
         }

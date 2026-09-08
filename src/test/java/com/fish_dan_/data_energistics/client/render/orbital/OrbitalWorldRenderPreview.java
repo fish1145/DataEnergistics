@@ -22,7 +22,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -97,7 +98,7 @@ public final class OrbitalWorldRenderPreview {
                         view == 1 ? OrbitalWeaponLifecycleState.REDEPLOYING : OrbitalWeaponLifecycleState.DEPLOYED,
                         view == 1 ? 1000 : 0, revision, 42));
         OrbitalProjectionVisualsPayload.batches(revision, dimension, projections).forEach(OrbitalProjectionVisualClientState::receive);
-        List<OrbitalAttackVisualSnapshot> attacks = new ArrayList<>();
+        List<OrbitalAttackVisualSnapshot> attacks = new ObjectArrayList<>();
         if (view == 3) {
             for (OrbitalAttackMode mode : OrbitalAttackMode.values()) {
                 BlockPos target = anchor.offset((mode.ordinal() - 1) * 160, 0, 0);

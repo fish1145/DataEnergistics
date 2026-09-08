@@ -8,13 +8,12 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Queue;
 import java.util.Set;
 
 /**
@@ -74,18 +73,18 @@ public final class InterferenceArrayPattern {
             return List.of();
         }
 
-        Queue<WaveguideStep> pending = new ArrayDeque<>();
-        Set<BlockPos> visitedWaveguides = new HashSet<>();
+        ObjectArrayFIFOQueue<WaveguideStep> pending = new ObjectArrayFIFOQueue<>();
+        Set<BlockPos> visitedWaveguides = new ObjectOpenHashSet<>();
         for (BlockPos offset : PORT_OFFSETS) {
             BlockPos port = corePos.offset(offset).immutable();
-            pending.add(new WaveguideStep(port, 0));
+            pending.enqueue(new WaveguideStep(port, 0));
             visitedWaveguides.add(port);
         }
 
         Object2IntOpenHashMap<BlockPos> mirrorDistances = new Object2IntOpenHashMap<>();
         int maximumLength = settings.highTierWaveguidePathLength;
         while (!pending.isEmpty()) {
-            WaveguideStep step = pending.remove();
+            WaveguideStep step = pending.dequeue();
             for (Direction direction : Direction.values()) {
                 BlockPos adjacent = step.position().relative(direction);
                 if (level.getBlockState(adjacent).is(DEBlocks.ASTRONOMICAL_MIRROR.get()) &&
@@ -98,12 +97,12 @@ public final class InterferenceArrayPattern {
                 }
                 BlockPos immutableAdjacent = adjacent.immutable();
                 if (visitedWaveguides.add(immutableAdjacent)) {
-                    pending.add(new WaveguideStep(immutableAdjacent, step.distance() + 1));
+                    pending.enqueue(new WaveguideStep(immutableAdjacent, step.distance() + 1));
                 }
             }
         }
 
-        List<BlockPos> mirrors = new ArrayList<>(mirrorDistances.keySet());
+        List<BlockPos> mirrors = new ObjectArrayList<>(mirrorDistances.keySet());
         mirrors.sort(Comparator.comparingInt((BlockPos pos) -> mirrorDistances.getInt(pos))
                 .thenComparing(POSITION_ORDER));
         return List.copyOf(mirrors);

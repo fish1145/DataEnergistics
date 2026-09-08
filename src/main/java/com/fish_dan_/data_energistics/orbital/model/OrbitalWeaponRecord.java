@@ -5,9 +5,9 @@ import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -88,7 +88,7 @@ public record OrbitalWeaponRecord(
             return this;
         }
 
-        HashMap<UUID, OrbitalAccessRole> updatedRoles = new HashMap<>(this.delegatedRoles);
+        Map<UUID, OrbitalAccessRole> updatedRoles = new Object2ObjectOpenHashMap<>(this.delegatedRoles);
         updatedRoles.put(playerId, role);
         return new OrbitalWeaponRecord(
                 this.weaponId,
@@ -111,7 +111,7 @@ public record OrbitalWeaponRecord(
             return this;
         }
 
-        HashMap<UUID, OrbitalAccessRole> updatedRoles = new HashMap<>(this.delegatedRoles);
+        Map<UUID, OrbitalAccessRole> updatedRoles = new Object2ObjectOpenHashMap<>(this.delegatedRoles);
         updatedRoles.remove(playerId);
         return new OrbitalWeaponRecord(
                 this.weaponId,
@@ -146,7 +146,7 @@ public record OrbitalWeaponRecord(
             return this;
         }
 
-        HashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> updatedEndpoints = new HashMap<>(this.endpoints);
+        Map<OrbitalEndpointLocation, OrbitalEndpointRecord> updatedEndpoints = new Object2ObjectOpenHashMap<>(this.endpoints);
         updatedEndpoints.put(endpoint.location(), endpoint);
         return new OrbitalWeaponRecord(
                 this.weaponId,
@@ -166,7 +166,7 @@ public record OrbitalWeaponRecord(
             return this;
         }
 
-        HashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> updatedEndpoints = new HashMap<>(this.endpoints);
+        Map<OrbitalEndpointLocation, OrbitalEndpointRecord> updatedEndpoints = new Object2ObjectOpenHashMap<>(this.endpoints);
         updatedEndpoints.remove(location);
         OrbitalEndpointLocation updatedAnchor = location.equals(this.primaryAnchor) ? null : this.primaryAnchor;
         return new OrbitalWeaponRecord(

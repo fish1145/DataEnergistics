@@ -12,7 +12,8 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.ArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -61,7 +62,7 @@ public record OrbitalProjectionVisualsPayload(
         List<OrbitalProjectionVisualSnapshot> immutable = List.copyOf(projections);
         int totalCount = immutable.size();
         int batchCount = totalCount == 0 ? 1 : ((totalCount - 1) / MAX_PROJECTIONS) + 1;
-        ArrayList<OrbitalProjectionVisualsPayload> batches = new ArrayList<>(batchCount);
+        List<OrbitalProjectionVisualsPayload> batches = new ObjectArrayList<>(batchCount);
         for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {
             int from = batchIndex * MAX_PROJECTIONS;
             int to = Math.min(totalCount, from + MAX_PROJECTIONS);
@@ -127,7 +128,7 @@ public record OrbitalProjectionVisualsPayload(
         if (count < 0 || count > MAX_PROJECTIONS) {
             throw new IllegalArgumentException("Orbital projection count exceeds " + MAX_PROJECTIONS);
         }
-        ArrayList<OrbitalProjectionVisualSnapshot> projections = new ArrayList<>(count);
+        List<OrbitalProjectionVisualSnapshot> projections = new ObjectArrayList<>(count);
         for (int index = 0; index < count; index++) {
             UUID weaponId = buffer.readUUID();
             BlockPos anchor = BlockPos.STREAM_CODEC.decode(buffer);

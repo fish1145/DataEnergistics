@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.model;
 
-import java.util.HashSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -34,7 +35,7 @@ public final class OrbitalAccessPolicy {
     public static Set<UUID> damageExemptionSnapshot(
                                                     UUID ownerId,
                                                     Map<UUID, OrbitalAccessRole> delegatedRoles) {
-        HashSet<UUID> exemptions = new HashSet<>(delegatedRoles.keySet());
+        Set<UUID> exemptions = new ObjectOpenHashSet<>(delegatedRoles.keySet());
         exemptions.add(ownerId);
         return Set.copyOf(exemptions);
     }

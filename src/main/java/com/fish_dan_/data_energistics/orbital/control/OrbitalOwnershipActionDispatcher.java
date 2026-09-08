@@ -8,9 +8,9 @@ import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,7 +27,7 @@ import java.util.UUID;
 public final class OrbitalOwnershipActionDispatcher {
 
     private static final long RETIRE_CONFIRMATION_TICKS = 20L * 60L;
-    private static final Map<UUID, RetirementConfirmation> RETIREMENT_CONFIRMATIONS = new HashMap<>();
+    private static final Map<UUID, RetirementConfirmation> RETIREMENT_CONFIRMATIONS = new Object2ObjectOpenHashMap<>();
     private static @Nullable MinecraftServer trackedServer;
 
     private OrbitalOwnershipActionDispatcher() {}

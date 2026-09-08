@@ -33,10 +33,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -251,7 +251,7 @@ public class DataNukePrimedEntity extends PrimedTnt {
 
         int maximumRadius = this.capturedWorkSettings != null ? this.capturedWorkSettings.maxRadius() : DataEnergisticsConfiguration.INSTANCE.explosives.dataNuke.maxRadius;
         this.expansionRadius = Math.clamp(tag.getInt(TAG_EXPANSION_RADIUS), 0, maximumRadius);
-        HashSet<UUID> exemptions = new HashSet<>();
+        Set<UUID> exemptions = new ObjectOpenHashSet<>();
         Tag rawExemptions = tag.get(TAG_DAMAGE_EXEMPTIONS);
         if (rawExemptions instanceof ListTag exemptionList) {
             for (Tag rawExemption : exemptionList) {

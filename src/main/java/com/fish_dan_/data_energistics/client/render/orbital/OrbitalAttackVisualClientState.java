@@ -7,8 +7,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /** Client cache for the latest public orbital visual baseline; renderer code can consume it without server access. */
@@ -44,7 +44,7 @@ public final class OrbitalAttackVisualClientState {
         if (pendingBatches.size() != pendingBatchCount) {
             return;
         }
-        ArrayList<OrbitalAttackVisualSnapshot> complete = new ArrayList<>(pendingTotalCount);
+        List<OrbitalAttackVisualSnapshot> complete = new ObjectArrayList<>(pendingTotalCount);
         for (int index = 0; index < pendingBatchCount; index++) {
             if (!pendingBatches.containsKey(index)) {
                 return;

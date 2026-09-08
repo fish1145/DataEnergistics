@@ -9,7 +9,8 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
-import java.util.HashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -28,7 +29,7 @@ public final class OrbitalAccessPolicyGameTest {
         UUID operatorId = UUID.randomUUID();
         UUID observerId = UUID.randomUUID();
         UUID outsiderId = UUID.randomUUID();
-        Map<UUID, OrbitalAccessRole> delegatedRoles = new HashMap<>();
+        Map<UUID, OrbitalAccessRole> delegatedRoles = new Object2ObjectOpenHashMap<>();
         delegatedRoles.put(operatorId, OrbitalAccessRole.OPERATOR);
         delegatedRoles.put(observerId, OrbitalAccessRole.OBSERVER);
 

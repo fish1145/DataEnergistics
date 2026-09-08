@@ -14,11 +14,11 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -41,7 +41,7 @@ public final class OrbitalTerrainWorkScheduler {
             UUID::compareTo);
     private static final int CHUNK_TICKET_DISTANCE = 2;
 
-    private final Map<UUID, TaskState> tasks = new LinkedHashMap<>();
+    private final Map<UUID, TaskState> tasks = new Object2ObjectLinkedOpenHashMap<>();
     private final Object2IntOpenHashMap<ResourceKey<Level>> pendingRequestsByDimension = new Object2IntOpenHashMap<>();
     private final Object2IntOpenHashMap<UUID> mutationsReservedByTask = new Object2IntOpenHashMap<>();
 
@@ -435,8 +435,8 @@ public final class OrbitalTerrainWorkScheduler {
     private static final class TaskState {
 
         private final ResourceKey<Level> dimension;
-        private final Set<ChunkPos> heldTickets = new LinkedHashSet<>();
-        private final Set<ChunkPos> pinnedTickets = new LinkedHashSet<>();
+        private final Set<ChunkPos> heldTickets = new ObjectLinkedOpenHashSet<>();
+        private final Set<ChunkPos> pinnedTickets = new ObjectLinkedOpenHashSet<>();
         private long nextRequestId;
         @Nullable
         private ChunkPos mostRecentChunk;

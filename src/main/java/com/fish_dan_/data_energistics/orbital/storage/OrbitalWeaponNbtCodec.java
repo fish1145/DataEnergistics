@@ -17,13 +17,13 @@ import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -93,7 +93,7 @@ final class OrbitalWeaponNbtCodec {
             return List.of();
         }
 
-        ArrayList<OrbitalWeaponRecord> weapons = new ArrayList<>();
+        List<OrbitalWeaponRecord> weapons = new ObjectArrayList<>();
         for (Tag weaponTag : weaponList) {
             if (weaponTag instanceof CompoundTag weaponEntry) {
                 OrbitalWeaponRecord weapon = readWeapon(weaponEntry);
@@ -163,7 +163,7 @@ final class OrbitalWeaponNbtCodec {
             return null;
         }
 
-        LinkedHashMap<UUID, OrbitalAccessRole> roles = new LinkedHashMap<>();
+        Map<UUID, OrbitalAccessRole> roles = new Object2ObjectLinkedOpenHashMap<>();
         Tag rolesTag = weaponTag.get(DELEGATED_ROLES_TAG);
         if (!(rolesTag instanceof ListTag roleList)) {
             LOGGER.warn("Ignoring orbital weapon {} with missing delegated roles", weaponId);
@@ -171,7 +171,7 @@ final class OrbitalWeaponNbtCodec {
         }
         readRoles(weaponId, ownerId, roleList, roles);
 
-        LinkedHashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints = new LinkedHashMap<>();
+        Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints = new Object2ObjectLinkedOpenHashMap<>();
         Tag endpointsTag = weaponTag.get(ENDPOINTS_TAG);
         if (!(endpointsTag instanceof ListTag endpointList)) {
             LOGGER.warn("Ignoring orbital weapon {} with missing endpoints", weaponId);

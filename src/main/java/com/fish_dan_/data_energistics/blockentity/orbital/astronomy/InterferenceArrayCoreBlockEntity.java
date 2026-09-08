@@ -24,9 +24,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -106,7 +107,7 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
         long[] persistedMirrors = data.getLongArray(CLAIMED_MIRRORS_TAG);
-        LinkedHashSet<BlockPos> loadedMirrors = new LinkedHashSet<>();
+        Set<BlockPos> loadedMirrors = new ObjectLinkedOpenHashSet<>();
         Arrays.stream(persistedMirrors)
                 .limit(PERSISTED_MIRROR_LIMIT)
                 .mapToObj(BlockPos::of)
@@ -180,7 +181,7 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
                                      ServerLevel level,
                                      DataEnergisticsConfiguration.AstronomySchema settings) {
         List<BlockPos> candidates = InterferenceArrayPattern.findConnectedMirrors(level, this.worldPosition, settings);
-        LinkedHashSet<BlockPos> nextClaims = new LinkedHashSet<>();
+        Set<BlockPos> nextClaims = new ObjectLinkedOpenHashSet<>();
         for (BlockPos mirrorPos : candidates) {
             if (nextClaims.size() >= settings.highTierMaximumMirrors) {
                 break;

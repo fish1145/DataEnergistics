@@ -25,16 +25,15 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -72,13 +71,13 @@ public final class OrbitalWeaponSavedData extends SavedData {
             OrbitalWeaponSavedData::new,
             OrbitalWeaponSavedData::load);
 
-    private final Map<UUID, OrbitalWeaponRecord> weapons = new LinkedHashMap<>();
-    private final Map<UUID, UUID> ownerIndex = new HashMap<>();
-    private final Map<UUID, ObjectSet<UUID>> accessIndex = new HashMap<>();
-    private final Map<OrbitalEndpointLocation, UUID> endpointIndex = new HashMap<>();
-    private final Set<UUID> reserveChargeFaults = new HashSet<>();
-    private final Map<UUID, UUID> lastSelectedWeaponByPlayer = new HashMap<>();
-    private final Map<UUID, OrbitalOwnershipTransfer> ownershipTransfers = new LinkedHashMap<>();
+    private final Map<UUID, OrbitalWeaponRecord> weapons = new Object2ObjectLinkedOpenHashMap<>();
+    private final Map<UUID, UUID> ownerIndex = new Object2ObjectOpenHashMap<>();
+    private final Map<UUID, ObjectSet<UUID>> accessIndex = new Object2ObjectOpenHashMap<>();
+    private final Map<OrbitalEndpointLocation, UUID> endpointIndex = new Object2ObjectOpenHashMap<>();
+    private final Set<UUID> reserveChargeFaults = new ObjectOpenHashSet<>();
+    private final Map<UUID, UUID> lastSelectedWeaponByPlayer = new Object2ObjectOpenHashMap<>();
+    private final Map<UUID, OrbitalOwnershipTransfer> ownershipTransfers = new Object2ObjectLinkedOpenHashMap<>();
 
     private OrbitalWeaponSavedData() {}
 
@@ -393,7 +392,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return false;
         }
 
-        ArrayList<OrbitalEndpointRecord> ordered = new ArrayList<>(current.endpoints().values());
+        List<OrbitalEndpointRecord> ordered = new ObjectArrayList<>(current.endpoints().values());
         ordered.sort(ENDPOINT_PRIORITY_ORDER);
         int oldIndex = ordered.indexOf(selected);
         if (oldIndex < 0) {
@@ -402,7 +401,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         ordered.remove(oldIndex);
         ordered.add(priority, selected);
 
-        LinkedHashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> reordered = new LinkedHashMap<>();
+        Map<OrbitalEndpointLocation, OrbitalEndpointRecord> reordered = new Object2ObjectLinkedOpenHashMap<>();
         boolean changed = false;
         for (int index = 0; index < ordered.size(); index++) {
             OrbitalEndpointRecord endpoint = ordered.get(index);
@@ -660,7 +659,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return false;
         }
 
-        HashMap<UUID, OrbitalAccessRole> roles = new HashMap<>(current.delegatedRoles());
+        Map<UUID, OrbitalAccessRole> roles = new Object2ObjectOpenHashMap<>(current.delegatedRoles());
         roles.remove(recipientId);
         roles.put(current.ownerId(), OrbitalAccessRole.OPERATOR);
         OrbitalWeaponRecord updated = new OrbitalWeaponRecord(
@@ -711,7 +710,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         this.ownerIndex.clear();
         this.accessIndex.clear();
         this.endpointIndex.clear();
-        LinkedHashMap<UUID, OrbitalWeaponRecord> repaired = new LinkedHashMap<>();
+        Map<UUID, OrbitalWeaponRecord> repaired = new Object2ObjectLinkedOpenHashMap<>();
         int removed = 0;
         for (OrbitalWeaponRecord weapon : ordered) {
             if (this.ownerIndex.containsKey(weapon.ownerId())) {
@@ -951,7 +950,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     }
 
     private OrbitalWeaponRecord filterConflictingEndpoints(OrbitalWeaponRecord weapon) {
-        LinkedHashMap<OrbitalEndpointLocation, OrbitalEndpointRecord> acceptedEndpoints = new LinkedHashMap<>();
+        Map<OrbitalEndpointLocation, OrbitalEndpointRecord> acceptedEndpoints = new Object2ObjectLinkedOpenHashMap<>();
         for (OrbitalEndpointRecord endpoint : weapon.endpoints().values()) {
             UUID indexedWeaponId = this.endpointIndex.get(endpoint.location());
             if (indexedWeaponId != null) {

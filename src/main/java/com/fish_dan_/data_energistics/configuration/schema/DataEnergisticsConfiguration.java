@@ -12,9 +12,9 @@ import dev.toma.configuration.config.ConfigHolder;
 import dev.toma.configuration.config.Configurable;
 import dev.toma.configuration.config.UpdateRestrictions;
 import dev.toma.configuration.config.format.ConfigFormats;
+import it.unimi.dsi.fastutil.objects.Object2DoubleLinkedOpenHashMap;
 
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -606,7 +606,7 @@ public final class DataEnergisticsConfiguration {
         public double[] dimensionMultiplierValues = { 1.0D, 2.0D, 0.0D };
 
         public Map<ResourceLocation, Double> dimensionMultipliers() {
-            LinkedHashMap<ResourceLocation, Double> result = new LinkedHashMap<>();
+            Object2DoubleLinkedOpenHashMap<ResourceLocation> result = new Object2DoubleLinkedOpenHashMap<>();
             int count = Math.min(this.dimensionIds.length, this.dimensionMultiplierValues.length);
             for (int index = 0; index < count; index++) {
                 ResourceLocation dimension = ResourceLocation.tryParse(this.dimensionIds[index]);
