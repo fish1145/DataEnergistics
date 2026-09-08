@@ -54,15 +54,23 @@ public final class CrossbowAnimation {
     public record Pose(float deployment, float draw, int stage) {
 
         public float frameDeployment() {
-            return smooth(clamp((this.deployment * DEPLOY_TICKS - 10.0F) / 12.0F));
+            return smooth(clamp((this.deployment * DEPLOY_TICKS - 22.0F) / 14.0F));
         }
 
         public float bowSlide() {
-            return smooth(clamp(this.deployment * DEPLOY_TICKS / 10.0F));
+            return smooth(clamp((this.deployment * DEPLOY_TICKS - 12.0F) / 10.0F));
+        }
+
+        public float bowPosition() {
+            return smooth(clamp(this.frameDeployment() * 2.0F));
+        }
+
+        public float bowRotation() {
+            return smooth(clamp((this.frameDeployment() - 0.5F) * 2.0F));
         }
 
         public float railDeployment() {
-            return smooth(clamp((this.deployment * DEPLOY_TICKS - 24.0F) / 12.0F));
+            return smooth(clamp(this.deployment * DEPLOY_TICKS / 12.0F));
         }
 
         public static Pose stationary(boolean charged) {
