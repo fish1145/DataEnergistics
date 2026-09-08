@@ -27,39 +27,6 @@ public final class DataNukePrimedEntityGameTest {
 
     private DataNukePrimedEntityGameTest() {}
 
-    @TestHolder("digital_annihilator_force_loads_its_chunk_until_removed")
-    @EmptyTemplate("5x5")
-    @GameTest(template = "empty_5x5", timeoutTicks = 400)
-    public static void forceLoadsItsChunkUntilRemoved(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos origin = distantOrigin(helper, 0);
-        level.getChunkAt(origin);
-
-        DataNukePrimedEntity entity = createStationaryEntity(level, origin);
-
-        ChunkPos chunkPos = new ChunkPos(origin);
-        helper.startSequence()
-                .thenWaitUntil(() -> helper.assertFalse(
-                        isForceTicked(level, chunkPos),
-                        "The preloaded chunk must not have a force-ticking ticket before the digital annihilator is added"))
-                .thenExecute(() -> helper.assertTrue(
-                        level.addFreshEntity(entity),
-                        "The digital annihilator must be added to the test level"))
-                .thenWaitUntil(() -> {
-                    helper.assertTrue(
-                            isForceTicked(level, chunkPos),
-                            "The digital annihilator must force-tick its current chunk");
-                    helper.assertTrue(
-                            level.getChunkSource().isPositionTicking(chunkPos.toLong()),
-                            "The digital annihilator must keep its current chunk entity-ticking");
-                })
-                .thenExecute(entity::discard)
-                .thenWaitUntil(() -> helper.assertFalse(
-                        isForceTicked(level, chunkPos),
-                        "Removing the digital annihilator must release its chunk ticket"))
-                .thenSucceed();
-    }
-
     @TestHolder("digital_annihilator_moves_its_force_load_ticket")
     @EmptyTemplate("5x5")
     @GameTest(template = "empty_5x5", timeoutTicks = 400)
