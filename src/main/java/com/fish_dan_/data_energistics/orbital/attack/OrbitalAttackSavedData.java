@@ -68,14 +68,11 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String GEOMETRY_RADIUS_TAG = "geometry_radius";
     private static final String GEOMETRY_DEPTH_TAG = "geometry_depth";
     private static final String GEOMETRY_DEPTH_BLOCKS_TAG = "geometry_depth_blocks";
-    private static final String GEOMETRY_DAMAGE_TAG = "geometry_damage";
     private static final String KINETIC_COLUMN_RADIUS_TAG = "kinetic_column_radius";
     private static final String KINETIC_COLUMN_DEPTH_TAG = "kinetic_column_depth";
     private static final String KINETIC_CRATER_RADIUS_TAG = "kinetic_crater_radius";
     private static final String KINETIC_CRATER_DEPTH_TAG = "kinetic_crater_depth";
     private static final String KINETIC_SHOCKWAVE_RADIUS_TAG = "kinetic_shockwave_radius";
-    private static final String KINETIC_ENTITY_DAMAGE_TAG = "kinetic_entity_damage";
-    private static final String KINETIC_KNOCKBACK_STRENGTH_TAG = "kinetic_knockback_strength";
     private static final String DIGITAL_WORK_INTERVAL_TAG = "digital_work_interval";
     private static final String DIGITAL_MAX_RADIUS_TAG = "digital_max_radius";
     private static final String DIGITAL_CENTER_RADIUS_TAG = "digital_center_radius";
@@ -705,14 +702,11 @@ public final class OrbitalAttackSavedData extends SavedData {
                 tag.putInt(KINETIC_CRATER_RADIUS_TAG, kinetic.craterRadius());
                 tag.putInt(KINETIC_CRATER_DEPTH_TAG, kinetic.craterDepth());
                 tag.putInt(KINETIC_SHOCKWAVE_RADIUS_TAG, kinetic.shockwaveRadius());
-                tag.putLong(KINETIC_ENTITY_DAMAGE_TAG, kinetic.entityDamage());
-                tag.putDouble(KINETIC_KNOCKBACK_STRENGTH_TAG, kinetic.knockbackStrength());
             }
             case OrbitalAttackGeometry.DirectedEnergy directedEnergy -> {
                 tag.putInt(GEOMETRY_RADIUS_TAG, directedEnergy.radius());
                 tag.putString(GEOMETRY_DEPTH_TAG, directedEnergy.depth().name());
                 tag.putInt(GEOMETRY_DEPTH_BLOCKS_TAG, directedEnergy.depthBlocks());
-                tag.putLong(GEOMETRY_DAMAGE_TAG, directedEnergy.entityDamage());
             }
             case OrbitalAttackGeometry.DigitalAnnihilation digital -> {
                 tag.putInt(DIGITAL_WORK_INTERVAL_TAG, digital.workIntervalTicks());
@@ -815,7 +809,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     }
 
     private static OrbitalAttackGeometry.Kinetic readKineticGeometry(CompoundTag tag) {
-        boolean hasCompleteGeometry = tag.contains(KINETIC_COLUMN_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_COLUMN_DEPTH_TAG, Tag.TAG_INT) && tag.contains(KINETIC_CRATER_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_CRATER_DEPTH_TAG, Tag.TAG_INT) && tag.contains(KINETIC_SHOCKWAVE_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_ENTITY_DAMAGE_TAG, Tag.TAG_LONG) && tag.contains(KINETIC_KNOCKBACK_STRENGTH_TAG, Tag.TAG_DOUBLE);
+        boolean hasCompleteGeometry = tag.contains(KINETIC_COLUMN_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_COLUMN_DEPTH_TAG, Tag.TAG_INT) && tag.contains(KINETIC_CRATER_RADIUS_TAG, Tag.TAG_INT) && tag.contains(KINETIC_CRATER_DEPTH_TAG, Tag.TAG_INT) && tag.contains(KINETIC_SHOCKWAVE_RADIUS_TAG, Tag.TAG_INT);
         if (!hasCompleteGeometry) {
             throw new IllegalArgumentException("Incomplete persisted kinetic attack geometry");
         }
@@ -824,21 +818,18 @@ public final class OrbitalAttackSavedData extends SavedData {
                 tag.getInt(KINETIC_COLUMN_DEPTH_TAG),
                 tag.getInt(KINETIC_CRATER_RADIUS_TAG),
                 tag.getInt(KINETIC_CRATER_DEPTH_TAG),
-                tag.getInt(KINETIC_SHOCKWAVE_RADIUS_TAG),
-                tag.getLong(KINETIC_ENTITY_DAMAGE_TAG),
-                tag.getDouble(KINETIC_KNOCKBACK_STRENGTH_TAG));
+                tag.getInt(KINETIC_SHOCKWAVE_RADIUS_TAG));
     }
 
     private static OrbitalAttackGeometry.DirectedEnergy readDirectedEnergyGeometry(CompoundTag tag) {
-        if (!tag.contains(GEOMETRY_RADIUS_TAG, Tag.TAG_INT) || !tag.contains(GEOMETRY_DEPTH_TAG, Tag.TAG_STRING) || !tag.contains(GEOMETRY_DEPTH_BLOCKS_TAG, Tag.TAG_INT) || !tag.contains(GEOMETRY_DAMAGE_TAG, Tag.TAG_LONG)) {
+        if (!tag.contains(GEOMETRY_RADIUS_TAG, Tag.TAG_INT) || !tag.contains(GEOMETRY_DEPTH_TAG, Tag.TAG_STRING) || !tag.contains(GEOMETRY_DEPTH_BLOCKS_TAG, Tag.TAG_INT)) {
             throw new IllegalArgumentException("Incomplete persisted directed-energy geometry");
         }
         OrbitalDirectedEnergyDepth depth = OrbitalDirectedEnergyDepth.valueOf(tag.getString(GEOMETRY_DEPTH_TAG));
         return OrbitalAttackGeometry.DirectedEnergy.fromPersisted(
                 tag.getInt(GEOMETRY_RADIUS_TAG),
                 depth,
-                tag.getInt(GEOMETRY_DEPTH_BLOCKS_TAG),
-                tag.getLong(GEOMETRY_DAMAGE_TAG));
+                tag.getInt(GEOMETRY_DEPTH_BLOCKS_TAG));
     }
 
     private static OrbitalAttackGeometry.DigitalAnnihilation readDigitalAnnihilationGeometry(
@@ -1123,7 +1114,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                     handleTerrainBoundary(server, delivery, impactReadiness, "Kinetic impact chunk failed");
                     return;
                 }
-                OrbitalKineticStrike.applyImpactDamage(
+                OrbitalKineticStrike.eraseImpactEntities(
                         level,
                         delivery.target(),
                         geometry,

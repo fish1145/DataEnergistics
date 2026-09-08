@@ -1,16 +1,14 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
+import com.fish_dan_.data_energistics.orbital.attack.entity.OrbitalEntityErasure;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.phys.AABB;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
@@ -91,8 +89,8 @@ public final class OrbitalDirectedEnergyStrike {
 
     /**
      * Processes a caller-governed slice and stops before accessing the first disk column whose FULL chunk is pending.
-     * The feet-Y filter makes one entity receive one captured-damage hit per disk column when the beam reaches its
-     * occupied level, instead of damaging every entity at the column top.
+     * Entities are erased when the advancing beam first intersects their occupied volume; entities below the
+     * current beam position remain untouched until the scan reaches them.
      */
     public static WorkSlice applyBudget(
                                         ServerLevel level,
@@ -124,7 +122,7 @@ public final class OrbitalDirectedEnergyStrike {
             if (!chunkReady.test(new ChunkPos(position))) {
                 return new WorkSlice(next, total, false, true);
             }
-            applyBeamDamage(level, position, exemptions, (float) geometry.entityDamage());
+            eraseBeamEntities(level, position, exemptions);
             if (!level.getBlockState(position).isAir()) {
                 level.setBlock(
                         position,
@@ -212,11 +210,10 @@ public final class OrbitalDirectedEnergyStrike {
         return List.copyOf(result);
     }
 
-    private static void applyBeamDamage(
-                                        ServerLevel level,
-                                        BlockPos column,
-                                        Set<UUID> exemptions,
-                                        float damage) {
+    private static void eraseBeamEntities(
+                                          ServerLevel level,
+                                          BlockPos column,
+                                          Set<UUID> exemptions) {
         AABB beam = new AABB(
                 column.getX(),
                 column.getY(),
@@ -224,23 +221,8 @@ public final class OrbitalDirectedEnergyStrike {
                 column.getX() + 1.0D,
                 column.getY() + 1.0D,
                 column.getZ() + 1.0D);
-        for (LivingEntity entity : level.getEntities(
-                EntityTypeTest.forClass(LivingEntity.class),
-                beam,
-                LivingEntity::isAlive)) {
-            if (entity.blockPosition().getY() != column.getY()) {
-                continue;
-            }
-            if (exemptions.contains(entity.getUUID())) {
-                continue;
-            }
-            if (entity instanceof Player player && (player.isCreative() || player.isSpectator())) {
-                continue;
-            }
-            if (entity instanceof ServerPlayer player && player.hasPermissions(2)) {
-                continue;
-            }
-            entity.hurt(level.damageSources().generic(), damage);
+        for (Entity entity : level.getEntities(null, beam)) {
+            OrbitalEntityErasure.eraseHit(entity, exemptions);
         }
     }
 

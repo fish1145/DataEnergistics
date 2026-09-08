@@ -1,14 +1,13 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
+import com.fish_dan_.data_energistics.orbital.attack.entity.OrbitalEntityErasure;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -106,38 +105,19 @@ public final class OrbitalKineticStrike {
     }
 
     /**
-     * Applies the instantaneous impact damage and knockback on the commit tick before budgeted terrain work.
+     * Erases non-exempt entities in the impact volume on the commit tick before budgeted terrain work.
      */
-    public static void applyImpactDamage(
-                                         ServerLevel level,
-                                         BlockPos target,
-                                         OrbitalAttackGeometry.Kinetic geometry,
-                                         Set<UUID> exemptions) {
+    public static void eraseImpactEntities(
+                                           ServerLevel level,
+                                           BlockPos target,
+                                           OrbitalAttackGeometry.Kinetic geometry,
+                                           Set<UUID> exemptions) {
         Vec3 center = Vec3.atCenterOf(target);
         AABB area = new AABB(center, center).inflate(geometry.shockwaveRadius());
-        for (LivingEntity entity : level.getEntities(
-                EntityTypeTest.forClass(LivingEntity.class),
-                area,
-                LivingEntity::isAlive)) {
-            if (exemptions.contains(entity.getUUID())) {
-                continue;
-            }
-            if (entity instanceof Player player && (player.isCreative() || player.isSpectator())) {
-                continue;
-            }
-            if (entity instanceof ServerPlayer player && player.hasPermissions(2)) {
-                continue;
-            }
-            Vec3 direction = entity.position().subtract(center);
-            if (direction.lengthSqr() > (long) geometry.shockwaveRadius() * geometry.shockwaveRadius()) {
-                continue;
-            }
-            entity.hurt(level.damageSources().generic(), (float) geometry.entityDamage());
-            if (direction.lengthSqr() < 1.0E-6D) {
-                direction = new Vec3(1.0D, 0.0D, 0.0D);
-            }
-            entity.knockback(geometry.knockbackStrength(), -direction.x, -direction.z);
-            entity.hurtMarked = true;
+        long radiusSquared = (long) geometry.shockwaveRadius() * geometry.shockwaveRadius();
+        for (Entity entity : level.getEntities((Entity) null, area,
+                candidate -> candidate.position().distanceToSqr(center) <= radiusSquared)) {
+            OrbitalEntityErasure.eraseHit(entity, exemptions);
         }
     }
 

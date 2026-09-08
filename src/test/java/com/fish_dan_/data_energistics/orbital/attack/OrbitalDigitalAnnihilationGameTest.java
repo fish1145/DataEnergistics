@@ -29,15 +29,19 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.phys.AABB;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
+import net.neoforged.testframework.gametest.ExtendedGameTestHelper;
+import net.neoforged.testframework.gametest.GameTestPlayer;
 
 import com.mojang.authlib.GameProfile;
 
@@ -80,6 +84,7 @@ public final class OrbitalDigitalAnnihilationGameTest {
         UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
         AtomicReference<UUID> attackId = new AtomicReference<>();
         AtomicReference<Double> payloadStartY = new AtomicReference<>();
+        AtomicReference<GameTestPlayer> victim = new AtomicReference<>();
 
         helper.startSequence()
                 .thenIdle(40)
@@ -190,10 +195,25 @@ public final class OrbitalDigitalAnnihilationGameTest {
                             "The target must remain unchanged until the fuse completes");
                 })
                 .thenExecute(() -> {
+                    ExtendedGameTestHelper playerHelper = new ExtendedGameTestHelper(helper.testInfo);
+                    GameTestPlayer spawned = playerHelper.makeTickingMockServerPlayerInLevel(GameType.SURVIVAL);
+                    spawned.moveTo(absoluteTarget.getX() + 0.5, absoluteTarget.getY() + 0.5, absoluteTarget.getZ() + 0.5);
+                    spawned.setNoGravity(true);
+                    spawned.setInvulnerable(true);
+                    spawned.subscribe((LivingIncomingDamageEvent event) -> {
+                        if (event.getEntity() == spawned) {
+                            event.setCanceled(true);
+                        }
+                    });
+                    victim.set(spawned);
+                })
+                .thenWaitUntil(() -> helper.assertFalse(victim.get().isAlive(),
+                        "The activated orbital fuse must erase the player despite a cancelled damage event"))
+                .thenExecute(() -> {
                     OrbitalAttackRecord delivery = attacks.find(attackId.get()).orElseThrow();
                     helper.assertTrue(
                             attacks.adminAbort(server, attackId.get()),
-                            "The materialized fuse must be abortable before it begins terrain work");
+                            "The active orbital payload must remain abortable after its first entity erasure");
                     helper.assertTrue(
                             level.getEntity(delivery.payloadEntityId()) == null,
                             "Aborting the materialized fuse must remove its live payload entity");

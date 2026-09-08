@@ -24,6 +24,7 @@ import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -36,6 +37,7 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.mojang.authlib.GameProfile;
 
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -96,6 +98,9 @@ public final class OrbitalDirectedEnergyGameTest {
                     primeReserve(weapons, server, weaponId, settings, cost);
                     Zombie spawned = helper.spawn(EntityType.ZOMBIE, TARGET);
                     spawned.setNoAi(true);
+                    spawned.setInvulnerable(true);
+                    Objects.requireNonNull(spawned.getAttribute(Attributes.MAX_HEALTH)).setBaseValue(1024);
+                    spawned.setHealth(1024);
                     victim.set(spawned);
                     OrbitalEnergyReserve reserveBefore = weapons.find(weaponId).orElseThrow().reserve();
                     OrbitalAttackRecord warning = attacks.tryConfirmDirectedEnergy(
@@ -133,7 +138,7 @@ public final class OrbitalDirectedEnergyGameTest {
                     helper.assertFalse(
                             attack.phase() == OrbitalAttackPhase.RESERVED_WARNING,
                             "The directed-energy scan must eventually commit");
-                    helper.assertFalse(victim.get().isAlive(), "A beam column must apply its configured entity damage");
+                    helper.assertTrue(victim.get().isRemoved(), "The real beam must erase the immune high-health target");
                 })
                 .thenWaitUntil(() -> {
                     OrbitalAttackRecord attack = attacks.find(attackId.get()).orElseThrow();
@@ -178,8 +183,7 @@ public final class OrbitalDirectedEnergyGameTest {
                 2,
                 2,
                 original.mediumDepth(),
-                original.deepDepth(),
-                500L);
+                original.deepDepth());
         DirectedConfigurationSnapshot changedLive = new DirectedConfigurationSnapshot(
                 1,
                 1,
@@ -188,8 +192,7 @@ public final class OrbitalDirectedEnergyGameTest {
                 4,
                 6,
                 original.mediumDepth(),
-                original.deepDepth(),
-                1L);
+                original.deepDepth());
         int radius = confirmed.minimumRadius();
         OrbitalDirectedEnergyDepth depth = OrbitalDirectedEnergyDepth.DEPTH_32;
         OrbitalAttackCost cost = OrbitalAttackCost.directedEnergy(
@@ -271,7 +274,7 @@ public final class OrbitalDirectedEnergyGameTest {
                             "A later live depth change must not deepen an already confirmed scan");
                     helper.assertFalse(
                             innerVictim.get().isAlive(),
-                            "The captured beam damage must affect a real in-radius entity");
+                            "The captured beam volume must erase a real in-radius entity");
                     helper.assertTrue(
                             outerVictim.get().isAlive(),
                             "The selected radius must leave a real out-of-radius entity unharmed");
@@ -399,8 +402,7 @@ public final class OrbitalDirectedEnergyGameTest {
                                                  int radiusStep,
                                                  int shallowDepth,
                                                  int mediumDepth,
-                                                 int deepDepth,
-                                                 long entityDamage) {
+                                                 int deepDepth) {
 
         private static DirectedConfigurationSnapshot capture(
                                                              DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
@@ -412,8 +414,7 @@ public final class OrbitalDirectedEnergyGameTest {
                     settings.directedEnergyRadiusStep,
                     settings.directedEnergyShallowDepth,
                     settings.directedEnergyMediumDepth,
-                    settings.directedEnergyDeepDepth,
-                    settings.directedEnergyEntityDamage);
+                    settings.directedEnergyDeepDepth);
         }
 
         private void applyTo(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
@@ -425,7 +426,6 @@ public final class OrbitalDirectedEnergyGameTest {
             settings.directedEnergyShallowDepth = this.shallowDepth;
             settings.directedEnergyMediumDepth = this.mediumDepth;
             settings.directedEnergyDeepDepth = this.deepDepth;
-            settings.directedEnergyEntityDamage = this.entityDamage;
         }
     }
 

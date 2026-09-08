@@ -386,9 +386,7 @@ public final class OrbitalWeaponLifecycleGameTest {
                                                   int columnDepth,
                                                   int craterRadius,
                                                   int craterDepth,
-                                                  int shockwaveRadius,
-                                                  long entityDamage,
-                                                  double knockbackStrength) {
+                                                  int shockwaveRadius) {
 
         private static LifecycleConfigurationSnapshot capture(
                                                               DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
@@ -410,9 +408,7 @@ public final class OrbitalWeaponLifecycleGameTest {
                     settings.kineticColumnDepth,
                     settings.kineticCraterRadius,
                     settings.kineticCraterDepth,
-                    settings.kineticShockwaveRadius,
-                    settings.kineticEntityDamage,
-                    settings.kineticKnockbackStrength);
+                    settings.kineticShockwaveRadius);
         }
 
         private static LifecycleConfigurationSnapshot testConfiguration() {
@@ -434,9 +430,7 @@ public final class OrbitalWeaponLifecycleGameTest {
                     1,
                     1,
                     1,
-                    2,
-                    500L,
-                    1.0D);
+                    2);
         }
 
         private void applyTo(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
@@ -458,8 +452,6 @@ public final class OrbitalWeaponLifecycleGameTest {
             settings.kineticCraterRadius = this.craterRadius;
             settings.kineticCraterDepth = this.craterDepth;
             settings.kineticShockwaveRadius = this.shockwaveRadius;
-            settings.kineticEntityDamage = this.entityDamage;
-            settings.kineticKnockbackStrength = this.knockbackStrength;
         }
     }
 

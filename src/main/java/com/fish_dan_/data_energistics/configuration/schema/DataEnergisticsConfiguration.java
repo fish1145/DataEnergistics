@@ -118,8 +118,6 @@ public final class DataEnergisticsConfiguration {
                 weaponSettings.kineticCraterRadius,
                 weaponSettings.kineticCraterDepth,
                 weaponSettings.kineticShockwaveRadius,
-                weaponSettings.kineticEntityDamage,
-                weaponSettings.kineticKnockbackStrength,
                 weaponSettings.kineticCelestialEnergyCost,
                 weaponSettings.kineticAeEnergyCost,
                 weaponSettings.attackWarningTicks,
@@ -135,7 +133,6 @@ public final class DataEnergisticsConfiguration {
                 weaponSettings.directedEnergyCelestialEnergyPerCoordinate,
                 weaponSettings.directedEnergyAeEnergyPerCoordinate,
                 weaponSettings.directedEnergyCooldownTicks,
-                weaponSettings.directedEnergyEntityDamage,
                 weaponSettings.digitalAnnihilationCelestialEnergyCost,
                 weaponSettings.digitalAnnihilationAeEnergyCost,
                 weaponSettings.digitalAnnihilationCooldownTicks,
@@ -765,16 +762,6 @@ public final class DataEnergisticsConfiguration {
         public int kineticShockwaveRadius = OrbitalAttackGeometry.Kinetic.DEFAULT_SHOCKWAVE_RADIUS;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Damage dealt to a non-exempt living entity inside the kinetic shockwave.", "动能冲击波对范围内非豁免生物造成的伤害。" })
-        @Configurable.Range(min = 1L, max = Integer.MAX_VALUE)
-        public long kineticEntityDamage = OrbitalAttackGeometry.Kinetic.DEFAULT_ENTITY_DAMAGE;
-
-        @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Horizontal knockback strength applied by the kinetic shockwave.", "动能冲击波施加的水平击退强度。" })
-        @Configurable.DecimalRange(min = 0.0D, max = OrbitalAttackGeometry.Kinetic.MAX_KNOCKBACK_STRENGTH)
-        public double kineticKnockbackStrength = OrbitalAttackGeometry.Kinetic.DEFAULT_KNOCKBACK_STRENGTH;
-
-        @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Celestial Energy reserved by one kinetic strike.", "一次动能攻击预留的星体能量。" })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
         public long kineticCelestialEnergyCost = 5_000_000L;
@@ -848,11 +835,6 @@ public final class DataEnergisticsConfiguration {
         @Configurable.Comment({ "Directed-energy cooldown after its scan completes.", "定向能扫描完成后的冷却时长。" })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
         public int directedEnergyCooldownTicks = 100;
-
-        @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Damage applied to a living entity each time a directed-energy beam column covers it.", "定向能光束每次覆盖实体时造成的伤害。" })
-        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
-        public long directedEnergyEntityDamage = 500L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Celestial Energy reserved by one digital annihilation payload.", "一次数位湮灭体轨道载荷预留的星体能量。" })

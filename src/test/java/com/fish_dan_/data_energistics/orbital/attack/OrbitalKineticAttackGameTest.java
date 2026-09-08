@@ -28,6 +28,7 @@ import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -40,6 +41,7 @@ import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.mojang.authlib.GameProfile;
 
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -98,6 +100,9 @@ public final class OrbitalKineticAttackGameTest {
                     primeReserve(weapons, server, weaponId, settings, cost);
                     Zombie spawned = helper.spawn(EntityType.ZOMBIE, VICTIM);
                     spawned.setNoAi(true);
+                    spawned.setInvulnerable(true);
+                    Objects.requireNonNull(spawned.getAttribute(Attributes.MAX_HEALTH)).setBaseValue(1024);
+                    spawned.setHealth(1024);
                     victim.set(spawned);
                 })
                 .thenExecute(() -> {
@@ -210,7 +215,7 @@ public final class OrbitalKineticAttackGameTest {
                                 attack.isEmpty() || attack.get().phase() == OrbitalAttackPhase.COOLDOWN,
                                 "A completed attack must be cooling down or have already released its expired slot");
                     }
-                    helper.assertFalse(victim.get().isAlive(), "The committed kinetic attack must apply impact damage");
+                    helper.assertTrue(victim.get().isRemoved(), "The committed kinetic attack must erase the immune high-health target");
                     helper.assertTrue(
                             level.getBlockState(helper.absolutePos(TARGET)).isAir(),
                             "The committed kinetic terrain worker must remove the target without drops");
@@ -347,9 +352,7 @@ public final class OrbitalKineticAttackGameTest {
                 2,
                 2,
                 2,
-                4,
-                500L,
-                2.0D);
+                4);
         KineticConfigurationSnapshot changedLive = new KineticConfigurationSnapshot(
                 1,
                 1,
@@ -357,9 +360,7 @@ public final class OrbitalKineticAttackGameTest {
                 6,
                 6,
                 6,
-                10,
-                1L,
-                0.0D);
+                10);
         BlockPos absoluteTarget = helper.absolutePos(TARGET);
         BlockPos absoluteColumnOutside = helper.absolutePos(SNAPSHOT_COLUMN_OUTSIDE);
         BlockPos absoluteCraterInside = helper.absolutePos(SNAPSHOT_CRATER_INSIDE);
@@ -439,7 +440,7 @@ public final class OrbitalKineticAttackGameTest {
                             "A later, wider live crater must not expand an already confirmed attack");
                     helper.assertFalse(
                             innerVictim.get().isAlive(),
-                            "The captured shockwave damage must affect a real in-range entity");
+                            "The captured shockwave volume must erase a real in-range entity");
                     helper.assertTrue(
                             outerVictim.get().isAlive(),
                             "A later, wider live shockwave must not affect an out-of-snapshot entity");
@@ -598,9 +599,7 @@ public final class OrbitalKineticAttackGameTest {
                                                 int columnDepth,
                                                 int craterRadius,
                                                 int craterDepth,
-                                                int shockwaveRadius,
-                                                long entityDamage,
-                                                double knockbackStrength) {
+                                                int shockwaveRadius) {
 
         private static KineticConfigurationSnapshot capture(
                                                             DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
@@ -611,9 +610,7 @@ public final class OrbitalKineticAttackGameTest {
                     settings.kineticColumnDepth,
                     settings.kineticCraterRadius,
                     settings.kineticCraterDepth,
-                    settings.kineticShockwaveRadius,
-                    settings.kineticEntityDamage,
-                    settings.kineticKnockbackStrength);
+                    settings.kineticShockwaveRadius);
         }
 
         private void applyTo(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
@@ -624,8 +621,6 @@ public final class OrbitalKineticAttackGameTest {
             settings.kineticCraterRadius = this.craterRadius;
             settings.kineticCraterDepth = this.craterDepth;
             settings.kineticShockwaveRadius = this.shockwaveRadius;
-            settings.kineticEntityDamage = this.entityDamage;
-            settings.kineticKnockbackStrength = this.knockbackStrength;
         }
 
         private OrbitalAttackGeometry.Kinetic geometry() {
@@ -634,9 +629,7 @@ public final class OrbitalKineticAttackGameTest {
                     this.columnDepth,
                     this.craterRadius,
                     this.craterDepth,
-                    this.shockwaveRadius,
-                    this.entityDamage,
-                    this.knockbackStrength);
+                    this.shockwaveRadius);
         }
     }
 
