@@ -158,17 +158,18 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
             releaseReplacementDrops(context, publicationOutcome.releasedReplacementDrops());
             if (!refundOutcome.completed()) {
                 Failure publicationFailure = publicationOutcome.failure();
-                return Result.publishFailure(publicationOutcome.placed(), planOutcome.reused(), new Failure(
+                return Result.publishFailure(publicationOutcome.placed(), planOutcome.reused(), allocation.missing(), new Failure(
                         publicationFailure.type(),
                         publicationFailure.position(),
                         publicationFailure.detail() + "; " + refundOutcome.detail()));
             }
-            return Result.publishFailure(publicationOutcome.placed(), planOutcome.reused(), publicationOutcome.failure());
+            return Result.publishFailure(publicationOutcome.placed(), planOutcome.reused(), allocation.missing(),
+                    publicationOutcome.failure());
         }
 
         inventory.complete();
         releaseReplacementDrops(context, publicationOutcome.releasedReplacementDrops());
-        return Result.success(allocation.placements().size(), planOutcome.reused());
+        return Result.success(allocation.placements().size(), planOutcome.reused(), allocation.missing());
     }
 
     private static PlanOutcome createPlan(Context context) {
@@ -614,9 +615,16 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         }
 
         ArrayList<Placement> placements = new ArrayList<>(positions.size());
+        int missing = 0;
         for (PositionPlan position : positions) {
             CandidateSelection selection = selectCandidate(context, inventory, available, position);
             if (selection.failure() != null) {
+                // Missing materials are a per-position shortage. Keep the position empty and continue placing
+                // every other position that can be supplied; world conflicts have already failed during preflight.
+                if (selection.failure().type() == FailureType.MISSING_MATERIAL) {
+                    missing++;
+                    continue;
+                }
                 return new AllocationOutcome(List.of(), selection.failure());
             }
             Candidate candidate = selection.candidate();
@@ -636,7 +644,7 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                     position.replacesExistingTier(),
                     inventorySlot));
         }
-        return new AllocationOutcome(List.copyOf(placements), null);
+        return new AllocationOutcome(List.copyOf(placements), missing, null);
     }
 
     private static List<MaterialReservation> materialReservations(List<Placement> placements) {
@@ -1382,7 +1390,18 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         }
     }
 
-    private record AllocationOutcome(List<Placement> placements, @Nullable Failure failure) {}
+    private record AllocationOutcome(List<Placement> placements, int missing, @Nullable Failure failure) {
+
+        private AllocationOutcome {
+            if (missing < 0) {
+                throw new IllegalArgumentException("Auto-build missing material count cannot be negative: " + missing);
+            }
+        }
+
+        private AllocationOutcome(List<Placement> placements, @Nullable Failure failure) {
+            this(placements, 0, failure);
+        }
+    }
 
     private record CandidateSelection(@Nullable Candidate candidate,
                                       int inventorySlot,
