@@ -27,9 +27,6 @@ public final class OrbitalConstructModel {
         int sections = detail == Detail.DISTANT ? 2 : 8;
         float sectionLength = 512.0F / sections;
         for (int section = 0; section < sections; section++) {
-            if (redeploying && detail == Detail.FULL && (section + (long) (time / 6)) % 5 == 0) {
-                continue;
-            }
             double x = -256 + sectionLength * (section + 0.5);
             renderer.part(poses, OrbitalModelPart.RAIL, x, 0, -18 - spread, sectionLength, 12, 12);
             renderer.part(poses, OrbitalModelPart.RAIL, x, 0, 18 + spread, sectionLength, 12, 12);
