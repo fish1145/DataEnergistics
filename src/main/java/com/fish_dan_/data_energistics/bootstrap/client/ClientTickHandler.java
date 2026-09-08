@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
+import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowAnimationStates;
 import com.fish_dan_.data_energistics.integration.viewer.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMobEffects;
@@ -31,6 +32,7 @@ final class ClientTickHandler {
     static void onClientTickPost(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
         XeiLayoutRefreshQueue.drain();
+        CrossbowAnimationStates.tick(minecraft);
         if (minecraft.isPaused() || minecraft.level == null || minecraft.player == null) {
             return;
         }

@@ -10,12 +10,10 @@ import net.minecraft.client.renderer.block.model.ItemOverrides;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ChargedProjectiles;
@@ -28,10 +26,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
 
 final class CrossbowBakedModel extends BakedModelWrapper<BakedModel> {
 
@@ -46,7 +41,6 @@ final class CrossbowBakedModel extends BakedModelWrapper<BakedModel> {
     private final List<BakedQuad> idleQuads;
     private final List<BakedQuad> loadedQuads;
     private final List<BakedQuad> specialQuads;
-    private final Map<LivingEntity, EnumMap<InteractionHand, HandAnimation>> animations = new WeakHashMap<>();
 
     CrossbowBakedModel(BakedModel originalModel, List<List<CrossbowGeometry.Part>> frames,
                        List<CrossbowGeometry.Part> specialAmmo, Matrix4f root, ItemOverrides resourceOverrides) {
@@ -79,17 +73,13 @@ final class CrossbowBakedModel extends BakedModelWrapper<BakedModel> {
 
     private final class RenderedCrossbow extends BakedModelWrapper<BakedModel> {
 
-        private final ItemStack stack;
         private final @Nullable LivingEntity entity;
-        private final boolean charged;
         private final boolean special;
         private List<BakedQuad> quads;
 
         private RenderedCrossbow(ItemStack stack, @Nullable LivingEntity entity) {
             super(CrossbowBakedModel.this.originalModel);
-            this.stack = stack;
             this.entity = entity;
-            this.charged = CrossbowItem.isCharged(stack);
             ChargedProjectiles projectiles = stack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY);
             this.special = !projectiles.isEmpty() && MatterConvergingCrossbowItem.isSpecialLightSaberAmmo(projectiles.getItems().getFirst());
             this.quads = foldedQuads;
@@ -114,20 +104,10 @@ final class CrossbowBakedModel extends BakedModelWrapper<BakedModel> {
             }
             this.quads = foldedQuads;
             if (this.entity != null && isHand(context)) {
-                InteractionHand hand = this.entity.getMainHandItem() == this.stack ? InteractionHand.MAIN_HAND : this.entity.getOffhandItem() == this.stack ? InteractionHand.OFF_HAND : null;
-                if (hand != null) {
-                    int slot = hand == InteractionHand.MAIN_HAND && this.entity instanceof Player player ? player.getInventory().selected : -1;
-                    var hands = animations.computeIfAbsent(this.entity, ignored -> new EnumMap<>(InteractionHand.class));
-                    HandAnimation tracked = hands.get(hand);
-                    if (tracked == null || tracked.slot() != slot) {
-                        tracked = new HandAnimation(slot, new CrossbowAnimation());
-                        hands.put(hand, tracked);
-                    }
-                    float partial = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
-                    boolean using = this.entity.isUsingItem() && this.entity.getUseItem() == this.stack;
-                    float progress = using ? Mth.clamp((this.stack.getUseDuration(this.entity) - this.entity.getUseItemRemainingTicks() + partial) / MatterConvergingCrossbowItem.getChargeDuration(this.stack, this.entity), 0.0F, 1.0F) : 0.0F;
-                    this.quads = geometry(tracked.animation().sample(this.entity.tickCount + partial, true, using, this.charged, progress));
-                }
+                HumanoidArm arm = context == ItemDisplayContext.FIRST_PERSON_LEFT_HAND || context == ItemDisplayContext.THIRD_PERSON_LEFT_HAND ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
+                InteractionHand hand = this.entity.getMainArm() == arm ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
+                float partial = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
+                this.quads = geometry(CrossbowAnimationStates.pose(this.entity, hand, partial));
             }
             return this;
         }
@@ -148,8 +128,6 @@ final class CrossbowBakedModel extends BakedModelWrapper<BakedModel> {
             return List.of(this);
         }
     }
-
-    private record HandAnimation(int slot, CrossbowAnimation animation) {}
 
     private static boolean isHand(ItemDisplayContext context) {
         return context.firstPerson() || context == ItemDisplayContext.THIRD_PERSON_LEFT_HAND || context == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND;

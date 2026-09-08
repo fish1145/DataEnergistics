@@ -685,7 +685,8 @@
 					"uv": [12, 11, 16, 11.5],
 					"texture": "#0"
 				}
-			}
+			},
+			"motion": "strap_top"
 		},
 		{
 			"from": [4.4999, -2.7501, 21.9999],
@@ -704,7 +705,8 @@
 					"uv": [12, 11, 16, 11.5],
 					"texture": "#0"
 				}
-			}
+			},
+			"motion": "strap_bottom"
 		},
 		{
 			"from": [11.4999, -2.7501, 21.9999],
@@ -725,7 +727,8 @@
 					"rotation": 90,
 					"texture": "#0"
 				}
-			}
+			},
+			"motion": "strap_right"
 		},
 		{
 			"from": [4.4999, -2.7501, 21.9999],
@@ -746,7 +749,8 @@
 					"rotation": 90,
 					"texture": "#0"
 				}
-			}
+			},
+			"motion": "strap_left"
 		},
 		{
 			"name": "railOuter",
@@ -1275,7 +1279,7 @@
 					"texture": "#0"
 				}
 			},
-			"motion": "right_limb"
+			"motion": "right_root"
 		},
 		{
 			"from": [14.999, 5.999, -5.001],
@@ -1307,7 +1311,7 @@
 					"tintindex": 2
 				}
 			},
-			"motion": "right_limb"
+			"motion": "right_elbow"
 		},
 		{
 			"from": [11, 6, -5],
@@ -1344,7 +1348,7 @@
 					"tintindex": 2
 				}
 			},
-			"motion": "right_limb"
+			"motion": "right_tip"
 		},
 		{
 			"from": [5, 6, -4.75],
@@ -1375,7 +1379,8 @@
 					"texture": "#0",
 					"tintindex": 2
 				}
-			}
+			},
+			"motion": "bow_bridge"
 		},
 		{
 			"from": [1, 6, -5],
@@ -1412,7 +1417,7 @@
 					"tintindex": 2
 				}
 			},
-			"motion": "left_limb"
+			"motion": "left_tip"
 		},
 		{
 			"from": [-3.94975, 6, -0.05025],
@@ -1449,7 +1454,7 @@
 					"tintindex": 2
 				}
 			},
-			"motion": "left_limb"
+			"motion": "left_root"
 		},
 		{
 			"from": [-6.001, 5.999, -5.001],
@@ -1481,7 +1486,7 @@
 					"tintindex": 2
 				}
 			},
-			"motion": "left_limb"
+			"motion": "left_elbow"
 		},
 		{
 			"name": "cube_outline",
@@ -1599,7 +1604,8 @@
 					"rotation": 180,
 					"texture": "#0"
 				}
-			}
+			},
+			"motion": "bow_bridge"
 		},
 		{
 			"from": [6.9999, 5.9999, 3.9999],

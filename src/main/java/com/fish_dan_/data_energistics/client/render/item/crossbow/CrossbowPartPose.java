@@ -6,35 +6,18 @@ import org.joml.Vector3f;
 
 record CrossbowPartPose(Vector3f center, Quaternionf rotation, Vector3f size) {
 
-    Matrix4f transformTo(CrossbowPartPose target, CrossbowDeployment group, CrossbowMotion motion,
-                         CrossbowAnimation.Pose pose) {
-        float progress = group.progress(pose);
-        boolean string = motion == CrossbowMotion.LEFT_STRING || motion == CrossbowMotion.RIGHT_STRING;
-        float stringProgress = 0.5F * pose.bowPosition() + 0.5F * pose.draw();
-        float positionProgress = group == CrossbowDeployment.BOW ? pose.bowPosition() : progress;
-        float rotationProgress = group == CrossbowDeployment.BOW ? string ? stringProgress : pose.bowRotation() : progress;
-        Vector3f position = new Vector3f(this.center);
-        if (group == CrossbowDeployment.BOW || group == CrossbowDeployment.STRAP) {
-            // Move the still-folded bow out of its housing as one assembly.
-            position.z -= pose.bowSlide() * 0.5F;
-        }
-        position.lerp(target.center, positionProgress);
-        Quaternionf orientation = new Quaternionf(this.rotation).slerp(target.rotation, rotationProgress);
-        Vector3f dimensions = new Vector3f(this.size).lerp(target.size, rotationProgress);
-        if (motion == CrossbowMotion.LEFT_STRING || motion == CrossbowMotion.RIGHT_STRING) {
-            // Follow the moving attachment points instead of rotating each string about its center.
-            Vector3f span = new Vector3f(Math.abs(this.size.x), 0.0F, 0.0F).rotate(this.rotation);
-            span.lerp(new Vector3f(Math.abs(target.size.x), 0.0F, 0.0F).rotate(target.rotation), rotationProgress);
-            dimensions.x = Math.copySign(span.length(), target.size.x);
-            orientation.rotationY(-(float) Math.atan2(span.z, span.x));
-        }
-        float motionProgress = switch (group) {
-            case BOW -> string ? pose.draw() : pose.bowRotation();
-            case STRAP -> pose.bowSlide();
-            case RAIL -> pose.railDeployment();
-            case FRAME -> 0.0F;
-        };
-        return motion.transform(motionProgress)
-                .translate(position).rotate(orientation).scale(dimensions);
+    Matrix4f matrix() {
+        return new Matrix4f().translation(this.center).rotate(this.rotation).scale(this.size);
+    }
+
+    CrossbowPartPose interpolateTo(CrossbowPartPose target, float progress) {
+        return new CrossbowPartPose(new Vector3f(this.center).lerp(target.center, progress),
+                new Quaternionf(this.rotation).slerp(target.rotation, progress),
+                new Vector3f(this.size).lerp(target.size, progress));
+    }
+
+    CrossbowPartPose transformedBy(Matrix4f joint) {
+        return new CrossbowPartPose(joint.transformPosition(new Vector3f(this.center)),
+                joint.getNormalizedRotation(new Quaternionf()).mul(this.rotation), this.size);
     }
 }

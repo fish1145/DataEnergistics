@@ -10,7 +10,7 @@ enum CrossbowDeployment {
     float progress(CrossbowAnimation.Pose pose) {
         return switch (this) {
             case FRAME -> 0.0F;
-            case BOW -> pose.frameDeployment();
+            case BOW -> pose.tipUnfold();
             case STRAP -> pose.bowSlide();
             case RAIL -> pose.railDeployment();
         };

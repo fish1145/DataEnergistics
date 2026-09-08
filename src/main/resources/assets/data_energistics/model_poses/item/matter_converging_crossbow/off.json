@@ -685,7 +685,8 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "strap"
+			"deployment": "strap",
+			"motion": "strap_top"
 		},
 		{
 			"from": [4.4999, 4.7499, 21.9999],
@@ -705,7 +706,8 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "strap"
+			"deployment": "strap",
+			"motion": "strap_bottom"
 		},
 		{
 			"from": [7.9999, 0.9999, 21.9999],
@@ -728,7 +730,8 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "strap"
+			"deployment": "strap",
+			"motion": "strap_right"
 		},
 		{
 			"from": [7.7499, 0.9999, 21.9999],
@@ -751,7 +754,8 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "strap"
+			"deployment": "strap",
+			"motion": "strap_left"
 		},
 		{
 			"name": "railOuter",
@@ -1260,7 +1264,7 @@
 					"texture": "#0"
 				}
 			},
-			"motion": "right_limb",
+			"motion": "right_root",
 			"deployment": "bow"
 		},
 		{
@@ -1294,7 +1298,7 @@
 					"tintindex": 2
 				}
 			},
-			"motion": "right_limb",
+			"motion": "right_elbow",
 			"deployment": "bow"
 		},
 		{
@@ -1333,7 +1337,7 @@
 					"tintindex": 2
 				}
 			},
-			"motion": "right_limb",
+			"motion": "right_tip",
 			"deployment": "bow"
 		},
 		{
@@ -1366,7 +1370,8 @@
 					"tintindex": 2
 				}
 			},
-			"deployment": "bow"
+			"deployment": "bow",
+			"motion": "bow_bridge"
 		},
 		{
 			"from": [5, 6, 6],
@@ -1404,7 +1409,7 @@
 					"tintindex": 2
 				}
 			},
-			"motion": "left_limb",
+			"motion": "left_tip",
 			"deployment": "bow"
 		},
 		{
@@ -1442,7 +1447,7 @@
 					"tintindex": 2
 				}
 			},
-			"motion": "left_limb",
+			"motion": "left_root",
 			"deployment": "bow"
 		},
 		{
@@ -1476,7 +1481,7 @@
 					"tintindex": 2
 				}
 			},
-			"motion": "left_limb",
+			"motion": "left_elbow",
 			"deployment": "bow"
 		},
 		{
@@ -1600,7 +1605,8 @@
 					"texture": "#0"
 				}
 			},
-			"deployment": "bow"
+			"deployment": "bow",
+			"motion": "bow_bridge"
 		},
 		{
 			"from": [6.9999, 5.9999, 3.9999],

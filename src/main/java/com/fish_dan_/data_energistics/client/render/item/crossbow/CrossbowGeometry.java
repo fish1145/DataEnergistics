@@ -71,18 +71,14 @@ public final class CrossbowGeometry implements IUnbakedGeometry<CrossbowGeometry
         List<Part> folded = frames.getFirst();
         List<Part> active = frames.get(pose.stage() + 1);
         List<BakedQuad> quads = new ArrayList<>(320);
+        CrossbowRig rig = new CrossbowRig(pose);
         for (int i = 0; i < active.size(); i++) {
             Part from = folded.get(i);
             Part to = active.get(i);
-            if ((to.motion == CrossbowMotion.LEFT_STRING || to.motion == CrossbowMotion.RIGHT_STRING) && pose.bowPosition() <= 0.001F && !special) {
-                // The string stays in its housing until the bow assembly starts ejecting.
-                continue;
-            }
-            float deployment = to.deployment.progress(pose);
-            Matrix4f transform = new Matrix4f(root).mul(from.pose.transformTo(to.pose, to.deployment, to.motion, pose));
-            append(quads, deployment == 0.0F ? from.quads : to.quads, transform);
+            Matrix4f transform = new Matrix4f(root).mul(rig.transform(from.pose, to.pose, to.deployment, to.motion));
+            append(quads, pose.deployment() == 0.0F ? from.quads : to.quads, transform);
         }
-        if (special && pose.railDeployment() == 1.0F) {
+        if (special && pose.tipUnfold() == 1.0F) {
             for (Part part : specialAmmo) {
                 Matrix4f transform = new Matrix4f(root).translate(part.pose.center()).rotate(part.pose.rotation()).scale(part.pose.size());
                 int start = quads.size();

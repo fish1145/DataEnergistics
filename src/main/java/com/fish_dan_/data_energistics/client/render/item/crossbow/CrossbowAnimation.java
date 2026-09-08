@@ -1,50 +1,59 @@
 package com.fish_dan_.data_energistics.client.render.item.crossbow;
 
-/** Visual state for one entity hand, sampled on the render thread in game ticks. */
+/** One hand's visual timeline. Update once per client tick and interpolate during rendering. */
 public final class CrossbowAnimation {
 
     private static final float DEPLOY_TICKS = 36.0F;
-    private static final float RELEASE_TICKS = 3.0F;
+    private static final int RELEASE_TICKS = 3;
 
-    private float lastTime = Float.NaN;
+    private boolean initialized;
+    private boolean held;
+    private boolean active;
+    private boolean charged;
+    private float previousDeployment;
     private float deployment;
+    private float previousDraw;
     private float draw;
-    private float releaseTime;
     private float releaseDraw;
-    private boolean drawing;
+    private int releaseTicks;
 
-    /** Samples visual motion without changing the item, ammunition, or charging duration. */
-    public Pose sample(float time, boolean held, boolean using, boolean charged, float progress) {
-        if (!Float.isFinite(time) || !Float.isFinite(progress) || progress < 0.0F || progress > 1.0F) {
-            throw new IllegalArgumentException("Crossbow animation requires finite time and progress in [0, 1]");
+    /** Observes actual use/loaded state; never changes item components or gameplay timing. */
+    public void tick(boolean held, boolean using, boolean charged, float progress) {
+        if (!Float.isFinite(progress) || progress < 0.0F || progress > 1.0F) {
+            throw new IllegalArgumentException("Crossbow charge progress must be in [0, 1]");
         }
-        if (Float.isNaN(this.lastTime) || time < this.lastTime || time - this.lastTime > 10.0F) {
-            this.deployment = 0.0F;
+        if (!this.initialized || held && !this.held) {
+            this.initialized = true;
+            this.deployment = held ? 1.0F / DEPLOY_TICKS : 0.0F;
+            this.previousDeployment = 0.0F;
             this.draw = charged ? 1.0F : using ? progress : 0.0F;
-            this.releaseDraw = 0.0F;
-            this.drawing = using || charged;
-            this.lastTime = time;
+            this.previousDraw = this.draw;
+        } else {
+            this.previousDeployment = this.deployment;
+            this.previousDraw = this.draw;
+            this.deployment = Math.clamp(this.deployment + (held ? 1.0F : -1.0F) / DEPLOY_TICKS, 0.0F, 1.0F);
         }
-
-        float elapsed = time - this.lastTime;
-        this.lastTime = time;
-        this.deployment = clamp(this.deployment + (held || charged ? elapsed : -elapsed) / DEPLOY_TICKS);
         if (charged || using) {
             this.draw = charged ? 1.0F : progress;
+        } else if (this.active) {
+            // Automatic fire may never expose a charged frame on the client.
+            this.releaseDraw = this.draw;
+            this.releaseTicks = 0;
         } else {
-            if (this.drawing) {
-                this.releaseTime = time;
-                this.releaseDraw = this.draw;
-            }
-            this.draw = this.releaseDraw * (1.0F - smooth(clamp((time - this.releaseTime) / RELEASE_TICKS)));
+            this.releaseTicks = Math.min(RELEASE_TICKS, this.releaseTicks + 1);
+            this.draw = this.releaseDraw * (1.0F - smooth(this.releaseTicks / (float) RELEASE_TICKS));
         }
-        this.drawing = using || charged;
-        int stage = charged ? 3 : using ? Math.min(3, 1 + (int) (progress * 3.0F)) : 0;
-        return new Pose(this.deployment, this.draw, stage);
+        this.held = held;
+        this.active = using || charged;
+        this.charged = charged;
     }
 
-    private static float clamp(float value) {
-        return Math.clamp(value, 0.0F, 1.0F);
+    /** Read-only frame sampling; all renders of a hand share the same tick state. */
+    public Pose pose(float partialTick) {
+        float partial = Math.clamp(partialTick, 0.0F, 1.0F);
+        float draw = this.previousDraw + (this.draw - this.previousDraw) * partial;
+        int stage = this.charged ? 3 : this.active ? Math.min(3, 1 + (int) (draw * 3.0F)) : 0;
+        return new Pose(this.previousDeployment + (this.deployment - this.previousDeployment) * partial, draw, stage);
     }
 
     private static float smooth(float value) {
@@ -53,24 +62,32 @@ public final class CrossbowAnimation {
 
     public record Pose(float deployment, float draw, int stage) {
 
-        public float frameDeployment() {
-            return smooth(clamp((this.deployment * DEPLOY_TICKS - 22.0F) / 14.0F));
+        public float railDeployment() {
+            return phase(0.0F, 12.0F);
         }
 
         public float bowSlide() {
-            return smooth(clamp((this.deployment * DEPLOY_TICKS - 12.0F) / 10.0F));
+            return phase(12.0F, 20.0F);
         }
 
-        public float bowPosition() {
-            return smooth(clamp(this.frameDeployment() * 2.0F));
+        public float armExtension() {
+            return phase(20.0F, 26.0F);
         }
 
-        public float bowRotation() {
-            return smooth(clamp((this.frameDeployment() - 0.5F) * 2.0F));
+        public float elbowUnfold() {
+            return phase(26.0F, 32.0F);
         }
 
-        public float railDeployment() {
-            return smooth(clamp(this.deployment * DEPLOY_TICKS / 12.0F));
+        public float tipUnfold() {
+            return phase(32.0F, DEPLOY_TICKS);
+        }
+
+        public float drawAmount() {
+            return this.draw * tipUnfold();
+        }
+
+        private float phase(float start, float end) {
+            return smooth(Math.clamp((this.deployment * DEPLOY_TICKS - start) / (end - start), 0.0F, 1.0F));
         }
 
         public static Pose stationary(boolean charged) {
