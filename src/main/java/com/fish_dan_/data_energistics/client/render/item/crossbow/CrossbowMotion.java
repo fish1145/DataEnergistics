@@ -24,7 +24,8 @@ enum CrossbowMotion {
     private static Matrix4f limb(boolean left, float draw) {
         float x = (left ? 5.0F : 11.0F) / 16.0F;
         float z = -4.5F / 16.0F;
-        float angle = (float) Math.toRadians((left ? 6.0F : -6.0F) * draw);
+        // The arms are crane-like folding booms: rotate from their side pockets around the hinge.
+        float angle = (float) Math.toRadians((left ? 45.0F : -45.0F) * draw);
         return new Matrix4f().translation(x, 0.0F, z).rotateY(angle).translate(-x, 0.0F, -z);
     }
 
