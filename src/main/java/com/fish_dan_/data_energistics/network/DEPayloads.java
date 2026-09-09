@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.network.action.DataTeleportAnchorKnifeTele
 import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotBucketModePayload;
 import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotScrollPayload;
 import com.fish_dan_.data_energistics.network.action.MatterConvergingCrossbowModePayload;
-import com.fish_dan_.data_energistics.network.action.MatterConvergingCrossbowAmmoPayload;
 import com.fish_dan_.data_energistics.network.action.MeVacuumLaunchPayload;
 import com.fish_dan_.data_energistics.network.crafting.tree.action.CraftingPlanTreeActionPayload;
 import com.fish_dan_.data_energistics.network.crafting.tree.protocol.CraftingPlanGraphPayload;
@@ -95,7 +94,6 @@ public final class DEPayloads {
                 MatterConvergingCrossbowModePayload.TYPE,
                 MatterConvergingCrossbowModePayload.STREAM_CODEC,
                 MatterConvergingCrossbowModePayload::handle);
-        registrar.playToServer(MatterConvergingCrossbowAmmoPayload.TYPE, MatterConvergingCrossbowAmmoPayload.STREAM_CODEC, MatterConvergingCrossbowAmmoPayload::handle);
         registrar.playToServer(
                 DigitalStorageDepotScrollPayload.TYPE,
                 DigitalStorageDepotScrollPayload.STREAM_CODEC,

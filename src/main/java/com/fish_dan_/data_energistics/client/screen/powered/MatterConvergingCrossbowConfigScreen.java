@@ -2,8 +2,6 @@ package com.fish_dan_.data_energistics.client.screen.powered;
 
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.menu.powered.MatterConvergingCrossbowConfigMenu;
-import com.fish_dan_.data_energistics.network.action.MatterConvergingCrossbowAmmoPayload;
-import com.fish_dan_.data_energistics.network.action.MatterConvergingCrossbowModePayload;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
 import appeng.api.stacks.AEItemKey;
@@ -19,7 +17,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -75,14 +72,14 @@ public final class MatterConvergingCrossbowConfigScreen extends AEBaseScreen<Mat
             int row = 20 + i * 27;
             if (x >= 8 && x < 212 && y >= row && y < row + 22) {
                 this.selectedMode = MatterConvergingCrossbowMode.values()[i];
-                PacketDistributor.sendToServer(new MatterConvergingCrossbowModePayload(this.menu.hand == InteractionHand.OFF_HAND, this.selectedMode));
+                this.menu.sendSetMode(this.selectedMode.id());
                 return true;
             }
         }
         if (y >= 106 && y < 124) {
             int index = (int) ((x - 12) / 18);
             if (index >= 0 && index < this.ammunition.size()) {
-                PacketDistributor.sendToServer(new MatterConvergingCrossbowAmmoPayload(this.menu.hand == InteractionHand.OFF_HAND, BuiltInRegistries.ITEM.getKey(this.ammunition.get(index).getItem())));
+                this.menu.sendSetAmmo(BuiltInRegistries.ITEM.getKey(this.ammunition.get(index).getItem()));
                 return true;
             }
         }
