@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.menu.powered;
 
 import com.fish_dan_.data_energistics.registry.DEMenus;
+import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 
 import appeng.menu.AEBaseMenu;
 
@@ -23,6 +24,13 @@ public final class MatterConvergingCrossbowConfigMenu extends AEBaseMenu {
     }
 
     public static MatterConvergingCrossbowConfigMenu fromNetwork(int id, Inventory inventory, RegistryFriendlyByteBuf data) {
-        return new MatterConvergingCrossbowConfigMenu(id, inventory, data.readEnum(InteractionHand.class));
+        InteractionHand hand = InteractionHand.MAIN_HAND;
+        if (data != null) {
+            hand = data.readEnum(InteractionHand.class);
+        } else if (!(inventory.player.getMainHandItem().getItem() instanceof MatterConvergingCrossbowItem)
+                && inventory.player.getOffhandItem().getItem() instanceof MatterConvergingCrossbowItem) {
+            hand = InteractionHand.OFF_HAND;
+        }
+        return new MatterConvergingCrossbowConfigMenu(id, inventory, hand);
     }
 }
