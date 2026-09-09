@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.client.render.item.crossbow;
 
+import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+
 import org.joml.Matrix4f;
 
 /** Places the grip in camera space, keeping the authored -Z firing axis aligned when aimed. */
@@ -21,7 +23,11 @@ public final class CrossbowFirstPersonPose {
                 .rotateXYZ(radians(8.0F * relaxed), radians(side * 8.0F * relaxed), radians(side * -6.0F * relaxed));
     }
 
-    public static float aim(float progress) {
+    public static float aim(MatterConvergingCrossbowMode mode, float progress) {
+        // Cannon charging drives lights, not the crossbow's draw-to-aim movement.
+        if (mode != MatterConvergingCrossbowMode.CROSSBOW) {
+            return 0.0F;
+        }
         float value = Math.clamp(progress, 0.0F, 1.0F);
         return value * value * (3.0F - 2.0F * value);
     }

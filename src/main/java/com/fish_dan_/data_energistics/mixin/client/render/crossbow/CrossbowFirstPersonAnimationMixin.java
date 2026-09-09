@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.mixin.client.render.crossbow;
 import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowAnimationStates;
 import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowFirstPersonPose;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
+import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
@@ -40,6 +42,8 @@ public abstract class CrossbowFirstPersonAnimationMixin {
         boolean rightHand = (hand == InteractionHand.MAIN_HAND ? player.getMainArm() : player.getMainArm().getOpposite()) == HumanoidArm.RIGHT;
         InteractionHand aimedHand = player.isUsingItem() ? player.getUsedItemHand() : player.getMainHandItem().getItem() instanceof MatterConvergingCrossbowItem ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
         float progress = hand == aimedHand ? CrossbowAnimationStates.pose(player, hand, partialTicks).draw() : 0.0F;
+        MatterConvergingCrossbowMode mode = MatterConvergingCrossbowMode.fromId(
+                stack.getOrDefault(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), MatterConvergingCrossbowMode.GRENADE.id()));
         float pitchLag = 0.0F;
         float yawLag = 0.0F;
         if (player instanceof LocalPlayer localPlayer) {
@@ -47,7 +51,7 @@ public abstract class CrossbowFirstPersonAnimationMixin {
             yawLag = (localPlayer.getViewYRot(partialTicks) - Mth.lerp(partialTicks, localPlayer.yBobO, localPlayer.yBob)) * 0.1F;
         }
         poseStack.pushPose();
-        poseStack.mulPose(CrossbowFirstPersonPose.transform(rightHand, CrossbowFirstPersonPose.aim(progress),
+        poseStack.mulPose(CrossbowFirstPersonPose.transform(rightHand, CrossbowFirstPersonPose.aim(mode, progress),
                 equipped, swing, pitchLag, yawLag));
         this.renderItem(player, stack, rightHand ? ItemDisplayContext.FIRST_PERSON_RIGHT_HAND : ItemDisplayContext.FIRST_PERSON_LEFT_HAND,
                 !rightHand, poseStack, buffer, light);

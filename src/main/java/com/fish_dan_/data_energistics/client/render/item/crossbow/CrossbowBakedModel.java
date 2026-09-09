@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.render.item.crossbow;
 
+import com.fish_dan_.data_energistics.client.render.overlay.MatterConvergingCrossbowTrajectoryRenderer;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 
@@ -76,22 +77,24 @@ final class CrossbowBakedModel extends BakedModelWrapper<BakedModel> {
     private final class RenderedCrossbow extends BakedModelWrapper<BakedModel> {
 
         private final @Nullable LivingEntity entity;
+        private final ItemStack stack;
         private final boolean special;
         private List<BakedQuad> quads;
 
         private RenderedCrossbow(ItemStack stack, @Nullable LivingEntity entity) {
             super(CrossbowBakedModel.this.originalModel);
             this.entity = entity;
+            this.stack = stack;
             ChargedProjectiles projectiles = stack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY);
             this.special = !projectiles.isEmpty() && MatterConvergingCrossbowItem.isSpecialLightSaberAmmo(projectiles.getItems().getFirst());
             this.quads = foldedQuads;
         }
 
         private List<BakedQuad> geometry(CrossbowAnimation.Pose pose) {
-            if (pose.deployment() == 1.0F && pose.draw() == 0.0F && pose.stage() == 0) {
+            if (pose.mode() == MatterConvergingCrossbowMode.CROSSBOW && pose.recoil() == 0.0F && pose.deployment() == 1.0F && pose.draw() == 0.0F && pose.stage() == 0) {
                 return idleQuads;
             }
-            if (pose.deployment() == 1.0F && pose.draw() == 1.0F && pose.stage() == 3) {
+            if (pose.mode() == MatterConvergingCrossbowMode.CROSSBOW && pose.recoil() == 0.0F && pose.deployment() == 1.0F && pose.draw() == 1.0F && pose.stage() == 3) {
                 return this.special ? specialQuads : loadedQuads;
             }
             return CrossbowGeometry.render(frames, specialAmmo, pose, this.special, root);
@@ -110,6 +113,7 @@ final class CrossbowBakedModel extends BakedModelWrapper<BakedModel> {
                 InteractionHand hand = this.entity.getMainArm() == arm ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
                 float partial = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
                 this.quads = geometry(CrossbowAnimationStates.pose(this.entity, hand, partial));
+                MatterConvergingCrossbowTrajectoryRenderer.renderFromModel(this.entity, hand, this.stack, context, poseStack, root);
             }
             return this;
         }

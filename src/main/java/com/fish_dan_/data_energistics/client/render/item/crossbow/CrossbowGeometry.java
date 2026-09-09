@@ -78,7 +78,9 @@ public final class CrossbowGeometry implements IUnbakedGeometry<CrossbowGeometry
             Part from = folded.get(i);
             Part to = active.get(i);
             if (pose.mode() == MatterConvergingCrossbowMode.GRENADE) {
-                append(quads, from.quads, new Matrix4f(root).mul(from.pose.matrix()));
+                // Use the charge-stage UV/light data on the folded geometry, without extending it.
+                append(quads, to.deployment == CrossbowDeployment.RAIL ? to.quads : from.quads,
+                        new Matrix4f(root).mul(from.pose.matrix()));
                 continue;
             }
             if (pose.mode() == MatterConvergingCrossbowMode.RAIL && to.deployment == CrossbowDeployment.BOW) {

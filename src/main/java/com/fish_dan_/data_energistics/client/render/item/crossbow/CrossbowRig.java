@@ -28,13 +28,12 @@ final class CrossbowRig {
             return folded.matrix();
         }
         if (motion == CrossbowMotion.FIXED) {
-            Matrix4f fixed = folded.interpolateTo(deployed, group.progress(this.pose)).matrix();
+            float progress = group.progress(this.pose);
             if (group == CrossbowDeployment.RAIL) {
-                fixed.translate(0.0F, 0.0F, this.pose.recoil());
-                float shake = this.pose.recoil() == 0.0F ? 0.0F : (float) Math.sin(this.pose.recoil() * 60.0F) * 0.018F;
-                fixed.rotateY(shake).rotateX(-shake * 0.65F);
+                // Reverse the authored deployment stroke as one mechanism, before each part is scaled.
+                progress = Math.max(0.0F, progress - this.pose.recoil());
             }
-            return fixed;
+            return folded.interpolateTo(deployed, progress).matrix();
         }
         if (group == CrossbowDeployment.STRAP) {
             return strap(folded, deployed, motion).matrix();

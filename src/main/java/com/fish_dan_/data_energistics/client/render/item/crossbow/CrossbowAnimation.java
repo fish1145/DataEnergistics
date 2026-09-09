@@ -21,12 +21,18 @@ public final class CrossbowAnimation {
     private int releaseTicks;
     private float previousRecoil;
     private float recoil;
-    private int recoilTicks;
+    private int recoilTicks = CrossbowRailRecoil.DURATION_TICKS;
 
     /** Observes actual use/loaded state; never changes item components or gameplay timing. */
     public void tick(boolean held, boolean using, boolean charged, float progress, MatterConvergingCrossbowMode mode) {
         if (!Float.isFinite(progress) || progress < 0.0F || progress > 1.0F) {
             throw new IllegalArgumentException("Crossbow charge progress must be in [0, 1]");
+        }
+        this.previousRecoil = this.recoil;
+        this.recoilTicks = Math.min(CrossbowRailRecoil.DURATION_TICKS, this.recoilTicks + 1);
+        if (!held || !this.held || mode != this.mode) {
+            this.recoilTicks = CrossbowRailRecoil.DURATION_TICKS;
+            this.previousRecoil = 0.0F;
         }
         if (!this.initialized || held && !this.held || mode != this.mode && held) {
             this.initialized = true;
@@ -43,20 +49,16 @@ public final class CrossbowAnimation {
         }
         if (charged || using) {
             this.draw = charged ? 1.0F : progress;
-        } else if (this.active && (this.charged || this.draw >= 0.98F)) {
+        } else if (held && this.held && mode == this.mode && this.active && (this.charged || this.draw >= 0.98F)) {
             // Automatic fire may never expose a charged frame on the client.
             this.releaseDraw = this.draw;
             this.releaseTicks = 0;
-            this.recoilTicks = 0;
-            this.previousRecoil = this.recoil;
-            this.recoil = 0.16F;
+            this.recoilTicks = mode == MatterConvergingCrossbowMode.GRENADE ? CrossbowRailRecoil.DURATION_TICKS : 0;
         } else {
             this.releaseTicks = Math.min(RELEASE_TICKS, this.releaseTicks + 1);
             this.draw = this.releaseDraw * (1.0F - smooth(this.releaseTicks / (float) RELEASE_TICKS));
-            this.recoilTicks = Math.min(8, this.recoilTicks + 1);
-            this.previousRecoil = this.recoil;
-            this.recoil = recoilOffset(this.recoilTicks);
         }
+        this.recoil = CrossbowRailRecoil.retraction(this.recoilTicks);
         this.held = held;
         this.active = using || charged;
         this.charged = charged;
@@ -74,15 +76,6 @@ public final class CrossbowAnimation {
 
     private static float smooth(float value) {
         return value * value * (3.0F - 2.0F * value);
-    }
-
-    private static float recoilOffset(int ticks) {
-        if (ticks <= 1) return 0.16F;
-        if (ticks == 2) return 0.10F;
-        if (ticks == 3) return 0.055F;
-        if (ticks == 4) return -0.025F;
-        if (ticks == 5) return 0.018F;
-        return 0.0F;
     }
 
     private static float targetDeployment(MatterConvergingCrossbowMode mode) {
@@ -124,7 +117,7 @@ public final class CrossbowAnimation {
         }
 
         public float drawAmount() {
-            return this.draw * tipUnfold();
+            return this.mode == MatterConvergingCrossbowMode.CROSSBOW ? this.draw * tipUnfold() : 0.0F;
         }
 
         private float phase(float start, float end) {
