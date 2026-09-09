@@ -25,6 +25,10 @@ public final class CrossbowAnimation {
 
     /** Observes actual use/loaded state; never changes item components or gameplay timing. */
     public void tick(boolean held, boolean using, boolean charged, float progress, MatterConvergingCrossbowMode mode) {
+        tick(held, using, charged, progress, mode, false);
+    }
+
+    public void tick(boolean held, boolean using, boolean charged, float progress, MatterConvergingCrossbowMode mode, boolean fired) {
         if (!Float.isFinite(progress) || progress < 0.0F || progress > 1.0F) {
             throw new IllegalArgumentException("Crossbow charge progress must be in [0, 1]");
         }
@@ -49,7 +53,7 @@ public final class CrossbowAnimation {
         }
         if (charged || using) {
             this.draw = charged ? 1.0F : progress;
-        } else if (held && this.held && mode == this.mode && this.active && (this.charged || this.draw >= 0.98F)) {
+        } else if (mode == MatterConvergingCrossbowMode.CROSSBOW && held && this.held && mode == this.mode && this.active && (this.charged || this.draw >= 0.98F)) {
             // Automatic fire may never expose a charged frame on the client.
             this.releaseDraw = this.draw;
             this.releaseTicks = 0;
@@ -58,6 +62,7 @@ public final class CrossbowAnimation {
             this.releaseTicks = Math.min(RELEASE_TICKS, this.releaseTicks + 1);
             this.draw = this.releaseDraw * (1.0F - smooth(this.releaseTicks / (float) RELEASE_TICKS));
         }
+        if (fired && held && mode == MatterConvergingCrossbowMode.RAIL) this.recoilTicks = 0;
         this.recoil = CrossbowRailRecoil.retraction(this.recoilTicks);
         this.held = held;
         this.active = using || charged;
@@ -70,7 +75,8 @@ public final class CrossbowAnimation {
         float partial = Math.clamp(partialTick, 0.0F, 1.0F);
         float draw = this.previousDraw + (this.draw - this.previousDraw) * partial;
         float recoil = this.previousRecoil + (this.recoil - this.previousRecoil) * partial;
-        int stage = this.charged ? 3 : this.active ? Math.min(3, 1 + (int) (draw * 3.0F)) : 0;
+        int stage = this.charged ? 3 : this.active ? Math.min(3,
+                (this.mode == MatterConvergingCrossbowMode.CROSSBOW ? 1 : 0) + (int) (draw * 3.0F)) : 0;
         return new Pose(this.previousDeployment + (this.deployment - this.previousDeployment) * partial, draw, stage, recoil, this.mode);
     }
 

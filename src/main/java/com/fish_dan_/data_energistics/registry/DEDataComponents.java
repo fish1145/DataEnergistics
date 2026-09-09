@@ -7,6 +7,7 @@ import com.fish_dan_.data_energistics.item.carrier.OreDataCarrierItemData;
 import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorItemData;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotItemData;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotMemoryCardData;
+import com.fish_dan_.data_energistics.item.powered.cannon.CannonCharge;
 import com.fish_dan_.data_energistics.item.terminal.UniversalTerminalItemData;
 
 import appeng.api.stacks.AEKey;
@@ -177,6 +178,12 @@ public final class DEDataComponents {
                     .networkSynchronized(ByteBufCodecs.VAR_INT)
                     .cacheEncoding()
                     .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<CannonCharge>> CANNON_CHARGE = DATA_COMPONENT_TYPES.register(
+            "dark_string_cannon_charge", () -> DataComponentType.<CannonCharge>builder().networkSynchronized(CannonCharge.STREAM_CODEC).build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> CANNON_SHOT_SEQUENCE = DATA_COMPONENT_TYPES.register(
+            "dark_string_cannon_shot_sequence", () -> DataComponentType.<Integer>builder().networkSynchronized(ByteBufCodecs.VAR_INT).build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Float>> MATTER_CONVERGING_BOLT_DAMAGE_RATIO = DATA_COMPONENT_TYPES.register(
             "matter_converging_bolt_damage_ratio",

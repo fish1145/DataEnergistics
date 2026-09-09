@@ -1,19 +1,26 @@
 package com.fish_dan_.data_energistics.client.render.overlay;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.client.input.cannon.CannonChargeInput;
 import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowTrajectorySpace;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
+import com.fish_dan_.data_energistics.item.powered.cannon.CannonCharge;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -32,7 +39,6 @@ import org.jspecify.annotations.Nullable;
 @EventBusSubscriber(modid = Data_Energistics.MODID, value = Dist.CLIENT)
 public final class MatterConvergingCrossbowTrajectoryRenderer {
 
-    private static final double GRAVITY = 0.045D;
     private static @Nullable Matrix4f worldProjection;
 
     private MatterConvergingCrossbowTrajectoryRenderer() {}
@@ -48,8 +54,7 @@ public final class MatterConvergingCrossbowTrajectoryRenderer {
     public static void renderFromModel(LivingEntity entity, InteractionHand hand, ItemStack stack,
                                        ItemDisplayContext context, PoseStack poseStack, Matrix4f root) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (entity != minecraft.player || minecraft.level == null || !entity.isUsingItem() || entity.getUsedItemHand() != hand || minecraft.screen != null || MatterConvergingCrossbowMode.fromId(stack.getOrDefault(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(),
-                MatterConvergingCrossbowMode.GRENADE.id())) != MatterConvergingCrossbowMode.GRENADE) {
+        if (entity != minecraft.player || minecraft.level == null || minecraft.screen != null || !MatterConvergingCrossbowItem.isCannon(stack)) {
             return;
         }
         // Do not draw a third-person copy during first-person shadow/entity passes.
@@ -66,25 +71,36 @@ public final class MatterConvergingCrossbowTrajectoryRenderer {
                 RenderSystem.getProjectionMatrix(), projection, camera.rotation());
         Vec3 cameraPosition = camera.getPosition();
         Vec3 start = cameraPosition.add(new Vec3(space.muzzleOffset()));
-        Vec3 direction = new Vec3(space.firingDirection());
         float partialTick = minecraft.getTimer().getGameTimeDeltaPartialTick(true);
-        float progress = Math.clamp((stack.getUseDuration(entity) - entity.getUseItemRemainingTicks() + partialTick) / MatterConvergingCrossbowItem.getChargeDuration(stack, entity), 0.0F, 1.0F);
-        double distance = 4.0D + 28.0D * progress;
-        double flight = distance / 3.15D;
-        int segments = (int) Math.ceil(distance * 4.0D);
+        Vec3 eye = entity.getEyePosition(partialTick);
+        Vec3 aimEnd = eye.add(entity.getViewVector(partialTick).scale(256.0D));
+        HitResult aimHit = minecraft.level.clip(new ClipContext(eye, aimEnd, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, entity));
+        Vec3 aimPoint = aimHit.getType() == HitResult.Type.MISS ? aimEnd : aimHit.getLocation();
+        Vec3 direction = aimPoint.subtract(start).normalize();
+        CannonChargeInput.recordMuzzle(hand, start, direction, minecraft.level.getGameTime());
+        CannonCharge charge = stack.get(DEDataComponents.CANNON_CHARGE.get());
+        if (charge == null || charge.mode() != MatterConvergingCrossbowMode.GRENADE || !charge.belongsTo(entity, hand, MatterConvergingCrossbowItem.mode(stack))) return;
+        MatterConvergingCrossbowItem item = (MatterConvergingCrossbowItem) stack.getItem();
+        boolean saberAmmo = item.cannonUsesSaberAmmo(stack);
+        Vec3 velocity = CannonBallistics.launchVelocity(charge.mode(), charge.progress(minecraft.level.getGameTime()), direction, item.cannonAmmoSpeed(stack));
         VertexConsumer vertices = minecraft.renderBuffers().bufferSource().getBuffer(RenderType.lines());
         Vec3 previous = start;
-        for (int segment = 1; segment <= segments; segment++) {
-            double ratio = segment / (double) segments;
-            Vec3 point = start.add(direction.scale(distance * ratio))
-                    .add(0.0D, -0.5D * GRAVITY * flight * flight * ratio * ratio, 0.0D);
+        for (int tick = 0; tick < CannonBallistics.PREVIEW_TICKS; tick++) {
+            Vec3 point = previous.add(velocity);
             HitResult hit = minecraft.level.clip(new ClipContext(previous, point, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, entity));
             boolean blocked = hit.getType() != HitResult.Type.MISS;
             Vec3 end = blocked ? hit.getLocation() : point;
+            EntityHitResult entityHit = ProjectileUtil.getEntityHitResult(minecraft.level, entity, previous, end,
+                    new AABB(previous, end).inflate(0.3D), target -> target != entity && target.isPickable() && !target.isSpectator());
+            if (entityHit != null) {
+                end = entityHit.getLocation();
+                blocked = true;
+            }
             line(vertices, space, cameraPosition, previous, end);
             if (blocked) {
                 break;
             }
+            velocity = CannonBallistics.nextVelocity(velocity, charge.mode(), minecraft.level.isWaterAt(BlockPos.containing(previous)), saberAmmo);
             previous = point;
         }
         // The enclosing hand/entity renderer flushes this buffer with its matching projection.

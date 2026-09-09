@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
+import com.fish_dan_.data_energistics.client.input.cannon.CannonChargeInput;
 import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
@@ -57,6 +58,11 @@ final class ClientInputHandler {
             return;
         }
 
+        if (event.isAttack() && CannonChargeInput.cannonHand(minecraft.player) != null) {
+            event.setCanceled(true);
+            event.setSwingHand(false);
+            return;
+        }
         if (!event.isAttack() || !tryLaunchMeVacuum(minecraft)) {
             return;
         }
@@ -175,6 +181,7 @@ final class ClientInputHandler {
         MatterConvergingCrossbowMode current = MatterConvergingCrossbowMode.fromId(
                 stack.getOrDefault(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), MatterConvergingCrossbowMode.GRENADE.id()));
         MatterConvergingCrossbowMode mode = current == requested ? MatterConvergingCrossbowMode.GRENADE : requested;
+        CannonChargeInput.cancel();
         PacketDistributor.sendToServer(new MatterConvergingCrossbowModePayload(offHand, mode));
     }
 }

@@ -1110,6 +1110,8 @@
 	"tooltip.data_energistics.amount": "Amount: ",
 	"tooltip.data_energistics.beam_binding_source": "Source: %s · %s %s %s",
 	"tooltip.data_energistics.beam_binding_tool": "Sneak-use to select; use to link/unlink; sneak-use in air to clear",
+	"tooltip.data_energistics.cannon.grenade": "Hold %s to set range; release to fire along the previewed arc",
+	"tooltip.data_energistics.cannon.rail": "Hold %s to charge; release a straight shot with damage scaled by charge",
 	"tooltip.data_energistics.digital_storage_depot.fluids": "Fluids",
 	"tooltip.data_energistics.digital_storage_depot.items": "Items",
 	"tooltip.data_energistics.digital_storage_depot.keys": "AE Keys",

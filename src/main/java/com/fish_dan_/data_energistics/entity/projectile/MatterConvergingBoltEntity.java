@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.entity.projectile;
 
+import com.fish_dan_.data_energistics.entity.projectile.cannon.CannonShot;
+import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 import com.fish_dan_.data_energistics.registry.DEItems;
@@ -66,12 +69,14 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     private static final EntityDataAccessor<Integer> DATA_SABER_ENERGY_CARD_COUNT = SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
     private static final String TAG_DATA_DUST_DAMAGE_RATIO = "DataDustDamageRatio";
     private static final String TAG_CONSUMED_PIERCE_COUNT = "ConsumedPierceCount";
+    private static final EntityDataAccessor<Integer> DATA_FIRING_MODE = SynchedEntityData.defineId(MatterConvergingBoltEntity.class, EntityDataSerializers.INT);
 
     private double traveledDistance;
     private ItemStack weaponStack = ItemStack.EMPTY;
     private final Set<Integer> piercedEntityIds = new HashSet<>();
     private int consumedPierceCount;
     private boolean critical;
+    private CannonShot cannonShot = CannonShot.CROSSBOW;
 
     public MatterConvergingBoltEntity(EntityType<? extends MatterConvergingBoltEntity> entityType, Level level) {
         super(entityType, level);
@@ -91,6 +96,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         builder.define(DATA_PIERCE_LEVEL, 0);
         builder.define(DATA_HOMING, false);
         builder.define(DATA_SABER_ENERGY_CARD_COUNT, 0);
+        builder.define(DATA_FIRING_MODE, MatterConvergingCrossbowMode.CROSSBOW.id());
     }
 
     @Override
@@ -103,7 +109,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
             }
         }
         super.tick();
-        this.setNoGravity(true);
+        this.setNoGravity(this.firingMode() != MatterConvergingCrossbowMode.GRENADE);
 
         if (!this.isRemoved()) {
             Vec3 currentPosition = this.position();
@@ -118,7 +124,18 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
     @Override
     protected double getDefaultGravity() {
-        return 0.0D;
+        return this.firingMode() == MatterConvergingCrossbowMode.GRENADE ? CannonBallistics.GRENADE_GRAVITY : 0.0D;
+    }
+
+    public void configureCannonShot(CannonShot shot) {
+        this.cannonShot = shot;
+        this.entityData.set(DATA_FIRING_MODE, shot.mode().id());
+        this.setNoGravity(shot.mode() != MatterConvergingCrossbowMode.GRENADE);
+        if (shot.mode() != MatterConvergingCrossbowMode.CROSSBOW) this.setHoming(false);
+    }
+
+    private MatterConvergingCrossbowMode firingMode() {
+        return MatterConvergingCrossbowMode.fromId(this.entityData.get(DATA_FIRING_MODE));
     }
 
     @Override
@@ -160,6 +177,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        this.cannonShot.save(tag);
         tag.putDouble("TraveledDistance", this.traveledDistance);
         tag.putInt("BoltColor", this.getColor());
         tag.putInt("PierceLevel", this.getPierceLevel());
@@ -191,6 +209,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         if (!this.weaponStack.isEmpty()) {
             this.getEntityData().set(DATA_SABER_ENERGY_CARD_COUNT, this.getSaberEnergyCardCount(this.weaponStack));
         }
+        this.configureCannonShot(CannonShot.load(tag));
     }
 
     @Override
@@ -218,6 +237,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         if (this.level() instanceof ServerLevel serverLevel && !this.weaponStack.isEmpty()) {
             damage = EnchantmentHelper.modifyDamage(serverLevel, this.weaponStack, target, damageSource, damage);
         }
+        damage *= this.cannonShot.damageScale();
 
         this.resetTargetInvulnerability(target);
         if (livingTarget != null && livingTarget != target) {
@@ -261,7 +281,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private float getImpactDamage() {
-        float speed = (float) this.getDeltaMovement().length();
+        float speed = this.cannonShot.damageSpeed((float) this.getDeltaMovement().length());
         float damage = this.getDamageForAmmo() * speed;
         if (this.critical) {
             damage *= CRIT_DAMAGE_BONUS;
@@ -395,7 +415,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private void applyDataDustDamage(LivingEntity target, @Nullable Entity owner) {
-        float damage = target.getMaxHealth() * this.getDataDustDamageRatio();
+        float damage = target.getMaxHealth() * this.getDataDustDamageRatio() * this.cannonShot.damageScale();
         if (damage <= 0.0F) {
             return;
         }
@@ -422,7 +442,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     private float getDataDustBaseDamage() {
-        float damage = DATA_DUST_BASE_DAMAGE * this.getSaberEnergyDamageMultiplier() * (float) this.getDeltaMovement().length();
+        float damage = DATA_DUST_BASE_DAMAGE * this.getSaberEnergyDamageMultiplier() * this.cannonShot.damageSpeed((float) this.getDeltaMovement().length()) * this.cannonShot.damageScale();
         if (this.critical) {
             damage *= CRIT_DAMAGE_BONUS;
         }

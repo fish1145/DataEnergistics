@@ -35,6 +35,7 @@ public record MatterConvergingCrossbowModePayload(boolean offHand, MatterConverg
             ItemStack stack = player.getItemInHand(hand);
             if (!(stack.getItem() instanceof MatterConvergingCrossbowItem)) return;
             ItemStack updated = stack.copy();
+            updated.remove(DEDataComponents.CANNON_CHARGE.get());
             updated.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), mode.id());
             player.setItemInHand(hand, updated);
         });
