@@ -1,41 +1,219 @@
 {
 	"$schema": "schema.json",
 	"includes": ["common/common.json", "common/player_inventory.json"],
-	"background": {
-		"texture": "guis/mode_ammunition_cells.png",
-		"srcRect": [0, 0, 176, 180]
+	"helpTopic": "data_energistics:items-blocks-machines/7.3_dark_string_data_settlement_tool.md",
+	"generatedBackground": {
+		"width": 220,
+		"height": 232
+	},
+	"palette": {
+		"SELECTION_COLOR": "#268D97"
 	},
 	"slots": {
-		"CANNON_CELL_GRENADE": { "left": 46, "top": 18 },
-		"CANNON_CELL_RAIL": { "left": 46, "top": 44 },
-		"CANNON_CELL_CROSSBOW": { "left": 46, "top": 70 },
-		"CANNON_AMMO_GRENADE": { "left": 115, "top": 18 },
-		"CANNON_AMMO_RAIL": { "left": 115, "top": 44 },
-		"CANNON_AMMO_CROSSBOW": { "left": 115, "top": 70 },
-		"UPGRADE": { "left": 180, "top": 6, "grid": "VERTICAL" },
-		"PLAYER_INVENTORY": { "left": 8, "top": 98, "grid": "BREAK_AFTER_9COLS" },
-		"PLAYER_HOTBAR": { "left": 8, "top": 156, "grid": "HORIZONTAL" }
+		"CANNON_CELL_GRENADE": {
+			"left": 100,
+			"top": 46
+		},
+		"CANNON_CELL_RAIL": {
+			"left": 100,
+			"top": 76
+		},
+		"CANNON_CELL_CROSSBOW": {
+			"left": 100,
+			"top": 106
+		},
+		"CANNON_AMMO_GRENADE": {
+			"left": 178,
+			"top": 46
+		},
+		"CANNON_AMMO_RAIL": {
+			"left": 178,
+			"top": 76
+		},
+		"CANNON_AMMO_CROSSBOW": {
+			"left": 178,
+			"top": 106
+		},
+		"UPGRADE": {
+			"left": 224,
+			"top": 14,
+			"grid": "VERTICAL"
+		},
+		"PLAYER_INVENTORY": {
+			"left": 29,
+			"top": 151,
+			"grid": "BREAK_AFTER_9COLS"
+		},
+		"PLAYER_HOTBAR": {
+			"left": 29,
+			"top": 209,
+			"grid": "HORIZONTAL"
+		}
 	},
 	"text": {
 		"dialog_title": {
-			"text": { "text": "" },
-			"position": { "left": 8, "top": 5 },
-			"maxWidth": 160
+			"text": {
+				"text": ""
+			},
+			"position": {
+				"left": 12,
+				"top": 10
+			},
+			"maxWidth": 196
+		},
+		"mode_heading": {
+			"text": {
+				"translate": "screen.data_energistics.cannon.column.mode"
+			},
+			"position": {
+				"left": 14,
+				"top": 29
+			},
+			"color": "MUTED_TEXT_COLOR"
+		},
+		"cell_heading": {
+			"text": {
+				"translate": "screen.data_energistics.cannon.column.cell"
+			},
+			"position": {
+				"left": 108,
+				"top": 29
+			},
+			"color": "MUTED_TEXT_COLOR",
+			"align": "CENTER"
+		},
+		"ammo_heading": {
+			"text": {
+				"translate": "screen.data_energistics.cannon.column.ammo"
+			},
+			"position": {
+				"left": 186,
+				"top": 29
+			},
+			"color": "MUTED_TEXT_COLOR",
+			"align": "CENTER"
 		},
 		"grenade": {
-			"text": { "translate": "screen.data_energistics.cannon.mode.grenade" },
-			"position": { "left": 8, "top": 23 }
+			"text": {
+				"translate": "screen.data_energistics.cannon.mode.grenade"
+			},
+			"position": {
+				"left": 14,
+				"top": 50
+			}
 		},
 		"rail": {
-			"text": { "translate": "screen.data_energistics.cannon.mode.rail" },
-			"position": { "left": 8, "top": 49 }
+			"text": {
+				"translate": "screen.data_energistics.cannon.mode.rail"
+			},
+			"position": {
+				"left": 14,
+				"top": 80
+			}
 		},
 		"crossbow": {
-			"text": { "translate": "screen.data_energistics.cannon.mode.crossbow" },
-			"position": { "left": 8, "top": 75 }
+			"text": {
+				"translate": "screen.data_energistics.cannon.mode.crossbow"
+			},
+			"position": {
+				"left": 14,
+				"top": 110
+			}
+		},
+		"player_inventory_title": {
+			"text": {
+				"translate": "container.inventory"
+			},
+			"position": {
+				"left": 29,
+				"top": 139
+			}
 		}
 	},
 	"widgets": {
-		"upgrades": { "left": 174, "top": 0 }
+		"upgrades": {
+			"left": 218,
+			"top": 8
+		},
+		"mode_star_shard": {
+			"left": 139,
+			"top": 44
+		},
+		"mode_crystal_rift_crusher": {
+			"left": 139,
+			"top": 74
+		},
+		"mode_entropy_thread_bow": {
+			"left": 139,
+			"top": 104
+		}
+	},
+	"tooltips": {
+		"cell_grenade": {
+			"left": 100,
+			"top": 46,
+			"width": 16,
+			"height": 16,
+			"tooltip": [
+				{
+					"translate": "screen.data_energistics.cannon.hint.cell"
+				}
+			]
+		},
+		"ammo_grenade": {
+			"left": 178,
+			"top": 46,
+			"width": 16,
+			"height": 16,
+			"tooltip": [
+				{
+					"translate": "screen.data_energistics.cannon.hint.cycle_ammo"
+				}
+			]
+		},
+		"cell_rail": {
+			"left": 100,
+			"top": 76,
+			"width": 16,
+			"height": 16,
+			"tooltip": [
+				{
+					"translate": "screen.data_energistics.cannon.hint.cell"
+				}
+			]
+		},
+		"ammo_rail": {
+			"left": 178,
+			"top": 76,
+			"width": 16,
+			"height": 16,
+			"tooltip": [
+				{
+					"translate": "screen.data_energistics.cannon.hint.cycle_ammo"
+				}
+			]
+		},
+		"cell_crossbow": {
+			"left": 100,
+			"top": 106,
+			"width": 16,
+			"height": 16,
+			"tooltip": [
+				{
+					"translate": "screen.data_energistics.cannon.hint.cell"
+				}
+			]
+		},
+		"ammo_crossbow": {
+			"left": 178,
+			"top": 106,
+			"width": 16,
+			"height": 16,
+			"tooltip": [
+				{
+					"translate": "screen.data_energistics.cannon.hint.cycle_ammo"
+				}
+			]
+		}
 	}
 }
