@@ -15,6 +15,8 @@ import com.lowdragmc.lowdraglib2.integration.xei.emi.EMIUIEvents;
 import com.lowdragmc.lowdraglib2.integration.xei.emi.ModularUIEMIRecipe;
 import com.lowdragmc.lowdraglib2.integration.xei.emi.handler.EMIRecipeIngredientHandler;
 
+import appeng.api.stacks.AEFluidKey;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.resources.ResourceLocation;
@@ -154,7 +156,10 @@ public final class TrinityMultiblockEmiRecipe extends ModularUIEMIRecipe impleme
     }
 
     private static EmiStack emiStack(PreviewMaterial material) {
-        return EmiStack.of(material.key().toStack(1), material.amount());
+        if (material.key() instanceof AEFluidKey fluid) {
+            return EmiStack.of(fluid.getFluid(), fluid.toStack(1).getComponentsPatch(), material.amount());
+        }
+        return EmiStack.of(material.displayStack(1), material.amount());
     }
 
     private void requestWidgetRefresh(MultiblockXeiComposition composition,

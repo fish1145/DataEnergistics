@@ -3,12 +3,14 @@ package com.fish_dan_.data_energistics.common.multiblock.preview.material;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCandidate;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewCellSnapshot;
 
-import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEKey;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.List;
-import java.util.Map;
 
 /**
  * Component-aware material aggregation logic for projected multiblocks.
@@ -20,7 +22,7 @@ public final class ComponentAwarePreviewMaterialAggregator implements PreviewMat
         if (cells == null) {
             throw new IllegalArgumentException("Preview material cells cannot be null");
         }
-        Map<AEItemKey, Long> amounts = new LinkedHashMap<>();
+        Object2LongMap<AEKey> amounts = new Object2LongLinkedOpenHashMap<>();
         for (PreviewCellSnapshot cell : cells) {
             if (cell == null) {
                 throw new IllegalArgumentException("Preview material cells cannot contain null");
@@ -33,12 +35,12 @@ public final class ComponentAwarePreviewMaterialAggregator implements PreviewMat
             if (!candidate.concrete()) {
                 continue;
             }
-            AEItemKey key = candidate.placementKey().orElseThrow();
-            amounts.compute(key, (unused, current) -> current == null ? 1L : Math.addExact(current, 1L));
+            AEKey key = candidate.placementKey().orElseThrow();
+            amounts.mergeLong(key, key instanceof AEFluidKey ? AEFluidKey.AMOUNT_BLOCK : 1, Math::addExact);
         }
-        List<PreviewMaterial> materials = new ArrayList<>(amounts.size());
-        for (Map.Entry<AEItemKey, Long> entry : amounts.entrySet()) {
-            materials.add(new PreviewMaterial(entry.getKey(), entry.getValue()));
+        List<PreviewMaterial> materials = new ObjectArrayList<>(amounts.size());
+        for (Object2LongMap.Entry<AEKey> entry : amounts.object2LongEntrySet()) {
+            materials.add(new PreviewMaterial(entry.getKey(), entry.getLongValue()));
         }
         return List.copyOf(materials);
     }

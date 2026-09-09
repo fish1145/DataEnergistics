@@ -1,11 +1,16 @@
 package com.fish_dan_.data_energistics.common.multiblock.autobuild;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.material.AutoBuildMaterialTransaction;
+import com.fish_dan_.data_energistics.common.multiblock.autobuild.material.AutoBuildMaterialTransaction.RefundOutcome;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
 
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartItem;
 import appeng.api.parts.PartHelper;
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
 import appeng.parts.PartPlacement;
 
 import net.minecraft.core.BlockPos;
@@ -13,18 +18,17 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.shapes.CollisionContext;
 
 import com.modularmc.mdl.api.multiblock.BlockPattern;
@@ -32,11 +36,12 @@ import com.modularmc.mdl.api.multiblock.MultiblockState;
 import com.modularmc.mdl.api.multiblock.PatternCandidate;
 import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
+import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -64,16 +69,12 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
             return Result.failure(planOutcome.reused(), planOutcome.failure());
         }
 
-        AllocationOutcome allocation = allocateMaterials(context, planOutcome.positions());
+        AutoBuildMaterialTransaction inventory = AutoBuildMaterialTransaction.open(context.player(), context.materialGrid());
+        AllocationOutcome allocation = allocateMaterials(context, planOutcome.positions(), inventory);
         if (allocation.failure() != null) {
             return Result.failure(planOutcome.reused(), allocation.failure());
         }
 
-        InventoryTransaction inventory = new InventoryTransaction(
-                context.structureName(),
-                context.player().getInventory(),
-                materialReservations(allocation.placements()),
-                context.player().isCreative());
         List<WorldSnapshot> worldSnapshots;
         try {
             worldSnapshots = captureWorld(context, allocation.placements());
@@ -101,7 +102,7 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         } catch (RuntimeException exception) {
             LOGGER.error("Unable to reserve auto-build materials for {}", context.structureName(), exception);
             snapshotCapture.close();
-            RefundOutcome refundOutcome = inventory.rollback(context.player());
+            RefundOutcome refundOutcome = inventory.rollback();
             if (!refundOutcome.completed()) {
                 return Result.failure(planOutcome.reused(), new Failure(
                         FailureType.ROLLBACK_FAILED,
@@ -115,10 +116,14 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         }
         if (!materialsReserved) {
             snapshotCapture.close();
+            RefundOutcome refund = inventory.rollback();
+            if (!refund.completed()) {
+                return Result.failure(planOutcome.reused(), new Failure(FailureType.ROLLBACK_FAILED, null, refund.detail()));
+            }
             return Result.failure(planOutcome.reused(), new Failure(
                     FailureType.MISSING_MATERIAL,
                     null,
-                    "Player inventory changed before material reservation committed"));
+                    "Material sources changed before reservation committed"));
         }
 
         StageOutcome stageOutcome;
@@ -141,7 +146,7 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         }
 
         if (stageOutcome.failure() != null) {
-            RefundOutcome refundOutcome = inventory.rollback(context.player());
+            RefundOutcome refundOutcome = inventory.rollback();
             if (!worldRestored || !refundOutcome.completed()) {
                 return Result.failure(planOutcome.reused(), new Failure(
                         FailureType.ROLLBACK_FAILED,
@@ -154,21 +159,22 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         PublicationOutcome publicationOutcome = publishAll(context, allocation.placements(), stageOutcome);
         if (publicationOutcome.failure() != null) {
             RefundOutcome refundOutcome = inventory.settlePublicationFailure(
-                    context.player(), publicationOutcome.consumedPlacements());
+                    publicationOutcome.consumedPlacements().stream().map(Placement::position).toList());
             releaseReplacementDrops(context, publicationOutcome.releasedReplacementDrops());
             if (!refundOutcome.completed()) {
                 Failure publicationFailure = publicationOutcome.failure();
-                return Result.publishFailure(publicationOutcome.placed(), planOutcome.reused(), new Failure(
+                return Result.publishFailure(publicationOutcome.placed(), planOutcome.reused(), allocation.missing(), new Failure(
                         publicationFailure.type(),
                         publicationFailure.position(),
                         publicationFailure.detail() + "; " + refundOutcome.detail()));
             }
-            return Result.publishFailure(publicationOutcome.placed(), planOutcome.reused(), publicationOutcome.failure());
+            return Result.publishFailure(publicationOutcome.placed(), planOutcome.reused(), allocation.missing(),
+                    publicationOutcome.failure());
         }
 
         inventory.complete();
         releaseReplacementDrops(context, publicationOutcome.releasedReplacementDrops());
-        return Result.success(allocation.placements().size(), planOutcome.reused());
+        return Result.success(allocation.placements().size(), planOutcome.reused(), allocation.missing());
     }
 
     private static PlanOutcome createPlan(Context context) {
@@ -447,6 +453,10 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
             if (!tierSelection.allows(state.getBlock())) {
                 continue;
             }
+            if (state.getBlock() instanceof LiquidBlock && state.getFluidState().isSource()) {
+                addCandidate(candidates, new Candidate(ItemStack.EMPTY, state));
+                continue;
+            }
             Item item = state.getBlock().asItem();
             ItemStack stack = item.getDefaultInstance();
             if (!stack.isEmpty()) {
@@ -491,6 +501,11 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                         "Selected preview candidate is neither a block nor an AE2 part"));
             }
             addCandidate(candidates, new Candidate(placementStack, part ? null : previewState));
+        }
+        for (BlockState state : predicate.blockStateCandidates()) {
+            if (state.getBlock() instanceof LiquidBlock && state.getFluidState().isSource() && tierSelection.allows(state.getBlock())) {
+                addCandidate(candidates, new Candidate(ItemStack.EMPTY, state));
+            }
         }
 
         if (allowsEmpty && candidateIndex == 0) {
@@ -599,65 +614,51 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         for (Candidate existing : candidates) {
             boolean sameState = existing.desiredState() == null ? candidate.desiredState() == null :
                     existing.desiredState().equals(candidate.desiredState());
-            if (sameState && ItemStack.isSameItemSameComponents(existing.stack(), candidate.stack())) {
+            if (sameState && existing.material().equals(candidate.material())) {
                 return;
             }
         }
         candidates.add(candidate);
     }
 
-    private static AllocationOutcome allocateMaterials(Context context, List<PositionPlan> positions) {
-        Inventory inventory = context.player().getInventory();
-        int[] available = new int[inventory.getContainerSize()];
-        for (int slot = 0; slot < available.length; slot++) {
-            available[slot] = inventory.getItem(slot).getCount();
-        }
-
+    private static AllocationOutcome allocateMaterials(Context context, List<PositionPlan> positions,
+                                                       AutoBuildMaterialTransaction inventory) {
         ArrayList<Placement> placements = new ArrayList<>(positions.size());
+        int missing = 0;
         for (PositionPlan position : positions) {
-            CandidateSelection selection = selectCandidate(context, inventory, available, position);
+            CandidateSelection selection = selectCandidate(context, inventory, position);
             if (selection.failure() != null) {
+                // Missing materials are a per-position shortage. Keep the position empty and continue placing
+                // every other position that can be supplied; world conflicts have already failed during preflight.
+                if (selection.failure().type() == FailureType.MISSING_MATERIAL) {
+                    missing++;
+                    continue;
+                }
                 return new AllocationOutcome(List.of(), selection.failure());
             }
             Candidate candidate = selection.candidate();
             PlacementValidation validation = selection.validation();
-            int inventorySlot = selection.inventorySlot();
-            if (inventorySlot >= 0) {
-                available[inventorySlot]--;
-            }
             placements.add(new Placement(
                     position.position(),
                     position.predicate(),
-                    candidate.stack().copyWithCount(1),
+                    candidate.material(),
                     candidate.desiredState(),
                     validation.stagingState(),
                     validation.partSide(),
                     position.requiresPart(),
-                    position.replacesExistingTier(),
-                    inventorySlot));
+                    position.replacesExistingTier()));
         }
-        return new AllocationOutcome(List.copyOf(placements), null);
-    }
-
-    private static List<MaterialReservation> materialReservations(List<Placement> placements) {
-        ArrayList<MaterialReservation> reservations = new ArrayList<>(placements.size());
-        for (Placement placement : placements) {
-            reservations.add(new MaterialReservation(
-                    placement.position(),
-                    placement.inventorySlot(),
-                    placement.stack()));
-        }
-        return List.copyOf(reservations);
+        return new AllocationOutcome(List.copyOf(placements), missing, null);
     }
 
     private static CandidateSelection selectCandidate(Context context,
-                                                      Inventory inventory,
-                                                      int[] available,
+                                                      AutoBuildMaterialTransaction inventory,
                                                       PositionPlan position) {
         Failure validationFailure = null;
+        List<Candidate> approved = new ArrayList<>();
+        List<PlacementValidation> validations = new ArrayList<>();
         for (Candidate candidate : position.candidates()) {
-            int inventorySlot = context.player().isCreative() ? -1 : findMaterialSlot(inventory, available, candidate);
-            if (!context.player().isCreative() && inventorySlot < 0) {
+            if (!inventory.hasAvailable(candidate.material())) {
                 continue;
             }
             PlacementValidation validation = validatePlacement(context, position.position(), candidate);
@@ -667,7 +668,17 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                 }
                 continue;
             }
-            return CandidateSelection.success(candidate, inventorySlot, validation);
+            approved.add(candidate);
+            validations.add(validation);
+        }
+        GenericStack selected = inventory.reserve(position.position(), approved.stream().map(Candidate::material).toList());
+        if (selected != null) {
+            for (int index = 0; index < approved.size(); index++) {
+                if (approved.get(index).material().equals(selected)) {
+                    return CandidateSelection.success(approved.get(index), validations.get(index));
+                }
+            }
+            throw new IllegalStateException("Reserved material is not an approved placement candidate");
         }
         if (validationFailure != null) {
             return CandidateSelection.failure(validationFailure);
@@ -675,17 +686,7 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         return CandidateSelection.failure(failure(
                 FailureType.MISSING_MATERIAL,
                 position.position(),
-                "Player inventory cannot supply any approved placement candidate"));
-    }
-
-    private static int findMaterialSlot(Inventory inventory, int[] available, Candidate candidate) {
-        for (int slot = 0; slot < available.length; slot++) {
-            ItemStack inventoryStack = inventory.getItem(slot);
-            if (available[slot] > 0 && ItemStack.isSameItemSameComponents(inventoryStack, candidate.stack())) {
-                return slot;
-            }
-        }
-        return -1;
+                "ME and recursive player inventory cannot supply any approved placement candidate"));
     }
 
     private static PlacementValidation validatePlacement(Context context, BlockPos position, Candidate candidate) {
@@ -695,6 +696,19 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                     FailureType.PERMISSION_DENIED,
                     position,
                     "Player may not place at the required position"));
+        }
+        BlockState fluidState = candidate.desiredState();
+        if (fluidState != null && fluidState.getBlock() instanceof LiquidBlock) {
+            if (!fluidState.getFluidState().isSource() || context.level().dimensionType().ultraWarm() &&
+                    fluidState.getFluidState().is(Fluids.WATER)) {
+                return PlacementValidation.failed(failure(FailureType.PLACE_FAILED, position,
+                        "Fluid source cannot exist at the selected destination"));
+            }
+            if (!context.stagingPolicy().canStageBlock(position, stack, fluidState)) {
+                return PlacementValidation.failed(failure(FailureType.UNSUPPORTED_STAGING, position,
+                        "Fluid source is not approved by the structure definition"));
+            }
+            return PlacementValidation.success(null, fluidState);
         }
         if (stack.getItem() instanceof IPartItem<?>) {
             Direction side = context.partSideResolver().resolve(position, stack.copyWithCount(1));
@@ -755,9 +769,9 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
     }
 
     private static List<WorldSnapshot> captureWorld(Context context, List<Placement> placements) {
-        LinkedHashMap<BlockPos, WorldSnapshot> snapshots = new LinkedHashMap<>();
+        Long2ObjectMap<WorldSnapshot> snapshots = new Long2ObjectLinkedOpenHashMap<>();
         for (Placement placement : placements) {
-            snapshots.putIfAbsent(placement.position(), WorldSnapshot.capture(context.level(), placement.position()));
+            snapshots.putIfAbsent(placement.position().asLong(), WorldSnapshot.capture(context.level(), placement.position()));
         }
         return List.copyOf(snapshots.values());
     }
@@ -766,15 +780,15 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                                          List<Placement> placements,
                                          List<WorldSnapshot> snapshots,
                                          StagingProgress stagingProgress) {
-        LinkedHashMap<BlockPos, WorldSnapshot> snapshotsByPosition = new LinkedHashMap<>();
+        Long2ObjectMap<WorldSnapshot> snapshotsByPosition = new Long2ObjectLinkedOpenHashMap<>();
         for (WorldSnapshot snapshot : snapshots) {
-            snapshotsByPosition.put(snapshot.position(), snapshot);
+            snapshotsByPosition.put(snapshot.position().asLong(), snapshot);
         }
         List<Placement> pending = placements;
         ArrayList<ReplacementDrop> replacementDrops = new ArrayList<>();
         ArrayList<StagedBlock> stagedBlocks = new ArrayList<>();
         ArrayList<DeferredPartPlacement> deferredParts = new ArrayList<>();
-        LinkedHashMap<BlockPos, BlockState> stagedStates = new LinkedHashMap<>();
+        Long2ObjectMap<BlockState> stagedStates = new Long2ObjectLinkedOpenHashMap<>();
         while (!pending.isEmpty()) {
             ArrayList<Placement> deferred = new ArrayList<>();
             boolean madeProgress = false;
@@ -852,8 +866,11 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
             }
             return PlacementReadiness.readyPlacement();
         }
+        if (stagingState.getBlock() instanceof LiquidBlock) {
+            return PlacementReadiness.readyPlacement();
+        }
         if (!(stack.getItem() instanceof BlockItem blockItem)) {
-            throw new IllegalStateException("Validated placement candidate is not a block or AE2 part");
+            throw new IllegalStateException("Validated placement candidate is not a block, fluid or AE2 part");
         }
 
         if (!stagingState.canSurvive(context.level(), placement.position())) {
@@ -872,8 +889,8 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
 
     private static StagingCommit stagePlacement(Context context,
                                                 Placement placement,
-                                                Map<BlockPos, WorldSnapshot> snapshotsByPosition,
-                                                Map<BlockPos, BlockState> stagedStates,
+                                                Long2ObjectMap<WorldSnapshot> snapshotsByPosition,
+                                                Long2ObjectMap<BlockState> stagedStates,
                                                 StagingProgress stagingProgress) {
         BlockState stagingState = placement.stagingState();
         if (stagingState == null) {
@@ -883,13 +900,13 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         BlockState currentState = context.level().getBlockState(placement.position());
         StagedBlock stagedBlock = null;
         if (!currentState.equals(stagingState)) {
-            WorldSnapshot snapshot = snapshotsByPosition.get(placement.position());
+            WorldSnapshot snapshot = snapshotsByPosition.get(placement.position().asLong());
             if (snapshot == null) {
                 throw new IllegalStateException("Missing world snapshot for staged position " + placement.position());
             }
             boolean physicallyStaged = currentState.is(Blocks.AIR) &&
                     !placement.requiresPart() &&
-                    !stagingState.hasBlockEntity() &&
+                    !stagingState.hasBlockEntity() && !(stagingState.getBlock() instanceof LiquidBlock) &&
                     context.stagingPolicy().canPhysicallyStageBlock(
                             placement.position(), placement.stack(), stagingState);
             stagedBlock = new StagedBlock(placement, snapshot, stagingState, physicallyStaged, placement.requiresPart());
@@ -900,7 +917,7 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                 }
             }
         }
-        stagedStates.put(placement.position(), stagingState);
+        stagedStates.put(placement.position().asLong(), stagingState);
         if (!verifyStagedPlacement(context, placement, stagedStates)) {
             return StagingCommit.failed();
         }
@@ -929,7 +946,7 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
 
     private static Failure verifyStagedPlacements(Context context,
                                                   List<Placement> placements,
-                                                  Map<BlockPos, BlockState> stagedStates) {
+                                                  Long2ObjectMap<BlockState> stagedStates) {
         for (Placement placement : placements) {
             if (!verifyStagedPlacement(context, placement, stagedStates)) {
                 return failure(FailureType.PLACE_FAILED, placement.position(),
@@ -941,7 +958,7 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
 
     private static boolean verifyStagedPlacement(Context context,
                                                  Placement placement,
-                                                 Map<BlockPos, BlockState> stagedStates) {
+                                                 Long2ObjectMap<BlockState> stagedStates) {
         MultiblockState verification = new MultiblockState(
                 new StagedStructureWorldView(context.world(), stagedStates),
                 context.origin(),
@@ -1272,7 +1289,7 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
      * Exposes staged target states to MDLib validation without exposing virtual block entities from replaced states.
      */
     private record StagedStructureWorldView(StructureWorldView base,
-                                            Map<BlockPos, BlockState> stagedStates)
+                                            Long2ObjectMap<BlockState> stagedStates)
             implements StructureWorldView {
 
         @Override
@@ -1282,13 +1299,14 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
 
         @Override
         public BlockState getBlockState(BlockPos pos) {
-            return this.stagedStates.getOrDefault(pos, this.base.getBlockState(pos));
+            BlockState staged = this.stagedStates.get(pos.asLong());
+            return staged == null ? this.base.getBlockState(pos) : staged;
         }
 
         @Nullable
         @Override
         public BlockEntity getBlockEntity(BlockPos pos) {
-            BlockState stagedState = this.stagedStates.get(pos);
+            BlockState stagedState = this.stagedStates.get(pos.asLong());
             if (stagedState != null && !stagedState.equals(this.base.getBlockState(pos))) {
                 return null;
             }
@@ -1363,7 +1381,18 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
                                 boolean requiresPart,
                                 boolean replacesExistingTier) {}
 
-    private record Candidate(ItemStack stack, @Nullable BlockState desiredState) {}
+    private record Candidate(GenericStack material, @Nullable BlockState desiredState) {
+
+        private Candidate(ItemStack stack, @Nullable BlockState desiredState) {
+            this(desiredState != null && desiredState.getBlock() instanceof LiquidBlock ?
+                    new GenericStack(AEFluidKey.of(desiredState.getFluidState().getType()), AEFluidKey.AMOUNT_BLOCK) :
+                    new GenericStack(AEItemKey.of(stack), 1), desiredState);
+        }
+
+        private ItemStack stack() {
+            return material.what() instanceof AEItemKey item ? item.toStack(1) : ItemStack.EMPTY;
+        }
+    }
 
     private record ExplicitCandidateOutcome(@Nullable Candidate candidate,
                                             boolean empty,
@@ -1382,21 +1411,30 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
         }
     }
 
-    private record AllocationOutcome(List<Placement> placements, @Nullable Failure failure) {}
+    private record AllocationOutcome(List<Placement> placements, int missing, @Nullable Failure failure) {
+
+        private AllocationOutcome {
+            if (missing < 0) {
+                throw new IllegalArgumentException("Auto-build missing material count cannot be negative: " + missing);
+            }
+        }
+
+        private AllocationOutcome(List<Placement> placements, @Nullable Failure failure) {
+            this(placements, 0, failure);
+        }
+    }
 
     private record CandidateSelection(@Nullable Candidate candidate,
-                                      int inventorySlot,
                                       @Nullable PlacementValidation validation,
                                       @Nullable Failure failure) {
 
         private static CandidateSelection success(Candidate candidate,
-                                                  int inventorySlot,
                                                   PlacementValidation validation) {
-            return new CandidateSelection(candidate, inventorySlot, validation, null);
+            return new CandidateSelection(candidate, validation, null);
         }
 
         private static CandidateSelection failure(Failure failure) {
-            return new CandidateSelection(null, -1, null, failure);
+            return new CandidateSelection(null, null, failure);
         }
     }
 
@@ -1490,10 +1528,10 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
      */
     private static final class StagingProgress {
 
-        private final Map<BlockPos, WorldSnapshot> physicalSnapshots = new LinkedHashMap<>();
+        private final Long2ObjectMap<WorldSnapshot> physicalSnapshots = new Long2ObjectLinkedOpenHashMap<>();
 
         private void recordPhysicalSnapshot(WorldSnapshot snapshot) {
-            this.physicalSnapshots.putIfAbsent(snapshot.position(), snapshot);
+            this.physicalSnapshots.putIfAbsent(snapshot.position().asLong(), snapshot);
         }
 
         private List<WorldSnapshot> physicalSnapshots() {
@@ -1505,13 +1543,17 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
 
     private record Placement(BlockPos position,
                              TraceabilityPredicate predicate,
-                             ItemStack stack,
+                             GenericStack material,
                              @Nullable BlockState desiredState,
                              @Nullable BlockState stagingState,
                              @Nullable Direction partSide,
                              boolean requiresPart,
-                             boolean replacesExistingTier,
-                             int inventorySlot) {}
+                             boolean replacesExistingTier) {
+
+        private ItemStack stack() {
+            return material.what() instanceof AEItemKey item ? item.toStack(1) : ItemStack.EMPTY;
+        }
+    }
 
     private record WorldSnapshot(BlockPos position, BlockState state, @Nullable CompoundTag blockEntityData) {
 
@@ -1536,360 +1578,6 @@ public final class TransactionalMultiBlockAutoBuild implements MultiBlockAutoBui
             blockEntity.loadWithComponents(this.blockEntityData, level.registryAccess());
             blockEntity.setChanged();
             return true;
-        }
-    }
-
-    /**
-     * One planned material deduction with its source slot and durable publication target.
-     */
-    static record MaterialReservation(BlockPos position, int inventorySlot, ItemStack stack) {
-
-        MaterialReservation {
-            position = position.immutable();
-            stack = stack.copyWithCount(1);
-        }
-    }
-
-    /**
-     * Reports whether every deducted reservation was either returned or deliberately retained after publication.
-     */
-    static record RefundOutcome(boolean completed, @Nullable String detail) {
-
-        private static RefundOutcome success() {
-            return new RefundOutcome(true, null);
-        }
-
-        private static RefundOutcome failure(String detail) {
-            return new RefundOutcome(false, detail);
-        }
-    }
-
-    /**
-     * Owns only the material actually deducted by this auto-build request.
-     */
-    static final class InventoryTransaction {
-
-        private final Inventory inventory;
-        private final String structureName;
-        private final List<MaterialReservation> reservations;
-        private final boolean creative;
-        private final List<ReservationLine> ledger = new ArrayList<>();
-        private final Map<BlockPos, ReservationLine> reservationLinesByPosition = new LinkedHashMap<>();
-        private boolean committed;
-        private boolean closed;
-        private boolean refunding;
-
-        InventoryTransaction(String structureName,
-                             Inventory inventory,
-                             List<MaterialReservation> reservations,
-                             boolean creative) {
-            this.structureName = structureName;
-            this.inventory = inventory;
-            this.reservations = List.copyOf(reservations);
-            this.creative = creative;
-        }
-
-        boolean commit() {
-            if (this.closed || this.committed || !this.ledger.isEmpty()) {
-                throw new IllegalStateException("Auto-build inventory transaction cannot be committed more than once");
-            }
-            if (this.creative) {
-                this.committed = true;
-                return true;
-            }
-            LinkedHashMap<Integer, List<MaterialReservation>> reservationsBySlot = new LinkedHashMap<>();
-            for (MaterialReservation reservation : this.reservations) {
-                reservationsBySlot.computeIfAbsent(reservation.inventorySlot(), ignored -> new ArrayList<>()).add(reservation);
-            }
-            LinkedHashSet<BlockPos> reservationPositions = new LinkedHashSet<>();
-            for (Map.Entry<Integer, List<MaterialReservation>> entry : reservationsBySlot.entrySet()) {
-                ItemStack current = this.inventory.getItem(entry.getKey());
-                ItemStack expected = entry.getValue().getFirst().stack();
-                if (!ItemStack.isSameItemSameComponents(current, expected) ||
-                        current.getCount() < entry.getValue().size()) {
-                    return false;
-                }
-                for (MaterialReservation reservation : entry.getValue()) {
-                    if (!ItemStack.isSameItemSameComponents(reservation.stack(), expected)) {
-                        return false;
-                    }
-                    if (!reservationPositions.add(reservation.position())) {
-                        throw new IllegalStateException("Duplicate material reservation position " + reservation.position());
-                    }
-                }
-            }
-            for (Map.Entry<Integer, List<MaterialReservation>> entry : reservationsBySlot.entrySet()) {
-                int actualDeducted = entry.getValue().size();
-                ItemStack expectedStack = entry.getValue().getFirst().stack();
-                ItemStack remaining = this.inventory.getItem(entry.getKey()).copy();
-                remaining.shrink(actualDeducted);
-                ReservationLine line = new ReservationLine(
-                        entry.getKey(), expectedStack, actualDeducted, remaining, entry.getValue());
-                this.inventory.setItem(entry.getKey(), remaining);
-                this.ledger.add(line);
-                for (MaterialReservation reservation : entry.getValue()) {
-                    this.reservationLinesByPosition.put(reservation.position(), line);
-                }
-            }
-            this.inventory.setChanged();
-            this.committed = true;
-            return true;
-        }
-
-        RefundOutcome rollback(Player player) {
-            if (this.closed) {
-                return RefundOutcome.success();
-            }
-            if (this.creative) {
-                this.complete();
-                return RefundOutcome.success();
-            }
-            return this.refund(player);
-        }
-
-        private RefundOutcome settlePublicationFailure(Player player, List<Placement> consumedPlacements) {
-            if (this.closed) {
-                return RefundOutcome.success();
-            }
-            if (this.creative) {
-                this.complete();
-                return RefundOutcome.success();
-            }
-            for (Placement consumedPlacement : consumedPlacements) {
-                ReservationLine line = this.reservationLinesByPosition.get(consumedPlacement.position());
-                if (line == null || line.sourceSlot() != consumedPlacement.inventorySlot() ||
-                        !line.markPublished(consumedPlacement.position())) {
-                    throw new IllegalStateException("Published placement does not match its material reservation at " +
-                            consumedPlacement.position());
-                }
-            }
-            return this.refund(player);
-        }
-
-        private RefundOutcome refund(Player player) {
-            if (this.refunding) {
-                return RefundOutcome.failure("auto-build material refund is already in progress");
-            }
-            this.refunding = true;
-            try {
-                return this.refundOutstanding(player);
-            } finally {
-                this.refunding = false;
-            }
-        }
-
-        private RefundOutcome refundOutstanding(Player player) {
-            boolean inventoryChanged = false;
-            boolean refundFailed = false;
-            for (ReservationLine line : this.ledger) {
-                if (!line.hasOutstanding()) {
-                    continue;
-                }
-                int outstandingBefore = line.outstanding();
-                try {
-                    this.refundReservation(player, line);
-                } catch (RuntimeException exception) {
-                    refundFailed = true;
-                    LOGGER.error("Unable to refund auto-build material for structure {} at {}: stack {}, count {}, " +
-                            "source slot {}, expected remaining {}, player {}",
-                            this.structureName,
-                            line.firstPosition(),
-                            line.stack(),
-                            line.outstanding(),
-                            line.sourceSlot(),
-                            line.expectedRemaining(),
-                            player.getGameProfile().getName(),
-                            exception);
-                }
-                inventoryChanged |= line.outstanding() != outstandingBefore;
-            }
-            if (inventoryChanged) {
-                this.inventory.setChanged();
-            }
-            if (refundFailed) {
-                return RefundOutcome.failure("one or more deducted materials could not be refunded; see server log");
-            }
-            this.complete();
-            return RefundOutcome.success();
-        }
-
-        private void refundReservation(Player player, ReservationLine line) {
-            ItemStack remaining = line.refundableStack();
-            this.restoreOriginalSlot(line, remaining);
-            if (!remaining.isEmpty()) {
-                this.insertRefund(line, remaining, player);
-            }
-            if (!remaining.isEmpty()) {
-                this.dropRefund(player, line, remaining);
-            }
-            if (line.hasOutstanding()) {
-                throw new IllegalStateException("Auto-build refund finished without settling its material ledger");
-            }
-        }
-
-        private void restoreOriginalSlot(ReservationLine line, ItemStack remaining) {
-            ItemStack current = this.inventory.getItem(line.sourceSlot());
-            if (current.isEmpty()) {
-                int restored = Math.min(remaining.getCount(), remaining.getMaxStackSize());
-                this.inventory.setItem(line.sourceSlot(), remaining.copyWithCount(restored));
-                remaining.shrink(restored);
-                line.recordRefunded(restored);
-                return;
-            }
-            if (!ItemStack.isSameItemSameComponents(current, remaining)) {
-                return;
-            }
-            int freeSpace = current.getMaxStackSize() - current.getCount();
-            if (freeSpace <= 0) {
-                return;
-            }
-            int restored = Math.min(freeSpace, remaining.getCount());
-            ItemStack merged = current.copy();
-            merged.grow(restored);
-            this.inventory.setItem(line.sourceSlot(), merged);
-            remaining.shrink(restored);
-            line.recordRefunded(restored);
-        }
-
-        private void insertRefund(ReservationLine line, ItemStack remaining, Player player) {
-            int countBeforeInsertion = remaining.getCount();
-            try {
-                this.inventory.add(remaining);
-            } catch (RuntimeException exception) {
-                line.recordRefunded(countBeforeInsertion - remaining.getCount());
-                LOGGER.error("Unable to insert auto-build refund for structure {} at {}: stack {}, count {}, " +
-                        "source slot {}, player {}; dropping its remainder",
-                        this.structureName,
-                        line.firstPosition(),
-                        line.stack(),
-                        remaining.getCount(),
-                        line.sourceSlot(),
-                        player.getGameProfile().getName(),
-                        exception);
-                return;
-            }
-            line.recordRefunded(countBeforeInsertion - remaining.getCount());
-        }
-
-        private void dropRefund(Player player, ReservationLine line, ItemStack remaining) {
-            while (!remaining.isEmpty()) {
-                int count = Math.min(remaining.getCount(), remaining.getMaxStackSize());
-                ItemStack stack = remaining.copyWithCount(count);
-                this.dropRefundStack(player, line, stack);
-                remaining.shrink(count);
-                line.recordRefunded(count);
-            }
-        }
-
-        private void dropRefundStack(Player player, ReservationLine line, ItemStack stack) {
-            try {
-                ItemEntity refundEntity = new ItemEntity(
-                        player.level(), player.getX(), player.getY(), player.getZ(), stack.copy());
-                if (player.level().addFreshEntity(refundEntity)) {
-                    return;
-                }
-            } catch (RuntimeException exception) {
-                throw new IllegalStateException("Unable to deliver final auto-build refund " + stack, exception);
-            }
-            throw new IllegalStateException("World rejected final auto-build refund " + stack);
-        }
-
-        private void complete() {
-            if (this.closed) {
-                return;
-            }
-            if (!this.creative && this.committed) {
-                this.inventory.setChanged();
-            }
-            this.ledger.clear();
-            this.reservationLinesByPosition.clear();
-            this.committed = false;
-            this.closed = true;
-        }
-
-        private static final class ReservationLine {
-
-            private final int sourceSlot;
-            private final ItemStack stack;
-            private final int actualDeducted;
-            private final ItemStack expectedRemaining;
-            private final BlockPos firstPosition;
-            private final Map<BlockPos, MaterialReservation> outstandingReservations = new LinkedHashMap<>();
-            private int outstanding;
-
-            private ReservationLine(int sourceSlot,
-                                    ItemStack stack,
-                                    int actualDeducted,
-                                    ItemStack expectedRemaining,
-                                    List<MaterialReservation> reservations) {
-                if (actualDeducted <= 0 || actualDeducted != reservations.size()) {
-                    throw new IllegalArgumentException("Material reservation line must contain every actual deduction");
-                }
-                this.sourceSlot = sourceSlot;
-                this.stack = stack.copyWithCount(1);
-                this.actualDeducted = actualDeducted;
-                this.expectedRemaining = expectedRemaining.copy();
-                this.firstPosition = reservations.getFirst().position();
-                this.outstanding = this.actualDeducted;
-                for (MaterialReservation reservation : reservations) {
-                    if (reservation.inventorySlot() != sourceSlot ||
-                            !ItemStack.isSameItemSameComponents(reservation.stack(), this.stack)) {
-                        throw new IllegalArgumentException("Material reservation does not match its source-slot ledger line");
-                    }
-                    if (this.outstandingReservations.put(reservation.position(), reservation) != null) {
-                        throw new IllegalArgumentException("Material reservation position was assigned more than once");
-                    }
-                }
-            }
-
-            private int sourceSlot() {
-                return this.sourceSlot;
-            }
-
-            private ItemStack stack() {
-                return this.stack.copy();
-            }
-
-            private ItemStack expectedRemaining() {
-                return this.expectedRemaining.copy();
-            }
-
-            private int outstanding() {
-                return this.outstanding;
-            }
-
-            private boolean hasOutstanding() {
-                return this.outstanding > 0;
-            }
-
-            private ItemStack refundableStack() {
-                return this.stack.copyWithCount(this.outstanding);
-            }
-
-            private BlockPos firstPosition() {
-                return this.firstPosition;
-            }
-
-            private boolean markPublished(BlockPos position) {
-                if (this.outstandingReservations.remove(position) == null) {
-                    return false;
-                }
-                this.outstanding--;
-                return true;
-            }
-
-            private void recordRefunded(int count) {
-                if (count <= 0) {
-                    return;
-                }
-                if (count > this.outstanding) {
-                    throw new IllegalArgumentException("Refund exceeds outstanding auto-build material");
-                }
-                this.outstanding -= count;
-                if (this.outstanding == 0) {
-                    this.outstandingReservations.clear();
-                }
-            }
         }
     }
 

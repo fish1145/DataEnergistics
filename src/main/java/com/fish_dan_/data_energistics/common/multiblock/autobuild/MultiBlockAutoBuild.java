@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.common.multiblock.autobuild;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
 
+import appeng.api.networking.IGrid;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -16,6 +18,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Builds one resolved MDLib pattern through a two-phase inventory-and-world operation.
@@ -190,6 +193,7 @@ public interface MultiBlockAutoBuild {
          * Host-owned allowlist for direct silent state staging.
          */
         private final StagingPolicy stagingPolicy;
+        private final Supplier<@Nullable IGrid> materialGrid;
 
         private Context(Builder builder) {
             this.level = builder.level;
@@ -206,6 +210,7 @@ public interface MultiBlockAutoBuild {
             this.tierRanks = Map.copyOf(builder.tierRanks);
             this.partSideResolver = builder.partSideResolver;
             this.stagingPolicy = builder.stagingPolicy;
+            this.materialGrid = builder.materialGrid;
             if (this.structureName.isBlank()) {
                 throw new IllegalArgumentException("Auto-build structure name cannot be blank");
             }
@@ -331,6 +336,13 @@ public interface MultiBlockAutoBuild {
         }
 
         /**
+         * Resolves the host's currently accessible ME grid, rechecked before material mutations on the server thread.
+         */
+        public Supplier<@Nullable IGrid> materialGrid() {
+            return this.materialGrid;
+        }
+
+        /**
          * Collects context fields by name before creating the immutable execution context.
          */
         public static final class Builder {
@@ -391,6 +403,7 @@ public interface MultiBlockAutoBuild {
              * Defaults to denial so generic item placement cannot bypass the two-phase transaction contract.
              */
             private StagingPolicy stagingPolicy = StagingPolicy.REJECT_ALL;
+            private Supplier<@Nullable IGrid> materialGrid = () -> null;
 
             private Builder() {}
 
@@ -524,6 +537,12 @@ public interface MultiBlockAutoBuild {
                 return this;
             }
 
+            /** Supplies a live host-grid binding; null results allow wireless and recursive player sources. */
+            public Builder materialGrid(Supplier<@Nullable IGrid> materialGrid) {
+                this.materialGrid = materialGrid;
+                return this;
+            }
+
             /**
              * Creates the immutable context after semantic scalar validation.
              */
@@ -536,25 +555,42 @@ public interface MultiBlockAutoBuild {
     /**
      * Reports whether the complete operation committed and how much of the requested structure was already reusable.
      *
-     * @param success true only when every planned placement committed
+     * @param success true when the transaction committed all placements that had available materials
      * @param placed  number of blocks or parts published; zero after a pre-publication rollback
      * @param reused  number of non-air pattern positions that already matched during preflight
+     * @param missing number of positions skipped because no selected material was available
      * @param failure first failure, absent after a successful commit
      */
-    record Result(boolean success, int placed, int reused, @Nullable Failure failure) {
+    record Result(boolean success, int placed, int reused, int missing, @Nullable Failure failure) {
+
+        public Result {
+            if (placed < 0 || reused < 0 || missing < 0) {
+                throw new IllegalArgumentException("Auto-build result counts cannot be negative");
+            }
+            if (success && failure != null) {
+                throw new IllegalArgumentException("Successful auto-build result cannot contain a failure");
+            }
+        }
 
         /**
          * Creates a successful committed result.
          */
         public static Result success(int placed, int reused) {
-            return new Result(true, placed, reused, null);
+            return success(placed, reused, 0);
+        }
+
+        /**
+         * Creates a successful result while retaining the number of positions deferred for missing materials.
+         */
+        public static Result success(int placed, int reused, int missing) {
+            return new Result(true, placed, reused, missing, null);
         }
 
         /**
          * Creates a failed result after the transaction has left no committed placement.
          */
         public static Result failure(int reused, Failure failure) {
-            return new Result(false, 0, reused, failure);
+            return new Result(false, 0, reused, 0, failure);
         }
 
         /**
@@ -562,7 +598,14 @@ public interface MultiBlockAutoBuild {
          * while already published world state remains observable.
          */
         public static Result publishFailure(int placed, int reused, Failure failure) {
-            return new Result(false, placed, reused, failure);
+            return new Result(false, placed, reused, 0, failure);
+        }
+
+        /**
+         * Creates a publication failure while retaining the number of positions deferred for missing materials.
+         */
+        public static Result publishFailure(int placed, int reused, int missing, Failure failure) {
+            return new Result(false, placed, reused, missing, failure);
         }
     }
 
@@ -587,7 +630,8 @@ public interface MultiBlockAutoBuild {
          */
         BLOCKED,
         /**
-         * The player inventory cannot satisfy every planned placement.
+         * A planned position has no available material candidate. The transaction may continue with other positions;
+         * this type is retained for callers that explicitly reject partial allocation.
          */
         MISSING_MATERIAL,
         /**

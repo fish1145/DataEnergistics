@@ -117,7 +117,9 @@ import com.modularmc.mdl.api.multiblock.StructureWorldView;
 import com.modularmc.mdl.api.multiblock.TraceabilityPredicate;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import lombok.Getter;
@@ -938,6 +940,8 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 .tierRanks(TrinityAutoBuildBlockMap.tierRanksForStructure(structureIndex))
                 .partSideResolver(partSideResolver)
                 .stagingPolicy(new TrinityAutoBuildStagingPolicy(definition))
+                .materialGrid(() -> serverLevel.getBlockEntity(origin) instanceof TrinityDataCoreBlockEntity host ?
+                        host.accessGrid() : null)
                 .build();
         return AUTO_BUILD.execute(context);
     }
@@ -955,14 +959,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
     }
 
     private static void reportAutoBuildResult(Player player, int structureIndex, Result result) {
-        int missing = 0;
+        int missing = result.missing();
         int blocked = 0;
         int unloaded = 0;
         int placeFailed = 0;
         Failure failure = result.failure();
         if (failure != null) {
             switch (failure.type()) {
-                case MISSING_MATERIAL -> missing = 1;
+                case MISSING_MATERIAL -> missing = Math.max(missing, 1);
                 case BLOCKED -> blocked = 1;
                 case UNLOADED -> unloaded = 1;
                 default -> placeFailed = 1;
@@ -990,11 +994,11 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         return Component.translatable(structureKey);
     }
 
-    private static Map<BlockPos, TraceabilityPredicate> autoBuildPredicates(BlockPattern pattern,
-                                                                            BlockPos origin,
-                                                                            AutoBuildOrientation orientation,
-                                                                            int repeatCount) {
-        Object2ObjectLinkedOpenHashMap<BlockPos, TraceabilityPredicate> predicates = new Object2ObjectLinkedOpenHashMap<>();
+    private static Long2ObjectMap<TraceabilityPredicate> autoBuildPredicates(BlockPattern pattern,
+                                                                             BlockPos origin,
+                                                                             AutoBuildOrientation orientation,
+                                                                             int repeatCount) {
+        Long2ObjectMap<TraceabilityPredicate> predicates = new Long2ObjectOpenHashMap<>();
         int minX = pattern.getMinX();
         int minY = pattern.getMinY();
         int expandedZ = pattern.getMinZ();
@@ -1023,7 +1027,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                                     Direction.NORTH,
                                     orientation.flipped()));
                             if (!target.equals(origin)) {
-                                TraceabilityPredicate previous = predicates.putIfAbsent(target.immutable(), predicate);
+                                TraceabilityPredicate previous = predicates.putIfAbsent(target.asLong(), predicate);
                                 if (previous != null && previous != predicate) {
                                     throw new IllegalStateException(
                                             "Trinity auto-build pattern resolves conflicting predicates at " + target);
@@ -1035,7 +1039,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
                 }
             }
         }
-        return Map.copyOf(predicates);
+        return Long2ObjectMaps.unmodifiable(predicates);
     }
 
     /**
@@ -3516,14 +3520,14 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         /**
          * Exact expanded pattern predicate at every buildable world position.
          */
-        private final Map<BlockPos, TraceabilityPredicate> predicates;
+        private final Long2ObjectMap<TraceabilityPredicate> predicates;
 
         private AutoBuildPartResolver(StructureWorldView world,
                                       BlockPos origin,
                                       String structureName,
                                       Direction front,
                                       boolean flipped,
-                                      Map<BlockPos, TraceabilityPredicate> predicates) {
+                                      Long2ObjectMap<TraceabilityPredicate> predicates) {
             this.world = world;
             this.origin = origin;
             this.structureName = structureName;
@@ -3545,7 +3549,7 @@ public class TrinityDataCoreBlockEntity extends AENetworkedBlockEntity
         @Nullable
         @Override
         public Direction resolve(BlockPos position, ItemStack partStack) {
-            TraceabilityPredicate predicate = this.predicates.get(position);
+            TraceabilityPredicate predicate = this.predicates.get(position.asLong());
             if (predicate == null) {
                 return null;
             }

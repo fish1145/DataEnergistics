@@ -1,5 +1,19 @@
 # ChangeLog
 
+## Version [v3.2.2](https://github.com/fish1145/DataEnergistics/compare/v3.2.1-1.21...v3.2.2-1.21)
+### Added
+
+- 自动搭建支持 ME 网络、递归容器和流体取料 by @QiuYe-123 in [#294](https://github.com/fish1145/DataEnergistics/pull/294)
+
+### Fixed
+
+- 修复自动搭建缺料时无法继续搭建 by @QiuYe-123 in [#293](https://github.com/fish1145/DataEnergistics/pull/293)
+
+### Changed
+
+- 自动搭建支持 ME 网络、递归容器和流体取料 by @QiuYe-123 in [#294](https://github.com/fish1145/DataEnergistics/pull/294)
+
+ 
 ## Version [v3.2.1](https://github.com/fish1145/DataEnergistics/compare/v3.2.0-1.21...v3.2.1-1.21)
 ### Added
 
