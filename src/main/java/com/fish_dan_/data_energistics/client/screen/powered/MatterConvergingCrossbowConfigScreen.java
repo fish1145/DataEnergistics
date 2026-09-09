@@ -57,15 +57,27 @@ public final class MatterConvergingCrossbowConfigScreen extends Screen {
         int top = (this.height - PANEL_HEIGHT) / 2;
         graphics.fill(left, top, left + PANEL_WIDTH, top + PANEL_HEIGHT, 0xE6101420);
         graphics.drawString(this.font, this.title, left + 8, top + 7, 0xFFFFFF, false);
+        ItemStack weapon = Minecraft.getInstance().player.getItemInHand(this.hand);
+        ItemStack currentAmmo = this.ammunition.isEmpty() ? ItemStack.EMPTY : this.ammunition.getFirst();
+        ResourceLocation selectedId = weapon.get(DEDataComponents.MATTER_CONVERGING_CROSSBOW_SELECTED_AMMO.get());
+        if (selectedId != null) {
+            for (ItemStack candidate : this.ammunition) {
+                if (BuiltInRegistries.ITEM.getKey(candidate.getItem()).equals(selectedId)) {
+                    currentAmmo = candidate;
+                    break;
+                }
+            }
+        }
         for (int i = 0; i < MatterConvergingCrossbowMode.values().length; i++) {
             int y = top + 25 + i * 27;
             MatterConvergingCrossbowMode mode = MatterConvergingCrossbowMode.values()[i];
             boolean active = mode == this.selectedMode;
             graphics.fill(left + 8, y, left + 30, y + 22, active ? 0xFF6A7890 : 0xFF343944);
-            if (!active) graphics.fill(left + 8, y, left + 30, y + 22, 0xAA20242B);
+            graphics.renderItem(weapon, left + 11, y + 3);
             graphics.drawString(this.font, Component.translatable("item.data_energistics.dark_string_data_settlement_tool.mode." + mode.nameKey()), left + 36, y + 7, active ? 0xFFFFFF : 0x777777, false);
             graphics.drawString(this.font, "→", left + 145, y + 6, 0xAAB7C8, false);
-            if (active) graphics.drawString(this.font, "●", left + 188, y + 6, 0x70D6FF, false);
+            if (!currentAmmo.isEmpty()) graphics.renderItem(currentAmmo, left + 180, y + 3);
+            if (!active) graphics.fill(left + 8, y, left + 212, y + 22, 0xAA20242B);
         }
         int gridTop = top + 108;
         graphics.fill(left + 8, gridTop - 3, left + PANEL_WIDTH - 8, top + PANEL_HEIGHT - 8, 0xFF252A35);
