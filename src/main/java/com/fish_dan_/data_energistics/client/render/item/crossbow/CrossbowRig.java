@@ -23,7 +23,13 @@ final class CrossbowRig {
             return folded.matrix();
         }
         if (motion == CrossbowMotion.FIXED) {
-            return folded.interpolateTo(deployed, group.progress(this.pose)).matrix();
+            Matrix4f fixed = folded.interpolateTo(deployed, group.progress(this.pose)).matrix();
+            if (group == CrossbowDeployment.RAIL) {
+                fixed.translate(0.0F, 0.0F, this.pose.recoil());
+                float shake = this.pose.recoil() == 0.0F ? 0.0F : (float) Math.sin(this.pose.recoil() * 60.0F) * 0.018F;
+                fixed.rotateY(shake).rotateX(-shake * 0.65F);
+            }
+            return fixed;
         }
         if (group == CrossbowDeployment.STRAP) {
             return strap(folded, deployed, motion).matrix();
