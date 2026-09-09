@@ -44,6 +44,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.entity.PartEntity;
 
+import lombok.Setter;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
@@ -77,6 +78,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     private ItemStack weaponStack = ItemStack.EMPTY;
     private final Set<Integer> piercedEntityIds = new HashSet<>();
     private int consumedPierceCount;
+    @Setter
     private boolean critical;
     private CannonShot cannonShot = CannonShot.CROSSBOW;
 
@@ -150,10 +152,6 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     public void setWeaponStack(ItemStack stack) {
         this.weaponStack = stack.copy();
         this.getEntityData().set(DATA_SABER_ENERGY_CARD_COUNT, this.getSaberEnergyCardCount(stack));
-    }
-
-    public void setCritical(boolean critical) {
-        this.critical = critical;
     }
 
     public void setPierceLevel(int pierceLevel) {
