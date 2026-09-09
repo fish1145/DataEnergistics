@@ -1,98 +1,79 @@
 package com.fish_dan_.data_energistics.client.screen.powered;
 
+import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.menu.powered.MatterConvergingCrossbowConfigMenu;
-import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
-import appeng.api.stacks.AEItemKey;
-import appeng.api.storage.StorageCells;
-import appeng.api.storage.cells.ISaveProvider;
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.style.ScreenStyle;
+import appeng.client.gui.widgets.UpgradesPanel;
+import appeng.menu.SlotSemantics;
 
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.Slot;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/** AE2 ScreenStyle based selector for the weapon mode and its disk ammunition. */
+/** All item contents and the active mode come from AE slot synchronization and GuiSync. */
 public final class MatterConvergingCrossbowConfigScreen extends AEBaseScreen<MatterConvergingCrossbowConfigMenu> {
-    private final List<ItemStack> ammunition = new ArrayList<>();
-    private MatterConvergingCrossbowMode selectedMode = MatterConvergingCrossbowMode.GRENADE;
 
     public MatterConvergingCrossbowConfigScreen(MatterConvergingCrossbowConfigMenu menu, Inventory inventory,
                                                 Component title, ScreenStyle style) {
         super(menu, inventory, title, style);
-        reloadAmmunition();
-    }
-
-    private void reloadAmmunition() {
-        ItemStack weapon = this.menu.getPlayer().getItemInHand(this.menu.hand);
-        this.selectedMode = MatterConvergingCrossbowMode.fromId(weapon.getOrDefault(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), 0));
-        this.ammunition.clear();
-        var inventory = StorageCells.getCellInventory(weapon, (ISaveProvider) null);
-        if (inventory != null) {
-            for (var entry : inventory.getAvailableStacks()) {
-                if (entry.getKey() instanceof AEItemKey key && entry.getLongValue() > 0) this.ammunition.add(key.toStack(1));
-            }
-        }
+        widgets.add("upgrades", new UpgradesPanel(menu.getSlots(SlotSemantics.UPGRADE), menu.getHost()));
     }
 
     @Override
     protected void updateBeforeRender() {
         super.updateBeforeRender();
-        ItemStack weapon = this.menu.getPlayer().getItemInHand(this.menu.hand);
-        MatterConvergingCrossbowMode mode = MatterConvergingCrossbowMode.fromId(
-                weapon.getOrDefault(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), 0));
+        MatterConvergingCrossbowMode mode = MatterConvergingCrossbowMode.fromId(menu.activeMode);
         setTextContent("dialog_title", Component.translatable(
                 "item.data_energistics.dark_string_data_settlement_tool.mode." + mode.nameKey()));
     }
 
     @Override
-    public void drawFG(GuiGraphics graphics, int offsetX, int offsetY, int mouseX, int mouseY) {
-        ItemStack weapon = this.menu.getPlayer().getItemInHand(this.menu.hand);
-        ItemStack currentAmmo = this.ammunition.isEmpty() ? ItemStack.EMPTY : this.ammunition.getFirst();
-        ResourceLocation selected = weapon.get(DEDataComponents.MATTER_CONVERGING_CROSSBOW_SELECTED_AMMO.get());
-        if (selected != null) for (ItemStack candidate : this.ammunition) if (BuiltInRegistries.ITEM.getKey(candidate.getItem()).equals(selected)) currentAmmo = candidate;
-        for (int i = 0; i < MatterConvergingCrossbowMode.values().length; i++) {
-            int y = 20 + i * 27;
-            boolean active = MatterConvergingCrossbowMode.values()[i] == this.selectedMode;
-            graphics.fill(offsetX + 8, offsetY + y, offsetX + 30, offsetY + y + 22, active ? 0xFF6A7890 : 0xFF343944);
-            graphics.renderItem(weapon, offsetX + 11, offsetY + y + 3);
-            graphics.drawString(this.font, Component.translatable("item.data_energistics.dark_string_data_settlement_tool.mode." + MatterConvergingCrossbowMode.values()[i].nameKey()), offsetX + 36, offsetY + y + 7, active ? 0xFFFFFF : 0x777777, false);
-            graphics.drawString(this.font, "→", offsetX + 145, offsetY + y + 6, 0xAAB7C8, false);
-            if (!currentAmmo.isEmpty()) graphics.renderItem(currentAmmo, offsetX + 180, offsetY + y + 3);
-            if (!active) graphics.fill(offsetX + 8, offsetY + y, offsetX + 212, offsetY + y + 22, 0xAA20242B);
+    public void renderSlot(GuiGraphics graphics, Slot slot) {
+        super.renderSlot(graphics, slot);
+        MatterConvergingCrossbowMode row = menu.rowOf(slot);
+        if (row != null && row.id() != menu.activeMode) {
+            graphics.pose().pushPose();
+            graphics.pose().translate(0, 0, 200);
+            graphics.fill(slot.x - 1, slot.y - 1, slot.x + 17, slot.y + 17, 0x90666666);
+            graphics.pose().popPose();
         }
-        for (int i = 0; i < Math.min(this.ammunition.size(), 9); i++) graphics.renderItem(this.ammunition.get(i), offsetX + 12 + i * 18, offsetY + 106);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
-        double x = mouseX - this.leftPos;
-        double y = mouseY - this.topPos;
-        for (int i = 0; i < MatterConvergingCrossbowMode.values().length; i++) {
-            int row = 20 + i * 27;
-            if (x >= 8 && x < 212 && y >= row && y < row + 22) {
-                this.selectedMode = MatterConvergingCrossbowMode.values()[i];
-                this.menu.sendSetMode(this.selectedMode.id());
-                return true;
-            }
-        }
-        if (y >= 106 && y < 124) {
-            int index = (int) ((x - 12) / 18);
-            if (index >= 0 && index < this.ammunition.size()) {
-                this.menu.sendSetAmmo(BuiltInRegistries.ITEM.getKey(this.ammunition.get(index).getItem()));
-                return true;
+        if (button == 0 || button == 1) {
+            double x = mouseX - leftPos;
+            double y = mouseY - topPos;
+            for (MatterConvergingCrossbowMode mode : MatterConvergingCrossbowMode.values()) {
+                Slot cell = menu.cellSlot(mode);
+                Slot ammo = menu.ammoSlot(mode);
+                if (x >= cell.x + 18 && x < ammo.x - 1 && y >= cell.y - 2 && y < cell.y + 18) {
+                    menu.sendSetMode(mode);
+                    return true;
+                }
+                if (x >= ammo.x && x < ammo.x + 16 && y >= ammo.y && y < ammo.y + 16 && menu.getCarried().isEmpty()) {
+                    if (mode.id() != menu.activeMode) menu.sendSetMode(mode);
+                    else menu.sendCycleAmmo(mode, button == 1);
+                    return true;
+                }
             }
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        MatterConvergingCrossbowMode requested = null;
+        if (DEKeyMappings.TOGGLE_CROSSBOW_RAIL.matches(keyCode, scanCode)) requested = MatterConvergingCrossbowMode.RAIL;
+        else if (DEKeyMappings.TOGGLE_CROSSBOW_ARMS.matches(keyCode, scanCode)) requested = MatterConvergingCrossbowMode.CROSSBOW;
+        if (requested != null) {
+            menu.sendSetMode(requested.id() == menu.activeMode ? MatterConvergingCrossbowMode.GRENADE : requested);
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 }

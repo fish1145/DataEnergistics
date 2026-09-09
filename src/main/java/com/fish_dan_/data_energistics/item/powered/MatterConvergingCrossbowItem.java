@@ -6,43 +6,37 @@ import com.fish_dan_.data_energistics.entity.projectile.cannon.CannonShot;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.GrenadePayload;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonCharge;
+import com.fish_dan_.data_energistics.item.powered.cannon.storage.CannonCellMenuHost;
+import com.fish_dan_.data_energistics.item.powered.cannon.storage.MountedAmmoCells;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
-import com.fish_dan_.data_energistics.registry.DEMenus;
-import com.fish_dan_.data_energistics.menu.powered.MatterConvergingCrossbowConfigMenu;
 import com.fish_dan_.data_energistics.registry.DEItems;
+import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
-import appeng.api.config.FuzzyMode;
 import appeng.api.ids.AEComponents;
 import appeng.api.implementations.items.IAEItemPowerStorage;
+import appeng.api.implementations.menuobjects.IMenuItem;
+import appeng.api.implementations.menuobjects.ItemMenuHost;
 import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
-import appeng.api.stacks.GenericStack;
-import appeng.api.storage.StorageCells;
-import appeng.api.storage.cells.IBasicCellItem;
-import appeng.api.storage.cells.ISaveProvider;
-import appeng.api.storage.cells.StorageCell;
 import appeng.api.upgrades.IUpgradeInventory;
 import appeng.api.upgrades.IUpgradeableItem;
 import appeng.api.upgrades.UpgradeInventories;
 import appeng.api.upgrades.Upgrades;
 import appeng.core.definitions.AEItems;
 import appeng.core.localization.Tooltips;
+import appeng.helpers.IMouseWheelItem;
 import appeng.items.misc.PaintBallItem;
-import appeng.items.storage.StorageCellTooltipComponent;
 import appeng.me.helpers.PlayerSource;
-import appeng.util.ConfigInventory;
+import appeng.menu.MenuOpener;
+import appeng.menu.locator.ItemMenuHostLocator;
+import appeng.menu.locator.MenuLocators;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -56,7 +50,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow.Pickup;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -64,13 +57,13 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ChargedProjectiles;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
@@ -81,7 +74,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEItemPowerStorage, IBasicCellItem, IUpgradeableItem {
+public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEItemPowerStorage, IUpgradeableItem, IMenuItem, IMouseWheelItem {
 
     private static final double MAX_POWER = 200_000.0D;
     private static final double CHARGE_RATE = 200_000.0D;
@@ -93,9 +86,6 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     private static final double HOMING_ENERGY_MULTIPLIER = 5.0D;
     private static final float PROJECTILE_SPEED = 3.15F;
     private static final float SPEED_CARD_PROJECTILE_SPEED_BONUS = 1.0F;
-    private static final int BYTES = 512;
-    private static final int BYTES_PER_TYPE = 8;
-    private static final int TOTAL_TYPES = 1;
     private static final int CHARGE_DURATION_TICKS = 20;
     private static final int MAX_UPGRADES = 6;
     private static final int MAX_SPEED_UPGRADES = 4;
@@ -118,19 +108,21 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         return stack.getItem() instanceof MatterConvergingCrossbowItem && mode(stack) != MatterConvergingCrossbowMode.CROSSBOW;
     }
 
-    public boolean selectCannonAmmo(ItemStack weaponStack, ResourceLocation itemId) {
-        Item item = BuiltInRegistries.ITEM.get(itemId);
-        ItemStack candidate = new ItemStack(item);
-        if (item == Items.AIR || !this.isSupportedAmmo(weaponStack, candidate)) return false;
-        StorageCell inventory = StorageCells.getCellInventory(weaponStack, (ISaveProvider) null);
-        if (inventory == null || inventory.getAvailableStacks().get(AEItemKey.of(item)) <= 0) return false;
-        weaponStack.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_SELECTED_AMMO.get(), itemId);
-        return true;
+    @Override
+    public ItemMenuHost<?> getMenuHost(Player player, ItemMenuHostLocator locator, @Nullable BlockHitResult hitResult) {
+        return new CannonCellMenuHost(this, player, locator);
+    }
+
+    @Override
+    public void onWheel(ItemStack stack, boolean up) {
+        MountedAmmoCells.migrateLegacy(stack);
+        MountedAmmoCells.cycle(stack, mode(stack), up);
     }
 
     /** Server entry for a left-button press. No ammo or energy is spent until release. */
     public void beginCannonCharge(Player player, InteractionHand hand, ItemStack stack) {
         if (player.level().isClientSide || !isCannon(stack) || !player.isAlive() || player.isSpectator() || player.isUsingItem() || player.containerMenu != player.inventoryMenu || stack.has(DEDataComponents.CANNON_CHARGE.get())) return;
+        MountedAmmoCells.migrateLegacy(stack);
         if (!this.isChargedAmmoSupported(stack)) return;
         if (!isCharged(stack)) {
             if (!this.hasAmmo(stack)) this.tryStoreAmmoFromPlayer(stack, player);
@@ -187,6 +179,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slot, boolean selected) {
         super.inventoryTick(stack, level, entity, slot, selected);
         if (!level.isClientSide) {
+            MountedAmmoCells.migrateLegacy(stack);
             CannonCharge charge = stack.get(DEDataComponents.CANNON_CHARGE.get());
             if (charge != null && (!(entity instanceof Player player) || !charge.belongsTo(player, charge.hand(), mode(stack)) || player.getItemInHand(charge.hand()) != stack || player.containerMenu != player.inventoryMenu)) {
                 stack.remove(DEDataComponents.CANNON_CHARGE.get());
@@ -228,13 +221,13 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         ItemStack stack = player.getItemInHand(hand);
         if (player.isShiftKeyDown()) {
             if (!level.isClientSide) {
-                player.openMenu(new SimpleMenuProvider((id, inventory, ignoredPlayer) -> new MatterConvergingCrossbowConfigMenu(
-                        DEMenus.MATTER_CONVERGING_CROSSBOW_CONFIG.get(), id, inventory, hand),
-                        Component.empty()));
+                stack.remove(DEDataComponents.CANNON_CHARGE.get());
+                MenuOpener.open(DEMenus.MATTER_CONVERGING_CROSSBOW_CONFIG.get(), player, MenuLocators.forHand(player, hand));
             }
             return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
         }
         if (isCannon(stack)) return InteractionResultHolder.pass(stack);
+        if (!level.isClientSide) MountedAmmoCells.migrateLegacy(stack);
         ChargedProjectiles charged = stack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY);
         if (!charged.isEmpty()) {
             if (!this.isChargedAmmoSupported(stack)) return InteractionResultHolder.fail(stack);
@@ -330,27 +323,14 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             lines.add(Component.translatable("tooltip.data_energistics.cannon." + (mode(stack) == MatterConvergingCrossbowMode.GRENADE ? "grenade" : "rail"), Component.keybind("key.attack")));
         }
         lines.add(Tooltips.energyStorageComponent(this.getAECurrentPower(stack), this.getAEMaxPower(stack)));
-        this.addCellInformationToTooltip(stack, lines);
+        lines.add(Component.translatable("tooltip.data_energistics.cannon.cells", Component.keybind("key.ae2.mouse_wheel_item_modifier")));
+        ItemStack cell = MountedAmmoCells.cell(stack, mode(stack));
+        lines.add(Component.translatable("tooltip.data_energistics.cannon.cell", cell.isEmpty() ? Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile.none") : cell.getHoverName()));
+        if (!stack.getOrDefault(AEComponents.STORAGE_CELL_INV, List.of()).isEmpty()) {
+            lines.add(Component.translatable("tooltip.data_energistics.cannon.legacy_ammo"));
+        }
         lines.add(Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile",
                 this.getDisplayedAmmoName(stack)));
-    }
-
-    @Override
-    public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
-        StorageCell cellInventory = StorageCells.getCellInventory(stack, (ISaveProvider) null);
-        List<GenericStack> content = new ArrayList<>();
-        if (cellInventory != null) {
-            for (var entry : cellInventory.getAvailableStacks()) {
-                if (entry.getLongValue() > 0) {
-                    content.add(new GenericStack(entry.getKey(), entry.getLongValue()));
-                }
-            }
-        }
-        return Optional.of(new StorageCellTooltipComponent(
-                collectUpgradeItems(this.getUpgrades(stack)),
-                content,
-                false,
-                false));
     }
 
     @Override
@@ -438,22 +418,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     private ItemStack extractAmmo(ItemStack weaponStack, Player player) {
-        StorageCell inventory = StorageCells.getCellInventory(weaponStack, (ISaveProvider) null);
-        if (inventory == null) {
-            return ItemStack.EMPTY;
-        }
-
-        var entry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
-        if (entry == null || !(entry.getKey() instanceof AEItemKey itemKey)) {
-            return ItemStack.EMPTY;
-        }
-        ItemStack ammo = itemKey.toStack(1);
-        if (!this.isSupportedAmmo(weaponStack, ammo)) {
-            return ItemStack.EMPTY;
-        }
-
-        long extracted = inventory.extract(itemKey, 1, Actionable.MODULATE, new PlayerSource(player));
-        return extracted > 0 ? ammo : ItemStack.EMPTY;
+        return MountedAmmoCells.extractOne(weaponStack, mode(weaponStack), new PlayerSource(player));
     }
 
     private boolean isBlockedBowEnchantment(Holder<Enchantment> enchantment) {
@@ -487,19 +452,11 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     private boolean hasAmmo(ItemStack weaponStack) {
-        StorageCell inventory = StorageCells.getCellInventory(weaponStack, (ISaveProvider) null);
-        if (inventory == null) {
-            return false;
-        }
-        var firstEntry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
-        return firstEntry != null && firstEntry.getLongValue() > 0 && firstEntry.getKey() instanceof AEItemKey itemKey && this.isSupportedAmmo(weaponStack, itemKey.toStack(1));
+        return !this.peekAmmo(weaponStack).isEmpty();
     }
 
     private boolean tryStoreAmmoFromPlayer(ItemStack weaponStack, Player player) {
-        StorageCell inventory = StorageCells.getCellInventory(weaponStack, (ISaveProvider) null);
-        if (inventory == null) {
-            return false;
-        }
+        if (MountedAmmoCells.cell(weaponStack, mode(weaponStack)).isEmpty()) return false;
 
         var playerInventory = player.getInventory();
         for (int i = 0; i < playerInventory.getContainerSize(); i++) {
@@ -509,11 +466,12 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             }
 
             AEItemKey itemKey = AEItemKey.of(candidate);
-            if (itemKey == null || this.isBlackListed(weaponStack, itemKey)) {
+            if (itemKey == null || !supportsAmmo(mode(weaponStack), candidate)) {
                 continue;
             }
 
-            long inserted = inventory.insert(itemKey, 1, Actionable.MODULATE, new PlayerSource(player));
+            long inserted = MountedAmmoCells.insert(weaponStack, mode(weaponStack), itemKey, 1,
+                    new PlayerSource(player), Actionable.MODULATE);
             if (inserted > 0) {
                 candidate.shrink((int) inserted);
                 return true;
@@ -524,17 +482,8 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     private Component getDisplayedAmmoName(ItemStack weaponStack) {
-        StorageCell inventory = StorageCells.getCellInventory(weaponStack, (ISaveProvider) null);
-        if (inventory == null) {
-            return Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile.none");
-        }
-
-        var firstEntry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
-        if (firstEntry == null || !(firstEntry.getKey() instanceof AEItemKey itemKey) || firstEntry.getLongValue() <= 0) {
-            return Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile.none");
-        }
-        ItemStack ammo = itemKey.toStack(1);
-        if (!this.isSupportedAmmo(weaponStack, ammo)) {
+        ItemStack ammo = this.peekAmmo(weaponStack);
+        if (ammo.isEmpty()) {
             return Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile.none");
         }
         return ammo.getHoverName();
@@ -592,46 +541,6 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     @Override
-    public AEKeyType getKeyType() {
-        return AEKeyType.items();
-    }
-
-    @Override
-    public int getBytes(ItemStack stack) {
-        return BYTES;
-    }
-
-    @Override
-    public int getBytesPerType(ItemStack stack) {
-        return BYTES_PER_TYPE;
-    }
-
-    @Override
-    public int getTotalTypes(ItemStack stack) {
-        return TOTAL_TYPES;
-    }
-
-    @Override
-    public boolean isBlackListed(ItemStack stack, AEKey requestedAddition) {
-        if (!(requestedAddition instanceof AEItemKey itemKey)) {
-            return true;
-        }
-
-        Item item = itemKey.getItem();
-        return item != AEItems.MATTER_BALL.asItem() && item != AEItems.SINGULARITY.asItem() && !(item instanceof PaintBallItem) && item != DEItems.DATA_LIGHT_SABER.get() && !(mode(stack) == MatterConvergingCrossbowMode.GRENADE && GrenadePayload.isExplosive(itemKey.toStack(1)));
-    }
-
-    @Override
-    public double getIdleDrain() {
-        return 0.0D;
-    }
-
-    @Override
-    public ConfigInventory getConfigInventory(ItemStack stack) {
-        return ConfigInventory.emptyTypes();
-    }
-
-    @Override
     public IUpgradeInventory getUpgrades(ItemStack stack) {
         return UpgradeInventories.forItem(stack, MAX_UPGRADES, this::onUpgradesChanged);
     }
@@ -672,23 +581,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     private ItemStack peekAmmo(ItemStack weaponStack) {
-        StorageCell inventory = StorageCells.getCellInventory(weaponStack, (ISaveProvider) null);
-        if (inventory == null) {
-            return ItemStack.EMPTY;
-        }
-
-        ResourceLocation selected = weaponStack.get(DEDataComponents.MATTER_CONVERGING_CROSSBOW_SELECTED_AMMO.get());
-        if (selected != null) {
-            Item selectedItem = BuiltInRegistries.ITEM.get(selected);
-            AEItemKey selectedKey = AEItemKey.of(selectedItem);
-            if (selectedItem != Items.AIR && inventory.getAvailableStacks().get(selectedKey) > 0) return selectedKey.toStack(1);
-        }
-        var firstEntry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
-        if (firstEntry == null || !(firstEntry.getKey() instanceof AEItemKey itemKey) || firstEntry.getLongValue() <= 0) {
-            return ItemStack.EMPTY;
-        }
-
-        return itemKey.toStack(1);
+        return MountedAmmoCells.peek(weaponStack, mode(weaponStack));
     }
 
     public static boolean isSpecialLightSaberAmmo(ItemStack ammoStack) {
@@ -705,11 +598,16 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     private boolean isSupportedAmmo(ItemStack weaponStack, ItemStack ammoStack) {
+        return supportsAmmo(mode(weaponStack), ammoStack);
+    }
+
+    /** Ammo filtering applies to a mode's installed disk without modifying its other stored contents. */
+    public static boolean supportsAmmo(MatterConvergingCrossbowMode mode, ItemStack ammoStack) {
         if (ammoStack.isEmpty()) {
             return false;
         }
         Item item = ammoStack.getItem();
-        return item == AEItems.MATTER_BALL.asItem() || item == AEItems.SINGULARITY.asItem() || item instanceof PaintBallItem || this.isDataDustAmmo(ammoStack) || mode(weaponStack) == MatterConvergingCrossbowMode.GRENADE && GrenadePayload.isExplosive(ammoStack);
+        return item == AEItems.MATTER_BALL.asItem() || item == AEItems.SINGULARITY.asItem() || item instanceof PaintBallItem || isSpecialLightSaberAmmo(ammoStack) || mode == MatterConvergingCrossbowMode.GRENADE && GrenadePayload.isExplosive(ammoStack);
     }
 
     private double getDataDustEnergyPerShot(ItemStack stack) {
@@ -783,24 +681,5 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         long updated = current + accepted;
         weaponStack.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_STORED_DATA.get(), updated);
         return accepted;
-    }
-
-    @Override
-    public FuzzyMode getFuzzyMode(ItemStack stack) {
-        return FuzzyMode.IGNORE_ALL;
-    }
-
-    @Override
-    public void setFuzzyMode(ItemStack stack, FuzzyMode fuzzyMode) {}
-
-    private static List<ItemStack> collectUpgradeItems(IUpgradeInventory upgrades) {
-        List<ItemStack> upgradeItems = new ArrayList<>(upgrades.size());
-        for (int i = 0; i < upgrades.size(); i++) {
-            ItemStack upgrade = upgrades.getStackInSlot(i);
-            if (!upgrade.isEmpty()) {
-                upgradeItems.add(upgrade.copy());
-            }
-        }
-        return upgradeItems;
     }
 }

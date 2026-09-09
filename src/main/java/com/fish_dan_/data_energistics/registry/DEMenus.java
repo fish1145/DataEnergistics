@@ -19,6 +19,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlo
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.beam.BeamEndpoint;
 import com.fish_dan_.data_energistics.item.order.OrderPackageMenuHost;
+import com.fish_dan_.data_energistics.item.powered.cannon.storage.CannonCellMenuHost;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumMenuHost;
 import com.fish_dan_.data_energistics.menu.beam.BeamFormerMenu;
 import com.fish_dan_.data_energistics.menu.crafting.tree.CraftingPlanTreeMenu;
@@ -33,6 +34,7 @@ import com.fish_dan_.data_energistics.menu.machine.DataSolarPanelMenu;
 import com.fish_dan_.data_energistics.menu.machine.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.menu.machine.DataTeleportAnchorMenu;
 import com.fish_dan_.data_energistics.menu.patternprovider.AdaptivePatternProviderMenu;
+import com.fish_dan_.data_energistics.menu.powered.MatterConvergingCrossbowConfigMenu;
 import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumInterfaceMenu;
 import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumLargeInterfaceMenu;
 import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumStatusMenu;
@@ -48,7 +50,6 @@ import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDep
 import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenuHost;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalMEStorageMenu;
-import com.fish_dan_.data_energistics.menu.powered.MatterConvergingCrossbowConfigMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternAccessTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.network.trinity.TrinityAutoBuildDefinitionBundleCodec;
@@ -71,7 +72,10 @@ public final class DEMenus {
 
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, Data_Energistics.MODID);
     public static final DeferredHolder<MenuType<?>, MenuType<MatterConvergingCrossbowConfigMenu>> MATTER_CONVERGING_CROSSBOW_CONFIG = MENUS.register(
-            "dark_string_data_settlement_tool_config", () -> IMenuTypeExtension.create(MatterConvergingCrossbowConfigMenu::fromNetwork));
+            "dark_string_data_settlement_tool_config", () -> MenuTypeBuilder
+                    .create(MatterConvergingCrossbowConfigMenu::new, CannonCellMenuHost.class)
+                    .withMenuTitle(host -> host.getItemStack().getHoverName())
+                    .buildUnregistered(Data_Energistics.id("dark_string_data_settlement_tool_config")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<CraftingPlanTreeMenu>> CRAFTING_PLAN_TREE = MENUS.register("crafting_plan_tree", () -> IMenuTypeExtension.create(CraftingPlanTreeMenu::fromNetwork));
 

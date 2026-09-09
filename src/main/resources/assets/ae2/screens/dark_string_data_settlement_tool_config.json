@@ -1,10 +1,41 @@
 {
 	"$schema": "schema.json",
 	"includes": ["common/common.json", "common/player_inventory.json"],
-	"background": {"texture": "guis/background.png", "srcRect": [0, 0, 176, 166]},
-	"slots": {
-		"PLAYER_INVENTORY": {"left": 8, "bottom": 84, "grid": "BREAK_AFTER_9COLS"},
-		"PLAYER_HOTBAR": {"left": 8, "bottom": 26, "grid": "HORIZONTAL"}
+	"background": {
+		"texture": "guis/mode_ammunition_cells.png",
+		"srcRect": [0, 0, 176, 180]
 	},
-	"text": {"dialog_title": {"text": {"translate": "screen.data_energistics.dark_string_data_settlement_tool"}, "position": {"left": 8, "top": 6}}}
+	"slots": {
+		"CANNON_CELL_GRENADE": { "left": 46, "top": 18 },
+		"CANNON_CELL_RAIL": { "left": 46, "top": 44 },
+		"CANNON_CELL_CROSSBOW": { "left": 46, "top": 70 },
+		"CANNON_AMMO_GRENADE": { "left": 115, "top": 18 },
+		"CANNON_AMMO_RAIL": { "left": 115, "top": 44 },
+		"CANNON_AMMO_CROSSBOW": { "left": 115, "top": 70 },
+		"UPGRADE": { "left": 180, "top": 6, "grid": "VERTICAL" },
+		"PLAYER_INVENTORY": { "left": 8, "top": 98, "grid": "BREAK_AFTER_9COLS" },
+		"PLAYER_HOTBAR": { "left": 8, "top": 156, "grid": "HORIZONTAL" }
+	},
+	"text": {
+		"dialog_title": {
+			"text": { "text": "" },
+			"position": { "left": 8, "top": 5 },
+			"maxWidth": 160
+		},
+		"grenade": {
+			"text": { "translate": "screen.data_energistics.cannon.mode.grenade" },
+			"position": { "left": 8, "top": 23 }
+		},
+		"rail": {
+			"text": { "translate": "screen.data_energistics.cannon.mode.rail" },
+			"position": { "left": 8, "top": 49 }
+		},
+		"crossbow": {
+			"text": { "translate": "screen.data_energistics.cannon.mode.crossbow" },
+			"position": { "left": 8, "top": 75 }
+		}
+	},
+	"widgets": {
+		"upgrades": { "left": 174, "top": 0 }
+	}
 }

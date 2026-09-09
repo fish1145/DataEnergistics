@@ -19,6 +19,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.component.ItemContainerContents;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -189,6 +190,14 @@ public final class DEDataComponents {
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<CannonCharge>> CANNON_CHARGE = DATA_COMPONENT_TYPES.register(
             "dark_string_cannon_charge", () -> DataComponentType.<CannonCharge>builder().networkSynchronized(CannonCharge.STREAM_CODEC).build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemContainerContents>> CANNON_CELLS = DATA_COMPONENT_TYPES.register(
+            "cannon_cells", () -> DataComponentType.<ItemContainerContents>builder()
+                    .persistent(ItemContainerContents.CODEC).networkSynchronized(ItemContainerContents.STREAM_CODEC).build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemContainerContents>> CANNON_AMMO_SELECTIONS = DATA_COMPONENT_TYPES.register(
+            "cannon_ammo_selections", () -> DataComponentType.<ItemContainerContents>builder()
+                    .persistent(ItemContainerContents.CODEC).networkSynchronized(ItemContainerContents.STREAM_CODEC).build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> CANNON_SHOT_SEQUENCE = DATA_COMPONENT_TYPES.register(
             "dark_string_cannon_shot_sequence", () -> DataComponentType.<Integer>builder().networkSynchronized(ByteBufCodecs.VAR_INT).build());
