@@ -14,6 +14,9 @@ import com.lowdragmc.lowdraglib2.integration.xei.jei.LDLibJEIPlugin;
 import com.lowdragmc.lowdraglib2.integration.xei.jei.ModularUIJEIWidget;
 import com.lowdragmc.lowdraglib2.integration.xei.jei.handler.JEIRecipeSlotHandler;
 
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
+
 import net.minecraft.client.gui.navigation.ScreenPosition;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -125,7 +128,14 @@ public final class TrinityMultiblockJeiCategory implements IRecipeCategory<Multi
         MultiblockRecipeView view = composition.currentRecipeView();
         // The virtual grid has 18 cells; publish off-page inputs and the hidden order-package output as well.
         builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
-                .addItemStacks(view.inputs().stream().map(material -> ingredientStack(IngredientIO.INPUT, material)).toList());
+                .addItemStacks(view.inputs().stream().filter(material -> material.key() instanceof AEItemKey)
+                        .map(material -> ingredientStack(IngredientIO.INPUT, material)).toList());
+        for (PreviewMaterial material : view.inputs()) {
+            if (material.key() instanceof AEFluidKey fluid) {
+                builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
+                        .addFluidStack(fluid.getFluid(), material.amount());
+            }
+        }
         builder.addInvisibleIngredients(RecipeIngredientRole.OUTPUT)
                 .addItemStack(ingredientStack(IngredientIO.OUTPUT, view.output()));
     }

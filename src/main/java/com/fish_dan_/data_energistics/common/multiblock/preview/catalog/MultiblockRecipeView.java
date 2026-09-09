@@ -7,14 +7,16 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.projection.Struc
 import com.fish_dan_.data_energistics.item.order.OrderPackageTarget;
 
 import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKey;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
+import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -61,7 +63,7 @@ public record MultiblockRecipeView(ResourceLocation registeredRecipeId,
         if (inputs.isEmpty()) {
             throw new IllegalArgumentException("Multiblock recipe view requires at least one material input");
         }
-        Set<AEItemKey> inputKeys = new HashSet<>();
+        Set<AEKey> inputKeys = new HashSet<>();
         for (PreviewMaterial input : inputs) {
             if (!inputKeys.add(input.key())) {
                 throw new IllegalArgumentException("Multiblock recipe view contains a duplicate material input key");
@@ -106,13 +108,13 @@ public record MultiblockRecipeView(ResourceLocation registeredRecipeId,
 
     private static List<PreviewMaterial> mergeControllerInput(List<PreviewMaterial> materials,
                                                               AEItemKey controller) {
-        Map<AEItemKey, Long> amounts = new LinkedHashMap<>();
+        Object2LongMap<AEKey> amounts = new Object2LongLinkedOpenHashMap<>();
         for (PreviewMaterial material : materials) {
-            amounts.merge(material.key(), material.amount(), Math::addExact);
+            amounts.mergeLong(material.key(), material.amount(), Math::addExact);
         }
-        amounts.compute(controller, (unused, current) -> current == null ? 1L : Math.addExact(current, 1L));
-        return amounts.entrySet().stream()
-                .map(entry -> new PreviewMaterial(entry.getKey(), entry.getValue()))
+        amounts.mergeLong(controller, 1L, Math::addExact);
+        return amounts.object2LongEntrySet().stream()
+                .map(entry -> new PreviewMaterial(entry.getKey(), entry.getLongValue()))
                 .toList();
     }
 

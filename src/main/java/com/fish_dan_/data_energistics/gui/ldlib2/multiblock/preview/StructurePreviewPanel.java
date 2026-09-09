@@ -523,7 +523,7 @@ public final class StructurePreviewPanel extends UIElement {
             this.selectedBlockSlot.setItem(ItemStack.EMPTY);
             return;
         }
-        this.selectedBlockSlot.setItem(candidate.placementKey().orElseThrow().toStack(1));
+        this.selectedBlockSlot.setItem(candidate.displayStack());
     }
 
     private Component variantText() {

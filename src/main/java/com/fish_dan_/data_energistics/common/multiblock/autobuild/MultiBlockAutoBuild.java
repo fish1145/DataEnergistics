@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.common.multiblock.autobuild;
 
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPredicateKey;
 
+import appeng.api.networking.IGrid;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -16,6 +18,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * Builds one resolved MDLib pattern through a two-phase inventory-and-world operation.
@@ -190,6 +193,7 @@ public interface MultiBlockAutoBuild {
          * Host-owned allowlist for direct silent state staging.
          */
         private final StagingPolicy stagingPolicy;
+        private final Supplier<@Nullable IGrid> materialGrid;
 
         private Context(Builder builder) {
             this.level = builder.level;
@@ -206,6 +210,7 @@ public interface MultiBlockAutoBuild {
             this.tierRanks = Map.copyOf(builder.tierRanks);
             this.partSideResolver = builder.partSideResolver;
             this.stagingPolicy = builder.stagingPolicy;
+            this.materialGrid = builder.materialGrid;
             if (this.structureName.isBlank()) {
                 throw new IllegalArgumentException("Auto-build structure name cannot be blank");
             }
@@ -331,6 +336,13 @@ public interface MultiBlockAutoBuild {
         }
 
         /**
+         * Resolves the host's currently accessible ME grid, rechecked before material mutations on the server thread.
+         */
+        public Supplier<@Nullable IGrid> materialGrid() {
+            return this.materialGrid;
+        }
+
+        /**
          * Collects context fields by name before creating the immutable execution context.
          */
         public static final class Builder {
@@ -391,6 +403,7 @@ public interface MultiBlockAutoBuild {
              * Defaults to denial so generic item placement cannot bypass the two-phase transaction contract.
              */
             private StagingPolicy stagingPolicy = StagingPolicy.REJECT_ALL;
+            private Supplier<@Nullable IGrid> materialGrid = () -> null;
 
             private Builder() {}
 
@@ -521,6 +534,12 @@ public interface MultiBlockAutoBuild {
              */
             public Builder stagingPolicy(StagingPolicy stagingPolicy) {
                 this.stagingPolicy = stagingPolicy;
+                return this;
+            }
+
+            /** Supplies a live host-grid binding; null results allow wireless and recursive player sources. */
+            public Builder materialGrid(Supplier<@Nullable IGrid> materialGrid) {
+                this.materialGrid = materialGrid;
                 return this;
             }
 

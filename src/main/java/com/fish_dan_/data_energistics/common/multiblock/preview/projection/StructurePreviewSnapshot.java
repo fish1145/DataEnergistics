@@ -8,13 +8,13 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSel
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewViewState;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewVisibleLayer;
 
-import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKey;
 
 import net.minecraft.core.BlockPos;
 
 import com.modularmc.mdl.api.multiblock.PatternBounds;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -51,7 +51,7 @@ public record StructurePreviewSnapshot(PreviewSelection selection,
             throw new IllegalArgumentException("Structure preview definition does not match the active selection");
         }
         validateContents(layers, cells, bounds);
-        Set<AEItemKey> materialKeys = new HashSet<>();
+        Set<AEKey> materialKeys = new ObjectOpenHashSet<>();
         for (PreviewMaterial material : materials) {
             if (!materialKeys.add(material.key())) {
                 throw new IllegalArgumentException("Structure preview materials contain a duplicate item key");
