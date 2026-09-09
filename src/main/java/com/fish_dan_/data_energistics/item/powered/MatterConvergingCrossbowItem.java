@@ -36,8 +36,11 @@ import appeng.util.ConfigInventory;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -110,6 +113,16 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     public static boolean isCannon(ItemStack stack) {
         return stack.getItem() instanceof MatterConvergingCrossbowItem && mode(stack) != MatterConvergingCrossbowMode.CROSSBOW;
+    }
+
+    public boolean selectCannonAmmo(ItemStack weaponStack, ResourceLocation itemId) {
+        Item item = BuiltInRegistries.ITEM.get(itemId);
+        ItemStack candidate = new ItemStack(item);
+        if (item == Items.AIR || !this.isSupportedAmmo(weaponStack, candidate)) return false;
+        StorageCell inventory = StorageCells.getCellInventory(weaponStack, (ISaveProvider) null);
+        if (inventory == null || inventory.getAvailableStacks().get(AEItemKey.of(item)) <= 0) return false;
+        weaponStack.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_SELECTED_AMMO.get(), itemId);
+        return true;
     }
 
     /** Server entry for a left-button press. No ammo or energy is spent until release. */
@@ -653,6 +666,12 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             return ItemStack.EMPTY;
         }
 
+        ResourceLocation selected = weaponStack.get(DEDataComponents.MATTER_CONVERGING_CROSSBOW_SELECTED_AMMO.get());
+        if (selected != null) {
+            Item selectedItem = BuiltInRegistries.ITEM.get(selected);
+            AEItemKey selectedKey = AEItemKey.of(selectedItem);
+            if (selectedItem != Items.AIR && inventory.getAvailableStacks().get(selectedKey) > 0) return selectedKey.toStack(1);
+        }
         var firstEntry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
         if (firstEntry == null || !(firstEntry.getKey() instanceof AEItemKey itemKey) || firstEntry.getLongValue() <= 0) {
             return ItemStack.EMPTY;

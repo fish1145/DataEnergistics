@@ -667,6 +667,7 @@
 	"item.data_energistics.dark_string_data_settlement_tool.mode.entropy_thread_bow": "§5§lDigitized§r§f-§dEntropy Thread Bow",
 	"item.data_energistics.dark_string_data_settlement_tool.projectile": "Projectile: [%s]",
 	"item.data_energistics.dark_string_data_settlement_tool.projectile.none": "None",
+	"screen.data_energistics.dark_string_data_settlement_tool": "Darkstring Data Settlement Tool Configuration",
 	"item.data_energistics.me_beam_former_part": "ME Beam Former",
 	"item.data_energistics.me_data_solar_panel_part": "ME Data Solar Panel",
 	"item.data_energistics.me_solar_panel_part": "ME Solar Panel",

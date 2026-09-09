@@ -667,6 +667,7 @@
 	"item.data_energistics.dark_string_data_settlement_tool.mode.entropy_thread_bow": "§5§l数位化§r§f-§d熵丝弦",
 	"item.data_energistics.dark_string_data_settlement_tool.projectile": "弹射物：[%s]",
 	"item.data_energistics.dark_string_data_settlement_tool.projectile.none": "无",
+	"screen.data_energistics.dark_string_data_settlement_tool": "暗弦数据清算工具配置",
 	"item.data_energistics.me_beam_former_part": "ME 光束成型器",
 	"item.data_energistics.me_data_solar_panel_part": "ME 数据太阳能贴片",
 	"item.data_energistics.me_solar_panel_part": "ME太阳能板",

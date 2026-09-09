@@ -179,6 +179,14 @@ public final class DEDataComponents {
                     .cacheEncoding()
                     .build());
 
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ResourceLocation>> MATTER_CONVERGING_CROSSBOW_SELECTED_AMMO = DATA_COMPONENT_TYPES.register(
+            "dark_string_data_settlement_tool_selected_ammo",
+            () -> DataComponentType.<ResourceLocation>builder()
+                    .persistent(ResourceLocation.CODEC)
+                    .networkSynchronized(ResourceLocation.STREAM_CODEC)
+                    .cacheEncoding()
+                    .build());
+
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<CannonCharge>> CANNON_CHARGE = DATA_COMPONENT_TYPES.register(
             "dark_string_cannon_charge", () -> DataComponentType.<CannonCharge>builder().networkSynchronized(CannonCharge.STREAM_CODEC).build());
 
