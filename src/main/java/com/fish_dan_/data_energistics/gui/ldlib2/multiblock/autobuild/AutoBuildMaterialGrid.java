@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.material.Preview
 
 import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.FluidSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller;
@@ -12,8 +13,12 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import com.lowdragmc.lowdraglib2.integration.xei.IngredientIO;
 
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AmountFormat;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.fluids.FluidStack;
 
 import dev.vfyjxf.taffy.style.TaffyPosition;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -109,6 +114,12 @@ final class AutoBuildMaterialGrid extends UIElement {
                 .height(CELL_SIZE));
         slot.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
 
+        FluidSlot fluid = new FluidSlot();
+        fluid.setId(root.getId() + "_fluid");
+        fluid.amountLabel.setVisible(false);
+        if (this.recipeRole == IngredientIO.INPUT) fluid.xeiRecipeSlot(IngredientIO.INPUT, 1.0f);
+        fluid.layout(layout -> layout.positionType(TaffyPosition.ABSOLUTE).left(0).top(0).width(CELL_SIZE).height(CELL_SIZE));
+
         Label amount = new Label();
         amount.setId(root.getId() + "_amount");
         amount.addClass("trinity-auto-build-material-amount");
@@ -122,8 +133,8 @@ final class AutoBuildMaterialGrid extends UIElement {
                 .width(CELL_SIZE - 2)
                 .height(7));
 
-        root.addChildren(slot, amount);
-        MaterialEntry entry = new MaterialEntry(root, slot, amount);
+        root.addChildren(slot, fluid, amount);
+        MaterialEntry entry = new MaterialEntry(root, slot, fluid, amount);
         deactivate(entry);
         return entry;
     }
@@ -177,8 +188,13 @@ final class AutoBuildMaterialGrid extends UIElement {
     private void activate(MaterialEntry entry, PreviewMaterial material) {
         entry.root().setVisible(true);
         int displayAmount = this.recipeRole == IngredientIO.INPUT ? xeiAmount(material) : 1;
-        entry.slot().setItem(material.key().toStack(displayAmount));
-        entry.amount().setText(Component.literal(this.amountFormatter.apply(material.amount())));
+        boolean isFluid = material.key() instanceof AEFluidKey;
+        entry.slot().setVisible(!isFluid);
+        entry.fluid().setVisible(isFluid);
+        entry.slot().setItem(isFluid ? ItemStack.EMPTY : material.displayStack(displayAmount));
+        entry.fluid().setFluid(isFluid ? ((AEFluidKey) material.key()).toStack(Math.toIntExact(material.amount())) : FluidStack.EMPTY);
+        entry.amount().setText(Component.literal(isFluid ? material.key().formatAmount(material.amount(), AmountFormat.SLOT) :
+                this.amountFormatter.apply(material.amount())));
     }
 
     private static int xeiAmount(PreviewMaterial material) {
@@ -191,11 +207,12 @@ final class AutoBuildMaterialGrid extends UIElement {
 
     private static void deactivate(MaterialEntry entry) {
         entry.slot().setItem(ItemStack.EMPTY);
+        entry.fluid().setFluid(FluidStack.EMPTY);
         entry.amount().setText(Component.empty());
         entry.root().setVisible(false);
     }
 
-    private record MaterialEntry(UIElement root, ItemSlot slot, Label amount) {}
+    private record MaterialEntry(UIElement root, ItemSlot slot, FluidSlot fluid, Label amount) {}
 
     /** Keeps the recipe count intact while the authored amount label owns visible quantity rendering. */
     private static final class MaterialItemSlot extends ItemSlot {

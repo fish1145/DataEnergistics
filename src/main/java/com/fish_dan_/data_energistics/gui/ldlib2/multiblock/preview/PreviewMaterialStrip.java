@@ -116,7 +116,7 @@ public final class PreviewMaterialStrip extends ScrollerView {
                 .top(0)
                 .width(labelWidth)
                 .height(SLOT_SIZE));
-        entry.slot().setItem(material.key().toStack(1));
+        entry.slot().setItem(material.displayStack(1));
         entry.amount().setText(Component.translatable(AMOUNT_KEY, material.amount()));
     }
 
