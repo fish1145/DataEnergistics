@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.item.powered;
 import com.fish_dan_.data_energistics.entity.projectile.MatterConvergingBoltEntity;
 import com.fish_dan_.data_energistics.entity.projectile.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.CannonShot;
-import com.fish_dan_.data_energistics.entity.projectile.cannon.TntPayload;
+import com.fish_dan_.data_energistics.entity.projectile.cannon.GrenadePayload;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonCharge;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
@@ -594,7 +594,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         }
 
         Item item = itemKey.getItem();
-        return item != AEItems.MATTER_BALL.asItem() && item != AEItems.SINGULARITY.asItem() && !(item instanceof PaintBallItem) && item != DEItems.DATA_LIGHT_SABER.get() && !(mode(stack) == MatterConvergingCrossbowMode.GRENADE && TntPayload.isTnt(itemKey.toStack(1)));
+        return item != AEItems.MATTER_BALL.asItem() && item != AEItems.SINGULARITY.asItem() && !(item instanceof PaintBallItem) && item != DEItems.DATA_LIGHT_SABER.get() && !(mode(stack) == MatterConvergingCrossbowMode.GRENADE && GrenadePayload.isExplosive(itemKey.toStack(1)));
     }
 
     @Override
@@ -679,7 +679,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             return false;
         }
         Item item = ammoStack.getItem();
-        return item == AEItems.MATTER_BALL.asItem() || item == AEItems.SINGULARITY.asItem() || item instanceof PaintBallItem || this.isDataDustAmmo(ammoStack) || mode(weaponStack) == MatterConvergingCrossbowMode.GRENADE && TntPayload.isTnt(ammoStack);
+        return item == AEItems.MATTER_BALL.asItem() || item == AEItems.SINGULARITY.asItem() || item instanceof PaintBallItem || this.isDataDustAmmo(ammoStack) || mode(weaponStack) == MatterConvergingCrossbowMode.GRENADE && GrenadePayload.isExplosive(ammoStack);
     }
 
     private double getDataDustEnergyPerShot(ItemStack stack) {

@@ -81,6 +81,10 @@ public final class ModFlags {
         return isLoaded("brandonscore");
     }
 
+    public static boolean isDraconicEvolutionLoaded() {
+        return isLoaded("draconicevolution");
+    }
+
     public static boolean isNeoEcoAeLoaded() {
         return isLoaded("neoecoae");
     }

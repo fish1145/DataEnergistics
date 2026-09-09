@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.entity.projectile;
 
 import com.fish_dan_.data_energistics.entity.projectile.cannon.CannonShot;
-import com.fish_dan_.data_energistics.entity.projectile.cannon.TntPayload;
+import com.fish_dan_.data_energistics.entity.projectile.cannon.GrenadePayload;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
@@ -217,7 +217,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
     @Override
     protected void onHitEntity(EntityHitResult result) {
-        if (this.detonateTnt(result)) return;
+        if (this.detonatePayload(result)) return;
         Entity owner = this.getOwner();
         Entity target = result.getEntity();
         LivingEntity livingTarget = this.resolveLivingTarget(target);
@@ -263,13 +263,13 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
     @Override
     protected void onHitBlock(BlockHitResult result) {
-        if (this.detonateTnt(result)) return;
+        if (this.detonatePayload(result)) return;
         super.onHitBlock(result);
         this.discardWithEffects();
     }
 
-    private boolean detonateTnt(HitResult result) {
-        if (this.firingMode() != MatterConvergingCrossbowMode.GRENADE || !TntPayload.isTnt(this.getItem())) return false;
+    private boolean detonatePayload(HitResult result) {
+        if (this.firingMode() != MatterConvergingCrossbowMode.GRENADE || !GrenadePayload.isExplosive(this.getItem())) return false;
         if (!this.isRemoved() && this.level() instanceof ServerLevel serverLevel) {
             this.discard();
             Vec3 impact = result.getLocation();
@@ -277,7 +277,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
             if (blockHit != null) {
                 impact = impact.add(Vec3.atLowerCornerOf(blockHit.getDirection().getNormal()).scale(0.001D));
             }
-            TntPayload.detonate(serverLevel, this.getItem(), impact, blockHit == null ? null : blockHit.getDirection(),
+            GrenadePayload.detonate(serverLevel, this.getItem(), impact, blockHit == null ? null : blockHit.getDirection(),
                     this.getOwner() instanceof LivingEntity livingOwner ? livingOwner : null);
         }
         return true;
