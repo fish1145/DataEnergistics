@@ -274,7 +274,7 @@ final class PreviewCandidateColumn extends UIElement {
 
         private CandidateChoice(PreviewCandidate candidate, Runnable selection) {
             this(
-                    candidate.placementKey().map(key -> key.toStack(1)).orElse(ItemStack.EMPTY),
+                    candidate.displayStack(),
                     candidate.placementKey()
                             .<Component>map(key -> key.getDisplayName().copy())
                             .orElseGet(() -> Component.translatable("block.minecraft.air")),

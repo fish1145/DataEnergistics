@@ -14,12 +14,14 @@ import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewPre
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewSelection;
 import com.fish_dan_.data_energistics.common.multiblock.preview.model.PreviewTierDomain;
 
+import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import com.modularmc.mdl.api.multiblock.BlockPattern;
@@ -213,6 +215,12 @@ public final class MdlibNorthFacingStructurePreviewProjection implements Structu
             PreviewCandidate candidate = PreviewCandidate.concrete(state, placementKey);
             if (!result.contains(candidate)) {
                 result.add(candidate);
+            }
+        }
+        for (BlockState state : predicate.blockStateCandidates()) {
+            if (state.getBlock() instanceof LiquidBlock && state.getFluidState().isSource()) {
+                PreviewCandidate candidate = PreviewCandidate.concrete(state, AEFluidKey.of(state.getFluidState().getType()));
+                if (!result.contains(candidate)) result.add(candidate);
             }
         }
         return List.copyOf(result);

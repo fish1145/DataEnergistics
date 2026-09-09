@@ -54,6 +54,6 @@ public record MultiblockXeiIngredient(IngredientIO io, PreviewMaterial material)
                     "XEI material amount exceeds the ItemStack int range: " + this.material.amount(),
                     exception);
         }
-        return this.material.key().toStack(amount);
+        return this.material.displayStack(amount);
     }
 }

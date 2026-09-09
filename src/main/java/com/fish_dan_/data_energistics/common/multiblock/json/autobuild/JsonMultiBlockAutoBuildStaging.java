@@ -11,6 +11,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import com.modularmc.mdl.api.multiblock.PatternCandidate;
@@ -68,7 +69,7 @@ public final class JsonMultiBlockAutoBuildStaging {
             StructurePredicate predicate = requiredPredicate(resourceId, symbol, usedSymbols, predicates);
             boolean physical = metadata.physicalBlockSymbols().contains(symbol);
             for (BlockState state : requiredBaseBlockStates(resourceId, symbol, predicate)) {
-                if (physical && state.hasBlockEntity()) {
+                if (physical && (state.hasBlockEntity() || state.getBlock() instanceof LiquidBlock)) {
                     throw new IllegalArgumentException("JSON multiblock physical staging symbol '" + symbol +
                             "' resolves a block-entity state: " + resourceId);
                 }
@@ -188,6 +189,9 @@ public final class JsonMultiBlockAutoBuildStaging {
             if (candidate.placementStack().getItem() instanceof BlockItem) {
                 states.add(candidate.previewState());
             }
+        }
+        for (BlockState state : predicate.blockStateCandidates()) {
+            if (state.getBlock() instanceof LiquidBlock && state.getFluidState().isSource()) states.add(state);
         }
         return List.copyOf(states);
     }
