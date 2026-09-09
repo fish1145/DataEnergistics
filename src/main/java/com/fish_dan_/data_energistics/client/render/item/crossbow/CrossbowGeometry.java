@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.client.render.item.crossbow;
 
+import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.BlockElement;
 import net.minecraft.client.renderer.block.model.FaceBakery;
@@ -75,6 +77,14 @@ public final class CrossbowGeometry implements IUnbakedGeometry<CrossbowGeometry
         for (int i = 0; i < active.size(); i++) {
             Part from = folded.get(i);
             Part to = active.get(i);
+            if (pose.mode() == MatterConvergingCrossbowMode.GRENADE) {
+                append(quads, from.quads, new Matrix4f(root).mul(from.pose.matrix()));
+                continue;
+            }
+            if (pose.mode() == MatterConvergingCrossbowMode.RAIL && to.deployment == CrossbowDeployment.BOW) {
+                append(quads, from.quads, new Matrix4f(root).mul(from.pose.matrix()));
+                continue;
+            }
             Matrix4f transform = new Matrix4f(root).mul(rig.transform(from.pose, to.pose, to.deployment, to.motion));
             append(quads, pose.deployment() == 0.0F ? from.quads : to.quads, transform);
         }

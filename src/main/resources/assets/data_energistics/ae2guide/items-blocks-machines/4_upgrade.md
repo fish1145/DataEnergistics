@@ -18,7 +18,7 @@ item_ids:
     <RecipeFor id="data_energistics:card_saber_energy" />
 </Row>
 Saber Energy Card:  
-<ItemImage id="data_energistics:matter_converging_crossbow" /> : Final damage = base damage × (Saber Energy Card quantity × 2) × Current speed (3.15) [critical hit × 1.5] when <ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" /> increases the maximum percentage true damage by 5% when ammo  
+<ItemImage id="data_energistics:dark_string_data_settlement_tool" /> : Final damage = base damage × (Saber Energy Card quantity × 2) × Current speed (3.15) [critical hit × 1.5] when <ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" /> increases the maximum percentage true damage by 5% when ammo
 <ItemImage id="data_energistics:data_light_saber" /> : Max damage = base damage × (Saber Energy Cards × 2). Adds 40 AE to the action cost (50 AE total). A powered <ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" /> can fire a light blade on left-click, while <ItemImage id="data_energistics:data_sanctifier" components="ae2:stored_energy=20000.0d" /> becomes twice its normal size.  
 <ItemImage id="data_energistics:data_crystal_cutting_knife" /> : Expand the transmission range  
 The following tools will also add a Data Flow storage slot  
@@ -55,7 +55,7 @@ It supports the AE2 Pattern Provider, Adaptive Pattern Provider, and other compa
 ### Matter Converging Crossbow
 
 <Row>
-    <ItemImage id="data_energistics:matter_converging_crossbow" />
+    <ItemImage id="data_energistics:dark_string_data_settlement_tool" />
 </Row>
 
 After installation, the energy consumption per round of regular ammo becomes five times the base energy consumption, and the projectile tracks the nearest non-player living entity.

@@ -163,10 +163,18 @@ public final class DEDataComponents {
                     .build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> MATTER_CONVERGING_CROSSBOW_STORED_DATA = DATA_COMPONENT_TYPES.register(
-            "matter_converging_crossbow_stored_data",
+            "dark_string_data_settlement_tool_stored_data",
             () -> DataComponentType.<Long>builder()
                     .persistent(Codec.LONG)
                     .networkSynchronized(ByteBufCodecs.VAR_LONG)
+                    .cacheEncoding()
+                    .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> MATTER_CONVERGING_CROSSBOW_MODE = DATA_COMPONENT_TYPES.register(
+            "dark_string_data_settlement_tool_mode",
+            () -> DataComponentType.<Integer>builder()
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
                     .cacheEncoding()
                     .build());
 

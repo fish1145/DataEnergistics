@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.render.item.crossbow;
 
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
+import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -49,7 +50,8 @@ final class CrossbowBakedModel extends BakedModelWrapper<BakedModel> {
         this.specialAmmo = specialAmmo;
         this.root = root;
         this.foldedQuads = CrossbowGeometry.render(frames, specialAmmo, CrossbowAnimation.Pose.stationary(false), false, root);
-        this.idleQuads = CrossbowGeometry.render(frames, specialAmmo, new CrossbowAnimation.Pose(1.0F, 0.0F, 0), false, root);
+        this.idleQuads = CrossbowGeometry.render(frames, specialAmmo,
+                new CrossbowAnimation.Pose(1.0F, 0.0F, 0, 0.0F, MatterConvergingCrossbowMode.CROSSBOW), false, root);
         this.loadedQuads = CrossbowGeometry.render(frames, specialAmmo, CrossbowAnimation.Pose.stationary(true), false, root);
         this.specialQuads = CrossbowGeometry.render(frames, specialAmmo, CrossbowAnimation.Pose.stationary(true), true, root);
         this.overrides = new ItemOverrides() {

@@ -211,9 +211,12 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> lines,
                                 TooltipFlag tooltipFlag) {
+        MatterConvergingCrossbowMode mode = MatterConvergingCrossbowMode.fromId(
+                stack.getOrDefault(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), MatterConvergingCrossbowMode.GRENADE.id()));
+        lines.add(Component.translatable("item.data_energistics.dark_string_data_settlement_tool.mode." + mode.nameKey()));
         lines.add(Tooltips.energyStorageComponent(this.getAECurrentPower(stack), this.getAEMaxPower(stack)));
         this.addCellInformationToTooltip(stack, lines);
-        lines.add(Component.translatable("item.data_energistics.matter_converging_crossbow.projectile",
+        lines.add(Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile",
                 this.getDisplayedAmmoName(stack)));
     }
 
@@ -406,16 +409,16 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     private Component getDisplayedAmmoName(ItemStack weaponStack) {
         StorageCell inventory = StorageCells.getCellInventory(weaponStack, (ISaveProvider) null);
         if (inventory == null) {
-            return Component.translatable("item.data_energistics.matter_converging_crossbow.projectile.none");
+            return Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile.none");
         }
 
         var firstEntry = inventory.getAvailableStacks().getFirstEntry(AEItemKey.class);
         if (firstEntry == null || !(firstEntry.getKey() instanceof AEItemKey itemKey) || firstEntry.getLongValue() <= 0) {
-            return Component.translatable("item.data_energistics.matter_converging_crossbow.projectile.none");
+            return Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile.none");
         }
         ItemStack ammo = itemKey.toStack(1);
         if (!this.isSupportedAmmo(ammo)) {
-            return Component.translatable("item.data_energistics.matter_converging_crossbow.projectile.none");
+            return Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile.none");
         }
         return ammo.getHoverName();
     }

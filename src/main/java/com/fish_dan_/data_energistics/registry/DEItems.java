@@ -335,7 +335,7 @@ public final class DEItems {
             "radix_containment_sphere",
             () -> new RadixContainmentSphereItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<MatterConvergingCrossbowItem> MATTER_CONVERGING_CROSSBOW = ITEMS.register(
-            "matter_converging_crossbow",
+            "dark_string_data_settlement_tool",
             () -> new MatterConvergingCrossbowItem(new Item.Properties()));
     public static final DeferredItem<DataRipperPartItem> DATA_RIPPER = ITEMS.register("data_ripper",
             () -> new DataRipperPartItem(new Item.Properties()));

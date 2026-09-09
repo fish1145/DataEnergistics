@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.client.render.item.crossbow;
 
+import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+
 /** One hand's visual timeline. Update once per client tick and interpolate during rendering. */
 public final class CrossbowAnimation {
 
@@ -10,6 +12,7 @@ public final class CrossbowAnimation {
     private boolean held;
     private boolean active;
     private boolean charged;
+    private MatterConvergingCrossbowMode mode = MatterConvergingCrossbowMode.GRENADE;
     private float previousDeployment;
     private float deployment;
     private float previousDraw;
@@ -21,20 +24,22 @@ public final class CrossbowAnimation {
     private int recoilTicks;
 
     /** Observes actual use/loaded state; never changes item components or gameplay timing. */
-    public void tick(boolean held, boolean using, boolean charged, float progress) {
+    public void tick(boolean held, boolean using, boolean charged, float progress, MatterConvergingCrossbowMode mode) {
         if (!Float.isFinite(progress) || progress < 0.0F || progress > 1.0F) {
             throw new IllegalArgumentException("Crossbow charge progress must be in [0, 1]");
         }
-        if (!this.initialized || held && !this.held) {
+        if (!this.initialized || held && !this.held || mode != this.mode && held) {
             this.initialized = true;
-            this.deployment = held ? 1.0F / DEPLOY_TICKS : 0.0F;
+            this.deployment = held ? initialDeployment(this.mode, mode) : 0.0F;
             this.previousDeployment = 0.0F;
             this.draw = charged ? 1.0F : using ? progress : 0.0F;
             this.previousDraw = this.draw;
         } else {
             this.previousDeployment = this.deployment;
             this.previousDraw = this.draw;
-            this.deployment = Math.clamp(this.deployment + (held ? 1.0F : -1.0F) / DEPLOY_TICKS, 0.0F, 1.0F);
+            float target = held ? targetDeployment(mode) : 0.0F;
+            this.deployment += Math.signum(target - this.deployment) / DEPLOY_TICKS;
+            if (Math.abs(target - this.deployment) < 1.0F / DEPLOY_TICKS) this.deployment = target;
         }
         if (charged || using) {
             this.draw = charged ? 1.0F : progress;
@@ -55,6 +60,7 @@ public final class CrossbowAnimation {
         this.held = held;
         this.active = using || charged;
         this.charged = charged;
+        this.mode = mode;
     }
 
     /** Read-only frame sampling; all renders of a hand share the same tick state. */
@@ -63,7 +69,7 @@ public final class CrossbowAnimation {
         float draw = this.previousDraw + (this.draw - this.previousDraw) * partial;
         float recoil = this.previousRecoil + (this.recoil - this.previousRecoil) * partial;
         int stage = this.charged ? 3 : this.active ? Math.min(3, 1 + (int) (draw * 3.0F)) : 0;
-        return new Pose(this.previousDeployment + (this.deployment - this.previousDeployment) * partial, draw, stage, recoil);
+        return new Pose(this.previousDeployment + (this.deployment - this.previousDeployment) * partial, draw, stage, recoil, this.mode);
     }
 
     private static float smooth(float value) {
@@ -79,10 +85,22 @@ public final class CrossbowAnimation {
         return 0.0F;
     }
 
-    public record Pose(float deployment, float draw, int stage, float recoil) {
+    private static float targetDeployment(MatterConvergingCrossbowMode mode) {
+        return switch (mode) {
+            case RAIL -> 12.0F / DEPLOY_TICKS;
+            case CROSSBOW -> 1.0F;
+            case GRENADE -> 0.0F;
+        };
+    }
+
+    private static float initialDeployment(MatterConvergingCrossbowMode previousMode, MatterConvergingCrossbowMode mode) {
+        return previousMode == MatterConvergingCrossbowMode.RAIL && mode == MatterConvergingCrossbowMode.CROSSBOW ? 12.0F / DEPLOY_TICKS : 0.0F;
+    }
+
+    public record Pose(float deployment, float draw, int stage, float recoil, MatterConvergingCrossbowMode mode) {
 
         public Pose(float deployment, float draw, int stage) {
-            this(deployment, draw, stage, 0.0F);
+            this(deployment, draw, stage, 0.0F, MatterConvergingCrossbowMode.GRENADE);
         }
 
         public float railDeployment() {
@@ -114,7 +132,7 @@ public final class CrossbowAnimation {
         }
 
         public static Pose stationary(boolean charged) {
-            return charged ? new Pose(1.0F, 1.0F, 3, 0.0F) : new Pose(0.0F, 0.0F, 0, 0.0F);
+            return charged ? new Pose(1.0F, 1.0F, 3, 0.0F, MatterConvergingCrossbowMode.CROSSBOW) : new Pose(0.0F, 0.0F, 0, 0.0F, MatterConvergingCrossbowMode.GRENADE);
         }
     }
 }

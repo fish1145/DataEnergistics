@@ -18,7 +18,7 @@ item_ids:
     <RecipeFor id="data_energistics:card_saber_energy" />
 </Row>
 聚能卡:  
-<ItemImage id="data_energistics:matter_converging_crossbow" /> : 最终伤害 = 基础伤害 × (聚能卡数量 × 2) × 当前速度(3.15) [暴击再 × 1.5]  当<ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" />为弹药时增加5%最大百分比真实伤害  
+<ItemImage id="data_energistics:dark_string_data_settlement_tool" /> : 最终伤害 = 基础伤害 × (聚能卡数量 × 2) × 当前速度(3.15) [暴击再 × 1.5]  当<ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" />为弹药时增加5%最大百分比真实伤害
 <ItemImage id="data_energistics:data_light_saber" /> : 最大伤害 = 基础伤害 × (聚能卡数量 × 2) 增加40ae额外耗能（总耗电 50ae）, <ItemImage id="data_energistics:data_light_saber" components="ae2:stored_energy=20000.0d" />左键攻击可以发射出光刃,<ItemImage id="data_energistics:data_sanctifier" components="ae2:stored_energy=20000.0d" />的体型会比原本大一倍  
 <ItemImage id="data_energistics:data_crystal_cutting_knife" /> : 扩大传送范围  
 以下工具还会增加一个数据流存储槽  
@@ -55,7 +55,7 @@ item_ids:
 ### 物质聚合弩
 
 <Row>
-    <ItemImage id="data_energistics:matter_converging_crossbow" />
+    <ItemImage id="data_energistics:dark_string_data_settlement_tool" />
 </Row>
 
 安装后，普通弹药的单发耗能变为基础耗能的 5 倍，同时弹射物会追踪距离最近的非玩家活体。

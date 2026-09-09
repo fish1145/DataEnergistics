@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.client.render.item.crossbow;
 
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
+import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
@@ -45,6 +47,8 @@ public final class CrossbowAnimationStates {
                 HandAnimation tracked = handEntry.getValue();
                 ItemStack stack = entity.getItemInHand(hand);
                 boolean held = stack.getItem() instanceof MatterConvergingCrossbowItem;
+                MatterConvergingCrossbowMode mode = held ? MatterConvergingCrossbowMode.fromId(
+                        stack.getOrDefault(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), MatterConvergingCrossbowMode.GRENADE.id())) : MatterConvergingCrossbowMode.GRENADE;
                 int slot = slot(entity, hand);
                 if (tracked.slot() != slot) {
                     tracked = new HandAnimation(slot, held ? new CrossbowAnimation() : tracked.animation());
@@ -53,7 +57,7 @@ public final class CrossbowAnimationStates {
                 boolean using = held && entity.isUsingItem() && entity.getUsedItemHand() == hand;
                 boolean charged = held && CrossbowItem.isCharged(stack);
                 float progress = using ? Mth.clamp((float) (stack.getUseDuration(entity) - entity.getUseItemRemainingTicks()) / MatterConvergingCrossbowItem.getChargeDuration(stack, entity), 0.0F, 1.0F) : 0.0F;
-                tracked.animation().tick(held, using, charged, progress);
+                tracked.animation().tick(held, using, charged, progress, mode);
             }
         }
     }

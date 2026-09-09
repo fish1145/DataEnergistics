@@ -14,5 +14,7 @@ final class ClientKeyMappingRegistrar {
         event.register(DEKeyMappings.TOGGLE_DIGITAL_STORAGE_DEPOT_BUCKET_MODE);
         event.register(DEKeyMappings.PREVIOUS_TRINITY_CYCLE);
         event.register(DEKeyMappings.NEXT_TRINITY_CYCLE);
+        event.register(DEKeyMappings.TOGGLE_CROSSBOW_RAIL);
+        event.register(DEKeyMappings.TOGGLE_CROSSBOW_ARMS);
     }
 }

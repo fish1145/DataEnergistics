@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.client.render.item.crossbow;
 
+import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -20,6 +22,9 @@ final class CrossbowRig {
     Matrix4f transform(CrossbowPartPose folded, CrossbowPartPose deployed,
                        CrossbowDeployment group, CrossbowMotion motion) {
         if (this.pose.deployment() == 0.0F) {
+            return folded.matrix();
+        }
+        if (this.pose.mode() == MatterConvergingCrossbowMode.GRENADE || this.pose.mode() == MatterConvergingCrossbowMode.RAIL && group == CrossbowDeployment.BOW) {
             return folded.matrix();
         }
         if (motion == CrossbowMotion.FIXED) {

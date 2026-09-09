@@ -33,6 +33,16 @@ public final class DEKeyMappings {
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_RIGHT_BRACKET,
             KEY_CATEGORY);
+    public static final KeyMapping TOGGLE_CROSSBOW_RAIL = new KeyMapping(
+            "key.data_energistics.toggle_crossbow_rail",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_V,
+            KEY_CATEGORY);
+    public static final KeyMapping TOGGLE_CROSSBOW_ARMS = new KeyMapping(
+            "key.data_energistics.toggle_crossbow_arms",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_B,
+            KEY_CATEGORY);
 
     private DEKeyMappings() {}
 }

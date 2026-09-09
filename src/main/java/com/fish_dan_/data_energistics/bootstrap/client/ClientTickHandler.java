@@ -33,6 +33,7 @@ final class ClientTickHandler {
         Minecraft minecraft = Minecraft.getInstance();
         XeiLayoutRefreshQueue.drain();
         CrossbowAnimationStates.tick(minecraft);
+        ClientInputHandler.handleCrossbowModeKeys(minecraft);
         if (minecraft.isPaused() || minecraft.level == null || minecraft.player == null) {
             return;
         }
@@ -40,7 +41,6 @@ final class ClientTickHandler {
         while (ClientInputHandler.consumeToggleDepotBucketModeClick()) {
             ClientInputHandler.toggleDepotBucketMode(minecraft);
         }
-
         if ((minecraft.player.tickCount & 1) != 0) {
             return;
         }
