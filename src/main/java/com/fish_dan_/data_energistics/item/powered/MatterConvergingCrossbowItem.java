@@ -230,7 +230,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             if (!level.isClientSide) {
                 player.openMenu(new SimpleMenuProvider((id, inventory, ignoredPlayer) -> new MatterConvergingCrossbowConfigMenu(
                         DEMenus.MATTER_CONVERGING_CROSSBOW_CONFIG.get(), id, inventory, hand),
-                        Component.translatable("screen.data_energistics.dark_string_data_settlement_tool")));
+                        Component.empty()));
             }
             return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
         }

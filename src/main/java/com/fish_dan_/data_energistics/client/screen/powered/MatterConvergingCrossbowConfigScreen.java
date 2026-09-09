@@ -45,6 +45,16 @@ public final class MatterConvergingCrossbowConfigScreen extends AEBaseScreen<Mat
     }
 
     @Override
+    protected void updateBeforeRender() {
+        super.updateBeforeRender();
+        ItemStack weapon = this.menu.getPlayer().getItemInHand(this.menu.hand);
+        MatterConvergingCrossbowMode mode = MatterConvergingCrossbowMode.fromId(
+                weapon.getOrDefault(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), 0));
+        setTextContent("dialog_title", Component.translatable(
+                "item.data_energistics.dark_string_data_settlement_tool.mode." + mode.nameKey()));
+    }
+
+    @Override
     public void drawFG(GuiGraphics graphics, int offsetX, int offsetY, int mouseX, int mouseY) {
         ItemStack weapon = this.menu.getPlayer().getItemInHand(this.menu.hand);
         ItemStack currentAmmo = this.ammunition.isEmpty() ? ItemStack.EMPTY : this.ammunition.getFirst();

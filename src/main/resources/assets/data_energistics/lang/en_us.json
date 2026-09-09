@@ -885,7 +885,7 @@
 	"screen.data_energistics.compartment.title.pattern_buffer": "Pattern Buffer",
 	"screen.data_energistics.compartment.unlocked_rows": "Rows %s / %s",
 	"screen.data_energistics.compartment.upgrades": "Upgrades",
-	"screen.data_energistics.dark_string_data_settlement_tool": "Darkstring Data Settlement Tool Configuration",
+	"screen.data_energistics.dark_string_data_settlement_tool": "",
 	"screen.data_energistics.data_distribution_tower.bound_none": "No bound devices",
 	"screen.data_energistics.data_distribution_tower.bound_title": "Bound Devices: %s",
 	"screen.data_energistics.data_distribution_tower.channel_overview": "Channels T:%s / P:%s / V:%s / R:%s",
