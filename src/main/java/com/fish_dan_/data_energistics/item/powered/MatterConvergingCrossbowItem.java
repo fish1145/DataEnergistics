@@ -116,7 +116,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     @Override
     public void onWheel(ItemStack stack, boolean up) {
         MountedAmmoCells.migrateLegacy(stack);
-        MountedAmmoCells.cycle(stack, mode(stack), up);
+        MountedAmmoCells.cycle(stack, mode(stack), !up);
     }
 
     /** Server entry for a left-button press. No ammo or energy is spent until release. */

@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.input.cannon.CannonChargeInput;
+import com.fish_dan_.data_energistics.client.input.cannon.CannonSelectionFeedback;
 import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowAnimationStates;
 import com.fish_dan_.data_energistics.integration.viewer.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
@@ -37,6 +38,7 @@ final class ClientTickHandler {
         CannonChargeInput.tick(minecraft);
         CrossbowAnimationStates.tick(minecraft);
         ClientInputHandler.handleCrossbowModeKeys(minecraft);
+        CannonSelectionFeedback.tick(minecraft);
         if (minecraft.isPaused() || minecraft.level == null || minecraft.player == null) {
             return;
         }
