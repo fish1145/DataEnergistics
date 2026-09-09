@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.entity.projectile;
 
 import com.fish_dan_.data_energistics.entity.projectile.cannon.CannonShot;
+import com.fish_dan_.data_energistics.entity.projectile.cannon.TntPayload;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
@@ -39,6 +40,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.entity.PartEntity;
 
@@ -214,6 +216,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
     @Override
     protected void onHitEntity(EntityHitResult result) {
+        if (this.detonateTnt(result)) return;
         Entity owner = this.getOwner();
         Entity target = result.getEntity();
         LivingEntity livingTarget = this.resolveLivingTarget(target);
@@ -259,8 +262,24 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
     @Override
     protected void onHitBlock(BlockHitResult result) {
+        if (this.detonateTnt(result)) return;
         super.onHitBlock(result);
         this.discardWithEffects();
+    }
+
+    private boolean detonateTnt(HitResult result) {
+        if (this.firingMode() != MatterConvergingCrossbowMode.GRENADE || !TntPayload.isTnt(this.getItem())) return false;
+        if (!this.isRemoved() && this.level() instanceof ServerLevel serverLevel) {
+            this.discard();
+            Vec3 impact = result.getLocation();
+            BlockHitResult blockHit = result instanceof BlockHitResult hit ? hit : null;
+            if (blockHit != null) {
+                impact = impact.add(Vec3.atLowerCornerOf(blockHit.getDirection().getNormal()).scale(0.001D));
+            }
+            TntPayload.detonate(serverLevel, this.getItem(), impact, blockHit == null ? null : blockHit.getDirection(),
+                    this.getOwner() instanceof LivingEntity livingOwner ? livingOwner : null);
+        }
+        return true;
     }
 
     private boolean isSingularityAmmo() {
