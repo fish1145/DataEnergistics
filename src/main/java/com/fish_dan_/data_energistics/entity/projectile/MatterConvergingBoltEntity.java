@@ -13,6 +13,7 @@ import appeng.api.upgrades.UpgradeInventories;
 import appeng.core.definitions.AEItems;
 import appeng.items.misc.PaintBallItem;
 
+import lombok.Setter;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ItemParticleOption;
@@ -77,6 +78,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     private ItemStack weaponStack = ItemStack.EMPTY;
     private final Set<Integer> piercedEntityIds = new HashSet<>();
     private int consumedPierceCount;
+    @Setter
     private boolean critical;
     private CannonShot cannonShot = CannonShot.CROSSBOW;
 
@@ -136,7 +138,8 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         if (shot.mode() != MatterConvergingCrossbowMode.CROSSBOW) this.setHoming(false);
     }
 
-    private MatterConvergingCrossbowMode firingMode() {
+    /** Returns this projectile's synchronized firing mode for gameplay and client rendering, including after reload. */
+    public MatterConvergingCrossbowMode firingMode() {
         return MatterConvergingCrossbowMode.fromId(this.entityData.get(DATA_FIRING_MODE));
     }
 
@@ -149,10 +152,6 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     public void setWeaponStack(ItemStack stack) {
         this.weaponStack = stack.copy();
         this.getEntityData().set(DATA_SABER_ENERGY_CARD_COUNT, this.getSaberEnergyCardCount(stack));
-    }
-
-    public void setCritical(boolean critical) {
-        this.critical = critical;
     }
 
     public void setPierceLevel(int pierceLevel) {
