@@ -7,6 +7,8 @@ import com.fish_dan_.data_energistics.entity.projectile.cannon.GrenadePayload;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonCharge;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
+import com.fish_dan_.data_energistics.registry.DEMenus;
+import com.fish_dan_.data_energistics.menu.powered.MatterConvergingCrossbowConfigMenu;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import appeng.api.config.AccessRestriction;
@@ -62,6 +64,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ChargedProjectiles;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
@@ -223,6 +226,14 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
+        if (player.isShiftKeyDown()) {
+            if (!level.isClientSide) {
+                player.openMenu(new SimpleMenuProvider((id, inventory, ignoredPlayer) -> new MatterConvergingCrossbowConfigMenu(
+                        DEMenus.MATTER_CONVERGING_CROSSBOW_CONFIG.get(), id, inventory, hand),
+                        Component.translatable("screen.data_energistics.dark_string_data_settlement_tool")));
+            }
+            return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
+        }
         if (isCannon(stack)) return InteractionResultHolder.pass(stack);
         ChargedProjectiles charged = stack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY);
         if (!charged.isEmpty()) {

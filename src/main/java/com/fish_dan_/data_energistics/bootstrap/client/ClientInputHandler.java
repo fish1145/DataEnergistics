@@ -5,7 +5,6 @@ import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
-import com.fish_dan_.data_energistics.client.screen.powered.MatterConvergingCrossbowConfigScreen;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumItem;
 import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotBucketModePayload;
 import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotScrollPayload;
@@ -59,18 +58,6 @@ final class ClientInputHandler {
             return;
         }
 
-        if (event.isUseItem() && Screen.hasShiftDown()) {
-            InteractionHand hand = minecraft.player.getMainHandItem().getItem() instanceof MatterConvergingCrossbowItem
-                    ? InteractionHand.MAIN_HAND
-                    : minecraft.player.getOffhandItem().getItem() instanceof MatterConvergingCrossbowItem
-                    ? InteractionHand.OFF_HAND : null;
-            if (hand != null) {
-                event.setCanceled(true);
-                event.setSwingHand(false);
-                minecraft.setScreen(new MatterConvergingCrossbowConfigScreen(hand));
-                return;
-            }
-        }
 
         if (event.isAttack() && CannonChargeInput.cannonHand(minecraft.player) != null) {
             event.setCanceled(true);

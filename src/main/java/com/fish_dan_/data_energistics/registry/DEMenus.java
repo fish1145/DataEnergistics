@@ -48,6 +48,7 @@ import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDep
 import com.fish_dan_.data_energistics.menu.trinity.TrinityInformationExchangeDepotMenuHost;
 import com.fish_dan_.data_energistics.menu.universal.UniversalCraftingTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalMEStorageMenu;
+import com.fish_dan_.data_energistics.menu.powered.MatterConvergingCrossbowConfigMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternAccessTermMenu;
 import com.fish_dan_.data_energistics.menu.universal.UniversalPatternEncodingTermMenu;
 import com.fish_dan_.data_energistics.network.trinity.TrinityAutoBuildDefinitionBundleCodec;
@@ -69,6 +70,8 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class DEMenus {
 
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, Data_Energistics.MODID);
+    public static final DeferredHolder<MenuType<?>, MenuType<MatterConvergingCrossbowConfigMenu>> MATTER_CONVERGING_CROSSBOW_CONFIG = MENUS.register(
+            "dark_string_data_settlement_tool_config", () -> IMenuTypeExtension.create(MatterConvergingCrossbowConfigMenu::fromNetwork));
 
     public static final DeferredHolder<MenuType<?>, MenuType<CraftingPlanTreeMenu>> CRAFTING_PLAN_TREE = MENUS.register("crafting_plan_tree", () -> IMenuTypeExtension.create(CraftingPlanTreeMenu::fromNetwork));
 
