@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.entity.projectile.cannon.GrenadePayload;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonCharge;
 import com.fish_dan_.data_energistics.item.powered.cannon.ammunition.RailAmmunition;
+import com.fish_dan_.data_energistics.item.powered.cannon.bow.BowShotPattern;
 import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailLauncher;
 import com.fish_dan_.data_energistics.item.powered.cannon.storage.CannonCellMenuHost;
 import com.fish_dan_.data_energistics.item.powered.cannon.storage.MountedAmmoCells;
@@ -53,11 +54,11 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow.Pickup;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.item.component.ChargedProjectiles;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -78,7 +79,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
-public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEItemPowerStorage, IUpgradeableItem, IMenuItem, IMouseWheelItem {
+public class MatterConvergingCrossbowItem extends Item implements IAEItemPowerStorage, IUpgradeableItem, IMenuItem, IMouseWheelItem {
 
     private static final double MAX_POWER = 200_000.0D;
     private static final double CHARGE_RATE = 200_000.0D;
@@ -110,6 +111,25 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     public static boolean isCannon(ItemStack stack) {
         return stack.getItem() instanceof MatterConvergingCrossbowItem && mode(stack) != MatterConvergingCrossbowMode.CROSSBOW;
+    }
+
+    public static boolean isCharged(ItemStack stack) {
+        return !stack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY).isEmpty();
+    }
+
+    @Override
+    public UseAnim getUseAnimation(ItemStack stack) {
+        return mode(stack) == MatterConvergingCrossbowMode.CROSSBOW ? UseAnim.CROSSBOW : UseAnim.NONE;
+    }
+
+    @Override
+    public boolean useOnRelease(ItemStack stack) {
+        return mode(stack) == MatterConvergingCrossbowMode.CROSSBOW;
+    }
+
+    @Override
+    public int getEnchantmentValue() {
+        return 1;
     }
 
     @Override
@@ -374,7 +394,6 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         return Mth.hsvToRgb(1.0F / 3.0F, 1.0F, 1.0F);
     }
 
-    @Override
     public void performShooting(Level level, LivingEntity shooter, InteractionHand hand, ItemStack stack, float power,
                                 float inaccuracy, @Nullable LivingEntity target) {
         if (!(level instanceof ServerLevel serverLevel)) {
@@ -393,8 +412,16 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         }
 
         float projectileSpeed = this.getProjectileSpeed(stack, charged.getItems().getFirst());
-        this.shoot(serverLevel, shooter, hand, stack, charged.getItems(), projectileSpeed, inaccuracy, shooter instanceof Player,
-                target);
+        float spread = EnchantmentHelper.processProjectileSpread(serverLevel, stack, shooter, 0);
+        List<ItemStack> ammunition = charged.getItems();
+        for (int index = 0; index < ammunition.size(); index++) {
+            Projectile projectile = this.createProjectile(level, shooter, stack, ammunition.get(index), shooter instanceof Player);
+            var direction = BowShotPattern.direction(shooter, projectile, BowShotPattern.angle(index, ammunition.size(), spread), target);
+            projectile.shoot(direction.x, direction.y, direction.z, projectileSpeed, inaccuracy);
+            serverLevel.addFreshEntity(projectile);
+            float pitch = index == 0 ? 1 : 1 / (shooter.getRandom().nextFloat() * 0.5F + 1.8F) + ((index & 1) == 1 ? 0.63F : 0.43F);
+            level.playSound(null, shooter.getX(), shooter.getY(), shooter.getZ(), SoundEvents.CROSSBOW_SHOOT, shooter.getSoundSource(), 1, pitch);
+        }
         if (shooter instanceof Player player) {
             player.awardStat(Stats.ITEM_USED.get(this));
         }
@@ -420,7 +447,6 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         return true;
     }
 
-    @Override
     protected Projectile createProjectile(Level level, LivingEntity shooter, ItemStack weaponStack, ItemStack ammoStack,
                                           boolean isCrit) {
         if (this.isDataDustAmmo(ammoStack)) {

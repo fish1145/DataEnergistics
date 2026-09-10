@@ -12,7 +12,6 @@ import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ChargedProjectiles;
@@ -37,7 +36,7 @@ final class ClientItemModelPropertyRegistrar {
                 });
         ItemProperties.register(item, Data_Energistics.id("load_stage"),
                 (stack, level, entity, seed) -> {
-                    if (CrossbowItem.isCharged(stack)) {
+                    if (MatterConvergingCrossbowItem.isCharged(stack)) {
                         return 0.67F;
                     }
                     if (entity == null || !entity.isUsingItem() || entity.getUseItem() != stack) {
@@ -59,15 +58,15 @@ final class ClientItemModelPropertyRegistrar {
                     if (entity == null) {
                         return 0.0F;
                     }
-                    if (CrossbowItem.isCharged(stack)) {
+                    if (MatterConvergingCrossbowItem.isCharged(stack)) {
                         return 0.0F;
                     }
                     return entity.getUseItem() != stack ? 0.0F : (float) (stack.getUseDuration(entity) - entity.getUseItemRemainingTicks()) / (float) MatterConvergingCrossbowItem.getChargeDuration(stack, entity);
                 });
         ItemProperties.register(item, ResourceLocation.withDefaultNamespace("pulling"),
-                (stack, level, entity, seed) -> entity != null && entity.isUsingItem() && entity.getUseItem() == stack && !CrossbowItem.isCharged(stack) ? 1.0F : 0.0F);
+                (stack, level, entity, seed) -> entity != null && entity.isUsingItem() && entity.getUseItem() == stack && !MatterConvergingCrossbowItem.isCharged(stack) ? 1.0F : 0.0F);
         ItemProperties.register(item, ResourceLocation.withDefaultNamespace("charged"),
-                (stack, level, entity, seed) -> CrossbowItem.isCharged(stack) ? 1.0F : 0.0F);
+                (stack, level, entity, seed) -> MatterConvergingCrossbowItem.isCharged(stack) ? 1.0F : 0.0F);
         ItemProperties.register(item, ResourceLocation.withDefaultNamespace("firework"),
                 (stack, level, entity, seed) -> {
                     var charged = stack.get(DataComponents.CHARGED_PROJECTILES);

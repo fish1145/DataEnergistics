@@ -23,7 +23,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
@@ -46,7 +45,7 @@ public final class RailLauncher {
     }
 
     public static void begin(Player player, InteractionHand hand, ItemStack weapon) {
-        if (!(player.level() instanceof ServerLevel level) || !(weapon.getItem() instanceof MatterConvergingCrossbowItem item) || player.getItemInHand(hand) != weapon || MatterConvergingCrossbowItem.mode(weapon) != MatterConvergingCrossbowMode.RAIL || !player.isAlive() || player.isSpectator() || player.isUsingItem() || player.hasEffect(DEMobEffects.RADIX_LOSS) || player.containerMenu != player.inventoryMenu || CrossbowItem.isCharged(weapon) || weapon.has(DEDataComponents.CANNON_CHARGE.get()) || cooling(weapon, level.getGameTime()) || player.getCooldowns().isOnCooldown(item)) return;
+        if (!(player.level() instanceof ServerLevel level) || !(weapon.getItem() instanceof MatterConvergingCrossbowItem item) || player.getItemInHand(hand) != weapon || MatterConvergingCrossbowItem.mode(weapon) != MatterConvergingCrossbowMode.RAIL || !player.isAlive() || player.isSpectator() || player.isUsingItem() || player.hasEffect(DEMobEffects.RADIX_LOSS) || player.containerMenu != player.inventoryMenu || MatterConvergingCrossbowItem.isCharged(weapon) || weapon.has(DEDataComponents.CANNON_CHARGE.get()) || cooling(weapon, level.getGameTime()) || player.getCooldowns().isOnCooldown(item)) return;
         var key = MountedAmmoCells.selectedKey(weapon, MatterConvergingCrossbowMode.RAIL);
         var ammo = key == null ? null : RailAmmunition.fromKey(key);
         if (ammo == null || item.getAECurrentPower(weapon) < ENERGY_PER_SHOT || MountedAmmoCells.transfer(weapon, key, ammo.cost(), false, Actionable.SIMULATE) != ammo.cost()) return;
