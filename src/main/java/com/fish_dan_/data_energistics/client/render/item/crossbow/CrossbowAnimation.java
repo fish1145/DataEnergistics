@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.render.item.crossbow;
 
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailRecovery;
 
 /** One hand's visual timeline. Update once per client tick and interpolate during rendering. */
 public final class CrossbowAnimation {
@@ -35,6 +36,11 @@ public final class CrossbowAnimation {
 
     public void tick(boolean held, boolean using, boolean charged, float progress, MatterConvergingCrossbowMode mode,
                      boolean fired, int duration, int elapsed) {
+        tick(held, using, charged, progress, mode, fired, duration, elapsed, 0);
+    }
+
+    public void tick(boolean held, boolean using, boolean charged, float progress, MatterConvergingCrossbowMode mode,
+                     boolean fired, int duration, int elapsed, float recoilStart) {
         if (!Float.isFinite(progress) || progress < 0.0F || progress > 1.0F) {
             throw new IllegalArgumentException("Crossbow charge progress must be in [0, 1]");
         }
@@ -71,7 +77,7 @@ public final class CrossbowAnimation {
         }
         if (fired && held && mode == MatterConvergingCrossbowMode.RAIL) this.recoilTicks = 0;
         if (held && mode == MatterConvergingCrossbowMode.RAIL && elapsed >= 0) this.recoilTicks = elapsed;
-        this.recoil = mode == MatterConvergingCrossbowMode.RAIL ? CrossbowRailRecoil.retraction(this.recoilTicks, this.recoilDuration) : CrossbowRailRecoil.bowRetraction(this.recoilTicks);
+        this.recoil = mode == MatterConvergingCrossbowMode.RAIL ? RailRecovery.retraction(this.recoilTicks, this.recoilDuration, recoilStart) : CrossbowRailRecoil.bowRetraction(this.recoilTicks);
         this.held = held;
         this.active = using || charged;
         this.charged = charged;

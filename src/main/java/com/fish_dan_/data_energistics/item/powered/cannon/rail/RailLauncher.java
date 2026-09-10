@@ -41,14 +41,14 @@ public final class RailLauncher {
     }
 
     public static boolean cooling(ItemStack weapon, long time) {
-        return weapon.getOrDefault(DEDataComponents.RAIL_COOLDOWN_END.get(), 0L) > time;
+        return RailRecovery.cooling(weapon, time);
     }
 
     public static void begin(Player player, InteractionHand hand, ItemStack weapon) {
         if (!(player.level() instanceof ServerLevel level) || !(weapon.getItem() instanceof MatterConvergingCrossbowItem item) || player.getItemInHand(hand) != weapon || MatterConvergingCrossbowItem.mode(weapon) != MatterConvergingCrossbowMode.RAIL || !player.isAlive() || player.isSpectator() || player.isUsingItem() || player.hasEffect(DEMobEffects.RADIX_LOSS) || player.containerMenu != player.inventoryMenu || MatterConvergingCrossbowItem.isCharged(weapon) || weapon.has(DEDataComponents.CANNON_CHARGE.get()) || cooling(weapon, level.getGameTime()) || player.getCooldowns().isOnCooldown(item)) return;
         var key = MountedAmmoCells.selectedKey(weapon, MatterConvergingCrossbowMode.RAIL);
         var ammo = key == null ? null : RailAmmunition.fromKey(key);
-        if (ammo == null || item.getAECurrentPower(weapon) < ENERGY_PER_SHOT || MountedAmmoCells.transfer(weapon, key, ammo.cost(), false, Actionable.SIMULATE) != ammo.cost()) return;
+        if (ammo == null || ammo == RailAmmunition.HEAVY && RailRecovery.recovering(weapon, level.getGameTime()) || item.getAECurrentPower(weapon) < ENERGY_PER_SHOT || MountedAmmoCells.transfer(weapon, key, ammo.cost(), false, Actionable.SIMULATE) != ammo.cost()) return;
         weapon.set(DEDataComponents.RAIL_CHARGE_AMMO.get(), key);
         weapon.set(DEDataComponents.CANNON_CHARGE.get(), new CannonCharge(level.getGameTime(),
                 MatterConvergingCrossbowItem.getChargeDuration(weapon, player), MatterConvergingCrossbowMode.RAIL,
@@ -62,9 +62,9 @@ public final class RailLauncher {
         cancel(weapon);
         if (charge == null || key == null || !charge.belongsTo(player, hand, MatterConvergingCrossbowItem.mode(weapon)) || player.getItemInHand(hand) != weapon || player.isSpectator() || player.isUsingItem() || player.hasEffect(DEMobEffects.RADIX_LOSS) || player.containerMenu != player.inventoryMenu || cooling(weapon, level.getGameTime()) || player.getCooldowns().isOnCooldown(item) || !CannonBallistics.validAim(offset, direction, player.getViewVector(1))) return;
         var ammo = RailAmmunition.fromKey(key);
-        float fraction = charge.progress(level.getGameTime());
+        float fraction = RailRecovery.chargeProgress(weapon, charge, level.getGameTime());
         Vec3 muzzle = player.getEyePosition().add(offset);
-        if (ammo == null || fraction <= 0 || !key.equals(MountedAmmoCells.selectedKey(weapon, MatterConvergingCrossbowMode.RAIL)) || level.clip(new ClipContext(player.getEyePosition(), muzzle, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player)).getType() != HitResult.Type.MISS || item.getAECurrentPower(weapon) < ENERGY_PER_SHOT || MountedAmmoCells.transfer(weapon, key, ammo.cost(), false, Actionable.SIMULATE) != ammo.cost()) return;
+        if (ammo == null || ammo == RailAmmunition.HEAVY && RailRecovery.recovering(weapon, level.getGameTime()) || fraction <= 0 || !key.equals(MountedAmmoCells.selectedKey(weapon, MatterConvergingCrossbowMode.RAIL)) || level.clip(new ClipContext(player.getEyePosition(), muzzle, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player)).getType() != HitResult.Type.MISS || item.getAECurrentPower(weapon) < ENERGY_PER_SHOT || MountedAmmoCells.transfer(weapon, key, ammo.cost(), false, Actionable.SIMULATE) != ammo.cost()) return;
         ItemStack display = key instanceof AEItemKey itemKey ? itemKey.toStack(1) : GenericStack.wrapInItemStack(key, 1);
         int cards = Math.clamp(item.getUpgrades(weapon).getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()), 0, 2);
         RailRoundEntity projectile = new RailRoundEntity(level, player, display);
@@ -86,10 +86,11 @@ public final class RailLauncher {
             item.injectAEPower(weapon, ENERGY_PER_SHOT, Actionable.MODULATE);
             return;
         }
+        weapon.set(DEDataComponents.RAIL_RECOIL_START.get(), RailRecovery.retraction(weapon, level.getGameTime()));
         weapon.set(DEDataComponents.RAIL_COOLDOWN_END.get(), level.getGameTime() + ammo.cooldownTicks());
         weapon.set(DEDataComponents.RAIL_COOLDOWN_DURATION.get(), ammo.cooldownTicks());
         weapon.set(DEDataComponents.CANNON_SHOT_SEQUENCE.get(), weapon.getOrDefault(DEDataComponents.CANNON_SHOT_SEQUENCE.get(), 0) + 1);
-        player.getCooldowns().addCooldown(item, ammo.cooldownTicks());
+        player.getCooldowns().addCooldown(item, ammo == RailAmmunition.HEAVY ? ammo.cooldownTicks() : RailRecovery.brakeTicks(ammo.cooldownTicks()));
         player.awardStat(Stats.ITEM_USED.get(item));
         level.playSound(null, muzzle.x, muzzle.y, muzzle.z, SoundEvents.CROSSBOW_SHOOT, SoundSource.PLAYERS, 1, 0.75F);
     }

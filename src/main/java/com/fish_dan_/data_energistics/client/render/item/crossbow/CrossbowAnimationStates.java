@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.client.render.item.crossbow;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonCharge;
+import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailRecovery;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
 import net.minecraft.client.Minecraft;
@@ -62,13 +63,14 @@ public final class CrossbowAnimationStates {
                 if (mode != MatterConvergingCrossbowMode.CROSSBOW) {
                     using = held && charge != null && charge.belongsTo(entity, hand, mode);
                     charged = false;
-                    progress = using ? charge.progress(minecraft.level.getGameTime()) : 0.0F;
+                    progress = using ? mode == MatterConvergingCrossbowMode.RAIL ? RailRecovery.chargeProgress(stack, charge, minecraft.level.getGameTime()) : charge.progress(minecraft.level.getGameTime()) : 0.0F;
                 }
                 int shot = stack.getOrDefault(DEDataComponents.CANNON_SHOT_SEQUENCE.get(), 0);
                 int duration = stack.getOrDefault(DEDataComponents.RAIL_COOLDOWN_DURATION.get(), CrossbowRailRecoil.DURATION_TICKS);
                 long remaining = stack.getOrDefault(DEDataComponents.RAIL_COOLDOWN_END.get(), 0L) - minecraft.level.getGameTime();
                 int elapsed = remaining > 0 ? duration - (int) Math.min(duration, remaining) : -1;
-                tracked.animation().tick(held, using, charged, progress, mode, shot != 0 && shot != tracked.shot(), duration, elapsed);
+                tracked.animation().tick(held, using, charged, progress, mode, shot != 0 && shot != tracked.shot(), duration, elapsed,
+                        stack.getOrDefault(DEDataComponents.RAIL_RECOIL_START.get(), 0.0F));
                 CannonModelAnchors.particles(entity, hand, tracked.animation().exhaustStrength());
                 handEntry.setValue(new HandAnimation(slot, tracked.animation(), shot));
             }

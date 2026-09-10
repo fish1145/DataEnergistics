@@ -13,6 +13,7 @@ import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.item.powered.cannon.ammunition.RailAmmunition;
 import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailLauncher;
+import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailRecovery;
 import com.fish_dan_.data_energistics.item.powered.cannon.storage.MountedAmmoCells;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEEntities;
@@ -43,6 +44,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemContainerContents;
@@ -118,6 +120,111 @@ public final class RailChargeGameTest {
             h.assertTrue(Math.abs(target.getHealth() - (1000 - 34 * fraction)) < 0.01, "Partial damage does not follow original charge fraction");
             h.assertTrue(weapon.get(DEDataComponents.RAIL_COOLDOWN_END.get()) - h.getLevel().getGameTime() == 42, "Heavy cooldown must be three times 14 ticks");
             h.succeed();
+        });
+    }
+
+    @TestHolder("rail_normal_can_fire_again_during_return")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 80)
+    public static void normalRepeatDuringReturn(GameTestHelper h) {
+        repeatDuringReturn(h, Items.BLAZE_ROD, RailAmmunition.BLAZE);
+    }
+
+    @TestHolder("rail_heavy_requires_full_return_before_charging_again")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5", timeoutTicks = 80)
+    public static void heavyWaitsForFullReturn(GameTestHelper h) {
+        Player player = player(h);
+        var key = AEItemKey.of(Items.HEAVY_CORE);
+        ItemStack weapon = weapon(h, key, 3);
+        player.setItemInHand(InteractionHand.MAIN_HAND, weapon);
+        var item = (MatterConvergingCrossbowItem) weapon.getItem();
+        // A heavy round cannot opt into an ordinary round's early-charge window either.
+        weapon.set(DEDataComponents.RAIL_COOLDOWN_DURATION.get(), 14);
+        weapon.set(DEDataComponents.RAIL_COOLDOWN_END.get(), h.getLevel().getGameTime() + 12);
+        item.beginCannonCharge(player, InteractionHand.MAIN_HAND, weapon);
+        h.assertFalse(weapon.has(DEDataComponents.CANNON_CHARGE.get()), "Heavy charge began during an ordinary round's return");
+        h.runAfterDelay(12, () -> {
+            item.beginCannonCharge(player, InteractionHand.MAIN_HAND, weapon);
+            h.assertTrue(weapon.has(DEDataComponents.CANNON_CHARGE.get()), "Fully recovered heavy charge was rejected");
+            h.runAfterDelay(1, () -> {
+                release(item, player, weapon);
+                h.assertValueEqual(rounds(h, player).size(), 1, "Heavy shot was not fired");
+                rounds(h, player).forEach(MatterConvergingBoltEntity::discard);
+                h.runAfterDelay(6, () -> {
+                    for (int tick = 0; tick < 6; tick++) player.getCooldowns().tick();
+                    item.beginCannonCharge(player, InteractionHand.MAIN_HAND, weapon);
+                    h.assertTrue(RailLauncher.cooling(weapon, h.getLevel().getGameTime()) && !weapon.has(DEDataComponents.CANNON_CHARGE.get()), "Heavy braking completion incorrectly allowed another charge");
+                });
+                h.runAfterDelay(41, () -> {
+                    for (int tick = 0; tick < 35; tick++) player.getCooldowns().tick();
+                    item.beginCannonCharge(player, InteractionHand.MAIN_HAND, weapon);
+                    h.assertFalse(weapon.has(DEDataComponents.CANNON_CHARGE.get()), "Heavy charge began before all 42 ticks elapsed");
+                });
+                h.runAfterDelay(42, () -> {
+                    player.getCooldowns().tick();
+                    item.beginCannonCharge(player, InteractionHand.MAIN_HAND, weapon);
+                    h.assertTrue(weapon.has(DEDataComponents.CANNON_CHARGE.get()), "Heavy charge was still blocked after full return");
+                    h.assertTrue(amount(weapon, key) == 2 && energy(weapon) == 800, "Blocked or restarted heavy charging spent resources");
+                    h.succeed();
+                });
+            });
+        });
+    }
+
+    private static void repeatDuringReturn(GameTestHelper h, Item ammunition, RailAmmunition kind) {
+        Player player = player(h);
+        var key = AEItemKey.of(ammunition);
+        ItemStack weapon = weapon(h, key, 3);
+        player.setItemInHand(InteractionHand.MAIN_HAND, weapon);
+        var item = (MatterConvergingCrossbowItem) weapon.getItem();
+        int brake = RailRecovery.brakeTicks(kind.cooldownTicks());
+        int halfway = brake + (kind.cooldownTicks() - brake) / 2;
+        item.beginCannonCharge(player, InteractionHand.MAIN_HAND, weapon);
+        h.runAfterDelay(1, () -> {
+            release(item, player, weapon);
+            h.assertValueEqual(rounds(h, player).size(), 1, "First shot was not fired");
+            rounds(h, player).forEach(MatterConvergingBoltEntity::discard);
+            h.runAfterDelay(brake - 1, () -> {
+                // Mock players are not in the world's tick list; advance their actual cooldown tracker explicitly.
+                for (int tick = 0; tick < brake - 1; tick++) player.getCooldowns().tick();
+                item.beginCannonCharge(player, InteractionHand.MAIN_HAND, weapon);
+                h.assertFalse(weapon.has(DEDataComponents.CANNON_CHARGE.get()), "Charge began before braking finished");
+            });
+            h.runAfterDelay(brake, () -> {
+                player.getCooldowns().tick();
+                item.beginCannonCharge(player, InteractionHand.MAIN_HAND, weapon);
+                var charge = weapon.get(DEDataComponents.CANNON_CHARGE.get());
+                h.assertTrue(charge != null, "Brake completion must allow the next charge before full return");
+                h.assertTrue(RailRecovery.chargeProgress(weapon, charge, h.getLevel().getGameTime()) == 0, "Unreturned rails allowed charge");
+            });
+            h.runAfterDelay(brake + 1, () -> {
+                var charge = weapon.get(DEDataComponents.CANNON_CHARGE.get());
+                long time = h.getLevel().getGameTime();
+                float fraction = RailRecovery.chargeProgress(weapon, charge, time);
+                float recovered = 1 - 2 * RailRecovery.retraction(weapon, time);
+                h.assertTrue(fraction > 0 && fraction < charge.progress(time) && Math.abs(fraction - recovered) < 0.0001F, "Early charge was not capped by recovered distance");
+            });
+            h.runAfterDelay(halfway, () -> {
+                var charge = weapon.get(DEDataComponents.CANNON_CHARGE.get());
+                long time = h.getLevel().getGameTime();
+                float fraction = RailRecovery.chargeProgress(weapon, charge, time);
+                float expected = Math.min(0.5F, charge.progress(time));
+                h.assertTrue(fraction > 0 && Math.abs(fraction - expected) < 0.0001F, "Charge cap did not rise with half-return distance");
+                h.assertTrue(RailRecovery.chargeProgress(weapon, charge, time + kind.cooldownTicks()) == 1, "Continuing to hold did not reach full charge after return");
+                release(item, player, weapon);
+                h.assertTrue(amount(weapon, key) == 1 && energy(weapon) == 600, "Repeat shot did not consume exactly one whole round and 200 AE");
+                var shot = rounds(h, player).getFirst();
+                Mob target = target(h, 2, 1, 2);
+                shot.onHitEntity(new EntityHitResult(target));
+                h.assertTrue(Math.abs(target.getHealth() - (1000 - kind.damage(0) * fraction)) < 0.01F, "Repeat impact exceeded recovered charge");
+                h.assertTrue(Math.abs(weapon.get(DEDataComponents.RAIL_RECOIL_START.get()) - 0.25F) < 0.0001F, "Repeat recoil jumped away from half-return position");
+                ItemStack loaded = ItemStack.parseOptional(h.getLevel().registryAccess(), (CompoundTag) weapon.save(h.getLevel().registryAccess()));
+                h.assertTrue(Math.abs(RailRecovery.retraction(loaded, time) - 0.25F) < 0.0001F, "Reload lost repeat recoil position");
+                release(item, player, weapon);
+                h.assertTrue(amount(weapon, key) == 1 && energy(weapon) == 600, "Duplicate repeat release spent resources");
+                h.succeed();
+            });
         });
     }
 
@@ -305,6 +412,12 @@ public final class RailChargeGameTest {
             previous = current;
         }
         h.assertTrue(previous == 0, "Heavy return not finished");
+        float returnedPosition = RailRecovery.retraction(8, 14, 0);
+        CrossbowAnimation animation = new CrossbowAnimation();
+        animation.tick(true, true, false, 0.5F, MatterConvergingCrossbowMode.RAIL, false, 14, 8);
+        animation.tick(true, false, false, 0, MatterConvergingCrossbowMode.RAIL, true, 14, 0, returnedPosition);
+        h.assertTrue(animation.pose(0).recoil() == returnedPosition && animation.pose(1).recoil() == returnedPosition, "Repeat shot visually jumped to fully extended rails");
+        h.assertTrue(RailRecovery.retraction(2, 14, returnedPosition) == 0.5F, "Repeat brake did not reach the authored stop");
         h.succeed();
     }
 

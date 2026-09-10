@@ -200,6 +200,9 @@ public final class DEDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> RAIL_COOLDOWN_DURATION = DATA_COMPONENT_TYPES.register(
             "star_shard_cooldown_duration", () -> DataComponentType.<Integer>builder().persistent(Codec.intRange(1, 160)).networkSynchronized(ByteBufCodecs.VAR_INT).build());
 
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Float>> RAIL_RECOIL_START = DATA_COMPONENT_TYPES.register(
+            "star_shard_recoil_start", () -> DataComponentType.<Float>builder().persistent(Codec.floatRange(0, 0.5F)).networkSynchronized(ByteBufCodecs.FLOAT).build());
+
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> CANNON_MODERN_AMMO = DATA_COMPONENT_TYPES.register(
             "cannon_modern_ammo", () -> DataComponentType.<Boolean>builder().persistent(Codec.BOOL).networkSynchronized(ByteBufCodecs.BOOL).build());
 

@@ -1,9 +1,11 @@
 package com.fish_dan_.data_energistics.client.render.item.crossbow;
 
-/** A fast half-stroke retraction, a brake hold, and a controlled return without overshooting. */
+import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailRecovery;
+
+/** A fast half-stroke retraction and a controlled return without overshooting. */
 public final class CrossbowRailRecoil {
 
-    public static final int DURATION_TICKS = 14;
+    public static final int DURATION_TICKS = RailRecovery.DURATION_TICKS;
     public static final int BOW_DURATION_TICKS = 12;
 
     private CrossbowRailRecoil() {}
@@ -15,14 +17,7 @@ public final class CrossbowRailRecoil {
 
     /** Two ticks braking and twelve returning; the heavy core stretches both phases threefold. */
     public static float retraction(int tick, int duration) {
-        if (tick <= 0 || tick >= duration) return 0;
-        float phase = tick * (float) DURATION_TICKS / duration;
-        if (phase <= 2) {
-            float remaining = 1 - phase / 2;
-            return 0.5F * (1 - remaining * remaining);
-        }
-        float progress = (phase - 2) / 12;
-        return 0.5F * (1 - progress * progress * (3 - 2 * progress));
+        return RailRecovery.retraction(tick, duration, 0);
     }
 
     /** The ordinary crossbow keeps its original short recoil. */
