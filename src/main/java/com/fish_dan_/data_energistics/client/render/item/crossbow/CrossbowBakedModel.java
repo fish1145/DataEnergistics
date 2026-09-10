@@ -116,7 +116,8 @@ final class CrossbowBakedModel extends BakedModelWrapper<BakedModel> {
                 CrossbowAnimation.Pose pose = CrossbowAnimationStates.pose(this.entity, hand, partial);
                 this.quads = geometry(pose);
                 CrossbowGeometry.Anchors anchors = CrossbowGeometry.anchors(frames, pose);
-                Vector3f chamber = new Vector3f(anchors.muzzle()).lerp(new Vector3f(anchors.left()).add(anchors.right()).mul(0.5F), 0.55F);
+                // The cyan receiver opening is x=7..9, y=6..8 at z=4, not the middle of the extended rails.
+                Vector3f chamber = new Vector3f(8, 7, 2).div(16);
                 RailAmmunitionRenderer.chamber(this.entity, this.stack, pose, poseStack, root, chamber);
                 MatterConvergingCrossbowTrajectoryRenderer.renderFromModel(this.entity, hand, this.stack, context, poseStack, root, anchors);
             }

@@ -1,6 +1,8 @@
 package com.fish_dan_.data_energistics.client.render.item.crossbow;
 
+import com.fish_dan_.data_energistics.client.render.item.crossbow.plasma.RailPlasmaRenderer;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+import com.fish_dan_.data_energistics.item.powered.cannon.ammunition.RailAmmunition;
 import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailLauncher;
 import com.fish_dan_.data_energistics.item.powered.cannon.storage.MountedAmmoCells;
 
@@ -45,7 +47,11 @@ public final class RailAmmunitionRenderer {
     public static void draw(ItemStack ammo, Level level, PoseStack pose, MultiBufferSource buffers, int light) {
         pose.pushPose();
         var generic = GenericStack.unwrapItemStack(ammo);
-        if (generic != null) {
+        var kind = generic == null ? null : RailAmmunition.fromKey(generic.what());
+        if (kind == RailAmmunition.DATA || kind == RailAmmunition.FE) {
+            double time = level.getGameTime() % 8192 + Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
+            RailPlasmaRenderer.draw(kind, time, pose, buffers);
+        } else if (generic != null) {
             // Crossed, double-sided resource faces preserve the selected AE icon in all hand/world views.
             for (int side = 0; side < 4; side++) {
                 pose.pushPose();

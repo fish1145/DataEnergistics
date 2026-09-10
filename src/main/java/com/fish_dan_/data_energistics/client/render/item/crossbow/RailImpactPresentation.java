@@ -99,13 +99,13 @@ public final class RailImpactPresentation {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null || minecraft.level == null || minecraft.options.hideGui) return;
         long remaining = 0;
-        int duration = 80;
+        int duration = CrossbowRailRecoil.DURATION_TICKS;
         for (InteractionHand hand : InteractionHand.values()) {
             var stack = minecraft.player.getItemInHand(hand);
             long time = stack.getOrDefault(DEDataComponents.RAIL_COOLDOWN_END.get(), 0L) - minecraft.level.getGameTime();
             if (stack.getItem() instanceof MatterConvergingCrossbowItem && time > remaining) {
                 remaining = time;
-                duration = stack.getOrDefault(DEDataComponents.RAIL_COOLDOWN_DURATION.get(), 80);
+                duration = stack.getOrDefault(DEDataComponents.RAIL_COOLDOWN_DURATION.get(), CrossbowRailRecoil.DURATION_TICKS);
             }
         }
         if (remaining <= 0) return;

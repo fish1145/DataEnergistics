@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.entity.projectile;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowAnimation;
+import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowRailRecoil;
+import com.fish_dan_.data_energistics.client.render.item.crossbow.plasma.PlasmaPalette;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.CannonShot;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.RailShot;
 import com.fish_dan_.data_energistics.integration.ModFlags;
@@ -114,7 +116,7 @@ public final class RailChargeGameTest {
             h.assertTrue(shot.getItem().is(Items.HEAVY_CORE), "Core projectile model identity");
             shot.onHitEntity(new EntityHitResult(target));
             h.assertTrue(Math.abs(target.getHealth() - (1000 - 34 * fraction)) < 0.01, "Partial damage does not follow original charge fraction");
-            h.assertTrue(weapon.get(DEDataComponents.RAIL_COOLDOWN_END.get()) - h.getLevel().getGameTime() == 160, "Heavy cooldown must be twice 80 ticks");
+            h.assertTrue(weapon.get(DEDataComponents.RAIL_COOLDOWN_END.get()) - h.getLevel().getGameTime() == 42, "Heavy cooldown must be three times 14 ticks");
             h.succeed();
         });
     }
@@ -272,7 +274,7 @@ public final class RailChargeGameTest {
         h.assertTrue(animation.exhaustStrength() == 0, "Charging sprayed exhaust");
         animation.tick(true, false, false, 0, MatterConvergingCrossbowMode.RAIL, true);
         float max = 0;
-        for (int tick = 1; tick <= 12; tick++) {
+        for (int tick = 1; tick <= 14; tick++) {
             animation.tick(true, false, false, 0, MatterConvergingCrossbowMode.RAIL, false);
             max = Math.max(max, animation.exhaustStrength());
         }
@@ -285,6 +287,38 @@ public final class RailChargeGameTest {
         entity.configureCannonShot(new CannonShot(MatterConvergingCrossbowMode.RAIL, shot.charge(), 3.15F));
         entity.configureRailShot(shot);
         return entity;
+    }
+
+    @TestHolder("rail_cooldown_two_tick_brake_twelve_tick_return")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void newCooldown(GameTestHelper h) {
+        h.assertValueEqual(RailAmmunition.BLAZE.cooldownTicks(), 14, "Normal cooldown");
+        h.assertValueEqual(RailAmmunition.HEAVY.cooldownTicks(), 42, "Heavy cooldown");
+        h.assertTrue(CrossbowRailRecoil.retraction(2) == 0.5F, "Brake must reach half stroke at 0.1s");
+        h.assertTrue(CrossbowRailRecoil.retraction(13) > 0 && CrossbowRailRecoil.retraction(14) == 0, "Return must take another 0.6s");
+        h.assertTrue(CrossbowRailRecoil.retraction(6, 42) == 0.5F, "Heavy brake must take three times as long");
+        float previous = 0.5F;
+        for (int tick = 7; tick <= 42; tick++) {
+            float current = CrossbowRailRecoil.retraction(tick, 42);
+            h.assertTrue(current >= 0 && current <= previous, "Heavy return rebounds");
+            previous = current;
+        }
+        h.assertTrue(previous == 0, "Heavy return not finished");
+        h.succeed();
+    }
+
+    @TestHolder("plasma_color_uses_visible_texture_hue")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void plasmaColors(GameTestHelper h) {
+        int[] dataPixels = { 0x000000FF, 0xFF000000, 0xFFFFFF00 };
+        PlasmaPalette cyan = PlasmaPalette.sample(3, 1, (x, y) -> dataPixels[x]);
+        h.assertValueEqual(cyan.rgb(), 0x00FFFF, "Transparent/background pixels polluted cyan");
+        PlasmaPalette green = PlasmaPalette.sample(1, 1, (x, y) -> 0xFF009900);
+        h.assertValueEqual(green.rgb(), 0x00FF00, "FE texture green was not preserved");
+        h.assertTrue(green.red(0.8F) > green.red(0) && green.green(0.8F) == 1, "Core must whiten without changing the color identity");
+        h.succeed();
     }
 
     @TestHolder("rail_round_real_flight_hits_once")

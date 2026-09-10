@@ -195,13 +195,13 @@ public final class WeaponAmmunitionGameTest {
     @GameTest(template = "empty_5x5")
     public static void recoilTimeline(GameTestHelper h) {
         float previous = 0.5F;
-        for (int tick = 2; tick <= 12; tick++) {
+        for (int tick = 2; tick <= 14; tick++) {
             float current = CrossbowRailRecoil.retraction(tick);
             h.assertTrue(current <= previous && current >= 0 && current <= 0.5, "Rail rebound or excess stroke");
             previous = current;
         }
-        h.assertTrue(previous == 0 && CrossbowRailRecoil.retraction(11) > 0, "Original 12-tick recoil was not restored");
-        h.assertTrue(CrossbowRailRecoil.retraction(12) == 0, "Bow inherited rail cooldown");
+        h.assertTrue(previous == 0 && CrossbowRailRecoil.retraction(13) > 0, "Rail recoil must finish at 14 ticks");
+        h.assertTrue(CrossbowRailRecoil.bowRetraction(12) == 0, "Bow inherited rail cooldown");
         h.succeed();
     }
 

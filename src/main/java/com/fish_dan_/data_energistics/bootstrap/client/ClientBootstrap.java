@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridgeAccess;
 import com.fish_dan_.data_energistics.client.gui.DataEnergisticsTextureEditorResources;
 import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowModelLoader;
+import com.fish_dan_.data_energistics.client.render.item.crossbow.plasma.PlasmaTextureColors;
 import com.fish_dan_.data_energistics.client.runtime.ClientRuntimeBridge;
 
 import net.neoforged.bus.api.IEventBus;
@@ -12,6 +13,7 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
+import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientTooltipComponentFactoriesEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
@@ -32,6 +34,11 @@ public final class ClientBootstrap {
     public static final class ClientModEvents {
 
         private ClientModEvents() {}
+
+        @SubscribeEvent
+        public static void onRegisterReloadListeners(RegisterClientReloadListenersEvent event) {
+            event.registerReloadListener(new PlasmaTextureColors());
+        }
 
         @SubscribeEvent
         public static void onRegisterItemColors(RegisterColorHandlersEvent.Item event) {

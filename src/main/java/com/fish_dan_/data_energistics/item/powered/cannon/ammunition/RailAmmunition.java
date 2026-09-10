@@ -19,7 +19,7 @@ public enum RailAmmunition {
     FE;
 
     public int cooldownTicks() {
-        return this == HEAVY ? 160 : 80;
+        return this == HEAVY ? 42 : 14;
     }
 
     public long cost() {

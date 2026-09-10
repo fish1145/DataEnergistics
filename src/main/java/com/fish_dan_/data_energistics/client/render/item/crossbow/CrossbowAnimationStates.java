@@ -10,7 +10,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.EnumMap;
@@ -57,7 +56,7 @@ public final class CrossbowAnimationStates {
                     handEntry.setValue(tracked);
                 }
                 boolean using = held && entity.isUsingItem() && entity.getUsedItemHand() == hand;
-                boolean charged = held && CrossbowItem.isCharged(stack);
+                boolean charged = held && MatterConvergingCrossbowItem.isCharged(stack);
                 float progress = using ? Mth.clamp((float) (stack.getUseDuration(entity) - entity.getUseItemRemainingTicks()) / MatterConvergingCrossbowItem.getChargeDuration(stack, entity), 0.0F, 1.0F) : 0.0F;
                 CannonCharge charge = stack.get(DEDataComponents.CANNON_CHARGE.get());
                 if (mode != MatterConvergingCrossbowMode.CROSSBOW) {
@@ -66,7 +65,10 @@ public final class CrossbowAnimationStates {
                     progress = using ? charge.progress(minecraft.level.getGameTime()) : 0.0F;
                 }
                 int shot = stack.getOrDefault(DEDataComponents.CANNON_SHOT_SEQUENCE.get(), 0);
-                tracked.animation().tick(held, using, charged, progress, mode, shot != 0 && shot != tracked.shot());
+                int duration = stack.getOrDefault(DEDataComponents.RAIL_COOLDOWN_DURATION.get(), CrossbowRailRecoil.DURATION_TICKS);
+                long remaining = stack.getOrDefault(DEDataComponents.RAIL_COOLDOWN_END.get(), 0L) - minecraft.level.getGameTime();
+                int elapsed = remaining > 0 ? duration - (int) Math.min(duration, remaining) : -1;
+                tracked.animation().tick(held, using, charged, progress, mode, shot != 0 && shot != tracked.shot(), duration, elapsed);
                 CannonModelAnchors.particles(entity, hand, tracked.animation().exhaustStrength());
                 handEntry.setValue(new HandAnimation(slot, tracked.animation(), shot));
             }
