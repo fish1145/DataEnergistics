@@ -158,7 +158,8 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             level.addFreshEntity(projectile);
         }
         stack.set(DEDataComponents.CANNON_SHOT_SEQUENCE.get(), stack.getOrDefault(DEDataComponents.CANNON_SHOT_SEQUENCE.get(), 0) + 1);
-        player.getCooldowns().addCooldown(this, 3);
+        // Rail recoil and the server-side item lock share the same four-second timeline.
+        player.getCooldowns().addCooldown(this, charge.mode() == MatterConvergingCrossbowMode.RAIL ? 80 : 3);
         player.awardStat(Stats.ITEM_USED.get(this));
         level.playSound(null, muzzle.x, muzzle.y, muzzle.z, SoundEvents.CROSSBOW_SHOOT, SoundSource.PLAYERS, 1.0F,
                 charge.mode() == MatterConvergingCrossbowMode.RAIL ? 1.4F : 0.7F);
