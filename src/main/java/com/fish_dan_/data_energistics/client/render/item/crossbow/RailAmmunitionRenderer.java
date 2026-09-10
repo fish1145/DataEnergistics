@@ -62,6 +62,10 @@ public final class RailAmmunitionRenderer {
             }
         } else {
             pose.scale(0.25F, 0.25F, 0.25F);
+            if (ammo.is(Items.HEAVY_CORE)) {
+                // The vanilla block model occupies y=0..8, so lift it by four pixels in item-local space.
+                pose.translate(0.0F, 0.25F, 0.0F);
+            }
             if (ammo.is(Items.BLAZE_ROD)) {
                 // Roll around the firing axis so the broad faces point through the side openings.
                 pose.mulPose(Axis.ZP.rotationDegrees(90));
