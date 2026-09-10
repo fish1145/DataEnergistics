@@ -126,6 +126,15 @@ public final class CrossbowAnimation {
             return this.mode == MatterConvergingCrossbowMode.CROSSBOW ? this.draw * tipUnfold() : 0.0F;
         }
 
+        /** True only during the prolonged rail brake, so particle effects share the model timeline. */
+        public boolean railJetPhase() {
+            return this.mode == MatterConvergingCrossbowMode.RAIL && this.recoil >= 0.45F;
+        }
+
+        public float railJetStrength() {
+            return this.railJetPhase() ? Math.clamp((this.recoil - 0.45F) * 20.0F, 0.0F, 1.0F) : 0.0F;
+        }
+
         private float phase(float start, float end) {
             return smooth(Math.clamp((this.deployment * DEPLOY_TICKS - start) / (end - start), 0.0F, 1.0F));
         }
