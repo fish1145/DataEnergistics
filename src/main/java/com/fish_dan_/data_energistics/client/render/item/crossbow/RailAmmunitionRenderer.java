@@ -39,6 +39,7 @@ public final class RailAmmunitionRenderer {
         matrix.translate(-0.5, -0.5, -0.5);
         matrix.mulPose(root);
         matrix.translate(chamber.x, chamber.y, chamber.z);
+        matrix.scale(1.6F, 1.6F, 1.6F);
         draw(ammo, owner.level(), matrix, Minecraft.getInstance().renderBuffers().bufferSource(), LevelRenderer.getLightColor(owner.level(), owner.blockPosition()));
         matrix.popPose();
     }
