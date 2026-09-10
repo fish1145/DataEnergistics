@@ -1,9 +1,13 @@
 package com.fish_dan_.data_energistics.client.ui.orbital;
 
+import com.fish_dan_.data_energistics.client.hud.orbital.OrbitalControlHudEditorScreen;
 import com.fish_dan_.data_energistics.client.map.orbital.OrbitalMapSelectionClientSession;
 import com.fish_dan_.data_energistics.client.map.orbital.OrbitalTacticalMapClientState;
 import com.fish_dan_.data_energistics.client.map.orbital.compatibility.TacticalMapAdapter;
 import com.fish_dan_.data_energistics.client.map.orbital.compatibility.TacticalMapAdapters;
+import com.fish_dan_.data_energistics.client.ui.orbital.state.OrbitalTerminalFormState;
+import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlConsoleOpenPayload;
+import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlOpenPayload;
 import com.fish_dan_.data_energistics.network.orbital.map.OrbitalTacticalMapRequestPayload;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyDepth;
@@ -16,8 +20,10 @@ import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireContro
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlClientBinding;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlClientBridge;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlDashboard;
-import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlDashboard.MapProviderOption;
+import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlDashboard.Page;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiSource;
+import com.fish_dan_.data_energistics.orbital.control.ui.map.OrbitalTacticalMapPanel.MapProviderOption;
+import com.fish_dan_.data_energistics.orbital.control.ui.weapon.OrbitalWeaponStatusPanel.ModeRow;
 import com.fish_dan_.data_energistics.orbital.map.OrbitalMapTile;
 
 import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEmitter;
@@ -25,6 +31,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 import com.lowdragmc.lowdraglib2.syncdata.ISubscription;
 
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -44,6 +51,7 @@ public final class OrbitalControlClientBindings {
 
     private static final String PREFIX = "screen.data_energistics.orbital_control_terminal.fire_control.";
     private static final Object2ObjectOpenHashMap<ModularUI, Session> SESSIONS = new Object2ObjectOpenHashMap<>();
+    private static @Nullable SuspendedWorkspace suspended;
 
     private OrbitalControlClientBindings() {}
 
@@ -70,6 +78,7 @@ public final class OrbitalControlClientBindings {
             session.close(false);
         }
         SESSIONS.clear();
+        suspended = null;
         OrbitalTacticalMapClientState.clear();
         OrbitalMapSelectionClientSession.clear();
     }
@@ -87,6 +96,8 @@ public final class OrbitalControlClientBindings {
         private final OrbitalControlUiSource source;
         private final RPCEmitter commandEmitter;
         private final Object2ObjectOpenHashMap<ResourceLocation, TacticalMapAdapter> mapAdapters = new Object2ObjectOpenHashMap<>();
+        private final Object2ObjectOpenHashMap<UUID, OrbitalTerminalFormState> forms = new Object2ObjectOpenHashMap<>();
+        private final OrbitalTerminalFormState initialForm;
 
         private @Nullable ModularUI modularUI;
         private @Nullable ISubscription mapSubscription;
@@ -94,6 +105,8 @@ public final class OrbitalControlClientBindings {
         private @Nullable OrbitalFireControlDraft previewedDraft;
         private @Nullable UUID previewNonce;
         private @Nullable UUID holdNonce;
+        private @Nullable UUID obsoleteNonce;
+        private OrbitalFireControlSessionSnapshot currentFireControl = OrbitalFireControlSessionSnapshot.IDLE;
         private boolean operable;
         private boolean discardSent;
         private boolean pendingSelectionConsumed;
@@ -106,7 +119,21 @@ public final class OrbitalControlClientBindings {
             this.dashboard = dashboard;
             this.source = source;
             this.commandEmitter = commandEmitter;
+            this.initialForm = OrbitalTerminalFormState.capture(dashboard);
             configureMapProviders();
+            SuspendedWorkspace previous = suspended;
+            suspended = null;
+            if (previous != null && previous.source().equals(source) && Util.getNanos() < previous.expiresAt()) {
+                this.forms.putAll(previous.forms());
+                dashboard.showPage(previous.page());
+                dashboard.weapons.search.setText(previous.search(), true);
+                for (MapProviderOption option : dashboard.mapProvider.getCandidates()) {
+                    if (option.id().equals(previous.provider())) {
+                        dashboard.mapProvider.setSelected(option, true);
+                        break;
+                    }
+                }
+            }
             bindDraftListeners();
             bindButtons();
         }
@@ -133,11 +160,16 @@ public final class OrbitalControlClientBindings {
             UUID newSelectedWeaponId = snapshot.terminal().selectedWeaponId();
             boolean weaponChanged = !Objects.equals(this.selectedWeaponId, newSelectedWeaponId);
             if (weaponChanged) {
+                rememberForm();
                 this.holdNonce = null;
                 this.previewedDraft = null;
                 this.previewNonce = null;
                 this.discardSent = false;
                 OrbitalTacticalMapClientState.clear();
+                if (newSelectedWeaponId != null) {
+                    this.forms.getOrDefault(newSelectedWeaponId, this.initialForm).apply(this.dashboard);
+                }
+                this.dashboard.markPreviewRequested();
             }
             this.selectedWeaponId = newSelectedWeaponId;
             this.operable = snapshot.terminal()
@@ -147,10 +179,11 @@ public final class OrbitalControlClientBindings {
             this.dashboard.updateDirectedFields(this.operable);
 
             OrbitalFireControlSessionSnapshot fireControl = snapshot.fireControl();
+            this.currentFireControl = fireControl;
             OrbitalFireControlSessionSnapshot.PreviewDetails preview = fireControl.preview();
             if ((fireControl.phase() == OrbitalFireControlSessionSnapshot.Phase.READY ||
                     fireControl.phase() == OrbitalFireControlSessionSnapshot.Phase.HOLDING) && preview != null) {
-                this.previewNonce = preview.nonce();
+                this.previewNonce = Objects.equals(preview.nonce(), this.obsoleteNonce) ? null : preview.nonce();
             } else {
                 this.previewNonce = null;
                 if (fireControl.phase() == OrbitalFireControlSessionSnapshot.Phase.IDLE ||
@@ -166,6 +199,12 @@ public final class OrbitalControlClientBindings {
                     applyDraft(pending);
                     requestPreview();
                 }
+            }
+            this.dashboard.confirm.setActive(startableHoldNonce() != null || this.holdNonce != null);
+            if (weaponChanged && this.selectedWeaponId != null) {
+                requestMap();
+            } else {
+                updateMapViewport();
             }
         }
 
@@ -204,6 +243,7 @@ public final class OrbitalControlClientBindings {
             }
             this.dashboard.mapProvider.setCandidates(List.copyOf(options));
             this.dashboard.mapProvider.setSelected(options.getFirst(), false);
+            this.dashboard.map.updateProvider();
         }
 
         private void bindDraftListeners() {
@@ -221,18 +261,23 @@ public final class OrbitalControlClientBindings {
         }
 
         private void bindButtons() {
-            this.dashboard.previousWeapon.setOnClick(ignored -> cycleWeapon(false));
-            this.dashboard.nextWeapon.setOnClick(ignored -> cycleWeapon(true));
-            for (OrbitalControlDashboard.ModeRow row : this.dashboard.modeRows) {
-                row.action.setOnClick(ignored -> {
+            this.dashboard.weapons.setSelectionListener(this::selectWeapon);
+            this.dashboard.hudLayout.setOnClick(ignored -> openHudEditor());
+            for (ModeRow row : this.dashboard.status.modeRows) {
+                row.action().setOnClick(ignored -> {
                     if (this.operable) {
-                        send(new OrbitalControlIntent.CancelOrAbortMode(row.mode));
+                        send(new OrbitalControlIntent.CancelOrAbortMode(row.mode()));
                     }
                 });
             }
             this.dashboard.refreshPreview.setOnClick(ignored -> requestPreview());
             this.dashboard.selectOnMap.setOnClick(ignored -> selectOnMap());
-            this.dashboard.mapRefresh.setOnClick(ignored -> requestMap());
+            this.dashboard.mapRefresh.setOnClick(ignored -> refreshMap());
+            this.dashboard.map.recenter.setOnClick(ignored -> requestMap());
+            this.dashboard.map.panButtons.get(0).setOnClick(ignored -> panMap(-1, 0));
+            this.dashboard.map.panButtons.get(1).setOnClick(ignored -> panMap(0, -1));
+            this.dashboard.map.panButtons.get(2).setOnClick(ignored -> panMap(0, 1));
+            this.dashboard.map.panButtons.get(3).setOnClick(ignored -> panMap(1, 0));
             for (int cellIndex = 0; cellIndex < this.dashboard.mapCells.size(); cellIndex++) {
                 int offsetX = cellIndex % (OrbitalControlDashboard.MAP_RADIUS * 2 + 1) - OrbitalControlDashboard.MAP_RADIUS;
                 int offsetZ = cellIndex / (OrbitalControlDashboard.MAP_RADIUS * 2 + 1) - OrbitalControlDashboard.MAP_RADIUS;
@@ -257,9 +302,17 @@ public final class OrbitalControlClientBindings {
             });
         }
 
-        private void cycleWeapon(boolean forward) {
+        private void selectWeapon(UUID weaponId) {
+            if (weaponId.equals(this.selectedWeaponId)) {
+                return;
+            }
+            rememberForm();
             cancelLocalHold();
-            send(new OrbitalControlIntent.CycleWeapon(forward));
+            this.obsoleteNonce = this.previewNonce;
+            this.previewNonce = null;
+            this.dashboard.confirm.setActive(false);
+            send(new OrbitalControlIntent.SelectWeapon(weaponId));
+            this.dashboard.showPage(Page.MAP);
         }
 
         private @Nullable UUID startableHoldNonce() {
@@ -287,15 +340,19 @@ public final class OrbitalControlClientBindings {
                 return;
             }
             cancelLocalHold();
+            this.obsoleteNonce = this.previewNonce;
             this.previewedDraft = draft;
             this.previewNonce = null;
             this.discardSent = false;
+            this.dashboard.markPreviewRequested();
             if (!send(new OrbitalControlIntent.RequestPreview(draft))) {
                 this.previewedDraft = null;
             }
         }
 
         private void draftChanged() {
+            this.dashboard.markDraftChanged();
+            updateMapViewport();
             if (this.previewedDraft == null || this.discardSent) {
                 return;
             }
@@ -309,6 +366,7 @@ public final class OrbitalControlClientBindings {
                 return;
             }
             cancelLocalHold();
+            this.obsoleteNonce = this.previewNonce;
             this.previewNonce = null;
             this.discardSent = true;
             send(OrbitalControlIntent.DiscardPreview.INSTANCE);
@@ -378,6 +436,7 @@ public final class OrbitalControlClientBindings {
                 return;
             }
             cancelLocalHold();
+            suspendWorkspace();
             UUID sessionToken = OrbitalMapSelectionClientSession.begin(
                     adapter.id(),
                     this.selectedWeaponId,
@@ -388,9 +447,11 @@ public final class OrbitalControlClientBindings {
                     Minecraft.getInstance(),
                     sessionToken);
             if (result == TacticalMapAdapter.SelectionStart.EMBEDDED) {
+                suspended = null;
                 OrbitalMapSelectionClientSession.cancel();
                 requestMap();
             } else if (result == TacticalMapAdapter.SelectionStart.FAILED) {
+                suspended = null;
                 OrbitalMapSelectionClientSession.cancel();
                 configureMapProviders();
                 this.dashboard.feedback.setValue(Component.translatable(PREFIX + "map.failed"));
@@ -409,18 +470,48 @@ public final class OrbitalControlClientBindings {
             }
             int centerChunkX = Math.floorDiv(draft.targetX(), 16);
             int centerChunkZ = Math.floorDiv(draft.targetZ(), 16);
+            requestMapAt(draft.dimensionId(), centerChunkX, centerChunkZ);
+        }
+
+        private void refreshMap() {
+            if (OrbitalTacticalMapClientState.revision() < 0L) {
+                requestMap();
+            } else {
+                requestMapAt(OrbitalTacticalMapClientState.dimensionId(), OrbitalTacticalMapClientState.centerChunkX(),
+                        OrbitalTacticalMapClientState.centerChunkZ());
+            }
+        }
+
+        private void panMap(int x, int z) {
+            if (OrbitalTacticalMapClientState.revision() < 0L) {
+                requestMap();
+                return;
+            }
+            requestMapAt(OrbitalTacticalMapClientState.dimensionId(), OrbitalTacticalMapClientState.centerChunkX() + x,
+                    OrbitalTacticalMapClientState.centerChunkZ() + z);
+        }
+
+        private void requestMapAt(ResourceLocation dimensionId, int centerChunkX, int centerChunkZ) {
+            if (!this.operable || this.selectedWeaponId == null) {
+                return;
+            }
+            if (Math.abs((long) centerChunkX * 16L) > OrbitalFireControlDraft.MAX_TARGET_COORDINATE ||
+                    Math.abs((long) centerChunkZ * 16L) > OrbitalFireControlDraft.MAX_TARGET_COORDINATE) {
+                this.dashboard.mapStatus.setValue(Component.translatable("screen.data_energistics.orbital_control_terminal.workspace.map_boundary"));
+                return;
+            }
             UUID sessionToken = OrbitalTacticalMapClientState.sessionTokenFor(
                     this.selectedWeaponId,
-                    draft.dimensionId());
+                    dimensionId);
             long requestNonce = OrbitalTacticalMapClientState.nextRequestNonce();
             OrbitalTacticalMapClientState.expectResponse(
                     this.selectedWeaponId,
-                    draft.dimensionId(),
+                    dimensionId,
                     requestNonce);
             PacketDistributor.sendToServer(new OrbitalTacticalMapRequestPayload(
                     this.selectedWeaponId,
                     sessionToken,
-                    draft.dimensionId(),
+                    dimensionId,
                     centerChunkX,
                     centerChunkZ,
                     OrbitalControlDashboard.MAP_RADIUS,
@@ -430,8 +521,8 @@ public final class OrbitalControlClientBindings {
         private void updateMapViewport() {
             if (this.closed || OrbitalTacticalMapClientState.revision() < 0L) {
                 this.dashboard.mapStatus.setValue(Component.translatable(PREFIX + "map.status"));
-                for (var cell : this.dashboard.mapCells) {
-                    cell.setText(OrbitalTacticalMapClientState.cellComponent(null));
+                for (int index = 0; index < this.dashboard.mapCells.size(); index++) {
+                    this.dashboard.map.showCell(index, null, OrbitalTacticalMapClientState.cellComponent(null), false, false);
                 }
                 return;
             }
@@ -444,13 +535,32 @@ public final class OrbitalControlClientBindings {
                     centerChunkX,
                     centerChunkZ));
             int diameter = OrbitalControlDashboard.MAP_RADIUS * 2 + 1;
+            OrbitalFireControlDraft draft = null;
+            try {
+                draft = readDraft();
+            } catch (IllegalArgumentException ignored) {
+                // A partially typed coordinate has no map marker until the field becomes valid.
+                this.dashboard.mapStatus.setValue(Component.translatable(PREFIX + "form.invalid"));
+            }
             for (int cellIndex = 0; cellIndex < this.dashboard.mapCells.size(); cellIndex++) {
                 int offsetX = cellIndex % diameter - OrbitalControlDashboard.MAP_RADIUS;
                 int offsetZ = cellIndex / diameter - OrbitalControlDashboard.MAP_RADIUS;
                 OrbitalMapTile tile = OrbitalTacticalMapClientState.tileAt(
                         centerChunkX + offsetX,
                         centerChunkZ + offsetZ);
-                this.dashboard.mapCells.get(cellIndex).setText(OrbitalTacticalMapClientState.cellComponent(tile));
+                boolean sameDimension = draft != null && dimensionId.equals(draft.dimensionId());
+                boolean target = sameDimension && Math.floorDiv(draft.targetX(), 16) == centerChunkX + offsetX &&
+                        Math.floorDiv(draft.targetZ(), 16) == centerChunkZ + offsetZ;
+                boolean affected = false;
+                var preview = this.currentFireControl.preview();
+                if (sameDimension && preview != null && preview.estimate() != null && this.previewNonce != null &&
+                        draft.equals(this.previewedDraft)) {
+                    long dx = (centerChunkX + offsetX) * 16L + 8L - draft.targetX();
+                    long dz = (centerChunkZ + offsetZ) * 16L + 8L - draft.targetZ();
+                    long radius = preview.estimate().effectRadius();
+                    affected = dx * dx + dz * dz <= radius * radius;
+                }
+                this.dashboard.map.showCell(cellIndex, tile, OrbitalTacticalMapClientState.cellComponent(tile), target, affected);
             }
         }
 
@@ -480,6 +590,43 @@ public final class OrbitalControlClientBindings {
             draftChanged();
         }
 
+        private void rememberForm() {
+            if (this.selectedWeaponId != null) {
+                this.forms.put(this.selectedWeaponId, OrbitalTerminalFormState.capture(this.dashboard));
+            }
+        }
+
+        private void suspendWorkspace() {
+            rememberForm();
+            MapProviderOption provider = this.dashboard.mapProvider.getValue();
+            suspended = new SuspendedWorkspace(this.source, new Object2ObjectOpenHashMap<>(this.forms),
+                    this.dashboard.page(), this.dashboard.weapons.search.getRawText(),
+                    provider == null ? null : provider.id(), Util.getNanos() + 120_000_000_000L);
+        }
+
+        private void openHudEditor() {
+            cancelLocalHold();
+            send(OrbitalControlIntent.DiscardPreview.INSTANCE);
+            suspendWorkspace();
+            Minecraft minecraft = Minecraft.getInstance();
+            var connection = minecraft.getConnection();
+            if (minecraft.player == null) {
+                return;
+            }
+            minecraft.player.closeContainer();
+            OrbitalControlHudEditorScreen.open(() -> {
+                if (minecraft.player == null || minecraft.getConnection() != connection) {
+                    return;
+                }
+                minecraft.setScreen(null);
+                switch (this.source) {
+                    case OrbitalControlUiSource.Terminal() -> PacketDistributor.sendToServer(OrbitalControlOpenPayload.INSTANCE);
+                    case OrbitalControlUiSource.Console(var dimensionId, var blockPos) -> PacketDistributor.sendToServer(
+                            new OrbitalControlConsoleOpenPayload(dimensionId, blockPos));
+                }
+            });
+        }
+
         private void cancelLocalHold() {
             if (this.holdNonce == null) {
                 return;
@@ -500,4 +647,8 @@ public final class OrbitalControlClientBindings {
             }
         }
     }
+
+    private record SuspendedWorkspace(OrbitalControlUiSource source,
+                                      Object2ObjectOpenHashMap<UUID, OrbitalTerminalFormState> forms,
+                                      Page page, String search, @Nullable ResourceLocation provider, long expiresAt) {}
 }

@@ -66,7 +66,7 @@ public final class OrbitalControlUiFactory {
             snapshotSync.setValueProvider(serverSession::snapshot);
         }
 
-        ModularUI modularUI = ModularUI.of(UI.of(dashboard.root), player);
+        ModularUI modularUI = ModularUI.of(UI.of(dashboard.root, dashboard::resize), player);
         if (serverSession != null) {
             serverSession.attach(modularUI);
         }

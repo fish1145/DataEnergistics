@@ -67,6 +67,11 @@ public final class OrbitalControlPresentation {
                 weapon.endpointCount());
     }
 
+    /** Short lifecycle label for stable weapon-list rows and the workspace header. */
+    public static Component weaponState(WeaponEntry weapon) {
+        return lifecycleState(weapon);
+    }
+
     public static Component celestialEnergy(WeaponEntry weapon) {
         return Component.translatable(
                 PREFIX + "overview.resource.celestial",

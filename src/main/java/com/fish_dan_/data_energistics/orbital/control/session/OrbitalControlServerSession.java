@@ -88,6 +88,8 @@ public final class OrbitalControlServerSession {
         try {
             this.feedback = switch (intent) {
                 case OrbitalControlIntent.CycleWeapon cycle -> cycleWeapon(cycle.forward());
+                case OrbitalControlIntent.SelectWeapon select -> OrbitalControlActionDispatcher.selectWeapon(
+                        this.player, select.weaponId()) ? OrbitalControlFeedback.WEAPON_SELECTED : OrbitalControlFeedback.ACTION_REJECTED;
                 case OrbitalControlIntent.CancelOrAbortMode cancel -> OrbitalControlActionDispatcher.cancelOrAbortSelectedMode(
                         this.player,
                         cancel.mode()) ? OrbitalControlFeedback.TASK_STOPPED : OrbitalControlFeedback.ACTION_REJECTED;

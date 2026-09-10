@@ -387,6 +387,19 @@ public final class OrbitalControlActionDispatcher {
         return OrbitalWeaponSavedData.get(server).selectNext(server, player.getUUID(), forward);
     }
 
+    /** Selects an accessible ID and invalidates the previous weapon's preview on the server thread. */
+    public static boolean selectWeapon(ServerPlayer player, UUID weaponId) {
+        MinecraftServer server = player.getServer();
+        if (server == null || !server.isSameThread()) {
+            return false;
+        }
+        if (!OrbitalWeaponSavedData.get(server).selectWeapon(server, player.getUUID(), weaponId)) {
+            return false;
+        }
+        FIRE_CONTROL.discard(server, player.getUUID());
+        return true;
+    }
+
     /** Cancels or aborts only the selected weapon's explicitly displayed mode task. */
     public static boolean cancelOrAbortSelectedMode(ServerPlayer player, OrbitalAttackMode mode) {
         MinecraftServer server = player.getServer();

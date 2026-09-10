@@ -2,10 +2,9 @@ package com.fish_dan_.data_energistics.network.orbital.control;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.bridge.DataEnergisticsClientBridgeAccess;
+import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalHudSnapshot;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -14,11 +13,11 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 public record OrbitalControlHudSnapshotPayload(
                                                long revision,
                                                boolean visible,
-                                               Component status)
+                                               OrbitalHudSnapshot snapshot)
         implements CustomPacketPayload {
 
     public static final Type<OrbitalControlHudSnapshotPayload> TYPE = new Type<>(
-            Data_Energistics.id("orbital_control_hud_snapshot"));
+            Data_Energistics.id("orbital_control_hud_state"));
     public static final StreamCodec<RegistryFriendlyByteBuf, OrbitalControlHudSnapshotPayload> STREAM_CODEC = CustomPacketPayload.codec(
             OrbitalControlHudSnapshotPayload::write,
             OrbitalControlHudSnapshotPayload::new);
@@ -33,13 +32,13 @@ public record OrbitalControlHudSnapshotPayload(
         this(
                 buffer.readVarLong(),
                 buffer.readBoolean(),
-                ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buffer));
+                OrbitalHudSnapshot.STREAM_CODEC.decode(buffer));
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
         buffer.writeVarLong(this.revision);
         buffer.writeBoolean(this.visible);
-        ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buffer, this.status);
+        OrbitalHudSnapshot.STREAM_CODEC.encode(buffer, this.snapshot);
     }
 
     @Override

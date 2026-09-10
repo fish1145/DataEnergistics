@@ -553,6 +553,23 @@ public final class OrbitalWeaponSavedData extends SavedData {
     }
 
     /**
+     * Selects an accessible weapon on the server thread. Untrusted or revoked IDs leave the remembered choice intact.
+     *
+     * @return whether the requested ID is currently accessible to the player
+     */
+    public boolean selectWeapon(MinecraftServer server, UUID playerId, UUID weaponId) {
+        requireServerThread(server);
+        AccessibleWeaponSelection selection = accessibleSelection(playerId);
+        if (selection.weapons().stream().noneMatch(weapon -> weapon.weaponId().equals(weaponId))) {
+            return false;
+        }
+        if (!weaponId.equals(this.lastSelectedWeaponByPlayer.put(playerId, weaponId))) {
+            setDirty();
+        }
+        return true;
+    }
+
+    /**
      * Adds or changes a delegated role after verifying the acting player against authoritative state.
      */
     public void authorize(

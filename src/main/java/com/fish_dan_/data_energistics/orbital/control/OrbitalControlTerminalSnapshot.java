@@ -177,6 +177,10 @@ public record OrbitalControlTerminalSnapshot(
                               long aeEnergy,
                               List<AttackEntry> attacks) {
 
+        /** Bounded wire representation shared by the terminal and selected-weapon HUD. */
+        public static final StreamCodec<RegistryFriendlyByteBuf, WeaponEntry> STREAM_CODEC = StreamCodec.of(
+                WeaponEntry::encode, WeaponEntry::decode);
+
         public static final Codec<WeaponEntry> CODEC = RecordCodecBuilder.create(instance -> instance
                 .group(
                         UUIDUtil.CODEC.fieldOf("weapon_id").forGetter(WeaponEntry::weaponId),

@@ -15,6 +15,7 @@ import java.util.UUID;
 /** Bounded C2S commands accepted by one open, server-authoritative orbital control menu. */
 public sealed interface OrbitalControlIntent permits
                                              OrbitalControlIntent.CycleWeapon,
+                                             OrbitalControlIntent.SelectWeapon,
                                              OrbitalControlIntent.CancelOrAbortMode,
                                              OrbitalControlIntent.RequestPreview,
                                              OrbitalControlIntent.StartHold,
@@ -33,6 +34,7 @@ public sealed interface OrbitalControlIntent permits
     private Kind kind() {
         return switch (this) {
             case CycleWeapon ignored -> Kind.CYCLE_WEAPON;
+            case SelectWeapon ignored -> Kind.SELECT_WEAPON;
             case CancelOrAbortMode ignored -> Kind.CANCEL_OR_ABORT_MODE;
             case RequestPreview ignored -> Kind.REQUEST_PREVIEW;
             case StartHold ignored -> Kind.START_HOLD;
@@ -47,6 +49,7 @@ public sealed interface OrbitalControlIntent permits
         buffer.writeVarInt(kind.ordinal());
         switch (intent) {
             case CycleWeapon cycle -> buffer.writeBoolean(cycle.forward);
+            case SelectWeapon select -> buffer.writeUUID(select.weaponId);
             case CancelOrAbortMode cancel -> buffer.writeVarInt(cancel.mode.wireCode());
             case RequestPreview preview -> OrbitalFireControlDraft.STREAM_CODEC.encode(buffer, preview.draft);
             case StartHold start -> buffer.writeUUID(start.nonce);
@@ -60,6 +63,7 @@ public sealed interface OrbitalControlIntent permits
         Kind kind = Kind.fromOrdinal(buffer.readVarInt());
         return switch (kind) {
             case CYCLE_WEAPON -> new CycleWeapon(buffer.readBoolean());
+            case SELECT_WEAPON -> new SelectWeapon(buffer.readUUID());
             case CANCEL_OR_ABORT_MODE -> new CancelOrAbortMode(
                     OrbitalAttackMode.fromWireCode(buffer.readVarInt()));
             case REQUEST_PREVIEW -> new RequestPreview(OrbitalFireControlDraft.STREAM_CODEC.decode(buffer));
@@ -75,6 +79,14 @@ public sealed interface OrbitalControlIntent permits
         private static final MapCodec<CycleWeapon> CODEC = RecordCodecBuilder.mapCodec(instance -> instance
                 .group(Codec.BOOL.fieldOf("forward").forGetter(CycleWeapon::forward))
                 .apply(instance, CycleWeapon::new));
+    }
+
+    /** Requests a concrete selection; access is checked against current server state. */
+    record SelectWeapon(UUID weaponId) implements OrbitalControlIntent {
+
+        private static final MapCodec<SelectWeapon> CODEC = RecordCodecBuilder.mapCodec(instance -> instance
+                .group(UUIDUtil.CODEC.fieldOf("weapon_id").forGetter(SelectWeapon::weaponId))
+                .apply(instance, SelectWeapon::new));
     }
 
     record CancelOrAbortMode(OrbitalAttackMode mode) implements OrbitalControlIntent {
@@ -133,7 +145,8 @@ public sealed interface OrbitalControlIntent permits
         START_HOLD(StartHold.CODEC),
         RELEASE_HOLD(ReleaseHold.CODEC),
         CANCEL_HOLD(CancelHold.CODEC),
-        DISCARD_PREVIEW(DiscardPreview.CODEC);
+        DISCARD_PREVIEW(DiscardPreview.CODEC),
+        SELECT_WEAPON(SelectWeapon.CODEC);
 
         private static final Codec<Kind> CODEC = Codec.STRING.xmap(Kind::valueOf, Kind::name);
 

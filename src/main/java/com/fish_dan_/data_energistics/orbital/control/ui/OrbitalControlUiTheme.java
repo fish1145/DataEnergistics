@@ -7,16 +7,21 @@ import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.texture.Icons;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
+import com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
 
 import net.minecraft.network.chat.Component;
 
 import dev.vfyjxf.taffy.style.TaffyPosition;
+
+import java.util.List;
+import java.util.function.Function;
 
 /** Shared LDLib2 palette and component construction for the terminal, console and compact HUD. */
 public final class OrbitalControlUiTheme {
@@ -159,6 +164,51 @@ public final class OrbitalControlUiTheme {
                 .top(top)
                 .width(width)
                 .height(height));
+    }
+
+    /** A clipped scroll region whose content remains at readable GUI size. */
+    public static ScrollerView scrollPanel(String id) {
+        ScrollerView view = new ScrollerView();
+        view.setId(id);
+        view.scrollerStyle(style -> style.mode(ScrollerMode.VERTICAL).adaptiveHeight(false).adaptiveWidth(false));
+        stylePanel(view.viewPort, Tone.PANEL);
+        view.viewPort.layout(layout -> layout.paddingAll(4));
+        styleButton(view.verticalScroller.scrollBar, Tone.ACCENT);
+        stylePanel(view.verticalScroller.scrollContainer, Tone.PANEL_ALT);
+        return view;
+    }
+
+    public static TextField textInput(String id, String initial, int x, int y, int width) {
+        TextField field = new TextField();
+        field.setId(id);
+        field.setText(initial, false);
+        styleTextField(field);
+        place(field, x, y, width, 20);
+        return field;
+    }
+
+    /** Compact bounded choices; long option labels remain available through hover scrolling. */
+    public static <T> Selector<T> choices(String id, int x, int y, int width,
+                                          List<T> candidates, T selected, Function<T, Component> label) {
+        Selector<T> selector = new Selector<>();
+        selector.setId(id);
+        selector.setCandidates(candidates);
+        selector.setSelected(selected, false);
+        selector.setCandidateUIProvider(value -> {
+            Label option = new Label();
+            // LDLib2 can ask for the empty display entry while initializing a selector, despite its annotation.
+            option.setValue(value == null ? Component.empty() : label.apply(value));
+            option.setAllowHitTest(false);
+            option.layout(layout -> layout.widthPercent(100).height(18));
+            option.textStyle(style -> style.adaptiveWidth(false).adaptiveHeight(false).fontSize(9)
+                    .textAlignHorizontal(Horizontal.CENTER).textAlignVertical(Vertical.CENTER)
+                    .textWrap(TextWrap.HOVER_ROLL).textColor(TEXT).textShadow(false));
+            return option;
+        });
+        selector.selectorStyle(style -> style.closeAfterSelect(true).maxItemCount(8).scrollerViewHeight(148));
+        styleSelector(selector);
+        place(selector, x, y, width, 20);
+        return selector;
     }
 
     private static IGuiTexture texture(Tone tone) {

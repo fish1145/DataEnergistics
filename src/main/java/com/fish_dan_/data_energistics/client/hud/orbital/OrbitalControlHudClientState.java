@@ -1,8 +1,8 @@
 package com.fish_dan_.data_energistics.client.hud.orbital;
 
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
-
-import net.minecraft.network.chat.Component;
+import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot.WeaponEntry;
+import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalHudSnapshot;
 
 import org.jspecify.annotations.Nullable;
 
@@ -12,7 +12,7 @@ public final class OrbitalControlHudClientState {
     private static long revision = -1L;
     private static boolean visible;
     private static boolean userEnabled = true;
-    private static Component status = Component.empty();
+    private static OrbitalHudSnapshot snapshot = OrbitalHudSnapshot.EMPTY;
 
     private OrbitalControlHudClientState() {}
 
@@ -22,14 +22,14 @@ public final class OrbitalControlHudClientState {
         }
         revision = payload.revision();
         visible = payload.visible();
-        status = payload.status();
+        snapshot = payload.snapshot();
     }
 
     /** Clears the server-scoped HUD baseline when the client leaves a server. */
     public static void clear() {
         revision = -1L;
         visible = false;
-        status = Component.empty();
+        snapshot = OrbitalHudSnapshot.EMPTY;
     }
 
     public static boolean visible() {
@@ -37,8 +37,12 @@ public final class OrbitalControlHudClientState {
     }
 
     @Nullable
-    public static Component status() {
-        return visible() ? status : null;
+    public static WeaponEntry weapon() {
+        return visible() ? snapshot.weapon() : null;
+    }
+
+    public static OrbitalHudSnapshot snapshot() {
+        return snapshot;
     }
 
     public static void toggleUserEnabled() {

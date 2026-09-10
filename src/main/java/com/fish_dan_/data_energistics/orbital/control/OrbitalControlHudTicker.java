@@ -1,9 +1,8 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
-import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlPresentation;
+import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalHudSnapshot;
 
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -47,7 +46,7 @@ public final class OrbitalControlHudTicker {
                         new OrbitalControlHudSnapshotPayload(
                                 gameTime,
                                 state.visible(),
-                                state.status()));
+                                state.snapshot()));
             }
         }
         this.publishedStates.keySet().removeIf(id -> server.getPlayerList().getPlayer(id) == null);
@@ -61,15 +60,15 @@ public final class OrbitalControlHudTicker {
         if (snapshot.selectedWeaponId() == null) {
             return PublishedState.HIDDEN;
         }
-        return new PublishedState(true, OrbitalControlPresentation.hud(snapshot));
+        return new PublishedState(true, new OrbitalHudSnapshot(snapshot.selectedWeapon().orElseThrow()));
     }
 
     private static boolean holdsTerminal(ServerPlayer player) {
         return OrbitalControlTerminalAccess.hasTerminal(player);
     }
 
-    private record PublishedState(boolean visible, Component status) {
+    private record PublishedState(boolean visible, OrbitalHudSnapshot snapshot) {
 
-        private static final PublishedState HIDDEN = new PublishedState(false, Component.empty());
+        private static final PublishedState HIDDEN = new PublishedState(false, OrbitalHudSnapshot.EMPTY);
     }
 }
