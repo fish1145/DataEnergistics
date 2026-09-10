@@ -62,6 +62,8 @@ public final class RailAmmunitionRenderer {
         } else {
             pose.scale(0.25F, 0.25F, 0.25F);
             if (ammo.is(Items.BLAZE_ROD)) {
+                // Roll around the firing axis so the broad faces point through the side openings.
+                pose.mulPose(Axis.ZP.rotationDegrees(90));
                 pose.mulPose(Axis.XP.rotationDegrees(90));
                 pose.mulPose(Axis.ZP.rotationDegrees(45));
             }
