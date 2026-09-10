@@ -25,6 +25,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -72,6 +73,32 @@ public final class WeaponAmmunitionGameTest {
             }
             h.assertTrue(Math.abs(peak - center.y - profile.height()) < 0.15, "Wind rise was " + (peak - center.y) + " expected " + profile.height());
             target.discard();
+        }
+        h.succeed();
+    }
+
+    @TestHolder("weapon_fire_grenade_ignites_round_ground_footprint")
+    @GameTest(template = "empty_50x32x50")
+    public static void roundGroundFire(GameTestHelper h) {
+        BlockPos center = new BlockPos(5, 3, 5);
+        for (int cards = 0; cards <= 2; cards++) {
+            for (int x = -4; x <= 4; x++) {
+                for (int z = -4; z <= 4; z++) {
+                    h.setBlock(center.offset(x, -1, z), Blocks.STONE);
+                    h.setBlock(center.offset(x, 0, z), Blocks.AIR);
+                }
+            }
+            ElementalGrenade.detonate(h.getLevel(), new ItemStack(Items.FIRE_CHARGE),
+                    Vec3.atBottomCenterOf(h.absolutePos(center)), null, cards);
+            String[] footprint = cards == 0 ? new String[] { "..#..", ".###.", "#####", ".###.", "..#.." } : new String[] { "...#...", ".#####.", ".#####.", "#######", ".#####.", ".#####.", "...#..." };
+            int radius = footprint.length / 2;
+            for (int x = -4; x <= 4; x++) {
+                for (int z = -4; z <= 4; z++) {
+                    boolean expected = Math.abs(x) <= radius && Math.abs(z) <= radius && footprint[z + radius].charAt(x + radius) == '#';
+                    h.assertBlockPresent(expected ? Blocks.FIRE : Blocks.AIR, center.offset(x, 0, z));
+                    h.assertBlockPresent(Blocks.STONE, center.offset(x, -1, z));
+                }
+            }
         }
         h.succeed();
     }

@@ -48,16 +48,18 @@ public final class ElementalGrenade {
             int radius = flame.width() / 2;
             for (int x = -radius; x <= radius; x++) {
                 for (int z = -radius; z <= radius; z++) {
+                    if (x * x + z * z > radius * radius) continue;
                     for (int y = 2; y >= -2; y--) {
                         BlockPos pos = origin.offset(x, y, z);
                         if (level.getBlockState(pos).isAir() && BaseFireBlock.canBePlacedAt(level, pos, Direction.UP)) {
                             level.setBlockAndUpdate(pos, BaseFireBlock.getState(level, pos));
+                            level.sendParticles(ParticleTypes.FLAME, pos.getX() + 0.5, pos.getY() + 0.1, pos.getZ() + 0.5,
+                                    2, 0.2, 0.05, 0.2, 0.02);
                             break;
                         }
                     }
                 }
             }
-            level.sendParticles(ParticleTypes.FLAME, center.x, center.y, center.z, 30, radius, 0.2, radius, 0.02);
         }
     }
 
