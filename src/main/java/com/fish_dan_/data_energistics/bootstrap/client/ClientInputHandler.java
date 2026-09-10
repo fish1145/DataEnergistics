@@ -58,7 +58,6 @@ final class ClientInputHandler {
             return;
         }
 
-
         if (event.isAttack() && CannonChargeInput.cannonHand(minecraft.player) != null) {
             event.setCanceled(true);
             event.setSwingHand(false);
