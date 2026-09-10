@@ -2,21 +2,16 @@ package com.fish_dan_.data_energistics.client.render.item.crossbow;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.effect.ChromaticGlow;
-import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.network.action.ChromaticGlowPayload;
 import com.fish_dan_.data_energistics.network.action.RailChainPayload;
-import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -26,9 +21,8 @@ import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
-import java.util.Locale;
 
-/** Brief impact-only FE arcs and server-authored cooldown HUD. */
+/** Brief impact-only FE arcs. */
 @EventBusSubscriber(modid = Data_Energistics.MODID, value = Dist.CLIENT)
 public final class RailImpactPresentation {
 
@@ -92,27 +86,6 @@ public final class RailImpactPresentation {
         direction.normalize();
         vertices.addVertex(pose, (float) from.x, (float) from.y, (float) from.z).setColor(138, 189, 255, 255).setNormal(pose, direction.x, direction.y, direction.z);
         vertices.addVertex(pose, (float) to.x, (float) to.y, (float) to.z).setColor(138, 189, 255, 255).setNormal(pose, direction.x, direction.y, direction.z);
-    }
-
-    @SubscribeEvent
-    public static void hud(RenderGuiEvent.Post event) {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.level == null || minecraft.options.hideGui) return;
-        long remaining = 0;
-        int duration = CrossbowRailRecoil.DURATION_TICKS;
-        for (InteractionHand hand : InteractionHand.values()) {
-            var stack = minecraft.player.getItemInHand(hand);
-            long time = stack.getOrDefault(DEDataComponents.RAIL_COOLDOWN_END.get(), 0L) - minecraft.level.getGameTime();
-            if (stack.getItem() instanceof MatterConvergingCrossbowItem && time > remaining) {
-                remaining = time;
-                duration = stack.getOrDefault(DEDataComponents.RAIL_COOLDOWN_DURATION.get(), CrossbowRailRecoil.DURATION_TICKS);
-            }
-        }
-        if (remaining <= 0) return;
-        int left = event.getGuiGraphics().guiWidth() / 2 - 60;
-        event.getGuiGraphics().fill(left, 24, left + 120, 29, 0xB0303030);
-        event.getGuiGraphics().fill(left, 24, left + (int) (120 * Math.min(1, remaining / (double) duration)), 29, 0xFF72D9F3);
-        event.getGuiGraphics().drawCenteredString(minecraft.font, Component.translatable("hud.data_energistics.rail_cooldown", String.format(Locale.ROOT, "%.1f", remaining / 20.0)), left + 60, 12, 0xFFFFFF);
     }
 
     private record Chain(List<Vec3> points, long until) {}
