@@ -72,10 +72,10 @@ public final class DEMenus {
 
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, Data_Energistics.MODID);
     public static final DeferredHolder<MenuType<?>, MenuType<MatterConvergingCrossbowConfigMenu>> MATTER_CONVERGING_CROSSBOW_CONFIG = MENUS.register(
-            "dark_string_data_settlement_tool_config", () -> MenuTypeBuilder
+            "star_shard_config", () -> MenuTypeBuilder
                     .create(MatterConvergingCrossbowConfigMenu::new, CannonCellMenuHost.class)
                     .withMenuTitle(host -> host.getItemStack().getHoverName())
-                    .buildUnregistered(Data_Energistics.id("dark_string_data_settlement_tool_config")));
+                    .buildUnregistered(Data_Energistics.id("star_shard_config")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<CraftingPlanTreeMenu>> CRAFTING_PLAN_TREE = MENUS.register("crafting_plan_tree", () -> IMenuTypeExtension.create(CraftingPlanTreeMenu::fromNetwork));
 

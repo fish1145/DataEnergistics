@@ -2,6 +2,8 @@ package com.fish_dan_.data_energistics.client.render.overlay;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.input.cannon.CannonChargeInput;
+import com.fish_dan_.data_energistics.client.render.item.crossbow.CannonModelAnchors;
+import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowGeometry;
 import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowTrajectorySpace;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
@@ -52,13 +54,13 @@ public final class MatterConvergingCrossbowTrajectoryRenderer {
 
     /** Runs while the held model's current transform is available, before ItemRenderer's -0.5 recenter. */
     public static void renderFromModel(LivingEntity entity, InteractionHand hand, ItemStack stack,
-                                       ItemDisplayContext context, PoseStack poseStack, Matrix4f root) {
+                                       ItemDisplayContext context, PoseStack poseStack, Matrix4f root, CrossbowGeometry.Anchors anchors) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (entity != minecraft.player || minecraft.level == null || minecraft.screen != null || !MatterConvergingCrossbowItem.isCannon(stack)) {
+        if (minecraft.level == null || !MatterConvergingCrossbowItem.isCannon(stack)) {
             return;
         }
         // Do not draw a third-person copy during first-person shadow/entity passes.
-        if (context.firstPerson() != minecraft.options.getCameraType().isFirstPerson()) {
+        if (entity == minecraft.player && context.firstPerson() != minecraft.options.getCameraType().isFirstPerson()) {
             return;
         }
         Matrix4f projection = context.firstPerson() ? worldProjection : RenderSystem.getProjectionMatrix();
@@ -70,6 +72,15 @@ public final class MatterConvergingCrossbowTrajectoryRenderer {
         CrossbowTrajectorySpace space = new CrossbowTrajectorySpace(modelToRender, RenderSystem.getModelViewMatrix(),
                 RenderSystem.getProjectionMatrix(), projection, camera.rotation());
         Vec3 cameraPosition = camera.getPosition();
+        Vec3 railMuzzle = cameraPosition.add(new Vec3(space.modelPoint(anchors.muzzle())));
+        Vec3 left = cameraPosition.add(new Vec3(space.modelPoint(anchors.left())));
+        Vec3 right = cameraPosition.add(new Vec3(space.modelPoint(anchors.right())));
+        Vec3 back = new Vec3(space.modelPoint(new Vector3f(anchors.left()).add(anchors.back())))
+                .subtract(new Vec3(space.modelPoint(anchors.left()))).normalize().scale(0.035);
+        Vec3 sideways = right.subtract(left).normalize().scale(0.16);
+        CannonModelAnchors.record(entity, hand, new CannonModelAnchors.Anchors(railMuzzle, left, right,
+                sideways.scale(-1).add(back), sideways.add(back), minecraft.level.getGameTime()));
+        if (entity != minecraft.player || minecraft.screen != null) return;
         Vec3 start = cameraPosition.add(new Vec3(space.muzzleOffset()));
         float partialTick = minecraft.getTimer().getGameTimeDeltaPartialTick(true);
         Vec3 eye = entity.getEyePosition(partialTick);

@@ -23,4 +23,23 @@ public final class CrossbowRailRecoil {
         return tick >= 4 && tick <= 32;
     }
 
+    public static float jetStrength(int tick) {
+        if (!isJetPhase(tick)) return 0;
+        return Math.min(1, Math.min((tick - 3) / 5.0F, (33 - tick) / 9.0F));
+    }
+
+    public static float bowRetraction(int tick) {
+        return switch (tick) {
+            case 1 -> 0.36F;
+            case 2, 3, 4 -> 0.50F;
+            case 5 -> 0.47F;
+            case 6 -> 0.40F;
+            case 7 -> 0.31F;
+            case 8 -> 0.22F;
+            case 9 -> 0.13F;
+            case 10 -> 0.06F;
+            case 11 -> 0.016F;
+            default -> 0;
+        };
+    }
 }

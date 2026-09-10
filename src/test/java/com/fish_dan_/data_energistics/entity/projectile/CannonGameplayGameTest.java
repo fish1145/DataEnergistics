@@ -6,14 +6,18 @@ import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonCharge;
+import com.fish_dan_.data_energistics.item.powered.cannon.storage.MountedAmmoCells;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
 import appeng.api.ids.AEComponents;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
 import appeng.core.definitions.AEItems;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -24,7 +28,9 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ChargedProjectiles;
+import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -34,6 +40,8 @@ import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import io.netty.buffer.Unpooled;
+
+import java.util.List;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
@@ -80,7 +88,7 @@ public final class CannonGameplayGameTest {
         helper.succeed();
     }
 
-    @TestHolder("cannon_rail_damage_scales_with_charge_not_flight_speed")
+    @TestHolder("cannon_legacy_rail_damage_scales_with_charge_not_flight_speed")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
     public static void railDamageScalesWithCharge(GameTestHelper helper) {
@@ -106,7 +114,7 @@ public final class CannonGameplayGameTest {
         ItemStack stack = DEItems.MATTER_CONVERGING_CROSSBOW.toStack();
         stack.set(AEComponents.STORED_ENERGY, 1000.0D);
         player.setItemInHand(InteractionHand.MAIN_HAND, stack);
-        player.getInventory().add(AEItems.MATTER_BALL.stack(2));
+        mountGrenadeCell(stack);
         MatterConvergingCrossbowItem item = (MatterConvergingCrossbowItem) stack.getItem();
         item.beginCannonCharge(player, InteractionHand.MAIN_HAND, stack);
         helper.assertTrue(stack.has(DEDataComponents.CANNON_CHARGE.get()), "Left press did not start independent cannon charge");
@@ -136,7 +144,7 @@ public final class CannonGameplayGameTest {
         ItemStack stack = DEItems.MATTER_CONVERGING_CROSSBOW.toStack();
         stack.set(AEComponents.STORED_ENERGY, 1000.0D);
         player.setItemInHand(InteractionHand.MAIN_HAND, stack);
-        player.getInventory().add(AEItems.MATTER_BALL.stack(2));
+        mountGrenadeCell(stack);
         MatterConvergingCrossbowItem item = (MatterConvergingCrossbowItem) stack.getItem();
         item.beginCannonCharge(player, InteractionHand.MAIN_HAND, stack);
         stack.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), MatterConvergingCrossbowMode.RAIL.id());
@@ -181,10 +189,10 @@ public final class CannonGameplayGameTest {
     public static void fullChargeNeverAutoFires(GameTestHelper helper) {
         Player player = player(helper);
         ItemStack stack = DEItems.MATTER_CONVERGING_CROSSBOW.toStack();
-        stack.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), MatterConvergingCrossbowMode.RAIL.id());
+        stack.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), MatterConvergingCrossbowMode.GRENADE.id());
         stack.set(AEComponents.STORED_ENERGY, 1000.0D);
         player.setItemInHand(InteractionHand.MAIN_HAND, stack);
-        player.getInventory().add(AEItems.MATTER_BALL.stack(2));
+        mountGrenadeCell(stack);
         MatterConvergingCrossbowItem item = (MatterConvergingCrossbowItem) stack.getItem();
         item.getUpgrades(stack).setItemDirect(0, AEItems.SPEED_CARD.stack(4));
         item.beginCannonCharge(player, InteractionHand.MAIN_HAND, stack);
@@ -224,5 +232,13 @@ public final class CannonGameplayGameTest {
         player.setYRot(0);
         player.setXRot(0);
         return player;
+    }
+
+    private static void mountGrenadeCell(ItemStack weapon) {
+        ItemStack cell = AEItems.ITEM_CELL_1K.stack();
+        cell.set(AEComponents.STORAGE_CELL_INV, List.of(new GenericStack(AEItemKey.of(Items.WIND_CHARGE), 2)));
+        NonNullList<ItemStack> cells = NonNullList.withSize(3, ItemStack.EMPTY);
+        cells.set(MatterConvergingCrossbowMode.GRENADE.id(), cell);
+        MountedAmmoCells.setCells(weapon, ItemContainerContents.fromItems(cells));
     }
 }

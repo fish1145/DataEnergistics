@@ -1,7 +1,7 @@
 {
 	"$schema": "schema.json",
 	"includes": ["common/common.json", "common/player_inventory.json"],
-	"helpTopic": "data_energistics:items-blocks-machines/7.3_dark_string_data_settlement_tool.md",
+	"helpTopic": "data_energistics:items-blocks-machines/7.3_star_shard.md",
 	"generatedBackground": {
 		"width": 220,
 		"height": 232

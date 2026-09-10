@@ -1,9 +1,13 @@
 package com.fish_dan_.data_energistics.entity.projectile;
 
+import com.fish_dan_.data_energistics.effect.ChromaticGlow;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.CannonShot;
+import com.fish_dan_.data_energistics.entity.projectile.cannon.ElementalGrenade;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.GrenadePayload;
+import com.fish_dan_.data_energistics.entity.projectile.cannon.WeaponDamage;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
+import com.fish_dan_.data_energistics.item.powered.cannon.ammunition.AmmunitionRules;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 import com.fish_dan_.data_energistics.registry.DEItems;
@@ -44,12 +48,11 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.entity.PartEntity;
 
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import lombok.Setter;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
-
-import java.util.HashSet;
-import java.util.Set;
 
 public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
@@ -76,11 +79,14 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
     private double traveledDistance;
     private ItemStack weaponStack = ItemStack.EMPTY;
-    private final Set<Integer> piercedEntityIds = new HashSet<>();
+    private final IntSet piercedEntityIds = new IntOpenHashSet();
     private int consumedPierceCount;
     @Setter
     private boolean critical;
     private CannonShot cannonShot = CannonShot.CROSSBOW;
+    private boolean modernEffects;
+    private float fragmentDamage;
+    private int singularityTicks;
 
     public MatterConvergingBoltEntity(EntityType<? extends MatterConvergingBoltEntity> entityType, Level level) {
         super(entityType, level);
@@ -105,6 +111,10 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
     @Override
     public void tick() {
+        if (this.singularityTicks > 0) {
+            this.tickSingularity();
+            return;
+        }
         Vec3 previousPosition = this.position();
         if (!this.level().isClientSide && this.isHoming()) {
             this.applyHoming();
@@ -150,6 +160,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     }
 
     public void setWeaponStack(ItemStack stack) {
+        this.modernEffects = true;
         this.weaponStack = stack.copy();
         this.getEntityData().set(DATA_SABER_ENERGY_CARD_COUNT, this.getSaberEnergyCardCount(stack));
     }
@@ -179,6 +190,9 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         this.cannonShot.save(tag);
+        tag.putBoolean("ModernEffects", this.modernEffects);
+        tag.putFloat("FragmentDamage", this.fragmentDamage);
+        tag.putInt("SingularityTicks", this.singularityTicks);
         tag.putDouble("TraveledDistance", this.traveledDistance);
         tag.putInt("BoltColor", this.getColor());
         tag.putInt("PierceLevel", this.getPierceLevel());
@@ -194,6 +208,9 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        this.modernEffects = tag.getBoolean("ModernEffects");
+        this.fragmentDamage = Math.max(0, tag.getFloat("FragmentDamage"));
+        this.singularityTicks = Math.clamp(tag.getInt("SingularityTicks"), 0, 10);
         this.traveledDistance = tag.getDouble("TraveledDistance");
         this.getEntityData().set(DATA_COLOR, tag.getInt("BoltColor"));
         this.getEntityData().set(DATA_PIERCE_LEVEL, tag.getInt("PierceLevel"));
@@ -219,6 +236,15 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
         Entity owner = this.getOwner();
         Entity target = result.getEntity();
         LivingEntity livingTarget = this.resolveLivingTarget(target);
+        if (this.modernEffects && this.getItem().is(DEItems.SINGULARITY_BLOCK.get())) {
+            if (livingTarget != null) {
+                var cube = AmmunitionRules.cube(this.focusingCards());
+                WeaponDamage.hurt(livingTarget, WeaponDamage.source(livingTarget, owner), this.fragmentDamage > 0 ? this.fragmentDamage : cube.damage());
+                if (this.fragmentDamage == 0) this.splitCube(result.getLocation(), cube);
+            }
+            this.discardWithEffects();
+            return;
+        }
         if (this.isDataDustAmmo() && livingTarget != null) {
             DamageSource damageSource = owner instanceof LivingEntity livingOwner ? this.damageSources().mobProjectile(this, livingOwner) : this.damageSources().thrown(this, owner);
             float baseDamage = this.getDataDustBaseDamage();
@@ -252,6 +278,13 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
             damaged = livingTarget.hurt(damageSource, damage);
             target = livingTarget;
         }
+        if (this.modernEffects && livingTarget != null && damaged && this.getItem().getItem() instanceof PaintBallItem) {
+            ChromaticGlow.apply(livingTarget, this.getColor());
+        }
+        if (this.modernEffects && this.isSingularityAmmo()) {
+            this.startSingularity(result.getLocation());
+            return;
+        }
         if (this.shouldContinuePiercing(target, damaged, wasAlive)) {
             return;
         }
@@ -262,11 +295,23 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     @Override
     protected void onHitBlock(BlockHitResult result) {
         if (this.detonatePayload(result)) return;
+        if (this.modernEffects && this.isSingularityAmmo()) {
+            this.startSingularity(result.getLocation());
+            return;
+        }
         super.onHitBlock(result);
         this.discardWithEffects();
     }
 
     private boolean detonatePayload(HitResult result) {
+        if (this.modernEffects && this.firingMode() == MatterConvergingCrossbowMode.GRENADE && ElementalGrenade.accepts(this.getItem())) {
+            if (!this.isRemoved() && this.level() instanceof ServerLevel serverLevel) {
+                this.discard();
+                ElementalGrenade.detonate(serverLevel, this.getItem(), result.getLocation(),
+                        this.getOwner() instanceof LivingEntity living ? living : null, this.focusingCards());
+            }
+            return true;
+        }
         if (this.firingMode() != MatterConvergingCrossbowMode.GRENADE || !GrenadePayload.isExplosive(this.getItem())) return false;
         if (!this.isRemoved() && this.level() instanceof ServerLevel serverLevel) {
             this.discard();
@@ -283,6 +328,59 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
     private boolean isSingularityAmmo() {
         return this.getItem().is(AEItems.SINGULARITY.asItem());
+    }
+
+    private int focusingCards() {
+        return Math.clamp(this.getSaberEnergyCardCount(), 0, 2);
+    }
+
+    /** Legacy preloaded projectiles retain their original one-shot payload behavior. */
+    public void setModernEffects(boolean modernEffects) {
+        this.modernEffects = modernEffects;
+    }
+
+    private void splitCube(Vec3 center, AmmunitionRules.Cube cube) {
+        if (!(this.level() instanceof ServerLevel level)) return;
+        for (int i = 0; i < cube.fragments(); i++) {
+            double angle = 2 * Math.PI * i / cube.fragments();
+            MatterConvergingBoltEntity fragment = new MatterConvergingBoltEntity(DEEntities.MATTER_CONVERGING_BOLT.get(), level);
+            fragment.setOwner(this.getOwner());
+            fragment.setItem(this.getItem().copyWithCount(1));
+            fragment.setWeaponStack(this.weaponStack);
+            fragment.fragmentDamage = cube.fragmentDamage();
+            fragment.setHoming(this.isHoming());
+            fragment.setPos(center.add(Math.cos(angle) * 0.35, 0.15, Math.sin(angle) * 0.35));
+            fragment.setDeltaMovement(new Vec3(Math.cos(angle), 0.15, Math.sin(angle)).normalize().scale(1.5));
+            level.addFreshEntity(fragment);
+        }
+    }
+
+    private void startSingularity(Vec3 center) {
+        this.setPos(center);
+        this.setDeltaMovement(Vec3.ZERO);
+        this.setNoGravity(true);
+        this.singularityTicks = 10;
+    }
+
+    private void tickSingularity() {
+        if (!(this.level() instanceof ServerLevel level)) return;
+        int cards = this.focusingCards();
+        var targets = level.getEntitiesOfClass(LivingEntity.class, ElementalGrenade.area(this.position(), cards == 0 ? 3 : 5),
+                target -> target.isAlive() && target != this.getOwner());
+        for (LivingEntity target : targets) {
+            Vec3 pull = this.position().subtract(target.getBoundingBox().getCenter()).scale(0.25);
+            if (pull.lengthSqr() > 0.36) pull = pull.normalize().scale(0.6);
+            target.setDeltaMovement(pull);
+            target.hurtMarked = true;
+        }
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, this.getX(), this.getY(), this.getZ(), 8, 0.6, 0.6, 0.6, 0.05);
+        if (--this.singularityTicks == 0) {
+            if (cards == 2) {
+                for (LivingEntity target : targets) WeaponDamage.hurt(target, WeaponDamage.source(target, this.getOwner()), target.getMaxHealth() * 0.15F);
+                level.sendParticles(ParticleTypes.EXPLOSION, this.getX(), this.getY(), this.getZ(), 1, 0, 0, 0, 0);
+            }
+            this.discardWithEffects();
+        }
     }
 
     private boolean isDataDustAmmo() {

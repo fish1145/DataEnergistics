@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.item.powered.cannon.storage;
 
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
+import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailFiring;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
 import appeng.api.config.Actionable;
@@ -22,6 +23,7 @@ public final class CannonCellMenuHost extends ItemMenuHost<MatterConvergingCross
 
     public CannonCellMenuHost(MatterConvergingCrossbowItem item, Player player, ItemMenuHostLocator locator) {
         super(item, player, locator);
+        if (!isClientSide()) RailFiring.stop(player, getItemStack());
         if (!isClientSide()) MountedAmmoCells.migrateLegacy(getItemStack());
         cells.fromItemContainerContents(getItemStack().getOrDefault(DEDataComponents.CANNON_CELLS.get(), ItemContainerContents.EMPTY));
     }

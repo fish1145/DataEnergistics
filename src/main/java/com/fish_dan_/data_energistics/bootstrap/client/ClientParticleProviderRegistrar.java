@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.particle.RadixLossParticle;
+import com.fish_dan_.data_energistics.client.particle.RailSteamParticle;
 import com.fish_dan_.data_energistics.registry.DEParticles;
 
 import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
@@ -11,5 +12,6 @@ final class ClientParticleProviderRegistrar {
 
     static void register(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(DEParticles.RADIX_LOSS.get(), RadixLossParticle.Provider::new);
+        event.registerSpriteSet(DEParticles.RAIL_STEAM.get(), RailSteamParticle.Provider::new);
     }
 }

@@ -80,7 +80,7 @@ public final class ClientBootstrap {
 
         @SubscribeEvent
         public static void onRegisterGeometryLoaders(ModelEvent.RegisterGeometryLoaders event) {
-            event.register(Data_Energistics.id("dark_string_data_settlement_tool"), new CrossbowModelLoader());
+            event.register(Data_Energistics.id("star_shard"), new CrossbowModelLoader());
         }
 
         @SubscribeEvent

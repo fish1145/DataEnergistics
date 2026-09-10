@@ -21,9 +21,9 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -52,7 +52,7 @@ public final class TntPayload {
         BlockState state = ammunition.getOrDefault(DataComponents.BLOCK_STATE, BlockItemStateProperties.EMPTY)
                 .apply(item.getBlock().defaultBlockState());
         BlockPos position = BlockPos.containing(impact);
-        List<PrimedTnt> primedEntities = new ArrayList<>();
+        List<PrimedTnt> primedEntities = new ObjectArrayList<>();
         Thread collisionThread = Thread.currentThread();
         Consumer<EntityJoinLevelEvent> capture = event -> {
             if (Thread.currentThread() == collisionThread && event.getLevel() == level && !event.loadedFromDisk() && event.getEntity() instanceof PrimedTnt primed) {

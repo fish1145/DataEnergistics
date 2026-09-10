@@ -3,9 +3,12 @@ package com.fish_dan_.data_energistics.item.powered;
 import com.fish_dan_.data_energistics.entity.projectile.MatterConvergingBoltEntity;
 import com.fish_dan_.data_energistics.entity.projectile.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.CannonShot;
+import com.fish_dan_.data_energistics.entity.projectile.cannon.ElementalGrenade;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.GrenadePayload;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonCharge;
+import com.fish_dan_.data_energistics.item.powered.cannon.ammunition.RailAmmunition;
+import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailFiring;
 import com.fish_dan_.data_energistics.item.powered.cannon.storage.CannonCellMenuHost;
 import com.fish_dan_.data_energistics.item.powered.cannon.storage.MountedAmmoCells;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
@@ -68,10 +71,11 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEItemPowerStorage, IUpgradeableItem, IMenuItem, IMouseWheelItem {
@@ -82,7 +86,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     private static final double DATA_DUST_ENERGY_PER_SHOT = 200_000.0D;
     private static final double DATA_DUST_ENERGY_PER_PERCENT = 25_000.0D;
     private static final int DATA_DUST_BASE_PERCENT = 1;
-    private static final int DATA_DUST_MAX_PERCENT = 5;
+    private static final int DATA_DUST_MAX_PERCENT = 10;
     private static final double HOMING_ENERGY_MULTIPLIER = 5.0D;
     private static final float PROJECTILE_SPEED = 3.15F;
     private static final float SPEED_CARD_PROJECTILE_SPEED_BONUS = 1.0F;
@@ -115,12 +119,17 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     @Override
     public void onWheel(ItemStack stack, boolean up) {
+        RailFiring.stopForMutation(stack);
         MountedAmmoCells.migrateLegacy(stack);
         MountedAmmoCells.cycle(stack, mode(stack), !up);
     }
 
     /** Server entry for a left-button press. No ammo or energy is spent until release. */
     public void beginCannonCharge(Player player, InteractionHand hand, ItemStack stack) {
+        if (mode(stack) == MatterConvergingCrossbowMode.RAIL && !isCharged(stack)) {
+            RailFiring.begin(player, hand, stack);
+            return;
+        }
         if (player.level().isClientSide || !isCannon(stack) || !player.isAlive() || player.isSpectator() || player.isUsingItem() || player.containerMenu != player.inventoryMenu || stack.has(DEDataComponents.CANNON_CHARGE.get())) return;
         MountedAmmoCells.migrateLegacy(stack);
         if (!this.isChargedAmmoSupported(stack)) return;
@@ -134,6 +143,10 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     /** Server release consumes the charge exactly once; packets contain no client-chosen charge/damage value. */
     public void releaseCannonCharge(Player player, InteractionHand hand, ItemStack stack, Vec3 muzzleOffset, Vec3 direction) {
+        if (stack.has(DEDataComponents.RAIL_SESSION.get())) {
+            RailFiring.stop(player, stack);
+            return;
+        }
         if (!(player.level() instanceof ServerLevel level)) return;
         CannonCharge charge = stack.remove(DEDataComponents.CANNON_CHARGE.get());
         if (charge == null || !charge.belongsTo(player, hand, mode(stack)) || player.isSpectator() || player.containerMenu != player.inventoryMenu || player.getItemInHand(hand) != stack || !CannonBallistics.validAim(muzzleOffset, direction, player.getViewVector(1.0F))) return;
@@ -180,6 +193,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slot, boolean selected) {
         super.inventoryTick(stack, level, entity, slot, selected);
         if (!level.isClientSide) {
+            RailFiring.reconcile(stack, (ServerLevel) level);
             MountedAmmoCells.migrateLegacy(stack);
             CannonCharge charge = stack.get(DEDataComponents.CANNON_CHARGE.get());
             if (charge != null && (!(entity instanceof Player player) || !charge.belongsTo(player, charge.hand(), mode(stack)) || player.getItemInHand(charge.hand()) != stack || player.containerMenu != player.inventoryMenu)) {
@@ -222,6 +236,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         ItemStack stack = player.getItemInHand(hand);
         if (player.isShiftKeyDown()) {
             if (!level.isClientSide) {
+                RailFiring.stop(player, stack);
                 stack.remove(DEDataComponents.CANNON_CHARGE.get());
                 MenuOpener.open(DEMenus.MATTER_CONVERGING_CROSSBOW_CONFIG.get(), player, MenuLocators.forHand(player, hand));
             }
@@ -314,7 +329,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
     @Override
     public Component getName(ItemStack stack) {
-        return Component.translatable("item.data_energistics.dark_string_data_settlement_tool.mode." + mode(stack).nameKey());
+        return Component.translatable("item.data_energistics.star_shard.mode." + mode(stack).nameKey());
     }
 
     @Override
@@ -326,11 +341,23 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         lines.add(Tooltips.energyStorageComponent(this.getAECurrentPower(stack), this.getAEMaxPower(stack)));
         lines.add(Component.translatable("tooltip.data_energistics.cannon.cells", Component.keybind("key.ae2.mouse_wheel_item_modifier")));
         ItemStack cell = MountedAmmoCells.cell(stack, mode(stack));
-        lines.add(Component.translatable("tooltip.data_energistics.cannon.cell", cell.isEmpty() ? Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile.none") : cell.getHoverName()));
+        lines.add(Component.translatable("tooltip.data_energistics.cannon.cell", cell.isEmpty() ? Component.translatable("item.data_energistics.star_shard.projectile.none") : cell.getHoverName()));
+        var ammoKey = MountedAmmoCells.selectedKey(stack, mode(stack));
+        if (ammoKey != null) {
+            lines.add(Component.translatable("tooltip.data_energistics.cannon.ammo_remaining",
+                    MountedAmmoCells.amount(stack, mode(stack), ammoKey)));
+            if (mode(stack) == MatterConvergingCrossbowMode.RAIL) {
+                RailAmmunition railAmmo = RailAmmunition.fromKey(ammoKey);
+                if (railAmmo != null) {
+                    lines.add(Component.translatable("tooltip.data_energistics.cannon.rail_ammo." + railAmmo.name().toLowerCase(Locale.ROOT),
+                            railAmmo.damage(this.getUpgrades(stack).getInstalledUpgrades(DEItems.CARD_SABER_ENERGY.get()))));
+                }
+            }
+        }
         if (!stack.getOrDefault(AEComponents.STORAGE_CELL_INV, List.of()).isEmpty()) {
             lines.add(Component.translatable("tooltip.data_energistics.cannon.legacy_ammo"));
         }
-        lines.add(Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile",
+        lines.add(Component.translatable("item.data_energistics.star_shard.projectile",
                 this.getDisplayedAmmoName(stack)));
     }
 
@@ -401,7 +428,8 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         if (this.isDataDustAmmo(ammoStack)) {
             ItemStack thrownStack = new ItemStack(DEItems.DATA_LIGHT_SABER.get());
             ThrownLightSaberEntity projectile = new ThrownLightSaberEntity(level, shooter, thrownStack);
-            projectile.pickup = Pickup.ALLOWED;
+            projectile.pickup = ammoStack.is(DEItems.DATA_RESIDUAL_CRYSTAL.get()) ? Pickup.DISALLOWED : Pickup.ALLOWED;
+            projectile.setConsumableCrystal(ammoStack.is(DEItems.DATA_RESIDUAL_CRYSTAL.get()));
             projectile.setWeaponStack(weaponStack);
             projectile.setDataDustDamageRatio(this.getDataDustDamagePercentForChargedShot(weaponStack) / 100.0F);
             projectile.setHoming(this.hasRedstoneCard(weaponStack));
@@ -410,6 +438,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
 
         MatterConvergingBoltEntity projectile = new MatterConvergingBoltEntity(level, shooter, ammoStack.copyWithCount(1));
         projectile.setWeaponStack(weaponStack);
+        projectile.setModernEffects(ammoStack.getOrDefault(DEDataComponents.CANNON_MODERN_AMMO.get(), false));
         projectile.setCritical(isCrit);
         projectile.setHoming(this.hasRedstoneCard(weaponStack));
         if (level instanceof ServerLevel serverLevel) {
@@ -431,6 +460,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
         if (ammo.isEmpty()) {
             return List.of();
         }
+        ammo.set(DEDataComponents.CANNON_MODERN_AMMO.get(), true);
         if (this.isDataDustAmmo(ammo)) {
             this.applyDataDustShotData(weaponStack, ammo);
             return List.of(ammo);
@@ -441,7 +471,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             projectileCount = EnchantmentHelper.processProjectileCount(serverLevel, weaponStack, player, 1);
         }
 
-        List<ItemStack> projectiles = new ArrayList<>(Math.max(projectileCount, 1));
+        List<ItemStack> projectiles = new ObjectArrayList<>(Math.max(projectileCount, 1));
         projectiles.add(ammo);
         for (int i = 1; i < projectileCount; i++) {
             ItemStack duplicate = ammo.copyWithCount(1);
@@ -483,9 +513,11 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     private Component getDisplayedAmmoName(ItemStack weaponStack) {
+        var key = MountedAmmoCells.selectedKey(weaponStack, mode(weaponStack));
+        if (key != null) return key.getDisplayName();
         ItemStack ammo = this.peekAmmo(weaponStack);
         if (ammo.isEmpty()) {
-            return Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile.none");
+            return Component.translatable("item.data_energistics.star_shard.projectile.none");
         }
         return ammo.getHoverName();
     }
@@ -494,7 +526,8 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     public double injectAEPower(ItemStack stack, double amount, Actionable mode) {
         double maxStorage = this.getAEMaxPower(stack);
         double currentStorage = this.getAECurrentPower(stack);
-        double required = maxStorage - currentStorage;
+        double reserved = stack.has(DEDataComponents.RAIL_SESSION.get()) ? 200 : 0;
+        double required = Math.max(0, maxStorage - currentStorage - reserved);
         double overflow = Math.max(0.0D, Math.min(amount - required, amount));
         if (mode == Actionable.MODULATE) {
             double toAdd = Math.min(amount, required);
@@ -547,6 +580,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     private void onUpgradesChanged(ItemStack stack, IUpgradeInventory upgrades) {
+        RailFiring.stopForMutation(stack);
         double maxPower = this.getAEMaxPower(stack);
         if (this.getAECurrentPower(stack) > maxPower) {
             this.setAECurrentPower(stack, maxPower);
@@ -590,12 +624,12 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
     }
 
     private boolean isDataDustAmmo(ItemStack ammoStack) {
-        return isSpecialLightSaberAmmo(ammoStack);
+        return ammoStack.is(DEItems.DATA_RESIDUAL_CRYSTAL.get()) || isSpecialLightSaberAmmo(ammoStack);
     }
 
     private boolean isChargedAmmoSupported(ItemStack weaponStack) {
         return weaponStack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY).getItems()
-                .stream().allMatch(ammo -> this.isSupportedAmmo(weaponStack, ammo));
+                .stream().allMatch(ammo -> this.isSupportedAmmo(weaponStack, ammo) || isSpecialLightSaberAmmo(ammo) || ammo.is(AEItems.MATTER_BALL.asItem()) || ammo.is(AEItems.SINGULARITY.asItem()) || ammo.getItem() instanceof PaintBallItem);
     }
 
     private boolean isSupportedAmmo(ItemStack weaponStack, ItemStack ammoStack) {
@@ -608,7 +642,11 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             return false;
         }
         Item item = ammoStack.getItem();
-        return item == AEItems.MATTER_BALL.asItem() || item == AEItems.SINGULARITY.asItem() || item instanceof PaintBallItem || isSpecialLightSaberAmmo(ammoStack) || mode == MatterConvergingCrossbowMode.GRENADE && GrenadePayload.isExplosive(ammoStack);
+        return switch (mode) {
+            case GRENADE -> GrenadePayload.isExplosive(ammoStack) || ElementalGrenade.accepts(ammoStack);
+            case RAIL -> ammoStack.is(Items.BLAZE_ROD) || ammoStack.is(Items.HEAVY_CORE);
+            case CROSSBOW -> item == AEItems.MATTER_BALL.asItem() || item == AEItems.SINGULARITY.asItem() || item instanceof PaintBallItem || ammoStack.is(DEItems.SINGULARITY_BLOCK.get()) || ammoStack.is(DEItems.DATA_RESIDUAL_CRYSTAL.get());
+        };
     }
 
     private double getDataDustEnergyPerShot(ItemStack stack) {
@@ -645,7 +683,7 @@ public class MatterConvergingCrossbowItem extends CrossbowItem implements IAEIte
             return;
         }
 
-        List<ItemStack> updatedProjectiles = new ArrayList<>(charged.getItems().size());
+        List<ItemStack> updatedProjectiles = new ObjectArrayList<>(charged.getItems().size());
         boolean changed = false;
         for (ItemStack projectile : charged.getItems()) {
             ItemStack updatedProjectile = projectile.copy();

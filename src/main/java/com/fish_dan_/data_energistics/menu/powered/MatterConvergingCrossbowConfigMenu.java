@@ -2,12 +2,14 @@ package com.fish_dan_.data_energistics.menu.powered;
 
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailFiring;
 import com.fish_dan_.data_energistics.item.powered.cannon.storage.CannonCellMenuHost;
 import com.fish_dan_.data_energistics.item.powered.cannon.storage.MountedAmmoCells;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEMenus;
 
 import appeng.api.inventories.InternalInventory;
+import appeng.api.stacks.GenericStack;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.SlotSemantic;
 import appeng.menu.SlotSemantics;
@@ -20,10 +22,10 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /** Native AE menu: real disk slots and server-authored ammo previews, bound to an AE item host. */
@@ -44,8 +46,8 @@ public final class MatterConvergingCrossbowConfigMenu extends AEBaseMenu {
 
     @Getter
     private final CannonCellMenuHost host;
-    private final List<Slot> cellSlots = new ArrayList<>();
-    private final List<Slot> ammoSlots = new ArrayList<>();
+    private final List<Slot> cellSlots = new ObjectArrayList<>();
+    private final List<Slot> ammoSlots = new ObjectArrayList<>();
 
     @GuiSync(810)
     public int activeMode;
@@ -99,6 +101,7 @@ public final class MatterConvergingCrossbowConfigMenu extends AEBaseMenu {
     private void setModeFromClient(Integer mode) {
         if (!isServerSide() || !host.isValid() || mode < 0 || mode >= MountedAmmoCells.SLOT_COUNT) return;
         ItemStack weapon = host.getItemStack();
+        RailFiring.stopForMutation(weapon);
         weapon.remove(DEDataComponents.CANNON_CHARGE.get());
         weapon.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), mode);
         broadcastChanges();
@@ -122,7 +125,8 @@ public final class MatterConvergingCrossbowConfigMenu extends AEBaseMenu {
         ItemStack weapon = host.getItemStack();
         activeMode = MatterConvergingCrossbowItem.mode(weapon).id();
         for (MatterConvergingCrossbowMode mode : MatterConvergingCrossbowMode.values()) {
-            ItemStack ammo = MountedAmmoCells.peek(weapon, mode);
+            var key = MountedAmmoCells.selectedKey(weapon, mode);
+            ItemStack ammo = key == null ? ItemStack.EMPTY : GenericStack.wrapInItemStack(key, MountedAmmoCells.amount(weapon, mode, key));
             Slot slot = ammoSlots.get(mode.id());
             if (!ItemStack.matches(slot.getItem(), ammo)) slot.set(ammo);
         }
@@ -137,7 +141,7 @@ public final class MatterConvergingCrossbowConfigMenu extends AEBaseMenu {
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return MountedAmmoCells.accepts(stack) && super.mayPlace(stack);
+            return MountedAmmoCells.accepts(stack, MatterConvergingCrossbowMode.fromId(getContainerSlot()));
         }
     }
 }

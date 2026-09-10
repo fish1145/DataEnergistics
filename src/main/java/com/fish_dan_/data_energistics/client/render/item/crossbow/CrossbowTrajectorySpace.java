@@ -27,6 +27,10 @@ public final class CrossbowTrajectorySpace {
                 .rotate(this.cameraRotation);
     }
 
+    public Vector3f modelPoint(Vector3f point) {
+        return this.modelToWorldView.transformProject(new Vector3f(point)).rotate(this.cameraRotation);
+    }
+
     /** The authored firing axis is -Z; use two projected points to account for hand/world FOV differences. */
     public Vector3f firingDirection() {
         return this.modelToWorldView.transformProject(new Vector3f(8.0F, 7.0F, -12.0F).div(16.0F))

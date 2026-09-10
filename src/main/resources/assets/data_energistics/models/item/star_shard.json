@@ -1,0 +1,45 @@
+{
+	"loader": "data_energistics:star_shard",
+	"textures": {
+		"0": "data_energistics:item/tool_weapon/star_shard/star_shard",
+		"particle": "data_energistics:item/tool_weapon/star_shard/star_shard",
+		"light": "data_energistics:item/tool_weapon/light_saber/light"
+	},
+	"display": {
+		"thirdperson_righthand": {
+			"translation": [0, 2.25, -2],
+			"scale": [0.6, 0.6, 0.6]
+		},
+		"thirdperson_lefthand": {
+			"translation": [0, 2.25, -2],
+			"scale": [0.6, 0.6, 0.6]
+		},
+		"firstperson_righthand": {
+			"scale": [0.75, 0.75, 0.75]
+		},
+		"firstperson_lefthand": {
+			"scale": [0.75, 0.75, 0.75]
+		},
+		"ground": {
+			"scale": [0.4, 0.4, 0.4]
+		},
+		"gui": {
+			"rotation": [30, -135, 0],
+			"translation": [0, 0.5, 0],
+			"scale": [0.4, 0.4, 0.4]
+		},
+		"fixed": {
+			"rotation": [0, 90, 0],
+			"translation": [0, 0, -1.5]
+		}
+	},
+	"poses": {
+		"0": "data_energistics:models/item/star_shard/0.json",
+		"1": "data_energistics:models/item/star_shard/1.json",
+		"2": "data_energistics:models/item/star_shard/2.json",
+		"off": "data_energistics:model_poses/item/star_shard/off.json",
+		"on": "data_energistics:models/item/star_shard/on.json",
+		"light_saber": "data_energistics:models/item/star_shard/light_saber.json"
+	},
+	"render_type": "minecraft:translucent"
+}

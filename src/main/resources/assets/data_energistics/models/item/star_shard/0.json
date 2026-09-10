@@ -2,8 +2,8 @@
 	"credit": "Made with Blockbench",
 	"texture_size": [32, 32],
 	"textures": {
-		"0": "data_energistics:item/tool_weapon/dark_string_data_settlement_tool/dark_string_data_settlement_tool",
-		"particle": "data_energistics:item/tool_weapon/dark_string_data_settlement_tool/dark_string_data_settlement_tool"
+		"0": "data_energistics:item/tool_weapon/star_shard/star_shard",
+		"particle": "data_energistics:item/tool_weapon/star_shard/star_shard"
 	},
 	"elements": [
 		{
@@ -528,32 +528,38 @@
 			},
 			"faces": {
 				"north": {
-					"uv": [15.5, 3, 16, 3.5],
+					"uv": [15.5, 2.5, 16, 3],
 					"texture": "#0"
 				},
 				"east": {
-					"uv": [14.5, 3, 16, 3.5],
+					"uv": [14.5, 2.5, 16, 3],
 					"texture": "#0"
 				},
 				"south": {
-					"uv": [14.5, 3, 15, 3.5],
+					"uv": [14.5, 2.5, 15, 3],
 					"texture": "#0"
 				},
 				"west": {
-					"uv": [16, 3.5, 14.5, 3],
+					"uv": [16, 3, 14.5, 2.5],
 					"texture": "#0"
 				},
 				"up": {
-					"uv": [16, 3.5, 14.5, 3],
+					"uv": [16, 3, 14.5, 2.5],
 					"rotation": 90,
 					"texture": "#0"
 				},
 				"down": {
-					"uv": [16, 3, 14.5, 3.5],
+					"uv": [16, 2.5, 14.5, 3],
 					"texture": "#0"
 				}
 			},
-			"deployment": "rail"
+			"deployment": "rail",
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
+			}
 		},
 		{
 			"name": "mainGun",
@@ -965,27 +971,33 @@
 			},
 			"faces": {
 				"north": {
-					"uv": [16, 2, 15, 1.5],
+					"uv": [16, 1, 15, 0.5],
 					"texture": "#0"
 				},
 				"east": {
-					"uv": [15.5, 2, 16, 1.5],
+					"uv": [15.5, 1, 16, 0.5],
 					"texture": "#0"
 				},
 				"south": {
-					"uv": [16, 1.5, 15, 2],
+					"uv": [16, 0.5, 15, 1],
 					"texture": "#0"
 				},
 				"west": {
-					"uv": [15, 2, 15.5, 1.5],
+					"uv": [15, 1, 15.5, 0.5],
 					"texture": "#0"
 				},
 				"down": {
-					"uv": [15, 2, 16, 1.5],
+					"uv": [15, 1, 16, 0.5],
 					"texture": "#0"
 				}
 			},
-			"deployment": "rail"
+			"deployment": "rail",
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
+			}
 		},
 		{
 			"name": "detail6",
@@ -1022,12 +1034,12 @@
 		},
 		{
 			"name": "detail6",
-			"from": [7.5, 5.25, -9.75],
-			"to": [8.5, 5.5, -9.25],
+			"from": [7.5, 5.25, -9.25],
+			"to": [8.5, 5.5, -8.75],
 			"rotation": {
 				"angle": 0,
 				"axis": "y",
-				"origin": [8, 5.5, 2.75]
+				"origin": [8, 5.5, 3.25]
 			},
 			"faces": {
 				"north": {
@@ -1064,36 +1076,42 @@
 			},
 			"faces": {
 				"north": {
-					"uv": [16, 2, 15, 1.5],
+					"uv": [16, 1, 15, 0.5],
 					"texture": "#0"
 				},
 				"east": {
-					"uv": [15.5, 2, 16, 1.5],
+					"uv": [15.5, 1, 16, 0.5],
 					"texture": "#0"
 				},
 				"south": {
-					"uv": [16, 1.5, 15, 2],
+					"uv": [16, 0.5, 15, 1],
 					"texture": "#0"
 				},
 				"west": {
-					"uv": [15, 2, 15.5, 1.5],
+					"uv": [15, 1, 15.5, 0.5],
 					"texture": "#0"
 				},
 				"up": {
-					"uv": [15, 1.5, 16, 2],
+					"uv": [15, 0.5, 16, 1],
 					"texture": "#0"
 				}
 			},
-			"deployment": "rail"
+			"deployment": "rail",
+			"shade": false,
+			"neoforge_data": {
+				"block_light": 15,
+				"sky_light": 15,
+				"ambient_occlusion": false
+			}
 		},
 		{
 			"name": "detail6",
-			"from": [7.5, 8.5, -9.75],
-			"to": [8.5, 8.75, -9.25],
+			"from": [7.5, 8.5, -9.25],
+			"to": [8.5, 8.75, -8.75],
 			"rotation": {
 				"angle": 0,
 				"axis": "y",
-				"origin": [8, 8.75, 2.75]
+				"origin": [8, 8.75, 3.25]
 			},
 			"faces": {
 				"north": {

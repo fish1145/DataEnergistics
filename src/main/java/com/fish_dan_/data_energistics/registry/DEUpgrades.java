@@ -174,19 +174,19 @@ public final class DEUpgrades {
         Upgrades.add(AEItems.SPEED_CARD, DEBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 4, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
         Upgrades.add(AEItems.SPEED_CARD, DEItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 4, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
         Upgrades.add(AEItems.ENERGY_CARD, DEItems.MATTER_CONVERGING_CROSSBOW.get(), 2,
-                "item.data_energistics.dark_string_data_settlement_tool");
+                "item.data_energistics.star_shard");
         Upgrades.add(AEItems.FUZZY_CARD, DEItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
-                "item.data_energistics.dark_string_data_settlement_tool");
+                "item.data_energistics.star_shard");
         Upgrades.add(AEItems.INVERTER_CARD, DEItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
-                "item.data_energistics.dark_string_data_settlement_tool");
+                "item.data_energistics.star_shard");
         Upgrades.add(AEItems.VOID_CARD, DEItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
-                "item.data_energistics.dark_string_data_settlement_tool");
+                "item.data_energistics.star_shard");
         Upgrades.add(AEItems.SPEED_CARD, DEItems.MATTER_CONVERGING_CROSSBOW.get(), 4,
-                "item.data_energistics.dark_string_data_settlement_tool");
+                "item.data_energistics.star_shard");
         Upgrades.add(DEItems.CARD_SABER_ENERGY.get(), DEItems.MATTER_CONVERGING_CROSSBOW.get(), 2,
-                "item.data_energistics.dark_string_data_settlement_tool");
+                "item.data_energistics.star_shard");
         Upgrades.add(DEItems.REDSTONE_TUNING_CARD.get(), DEItems.MATTER_CONVERGING_CROSSBOW.get(), 1,
-                "item.data_energistics.dark_string_data_settlement_tool");
+                "item.data_energistics.star_shard");
         Upgrades.add(DEItems.REDSTONE_TUNING_CARD.get(), AEBlocks.PATTERN_PROVIDER.block(), 1, "block.ae2.pattern_provider");
         Upgrades.add(DEItems.REDSTONE_TUNING_CARD.get(), DEBlocks.ADAPTIVE_PATTERN_PROVIDER.get(), 1, ADAPTIVE_PATTERN_PROVIDER_UPGRADE_TOOLTIP_GROUP);
         Upgrades.add(DEItems.REDSTONE_TUNING_CARD.get(), DEItems.ADAPTIVE_PATTERN_PROVIDER_PART.get(), 1,

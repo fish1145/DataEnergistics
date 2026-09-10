@@ -3,10 +3,8 @@ package com.fish_dan_.data_energistics.bootstrap.client;
 import com.fish_dan_.data_energistics.client.input.cannon.CannonChargeInput;
 import com.fish_dan_.data_energistics.client.input.cannon.CannonSelectionFeedback;
 import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowAnimationStates;
-import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowAnimation;
 import com.fish_dan_.data_energistics.integration.viewer.xei.XeiLayoutRefreshQueue;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
-import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.registry.DEItems;
 import com.fish_dan_.data_energistics.registry.DEMobEffects;
 import com.fish_dan_.data_energistics.registry.DEParticles;
@@ -22,7 +20,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ChargedProjectiles;
@@ -56,8 +53,6 @@ final class ClientTickHandler {
         spawnRadixLossParticles(minecraft);
         spawnMatterConvergingCrossbowParticles(minecraft, InteractionHand.MAIN_HAND);
         spawnMatterConvergingCrossbowParticles(minecraft, InteractionHand.OFF_HAND);
-        spawnRailBrakeParticles(minecraft, InteractionHand.MAIN_HAND);
-        spawnRailBrakeParticles(minecraft, InteractionHand.OFF_HAND);
     }
 
     private static void spawnMatterConvergingCrossbowParticles(Minecraft minecraft, InteractionHand hand) {
@@ -110,34 +105,6 @@ final class ClientTickHandler {
             return;
         }
         minecraft.level.addParticle(particle, base.x, base.y, base.z, velocity.x, velocity.y, velocity.z);
-    }
-
-    private static void spawnRailBrakeParticles(Minecraft minecraft, InteractionHand hand) {
-        Player player = minecraft.player;
-        if (player == null) return;
-        ItemStack stack = player.getItemInHand(hand);
-        if (!stack.is(DEItems.MATTER_CONVERGING_CROSSBOW.get())
-                || MatterConvergingCrossbowItem.mode(stack) != MatterConvergingCrossbowMode.RAIL) return;
-        CrossbowAnimation.Pose pose = CrossbowAnimationStates.pose(player, hand, 1.0F);
-        float strength = pose.railJetStrength();
-        if (strength <= 0.0F) return;
-        Vec3 look = player.getViewVector(1.0F).normalize();
-        Vec3 side = look.cross(new Vec3(0.0D, 1.0D, 0.0D));
-        if (side.lengthSqr() < 1.0E-6D) side = new Vec3(1.0D, 0.0D, 0.0D);
-        side = side.normalize();
-        Vec3 up = side.cross(look).normalize();
-        Vec3 center = player.getEyePosition().add(look.scale(0.82D)).add(up.scale(-0.22D));
-        double handSide = getHandSide(player.getMainArm(), hand);
-        for (int direction : new int[] {-1, 1}) {
-            Vec3 outlet = center.add(side.scale(direction * 0.30D * handSide));
-            Vec3 velocity = side.scale(direction * 0.11D * strength * handSide)
-                    .add(look.scale(-0.045D * strength)).add(up.scale(0.025D * strength));
-            int count = Math.max(1, Math.round(2.0F * strength));
-            for (int i = 0; i < count; i++) {
-                minecraft.level.addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE,
-                        outlet.x, outlet.y, outlet.z, velocity.x, velocity.y, velocity.z);
-            }
-        }
     }
 
     private static void spawnRadixLossParticles(Minecraft minecraft) {

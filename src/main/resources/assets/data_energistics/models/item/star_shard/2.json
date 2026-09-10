@@ -2,8 +2,8 @@
 	"credit": "Made with Blockbench",
 	"texture_size": [32, 32],
 	"textures": {
-		"0": "data_energistics:item/tool_weapon/dark_string_data_settlement_tool/dark_string_data_settlement_tool",
-		"particle": "data_energistics:item/tool_weapon/dark_string_data_settlement_tool/dark_string_data_settlement_tool"
+		"0": "data_energistics:item/tool_weapon/star_shard/star_shard",
+		"particle": "data_energistics:item/tool_weapon/star_shard/star_shard"
 	},
 	"elements": [
 		{

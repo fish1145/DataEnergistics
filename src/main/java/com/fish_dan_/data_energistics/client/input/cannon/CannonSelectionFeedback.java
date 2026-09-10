@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.item.powered.cannon.storage.MountedAmmoCells;
 
-import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKey;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -45,14 +45,15 @@ public final class CannonSelectionFeedback {
         ItemStack ammo = MountedAmmoCells.peek(weapon, mode);
         Selection current = new Selection(minecraft.level.dimension(), hand,
                 hand == InteractionHand.MAIN_HAND ? player.getInventory().selected : Inventory.SLOT_OFFHAND,
-                mode, AEItemKey.of(ammo));
+                mode, MountedAmmoCells.selectedKey(weapon, mode));
         if (!current.equals(previous)) {
             previous = current;
             pending = true;
         }
         // Menu changes remain pending until the player closes the menu and can see the hotbar again.
         if (pending && minecraft.screen == null && !minecraft.options.hideGui) {
-            Component ammunition = ammo.isEmpty() ? Component.translatable("item.data_energistics.dark_string_data_settlement_tool.projectile.none") : ammo.getHoverName();
+            AEKey key = current.ammunition;
+            Component ammunition = key == null ? Component.translatable("item.data_energistics.star_shard.projectile.none") : key.getDisplayName();
             Component message = Component.empty().append(weapon.getItem().getName(weapon))
                     .append(Component.literal("  |  ").withStyle(ChatFormatting.GRAY))
                     .append(ammunition.copy().withStyle(ChatFormatting.WHITE));
@@ -62,5 +63,5 @@ public final class CannonSelectionFeedback {
     }
 
     private record Selection(ResourceKey<Level> dimension, InteractionHand hand, int slot,
-                             MatterConvergingCrossbowMode mode, @Nullable AEItemKey ammunition) {}
+                             MatterConvergingCrossbowMode mode, @Nullable AEKey ammunition) {}
 }

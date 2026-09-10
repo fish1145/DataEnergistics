@@ -10,11 +10,11 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -23,7 +23,7 @@ public final class CrossbowModelLoader implements IGeometryLoader<CrossbowGeomet
     @Override
     public CrossbowGeometry read(JsonObject json, JsonDeserializationContext context) {
         JsonObject poses = GsonHelper.getAsJsonObject(json, "poses");
-        List<List<CrossbowGeometry.Element>> frames = new ArrayList<>();
+        List<List<CrossbowGeometry.Element>> frames = new ObjectArrayList<>();
         for (String name : List.of("off", "on", "0", "1", "2")) {
             List<CrossbowGeometry.Element> frame = readPose(poses, name, context);
             if (frame.isEmpty() || !frames.isEmpty() && frame.size() != frames.getFirst().size()) {
@@ -39,7 +39,7 @@ public final class CrossbowModelLoader implements IGeometryLoader<CrossbowGeomet
         ResourceLocation file = ResourceLocation.parse(GsonHelper.getAsString(poses, name));
         try (var reader = Minecraft.getInstance().getResourceManager().getResourceOrThrow(file).openAsReader()) {
             JsonArray elements = GsonHelper.getAsJsonArray(GsonHelper.parse(reader), "elements");
-            List<CrossbowGeometry.Element> result = new ArrayList<>(elements.size());
+            List<CrossbowGeometry.Element> result = new ObjectArrayList<>(elements.size());
             for (var value : elements) {
                 JsonObject element = value.getAsJsonObject().deepCopy();
                 Quaternionf rotation = new Quaternionf();

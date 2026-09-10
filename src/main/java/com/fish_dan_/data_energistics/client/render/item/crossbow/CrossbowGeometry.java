@@ -21,10 +21,10 @@ import net.neoforged.neoforge.client.model.geometry.IGeometryBakingContext;
 import net.neoforged.neoforge.client.model.geometry.IUnbakedGeometry;
 
 import com.mojang.math.Transformation;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
@@ -59,7 +59,7 @@ public final class CrossbowGeometry implements IUnbakedGeometry<CrossbowGeometry
     private static List<Part> bakeParts(List<Element> elements, IGeometryBakingContext context,
                                         Function<Material, TextureAtlasSprite> sprites, FaceBakery bakery) {
         return elements.stream().map(element -> {
-            List<BakedQuad> faces = new ArrayList<>();
+            List<BakedQuad> faces = new ObjectArrayList<>();
             element.cube.faces.forEach((direction, face) -> faces.add(bakery.bakeQuad(
                     new Vector3f(-8.0F), new Vector3f(8.0F), face,
                     sprites.apply(context.getMaterial(face.texture())), direction,
@@ -72,7 +72,7 @@ public final class CrossbowGeometry implements IUnbakedGeometry<CrossbowGeometry
                                   CrossbowAnimation.Pose pose, boolean special, Matrix4f root) {
         List<Part> folded = frames.getFirst();
         List<Part> active = frames.get(pose.stage() + 1);
-        List<BakedQuad> quads = new ArrayList<>(320);
+        List<BakedQuad> quads = new ObjectArrayList<>(320);
         CrossbowRig rig = new CrossbowRig(pose);
         for (int i = 0; i < active.size(); i++) {
             Part from = folded.get(i);
@@ -102,6 +102,29 @@ public final class CrossbowGeometry implements IUnbakedGeometry<CrossbowGeometry
             }
         }
         return List.copyOf(quads);
+    }
+
+    public record Anchors(Vector3f muzzle, Vector3f left, Vector3f right, Vector3f back) {}
+
+    /** The authored upper/lower rail housings and front tips, transformed by the same rig as their vertices. */
+    static Anchors anchors(List<List<Part>> frames, CrossbowAnimation.Pose pose) {
+        CrossbowRig rig = new CrossbowRig(pose);
+        Matrix4f upper = anchorTransform(frames, rig, 11);
+        Matrix4f lower = anchorTransform(frames, rig, 17);
+        Vector3f left = upper.transformPosition(new Vector3f(-0.5F, 0, 0.35F))
+                .add(lower.transformPosition(new Vector3f(-0.5F, 0, 0.35F))).mul(0.5F);
+        Vector3f right = upper.transformPosition(new Vector3f(0.5F, 0, 0.35F))
+                .add(lower.transformPosition(new Vector3f(0.5F, 0, 0.35F))).mul(0.5F);
+        Vector3f back = upper.transformPosition(new Vector3f(0, 0, 0.5F))
+                .sub(upper.transformPosition(new Vector3f(0, 0, 0))).normalize();
+        Vector3f muzzle = anchorTransform(frames, rig, 26).transformPosition(new Vector3f(0, 0, -0.5F))
+                .add(anchorTransform(frames, rig, 27).transformPosition(new Vector3f(0, 0, -0.5F))).mul(0.5F);
+        return new Anchors(muzzle, left, right, back);
+    }
+
+    private static Matrix4f anchorTransform(List<List<Part>> frames, CrossbowRig rig, int index) {
+        Part from = frames.getFirst().get(index), to = frames.get(1).get(index);
+        return rig.transform(from.pose, to.pose, to.deployment, to.motion);
     }
 
     private static void append(List<BakedQuad> output, List<BakedQuad> source, Matrix4f matrix) {

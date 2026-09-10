@@ -36,7 +36,7 @@ public final class MatterConvergingCrossbowConfigScreen extends AEBaseScreen<Mat
         widgets.add("upgrades", new UpgradesPanel(menu.getSlots(SlotSemantics.UPGRADE), menu.getHost()));
         for (MatterConvergingCrossbowMode mode : MatterConvergingCrossbowMode.values()) {
             ToggleButton button = new ToggleButton(Icon.VALID, Icon.ARROW_RIGHT, selected -> menu.sendSetMode(mode));
-            Component name = Component.translatable("item.data_energistics.dark_string_data_settlement_tool.mode." + mode.nameKey());
+            Component name = Component.translatable("item.data_energistics.star_shard.mode." + mode.nameKey());
             button.setTooltipOn(List.of(name, Component.translatable("screen.data_energistics.cannon.hint.selected")));
             button.setTooltipOff(List.of(name, Component.translatable("screen.data_energistics.cannon.hint.select_mode")));
             widgets.add("mode_" + mode.nameKey(), button);
@@ -49,7 +49,7 @@ public final class MatterConvergingCrossbowConfigScreen extends AEBaseScreen<Mat
         super.updateBeforeRender();
         MatterConvergingCrossbowMode mode = MatterConvergingCrossbowMode.fromId(menu.activeMode);
         setTextContent("dialog_title", Component.translatable(
-                "item.data_energistics.dark_string_data_settlement_tool.mode." + mode.nameKey()));
+                "item.data_energistics.star_shard.mode." + mode.nameKey()));
         modeButtons.forEach((row, button) -> button.setState(row == mode));
     }
 

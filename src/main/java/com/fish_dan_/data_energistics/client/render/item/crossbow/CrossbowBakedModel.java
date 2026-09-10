@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.client.render.item.crossbow;
 import com.fish_dan_.data_energistics.client.render.overlay.MatterConvergingCrossbowTrajectoryRenderer;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+import com.fish_dan_.data_energistics.registry.DEItems;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -86,7 +87,7 @@ final class CrossbowBakedModel extends BakedModelWrapper<BakedModel> {
             this.entity = entity;
             this.stack = stack;
             ChargedProjectiles projectiles = stack.getOrDefault(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.EMPTY);
-            this.special = !projectiles.isEmpty() && MatterConvergingCrossbowItem.isSpecialLightSaberAmmo(projectiles.getItems().getFirst());
+            this.special = !projectiles.isEmpty() && (projectiles.getItems().getFirst().is(DEItems.DATA_RESIDUAL_CRYSTAL.get()) || MatterConvergingCrossbowItem.isSpecialLightSaberAmmo(projectiles.getItems().getFirst()));
             this.quads = foldedQuads;
         }
 
@@ -112,8 +113,9 @@ final class CrossbowBakedModel extends BakedModelWrapper<BakedModel> {
                 HumanoidArm arm = context == ItemDisplayContext.FIRST_PERSON_LEFT_HAND || context == ItemDisplayContext.THIRD_PERSON_LEFT_HAND ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
                 InteractionHand hand = this.entity.getMainArm() == arm ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
                 float partial = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
-                this.quads = geometry(CrossbowAnimationStates.pose(this.entity, hand, partial));
-                MatterConvergingCrossbowTrajectoryRenderer.renderFromModel(this.entity, hand, this.stack, context, poseStack, root);
+                CrossbowAnimation.Pose pose = CrossbowAnimationStates.pose(this.entity, hand, partial);
+                this.quads = geometry(pose);
+                MatterConvergingCrossbowTrajectoryRenderer.renderFromModel(this.entity, hand, this.stack, context, poseStack, root, CrossbowGeometry.anchors(frames, pose));
             }
             return this;
         }

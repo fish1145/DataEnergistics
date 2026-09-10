@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorIt
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotItemData;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotMemoryCardData;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonCharge;
+import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailSession;
 import com.fish_dan_.data_energistics.item.terminal.UniversalTerminalItemData;
 
 import appeng.api.stacks.AEKey;
@@ -165,7 +166,7 @@ public final class DEDataComponents {
                     .build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> MATTER_CONVERGING_CROSSBOW_STORED_DATA = DATA_COMPONENT_TYPES.register(
-            "dark_string_data_settlement_tool_stored_data",
+            "star_shard_stored_data",
             () -> DataComponentType.<Long>builder()
                     .persistent(Codec.LONG)
                     .networkSynchronized(ByteBufCodecs.VAR_LONG)
@@ -173,7 +174,7 @@ public final class DEDataComponents {
                     .build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> MATTER_CONVERGING_CROSSBOW_MODE = DATA_COMPONENT_TYPES.register(
-            "dark_string_data_settlement_tool_mode",
+            "star_shard_mode",
             () -> DataComponentType.<Integer>builder()
                     .persistent(Codec.INT)
                     .networkSynchronized(ByteBufCodecs.VAR_INT)
@@ -181,7 +182,7 @@ public final class DEDataComponents {
                     .build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<ResourceLocation>> MATTER_CONVERGING_CROSSBOW_SELECTED_AMMO = DATA_COMPONENT_TYPES.register(
-            "dark_string_data_settlement_tool_selected_ammo",
+            "star_shard_selected_ammo",
             () -> DataComponentType.<ResourceLocation>builder()
                     .persistent(ResourceLocation.CODEC)
                     .networkSynchronized(ResourceLocation.STREAM_CODEC)
@@ -189,7 +190,16 @@ public final class DEDataComponents {
                     .build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<CannonCharge>> CANNON_CHARGE = DATA_COMPONENT_TYPES.register(
-            "dark_string_cannon_charge", () -> DataComponentType.<CannonCharge>builder().networkSynchronized(CannonCharge.STREAM_CODEC).build());
+            "star_shard_cannon_charge", () -> DataComponentType.<CannonCharge>builder().networkSynchronized(CannonCharge.STREAM_CODEC).build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<RailSession>> RAIL_SESSION = DATA_COMPONENT_TYPES.register(
+            "rail_session", () -> DataComponentType.<RailSession>builder().persistent(RailSession.CODEC).networkSynchronized(RailSession.STREAM_CODEC).build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> RAIL_COOLDOWN_END = DATA_COMPONENT_TYPES.register(
+            "rail_cooldown_end", () -> DataComponentType.<Long>builder().persistent(Codec.LONG).networkSynchronized(ByteBufCodecs.VAR_LONG).build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> CANNON_MODERN_AMMO = DATA_COMPONENT_TYPES.register(
+            "cannon_modern_ammo", () -> DataComponentType.<Boolean>builder().persistent(Codec.BOOL).networkSynchronized(ByteBufCodecs.BOOL).build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemContainerContents>> CANNON_CELLS = DATA_COMPONENT_TYPES.register(
             "cannon_cells", () -> DataComponentType.<ItemContainerContents>builder()
@@ -200,7 +210,7 @@ public final class DEDataComponents {
                     .persistent(ItemContainerContents.CODEC).networkSynchronized(ItemContainerContents.STREAM_CODEC).build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> CANNON_SHOT_SEQUENCE = DATA_COMPONENT_TYPES.register(
-            "dark_string_cannon_shot_sequence", () -> DataComponentType.<Integer>builder().networkSynchronized(ByteBufCodecs.VAR_INT).build());
+            "star_shard_cannon_shot_sequence", () -> DataComponentType.<Integer>builder().networkSynchronized(ByteBufCodecs.VAR_INT).build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Float>> MATTER_CONVERGING_BOLT_DAMAGE_RATIO = DATA_COMPONENT_TYPES.register(
             "matter_converging_bolt_damage_ratio",
@@ -253,6 +263,9 @@ public final class DEDataComponents {
     private DEDataComponents() {}
 
     public static void register(IEventBus eventBus) {
+        DATA_COMPONENT_TYPES.addAlias(Data_Energistics.id("dark_string_data_settlement_tool_stored_data"), Data_Energistics.id("star_shard_stored_data"));
+        DATA_COMPONENT_TYPES.addAlias(Data_Energistics.id("dark_string_data_settlement_tool_mode"), Data_Energistics.id("star_shard_mode"));
+        DATA_COMPONENT_TYPES.addAlias(Data_Energistics.id("dark_string_data_settlement_tool_selected_ammo"), Data_Energistics.id("star_shard_selected_ammo"));
         DATA_COMPONENT_TYPES.register(eventBus);
     }
 }

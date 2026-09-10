@@ -29,6 +29,10 @@ public final class CrossbowAnimation {
     }
 
     public void tick(boolean held, boolean using, boolean charged, float progress, MatterConvergingCrossbowMode mode, boolean fired) {
+        tick(held, using, charged, progress, mode, fired, -1);
+    }
+
+    public void tick(boolean held, boolean using, boolean charged, float progress, MatterConvergingCrossbowMode mode, boolean fired, int cooldownElapsed) {
         if (!Float.isFinite(progress) || progress < 0.0F || progress > 1.0F) {
             throw new IllegalArgumentException("Crossbow charge progress must be in [0, 1]");
         }
@@ -63,7 +67,8 @@ public final class CrossbowAnimation {
             this.draw = this.releaseDraw * (1.0F - smooth(this.releaseTicks / (float) RELEASE_TICKS));
         }
         if (fired && held && mode == MatterConvergingCrossbowMode.RAIL) this.recoilTicks = 0;
-        this.recoil = CrossbowRailRecoil.retraction(this.recoilTicks);
+        if (held && mode == MatterConvergingCrossbowMode.RAIL && cooldownElapsed >= 0) this.recoilTicks = cooldownElapsed;
+        this.recoil = mode == MatterConvergingCrossbowMode.CROSSBOW ? CrossbowRailRecoil.bowRetraction(this.recoilTicks) : CrossbowRailRecoil.retraction(this.recoilTicks);
         this.held = held;
         this.active = using || charged;
         this.charged = charged;
@@ -124,15 +129,6 @@ public final class CrossbowAnimation {
 
         public float drawAmount() {
             return this.mode == MatterConvergingCrossbowMode.CROSSBOW ? this.draw * tipUnfold() : 0.0F;
-        }
-
-        /** True only during the prolonged rail brake, so particle effects share the model timeline. */
-        public boolean railJetPhase() {
-            return this.mode == MatterConvergingCrossbowMode.RAIL && this.recoil >= 0.45F;
-        }
-
-        public float railJetStrength() {
-            return this.railJetPhase() ? Math.clamp((this.recoil - 0.45F) * 20.0F, 0.0F, 1.0F) : 0.0F;
         }
 
         private float phase(float start, float end) {
