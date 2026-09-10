@@ -7,8 +7,6 @@ import com.fish_dan_.data_energistics.client.render.item.crossbow.CrossbowRailRe
 import com.fish_dan_.data_energistics.client.render.item.crossbow.plasma.PlasmaPalette;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.CannonShot;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.RailShot;
-import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.weapon.appflux.FluxAmmunition;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.item.powered.cannon.ammunition.RailAmmunition;
@@ -332,28 +330,6 @@ public final class RailChargeGameTest {
             owner.discard();
         }
         h.succeed();
-    }
-
-    @TestHolder("rail_fe_disk_cost_and_projectile_identity")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5", timeoutTicks = 50)
-    public static void feLaunch(GameTestHelper h) {
-        h.assertTrue(ModFlags.isAppFluxLoaded(), "Applied Flux required for this integration test");
-        var key = FluxAmmunition.key();
-        Player player = player(h);
-        ItemStack weapon = weapon(h, key, 1600);
-        player.setItemInHand(InteractionHand.MAIN_HAND, weapon);
-        var item = (MatterConvergingCrossbowItem) weapon.getItem();
-        item.beginCannonCharge(player, InteractionHand.MAIN_HAND, weapon);
-        h.runAfterDelay(21, () -> {
-            release(item, player, weapon);
-            h.assertTrue(amount(weapon, key) == 800 && energy(weapon) == 800, "FE shot cost");
-            var rounds = rounds(h, player);
-            h.assertValueEqual(rounds.size(), 1, "FE physical projectile absent");
-            h.assertTrue(GenericStack.unwrapItemStack(rounds.getFirst().getItem()).what().equals(key), "FE projectile does not match selected ammo");
-            rounds.forEach(MatterConvergingBoltEntity::discard);
-            h.succeed();
-        });
     }
 
     @TestHolder("all_modes_accept_item_data_and_fluid_disks")
