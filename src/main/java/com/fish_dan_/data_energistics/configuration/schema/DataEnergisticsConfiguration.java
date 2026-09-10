@@ -367,7 +367,7 @@ public final class DataEnergisticsConfiguration {
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Maximum AEKey count in one strongly connected component.", "单个强连通分量允许的最大 AEKey 数量。" })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
-        public int maxSccKeys = 64;
+        public int maxSccKeys = 128;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
@@ -383,7 +383,7 @@ public final class DataEnergisticsConfiguration {
                 "每个独立路线搜索或循环分量允许的最大压缩状态数。"
         })
         @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
-        public int maxScheduleStates = 500000;
+        public int maxScheduleStates = 5_000_000;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
