@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.render.entity;
 
+import com.fish_dan_.data_energistics.client.render.entity.cannon.ElementalGrenadeRenderer;
 import com.fish_dan_.data_energistics.client.render.item.crossbow.RailAmmunitionRenderer;
 import com.fish_dan_.data_energistics.entity.projectile.MatterConvergingBoltEntity;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
@@ -18,6 +19,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -28,10 +30,12 @@ public class MatterConvergingBoltRenderer extends EntityRenderer<MatterConvergin
     private static final float AMMUNITION_MODEL_SIZE = 8.0F / 16.0F;
     private static final Direction[] MODEL_FACES = Direction.values();
     private final ItemRenderer itemRenderer;
+    private final ElementalGrenadeRenderer elementalGrenades;
 
     public MatterConvergingBoltRenderer(EntityRendererProvider.Context context) {
         super(context);
         this.itemRenderer = context.getItemRenderer();
+        this.elementalGrenades = new ElementalGrenadeRenderer(context);
     }
 
     @Override
@@ -46,7 +50,13 @@ public class MatterConvergingBoltRenderer extends EntityRenderer<MatterConvergin
             super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
             return;
         }
-        this.renderAmmunition(entity, poseStack, buffer, packedLight);
+        if (entity.firingMode() == MatterConvergingCrossbowMode.GRENADE && entity.getItem().is(Items.WIND_CHARGE)) {
+            this.elementalGrenades.wind(entity.tickCount + partialTick, poseStack, buffer, packedLight);
+        } else if (entity.firingMode() == MatterConvergingCrossbowMode.GRENADE && entity.getItem().is(Items.FIRE_CHARGE)) {
+            this.elementalGrenades.fire(entity.tickCount + partialTick, poseStack, buffer);
+        } else {
+            this.renderAmmunition(entity, poseStack, buffer, packedLight);
+        }
         super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
     }
 
