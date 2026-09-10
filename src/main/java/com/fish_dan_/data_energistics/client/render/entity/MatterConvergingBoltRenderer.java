@@ -53,7 +53,8 @@ public class MatterConvergingBoltRenderer extends EntityRenderer<MatterConvergin
         if (entity.firingMode() == MatterConvergingCrossbowMode.GRENADE && entity.getItem().is(Items.WIND_CHARGE)) {
             this.elementalGrenades.wind(entity.tickCount + partialTick, poseStack, buffer, packedLight);
         } else if (entity.firingMode() == MatterConvergingCrossbowMode.GRENADE && entity.getItem().is(Items.FIRE_CHARGE)) {
-            this.elementalGrenades.fire(entity.tickCount + partialTick, poseStack, buffer);
+            this.elementalGrenades.fire(entity, entityYaw, partialTick, poseStack, buffer);
+            return;
         } else {
             this.renderAmmunition(entity, poseStack, buffer, packedLight);
         }
