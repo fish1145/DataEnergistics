@@ -34,6 +34,7 @@ final class ClientRendererRegistrar {
         event.registerEntityRenderer(DEEntities.DISPERSING_DATA.get(), DispersingDataRenderer::new);
         event.registerEntityRenderer(DEEntities.LIGHT_BLADE_CHARGE.get(), LightBladeChargeRenderer::new);
         event.registerEntityRenderer(DEEntities.MATTER_CONVERGING_BOLT.get(), MatterConvergingBoltRenderer::new);
+        event.registerEntityRenderer(DEEntities.RAIL_ROUND.get(), MatterConvergingBoltRenderer::new);
         event.registerEntityRenderer(DEEntities.THROWN_LIGHT_SABER.get(), ThrownLightSaberRenderer::new);
         event.registerEntityRenderer(DEEntities.TNT_CONFIGURABLE_PRIMED.get(), TntRenderer::new);
         event.registerEntityRenderer(DEEntities.DATA_NUKE_PRIMED.get(), DataNukeRenderer::new);

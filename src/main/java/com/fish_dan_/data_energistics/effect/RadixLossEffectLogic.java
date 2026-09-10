@@ -25,6 +25,11 @@ public final class RadixLossEffectLogic {
     /** The rail override is per application; it never changes another weapon's radix-loss rules. */
     public static void applyOrBurst(LivingEntity target, int durationTicks, @Nullable Entity attacker, float weaponDamage,
                                     boolean railMaximumHealthDamage) {
+        applyOrBurst(target, durationTicks, attacker, weaponDamage, railMaximumHealthDamage, 1);
+    }
+
+    public static void applyOrBurst(LivingEntity target, int durationTicks, @Nullable Entity attacker, float weaponDamage,
+                                    boolean railMaximumHealthDamage, float charge) {
         MobEffectInstance existingEffect = target.getEffect(DEMobEffects.RADIX_LOSS);
         if (existingEffect == null) {
             target.addEffect(new MobEffectInstance(DEMobEffects.RADIX_LOSS, durationTicks, 0, false, true, true));
@@ -33,7 +38,7 @@ public final class RadixLossEffectLogic {
 
         if (railMaximumHealthDamage) {
             target.invulnerableTime = 0;
-            target.hurt(createDamageSource(target, attacker), target.getMaxHealth() * 0.15F * (existingEffect.getAmplifier() + 1));
+            target.hurt(createDamageSource(target, attacker), target.getMaxHealth() * 0.15F * (existingEffect.getAmplifier() + 1) * charge);
         } else {
             dealWeaponBonusDamage(target, attacker, weaponDamage, existingEffect.getAmplifier() + 1);
         }

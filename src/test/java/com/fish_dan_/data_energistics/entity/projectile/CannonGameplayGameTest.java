@@ -212,7 +212,7 @@ public final class CannonGameplayGameTest {
     public static void previouslyLoadedAmmoIsNotChargedTwice(GameTestHelper helper) {
         Player player = player(helper);
         ItemStack stack = DEItems.MATTER_CONVERGING_CROSSBOW.toStack();
-        stack.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), MatterConvergingCrossbowMode.RAIL.id());
+        stack.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), MatterConvergingCrossbowMode.GRENADE.id());
         stack.set(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.of(AEItems.MATTER_BALL.stack()));
         player.setItemInHand(InteractionHand.MAIN_HAND, stack);
         MatterConvergingCrossbowItem item = (MatterConvergingCrossbowItem) stack.getItem();

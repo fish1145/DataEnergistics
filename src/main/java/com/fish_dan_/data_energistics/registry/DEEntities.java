@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.explosive.TntConfigurablePrimedEntity;
 import com.fish_dan_.data_energistics.entity.projectile.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.projectile.MatterConvergingBoltEntity;
+import com.fish_dan_.data_energistics.entity.projectile.RailRoundEntity;
 import com.fish_dan_.data_energistics.entity.projectile.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.entity.resource.DispersingDataEntity;
 
@@ -58,6 +59,10 @@ public final class DEEntities {
             .build("digital_annihilator_primed"));
 
     private DEEntities() {}
+
+    public static final DeferredHolder<EntityType<?>, EntityType<RailRoundEntity>> RAIL_ROUND = ENTITY_TYPES.register("star_shard_round", () -> EntityType.Builder
+            .<RailRoundEntity>of(RailRoundEntity::new, MobCategory.MISC)
+            .sized(0.25F, 0.25F).clientTrackingRange(8).updateInterval(1).setShouldReceiveVelocityUpdates(false).build("star_shard_round"));
 
     public static void register(IEventBus modEventBus) {
         ENTITY_TYPES.register(modEventBus);

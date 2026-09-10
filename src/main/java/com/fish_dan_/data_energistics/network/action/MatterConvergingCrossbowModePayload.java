@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.network.action;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
-import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailFiring;
+import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailLauncher;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -35,7 +35,7 @@ public record MatterConvergingCrossbowModePayload(boolean offHand, MatterConverg
             InteractionHand hand = payload.offHand ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
             ItemStack stack = player.getItemInHand(hand);
             if (!(stack.getItem() instanceof MatterConvergingCrossbowItem)) return;
-            RailFiring.stop(player, stack);
+            RailLauncher.cancel(stack);
             ItemStack updated = stack.copy();
             updated.remove(DEDataComponents.CANNON_CHARGE.get());
             updated.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), mode.id());

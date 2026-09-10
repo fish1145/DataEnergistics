@@ -8,7 +8,6 @@ import com.fish_dan_.data_energistics.item.connector.DataDistributionConnectorIt
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotItemData;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotMemoryCardData;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonCharge;
-import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailSession;
 import com.fish_dan_.data_energistics.item.terminal.UniversalTerminalItemData;
 
 import appeng.api.stacks.AEKey;
@@ -192,11 +191,14 @@ public final class DEDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<CannonCharge>> CANNON_CHARGE = DATA_COMPONENT_TYPES.register(
             "star_shard_cannon_charge", () -> DataComponentType.<CannonCharge>builder().networkSynchronized(CannonCharge.STREAM_CODEC).build());
 
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<RailSession>> RAIL_SESSION = DATA_COMPONENT_TYPES.register(
-            "rail_session", () -> DataComponentType.<RailSession>builder().persistent(RailSession.CODEC).networkSynchronized(RailSession.STREAM_CODEC).build());
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<AEKey>> RAIL_CHARGE_AMMO = DATA_COMPONENT_TYPES.register(
+            "star_shard_charge_ammo", () -> DataComponentType.<AEKey>builder().networkSynchronized(AEKey.STREAM_CODEC).build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> RAIL_COOLDOWN_END = DATA_COMPONENT_TYPES.register(
             "rail_cooldown_end", () -> DataComponentType.<Long>builder().persistent(Codec.LONG).networkSynchronized(ByteBufCodecs.VAR_LONG).build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> RAIL_COOLDOWN_DURATION = DATA_COMPONENT_TYPES.register(
+            "star_shard_cooldown_duration", () -> DataComponentType.<Integer>builder().persistent(Codec.intRange(1, 160)).networkSynchronized(ByteBufCodecs.VAR_INT).build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> CANNON_MODERN_AMMO = DATA_COMPONENT_TYPES.register(
             "cannon_modern_ammo", () -> DataComponentType.<Boolean>builder().persistent(Codec.BOOL).networkSynchronized(ByteBufCodecs.BOOL).build());

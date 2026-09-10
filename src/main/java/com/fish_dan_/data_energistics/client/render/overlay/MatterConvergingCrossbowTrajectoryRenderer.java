@@ -81,7 +81,7 @@ public final class MatterConvergingCrossbowTrajectoryRenderer {
         CannonModelAnchors.record(entity, hand, new CannonModelAnchors.Anchors(railMuzzle, left, right,
                 sideways.scale(-1).add(back), sideways.add(back), minecraft.level.getGameTime()));
         if (entity != minecraft.player || minecraft.screen != null) return;
-        Vec3 start = cameraPosition.add(new Vec3(space.muzzleOffset()));
+        Vec3 start = MatterConvergingCrossbowItem.mode(stack) == MatterConvergingCrossbowMode.RAIL ? railMuzzle : cameraPosition.add(new Vec3(space.muzzleOffset()));
         float partialTick = minecraft.getTimer().getGameTimeDeltaPartialTick(true);
         Vec3 eye = entity.getEyePosition(partialTick);
         Vec3 aimEnd = eye.add(entity.getViewVector(partialTick).scale(256.0D));

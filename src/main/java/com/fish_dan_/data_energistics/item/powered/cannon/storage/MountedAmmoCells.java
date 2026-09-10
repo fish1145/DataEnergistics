@@ -1,11 +1,9 @@
 package com.fish_dan_.data_energistics.item.powered.cannon.storage;
 
-import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
-import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.weapon.appflux.FluxAmmunition;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.item.powered.cannon.ammunition.RailAmmunition;
+import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailLauncher;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 
 import appeng.api.config.Actionable;
@@ -13,10 +11,8 @@ import appeng.api.ids.AEComponents;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
-import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
 import appeng.api.storage.StorageCells;
-import appeng.api.storage.cells.IBasicCellItem;
 import appeng.api.storage.cells.StorageCell;
 import appeng.core.definitions.AEItems;
 
@@ -50,15 +46,9 @@ public final class MountedAmmoCells {
         return result;
     }
 
-    /** Only item-channel cells are useful as magazines; the weapon itself no longer implements the cell API. */
+    /** All modes accept every AE-handled storage disk; only ammunition extraction is filtered by mode. */
     public static boolean accepts(ItemStack stack) {
-        return stack.getItem() instanceof IBasicCellItem cellItem && cellItem.getKeyType() == AEKeyType.items() && StorageCells.isCellHandled(stack);
-    }
-
-    public static boolean accepts(ItemStack stack, MatterConvergingCrossbowMode mode) {
-        if (accepts(stack)) return true;
-        if (mode != MatterConvergingCrossbowMode.RAIL || !(stack.getItem() instanceof IBasicCellItem cellItem) || !StorageCells.isCellHandled(stack)) return false;
-        return cellItem.getKeyType() == DataFlowKey.of().getType() || ModFlags.isAppFluxLoaded() && cellItem.getKeyType() == FluxAmmunition.key().getType();
+        return !stack.isEmpty() && StorageCells.isCellHandled(stack);
     }
 
     /** Called on the server after an AE slot edit; validates all cells before replacing the stored contents. */
@@ -66,15 +56,13 @@ public final class MountedAmmoCells {
         if (contents.getSlots() > SLOT_COUNT) throw new IllegalArgumentException("Too many ammunition cell slots");
         NonNullList<ItemStack> slots = NonNullList.withSize(SLOT_COUNT, ItemStack.EMPTY);
         contents.copyInto(slots);
-        if (weapon.has(DEDataComponents.RAIL_SESSION.get())) throw new IllegalStateException("Cannot edit reserved ammunition cells");
-        for (int index = 0; index < slots.size(); index++) {
-            ItemStack cell = slots.get(index);
-            if (!cell.isEmpty() && (cell.getCount() != 1 || !accepts(cell, MatterConvergingCrossbowMode.fromId(index)))) {
+        for (ItemStack cell : slots) {
+            if (!cell.isEmpty() && (cell.getCount() != 1 || !accepts(cell))) {
                 throw new IllegalArgumentException("Invalid ammunition cell: " + cell);
             }
         }
         weapon.set(DEDataComponents.CANNON_CELLS.get(), ItemContainerContents.fromItems(slots));
-        weapon.remove(DEDataComponents.CANNON_CHARGE.get());
+        RailLauncher.cancel(weapon);
     }
 
     /** Compatible types retain their full component identity, including charged sabers and configured mod items. */
@@ -106,15 +94,24 @@ public final class MountedAmmoCells {
 
     /** AE's generic keys retain data/FE identity without fake item ammunition. */
     public static @Nullable AEKey selectedKey(ItemStack weapon, MatterConvergingCrossbowMode mode) {
-        var session = weapon.get(DEDataComponents.RAIL_SESSION.get());
-        if (mode == MatterConvergingCrossbowMode.RAIL && session != null) return session.resource();
         if (mode != MatterConvergingCrossbowMode.RAIL) return AEItemKey.of(selected(weapon, mode, ammunition(weapon, mode)));
         StorageCell inventory = open(cell(weapon, mode));
         if (inventory == null) return null;
+        ItemStack stored = selections(weapon).get(mode.id());
+        var wrapped = GenericStack.unwrapItemStack(stored);
+        AEKey chosen = wrapped == null ? AEItemKey.of(stored) : wrapped.what();
+        if (chosen != null && RailAmmunition.fromKey(chosen) != null && inventory.extract(chosen, 1, Actionable.SIMULATE, IActionSource.empty()) == 1) return chosen;
+        List<AEKey> keys = railAmmunition(inventory);
+        return keys.isEmpty() ? null : keys.getFirst();
+    }
+
+    private static List<AEKey> railAmmunition(StorageCell inventory) {
+        List<AEKey> keys = new ObjectArrayList<>();
         for (var entry : inventory.getAvailableStacks()) {
-            if (entry.getLongValue() > 0 && !(entry.getKey() instanceof AEItemKey) && RailAmmunition.fromKey(entry.getKey()) != null) return entry.getKey();
+            if (entry.getLongValue() > 0 && RailAmmunition.fromKey(entry.getKey()) != null) keys.add(entry.getKey());
         }
-        return AEItemKey.of(selected(weapon, mode, ammunition(inventory, mode)));
+        keys.sort(Comparator.comparing(AEKey::toString));
+        return keys;
     }
 
     public static long amount(ItemStack weapon, MatterConvergingCrossbowMode mode, AEKey key) {
@@ -122,7 +119,7 @@ public final class MountedAmmoCells {
         return inventory == null ? 0 : inventory.extract(key, Long.MAX_VALUE, Actionable.SIMULATE, IActionSource.empty());
     }
 
-    /** Reservation and refund use the same generic key and persist the detached disk copy. */
+    /** Shot consumption and rejected-spawn refunds retain the exact generic key and persist the disk copy. */
     public static long transfer(ItemStack weapon, AEKey key, long amount, boolean insert, Actionable action) {
         ItemStack cell = cell(weapon, MatterConvergingCrossbowMode.RAIL);
         StorageCell inventory = open(cell);
@@ -151,8 +148,16 @@ public final class MountedAmmoCells {
 
     /** Server-side selection used by AE's wheel and menu protocols; incompatible and absent types are skipped. */
     public static void cycle(ItemStack weapon, MatterConvergingCrossbowMode mode, boolean reverse) {
-        if (weapon.has(DEDataComponents.RAIL_SESSION.get())) return;
         if (MatterConvergingCrossbowItem.isCharged(weapon)) return;
+        if (mode == MatterConvergingCrossbowMode.RAIL) {
+            StorageCell inventory = open(cell(weapon, mode));
+            if (inventory == null) return;
+            List<AEKey> choices = railAmmunition(inventory);
+            if (choices.isEmpty()) return;
+            int current = choices.indexOf(selectedKey(weapon, mode));
+            select(weapon, mode, choices.get(Math.floorMod(current + (reverse ? -1 : 1), choices.size())));
+            return;
+        }
         List<AEItemKey> choices = ammunition(weapon, mode);
         if (choices.isEmpty()) return;
         int current = choices.indexOf(AEItemKey.of(selected(weapon, mode, choices)));
@@ -160,12 +165,12 @@ public final class MountedAmmoCells {
         select(weapon, mode, choices.get(next));
     }
 
-    private static void select(ItemStack weapon, MatterConvergingCrossbowMode mode, AEItemKey key) {
+    private static void select(ItemStack weapon, MatterConvergingCrossbowMode mode, AEKey key) {
         NonNullList<ItemStack> selected = selections(weapon);
-        selected.set(mode.id(), key.toStack(1));
+        selected.set(mode.id(), key instanceof AEItemKey itemKey ? itemKey.toStack(1) : GenericStack.wrapInItemStack(key, 1));
         weapon.set(DEDataComponents.CANNON_AMMO_SELECTIONS.get(), ItemContainerContents.fromItems(selected));
         weapon.remove(DEDataComponents.MATTER_CONVERGING_CROSSBOW_SELECTED_AMMO.get());
-        weapon.remove(DEDataComponents.CANNON_CHARGE.get());
+        RailLauncher.cancel(weapon);
     }
 
     private static NonNullList<ItemStack> selections(ItemStack weapon) {
@@ -192,7 +197,6 @@ public final class MountedAmmoCells {
     /** Loads matching inventory ammunition into the installed disk, respecting its capacity and partition rules. */
     public static long insert(ItemStack weapon, MatterConvergingCrossbowMode mode, AEItemKey key, long amount,
                               IActionSource source, Actionable action) {
-        if (weapon.has(DEDataComponents.RAIL_SESSION.get())) return 0;
         if (amount <= 0 || !MatterConvergingCrossbowItem.supportsAmmo(mode, key.toStack(1))) return 0;
         ItemStack cell = cell(weapon, mode);
         StorageCell inventory = open(cell);
@@ -206,7 +210,7 @@ public final class MountedAmmoCells {
     }
 
     private static @Nullable StorageCell open(ItemStack cell) {
-        return cell.isEmpty() || !accepts(cell, MatterConvergingCrossbowMode.RAIL) ? null : StorageCells.getCellInventory(cell, null);
+        return cell.isEmpty() || !accepts(cell) ? null : StorageCells.getCellInventory(cell, null);
     }
 
     private static void saveCell(ItemStack weapon, MatterConvergingCrossbowMode mode, ItemStack cell) {

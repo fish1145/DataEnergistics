@@ -4,6 +4,8 @@ import com.fish_dan_.data_energistics.effect.ChromaticGlow;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.CannonShot;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.ElementalGrenade;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.GrenadePayload;
+import com.fish_dan_.data_energistics.entity.projectile.cannon.RailImpact;
+import com.fish_dan_.data_energistics.entity.projectile.cannon.RailShot;
 import com.fish_dan_.data_energistics.entity.projectile.cannon.WeaponDamage;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
@@ -84,6 +86,12 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     @Setter
     private boolean critical;
     private CannonShot cannonShot = CannonShot.CROSSBOW;
+    private @Nullable RailShot railShot;
+
+    public void configureRailShot(RailShot shot) {
+        this.railShot = shot;
+    }
+
     private boolean modernEffects;
     private float fragmentDamage;
     private int singularityTicks;
@@ -190,6 +198,11 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         this.cannonShot.save(tag);
+        if (this.railShot != null) {
+            CompoundTag shot = new CompoundTag();
+            this.railShot.save(shot);
+            tag.put("RailRound", shot);
+        }
         tag.putBoolean("ModernEffects", this.modernEffects);
         tag.putFloat("FragmentDamage", this.fragmentDamage);
         tag.putInt("SingularityTicks", this.singularityTicks);
@@ -208,6 +221,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        this.railShot = tag.contains("RailRound", 10) ? RailShot.load(tag.getCompound("RailRound")) : null;
         this.modernEffects = tag.getBoolean("ModernEffects");
         this.fragmentDamage = Math.max(0, tag.getFloat("FragmentDamage"));
         this.singularityTicks = Math.clamp(tag.getInt("SingularityTicks"), 0, 10);
@@ -232,6 +246,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
     @Override
     protected void onHitEntity(EntityHitResult result) {
+        if (this.railImpact(result)) return;
         if (this.detonatePayload(result)) return;
         Entity owner = this.getOwner();
         Entity target = result.getEntity();
@@ -294,6 +309,7 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
 
     @Override
     protected void onHitBlock(BlockHitResult result) {
+        if (this.railImpact(result)) return;
         if (this.detonatePayload(result)) return;
         if (this.modernEffects && this.isSingularityAmmo()) {
             this.startSingularity(result.getLocation());
@@ -322,6 +338,16 @@ public class MatterConvergingBoltEntity extends ThrowableItemProjectile {
             }
             GrenadePayload.detonate(serverLevel, this.getItem(), impact, blockHit == null ? null : blockHit.getDirection(),
                     this.getOwner() instanceof LivingEntity livingOwner ? livingOwner : null);
+        }
+        return true;
+    }
+
+    private boolean railImpact(HitResult result) {
+        if (this.railShot == null) return false;
+        if (!this.isRemoved() && this.level() instanceof ServerLevel level) {
+            this.discard();
+            LivingEntity target = result instanceof EntityHitResult hit ? this.resolveLivingTarget(hit.getEntity()) : null;
+            RailImpact.apply(level, this.railShot, result.getLocation(), target, this.getOwner());
         }
         return true;
     }

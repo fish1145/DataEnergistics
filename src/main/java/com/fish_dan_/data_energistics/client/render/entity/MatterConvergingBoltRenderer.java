@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.client.render.entity;
 
+import com.fish_dan_.data_energistics.client.render.item.crossbow.RailAmmunitionRenderer;
 import com.fish_dan_.data_energistics.entity.projectile.MatterConvergingBoltEntity;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 
@@ -41,6 +42,15 @@ public class MatterConvergingBoltRenderer extends EntityRenderer<MatterConvergin
     @Override
     public void render(MatterConvergingBoltEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
                        MultiBufferSource buffer, int packedLight) {
+        if (entity.firingMode() == MatterConvergingCrossbowMode.RAIL) {
+            poseStack.pushPose();
+            poseStack.mulPose(Axis.YP.rotationDegrees(180 + Mth.lerp(partialTick, entity.yRotO, entity.getYRot())));
+            poseStack.mulPose(Axis.XP.rotationDegrees(Mth.lerp(partialTick, entity.xRotO, entity.getXRot())));
+            RailAmmunitionRenderer.draw(entity.getItem(), entity.level(), poseStack, buffer, packedLight);
+            poseStack.popPose();
+            super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
+            return;
+        }
         if (entity.firingMode() == MatterConvergingCrossbowMode.GRENADE) {
             this.renderAmmunition(entity, poseStack, buffer, packedLight);
             super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
@@ -143,7 +153,7 @@ public class MatterConvergingBoltRenderer extends EntityRenderer<MatterConvergin
 
     @Override
     public ResourceLocation getTextureLocation(MatterConvergingBoltEntity entity) {
-        if (entity.firingMode() == MatterConvergingCrossbowMode.GRENADE) return InventoryMenu.BLOCK_ATLAS;
+        if (entity.firingMode() != MatterConvergingCrossbowMode.CROSSBOW) return InventoryMenu.BLOCK_ATLAS;
         return entity.getColor() >= 0 ? TIPPED_ARROW_LOCATION : NORMAL_ARROW_LOCATION;
     }
 }

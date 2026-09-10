@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.menu.powered;
 
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
-import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailFiring;
+import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailLauncher;
 import com.fish_dan_.data_energistics.item.powered.cannon.storage.CannonCellMenuHost;
 import com.fish_dan_.data_energistics.item.powered.cannon.storage.MountedAmmoCells;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
@@ -101,7 +101,7 @@ public final class MatterConvergingCrossbowConfigMenu extends AEBaseMenu {
     private void setModeFromClient(Integer mode) {
         if (!isServerSide() || !host.isValid() || mode < 0 || mode >= MountedAmmoCells.SLOT_COUNT) return;
         ItemStack weapon = host.getItemStack();
-        RailFiring.stopForMutation(weapon);
+        RailLauncher.cancel(weapon);
         weapon.remove(DEDataComponents.CANNON_CHARGE.get());
         weapon.set(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), mode);
         broadcastChanges();
@@ -141,7 +141,7 @@ public final class MatterConvergingCrossbowConfigMenu extends AEBaseMenu {
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return MountedAmmoCells.accepts(stack, MatterConvergingCrossbowMode.fromId(getContainerSlot()));
+            return MountedAmmoCells.accepts(stack);
         }
     }
 }

@@ -9,7 +9,6 @@ import com.fish_dan_.data_energistics.effect.RadixLossControlLogic;
 import com.fish_dan_.data_energistics.effect.WeaponBurn;
 import com.fish_dan_.data_energistics.item.powered.DataCrystalSwordAiStripLogic;
 import com.fish_dan_.data_energistics.item.powered.PersistentFarmlandLogic;
-import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailFiring;
 import com.fish_dan_.data_energistics.recipe.containmentsphere.RadixContainmentSphereRightClickRecipeLogic;
 import com.fish_dan_.data_energistics.recipe.timeshift.TimeShiftTransformLogic;
 import com.fish_dan_.data_energistics.world.meteorite.DataMeteoriteCompassTargetInvalidation;
@@ -31,7 +30,6 @@ final class CommonEventRegistrar {
         NeoForge.EVENT_BUS.register(new RadixLossControlLogic());
         NeoForge.EVENT_BUS.register(new WeaponBurn());
         NeoForge.EVENT_BUS.register(new ChromaticGlow());
-        NeoForge.EVENT_BUS.register(new RailFiring());
         NeoForge.EVENT_BUS.register(new PersistentFarmlandLogic());
         NeoForge.EVENT_BUS.register(new RecipeReloadEventHandler());
         NeoForge.EVENT_BUS.register(new DataMeteoriteCompassTargetInvalidation());

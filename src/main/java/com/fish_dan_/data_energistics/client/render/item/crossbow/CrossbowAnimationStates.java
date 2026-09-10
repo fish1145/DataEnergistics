@@ -66,12 +66,8 @@ public final class CrossbowAnimationStates {
                     progress = using ? charge.progress(minecraft.level.getGameTime()) : 0.0F;
                 }
                 int shot = stack.getOrDefault(DEDataComponents.CANNON_SHOT_SEQUENCE.get(), 0);
-                long remaining = stack.getOrDefault(DEDataComponents.RAIL_COOLDOWN_END.get(), 0L) - minecraft.level.getGameTime();
-                int cooldownElapsed = remaining > 0 ? Math.clamp(CrossbowRailRecoil.DURATION_TICKS - (int) remaining, 0, CrossbowRailRecoil.DURATION_TICKS) : -1;
-                tracked.animation().tick(held, using, charged, progress, mode, shot != 0 && shot != tracked.shot(), cooldownElapsed);
-                if (mode == MatterConvergingCrossbowMode.RAIL && cooldownElapsed >= 0) {
-                    CannonModelAnchors.particles(entity, hand, CrossbowRailRecoil.jetStrength(cooldownElapsed));
-                }
+                tracked.animation().tick(held, using, charged, progress, mode, shot != 0 && shot != tracked.shot());
+                CannonModelAnchors.particles(entity, hand, tracked.animation().exhaustStrength());
                 handEntry.setValue(new HandAnimation(slot, tracked.animation(), shot));
             }
         }

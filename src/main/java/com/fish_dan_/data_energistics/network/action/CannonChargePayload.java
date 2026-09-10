@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.network.action;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
-import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailFiring;
+import com.fish_dan_.data_energistics.item.powered.cannon.rail.RailLauncher;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEMobEffects;
 
@@ -57,7 +57,7 @@ public record CannonChargePayload(InteractionHand hand, Action action, Vec3 muzz
             ItemStack stack = player.getItemInHand(payload.hand);
             if (!(stack.getItem() instanceof MatterConvergingCrossbowItem item)) return;
             if (payload.action == Action.CANCEL || player.hasEffect(DEMobEffects.RADIX_LOSS)) {
-                RailFiring.stop(player, stack);
+                RailLauncher.cancel(stack);
                 stack.remove(DEDataComponents.CANNON_CHARGE.get());
                 return;
             }
