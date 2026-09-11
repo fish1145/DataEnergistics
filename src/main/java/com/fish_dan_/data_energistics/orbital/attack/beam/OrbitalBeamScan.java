@@ -11,6 +11,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -98,25 +99,27 @@ public final class OrbitalBeamScan {
     }
 
     private static Layout buildLayout(LayoutKey key) {
-        IntArrayList offsets = new IntArrayList(Math.toIntExact(OrbitalDirectedEnergyStrike.scheduledCoordinateCount(key.radius())));
-        int x = 0, z = 0, directionX = 1, directionZ = 0, length = 1, progress = 0, segments = 0;
-        int side = key.radius() * 2 + 1;
-        for (int emitted = 0; emitted < side * side; emitted++) {
-            if ((long) x * x + (long) z * z <= (long) key.radius() * key.radius()) {
-                offsets.add(((x + 256) << 10) | (z + 256));
-            }
-            x += directionX;
-            z += directionZ;
-            if (++progress == length) {
-                progress = 0;
-                int rotatedX = -directionZ;
-                directionZ = directionX;
-                directionX = rotatedX;
-                if (++segments % 2 == 0) {
-                    length++;
+        int radius = key.radius();
+        IntArrayList offsets = new IntArrayList(Math.toIntExact(OrbitalDirectedEnergyStrike.scheduledCoordinateCount(radius)));
+        // Visit concentric disk coordinates by distance so every unfinished prefix is circular.
+        // A spiral prefix grows as an axis-aligned square, which is visible while terrain is being removed.
+        ObjectArrayList<Integer> ordered = new ObjectArrayList<>();
+        long radiusSquared = (long) radius * radius;
+        for (int z = -radius; z <= radius; z++) {
+            for (int x = -radius; x <= radius; x++) {
+                long distanceSquared = (long) x * x + (long) z * z;
+                if (distanceSquared <= radiusSquared) {
+                    ordered.add(((x + 256) << 10) | (z + 256));
                 }
             }
         }
+        ordered.sort(Comparator.<Integer>comparingLong(packed -> {
+            int x = (packed >>> 10) - 256;
+            int z = (packed & 1023) - 256;
+            return (long) x * x + (long) z * z;
+        }).thenComparingInt(packed -> (packed >>> 10) - 256)
+                .thenComparingInt(packed -> (packed & 1023) - 256));
+        offsets.addElements(0, ordered.stream().mapToInt(Integer::intValue).toArray());
         long[] prefix = new long[offsets.size() + 1];
         Layout result = new Layout(offsets.toIntArray(), prefix, key.height(), key.path());
         for (int index = 0; index < offsets.size(); index++) {
