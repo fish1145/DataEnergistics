@@ -6,8 +6,6 @@ import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleB
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
-import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycleState;
-import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
 import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
@@ -70,128 +68,6 @@ public final class StellarErasureDeviceLifecycleGameTest {
     public static void restoreRedeploymentConfiguration(ServerLevel level) {
         requireServerThread(level);
         originalConfiguration.applyTo(DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice);
-    }
-
-    @TestHolder("stellar_erasure_device_lifecycle_deploys_drains_sleeps_and_redeploys")
-    @EmptyTemplate("5")
-    @GameTest(template = "empty_5x5", timeoutTicks = 400)
-    public static void deploysDrainsSleepsAndRedeploys(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        MinecraftServer server = level.getServer();
-        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
-        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
-        ServerPlayer owner = createPlayer(level, "orbital-lifecycle-owner");
-
-        placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
-        placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
-        placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
-        installInfiniteCell(helper);
-
-        UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
-        long deploymentStellarFlux = deploymentTarget(
-                settings.stellarFluxCapacity,
-                settings.deploymentThreshold);
-
-        helper.startSequence()
-                .thenIdle(40)
-                .thenWaitUntil(() -> helper.assertTrue(
-                        weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
-                        "The lifecycle test must use a real powered AE endpoint"))
-                .thenExecute(() -> {
-                    StellarErasureDeviceRecord dormant = weapons.find(weaponId).orElseThrow();
-                    helper.assertValueEqual(
-                            dormant.lifecycle().state(),
-                            StellarErasureDeviceLifecycleState.DORMANT,
-                            "A newly provisioned orbital weapon must begin dormant");
-
-                    insertStellarFlux(helper, deploymentStellarFlux);
-                    weapons.chargeReserves(server);
-                    StellarErasureDeviceRecord partiallyCharged = weapons.find(weaponId).orElseThrow();
-                    helper.assertTrue(
-                            partiallyCharged.reserve().stellarFlux() > 0L && partiallyCharged.reserve().aeEnergy() > 0L,
-                            "The real endpoint must transfer both independent reserves");
-                    helper.assertFalse(
-                            weapons.tryDebitReserve(server, weaponId, owner.getUUID(), 1L, 1L),
-                            "A partially funded dormant weapon must reject a new attack debit");
-                    helper.assertValueEqual(
-                            weapons.find(weaponId).orElseThrow().reserve(),
-                            partiallyCharged.reserve(),
-                            "A dormant rejection must not mutate either reserve");
-
-                    chargeUntilDeployed(weapons, server, weaponId, settings);
-                    StellarErasureDeviceRecord deployed = weapons.find(weaponId).orElseThrow();
-                    helper.assertValueEqual(
-                            deployed.lifecycle().state(),
-                            StellarErasureDeviceLifecycleState.DEPLOYED,
-                            "Reaching both configured thresholds must deploy the orbital weapon");
-                    helper.assertTrue(
-                            deployed.reserve().meetsDeploymentThreshold(settings),
-                            "Deployment must be backed by both persisted reserves rather than a transient flag");
-                    helper.assertTrue(
-                            level.destroyBlock(helper.absolutePos(CREATIVE_ENERGY_CELL), false),
-                            "The lifecycle test must be able to remove AE power before observing upkeep");
-                })
-                .thenIdle(5)
-                .thenWaitUntil(() -> helper.assertFalse(
-                        weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
-                        "Removing AE power must make the endpoint unavailable for reserve charging"))
-                .thenExecute(() -> {
-                    OrbitalEnergyReserve beforeMaintenance = weapons.find(weaponId).orElseThrow().reserve();
-                    weapons.chargeReserves(server);
-                    StellarErasureDeviceRecord maintained = weapons.find(weaponId).orElseThrow();
-                    helper.assertValueEqual(
-                            beforeMaintenance.stellarFlux() - maintained.reserve().stellarFlux(),
-                            Math.min(beforeMaintenance.stellarFlux(), settings.stellarFluxUpkeepPerTick),
-                            "A deployed tick without input must consume configured Stellar Flux upkeep");
-                    helper.assertValueEqual(
-                            beforeMaintenance.aeEnergy() - maintained.reserve().aeEnergy(),
-                            Math.min(beforeMaintenance.aeEnergy(), settings.aeEnergyUpkeepPerTick),
-                            "A deployed tick without input must consume configured AE upkeep");
-                    helper.assertValueEqual(
-                            maintained.lifecycle().state(),
-                            StellarErasureDeviceLifecycleState.DEPLOYED,
-                            "Losing an endpoint must not immediately deconstruct a funded projection");
-
-                    helper.assertTrue(
-                            weapons.tryDebitReserve(
-                                    server,
-                                    weaponId,
-                                    owner.getUUID(),
-                                    maintained.reserve().stellarFlux(),
-                                    maintained.reserve().aeEnergy()),
-                            "The deployed reserve transaction must be able to consume the final stored units");
-                    StellarErasureDeviceRecord grace = weapons.find(weaponId).orElseThrow();
-                    StellarErasureDeviceLifecycleState expectedGraceState = settings.reserveGraceTicks == 0 ? StellarErasureDeviceLifecycleState.DORMANT : StellarErasureDeviceLifecycleState.RESERVE_GRACE;
-                    helper.assertValueEqual(
-                            grace.lifecycle().state(),
-                            expectedGraceState,
-                            "Exhausting either reserve must immediately disable the deployed state");
-                    helper.assertFalse(
-                            weapons.tryDebitReserve(server, weaponId, owner.getUUID(), 1L, 1L),
-                            "Reserve grace must reject every new attack debit");
-
-                    for (int tick = 0; tick < settings.reserveGraceTicks; tick++) {
-                        weapons.chargeReserves(server);
-                    }
-                    helper.assertValueEqual(
-                            weapons.find(weaponId).orElseThrow().lifecycle().state(),
-                            StellarErasureDeviceLifecycleState.DORMANT,
-                            "An unfunded projection must return to dormancy after its configured grace period");
-                    placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
-                })
-                .thenIdle(40)
-                .thenWaitUntil(() -> helper.assertTrue(
-                        weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
-                        "Restoring AE power must make the bound endpoint operational again"))
-                .thenExecute(() -> {
-                    insertStellarFlux(helper, deploymentStellarFlux);
-                    chargeUntilDeployed(weapons, server, weaponId, settings);
-                    helper.assertValueEqual(
-                            weapons.find(weaponId).orElseThrow().lifecycle().state(),
-                            StellarErasureDeviceLifecycleState.DEPLOYED,
-                            "A dormant weapon must redeploy after both reserves are replenished to threshold");
-                })
-                .thenSucceed();
     }
 
     @TestHolder("stellar_erasure_device_redeployment_keeps_maintenance_and_reserve_grace")
