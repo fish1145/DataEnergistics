@@ -18,6 +18,7 @@ import com.fish_dan_.data_energistics.integration.ftb.ultimine.DataCrystalPickax
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotKeyContainerItemStrategy;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEChunkGenerators;
 import com.fish_dan_.data_energistics.registry.DECreativeTabs;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEEntities;
@@ -58,6 +59,7 @@ public class CommonProxy {
         DEMenus.register(modEventBus);
         DERecipes.register(modEventBus);
         DEStructures.register(modEventBus);
+        DEChunkGenerators.register(modEventBus);
         DEVerticalMultiBlocks.init();
         DEUpgrades.registerPartModels();
         modEventBus.addListener(instance::commonSetup);
