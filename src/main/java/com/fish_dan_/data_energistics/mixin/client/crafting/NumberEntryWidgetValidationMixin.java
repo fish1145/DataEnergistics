@@ -43,6 +43,11 @@ public abstract class NumberEntryWidgetValidationMixin implements NumberEntryWid
         if (!this.dataEnergistics$expressionValidation) {
             return;
         }
+        dataEnergistics$applyExpressionValidation();
+    }
+
+    @Unique
+    private void dataEnergistics$applyExpressionValidation() {
         var parsed = LongAmountExpressionParser.parse(this.textField.getValue());
         if (parsed.isPresent()) {
             this.textField.setTextColor(this.normalTextColor);
@@ -57,5 +62,6 @@ public abstract class NumberEntryWidgetValidationMixin implements NumberEntryWid
     @Override
     public void dataEnergistics$enableExpressionValidation() {
         this.dataEnergistics$expressionValidation = true;
+        dataEnergistics$applyExpressionValidation();
     }
 }
