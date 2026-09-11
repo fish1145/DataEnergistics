@@ -41,9 +41,9 @@ public final class OrbitalReserveCharging {
      * </p>
      */
     public static StellarErasureDeviceRecord charge(
-                                             MinecraftServer server,
-                                             StellarErasureDeviceRecord weapon,
-                                             DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
+                                                    MinecraftServer server,
+                                                    StellarErasureDeviceRecord weapon,
+                                                    DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         OrbitalEnergyReserve reserve = weapon.reserve().withinCapacity(settings);
         long stellarFluxRequest = Math.min(
                 reserve.stellarFluxSpace(settings),

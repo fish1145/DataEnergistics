@@ -34,7 +34,7 @@ public interface StellarErasureDeviceProvisioner {
      * @return the immutable weapon snapshot after endpoint registration
      */
     StellarErasureDeviceRecord provision(
-                                  MinecraftServer server,
-                                  UUID ownerId,
-                                  OrbitalEndpointLocation sourceLocation);
+                                         MinecraftServer server,
+                                         UUID ownerId,
+                                         OrbitalEndpointLocation sourceLocation);
 }

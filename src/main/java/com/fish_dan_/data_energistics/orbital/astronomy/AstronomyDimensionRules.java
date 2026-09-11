@@ -48,8 +48,8 @@ public final class AstronomyDimensionRules {
      * Calculates the whole Stellar Flux output for this dimension and current weather.
      */
     public static long stellarFluxPerTick(
-                                              ServerLevel level,
-                                              DataEnergisticsConfiguration.AstronomySchema settings) {
+                                          ServerLevel level,
+                                          DataEnergisticsConfiguration.AstronomySchema settings) {
         return stellarFluxPerTick(level, settings, settings.lowTierStellarFluxPerTick);
     }
 
@@ -57,9 +57,9 @@ public final class AstronomyDimensionRules {
      * Applies this dimension's configured multiplier and current rain multiplier to a caller-provided base output.
      */
     public static long stellarFluxPerTick(
-                                              ServerLevel level,
-                                              DataEnergisticsConfiguration.AstronomySchema settings,
-                                              long baseOutput) {
+                                          ServerLevel level,
+                                          DataEnergisticsConfiguration.AstronomySchema settings,
+                                          long baseOutput) {
         if (baseOutput < 0L) {
             throw new IllegalArgumentException("Base Stellar Flux output must be non-negative: " + baseOutput);
         }

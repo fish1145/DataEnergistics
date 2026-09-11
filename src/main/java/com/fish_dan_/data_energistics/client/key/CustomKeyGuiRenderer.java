@@ -1,10 +1,10 @@
 package com.fish_dan_.data_energistics.client.key;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 
 import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.AEKey;
@@ -33,21 +33,24 @@ public final class CustomKeyGuiRenderer {
     }
 
     public static boolean drawCustom(GuiGraphics guiGraphics, int x, int y, AEKey key) {
-        if (key instanceof DataFlowKey) {
-            drawSprite(guiGraphics, x, y, dataFlowSprite());
-            return true;
-        }
-        if (key instanceof DataKey) {
-            drawSprite(guiGraphics, x, y, dataSprite());
-            return true;
-        }
-        if (key instanceof EchoKey) {
-            drawSprite(guiGraphics, x, y, echoSprite());
-            return true;
-        }
-        if (key instanceof StellarFluxKey) {
-            drawSprite(guiGraphics, x, y, stellarFluxSprite());
-            return true;
+        switch (key) {
+            case DataFlowKey dataFlowKey -> {
+                drawSprite(guiGraphics, x, y, dataFlowSprite());
+                return true;
+            }
+            case DataKey dataKey -> {
+                drawSprite(guiGraphics, x, y, dataSprite());
+                return true;
+            }
+            case EchoKey echoKey -> {
+                drawSprite(guiGraphics, x, y, echoSprite());
+                return true;
+            }
+            case StellarFluxKey stellarFluxKey -> {
+                drawSprite(guiGraphics, x, y, stellarFluxSprite());
+                return true;
+            }
+            default -> {}
         }
         return false;
     }

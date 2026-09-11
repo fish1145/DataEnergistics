@@ -302,9 +302,9 @@ public final class OrbitalOwnershipTransferGameTest {
     }
 
     private static long requiredStellarFlux(
-                                                DataEnergisticsConfiguration.StellarErasureDeviceSchema settings,
-                                                OrbitalAttackCost cost,
-                                                int attackCount) {
+                                            DataEnergisticsConfiguration.StellarErasureDeviceSchema settings,
+                                            OrbitalAttackCost cost,
+                                            int attackCount) {
         return Math.max(
                 Math.multiplyExact(cost.stellarFlux(), attackCount),
                 deploymentTarget(settings.stellarFluxCapacity, settings.deploymentThreshold));

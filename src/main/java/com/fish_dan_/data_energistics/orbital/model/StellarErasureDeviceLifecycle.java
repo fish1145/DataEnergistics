@@ -12,9 +12,9 @@ import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
  * </p>
  */
 public record StellarErasureDeviceLifecycle(
-                                     StellarErasureDeviceLifecycleState state,
-                                     int graceTicksRemaining,
-                                     int redeploymentTicksRemaining) {
+                                            StellarErasureDeviceLifecycleState state,
+                                            int graceTicksRemaining,
+                                            int redeploymentTicksRemaining) {
 
     public StellarErasureDeviceLifecycle {
         if (graceTicksRemaining < 0 || redeploymentTicksRemaining < 0) {
@@ -56,8 +56,8 @@ public record StellarErasureDeviceLifecycle(
     }
 
     private static StellarErasureDeviceLifecycle redeployingWithGrace(
-                                                               int redeploymentTicks,
-                                                               int graceTicks) {
+                                                                      int redeploymentTicks,
+                                                                      int graceTicks) {
         if (redeploymentTicks <= 0) {
             return dormant();
         }
@@ -97,8 +97,8 @@ public record StellarErasureDeviceLifecycle(
      * deployment; callers pass the already-normalized reserve and immutable configuration snapshot.
      */
     public StellarErasureDeviceLifecycle reconcile(
-                                            OrbitalEnergyReserve reserve,
-                                            DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
+                                                   OrbitalEnergyReserve reserve,
+                                                   DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         boolean thresholdReached = reserve.meetsDeploymentThreshold(settings);
         return switch (this.state) {
             case DORMANT -> thresholdReached ? deployed() : this;
@@ -109,9 +109,9 @@ public record StellarErasureDeviceLifecycle(
     }
 
     private StellarErasureDeviceLifecycle reconcileRedeployment(
-                                                         OrbitalEnergyReserve reserve,
-                                                         boolean thresholdReached,
-                                                         int configuredGraceTicks) {
+                                                                OrbitalEnergyReserve reserve,
+                                                                boolean thresholdReached,
+                                                                int configuredGraceTicks) {
         if (hasReserveGrace()) {
             if (thresholdReached) {
                 return redeploying(this.redeploymentTicksRemaining);

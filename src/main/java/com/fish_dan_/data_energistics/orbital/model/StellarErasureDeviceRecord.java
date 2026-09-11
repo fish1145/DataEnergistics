@@ -22,14 +22,14 @@ import java.util.UUID;
  * </p>
  */
 public record StellarErasureDeviceRecord(
-                                  UUID weaponId,
-                                  UUID ownerId,
-                                  Map<UUID, OrbitalAccessRole> delegatedRoles,
-                                  Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints,
-                                  OrbitalEnergyReserve reserve,
-                                  StellarErasureDeviceLifecycle lifecycle,
-                                  @Nullable OrbitalEndpointLocation primaryAnchor,
-                                  String customName) {
+                                         UUID weaponId,
+                                         UUID ownerId,
+                                         Map<UUID, OrbitalAccessRole> delegatedRoles,
+                                         Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints,
+                                         OrbitalEnergyReserve reserve,
+                                         StellarErasureDeviceLifecycle lifecycle,
+                                         @Nullable OrbitalEndpointLocation primaryAnchor,
+                                         String customName) {
 
     public static final int MAX_NAME_LENGTH = 48;
 

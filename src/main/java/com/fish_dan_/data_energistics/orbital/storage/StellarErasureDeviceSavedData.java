@@ -134,10 +134,10 @@ public final class StellarErasureDeviceSavedData extends SavedData {
      * Creates or reuses an owned weapon and attaches a physical endpoint in the same SavedData mutation.
      */
     public StellarErasureDeviceRecord provisionForOwner(
-                                                 MinecraftServer server,
-                                                 UUID ownerId,
-                                                 OrbitalEndpointLocation location,
-                                                 OrbitalEndpointKind kind) {
+                                                        MinecraftServer server,
+                                                        UUID ownerId,
+                                                        OrbitalEndpointLocation location,
+                                                        OrbitalEndpointKind kind) {
         requireServerThread(server);
         Optional<StellarErasureDeviceRecord> boundWeapon = findCompatibleBoundEndpoint(ownerId, location, kind);
         if (boundWeapon.isPresent()) {
@@ -163,10 +163,10 @@ public final class StellarErasureDeviceSavedData extends SavedData {
      * @return the bound weapon, or an empty result when the player does not own a weapon
      */
     public Optional<StellarErasureDeviceRecord> bindExistingForOwner(
-                                                              MinecraftServer server,
-                                                              UUID ownerId,
-                                                              OrbitalEndpointLocation location,
-                                                              OrbitalEndpointKind kind) {
+                                                                     MinecraftServer server,
+                                                                     UUID ownerId,
+                                                                     OrbitalEndpointLocation location,
+                                                                     OrbitalEndpointKind kind) {
         requireServerThread(server);
         Optional<StellarErasureDeviceRecord> boundWeapon = findCompatibleBoundEndpoint(ownerId, location, kind);
         if (boundWeapon.isPresent()) {
@@ -964,9 +964,9 @@ public final class StellarErasureDeviceSavedData extends SavedData {
      * owner-approved failover location.
      */
     private static StellarErasureDeviceRecord reconcilePrimaryAnchor(
-                                                              MinecraftServer server,
-                                                              StellarErasureDeviceRecord weapon,
-                                                              DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
+                                                                     MinecraftServer server,
+                                                                     StellarErasureDeviceRecord weapon,
+                                                                     DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         OrbitalEndpointRecord currentAnchor = weapon.primaryAnchor() == null ? null : weapon.endpoints().get(weapon.primaryAnchor());
         if (currentAnchor != null && currentAnchor.kind() == OrbitalEndpointKind.UPLINK_BEACON && OrbitalEndpointAvailability.isOnline(server, weapon.weaponId(), currentAnchor)) {
             return weapon;
@@ -1048,9 +1048,9 @@ public final class StellarErasureDeviceSavedData extends SavedData {
     }
 
     private Optional<StellarErasureDeviceRecord> findCompatibleBoundEndpoint(
-                                                                      UUID ownerId,
-                                                                      OrbitalEndpointLocation location,
-                                                                      OrbitalEndpointKind kind) {
+                                                                             UUID ownerId,
+                                                                             OrbitalEndpointLocation location,
+                                                                             OrbitalEndpointKind kind) {
         UUID boundWeaponId = this.endpointIndex.get(location);
         if (boundWeaponId == null) {
             return Optional.empty();
@@ -1068,9 +1068,9 @@ public final class StellarErasureDeviceSavedData extends SavedData {
     }
 
     private StellarErasureDeviceRecord addEndpoint(
-                                            StellarErasureDeviceRecord current,
-                                            OrbitalEndpointLocation location,
-                                            OrbitalEndpointKind kind) {
+                                                   StellarErasureDeviceRecord current,
+                                                   OrbitalEndpointLocation location,
+                                                   OrbitalEndpointKind kind) {
         if (current.endpoints().containsKey(location)) {
             throw new IllegalStateException("Endpoint index is inconsistent at " + location);
         }

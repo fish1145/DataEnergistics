@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.ae2.dataflow;
 
-import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.IncludeExclude;
@@ -24,10 +24,10 @@ import appeng.util.ConfigInventory;
 import appeng.util.prioritylist.FuzzyPriorityList;
 import appeng.util.prioritylist.IPartitionList;
 
-import lombok.Getter;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
+import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;

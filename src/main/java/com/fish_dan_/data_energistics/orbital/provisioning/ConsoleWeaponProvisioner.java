@@ -20,9 +20,9 @@ public final class ConsoleWeaponProvisioner implements StellarErasureDeviceProvi
 
     @Override
     public StellarErasureDeviceRecord provision(
-                                         MinecraftServer server,
-                                         UUID ownerId,
-                                         OrbitalEndpointLocation sourceLocation) {
+                                                MinecraftServer server,
+                                                UUID ownerId,
+                                                OrbitalEndpointLocation sourceLocation) {
         return StellarErasureDeviceSavedData.get(server)
                 .provisionForOwner(
                         server,

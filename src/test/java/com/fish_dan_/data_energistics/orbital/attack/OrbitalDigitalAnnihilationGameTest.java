@@ -707,8 +707,8 @@ public final class OrbitalDigitalAnnihilationGameTest {
     }
 
     private static long requiredStellarFlux(
-                                                DataEnergisticsConfiguration.StellarErasureDeviceSchema settings,
-                                                OrbitalAttackCost cost) {
+                                            DataEnergisticsConfiguration.StellarErasureDeviceSchema settings,
+                                            OrbitalAttackCost cost) {
         return Math.max(
                 Math.multiplyExact(cost.stellarFlux(), 2L),
                 deploymentTarget(settings.stellarFluxCapacity, settings.deploymentThreshold));

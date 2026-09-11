@@ -143,8 +143,7 @@ public final class OrbitalKineticStrike {
     }
 
     private static int craterTopY(ServerLevel level, BlockPos target, OrbitalAttackGeometry.Kinetic geometry) {
-        int capturedTop = geometry.craterTopY() == OrbitalAttackGeometry.Kinetic.UNCAPTURED_CRATER_TOP
-                ? target.getY() - 1 : geometry.craterTopY();
+        int capturedTop = geometry.craterTopY() == OrbitalAttackGeometry.Kinetic.UNCAPTURED_CRATER_TOP ? target.getY() - 1 : geometry.craterTopY();
         if (geometry.craterTopY() != OrbitalAttackGeometry.Kinetic.UNCAPTURED_CRATER_TOP) {
             return Math.max(target.getY() - 1, capturedTop);
         }

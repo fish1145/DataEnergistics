@@ -32,7 +32,8 @@ import java.util.UUID;
  *
  * <p>
  * Tickets follow persistent placement state rather than instantaneous AE power. Startup reconciliation treats
- * {@link StellarErasureDeviceSavedData} as authoritative, validates the physical block and weapon identity, restores missing
+ * {@link StellarErasureDeviceSavedData} as authoritative, validates the physical block and weapon identity, restores
+ * missing
  * tickets, and removes stale endpoint records.
  * </p>
  */

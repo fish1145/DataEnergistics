@@ -4,8 +4,8 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.orbital.astronomy.InterferenceArrayCoreBlock;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.astronomy.AstronomyDimensionRules;
-import com.fish_dan_.data_energistics.orbital.astronomy.StellarFluxGridTransaction;
 import com.fish_dan_.data_energistics.orbital.astronomy.InterferenceArrayPattern;
+import com.fish_dan_.data_energistics.orbital.astronomy.StellarFluxGridTransaction;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
