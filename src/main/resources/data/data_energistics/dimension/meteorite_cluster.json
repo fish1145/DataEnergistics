@@ -1,21 +1,9 @@
 {
 	"type": "data_energistics:meteorite_cluster",
 	"generator": {
-		"type": "minecraft:flat",
-		"settings": {
-			"biome": "data_energistics:meteorite_cluster",
-			"features": false,
-			"lakes": false,
-			"layers": [
-				{
-					"block": "minecraft:air",
-					"height": 1
-				}
-			],
-			"structure_overrides": [
-				"data_energistics:meteorite_cluster",
-				"data_energistics:ae2_meteorite"
-			]
-		}
+		"type": "minecraft:noise",
+		"biomes": ["data_energistics:meteorite_cluster"],
+		"settings": "minecraft:overworld",
+		"seed": 0
 	}
 }
