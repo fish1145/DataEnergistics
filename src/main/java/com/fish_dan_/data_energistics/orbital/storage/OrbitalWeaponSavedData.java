@@ -422,7 +422,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 reordered,
                 current.reserve(),
                 current.lifecycle(),
-                current.primaryAnchor());
+                current.primaryAnchor(),
+                current.customName());
         this.weapons.put(weaponId, updated);
         setDirty();
         return true;
@@ -571,6 +572,21 @@ public final class OrbitalWeaponSavedData extends SavedData {
         return true;
     }
 
+    /** Server-thread rename transaction. Only the current owner can rename an existing weapon. */
+    public boolean rename(MinecraftServer server, UUID weaponId, UUID actorId, String name) {
+        requireServerThread(server);
+        OrbitalWeaponRecord current = this.weapons.get(weaponId);
+        if (current == null || !current.ownerId().equals(actorId)) {
+            return false;
+        }
+        OrbitalWeaponRecord updated = current.withName(name);
+        if (!updated.equals(current)) {
+            this.weapons.put(weaponId, updated);
+            setDirty();
+        }
+        return true;
+    }
+
     /**
      * Adds or changes a delegated role after verifying the acting player against authoritative state.
      */
@@ -688,7 +704,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 current.endpoints(),
                 current.reserve(),
                 current.lifecycle(),
-                current.primaryAnchor());
+                current.primaryAnchor(),
+                current.customName());
         removeAccessIndex(current);
         this.ownerIndex.remove(current.ownerId());
         this.ownerIndex.put(recipientId, updated.weaponId());
@@ -1009,7 +1026,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 acceptedEndpoints,
                 weapon.reserve(),
                 weapon.lifecycle(),
-                acceptedEndpoints.containsKey(weapon.primaryAnchor()) ? weapon.primaryAnchor() : null);
+                acceptedEndpoints.containsKey(weapon.primaryAnchor()) ? weapon.primaryAnchor() : null,
+                weapon.customName());
     }
 
     /** Applies one deployed-tick maintenance debit without allowing either independent reserve to go negative. */

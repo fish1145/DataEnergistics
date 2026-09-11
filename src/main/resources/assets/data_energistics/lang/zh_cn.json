@@ -1186,8 +1186,8 @@
 	"screen.data_energistics.orbital_control_terminal.overview.progress.pending": "等待调度器",
 	"screen.data_energistics.orbital_control_terminal.overview.progress.warning": "预警剩余 %s tick",
 	"screen.data_energistics.orbital_control_terminal.overview.progress.work": "工作游标 %s",
-	"screen.data_energistics.orbital_control_terminal.overview.resource.ae": "AE 能量\n%s",
-	"screen.data_energistics.orbital_control_terminal.overview.resource.celestial": "星体能量\n%s",
+	"screen.data_energistics.orbital_control_terminal.overview.resource.ae": "AE 能量：%s",
+	"screen.data_energistics.orbital_control_terminal.overview.resource.celestial": "星体能量：%s",
 	"screen.data_energistics.orbital_control_terminal.overview.weapon_title": "轨道平台 %s",
 	"screen.data_energistics.orbital_control_terminal.page.fire_control": "目标与攻击",
 	"screen.data_energistics.orbital_control_terminal.phase.aborted": "已中止",
@@ -1377,8 +1377,8 @@
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.storage": "处理 ME 存储",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.waiting_for_player": "等待玩家上线",
 	"workstation.data_energistics.data_reassembler": "数据重组器",
-	"screen.data_energistics.orbital_control_terminal.workspace.search_hint": "搜索武器编号；列表仅显示你有权访问的武器",
-	"screen.data_energistics.orbital_control_terminal.workspace.search_placeholder": "搜索武器编号…",
+	"screen.data_energistics.orbital_control_terminal.workspace.search_hint": "搜索武器名称、编号或所有者；列表仅显示你有权访问的武器",
+	"screen.data_energistics.orbital_control_terminal.workspace.search_placeholder": "搜索武器或所有者…",
 	"screen.data_energistics.orbital_control_terminal.workspace.external_map": "打开外部地图",
 	"screen.data_energistics.orbital_control_terminal.workspace.recenter": "定位目标",
 	"screen.data_energistics.orbital_control_terminal.workspace.map_hint": "单格代表区块；点击选择区块中心",
@@ -1429,5 +1429,10 @@
 	"screen.data_energistics.orbital_control_hud.save_failed": "无法保存 HUD 设置，请查看日志",
 	"screen.data_energistics.orbital_control_hud.preview_title": "轨道预览",
 	"screen.data_energistics.orbital_control_hud.preview_reserve": "天体能 12.4k  AE 8.0k",
-	"screen.data_energistics.orbital_control_hud.preview_status": "已部署  动能就绪"
+	"screen.data_energistics.orbital_control_hud.preview_status": "已部署  动能就绪",
+	"screen.data_energistics.orbital_control_terminal.overview.owner_unknown": "未知玩家",
+	"screen.data_energistics.orbital_control_terminal.workspace.rename": "保存武器名称",
+	"screen.data_energistics.orbital_control_terminal.workspace.name_placeholder": "武器名称",
+	"screen.data_energistics.orbital_control_terminal.workspace.rename_hint": "仅所有者可改名；最多 %s 个字符，留空恢复默认编号",
+	"screen.data_energistics.orbital_control_terminal.feedback.weapon_renamed": "武器名称已保存"
 }

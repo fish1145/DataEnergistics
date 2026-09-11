@@ -15,6 +15,8 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.GameProfileCache;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -97,6 +99,7 @@ public record OrbitalControlTerminalSnapshot(
                 .map(weapon -> WeaponEntry.from(
                         weapon,
                         playerId,
+                        ownerName(server, weapon.ownerId()),
                         attacksByWeapon.getOrDefault(weapon.weaponId(), List.of())))
                 .toList();
         UUID preferred = selection.selectedWeaponId();
@@ -107,6 +110,18 @@ public record OrbitalControlTerminalSnapshot(
             selected = entries.getFirst().weaponId();
         }
         return new OrbitalControlTerminalSnapshot(selected, entries, truncated);
+    }
+
+    private static String ownerName(MinecraftServer server, UUID ownerId) {
+        return ownerName(ownerId, server.getPlayerList().getPlayer(ownerId), server.getProfileCache());
+    }
+
+    /** Resolves display identity without a network lookup; dedicated test servers may have no profile cache. */
+    static String ownerName(UUID ownerId, @Nullable ServerPlayer player, @Nullable GameProfileCache profiles) {
+        if (player != null) {
+            return player.getGameProfile().getName();
+        }
+        return profiles == null ? "" : profiles.get(ownerId).map(profile -> profile.getName()).orElse("");
     }
 
     /** Returns the selected weapon view without exposing a nullable UI lookup. */
@@ -175,7 +190,9 @@ public record OrbitalControlTerminalSnapshot(
                               int graceTicksRemaining,
                               long celestialEnergy,
                               long aeEnergy,
-                              List<AttackEntry> attacks) {
+                              List<AttackEntry> attacks,
+                              String customName,
+                              String ownerName) {
 
         /** Bounded wire representation shared by the terminal and selected-weapon HUD. */
         public static final StreamCodec<RegistryFriendlyByteBuf, WeaponEntry> STREAM_CODEC = StreamCodec.of(
@@ -192,9 +209,11 @@ public record OrbitalControlTerminalSnapshot(
                         Codec.INT.fieldOf("grace_ticks_remaining").forGetter(WeaponEntry::graceTicksRemaining),
                         Codec.LONG.fieldOf("celestial_energy").forGetter(WeaponEntry::celestialEnergy),
                         Codec.LONG.fieldOf("ae_energy").forGetter(WeaponEntry::aeEnergy),
-                        AttackEntry.CODEC.listOf().fieldOf("attacks").forGetter(WeaponEntry::attacks))
+                        AttackEntry.CODEC.listOf().fieldOf("attacks").forGetter(WeaponEntry::attacks),
+                        Codec.string(0, OrbitalWeaponRecord.MAX_NAME_LENGTH).fieldOf("custom_name").forGetter(WeaponEntry::customName),
+                        Codec.string(0, 64).fieldOf("owner_name").forGetter(WeaponEntry::ownerName))
                 .apply(instance, (weaponId, ownerId, owner, delegatedRole, endpointCount, lifecycleState,
-                                  graceTicksRemaining, celestialEnergy, aeEnergy, attacks) -> new WeaponEntry(
+                                  graceTicksRemaining, celestialEnergy, aeEnergy, attacks, customName, ownerName) -> new WeaponEntry(
                                           weaponId,
                                           ownerId,
                                           owner,
@@ -204,9 +223,13 @@ public record OrbitalControlTerminalSnapshot(
                                           graceTicksRemaining,
                                           celestialEnergy,
                                           aeEnergy,
-                                          attacks)));
+                                          attacks, customName, ownerName)));
 
         public WeaponEntry {
+            customName = OrbitalWeaponRecord.normalizeName(customName);
+            if (ownerName.length() > 64) {
+                throw new IllegalArgumentException("Owner profile name exceeds its wire bound");
+            }
             attacks = List.copyOf(attacks);
             if (attacks.size() > MAX_ATTACKS_PER_WEAPON) {
                 throw new IllegalArgumentException("Orbital terminal weapon exceeds its bounded attack limit");
@@ -235,6 +258,7 @@ public record OrbitalControlTerminalSnapshot(
         private static WeaponEntry from(
                                         OrbitalWeaponRecord weapon,
                                         UUID playerId,
+                                        String ownerName,
                                         List<OrbitalAttackRecord> attacks) {
             boolean owner = weapon.ownerId().equals(playerId);
             return new WeaponEntry(
@@ -247,12 +271,15 @@ public record OrbitalControlTerminalSnapshot(
                     weapon.lifecycle().graceTicksRemaining(),
                     weapon.reserve().celestialEnergy(),
                     weapon.reserve().aeEnergy(),
-                    attacks.stream().limit(MAX_ATTACKS_PER_WEAPON).map(AttackEntry::from).toList());
+                    attacks.stream().limit(MAX_ATTACKS_PER_WEAPON).map(AttackEntry::from).toList(),
+                    weapon.customName(), ownerName);
         }
 
         private static void encode(RegistryFriendlyByteBuf buffer, WeaponEntry entry) {
             buffer.writeUUID(entry.weaponId);
             buffer.writeUUID(entry.ownerId);
+            buffer.writeUtf(entry.customName, OrbitalWeaponRecord.MAX_NAME_LENGTH);
+            buffer.writeUtf(entry.ownerName, 64);
             buffer.writeBoolean(entry.owner);
             if (!entry.owner) {
                 buffer.writeVarInt(Objects.requireNonNull(entry.delegatedRole).ordinal());
@@ -271,6 +298,8 @@ public record OrbitalControlTerminalSnapshot(
         private static WeaponEntry decode(RegistryFriendlyByteBuf buffer) {
             UUID weaponId = buffer.readUUID();
             UUID ownerId = buffer.readUUID();
+            String customName = buffer.readUtf(OrbitalWeaponRecord.MAX_NAME_LENGTH);
+            String ownerName = buffer.readUtf(64);
             boolean owner = buffer.readBoolean();
             OrbitalAccessRole delegatedRole = owner ? null : readEnum(
                     buffer,
@@ -299,7 +328,7 @@ public record OrbitalControlTerminalSnapshot(
                     graceTicksRemaining,
                     celestialEnergy,
                     aeEnergy,
-                    attacks);
+                    attacks, customName, ownerName);
         }
     }
 

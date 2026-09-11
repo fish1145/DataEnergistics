@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.control.protocol;
 
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
+import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -21,7 +22,8 @@ public sealed interface OrbitalControlIntent permits
                                              OrbitalControlIntent.StartHold,
                                              OrbitalControlIntent.ReleaseHold,
                                              OrbitalControlIntent.CancelHold,
-                                             OrbitalControlIntent.DiscardPreview {
+                                             OrbitalControlIntent.DiscardPreview,
+                                             OrbitalControlIntent.RenameWeapon {
 
     Codec<OrbitalControlIntent> CODEC = Kind.CODEC.dispatch(
             "type",
@@ -35,6 +37,7 @@ public sealed interface OrbitalControlIntent permits
         return switch (this) {
             case CycleWeapon ignored -> Kind.CYCLE_WEAPON;
             case SelectWeapon ignored -> Kind.SELECT_WEAPON;
+            case RenameWeapon ignored -> Kind.RENAME_WEAPON;
             case CancelOrAbortMode ignored -> Kind.CANCEL_OR_ABORT_MODE;
             case RequestPreview ignored -> Kind.REQUEST_PREVIEW;
             case StartHold ignored -> Kind.START_HOLD;
@@ -50,6 +53,10 @@ public sealed interface OrbitalControlIntent permits
         switch (intent) {
             case CycleWeapon cycle -> buffer.writeBoolean(cycle.forward);
             case SelectWeapon select -> buffer.writeUUID(select.weaponId);
+            case RenameWeapon rename -> {
+                buffer.writeUUID(rename.weaponId);
+                buffer.writeUtf(rename.name, OrbitalWeaponRecord.MAX_NAME_LENGTH);
+            }
             case CancelOrAbortMode cancel -> buffer.writeVarInt(cancel.mode.wireCode());
             case RequestPreview preview -> OrbitalFireControlDraft.STREAM_CODEC.encode(buffer, preview.draft);
             case StartHold start -> buffer.writeUUID(start.nonce);
@@ -64,6 +71,7 @@ public sealed interface OrbitalControlIntent permits
         return switch (kind) {
             case CYCLE_WEAPON -> new CycleWeapon(buffer.readBoolean());
             case SELECT_WEAPON -> new SelectWeapon(buffer.readUUID());
+            case RENAME_WEAPON -> new RenameWeapon(buffer.readUUID(), buffer.readUtf(OrbitalWeaponRecord.MAX_NAME_LENGTH));
             case CANCEL_OR_ABORT_MODE -> new CancelOrAbortMode(
                     OrbitalAttackMode.fromWireCode(buffer.readVarInt()));
             case REQUEST_PREVIEW -> new RequestPreview(OrbitalFireControlDraft.STREAM_CODEC.decode(buffer));
@@ -87,6 +95,21 @@ public sealed interface OrbitalControlIntent permits
         private static final MapCodec<SelectWeapon> CODEC = RecordCodecBuilder.mapCodec(instance -> instance
                 .group(UUIDUtil.CODEC.fieldOf("weapon_id").forGetter(SelectWeapon::weaponId))
                 .apply(instance, SelectWeapon::new));
+    }
+
+    /** Bounded rename request; the server rechecks ownership using this explicit weapon ID. */
+    record RenameWeapon(UUID weaponId, String name) implements OrbitalControlIntent {
+
+        public RenameWeapon {
+            if (name.length() > OrbitalWeaponRecord.MAX_NAME_LENGTH) {
+                throw new IllegalArgumentException("Weapon name exceeds its wire bound");
+            }
+        }
+
+        private static final MapCodec<RenameWeapon> CODEC = RecordCodecBuilder.mapCodec(instance -> instance
+                .group(UUIDUtil.CODEC.fieldOf("weapon_id").forGetter(RenameWeapon::weaponId),
+                        Codec.string(0, OrbitalWeaponRecord.MAX_NAME_LENGTH).fieldOf("name").forGetter(RenameWeapon::name))
+                .apply(instance, RenameWeapon::new));
     }
 
     record CancelOrAbortMode(OrbitalAttackMode mode) implements OrbitalControlIntent {
@@ -146,7 +169,8 @@ public sealed interface OrbitalControlIntent permits
         RELEASE_HOLD(ReleaseHold.CODEC),
         CANCEL_HOLD(CancelHold.CODEC),
         DISCARD_PREVIEW(DiscardPreview.CODEC),
-        SELECT_WEAPON(SelectWeapon.CODEC);
+        SELECT_WEAPON(SelectWeapon.CODEC),
+        RENAME_WEAPON(RenameWeapon.CODEC);
 
         private static final Codec<Kind> CODEC = Codec.STRING.xmap(Kind::valueOf, Kind::name);
 

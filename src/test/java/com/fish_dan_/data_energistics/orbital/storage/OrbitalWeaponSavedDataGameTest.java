@@ -26,6 +26,44 @@ public final class OrbitalWeaponSavedDataGameTest {
 
     private OrbitalWeaponSavedDataGameTest() {}
 
+    @TestHolder("orbital_weapon_name_checks_owner_and_preserves_runtime_state")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void nameChecksOwnerAndPreservesRuntimeState(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(server);
+        UUID owner = UUID.randomUUID();
+        UUID operator = UUID.randomUUID();
+        OrbitalWeaponRecord original = data.createForOwner(server, owner);
+        data.authorize(server, original.weaponId(), owner, operator, OrbitalAccessRole.OPERATOR);
+        helper.assertFalse(data.rename(server, original.weaponId(), operator, "Forged"), "Operators cannot rename another player's weapon");
+        helper.assertFalse(data.rename(server, UUID.randomUUID(), owner, "Missing"), "Unknown IDs must be rejected");
+        helper.assertTrue(data.rename(server, original.weaponId(), owner, "  天穹一号  "), "Owner rename must succeed");
+        OrbitalWeaponRecord renamed = data.find(original.weaponId()).orElseThrow();
+        helper.assertValueEqual(renamed.customName(), "天穹一号", "Trim only boundary whitespace");
+        OrbitalWeaponRecord active = renamed.withReserve(new OrbitalEnergyReserve(123, 456))
+                .withLifecycle(new OrbitalWeaponLifecycle(OrbitalWeaponLifecycleState.REDEPLOYING, 17, 37))
+                .withoutRole(operator).withRole(operator, OrbitalAccessRole.OBSERVER);
+        helper.assertValueEqual(active.customName(), renamed.customName(), "Runtime transitions must preserve the name");
+        helper.assertValueEqual(active.weaponId(), original.weaponId(), "Rename must preserve the stable ID");
+        helper.assertValueEqual(OrbitalWeaponNbtCodec.load(OrbitalWeaponNbtCodec.save(new CompoundTag(), List.of(active))).getFirst(),
+                active, "Names and runtime state must round-trip together");
+        for (String invalid : List.of("x".repeat(49), "bad\nname", "\nname", "§cname", "bad\u0000name")) {
+            try {
+                data.rename(server, original.weaponId(), owner, invalid);
+                helper.fail("Invalid name was accepted");
+            } catch (IllegalArgumentException expected) {
+                helper.assertValueEqual(data.find(original.weaponId()).orElseThrow(), renamed,
+                        "Rejected input must not mutate the weapon");
+            }
+        }
+        helper.assertTrue(data.rename(server, original.weaponId(), owner, "x".repeat(48)), "Maximum length is inclusive");
+        helper.assertTrue(data.rename(server, original.weaponId(), owner, "x".repeat(47)), "One below maximum is accepted");
+        helper.assertTrue(data.rename(server, original.weaponId(), owner, " "), "Blank names restore the default label");
+        helper.assertValueEqual(data.find(original.weaponId()).orElseThrow().customName(), "", "Default names remain empty in storage");
+        helper.succeed();
+    }
+
     @TestHolder("orbital_weapon_ownership_routes_owned_and_delegated_access")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5")
@@ -105,7 +143,8 @@ public final class OrbitalWeaponSavedDataGameTest {
                 Map.of(),
                 new OrbitalEnergyReserve(12_345L, 67_890L),
                 grace,
-                null);
+                null,
+                "");
 
         CompoundTag saved = OrbitalWeaponNbtCodec.save(new CompoundTag(), List.of(source));
         OrbitalWeaponRecord restored = OrbitalWeaponNbtCodec.load(saved).getFirst();

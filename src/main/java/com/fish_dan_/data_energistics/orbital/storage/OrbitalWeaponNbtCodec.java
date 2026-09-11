@@ -109,6 +109,7 @@ final class OrbitalWeaponNbtCodec {
         CompoundTag weaponTag = new CompoundTag();
         weaponTag.putUUID(WEAPON_ID_TAG, weapon.weaponId());
         weaponTag.putUUID(OWNER_ID_TAG, weapon.ownerId());
+        weaponTag.putString("custom_name", weapon.customName());
 
         ListTag roleList = new ListTag();
         weapon.delegatedRoles().entrySet().stream()
@@ -192,7 +193,8 @@ final class OrbitalWeaponNbtCodec {
                     endpoints,
                     reserve,
                     lifecycle,
-                    primaryAnchor);
+                    primaryAnchor,
+                    weaponTag.getString("custom_name"));
         } catch (IllegalArgumentException exception) {
             LOGGER.warn("Ignoring invalid orbital weapon {}", weaponId, exception);
             return null;

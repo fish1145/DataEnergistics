@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalControlInt
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalControlMenuSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlDraft;
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlSessionSnapshot;
+import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
 import com.lowdragmc.lowdraglib2.gui.holder.IModularUIHolder;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
@@ -88,6 +89,9 @@ public final class OrbitalControlServerSession {
         try {
             this.feedback = switch (intent) {
                 case OrbitalControlIntent.CycleWeapon cycle -> cycleWeapon(cycle.forward());
+                case OrbitalControlIntent.RenameWeapon rename -> OrbitalWeaponSavedData.get(this.player.server)
+                        .rename(this.player.server, rename.weaponId(), this.player.getUUID(), rename.name()) ?
+                                OrbitalControlFeedback.WEAPON_RENAMED : OrbitalControlFeedback.ACTION_REJECTED;
                 case OrbitalControlIntent.SelectWeapon select -> OrbitalControlActionDispatcher.selectWeapon(
                         this.player, select.weaponId()) ? OrbitalControlFeedback.WEAPON_SELECTED : OrbitalControlFeedback.ACTION_REJECTED;
                 case OrbitalControlIntent.CancelOrAbortMode cancel -> OrbitalControlActionDispatcher.cancelOrAbortSelectedMode(

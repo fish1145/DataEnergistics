@@ -15,7 +15,8 @@ public enum OrbitalControlFeedback {
     SOURCE_INVALID,
     PREVIEW_STALE,
     ACTION_REJECTED,
-    INTERNAL_FAILURE;
+    INTERNAL_FAILURE,
+    WEAPON_RENAMED;
 
     public static final Codec<OrbitalControlFeedback> CODEC = Codec.STRING.xmap(
             OrbitalControlFeedback::valueOf,

@@ -28,9 +28,28 @@ public record OrbitalWeaponRecord(
                                   Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints,
                                   OrbitalEnergyReserve reserve,
                                   OrbitalWeaponLifecycle lifecycle,
-                                  @Nullable OrbitalEndpointLocation primaryAnchor) {
+                                  @Nullable OrbitalEndpointLocation primaryAnchor,
+                                  String customName) {
+
+    public static final int MAX_NAME_LENGTH = 48;
+
+    /** Normalizes player/NBT text. Empty text restores the default identifier label. */
+    public static String normalizeName(String name) {
+        String normalized = name.strip();
+        if (name.length() > MAX_NAME_LENGTH || name.codePoints().anyMatch(
+                point -> Character.isISOControl(point) || point == 0xA7 || Character.getType(point) == Character.FORMAT)) {
+            throw new IllegalArgumentException("Weapon name must be at most 48 characters without control or formatting codes");
+        }
+        return normalized;
+    }
+
+    /** Returns a renamed record; stable identity and every operational field are preserved. */
+    public OrbitalWeaponRecord withName(String name) {
+        return new OrbitalWeaponRecord(weaponId, ownerId, delegatedRoles, endpoints, reserve, lifecycle, primaryAnchor, name);
+    }
 
     public OrbitalWeaponRecord {
+        customName = normalizeName(customName);
         delegatedRoles = Map.copyOf(delegatedRoles);
         endpoints = Map.copyOf(endpoints);
         if (delegatedRoles.containsKey(ownerId)) {
@@ -60,7 +79,8 @@ public record OrbitalWeaponRecord(
                 Map.of(),
                 OrbitalEnergyReserve.empty(),
                 OrbitalWeaponLifecycle.dormant(),
-                null);
+                null,
+                "");
     }
 
     /**
@@ -97,7 +117,8 @@ public record OrbitalWeaponRecord(
                 this.endpoints,
                 this.reserve,
                 this.lifecycle,
-                this.primaryAnchor);
+                this.primaryAnchor,
+                this.customName);
     }
 
     /**
@@ -120,7 +141,8 @@ public record OrbitalWeaponRecord(
                 this.endpoints,
                 this.reserve,
                 this.lifecycle,
-                this.primaryAnchor);
+                this.primaryAnchor,
+                this.customName);
     }
 
     /**
@@ -155,7 +177,8 @@ public record OrbitalWeaponRecord(
                 updatedEndpoints,
                 this.reserve,
                 this.lifecycle,
-                this.primaryAnchor);
+                this.primaryAnchor,
+                this.customName);
     }
 
     /**
@@ -176,7 +199,8 @@ public record OrbitalWeaponRecord(
                 updatedEndpoints,
                 this.reserve,
                 this.lifecycle,
-                updatedAnchor);
+                updatedAnchor,
+                this.customName);
     }
 
     /**
@@ -193,7 +217,8 @@ public record OrbitalWeaponRecord(
                 this.endpoints,
                 reserve,
                 this.lifecycle,
-                this.primaryAnchor);
+                this.primaryAnchor,
+                this.customName);
     }
 
     /** Returns a new record with the supplied deployment state. */
@@ -208,7 +233,8 @@ public record OrbitalWeaponRecord(
                 this.endpoints,
                 this.reserve,
                 lifecycle,
-                this.primaryAnchor);
+                this.primaryAnchor,
+                this.customName);
     }
 
     /** Returns a new record with the owner-selected uplink beacon as the projection anchor. */
@@ -223,7 +249,8 @@ public record OrbitalWeaponRecord(
                 this.endpoints,
                 this.reserve,
                 this.lifecycle,
-                primaryAnchor);
+                primaryAnchor,
+                this.customName);
     }
 
     /**

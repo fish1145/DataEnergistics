@@ -262,6 +262,7 @@ public final class OrbitalControlClientBindings {
 
         private void bindButtons() {
             this.dashboard.weapons.setSelectionListener(this::selectWeapon);
+            this.dashboard.weapons.setRenameListener((id, name) -> send(new OrbitalControlIntent.RenameWeapon(id, name)));
             this.dashboard.hudLayout.setOnClick(ignored -> openHudEditor());
             for (ModeRow row : this.dashboard.status.modeRows) {
                 row.action().setOnClick(ignored -> {

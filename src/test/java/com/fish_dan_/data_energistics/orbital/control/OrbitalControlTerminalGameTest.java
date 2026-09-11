@@ -19,14 +19,18 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.GameProfileCache;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
 import net.neoforged.testframework.gametest.EmptyTemplate;
 
 import com.mojang.authlib.GameProfile;
+import com.mojang.serialization.JsonOps;
 import io.netty.buffer.Unpooled;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,6 +39,60 @@ import java.util.UUID;
 public final class OrbitalControlTerminalGameTest {
 
     private OrbitalControlTerminalGameTest() {}
+
+    @TestHolder("orbital_control_names_sync_cached_owner_and_rename_intent")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void namesSyncCachedOwnerAndRenameIntent(GameTestHelper helper) throws IOException {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(server);
+        UUID owner = UUID.randomUUID();
+        var directory = Files.createTempDirectory("orbital-owner-test-");
+        var profiles = new GameProfileCache((names, callback) -> {
+            throw new AssertionError("Resolving an owner UUID must never trigger a remote profile lookup");
+        }, directory.resolve("profiles.json").toFile());
+        profiles.add(new GameProfile(owner, "OrbitOwner"));
+        OrbitalWeaponRecord weapon = data.createForOwner(server, owner);
+        data.rename(server, weapon.weaponId(), owner, "天穹二号");
+        OrbitalControlTerminalSnapshot captured = OrbitalControlTerminalSnapshot.capture(server, owner);
+        var entry = captured.selectedWeapon().orElseThrow();
+        String ownerName = OrbitalControlTerminalSnapshot.ownerName(owner, null, profiles);
+        helper.assertValueEqual(ownerName, "OrbitOwner", "An offline owner must resolve from the server profile cache");
+        helper.assertValueEqual(OrbitalControlTerminalSnapshot.ownerName(owner, null, null), "", "Missing cache must remain explicitly unknown");
+        ServerPlayer online = new TestServerPlayer(server, level, new GameProfile(owner, "LiveOwner"), ClientInformation.createDefault());
+        helper.assertValueEqual(OrbitalControlTerminalSnapshot.ownerName(owner, online, profiles), "LiveOwner", "Online identity overrides an older cache entry");
+        var namedEntry = new OrbitalControlTerminalSnapshot.WeaponEntry(entry.weaponId(), entry.ownerId(), entry.owner(),
+                entry.delegatedRole(), entry.endpointCount(), entry.lifecycleState(), entry.graceTicksRemaining(),
+                entry.celestialEnergy(), entry.aeEnergy(), entry.attacks(), entry.customName(), ownerName);
+        var snapshot = new OrbitalControlTerminalSnapshot(weapon.weaponId(), List.of(namedEntry), false);
+        helper.assertValueEqual(snapshot.selectedWeapon().orElseThrow().customName(), "天穹二号", "Snapshot must carry the saved name");
+        var encoded = OrbitalControlTerminalSnapshot.CODEC.encodeStart(JsonOps.INSTANCE, snapshot).getOrThrow();
+        helper.assertValueEqual(OrbitalControlTerminalSnapshot.CODEC.parse(JsonOps.INSTANCE, encoded).getOrThrow(), snapshot,
+                "LDLib menu metadata must round-trip through its typed codec");
+        RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), level.registryAccess());
+        try {
+            OrbitalControlTerminalSnapshot.STREAM_CODEC.encode(buffer, snapshot);
+            helper.assertValueEqual(OrbitalControlTerminalSnapshot.STREAM_CODEC.decode(buffer), snapshot, "Menu wire metadata must round-trip");
+            var hud = new OrbitalHudSnapshot(snapshot.selectedWeapon().orElseThrow());
+            OrbitalHudSnapshot.STREAM_CODEC.encode(buffer, hud);
+            helper.assertValueEqual(OrbitalHudSnapshot.STREAM_CODEC.decode(buffer), hud, "HUD must synchronize both names");
+            OrbitalControlIntent intent = new OrbitalControlIntent.RenameWeapon(weapon.weaponId(), "New name");
+            OrbitalControlIntent.STREAM_CODEC.encode(buffer, intent);
+            helper.assertValueEqual(OrbitalControlIntent.STREAM_CODEC.decode(buffer), intent, "Rename requests retain explicit target ID and text");
+            var request = OrbitalControlIntent.CODEC.encodeStart(JsonOps.INSTANCE, intent).getOrThrow();
+            helper.assertValueEqual(OrbitalControlIntent.CODEC.parse(JsonOps.INSTANCE, request).getOrThrow(), intent,
+                    "The actual LDLib RPC codec must support rename requests");
+        } finally {
+            buffer.release();
+        }
+        profiles.add(new GameProfile(owner, "UpdatedOwner"));
+        helper.assertValueEqual(OrbitalControlTerminalSnapshot.ownerName(owner, null, profiles), "UpdatedOwner",
+                "A profile update must not leave a stale owner label");
+        Files.deleteIfExists(directory.resolve("profiles.json"));
+        Files.delete(directory);
+        helper.succeed();
+    }
 
     @TestHolder("orbital_control_terminal_cycles_persisted_server_selection")
     @EmptyTemplate("5")

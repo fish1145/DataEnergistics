@@ -1186,8 +1186,8 @@
 	"screen.data_energistics.orbital_control_terminal.overview.progress.pending": "Awaiting scheduler",
 	"screen.data_energistics.orbital_control_terminal.overview.progress.warning": "Warning %s ticks",
 	"screen.data_energistics.orbital_control_terminal.overview.progress.work": "Work cursor %s",
-	"screen.data_energistics.orbital_control_terminal.overview.resource.ae": "AE ENERGY\n%s",
-	"screen.data_energistics.orbital_control_terminal.overview.resource.celestial": "CELESTIAL ENERGY\n%s",
+	"screen.data_energistics.orbital_control_terminal.overview.resource.ae": "AE ENERGY: %s",
+	"screen.data_energistics.orbital_control_terminal.overview.resource.celestial": "CELESTIAL ENERGY: %s",
 	"screen.data_energistics.orbital_control_terminal.overview.weapon_title": "ORBITAL PLATFORM %s",
 	"screen.data_energistics.orbital_control_terminal.page.fire_control": "Target & Attack",
 	"screen.data_energistics.orbital_control_terminal.phase.aborted": "Aborted",
@@ -1377,8 +1377,8 @@
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.storage": "Processing ME storage",
 	"tooltip.data_energistics.trinity_data_core.pattern.stage.waiting_for_player": "Waiting for player",
 	"workstation.data_energistics.data_reassembler": "Data Reassembler",
-	"screen.data_energistics.orbital_control_terminal.workspace.search_hint": "Search weapon ID; only accessible weapons are listed",
-	"screen.data_energistics.orbital_control_terminal.workspace.search_placeholder": "Search weapon ID…",
+	"screen.data_energistics.orbital_control_terminal.workspace.search_hint": "Search weapon name, ID or owner; only accessible weapons are listed",
+	"screen.data_energistics.orbital_control_terminal.workspace.search_placeholder": "Search weapon or owner…",
 	"screen.data_energistics.orbital_control_terminal.workspace.external_map": "External map",
 	"screen.data_energistics.orbital_control_terminal.workspace.recenter": "Target",
 	"screen.data_energistics.orbital_control_terminal.workspace.map_hint": "Each tile is a chunk; click to target its center",
@@ -1429,5 +1429,10 @@
 	"screen.data_energistics.orbital_control_hud.save_failed": "Could not save HUD settings; see the log",
 	"screen.data_energistics.orbital_control_hud.preview_title": "Orbital preview",
 	"screen.data_energistics.orbital_control_hud.preview_reserve": "CE 12.4k  AE 8.0k",
-	"screen.data_energistics.orbital_control_hud.preview_status": "Deployed  Kinetic ready"
+	"screen.data_energistics.orbital_control_hud.preview_status": "Deployed  Kinetic ready",
+	"screen.data_energistics.orbital_control_terminal.overview.owner_unknown": "Unknown player",
+	"screen.data_energistics.orbital_control_terminal.workspace.rename": "Save weapon name",
+	"screen.data_energistics.orbital_control_terminal.workspace.name_placeholder": "Weapon name",
+	"screen.data_energistics.orbital_control_terminal.workspace.rename_hint": "Owner only; up to %s characters. Leave empty to restore the default ID",
+	"screen.data_energistics.orbital_control_terminal.feedback.weapon_renamed": "Weapon name saved"
 }

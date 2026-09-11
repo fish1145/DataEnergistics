@@ -32,8 +32,13 @@ public final class OrbitalControlPresentation {
         return snapshot.selectedWeapon()
                 .<Component>map(weapon -> Component.translatable(
                         PREFIX + "overview.weapon_title",
-                        shortId(weapon.weaponId())))
+                        weaponName(weapon)))
                 .orElseGet(() -> Component.translatable(PREFIX + "empty"));
+    }
+
+    /** User-facing name with a stable identifier fallback for unnamed weapons. */
+    public static String weaponName(WeaponEntry weapon) {
+        return weapon.customName().isEmpty() ? shortId(weapon.weaponId()) : weapon.customName();
     }
 
     public static Component selectorPosition(OrbitalControlTerminalSnapshot snapshot) {
@@ -57,7 +62,7 @@ public final class OrbitalControlPresentation {
         return Component.translatable(
                 PREFIX + "overview.identity",
                 role(weapon),
-                shortId(weapon.ownerId()));
+                weapon.ownerName().isEmpty() ? Component.translatable(PREFIX + "overview.owner_unknown") : Component.literal(weapon.ownerName()));
     }
 
     public static Component lifecycle(WeaponEntry weapon) {
