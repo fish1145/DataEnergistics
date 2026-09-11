@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
+import appeng.core.definitions.AEBlocks;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Holder;
@@ -60,9 +61,9 @@ public final class MeteoriteClusterChunkGenerator extends NoiseBasedChunkGenerat
 
     private static BlockState weightedState(int x, int y, int z) {
         long hash = mix(x, y, z);
-        int weight = (int) Math.floorMod(hash, TOTAL_WEIGHT);
+        int weight = Math.floorMod(hash, TOTAL_WEIGHT);
         if (weight < 4) {
-            return DEBlocks.ENDER_COHESION_METEORITE_0.get().defaultBlockState();
+            return AEBlocks.SKY_STONE_BLOCK.block().defaultBlockState();
         }
         if (weight < 7) {
             return DEBlocks.ENDER_COHESION_METEORITE_0.get().defaultBlockState();
