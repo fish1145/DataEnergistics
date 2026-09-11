@@ -1,7 +1,7 @@
 {
 	"type": "data_energistics:meteorite_cluster",
 	"generator": {
-		"type": "minecraft:noise",
+		"type": "data_energistics:meteorite_cluster",
 		"biome_source": {
 			"type": "minecraft:fixed",
 			"biome": "data_energistics:meteorite_cluster"

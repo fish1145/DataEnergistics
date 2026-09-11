@@ -29,6 +29,7 @@ import com.fish_dan_.data_energistics.registry.DEMobEffects;
 import com.fish_dan_.data_energistics.registry.DEParticles;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 import com.fish_dan_.data_energistics.registry.DEStructures;
+import com.fish_dan_.data_energistics.registry.DEChunkGenerators;
 import com.fish_dan_.data_energistics.registry.DEUpgrades;
 import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 import com.fish_dan_.data_energistics.registry.UniversalTerminalAdapters;
@@ -58,6 +59,7 @@ public class CommonProxy {
         DEMenus.register(modEventBus);
         DERecipes.register(modEventBus);
         DEStructures.register(modEventBus);
+        DEChunkGenerators.register(modEventBus);
         DEVerticalMultiBlocks.init();
         DEUpgrades.registerPartModels();
         modEventBus.addListener(instance::commonSetup);
