@@ -21,6 +21,8 @@ import appeng.blockentity.storage.DriveBlockEntity;
 import appeng.core.definitions.AEBlocks;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.AfterBatch;
+import net.minecraft.gametest.framework.BeforeBatch;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
@@ -55,16 +57,31 @@ public final class OrbitalKineticAttackGameTest {
     private static final BlockPos CREATIVE_ENERGY_CELL = new BlockPos(4, 2, 2);
     private static final BlockPos TARGET = new BlockPos(25, 20, 25);
     private static final BlockPos VICTIM = TARGET.offset(10, 0, 0);
-    private static final BlockPos SNAPSHOT_COLUMN_OUTSIDE = TARGET.offset(4, 0, 0);
-    private static final BlockPos SNAPSHOT_CRATER_INSIDE = TARGET.offset(2, -1, 0);
-    private static final BlockPos SNAPSHOT_CRATER_WALL = TARGET.offset(2, -2, 0);
-    private static final BlockPos SNAPSHOT_CRATER_OUTSIDE = TARGET.offset(4, -1, 0);
-    private static final BlockPos SNAPSHOT_DEPTH_INSIDE = TARGET.below(2);
-    private static final BlockPos SNAPSHOT_DEPTH_OUTSIDE = TARGET.below(4);
+    private static final BlockPos SNAPSHOT_COLUMN_OUTSIDE = TARGET.offset(4, -10, 0);
+    private static final BlockPos SNAPSHOT_CRATER_INSIDE = TARGET.offset(4, -1, 0);
+    private static final BlockPos SNAPSHOT_CRATER_WALL = TARGET.offset(9, -5, 0);
+    private static final BlockPos SNAPSHOT_CRATER_OUTSIDE = TARGET.offset(12, -1, 0);
+    private static final BlockPos SNAPSHOT_DEPTH_INSIDE = TARGET.below(12);
+    private static final BlockPos SNAPSHOT_DEPTH_OUTSIDE = TARGET.below(14);
     private static final BlockPos SNAPSHOT_INNER_VICTIM = TARGET.offset(3, 0, 0);
-    private static final BlockPos SNAPSHOT_OUTER_VICTIM = TARGET.offset(8, 0, 0);
+    private static final BlockPos SNAPSHOT_OUTER_VICTIM = TARGET.offset(14, 0, 0);
+    private static KineticConfigurationSnapshot refundConfiguration = KineticConfigurationSnapshot.capture(
+            DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice);
 
     private OrbitalKineticAttackGameTest() {}
+
+    @BeforeBatch(batch = "orbital_fire_control_nonce")
+    public static void configureRefundScenario(ServerLevel level) {
+        var settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
+        refundConfiguration = KineticConfigurationSnapshot.capture(settings);
+        // Exercise warning, refund and cooldown without tying the timeout to the player's terrain settings.
+        new KineticConfigurationSnapshot(20, 80, 2, 8, 10, 6, 12).applyTo(settings);
+    }
+
+    @AfterBatch(batch = "orbital_fire_control_nonce")
+    public static void restoreRefundConfiguration(ServerLevel level) {
+        refundConfiguration.applyTo(DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice);
+    }
 
     @TestHolder("orbital_kinetic_attack_refunds_warning_then_commits_world_effect_and_cooldown")
     @EmptyTemplate("50x32x50")
@@ -347,44 +364,33 @@ public final class OrbitalKineticAttackGameTest {
         DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         OrbitalAttackCost cost = OrbitalAttackCost.kinetic(settings);
         KineticConfigurationSnapshot original = KineticConfigurationSnapshot.capture(settings);
-        KineticConfigurationSnapshot confirmed = new KineticConfigurationSnapshot(
-                1,
-                1,
-                1,
-                2,
-                2,
-                2,
-                4);
-        KineticConfigurationSnapshot changedLive = new KineticConfigurationSnapshot(
-                1,
-                1,
-                6,
-                6,
-                6,
-                6,
-                10);
-        BlockPos absoluteTarget = helper.absolutePos(TARGET);
-        BlockPos absoluteColumnOutside = helper.absolutePos(SNAPSHOT_COLUMN_OUTSIDE);
-        BlockPos absoluteCraterInside = helper.absolutePos(SNAPSHOT_CRATER_INSIDE);
-        BlockPos absoluteCraterOutside = helper.absolutePos(SNAPSHOT_CRATER_OUTSIDE);
-        BlockPos absoluteDepthInside = helper.absolutePos(SNAPSHOT_DEPTH_INSIDE);
-        BlockPos absoluteDepthOutside = helper.absolutePos(SNAPSHOT_DEPTH_OUTSIDE);
+        KineticConfigurationSnapshot confirmed = new KineticConfigurationSnapshot(1, 1, 1, 12, 10, 6, 4);
+        KineticConfigurationSnapshot changedLive = new KineticConfigurationSnapshot(1, 1, 6, 18, 16, 12, 16);
+        BlockPos absoluteTarget = snapshotPosition(helper, TARGET);
+        BlockPos absoluteColumnOutside = snapshotPosition(helper, SNAPSHOT_COLUMN_OUTSIDE);
+        BlockPos absoluteCraterInside = snapshotPosition(helper, SNAPSHOT_CRATER_INSIDE);
+        BlockPos absoluteCraterOutside = snapshotPosition(helper, SNAPSHOT_CRATER_OUTSIDE);
+        BlockPos absoluteDepthInside = snapshotPosition(helper, SNAPSHOT_DEPTH_INSIDE);
+        BlockPos absoluteDepthOutside = snapshotPosition(helper, SNAPSHOT_DEPTH_OUTSIDE);
 
         placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
         placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
         placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
         installInfiniteCell(helper);
-        helper.setBlock(TARGET, Blocks.STONE);
-        helper.setBlock(SNAPSHOT_COLUMN_OUTSIDE, Blocks.STONE);
-        helper.setBlock(SNAPSHOT_CRATER_INSIDE, Blocks.STONE);
-        helper.setBlock(SNAPSHOT_CRATER_WALL, Blocks.STONE);
-        helper.setBlock(SNAPSHOT_CRATER_OUTSIDE, Blocks.STONE);
-        helper.setBlock(SNAPSHOT_DEPTH_INSIDE, Blocks.STONE);
-        helper.setBlock(SNAPSHOT_DEPTH_OUTSIDE, Blocks.STONE);
-        helper.setBlock(SNAPSHOT_INNER_VICTIM.below(), Blocks.STONE);
-        helper.setBlock(SNAPSHOT_OUTER_VICTIM.below(), Blocks.STONE);
+        level.setBlock(snapshotPosition(helper, TARGET), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(snapshotPosition(helper, SNAPSHOT_COLUMN_OUTSIDE), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(snapshotPosition(helper, SNAPSHOT_CRATER_INSIDE), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(snapshotPosition(helper, SNAPSHOT_CRATER_WALL), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(snapshotPosition(helper, SNAPSHOT_CRATER_OUTSIDE), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(snapshotPosition(helper, SNAPSHOT_DEPTH_INSIDE), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(snapshotPosition(helper, SNAPSHOT_DEPTH_OUTSIDE), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(snapshotPosition(helper, SNAPSHOT_INNER_VICTIM.below()), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        level.setBlock(snapshotPosition(helper, SNAPSHOT_OUTER_VICTIM.below()), Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
         loadTerrainChunks(level, absoluteTarget, changedLive.geometry().terrainRadius());
 
+        BlockPos upperMarker = snapshotPosition(helper, TARGET.offset(6, 5, 0));
+        level.setBlock(upperMarker, Blocks.STONE.defaultBlockState(), Block.UPDATE_ALL);
+        AtomicReference<OrbitalAttackRecord> capturedAttack = new AtomicReference<>();
         UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
         AtomicReference<Zombie> innerVictim = new AtomicReference<>();
         AtomicReference<Zombie> outerVictim = new AtomicReference<>();
@@ -397,23 +403,29 @@ public final class OrbitalKineticAttackGameTest {
                     insertStellarFlux(helper, requiredStellarFlux(settings, cost));
                     primeReserve(weapons, server, weaponId, settings, cost);
                     Zombie inner = helper.spawn(EntityType.ZOMBIE, SNAPSHOT_INNER_VICTIM);
+                    BlockPos innerPosition = snapshotPosition(helper, SNAPSHOT_INNER_VICTIM);
+                    inner.moveTo(innerPosition.getX() + 0.5, innerPosition.getY(), innerPosition.getZ() + 0.5);
                     inner.setNoAi(true);
                     innerVictim.set(inner);
                     Zombie outer = helper.spawn(EntityType.ZOMBIE, SNAPSHOT_OUTER_VICTIM);
+                    BlockPos outerPosition = snapshotPosition(helper, SNAPSHOT_OUTER_VICTIM);
+                    outer.moveTo(outerPosition.getX() + 0.5, outerPosition.getY(), outerPosition.getZ() + 0.5);
                     outer.setNoAi(true);
                     outerVictim.set(outer);
                 })
                 .thenExecute(() -> {
                     try {
                         confirmed.applyTo(settings);
-                        attacks.tryConfirmKinetic(
+                        capturedAttack.set(attacks.tryConfirmKinetic(
                                 server,
                                 owner.getUUID(),
                                 weaponId,
                                 level.dimension().location(),
                                 absoluteTarget)
                                 .orElseThrow(() -> new IllegalStateException(
-                                        "A funded kinetic snapshot attack was rejected"));
+                                        "A funded kinetic snapshot attack was rejected")));
+                        helper.assertValueEqual(((OrbitalAttackGeometry.Kinetic) capturedAttack.get().geometry()).craterTopY(),
+                                upperMarker.getY(), "Confirmation must capture terrain above an off-center column");
                         changedLive.applyTo(settings);
                     } catch (RuntimeException exception) {
                         original.applyTo(settings);
@@ -423,6 +435,9 @@ public final class OrbitalKineticAttackGameTest {
                 .thenIdle(20)
                 .thenExecute(() -> original.applyTo(settings))
                 .thenWaitUntil(() -> {
+                    helper.assertTrue(attacks.find(capturedAttack.get().attackId()).map(attack -> attack.phase() == OrbitalAttackPhase.COOLDOWN).orElse(true),
+                            "The frozen attack must finish its complete captured work volume");
+                    helper.assertTrue(level.getBlockState(upperMarker).isAir(), "The captured off-center upper terrain must be removed");
                     helper.assertTrue(
                             level.getBlockState(absoluteTarget).isAir(),
                             "The confirmed kinetic column must remove its real target");
@@ -433,7 +448,7 @@ public final class OrbitalKineticAttackGameTest {
                             level.getBlockState(absoluteCraterInside).isAir(),
                             "The confirmed kinetic crater must remove its in-range marker");
                     helper.assertTrue(
-                            level.getBlockState(helper.absolutePos(SNAPSHOT_CRATER_WALL)).is(Blocks.STONE),
+                            level.getBlockState(snapshotPosition(helper, SNAPSHOT_CRATER_WALL)).is(Blocks.STONE),
                             "A newly confirmed attack must retain the sloping bowl wall below its outer rim");
                     helper.assertTrue(
                             level.getBlockState(absoluteColumnOutside).is(Blocks.STONE),
@@ -456,6 +471,12 @@ public final class OrbitalKineticAttackGameTest {
                     outerVictim.get().discard();
                 })
                 .thenSucceed();
+    }
+
+    private static BlockPos snapshotPosition(GameTestHelper helper, BlockPos relative) {
+        BlockPos absolute = helper.absolutePos(relative);
+        int targetY = helper.getLevel().getMaxBuildHeight() - 32;
+        return new BlockPos(absolute.getX(), targetY + relative.getY() - TARGET.getY(), absolute.getZ());
     }
 
     private static void installInfiniteCell(GameTestHelper helper) {

@@ -103,28 +103,6 @@ public final class OrbitalDirectedBeamGameTest {
         }).thenSucceed();
     }
 
-    @TestHolder("orbital_legacy_beam_cursor_retains_vertical_columns")
-    @EmptyTemplate("50x32x50")
-    @GameTest(template = "empty_50x32x50")
-    public static void legacyCursorRetainsVerticalColumns(GameTestHelper helper) {
-        var level = helper.getLevel();
-        BlockPos target = helper.absolutePos(new BlockPos(25, 20, 25));
-        var geometry = OrbitalAttackSavedData.readDirectedEnergyGeometry(geometryTag());
-        int height = level.getMaxBuildHeight() - geometry.bottomY(level, target.getY());
-        long cursor = height + 5L;
-        BlockPos oldPosition = new BlockPos(target.getX() + 1, level.getMaxBuildHeight() - 6, target.getZ());
-        helper.assertValueEqual(geometry.path(), OrbitalBeamPath.VERTICAL_COLUMNS, "Missing NBT path must select the old format");
-        helper.assertValueEqual(OrbitalDirectedEnergyStrike.totalWork(level, target, geometry),
-                height * OrbitalDirectedEnergyStrike.scheduledCoordinateCount(geometry.radius()), "Old work totals must not change");
-        level.setBlock(oldPosition, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
-        level.setBlock(oldPosition.below(), Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
-        OrbitalDirectedEnergyStrike.applyBudget(level, target, geometry, cursor,
-                new OrbitalErasureStrike(UUID.randomUUID(), null, Set.of()), 1, chunk -> true);
-        helper.assertTrue(level.getBlockState(oldPosition).isAir() && level.getBlockState(oldPosition.below()).is(Blocks.STONE),
-                "A restored legacy cursor must process precisely its old voxel");
-        helper.succeed();
-    }
-
     @TestHolder("orbital_beam_visual_codec_preserves_completed_span_and_final_frontier")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50")

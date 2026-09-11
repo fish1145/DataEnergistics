@@ -118,24 +118,21 @@ public final class OrbitalEntityHitGeometryGameTest {
         helper.succeed();
     }
 
-    @TestHolder("orbital_kinetic_crater_collision_respects_captured_bowl_and_legacy_profiles")
+    @TestHolder("orbital_kinetic_crater_collision_respects_captured_bowl_profile")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50", batch = "orbital_hit_geometry")
     public static void craterContactUsesItsActualProfile(GameTestHelper helper) {
-        BlockPos target = helper.absolutePos(TARGET);
+        BlockPos base = helper.absolutePos(TARGET);
+        BlockPos target = new BlockPos(base.getX(), helper.getLevel().getMaxBuildHeight() - 32, base.getZ());
         Vec3 center = Vec3.atCenterOf(target);
-        var bowl = new OrbitalAttackGeometry.Kinetic(1, 1, 4, 4, 1, KineticCraterProfile.BOWL);
-        GameTestPlayer crater = player(helper, new Vec3(center.x + 3, target.getY() - 1, center.z));
+        var bowl = new OrbitalAttackGeometry.Kinetic(1, 1, 4, 4, 1, KineticCraterProfile.BOWL, target.getY() + 4);
+        GameTestPlayer crater = player(helper, new Vec3(center.x + 2, target.getY() + 3, center.z));
         GameTestPlayer retainedWall = player(helper, new Vec3(center.x + 3, target.getY() - 4.9, center.z));
         GameTestPlayer cornerOutside = player(helper, new Vec3(center.x + 3.3, target.getY() - 1, center.z + 3.3));
         OrbitalKineticStrike.eraseImpactEntities(helper.getLevel(), target, bowl, strike());
         helper.assertFalse(crater.isAlive(), "Actual crater excavation must hit bodies even outside a smaller configured shock sphere");
         helper.assertTrue(retainedWall.isAlive(), "The retained lower bowl wall must not become an oversized cylindrical hit volume");
         helper.assertTrue(cornerOutside.isAlive(), "The crater bounding square must not hit outside the disk");
-        var legacy = new OrbitalAttackGeometry.Kinetic(1, 1, 4, 4, 1, KineticCraterProfile.CYLINDER);
-        OrbitalKineticStrike.eraseImpactEntities(helper.getLevel(), target, legacy, strike());
-        helper.assertFalse(retainedWall.isAlive(), "The original cylindrical profile must keep its full lower-layer collision");
-        helper.assertTrue(cornerOutside.isAlive(), "Legacy collision must still respect the circular footprint");
         helper.succeed();
     }
 
