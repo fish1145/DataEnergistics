@@ -100,7 +100,7 @@ public final class TrinityCraftConfirmScreen extends AbstractContainerScreen<Cra
         configureButton(this.layout.cancel(), text("cancel"), event -> {
             if (Screen.hasShiftDown()) {
                 favoriteMissingMaterials();
-                onClose();
+                this.menu.goBack();
             } else {
                 this.menu.goBack();
             }
