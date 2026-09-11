@@ -333,5 +333,11 @@
 	},
 	"ore_veins_enabled": false,
 	"sea_level": -64,
-	"spawn_target": []
+	"spawn_target": [],
+	"surface_rule": {
+		"type": "minecraft:block",
+		"result_state": {
+			"Name": "ae2:sky_stone_block"
+		}
+	}
 }
