@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.client.screen.crafting.confirm;
 
 import com.fish_dan_.data_energistics.client.crafting.confirm.presentation.TrinityCraftConfirmPresentationState;
+import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewers;
 import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
 import com.fish_dan_.data_energistics.client.util.TrinityAmountFormatter;
@@ -19,6 +20,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventListener;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
 
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
 import appeng.client.gui.StackWithBounds;
 import appeng.client.gui.me.crafting.CraftConfirmScreen;
 import appeng.client.gui.me.crafting.CraftErrorScreen;
@@ -32,6 +34,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ComponentRenderUtils;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
@@ -94,7 +97,14 @@ public final class TrinityCraftConfirmScreen extends AbstractContainerScreen<Cra
         this.layout.status().setOverflowVisible(false);
         this.layout.cpuStats().setOverflowVisible(false);
         this.layout.diagnostic().setOverflowVisible(false);
-        configureButton(this.layout.cancel(), text("cancel"), event -> this.menu.goBack());
+        configureButton(this.layout.cancel(), text("cancel"), event -> {
+            if (Screen.hasShiftDown()) {
+                favoriteMissingMaterials();
+                onClose();
+            } else {
+                this.menu.goBack();
+            }
+        });
         configureButton(this.layout.tree(), text("tree"), event -> ((CraftingPlanSessionTransfer) this.menu).data_energistics$openPlanTree());
         configureButton(this.layout.start(), text("start"), event -> {
             if (this.layout != null && this.layout.start().isActive()) {
@@ -137,6 +147,18 @@ public final class TrinityCraftConfirmScreen extends AbstractContainerScreen<Cra
         button.style(style -> style.tooltips(tooltip));
     }
 
+    private void favoriteMissingMaterials() {
+        CraftingPlanSummary plan = this.menu.getPlan();
+        if (plan == null) {
+            return;
+        }
+        for (CraftingPlanSummaryEntry entry : plan.getEntries()) {
+            if (entry.getMissingAmount() > 0L) {
+                CraftingPlanIngredientViewers.favorite(new GenericStack(entry.getWhat(), 1L));
+            }
+        }
+    }
+
     private boolean refreshBeforeRender() {
         var submitResult = this.menu.submitError.result();
         var errorCode = submitResult == null ? null : submitResult.errorCode();
@@ -172,6 +194,9 @@ public final class TrinityCraftConfirmScreen extends AbstractContainerScreen<Cra
         }
 
         currentLayout.heading().setText(heading(state, plan));
+        currentLayout.cancel().setText(Screen.hasShiftDown() ? text("favorite_missing") : text("cancel"));
+        setTooltip(currentLayout.cancel(), Screen.hasShiftDown() ? text("favorite_missing.tooltip") :
+                Component.translatable("gui.data_energistics.plan_tree.cancel.tooltip"));
         currentLayout.metrics().setText(metrics(state, plan, summary));
         Component cpuStatistics = cpuStatistics(hasTrinityCpu);
         Component status;
