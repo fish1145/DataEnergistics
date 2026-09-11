@@ -108,6 +108,7 @@
 		"core.patternprovider.PatternProviderScreenMixin",
 		"emi.AbstractRecipeHandlerMixin",
 		"emi.EmiEncodePatternHandlerMixin",
+		"ftblibrary.FtbLibrarySidebarMixin",
 		"guideme.GuideNavBarMixin",
 		"guideme.GuideNavBarRowMixin",
 		"jei.JeiEncodePatternTransferHandlerMixin",
