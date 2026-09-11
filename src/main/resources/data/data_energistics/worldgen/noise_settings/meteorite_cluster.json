@@ -333,11 +333,5 @@
 	},
 	"ore_veins_enabled": false,
 	"sea_level": -64,
-	"spawn_target": [],
-	"surface_rule": {
-		"type": "minecraft:block",
-		"result_state": {
-			"Name": "data_energistics:data_meteorite_1"
-		}
-	}
+	"spawn_target": []
 }
