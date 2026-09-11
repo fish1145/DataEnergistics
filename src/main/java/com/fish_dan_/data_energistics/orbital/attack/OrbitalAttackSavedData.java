@@ -360,9 +360,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (targetLevel == null || targetOutsideBounds(targetLevel, target, geometry.maximumRadius())) {
             return Optional.empty();
         }
-        geometry = geometry.withCraterTopY(Math.max(target.getY() - 1,
-                targetLevel.getHeight(Heightmap.Types.WORLD_SURFACE,
-                        target.getX(), target.getZ()) - 1));
+        geometry = geometry.withCraterTopY(kineticCraterTop(targetLevel, target, geometry));
         if (!weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
             return Optional.empty();
         }
@@ -884,6 +882,20 @@ public final class OrbitalAttackSavedData extends SavedData {
                 tag.getInt(KINETIC_SHOCKWAVE_RADIUS_TAG),
                 craterProfile,
                 tag.contains(KINETIC_CRATER_TOP_TAG, Tag.TAG_INT) ? tag.getInt(KINETIC_CRATER_TOP_TAG) : OrbitalAttackGeometry.Kinetic.UNCAPTURED_CRATER_TOP);
+    }
+
+    private static int kineticCraterTop(ServerLevel level, BlockPos target, OrbitalAttackGeometry.Kinetic geometry) {
+        int top = target.getY() - 1;
+        int radius = geometry.craterRadius();
+        for (int x = -radius; x <= radius; x++) {
+            for (int z = -radius; z <= radius; z++) {
+                if ((long) x * x + (long) z * z <= (long) radius * radius) {
+                    top = Math.max(top, level.getHeight(Heightmap.Types.WORLD_SURFACE,
+                            target.getX() + x, target.getZ() + z) - 1);
+                }
+            }
+        }
+        return top;
     }
 
     static OrbitalAttackGeometry.DirectedEnergy readDirectedEnergyGeometry(CompoundTag tag) {

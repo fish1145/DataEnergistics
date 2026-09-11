@@ -143,10 +143,24 @@ public final class OrbitalKineticStrike {
     }
 
     private static int craterTopY(ServerLevel level, BlockPos target, OrbitalAttackGeometry.Kinetic geometry) {
+        int capturedTop = geometry.craterTopY() == OrbitalAttackGeometry.Kinetic.UNCAPTURED_CRATER_TOP
+                ? target.getY() - 1 : geometry.craterTopY();
         if (geometry.craterTopY() != OrbitalAttackGeometry.Kinetic.UNCAPTURED_CRATER_TOP) {
-            return geometry.craterTopY();
+            return Math.max(target.getY() - 1, capturedTop);
         }
-        return Math.max(target.getY() - 1, level.getHeight(Heightmap.Types.WORLD_SURFACE, target.getX(), target.getZ()) - 1);
+        int currentSurfaceTop = target.getY() - 1;
+        // Capture the highest surface anywhere in the crater footprint. A single center column is often already
+        // excavated, while the requested effect must still include every upper block inside the circular range.
+        int radius = geometry.craterRadius();
+        for (int x = -radius; x <= radius; x++) {
+            for (int z = -radius; z <= radius; z++) {
+                if ((long) x * x + (long) z * z <= (long) radius * radius) {
+                    currentSurfaceTop = Math.max(currentSurfaceTop,
+                            level.getHeight(Heightmap.Types.WORLD_SURFACE, target.getX() + x, target.getZ() + z) - 1);
+                }
+            }
+        }
+        return Math.max(target.getY() - 1, Math.max(capturedTop, currentSurfaceTop));
     }
 
     private static int craterBottom(ServerLevel level, BlockPos target, OrbitalAttackGeometry.Kinetic geometry) {

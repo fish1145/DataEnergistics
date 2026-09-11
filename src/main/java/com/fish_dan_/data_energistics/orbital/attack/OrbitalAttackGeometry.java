@@ -125,7 +125,14 @@ public sealed interface OrbitalAttackGeometry
             long totalDepth = Math.max(1L, (long) craterTopY - craterBottomY + 1L);
             int layer = Math.max(0, Math.min(Math.toIntExact(Math.min(Integer.MAX_VALUE, totalDepth - 1L)), craterTopY - position.getY()));
             long radiusSquared = (long) this.craterRadius * this.craterRadius;
-            return (offsetX * offsetX + offsetZ * offsetZ) * totalDepth <= radiusSquared * (totalDepth - layer);
+            long distanceSquared = offsetX * offsetX + offsetZ * offsetZ;
+            long seed = offsetX * 341873128712L + offsetZ * 132897987541L + (long) layer * 42317861L;
+            seed ^= seed >>> 33;
+            seed *= 0xff51afd7ed558ccdl;
+            seed ^= seed >>> 33;
+            int roughness = (int) Math.floorMod(seed, 21L) - 10;
+            long localRadius = Math.max(1L, (long) this.craterRadius * (100L + roughness) / 100L);
+            return distanceSquared * totalDepth <= localRadius * localRadius * (totalDepth - layer);
         }
 
         /** Largest horizontal radius touched by the budgeted terrain worker. */
