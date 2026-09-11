@@ -18,6 +18,7 @@ import com.fish_dan_.data_energistics.integration.ftb.ultimine.DataCrystalPickax
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotKeyContainerItemStrategy;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
+import com.fish_dan_.data_energistics.registry.DEChunkGenerators;
 import com.fish_dan_.data_energistics.registry.DECreativeTabs;
 import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEEntities;
@@ -29,7 +30,6 @@ import com.fish_dan_.data_energistics.registry.DEMobEffects;
 import com.fish_dan_.data_energistics.registry.DEParticles;
 import com.fish_dan_.data_energistics.registry.DERecipes;
 import com.fish_dan_.data_energistics.registry.DEStructures;
-import com.fish_dan_.data_energistics.registry.DEChunkGenerators;
 import com.fish_dan_.data_energistics.registry.DEUpgrades;
 import com.fish_dan_.data_energistics.registry.DEVerticalMultiBlocks;
 import com.fish_dan_.data_energistics.registry.UniversalTerminalAdapters;

@@ -1,21 +1,23 @@
 package com.fish_dan_.data_energistics.worldgen.meteorite;
 
+import com.fish_dan_.data_energistics.registry.DEBlocks;
+
 import appeng.core.definitions.AEBlocks;
-import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
+
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
-import net.minecraft.world.level.StructureManager;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.core.BlockPos;
-import com.fish_dan_.data_energistics.registry.DEBlocks;
+
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -23,8 +25,7 @@ public final class MeteoriteClusterChunkGenerator extends NoiseBasedChunkGenerat
 
     public static final MapCodec<MeteoriteClusterChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             BiomeSource.CODEC.fieldOf("biome_source").forGetter(MeteoriteClusterChunkGenerator::getBiomeSource),
-            NoiseGeneratorSettings.CODEC.fieldOf("settings").forGetter(MeteoriteClusterChunkGenerator::generatorSettings)
-    ).apply(instance, MeteoriteClusterChunkGenerator::new));
+            NoiseGeneratorSettings.CODEC.fieldOf("settings").forGetter(MeteoriteClusterChunkGenerator::generatorSettings)).apply(instance, MeteoriteClusterChunkGenerator::new));
 
     private static final int TOTAL_WEIGHT = 10;
 
@@ -39,7 +40,7 @@ public final class MeteoriteClusterChunkGenerator extends NoiseBasedChunkGenerat
 
     @Override
     public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender, RandomState randomState,
-                                                         StructureManager structureManager, ChunkAccess chunk) {
+                                                        StructureManager structureManager, ChunkAccess chunk) {
         return super.fillFromNoise(blender, randomState, structureManager, chunk)
                 .thenApply(generated -> {
                     replaceSolidBlocks(generated);
@@ -83,6 +84,7 @@ public final class MeteoriteClusterChunkGenerator extends NoiseBasedChunkGenerat
     }
 
     private static final class BlockPosCursor {
+
         private final ChunkPos chunkPos;
         private final int maxY;
         private int x;
