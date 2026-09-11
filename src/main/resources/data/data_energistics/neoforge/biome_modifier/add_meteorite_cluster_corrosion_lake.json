@@ -1,0 +1,6 @@
+{
+	"type": "neoforge:add_features",
+	"biomes": "data_energistics:meteorite_cluster",
+	"features": "data_energistics:meteorite_cluster_corrosion_lake",
+	"step": "lakes"
+}

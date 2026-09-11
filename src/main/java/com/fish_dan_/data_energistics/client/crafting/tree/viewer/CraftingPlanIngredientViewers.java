@@ -35,4 +35,10 @@ public final class CraftingPlanIngredientViewers {
         for (var viewer : viewers()) if (viewer.show(stack, recipes)) return true;
         return false;
     }
+
+    /** Adds a material through the highest-priority available viewer without navigating away from the screen. */
+    public static boolean favorite(GenericStack stack) {
+        for (var viewer : viewers()) if (viewer.favorite(stack)) return true;
+        return false;
+    }
 }

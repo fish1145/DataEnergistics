@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.integration.viewer.jei;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewers;
 import com.fish_dan_.data_energistics.client.screen.crafting.CraftingPlanTreeScreen;
+import com.fish_dan_.data_energistics.client.screen.crafting.confirm.TrinityCraftConfirmScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.DataRipperReassemblerScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.integration.ModFlags;
@@ -179,6 +180,9 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
         }
         registration.addGuiContainerHandler(
                 CraftingPlanTreeScreen.class,
+                new PatternEncodingGenericStackJeiHandler<>());
+        registration.addGuiContainerHandler(
+                TrinityCraftConfirmScreen.class,
                 new PatternEncodingGenericStackJeiHandler<>());
         registration.addGuiContainerHandler(
                 DataRipperReassemblerScreen.class,
