@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.ae2.dataflow;
 
-import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
@@ -24,6 +24,7 @@ import appeng.util.ConfigInventory;
 import appeng.util.prioritylist.FuzzyPriorityList;
 import appeng.util.prioritylist.IPartitionList;
 
+import lombok.Getter;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
@@ -50,9 +51,11 @@ public final class DigitalStorageCellInventory implements StorageCell {
     private final IBasicCellItem cellItem;
     private final @Nullable ISaveProvider container;
     private final Map<AEKey, Long> storedAmounts;
+    @Getter
     private final ConfigInventory configInventory;
     private final IUpgradeInventory upgrades;
     private final IPartitionList partitionList;
+    @Getter
     private final IncludeExclude partitionListMode;
     private final int totalTypes;
     private final boolean hasVoidUpgrade;
@@ -220,14 +223,6 @@ public final class DigitalStorageCellInventory implements StorageCell {
         return partitionList instanceof FuzzyPriorityList;
     }
 
-    public IncludeExclude getPartitionListMode() {
-        return partitionListMode;
-    }
-
-    public ConfigInventory getConfigInventory() {
-        return configInventory;
-    }
-
     public IUpgradeInventory getUpgradesInventory() {
         return upgrades;
     }
@@ -291,7 +286,7 @@ public final class DigitalStorageCellInventory implements StorageCell {
     }
 
     private static boolean supports(AEKey key) {
-        return key == DataFlowKey.of() || key == EchoKey.of() || key == CelestialEnergyKey.of();
+        return key == DataFlowKey.of() || key == EchoKey.of() || key == StellarFluxKey.of();
     }
 
     private long getFreeBytes() {

@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.projection;
 
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycleState;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -16,7 +16,7 @@ public record OrbitalProjectionVisualSnapshot(
                                               ResourceLocation dimensionId,
                                               BlockPos anchor,
                                               int projectionY,
-                                              OrbitalWeaponLifecycleState lifecycleState,
+                                              StellarErasureDeviceLifecycleState lifecycleState,
                                               int redeploymentTicksRemaining,
                                               long animationTime,
                                               long randomSeed) {
@@ -29,10 +29,10 @@ public record OrbitalProjectionVisualSnapshot(
         if (redeploymentTicksRemaining < 0 || animationTime < 0L || randomSeed < 0L) {
             throw new IllegalArgumentException("Orbital projection visual state is outside its bounded range");
         }
-        if (lifecycleState == OrbitalWeaponLifecycleState.REDEPLOYING && redeploymentTicksRemaining <= 0) {
+        if (lifecycleState == StellarErasureDeviceLifecycleState.REDEPLOYING && redeploymentTicksRemaining <= 0) {
             throw new IllegalArgumentException("A redeploying projection must carry remaining ticks");
         }
-        if (lifecycleState != OrbitalWeaponLifecycleState.REDEPLOYING && redeploymentTicksRemaining != 0) {
+        if (lifecycleState != StellarErasureDeviceLifecycleState.REDEPLOYING && redeploymentTicksRemaining != 0) {
             throw new IllegalArgumentException("Only a redeploying projection may carry remaining ticks");
         }
     }

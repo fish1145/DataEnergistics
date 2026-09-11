@@ -12,19 +12,19 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
  * Immutable resource escrow and cooldown captured when an attack is confirmed.
  */
 public record OrbitalAttackCost(
-                                long celestialEnergy,
+                                long stellarFlux,
                                 long aeEnergy,
                                 int cooldownTicks) {
 
     public static final Codec<OrbitalAttackCost> CODEC = RecordCodecBuilder.create(instance -> instance
             .group(
-                    Codec.LONG.fieldOf("celestial_energy").forGetter(OrbitalAttackCost::celestialEnergy),
+                    Codec.LONG.fieldOf("stellar_flux").forGetter(OrbitalAttackCost::stellarFlux),
                     Codec.LONG.fieldOf("ae_energy").forGetter(OrbitalAttackCost::aeEnergy),
                     Codec.INT.fieldOf("cooldown_ticks").forGetter(OrbitalAttackCost::cooldownTicks))
             .apply(instance, OrbitalAttackCost::new));
     public static final StreamCodec<RegistryFriendlyByteBuf, OrbitalAttackCost> STREAM_CODEC = StreamCodec.of(
             (buffer, cost) -> {
-                buffer.writeVarLong(cost.celestialEnergy);
+                buffer.writeVarLong(cost.stellarFlux);
                 buffer.writeVarLong(cost.aeEnergy);
                 buffer.writeVarInt(cost.cooldownTicks);
             },
@@ -34,7 +34,7 @@ public record OrbitalAttackCost(
                     buffer.readVarInt()));
 
     public OrbitalAttackCost {
-        if (celestialEnergy <= 0L || aeEnergy <= 0L || cooldownTicks < 0) {
+        if (stellarFlux <= 0L || aeEnergy <= 0L || cooldownTicks < 0) {
             throw new IllegalArgumentException("Attack costs must be positive and cooldown must not be negative");
         }
     }
@@ -42,9 +42,9 @@ public record OrbitalAttackCost(
     /**
      * Reads the kinetic cost from one immutable configuration snapshot.
      */
-    public static OrbitalAttackCost kinetic(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+    public static OrbitalAttackCost kinetic(DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         return new OrbitalAttackCost(
-                settings.kineticCelestialEnergyCost,
+                settings.kineticStellarFluxCost,
                 settings.kineticAeEnergyCost,
                 settings.kineticCooldownTicks);
     }
@@ -53,14 +53,14 @@ public record OrbitalAttackCost(
      * Calculates the complete directed-energy escrow, including every scheduled disk coordinate.
      */
     public static OrbitalAttackCost directedEnergy(
-                                                   DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
+                                                   DataEnergisticsConfiguration.StellarErasureDeviceSchema settings,
                                                    long scheduledCoordinates) {
         if (scheduledCoordinates <= 0L) {
             throw new IllegalArgumentException("A directed-energy scan must schedule at least one coordinate");
         }
         long celestial = Math.addExact(
-                settings.directedEnergyBaseCelestialEnergyCost,
-                Math.multiplyExact(settings.directedEnergyCelestialEnergyPerCoordinate, scheduledCoordinates));
+                settings.directedEnergyBaseStellarFluxCost,
+                Math.multiplyExact(settings.directedEnergyStellarFluxPerCoordinate, scheduledCoordinates));
         long ae = Math.addExact(
                 settings.directedEnergyBaseAeEnergyCost,
                 Math.multiplyExact(settings.directedEnergyAeEnergyPerCoordinate, scheduledCoordinates));
@@ -70,9 +70,9 @@ public record OrbitalAttackCost(
     /**
      * Reads the fixed digital-annihilation payload cost from one immutable configuration snapshot.
      */
-    public static OrbitalAttackCost digitalAnnihilation(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+    public static OrbitalAttackCost digitalAnnihilation(DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         return new OrbitalAttackCost(
-                settings.digitalAnnihilationCelestialEnergyCost,
+                settings.digitalAnnihilationStellarFluxCost,
                 settings.digitalAnnihilationAeEnergyCost,
                 settings.digitalAnnihilationCooldownTicks);
     }

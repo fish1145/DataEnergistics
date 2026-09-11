@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.item.orbital;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiFactory;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiSource;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import com.lowdragmc.lowdraglib2.gui.factory.HeldItemUIMenuType;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
@@ -42,7 +42,7 @@ public final class OrbitalControlTerminalItem extends Item implements HeldItemUI
         }
 
         MinecraftServer server = serverPlayer.getServer();
-        if (server == null || !OrbitalWeaponSavedData.get(server).hasAccessibleWeapon(serverPlayer.getUUID())) {
+        if (server == null || !StellarErasureDeviceSavedData.get(server).hasAccessibleWeapon(serverPlayer.getUUID())) {
             return InteractionResultHolder.fail(stack);
         }
         boolean opened = HeldItemUIMenuType.openUI(serverPlayer, usedHand);
@@ -67,7 +67,7 @@ public final class OrbitalControlTerminalItem extends Item implements HeldItemUI
             return true;
         }
         MinecraftServer server = serverPlayer.getServer();
-        return server != null && OrbitalWeaponSavedData.get(server).hasAccessibleWeapon(serverPlayer.getUUID());
+        return server != null && StellarErasureDeviceSavedData.get(server).hasAccessibleWeapon(serverPlayer.getUUID());
     }
 
     private static OrbitalControlTerminalSnapshot snapshot(HeldItemUIMenuType.HeldItemUIHolder holder) {

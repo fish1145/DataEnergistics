@@ -5,8 +5,8 @@ import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalUplinkBeaconBlo
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLimitException;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import appeng.block.AEBaseBlock;
 
@@ -92,7 +92,7 @@ public final class OrbitalUplinkBeaconBlock extends AEBaseBlock implements Entit
 
         OrbitalEndpointLocation location = new OrbitalEndpointLocation(serverLevel.dimension().location(), pos);
         try {
-            Optional<OrbitalWeaponRecord> weapon = OrbitalWeaponSavedData.get(serverLevel.getServer())
+            Optional<StellarErasureDeviceRecord> weapon = StellarErasureDeviceSavedData.get(serverLevel.getServer())
                     .bindExistingForOwner(
                             serverLevel.getServer(),
                             player.getUUID(),

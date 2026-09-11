@@ -48,7 +48,7 @@ public final class DataEnergisticsConfiguration {
 
     @Configurable
     @Configurable.Comment({ "Orbital weapon reserves, deployment and endpoint limits.", "轨道武器储备、部署与端点限制。" })
-    public OrbitalWeaponSchema orbitalWeapon = new OrbitalWeaponSchema();
+    public StellarErasureDeviceSchema stellarErasureDevice = new StellarErasureDeviceSchema();
 
     @Configurable
     @Configurable.Comment({ "Trinity planning and dispatch settings.", "三位一体规划与派发设置。" })
@@ -69,15 +69,15 @@ public final class DataEnergisticsConfiguration {
      */
     public long revision() {
         AstronomySchema astronomySettings = this.astronomy;
-        OrbitalWeaponSchema weaponSettings = this.orbitalWeapon;
+        StellarErasureDeviceSchema weaponSettings = this.stellarErasureDevice;
         DataNukeSchema nukeSettings = this.explosives.dataNuke;
         return Integer.toUnsignedLong(Objects.hash(
-                astronomySettings.lowTierCelestialEnergyPerTick,
+                astronomySettings.lowTierStellarFluxPerTick,
                 astronomySettings.lowTierAeEnergyPerTick,
-                astronomySettings.highTierMirrorCelestialEnergyPerTick1To4,
-                astronomySettings.highTierMirrorCelestialEnergyPerTick5To8,
-                astronomySettings.highTierMirrorCelestialEnergyPerTick9To12,
-                astronomySettings.highTierMirrorCelestialEnergyPerTick13To16,
+                astronomySettings.highTierMirrorStellarFluxPerTick1To4,
+                astronomySettings.highTierMirrorStellarFluxPerTick5To8,
+                astronomySettings.highTierMirrorStellarFluxPerTick9To12,
+                astronomySettings.highTierMirrorStellarFluxPerTick13To16,
                 astronomySettings.highTierCoreAeEnergyPerTick,
                 astronomySettings.highTierMirrorAeEnergyPerTick,
                 astronomySettings.highTierMinimumMirrors,
@@ -91,11 +91,11 @@ public final class DataEnergisticsConfiguration {
                 astronomySettings.defaultDimensionMultiplier,
                 Arrays.hashCode(astronomySettings.dimensionIds),
                 Arrays.hashCode(astronomySettings.dimensionMultiplierValues),
-                weaponSettings.celestialEnergyCapacity,
+                weaponSettings.stellarFluxCapacity,
                 weaponSettings.aeEnergyCapacity,
-                weaponSettings.celestialEnergyUpkeepPerTick,
+                weaponSettings.stellarFluxUpkeepPerTick,
                 weaponSettings.aeEnergyUpkeepPerTick,
-                weaponSettings.celestialEnergyChargePerTick,
+                weaponSettings.stellarFluxChargePerTick,
                 weaponSettings.aeEnergyChargePerTick,
                 weaponSettings.reserveGraceTicks,
                 weaponSettings.deploymentThreshold,
@@ -118,7 +118,7 @@ public final class DataEnergisticsConfiguration {
                 weaponSettings.kineticCraterRadius,
                 weaponSettings.kineticCraterDepth,
                 weaponSettings.kineticShockwaveRadius,
-                weaponSettings.kineticCelestialEnergyCost,
+                weaponSettings.kineticStellarFluxCost,
                 weaponSettings.kineticAeEnergyCost,
                 weaponSettings.attackWarningTicks,
                 weaponSettings.kineticCooldownTicks,
@@ -128,12 +128,12 @@ public final class DataEnergisticsConfiguration {
                 weaponSettings.directedEnergyShallowDepth,
                 weaponSettings.directedEnergyMediumDepth,
                 weaponSettings.directedEnergyDeepDepth,
-                weaponSettings.directedEnergyBaseCelestialEnergyCost,
+                weaponSettings.directedEnergyBaseStellarFluxCost,
                 weaponSettings.directedEnergyBaseAeEnergyCost,
-                weaponSettings.directedEnergyCelestialEnergyPerCoordinate,
+                weaponSettings.directedEnergyStellarFluxPerCoordinate,
                 weaponSettings.directedEnergyAeEnergyPerCoordinate,
                 weaponSettings.directedEnergyCooldownTicks,
-                weaponSettings.digitalAnnihilationCelestialEnergyCost,
+                weaponSettings.digitalAnnihilationStellarFluxCost,
                 weaponSettings.digitalAnnihilationAeEnergyCost,
                 weaponSettings.digitalAnnihilationCooldownTicks,
                 nukeSettings.workIntervalTicks,
@@ -465,11 +465,11 @@ public final class DataEnergisticsConfiguration {
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
-                "Celestial Energy produced per clear-weather tick by one low-tier observatory.",
-                "单个低阶天文观测台在晴朗天气下每 tick 产出的星体能量。"
+                "Stellar Flux produced per clear-weather tick by one low-tier observatory.",
+                "单个低阶天文观测台在晴朗天气下每 tick 产出的耀星流。"
         })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
-        public long lowTierCelestialEnergyPerTick = 8L;
+        public long lowTierStellarFluxPerTick = 8L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
@@ -481,35 +481,35 @@ public final class DataEnergisticsConfiguration {
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
-                "Celestial Energy produced per tick by each valid high-tier mirror from mirror 1 through 4.",
-                "高阶阵列第 1 至 4 个有效镜单元各自每 tick 产出的星体能量。"
+                "Stellar Flux produced per tick by each valid high-tier mirror from mirror 1 through 4.",
+                "高阶阵列第 1 至 4 个有效镜单元各自每 tick 产出的耀星流。"
         })
         @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
-        public long highTierMirrorCelestialEnergyPerTick1To4 = 40L;
+        public long highTierMirrorStellarFluxPerTick1To4 = 40L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
-                "Celestial Energy produced per tick by each valid high-tier mirror from mirror 5 through 8.",
-                "高阶阵列第 5 至 8 个有效镜单元各自每 tick 产出的星体能量。"
+                "Stellar Flux produced per tick by each valid high-tier mirror from mirror 5 through 8.",
+                "高阶阵列第 5 至 8 个有效镜单元各自每 tick 产出的耀星流。"
         })
         @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
-        public long highTierMirrorCelestialEnergyPerTick5To8 = 30L;
+        public long highTierMirrorStellarFluxPerTick5To8 = 30L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
-                "Celestial Energy produced per tick by each valid high-tier mirror from mirror 9 through 12.",
-                "高阶阵列第 9 至 12 个有效镜单元各自每 tick 产出的星体能量。"
+                "Stellar Flux produced per tick by each valid high-tier mirror from mirror 9 through 12.",
+                "高阶阵列第 9 至 12 个有效镜单元各自每 tick 产出的耀星流。"
         })
         @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
-        public long highTierMirrorCelestialEnergyPerTick9To12 = 20L;
+        public long highTierMirrorStellarFluxPerTick9To12 = 20L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
-                "Celestial Energy produced per tick by each valid high-tier mirror from mirror 13 through 16.",
-                "高阶阵列第 13 至 16 个有效镜单元各自每 tick 产出的星体能量。"
+                "Stellar Flux produced per tick by each valid high-tier mirror from mirror 13 through 16.",
+                "高阶阵列第 13 至 16 个有效镜单元各自每 tick 产出的耀星流。"
         })
         @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
-        public long highTierMirrorCelestialEnergyPerTick13To16 = 10L;
+        public long highTierMirrorStellarFluxPerTick13To16 = 10L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({
@@ -618,22 +618,22 @@ public final class DataEnergisticsConfiguration {
         }
     }
 
-    public static final class OrbitalWeaponSchema {
+    public static final class StellarErasureDeviceSchema {
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Maximum orbital Celestial Energy reserve.", "轨道星体能量储备上限。" })
+        @Configurable.Comment({ "Maximum orbital Stellar Flux reserve.", "轨道耀星流储备上限。" })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
-        public long celestialEnergyCapacity = 500_000_000L;
+        public long stellarFluxCapacity = 500_000_000L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Maximum orbital AE energy reserve, separate from Celestial Energy.", "轨道 AE 能量储备上限，与星体能量相互独立。" })
+        @Configurable.Comment({ "Maximum orbital AE energy reserve, separate from Stellar Flux.", "轨道 AE 能量储备上限，与耀星流相互独立。" })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
         public long aeEnergyCapacity = 500_000_000_000L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Celestial Energy consumed per deployed tick.", "部署状态每 tick 消耗的星体能量。" })
+        @Configurable.Comment({ "Stellar Flux consumed per deployed tick.", "部署状态每 tick 消耗的耀星流。" })
         @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
-        public long celestialEnergyUpkeepPerTick = 100L;
+        public long stellarFluxUpkeepPerTick = 100L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "AE energy consumed per deployed tick.", "部署状态每 tick 消耗的 AE 能量。" })
@@ -641,9 +641,9 @@ public final class DataEnergisticsConfiguration {
         public long aeEnergyUpkeepPerTick = 250_000L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Maximum Celestial Energy transferred by one endpoint per tick.", "单个端点每 tick 可传输的星体能量上限。" })
+        @Configurable.Comment({ "Maximum Stellar Flux transferred by one endpoint per tick.", "单个端点每 tick 可传输的耀星流上限。" })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
-        public long celestialEnergyChargePerTick = 20_000L;
+        public long stellarFluxChargePerTick = 20_000L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Maximum AE energy transferred by one endpoint per tick.", "单个端点每 tick 可传输的 AE 能量上限。" })
@@ -762,9 +762,9 @@ public final class DataEnergisticsConfiguration {
         public int kineticShockwaveRadius = OrbitalAttackGeometry.Kinetic.DEFAULT_SHOCKWAVE_RADIUS;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Celestial Energy reserved by one kinetic strike.", "一次动能攻击预留的星体能量。" })
+        @Configurable.Comment({ "Stellar Flux reserved by one kinetic strike.", "一次动能攻击预留的耀星流。" })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
-        public long kineticCelestialEnergyCost = 5_000_000L;
+        public long kineticStellarFluxCost = 5_000_000L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "AE energy reserved by one kinetic strike.", "一次动能攻击预留的 AE 能量。" })
@@ -812,9 +812,9 @@ public final class DataEnergisticsConfiguration {
         public int directedEnergyDeepDepth = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_DEEP_DEPTH;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Fixed Celestial Energy base escrow for one directed-energy scan.", "一次定向能扫描固定预留的星体能量基础费用。" })
+        @Configurable.Comment({ "Fixed Stellar Flux base escrow for one directed-energy scan.", "一次定向能扫描固定预留的耀星流基础费用。" })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
-        public long directedEnergyBaseCelestialEnergyCost = 2_000_000L;
+        public long directedEnergyBaseStellarFluxCost = 2_000_000L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "Fixed AE base escrow for one directed-energy scan.", "一次定向能扫描固定预留的 AE 基础费用。" })
@@ -822,9 +822,9 @@ public final class DataEnergisticsConfiguration {
         public long directedEnergyBaseAeEnergyCost = 2_000_000_000L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Celestial Energy escrow per directed-energy disk coordinate.", "定向能扫描每个圆盘调度坐标的星体能量费用。" })
+        @Configurable.Comment({ "Stellar Flux escrow per directed-energy disk coordinate.", "定向能扫描每个圆盘调度坐标的耀星流费用。" })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
-        public long directedEnergyCelestialEnergyPerCoordinate = 4L;
+        public long directedEnergyStellarFluxPerCoordinate = 4L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "AE escrow per directed-energy disk coordinate.", "定向能扫描每个圆盘调度坐标的 AE 能量费用。" })
@@ -837,9 +837,9 @@ public final class DataEnergisticsConfiguration {
         public int directedEnergyCooldownTicks = 100;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
-        @Configurable.Comment({ "Celestial Energy reserved by one digital annihilation payload.", "一次数位湮灭体轨道载荷预留的星体能量。" })
+        @Configurable.Comment({ "Stellar Flux reserved by one digital annihilation payload.", "一次数位湮灭体轨道载荷预留的耀星流。" })
         @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
-        public long digitalAnnihilationCelestialEnergyCost = 80_000_000L;
+        public long digitalAnnihilationStellarFluxCost = 80_000_000L;
 
         @Configurable(key = Configurable.LocalizationKey.FULL)
         @Configurable.Comment({ "AE energy reserved by one digital annihilation payload.", "一次数位湮灭体轨道载荷预留的 AE 能量。" })

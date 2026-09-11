@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.ae2;
 
-import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
@@ -27,7 +27,7 @@ public final class DEAE2Keys {
             DataFlowKey.of(),
             DataKey.of(),
             EchoKey.of(),
-            CelestialEnergyKey.of());
+            StellarFluxKey.of());
 
     private DEAE2Keys() {}
 
@@ -41,7 +41,7 @@ public final class DEAE2Keys {
         IRegistryExtension<?> registry = (IRegistryExtension<?>) event.getRegistry();
         registry.addAlias(DataFlowKey.ID, DigitalizationKeyType.TYPE.getId());
         registry.addAlias(EchoKey.ID, DigitalizationKeyType.TYPE.getId());
-        registry.addAlias(CelestialEnergyKey.ID, DigitalizationKeyType.TYPE.getId());
+        registry.addAlias(StellarFluxKey.ID, DigitalizationKeyType.TYPE.getId());
         registry.addAlias(DataKey.ID, ManifestBinaryKeyType.TYPE.getId());
     }
 

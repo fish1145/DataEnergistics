@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.integration.viewer.xei.ingredient;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
-import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
@@ -25,7 +25,7 @@ public enum DataResourceKey {
     DATA(DataKey.ID, DataKey.of()),
     DATA_FLOW(DataFlowKey.ID, DataFlowKey.of()),
     ECHO(EchoKey.ID, EchoKey.of()),
-    CELESTIAL_ENERGY(CelestialEnergyKey.ID, CelestialEnergyKey.of());
+    CELESTIAL_ENERGY(StellarFluxKey.ID, StellarFluxKey.of());
 
     private final ResourceLocation id;
     private final AEKey aeKey;

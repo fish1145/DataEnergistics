@@ -9,9 +9,9 @@ import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLimitExcep
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycle;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceAction;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycle;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
 import com.fish_dan_.data_energistics.orbital.projection.OrbitalProjectionVisualSnapshot;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalReserveCharging;
@@ -49,10 +49,10 @@ import java.util.UUID;
  * weapon records during loading so redundant serialized indexes cannot disagree with weapon state.
  * </p>
  */
-public final class OrbitalWeaponSavedData extends SavedData {
+public final class StellarErasureDeviceSavedData extends SavedData {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
-    private static final String DATA_NAME = Data_Energistics.MODID + "_orbital_weapons";
+    private static final String DATA_NAME = Data_Energistics.MODID + "_stellar_erasure_devices";
     private static final String LAST_SELECTED_WEAPONS_TAG = "last_selected_weapons";
     private static final String PLAYER_ID_TAG = "player_id";
     private static final String WEAPON_ID_TAG = "weapon_id";
@@ -67,11 +67,11 @@ public final class OrbitalWeaponSavedData extends SavedData {
             .thenComparingInt(endpoint -> endpoint.location().pos().getX())
             .thenComparingInt(endpoint -> endpoint.location().pos().getY())
             .thenComparingInt(endpoint -> endpoint.location().pos().getZ());
-    private static final Factory<OrbitalWeaponSavedData> FACTORY = new Factory<>(
-            OrbitalWeaponSavedData::new,
-            OrbitalWeaponSavedData::load);
+    private static final Factory<StellarErasureDeviceSavedData> FACTORY = new Factory<>(
+            StellarErasureDeviceSavedData::new,
+            StellarErasureDeviceSavedData::load);
 
-    private final Map<UUID, OrbitalWeaponRecord> weapons = new Object2ObjectLinkedOpenHashMap<>();
+    private final Map<UUID, StellarErasureDeviceRecord> weapons = new Object2ObjectLinkedOpenHashMap<>();
     private final Map<UUID, UUID> ownerIndex = new Object2ObjectOpenHashMap<>();
     private final Map<UUID, ObjectSet<UUID>> accessIndex = new Object2ObjectOpenHashMap<>();
     private final Map<OrbitalEndpointLocation, UUID> endpointIndex = new Object2ObjectOpenHashMap<>();
@@ -79,11 +79,11 @@ public final class OrbitalWeaponSavedData extends SavedData {
     private final Map<UUID, UUID> lastSelectedWeaponByPlayer = new Object2ObjectOpenHashMap<>();
     private final Map<UUID, OrbitalOwnershipTransfer> ownershipTransfers = new Object2ObjectLinkedOpenHashMap<>();
 
-    private OrbitalWeaponSavedData() {}
+    private StellarErasureDeviceSavedData() {}
 
     /** Stable, immutable accessible-weapon list paired with the player's currently resolved selection. */
     public record AccessibleWeaponSelection(
-                                            List<OrbitalWeaponRecord> weapons,
+                                            List<StellarErasureDeviceRecord> weapons,
                                             @Nullable UUID selectedWeaponId) {
 
         public AccessibleWeaponSelection {
@@ -97,7 +97,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         }
 
         /** Returns the selected immutable record without requiring a second SavedData lookup. */
-        public Optional<OrbitalWeaponRecord> selectedWeapon() {
+        public Optional<StellarErasureDeviceRecord> selectedWeapon() {
             if (this.selectedWeaponId == null) {
                 return Optional.empty();
             }
@@ -110,21 +110,21 @@ public final class OrbitalWeaponSavedData extends SavedData {
     /**
      * Returns the overworld-owned SavedData instance shared by all dimensions.
      */
-    public static OrbitalWeaponSavedData get(MinecraftServer server) {
+    public static StellarErasureDeviceSavedData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
     }
 
     /**
      * Creates exactly one owned weapon for a player, or returns their existing weapon.
      */
-    public OrbitalWeaponRecord createForOwner(MinecraftServer server, UUID ownerId) {
+    public StellarErasureDeviceRecord createForOwner(MinecraftServer server, UUID ownerId) {
         requireServerThread(server);
         UUID existingWeaponId = this.ownerIndex.get(ownerId);
         if (existingWeaponId != null) {
             return requireWeapon(existingWeaponId);
         }
 
-        OrbitalWeaponRecord weapon = OrbitalWeaponRecord.create(newWeaponId(), ownerId);
+        StellarErasureDeviceRecord weapon = StellarErasureDeviceRecord.create(newWeaponId(), ownerId);
         putRecord(weapon);
         setDirty();
         return weapon;
@@ -133,13 +133,13 @@ public final class OrbitalWeaponSavedData extends SavedData {
     /**
      * Creates or reuses an owned weapon and attaches a physical endpoint in the same SavedData mutation.
      */
-    public OrbitalWeaponRecord provisionForOwner(
+    public StellarErasureDeviceRecord provisionForOwner(
                                                  MinecraftServer server,
                                                  UUID ownerId,
                                                  OrbitalEndpointLocation location,
                                                  OrbitalEndpointKind kind) {
         requireServerThread(server);
-        Optional<OrbitalWeaponRecord> boundWeapon = findCompatibleBoundEndpoint(ownerId, location, kind);
+        Optional<StellarErasureDeviceRecord> boundWeapon = findCompatibleBoundEndpoint(ownerId, location, kind);
         if (boundWeapon.isPresent()) {
             return ensurePrimaryAnchor(server, boundWeapon.orElseThrow());
         }
@@ -149,9 +149,9 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return ensurePrimaryAnchor(server, addEndpoint(requireWeapon(ownedWeaponId), location, kind));
         }
 
-        OrbitalWeaponRecord current = OrbitalWeaponRecord.create(newWeaponId(), ownerId);
+        StellarErasureDeviceRecord current = StellarErasureDeviceRecord.create(newWeaponId(), ownerId);
         OrbitalEndpointRecord endpoint = createEndpoint(current, location, kind);
-        OrbitalWeaponRecord updated = current.withEndpoint(endpoint);
+        StellarErasureDeviceRecord updated = current.withEndpoint(endpoint);
         putRecord(updated);
         setDirty();
         return ensurePrimaryAnchor(server, updated);
@@ -162,13 +162,13 @@ public final class OrbitalWeaponSavedData extends SavedData {
      *
      * @return the bound weapon, or an empty result when the player does not own a weapon
      */
-    public Optional<OrbitalWeaponRecord> bindExistingForOwner(
+    public Optional<StellarErasureDeviceRecord> bindExistingForOwner(
                                                               MinecraftServer server,
                                                               UUID ownerId,
                                                               OrbitalEndpointLocation location,
                                                               OrbitalEndpointKind kind) {
         requireServerThread(server);
-        Optional<OrbitalWeaponRecord> boundWeapon = findCompatibleBoundEndpoint(ownerId, location, kind);
+        Optional<StellarErasureDeviceRecord> boundWeapon = findCompatibleBoundEndpoint(ownerId, location, kind);
         if (boundWeapon.isPresent()) {
             return Optional.of(ensurePrimaryAnchor(server, boundWeapon.orElseThrow()));
         }
@@ -183,14 +183,14 @@ public final class OrbitalWeaponSavedData extends SavedData {
     /**
      * Finds a weapon by its stable identity.
      */
-    public Optional<OrbitalWeaponRecord> find(UUID weaponId) {
+    public Optional<StellarErasureDeviceRecord> find(UUID weaponId) {
         return Optional.ofNullable(this.weapons.get(weaponId));
     }
 
     /**
      * Finds the weapon currently bound to a physical endpoint location.
      */
-    public Optional<OrbitalWeaponRecord> weaponAt(OrbitalEndpointLocation location) {
+    public Optional<StellarErasureDeviceRecord> weaponAt(OrbitalEndpointLocation location) {
         UUID weaponId = this.endpointIndex.get(location);
         return weaponId == null ? Optional.empty() : Optional.of(requireWeapon(weaponId));
     }
@@ -214,7 +214,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
                                      UUID weaponId,
                                      ResourceLocation dimensionId) {
         requireServerThread(server);
-        OrbitalWeaponRecord weapon = requireWeapon(weaponId);
+        StellarErasureDeviceRecord weapon = requireWeapon(weaponId);
         return weapon.endpoints().values().stream()
                 .filter(endpoint -> endpoint.location().dimensionId().equals(dimensionId))
                 .anyMatch(endpoint -> OrbitalEndpointAvailability.isOnline(server, weaponId, endpoint));
@@ -230,7 +230,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         ResourceLocation dimensionId = level.dimension().location();
         int projectionY = level.getMaxBuildHeight() + OrbitalProjectionVisualSnapshot.ALTITUDE_ABOVE_BUILD_LIMIT;
         return this.weapons.values().stream()
-                .sorted(Comparator.comparing(OrbitalWeaponRecord::weaponId))
+                .sorted(Comparator.comparing(StellarErasureDeviceRecord::weaponId))
                 // The persisted primary beacon owns the world model. Lifecycle affects its visual state and firing
                 // permissions, but must not hide a still-bound body while reserve reconciliation is in progress.
                 .map(weapon -> projectionAnchor(weapon, dimensionId))
@@ -251,11 +251,11 @@ public final class OrbitalWeaponSavedData extends SavedData {
     public void chargeReserves(MinecraftServer server) {
         requireServerThread(server);
         purgeExpiredTransfers(server);
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         boolean changed = false;
-        for (Map.Entry<UUID, OrbitalWeaponRecord> entry : this.weapons.entrySet()) {
+        for (Map.Entry<UUID, StellarErasureDeviceRecord> entry : this.weapons.entrySet()) {
             UUID weaponId = entry.getKey();
-            OrbitalWeaponRecord updated = entry.getValue();
+            StellarErasureDeviceRecord updated = entry.getValue();
             boolean chargeSucceeded = true;
             try {
                 updated = reconcilePrimaryAnchor(server, updated, settings);
@@ -291,22 +291,22 @@ public final class OrbitalWeaponSavedData extends SavedData {
                                    MinecraftServer server,
                                    UUID weaponId,
                                    UUID actorId,
-                                   long celestialEnergy,
+                                   long stellarFlux,
                                    long aeEnergy) {
         requireServerThread(server);
-        OrbitalWeaponRecord current = requireWeapon(weaponId);
-        if (!current.canPerform(actorId, OrbitalWeaponAction.FIRE)) {
+        StellarErasureDeviceRecord current = requireWeapon(weaponId);
+        if (!current.canPerform(actorId, StellarErasureDeviceAction.FIRE)) {
             throw new SecurityException("Player " + actorId + " cannot fire orbital weapon " + weaponId);
         }
         if (!current.allowsNewAttacks()) {
             return false;
         }
-        if (!current.reserve().canAfford(celestialEnergy, aeEnergy)) {
+        if (!current.reserve().canAfford(stellarFlux, aeEnergy)) {
             return false;
         }
-        OrbitalEnergyReserve debitedReserve = current.reserve().withDebit(celestialEnergy, aeEnergy);
-        OrbitalWeaponRecord updated = current.withReserve(debitedReserve)
-                .withLifecycle(current.lifecycle().afterDebit(debitedReserve, DataEnergisticsConfiguration.INSTANCE.orbitalWeapon));
+        OrbitalEnergyReserve debitedReserve = current.reserve().withDebit(stellarFlux, aeEnergy);
+        StellarErasureDeviceRecord updated = current.withReserve(debitedReserve)
+                .withLifecycle(current.lifecycle().afterDebit(debitedReserve, DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice));
         this.weapons.put(weaponId, updated);
         setDirty();
         return true;
@@ -319,14 +319,14 @@ public final class OrbitalWeaponSavedData extends SavedData {
                                      MinecraftServer server,
                                      UUID weaponId,
                                      UUID actorId,
-                                     long celestialEnergy,
+                                     long stellarFlux,
                                      long aeEnergy) {
         requireServerThread(server);
-        OrbitalWeaponRecord current = requireWeapon(weaponId);
-        if (!current.canPerform(actorId, OrbitalWeaponAction.CANCEL_WARNING_ATTACK)) {
+        StellarErasureDeviceRecord current = requireWeapon(weaponId);
+        if (!current.canPerform(actorId, StellarErasureDeviceAction.CANCEL_WARNING_ATTACK)) {
             throw new SecurityException("Player " + actorId + " cannot cancel orbital weapon " + weaponId);
         }
-        OrbitalWeaponRecord updated = current.withReserve(current.reserve().withCredit(celestialEnergy, aeEnergy));
+        StellarErasureDeviceRecord updated = current.withReserve(current.reserve().withCredit(stellarFlux, aeEnergy));
         this.weapons.put(weaponId, updated);
         setDirty();
     }
@@ -335,11 +335,11 @@ public final class OrbitalWeaponSavedData extends SavedData {
     public void refundFaultedReserve(
                                      MinecraftServer server,
                                      UUID weaponId,
-                                     long celestialEnergy,
+                                     long stellarFlux,
                                      long aeEnergy) {
         requireServerThread(server);
-        OrbitalWeaponRecord current = requireWeapon(weaponId);
-        OrbitalWeaponRecord updated = current.withReserve(current.reserve().withCredit(celestialEnergy, aeEnergy));
+        StellarErasureDeviceRecord current = requireWeapon(weaponId);
+        StellarErasureDeviceRecord updated = current.withReserve(current.reserve().withCredit(stellarFlux, aeEnergy));
         this.weapons.put(weaponId, updated);
         setDirty();
     }
@@ -352,7 +352,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
                                   UUID weaponId,
                                   OrbitalEndpointLocation location) {
         requireServerThread(server);
-        OrbitalWeaponRecord current = requireWeapon(weaponId);
+        StellarErasureDeviceRecord current = requireWeapon(weaponId);
         UUID indexedWeaponId = this.endpointIndex.get(location);
         boolean recorded = current.endpoints().containsKey(location);
         if (recorded != weaponId.equals(indexedWeaponId)) {
@@ -362,10 +362,10 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return false;
         }
 
-        OrbitalWeaponRecord updated = current.withoutEndpoint(location);
+        StellarErasureDeviceRecord updated = current.withoutEndpoint(location);
         this.endpointIndex.remove(location);
         this.weapons.put(weaponId, updated);
-        updated = reconcilePrimaryAnchor(server, updated, DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
+        updated = reconcilePrimaryAnchor(server, updated, DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice);
         this.weapons.put(weaponId, updated);
         setDirty();
         return true;
@@ -382,8 +382,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
                                        OrbitalEndpointLocation location,
                                        int priority) {
         requireServerThread(server);
-        OrbitalWeaponRecord current = requireWeapon(weaponId);
-        if (!current.canPerform(actorId, OrbitalWeaponAction.ORDER_ENDPOINTS)) {
+        StellarErasureDeviceRecord current = requireWeapon(weaponId);
+        if (!current.canPerform(actorId, StellarErasureDeviceAction.ORDER_ENDPOINTS)) {
             throw new SecurityException("Player " + actorId + " cannot order endpoints for orbital weapon " + weaponId);
         }
         if (priority < 0 || priority >= current.endpoints().size()) {
@@ -415,7 +415,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return false;
         }
 
-        OrbitalWeaponRecord updated = new OrbitalWeaponRecord(
+        StellarErasureDeviceRecord updated = new StellarErasureDeviceRecord(
                 current.weaponId(),
                 current.ownerId(),
                 current.delegatedRoles(),
@@ -439,8 +439,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
                                        UUID weaponId,
                                        OrbitalEndpointLocation location) {
         requireServerThread(server);
-        OrbitalWeaponRecord current = requireWeapon(weaponId);
-        if (!current.canPerform(actorId, OrbitalWeaponAction.SELECT_PRIMARY_ANCHOR)) {
+        StellarErasureDeviceRecord current = requireWeapon(weaponId);
+        if (!current.canPerform(actorId, StellarErasureDeviceAction.SELECT_PRIMARY_ANCHOR)) {
             throw new SecurityException("Player " + actorId + " cannot select the primary anchor for orbital weapon " + weaponId);
         }
         OrbitalEndpointRecord endpoint = current.endpoints().get(location);
@@ -454,12 +454,12 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return true;
         }
 
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
-        OrbitalWeaponLifecycle lifecycle = current.lifecycle();
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
+        StellarErasureDeviceLifecycle lifecycle = current.lifecycle();
         if (lifecycle.hasProjection()) {
             lifecycle = lifecycle.beginRedeployment(settings.redeploymentTicks);
         }
-        OrbitalWeaponRecord updated = current.withPrimaryAnchor(location).withLifecycle(lifecycle);
+        StellarErasureDeviceRecord updated = current.withPrimaryAnchor(location).withLifecycle(lifecycle);
         this.weapons.put(weaponId, updated);
         setDirty();
         return true;
@@ -468,7 +468,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     /**
      * Finds the weapon owned by a player.
      */
-    public Optional<OrbitalWeaponRecord> ownedBy(UUID ownerId) {
+    public Optional<StellarErasureDeviceRecord> ownedBy(UUID ownerId) {
         UUID weaponId = this.ownerIndex.get(ownerId);
         return weaponId == null ? Optional.empty() : Optional.of(requireWeapon(weaponId));
     }
@@ -476,7 +476,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     /**
      * Returns every owned or delegated weapon visible to a player in stable weapon-ID order.
      */
-    public List<OrbitalWeaponRecord> accessibleTo(UUID playerId) {
+    public List<StellarErasureDeviceRecord> accessibleTo(UUID playerId) {
         return accessibleSelection(playerId).weapons();
     }
 
@@ -502,9 +502,9 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (ownedWeaponId != null) {
             weaponIds.add(ownedWeaponId);
         }
-        List<OrbitalWeaponRecord> accessible = weaponIds.stream()
+        List<StellarErasureDeviceRecord> accessible = weaponIds.stream()
                 .map(this::requireWeapon)
-                .sorted(Comparator.comparing(OrbitalWeaponRecord::weaponId))
+                .sorted(Comparator.comparing(StellarErasureDeviceRecord::weaponId))
                 .toList();
         UUID remembered = this.lastSelectedWeaponByPlayer.get(playerId);
         UUID selected = remembered != null && weaponIds.contains(remembered) ? remembered :
@@ -529,7 +529,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         requireServerThread(server);
         AccessibleWeaponSelection selection = accessibleSelection(playerId);
         List<UUID> accessible = selection.weapons().stream()
-                .map(OrbitalWeaponRecord::weaponId)
+                .map(StellarErasureDeviceRecord::weaponId)
                 .toList();
         if (accessible.isEmpty()) {
             if (this.lastSelectedWeaponByPlayer.remove(playerId) != null) {
@@ -575,11 +575,11 @@ public final class OrbitalWeaponSavedData extends SavedData {
     /** Server-thread rename transaction. Only the current owner can rename an existing weapon. */
     public boolean rename(MinecraftServer server, UUID weaponId, UUID actorId, String name) {
         requireServerThread(server);
-        OrbitalWeaponRecord current = this.weapons.get(weaponId);
+        StellarErasureDeviceRecord current = this.weapons.get(weaponId);
         if (current == null || !current.ownerId().equals(actorId)) {
             return false;
         }
-        OrbitalWeaponRecord updated = current.withName(name);
+        StellarErasureDeviceRecord updated = current.withName(name);
         if (!updated.equals(current)) {
             this.weapons.put(weaponId, updated);
             setDirty();
@@ -597,14 +597,14 @@ public final class OrbitalWeaponSavedData extends SavedData {
                           UUID playerId,
                           OrbitalAccessRole role) {
         requireServerThread(server);
-        OrbitalWeaponRecord current = requireAuthorizedOwner(weaponId, actorId);
+        StellarErasureDeviceRecord current = requireAuthorizedOwner(weaponId, actorId);
         ObjectSet<UUID> accessibleWeaponIds = this.accessIndex.get(playerId);
         boolean indexed = accessibleWeaponIds != null && accessibleWeaponIds.contains(weaponId);
         if (current.delegatedRoles().containsKey(playerId) != indexed) {
             throw new IllegalStateException("Access index is inconsistent for weapon " + weaponId);
         }
 
-        OrbitalWeaponRecord updated = current.withRole(playerId, role);
+        StellarErasureDeviceRecord updated = current.withRole(playerId, role);
         if (updated == current) {
             return;
         }
@@ -625,14 +625,14 @@ public final class OrbitalWeaponSavedData extends SavedData {
                        UUID actorId,
                        UUID playerId) {
         requireServerThread(server);
-        OrbitalWeaponRecord current = requireAuthorizedOwner(weaponId, actorId);
+        StellarErasureDeviceRecord current = requireAuthorizedOwner(weaponId, actorId);
         ObjectSet<UUID> accessibleWeaponIds = this.accessIndex.get(playerId);
         boolean indexed = accessibleWeaponIds != null && accessibleWeaponIds.contains(weaponId);
         if (current.delegatedRoles().containsKey(playerId) != indexed) {
             throw new IllegalStateException("Access index is inconsistent for weapon " + weaponId);
         }
 
-        OrbitalWeaponRecord updated = current.withoutRole(playerId);
+        StellarErasureDeviceRecord updated = current.withoutRole(playerId);
         if (updated == current) {
             return;
         }
@@ -657,8 +657,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
                                                                        UUID recipientId) {
         requireServerThread(server);
         purgeExpiredTransfers(server);
-        OrbitalWeaponRecord current = requireWeapon(weaponId);
-        if (!current.canPerform(actorId, OrbitalWeaponAction.TRANSFER_OWNERSHIP)) {
+        StellarErasureDeviceRecord current = requireWeapon(weaponId);
+        if (!current.canPerform(actorId, StellarErasureDeviceAction.TRANSFER_OWNERSHIP)) {
             throw new SecurityException("Player " + actorId + " cannot transfer orbital weapon " + weaponId);
         }
         if (recipientId.equals(current.ownerId()) || transferParticipantOffline(server, current.ownerId(), recipientId) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().isRedeploying() || OrbitalAttackSavedData.get(server).hasOwnershipTransferBlockingState(weaponId)) {
@@ -687,7 +687,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (offer == null || !offer.recipientId().equals(recipientId)) {
             return false;
         }
-        OrbitalWeaponRecord current = this.weapons.get(offer.weaponId());
+        StellarErasureDeviceRecord current = this.weapons.get(offer.weaponId());
         if (current == null || !current.ownerId().equals(offer.currentOwnerId()) || transferParticipantOffline(server, offer.currentOwnerId(), recipientId) || this.ownerIndex.containsKey(recipientId) || current.lifecycle().isRedeploying() || OrbitalAttackSavedData.get(server).hasOwnershipTransferBlockingState(offer.weaponId())) {
             this.ownershipTransfers.remove(transferId);
             setDirty();
@@ -697,7 +697,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         Map<UUID, OrbitalAccessRole> roles = new Object2ObjectOpenHashMap<>(current.delegatedRoles());
         roles.remove(recipientId);
         roles.put(current.ownerId(), OrbitalAccessRole.OPERATOR);
-        OrbitalWeaponRecord updated = new OrbitalWeaponRecord(
+        StellarErasureDeviceRecord updated = new StellarErasureDeviceRecord(
                 current.weaponId(),
                 recipientId,
                 roles,
@@ -721,8 +721,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
      */
     public boolean retire(MinecraftServer server, UUID actorId, UUID weaponId) {
         requireServerThread(server);
-        OrbitalWeaponRecord current = requireWeapon(weaponId);
-        if (!current.canPerform(actorId, OrbitalWeaponAction.RETIRE)) {
+        StellarErasureDeviceRecord current = requireWeapon(weaponId);
+        if (!current.canPerform(actorId, StellarErasureDeviceAction.RETIRE)) {
             throw new SecurityException("Player " + actorId + " cannot retire orbital weapon " + weaponId);
         }
         if (current.lifecycle().hasProjection() || !current.reserve().equals(OrbitalEnergyReserve.empty()) || !current.endpoints().isEmpty() || OrbitalAttackSavedData.get(server).hasRetirementBlockingState(weaponId)) {
@@ -740,20 +740,20 @@ public final class OrbitalWeaponSavedData extends SavedData {
     /** Rebuilds owner and delegated-access indexes from the authoritative weapon records after an admin repair. */
     public int repairIndexes(MinecraftServer server) {
         requireServerThread(server);
-        List<OrbitalWeaponRecord> ordered = this.weapons.values().stream()
-                .sorted(Comparator.comparing(OrbitalWeaponRecord::weaponId))
+        List<StellarErasureDeviceRecord> ordered = this.weapons.values().stream()
+                .sorted(Comparator.comparing(StellarErasureDeviceRecord::weaponId))
                 .toList();
         this.ownerIndex.clear();
         this.accessIndex.clear();
         this.endpointIndex.clear();
-        Map<UUID, OrbitalWeaponRecord> repaired = new Object2ObjectLinkedOpenHashMap<>();
+        Map<UUID, StellarErasureDeviceRecord> repaired = new Object2ObjectLinkedOpenHashMap<>();
         int removed = 0;
-        for (OrbitalWeaponRecord weapon : ordered) {
+        for (StellarErasureDeviceRecord weapon : ordered) {
             if (this.ownerIndex.containsKey(weapon.ownerId())) {
                 removed++;
                 continue;
             }
-            OrbitalWeaponRecord normalized = filterConflictingEndpoints(weapon);
+            StellarErasureDeviceRecord normalized = filterConflictingEndpoints(weapon);
             repaired.put(normalized.weaponId(), normalized);
             this.ownerIndex.put(normalized.ownerId(), normalized.weaponId());
             addAccessIndex(normalized);
@@ -765,7 +765,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         this.weapons.putAll(repaired);
         this.ownershipTransfers.entrySet().removeIf(entry -> {
             OrbitalOwnershipTransfer offer = entry.getValue();
-            OrbitalWeaponRecord weapon = this.weapons.get(offer.weaponId());
+            StellarErasureDeviceRecord weapon = this.weapons.get(offer.weaponId());
             return weapon == null || !weapon.ownerId().equals(offer.currentOwnerId());
         });
         setDirty();
@@ -774,7 +774,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        OrbitalWeaponNbtCodec.save(tag, this.weapons.values());
+        StellarErasureDeviceNbtCodec.save(tag, this.weapons.values());
         ListTag selections = new ListTag();
         this.lastSelectedWeaponByPlayer.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
@@ -801,9 +801,9 @@ public final class OrbitalWeaponSavedData extends SavedData {
         return tag;
     }
 
-    private static OrbitalWeaponSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
-        OrbitalWeaponSavedData data = new OrbitalWeaponSavedData();
-        for (OrbitalWeaponRecord weapon : OrbitalWeaponNbtCodec.load(tag)) {
+    private static StellarErasureDeviceSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
+        StellarErasureDeviceSavedData data = new StellarErasureDeviceSavedData();
+        for (StellarErasureDeviceRecord weapon : StellarErasureDeviceNbtCodec.load(tag)) {
             if (data.weapons.containsKey(weapon.weaponId())) {
                 LOGGER.warn("Ignoring duplicate orbital weapon id {}", weapon.weaponId());
                 continue;
@@ -825,7 +825,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 }
                 UUID playerId = selection.getUUID(PLAYER_ID_TAG);
                 UUID weaponId = selection.getUUID(WEAPON_ID_TAG);
-                OrbitalWeaponRecord weapon = data.weapons.get(weaponId);
+                StellarErasureDeviceRecord weapon = data.weapons.get(weaponId);
                 if (weapon != null && (weapon.ownerId().equals(playerId) || weapon.delegatedRoles().containsKey(playerId))) {
                     data.lastSelectedWeaponByPlayer.put(playerId, weaponId);
                 }
@@ -844,7 +844,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
                             transfer.getUUID(PLAYER_ID_TAG),
                             transfer.getUUID(RECIPIENT_ID_TAG),
                             transfer.getLong(EXPIRES_AT_TAG));
-                    OrbitalWeaponRecord weapon = data.weapons.get(offer.weaponId());
+                    StellarErasureDeviceRecord weapon = data.weapons.get(offer.weaponId());
                     if (weapon != null && weapon.ownerId().equals(offer.currentOwnerId())) {
                         data.ownershipTransfers.putIfAbsent(offer.transferId(), offer);
                     }
@@ -856,7 +856,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         return data;
     }
 
-    private void putRecord(OrbitalWeaponRecord weapon) {
+    private void putRecord(StellarErasureDeviceRecord weapon) {
         if (this.weapons.containsKey(weapon.weaponId())) {
             throw new IllegalStateException("Duplicate orbital weapon id " + weapon.weaponId());
         }
@@ -879,13 +879,13 @@ public final class OrbitalWeaponSavedData extends SavedData {
         }
     }
 
-    private void addAccessIndex(OrbitalWeaponRecord weapon) {
+    private void addAccessIndex(StellarErasureDeviceRecord weapon) {
         for (UUID playerId : weapon.delegatedRoles().keySet()) {
             this.accessIndex.computeIfAbsent(playerId, ignored -> new ObjectOpenHashSet<>()).add(weapon.weaponId());
         }
     }
 
-    private void removeAccessIndex(OrbitalWeaponRecord weapon) {
+    private void removeAccessIndex(StellarErasureDeviceRecord weapon) {
         for (UUID playerId : weapon.delegatedRoles().keySet()) {
             ObjectSet<UUID> weaponIds = this.accessIndex.get(playerId);
             if (weaponIds == null) {
@@ -909,7 +909,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
                                                                                 ServerLevel level,
                                                                                 long gameTime,
                                                                                 int projectionY,
-                                                                                OrbitalWeaponRecord weapon,
+                                                                                StellarErasureDeviceRecord weapon,
                                                                                 OrbitalEndpointLocation anchor) {
         OrbitalEndpointRecord endpoint = weapon.endpoints().get(anchor);
         // World rendering is a projection of persisted weapon state. AE power controls maintenance and firing,
@@ -933,7 +933,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
      * Chooses the persisted beacon first and falls back to a control console in the viewed dimension. A console-only
      * weapon is still a complete, usable weapon and must have a visible orbital body while it has no beacon yet.
      */
-    private static Optional<ProjectionAnchor> projectionAnchor(OrbitalWeaponRecord weapon, ResourceLocation dimensionId) {
+    private static Optional<ProjectionAnchor> projectionAnchor(StellarErasureDeviceRecord weapon, ResourceLocation dimensionId) {
         OrbitalEndpointLocation primary = weapon.primaryAnchor();
         if (primary != null && primary.dimensionId().equals(dimensionId) && weapon.endpoints().containsKey(primary)) {
             return Optional.of(new ProjectionAnchor(weapon, primary));
@@ -946,11 +946,11 @@ public final class OrbitalWeaponSavedData extends SavedData {
     }
 
     /** Applies the first online beacon when a newly bound endpoint has not got an anchor yet. */
-    private OrbitalWeaponRecord ensurePrimaryAnchor(MinecraftServer server, OrbitalWeaponRecord weapon) {
-        OrbitalWeaponRecord updated = reconcilePrimaryAnchor(
+    private StellarErasureDeviceRecord ensurePrimaryAnchor(MinecraftServer server, StellarErasureDeviceRecord weapon) {
+        StellarErasureDeviceRecord updated = reconcilePrimaryAnchor(
                 server,
                 weapon,
-                DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
+                DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice);
         if (updated != weapon) {
             this.weapons.put(updated.weaponId(), updated);
             setDirty();
@@ -963,10 +963,10 @@ public final class OrbitalWeaponSavedData extends SavedData {
      * unusable. A recovered old beacon is deliberately not selected again because the record now points at the new
      * owner-approved failover location.
      */
-    private static OrbitalWeaponRecord reconcilePrimaryAnchor(
+    private static StellarErasureDeviceRecord reconcilePrimaryAnchor(
                                                               MinecraftServer server,
-                                                              OrbitalWeaponRecord weapon,
-                                                              DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                                              StellarErasureDeviceRecord weapon,
+                                                              DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         OrbitalEndpointRecord currentAnchor = weapon.primaryAnchor() == null ? null : weapon.endpoints().get(weapon.primaryAnchor());
         if (currentAnchor != null && currentAnchor.kind() == OrbitalEndpointKind.UPLINK_BEACON && OrbitalEndpointAvailability.isOnline(server, weapon.weaponId(), currentAnchor)) {
             return weapon;
@@ -979,9 +979,9 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return weapon;
         }
 
-        OrbitalWeaponLifecycle lifecycle = weapon.lifecycle();
+        StellarErasureDeviceLifecycle lifecycle = weapon.lifecycle();
         if (fallback == null && lifecycle.hasProjection()) {
-            lifecycle = OrbitalWeaponLifecycle.dormant();
+            lifecycle = StellarErasureDeviceLifecycle.dormant();
         } else if (fallback != null && lifecycle.hasProjection()) {
             lifecycle = lifecycle.beginRedeployment(settings.redeploymentTicks);
         }
@@ -990,7 +990,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
 
     private static @Nullable OrbitalEndpointLocation findOnlineBeacon(
                                                                       MinecraftServer server,
-                                                                      OrbitalWeaponRecord weapon) {
+                                                                      StellarErasureDeviceRecord weapon) {
         return weapon.endpoints().values().stream()
                 .filter(endpoint -> endpoint.kind() == OrbitalEndpointKind.UPLINK_BEACON)
                 .sorted(ENDPOINT_PRIORITY_ORDER)
@@ -1000,9 +1000,9 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 .orElse(null);
     }
 
-    private record ProjectionAnchor(OrbitalWeaponRecord weapon, OrbitalEndpointLocation location) {}
+    private record ProjectionAnchor(StellarErasureDeviceRecord weapon, OrbitalEndpointLocation location) {}
 
-    private OrbitalWeaponRecord filterConflictingEndpoints(OrbitalWeaponRecord weapon) {
+    private StellarErasureDeviceRecord filterConflictingEndpoints(StellarErasureDeviceRecord weapon) {
         Map<OrbitalEndpointLocation, OrbitalEndpointRecord> acceptedEndpoints = new Object2ObjectLinkedOpenHashMap<>();
         for (OrbitalEndpointRecord endpoint : weapon.endpoints().values()) {
             UUID indexedWeaponId = this.endpointIndex.get(endpoint.location());
@@ -1019,7 +1019,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
         if (acceptedEndpoints.size() == weapon.endpoints().size()) {
             return weapon;
         }
-        return new OrbitalWeaponRecord(
+        return new StellarErasureDeviceRecord(
                 weapon.weaponId(),
                 weapon.ownerId(),
                 weapon.delegatedRoles(),
@@ -1032,22 +1032,22 @@ public final class OrbitalWeaponSavedData extends SavedData {
 
     /** Applies one deployed-tick maintenance debit without allowing either independent reserve to go negative. */
     private static OrbitalEnergyReserve applyDeploymentMaintenance(
-                                                                   OrbitalWeaponRecord weapon,
-                                                                   DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                                                   StellarErasureDeviceRecord weapon,
+                                                                   DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         if (!weapon.lifecycle().requiresMaintenance()) {
             return weapon.reserve();
         }
-        long celestialDebit = Math.min(weapon.reserve().celestialEnergy(), settings.celestialEnergyUpkeepPerTick);
+        long celestialDebit = Math.min(weapon.reserve().stellarFlux(), settings.stellarFluxUpkeepPerTick);
         long aeDebit = Math.min(weapon.reserve().aeEnergy(), settings.aeEnergyUpkeepPerTick);
         if (celestialDebit == 0L && aeDebit == 0L) {
             return weapon.reserve();
         }
         return new OrbitalEnergyReserve(
-                weapon.reserve().celestialEnergy() - celestialDebit,
+                weapon.reserve().stellarFlux() - celestialDebit,
                 weapon.reserve().aeEnergy() - aeDebit);
     }
 
-    private Optional<OrbitalWeaponRecord> findCompatibleBoundEndpoint(
+    private Optional<StellarErasureDeviceRecord> findCompatibleBoundEndpoint(
                                                                       UUID ownerId,
                                                                       OrbitalEndpointLocation location,
                                                                       OrbitalEndpointKind kind) {
@@ -1056,7 +1056,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return Optional.empty();
         }
 
-        OrbitalWeaponRecord boundWeapon = requireWeapon(boundWeaponId);
+        StellarErasureDeviceRecord boundWeapon = requireWeapon(boundWeaponId);
         OrbitalEndpointRecord boundEndpoint = boundWeapon.endpoints().get(location);
         if (boundEndpoint == null) {
             throw new IllegalStateException("Endpoint index is inconsistent at " + location);
@@ -1067,15 +1067,15 @@ public final class OrbitalWeaponSavedData extends SavedData {
         return Optional.of(boundWeapon);
     }
 
-    private OrbitalWeaponRecord addEndpoint(
-                                            OrbitalWeaponRecord current,
+    private StellarErasureDeviceRecord addEndpoint(
+                                            StellarErasureDeviceRecord current,
                                             OrbitalEndpointLocation location,
                                             OrbitalEndpointKind kind) {
         if (current.endpoints().containsKey(location)) {
             throw new IllegalStateException("Endpoint index is inconsistent at " + location);
         }
 
-        OrbitalWeaponRecord updated = current.withEndpoint(createEndpoint(current, location, kind));
+        StellarErasureDeviceRecord updated = current.withEndpoint(createEndpoint(current, location, kind));
         this.weapons.put(updated.weaponId(), updated);
         this.endpointIndex.put(location, updated.weaponId());
         setDirty();
@@ -1083,7 +1083,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     }
 
     private static OrbitalEndpointRecord createEndpoint(
-                                                        OrbitalWeaponRecord weapon,
+                                                        StellarErasureDeviceRecord weapon,
                                                         OrbitalEndpointLocation location,
                                                         OrbitalEndpointKind kind) {
         requireEndpointCapacity(weapon, location);
@@ -1101,9 +1101,9 @@ public final class OrbitalWeaponSavedData extends SavedData {
     }
 
     private static void requireEndpointCapacity(
-                                                OrbitalWeaponRecord weapon,
+                                                StellarErasureDeviceRecord weapon,
                                                 OrbitalEndpointLocation location) {
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         if (weapon.endpoints().size() >= settings.maxEndpointsPerWeapon) {
             throw new OrbitalEndpointLimitException(
                     "Orbital weapon " + weapon.weaponId() + " has reached its endpoint limit");
@@ -1125,16 +1125,16 @@ public final class OrbitalWeaponSavedData extends SavedData {
         return weaponId;
     }
 
-    private OrbitalWeaponRecord requireAuthorizedOwner(UUID weaponId, UUID actorId) {
-        OrbitalWeaponRecord weapon = requireWeapon(weaponId);
-        if (!weapon.canPerform(actorId, OrbitalWeaponAction.MANAGE_AUTHORIZATIONS)) {
+    private StellarErasureDeviceRecord requireAuthorizedOwner(UUID weaponId, UUID actorId) {
+        StellarErasureDeviceRecord weapon = requireWeapon(weaponId);
+        if (!weapon.canPerform(actorId, StellarErasureDeviceAction.MANAGE_AUTHORIZATIONS)) {
             throw new SecurityException("Player " + actorId + " cannot manage authorizations for weapon " + weaponId);
         }
         return weapon;
     }
 
-    private OrbitalWeaponRecord requireWeapon(UUID weaponId) {
-        OrbitalWeaponRecord weapon = this.weapons.get(weaponId);
+    private StellarErasureDeviceRecord requireWeapon(UUID weaponId) {
+        StellarErasureDeviceRecord weapon = this.weapons.get(weaponId);
         if (weapon == null) {
             throw new IllegalStateException("Unknown orbital weapon " + weaponId);
         }

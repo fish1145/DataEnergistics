@@ -88,7 +88,7 @@ public record OrbitalAttackRecord(
                 false,
                 0,
                 cost.cooldownTicks(),
-                cost.celestialEnergy(),
+                cost.stellarFlux(),
                 cost.aeEnergy(),
                 damageExemptions);
     }

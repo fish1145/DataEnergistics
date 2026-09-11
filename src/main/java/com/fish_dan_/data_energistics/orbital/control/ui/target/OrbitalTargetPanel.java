@@ -62,7 +62,7 @@ public final class OrbitalTargetPanel {
         content.addChildren(caption("fire_control.y_mode", 2, 86, 40), targetYMode,
                 caption("fire_control.y", 144, 86, 12), targetYValue);
 
-        List<Integer> radii = radiusOptions(DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
+        List<Integer> radii = radiusOptions(DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice);
         radius = OrbitalControlUiTheme.choices("orbital_fire_control_radius", 44, 0, 64, radii, radii.getFirst(),
                 value -> Component.translatable(PREFIX + "fire_control.radius.blocks", value));
         depth = OrbitalControlUiTheme.choices("orbital_fire_control_depth", 150, 0, 72,
@@ -114,7 +114,7 @@ public final class OrbitalTargetPanel {
         return field;
     }
 
-    private static List<Integer> radiusOptions(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+    private static List<Integer> radiusOptions(DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         int minimum = settings.directedEnergyMinimumRadius;
         int maximum = settings.directedEnergyMaximumRadius;
         int step = settings.directedEnergyRadiusStep;

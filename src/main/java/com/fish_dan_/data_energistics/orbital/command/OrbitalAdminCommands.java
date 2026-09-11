@@ -4,12 +4,12 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackRecord;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalOwnershipActionDispatcher;
-import com.fish_dan_.data_energistics.orbital.control.OrbitalWeaponAdministrationDispatcher;
+import com.fish_dan_.data_energistics.orbital.control.StellarErasureDeviceAdministrationDispatcher;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointChunkTickets;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalOwnershipTransfer;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -154,7 +154,7 @@ public final class OrbitalAdminCommands {
         }
         try {
             OrbitalEndpointLocation location = endpointLocation(dimensionId, x, y, z);
-            if (!OrbitalWeaponAdministrationDispatcher.setEndpointPriority(owner, weaponId, location, priority)) {
+            if (!StellarErasureDeviceAdministrationDispatcher.setEndpointPriority(owner, weaponId, location, priority)) {
                 source.sendFailure(Component.translatable(
                         "commands.data_energistics.orbital.endpoint_priority_rejected"));
                 return 0;
@@ -191,7 +191,7 @@ public final class OrbitalAdminCommands {
         }
         try {
             OrbitalEndpointLocation location = endpointLocation(dimensionId, x, y, z);
-            if (!OrbitalWeaponAdministrationDispatcher.selectPrimaryAnchor(owner, weaponId, location)) {
+            if (!StellarErasureDeviceAdministrationDispatcher.selectPrimaryAnchor(owner, weaponId, location)) {
                 source.sendFailure(Component.translatable(
                         "commands.data_energistics.orbital.primary_anchor_rejected"));
                 return 0;
@@ -229,7 +229,7 @@ public final class OrbitalAdminCommands {
                 case "observer" -> OrbitalAccessRole.OBSERVER;
                 default -> throw new IllegalArgumentException("Unknown orbital role: " + roleName);
             };
-            if (!OrbitalWeaponAdministrationDispatcher.authorize(owner, weaponId, playerId, role)) {
+            if (!StellarErasureDeviceAdministrationDispatcher.authorize(owner, weaponId, playerId, role)) {
                 source.sendFailure(Component.translatable(
                         "commands.data_energistics.orbital.authorization_rejected"));
                 return 0;
@@ -259,7 +259,7 @@ public final class OrbitalAdminCommands {
             return 0;
         }
         try {
-            if (!OrbitalWeaponAdministrationDispatcher.revoke(owner, weaponId, playerId)) {
+            if (!StellarErasureDeviceAdministrationDispatcher.revoke(owner, weaponId, playerId)) {
                 source.sendFailure(Component.translatable(
                         "commands.data_energistics.orbital.authorization_rejected"));
                 return 0;
@@ -479,7 +479,7 @@ public final class OrbitalAdminCommands {
 
     private static int repairOwnerIndex(CommandSourceStack source) {
         try {
-            int removed = OrbitalWeaponSavedData.get(source.getServer()).repairIndexes(source.getServer());
+            int removed = StellarErasureDeviceSavedData.get(source.getServer()).repairIndexes(source.getServer());
             source.sendSuccess(
                     () -> Component.translatable("commands.data_energistics.orbital.repair_success", removed),
                     true);

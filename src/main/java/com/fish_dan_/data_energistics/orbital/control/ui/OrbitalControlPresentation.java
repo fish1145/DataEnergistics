@@ -10,7 +10,7 @@ import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnap
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalControlFeedback;
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlSessionSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlSessionSnapshot.PreviewDetails;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycleState;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -77,10 +77,10 @@ public final class OrbitalControlPresentation {
         return lifecycleState(weapon);
     }
 
-    public static Component celestialEnergy(WeaponEntry weapon) {
+    public static Component stellarFlux(WeaponEntry weapon) {
         return Component.translatable(
                 PREFIX + "overview.resource.celestial",
-                formatAmount(weapon.celestialEnergy()));
+                formatAmount(weapon.stellarFlux()));
     }
 
     public static Component aeEnergy(WeaponEntry weapon) {
@@ -155,7 +155,7 @@ public final class OrbitalControlPresentation {
                 .append(Component.literal("\n"))
                 .append(Component.translatable(
                         "screen.data_energistics.orbital_control_hud.resources",
-                        formatAmount(weapon.celestialEnergy()),
+                        formatAmount(weapon.stellarFlux()),
                         formatAmount(weapon.aeEnergy())));
         if (weapon.attacks().isEmpty()) {
             return result
@@ -217,11 +217,11 @@ public final class OrbitalControlPresentation {
         }
         status.append("\n").append(Component.translatable(
                 PREFIX + "preview.cost",
-                estimate.cost().celestialEnergy(),
+                estimate.cost().stellarFlux(),
                 estimate.cost().aeEnergy()));
         status.append("\n").append(Component.translatable(
                 PREFIX + "preview.reserve",
-                estimate.availableCelestialEnergy(),
+                estimate.availableStellarFlux(),
                 estimate.availableAeEnergy(),
                 Component.translatable(estimate.affordable() ?
                         PREFIX + "preview.affordable" : PREFIX + "preview.unaffordable")));
@@ -259,7 +259,7 @@ public final class OrbitalControlPresentation {
 
     private static Component lifecycleState(WeaponEntry weapon) {
         String key = PREFIX + "lifecycle." + weapon.lifecycleState().name().toLowerCase(Locale.ROOT);
-        return weapon.lifecycleState() == OrbitalWeaponLifecycleState.RESERVE_GRACE ?
+        return weapon.lifecycleState() == StellarErasureDeviceLifecycleState.RESERVE_GRACE ?
                 Component.translatable(key, weapon.graceTicksRemaining()) : Component.translatable(key);
     }
 

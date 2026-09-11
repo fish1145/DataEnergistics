@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.provisioning;
 
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
 
 import net.minecraft.server.MinecraftServer;
 
@@ -16,7 +16,7 @@ import java.util.UUID;
  * lifetime of the supplied server. Inputs and the returned record are never {@code null}.
  * </p>
  */
-public interface OrbitalWeaponProvisioner {
+public interface StellarErasureDeviceProvisioner {
 
     /**
      * Provisions the weapon owned by {@code ownerId} at {@code sourceLocation}.
@@ -33,7 +33,7 @@ public interface OrbitalWeaponProvisioner {
      * @param sourceLocation dimension-qualified location of that structure
      * @return the immutable weapon snapshot after endpoint registration
      */
-    OrbitalWeaponRecord provision(
+    StellarErasureDeviceRecord provision(
                                   MinecraftServer server,
                                   UUID ownerId,
                                   OrbitalEndpointLocation sourceLocation);

@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.orbital.astronomy.AstronomicalObservatoryBlock;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.astronomy.AstronomyDimensionRules;
-import com.fish_dan_.data_energistics.orbital.astronomy.CelestialEnergyGridTransaction;
+import com.fish_dan_.data_energistics.orbital.astronomy.StellarFluxGridTransaction;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
@@ -25,7 +25,7 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * Performs the low-tier observatory's server-authoritative AE energy-to-Celestial Energy transaction.
+ * Performs the low-tier observatory's server-authoritative AE energy-to-Stellar Flux transaction.
  */
 public final class AstronomicalObservatoryBlockEntity extends AENetworkedBlockEntity {
 
@@ -86,8 +86,8 @@ public final class AstronomicalObservatoryBlockEntity extends AENetworkedBlockEn
             return false;
         }
 
-        long celestialEnergy = AstronomyDimensionRules.celestialEnergyPerTick(serverLevel, settings);
-        if (celestialEnergy == 0L || !getMainNode().isActive()) {
+        long stellarFlux = AstronomyDimensionRules.stellarFluxPerTick(serverLevel, settings);
+        if (stellarFlux == 0L || !getMainNode().isActive()) {
             return false;
         }
         IGrid grid = getMainNode().getGrid();
@@ -95,25 +95,25 @@ public final class AstronomicalObservatoryBlockEntity extends AENetworkedBlockEn
             throw new IllegalStateException("Active astronomical observatory lost its AE grid");
         }
 
-        long inserted = CelestialEnergyGridTransaction.commit(
+        long inserted = StellarFluxGridTransaction.commit(
                 grid,
                 IActionSource.ofMachine(this),
-                celestialEnergy,
+                stellarFlux,
                 settings.lowTierAeEnergyPerTick);
-        if (inserted < celestialEnergy) {
+        if (inserted < stellarFlux) {
             if (inserted > 0L && !this.insertionMismatchLogged) {
                 Data_Energistics.LOGGER.warn(
-                        "Astronomical observatory at {} accepted only {} of {} simulated Celestial Energy",
+                        "Astronomical observatory at {} accepted only {} of {} simulated Stellar Flux",
                         this.worldPosition,
                         inserted,
-                        celestialEnergy);
+                        stellarFlux);
                 this.insertionMismatchLogged = true;
             }
             return inserted > 0L;
         }
         if (this.insertionMismatchLogged) {
             Data_Energistics.LOGGER.info(
-                    "Recovered Celestial Energy insertion for astronomical observatory at {}",
+                    "Recovered Stellar Flux insertion for astronomical observatory at {}",
                     this.worldPosition);
             this.insertionMismatchLogged = false;
         }

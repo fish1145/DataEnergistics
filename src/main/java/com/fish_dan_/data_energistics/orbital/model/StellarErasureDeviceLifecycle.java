@@ -11,12 +11,12 @@ import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
  * publish a complete record, so consumers never need to infer deployment from two mutable resource counters.
  * </p>
  */
-public record OrbitalWeaponLifecycle(
-                                     OrbitalWeaponLifecycleState state,
+public record StellarErasureDeviceLifecycle(
+                                     StellarErasureDeviceLifecycleState state,
                                      int graceTicksRemaining,
                                      int redeploymentTicksRemaining) {
 
-    public OrbitalWeaponLifecycle {
+    public StellarErasureDeviceLifecycle {
         if (graceTicksRemaining < 0 || redeploymentTicksRemaining < 0) {
             throw new IllegalArgumentException("Orbital lifecycle state is invalid");
         }
@@ -39,47 +39,47 @@ public record OrbitalWeaponLifecycle(
         }
     }
 
-    public static OrbitalWeaponLifecycle dormant() {
-        return new OrbitalWeaponLifecycle(OrbitalWeaponLifecycleState.DORMANT, 0, 0);
+    public static StellarErasureDeviceLifecycle dormant() {
+        return new StellarErasureDeviceLifecycle(StellarErasureDeviceLifecycleState.DORMANT, 0, 0);
     }
 
-    public static OrbitalWeaponLifecycle deployed() {
-        return new OrbitalWeaponLifecycle(OrbitalWeaponLifecycleState.DEPLOYED, 0, 0);
+    public static StellarErasureDeviceLifecycle deployed() {
+        return new StellarErasureDeviceLifecycle(StellarErasureDeviceLifecycleState.DEPLOYED, 0, 0);
     }
 
-    public static OrbitalWeaponLifecycle reserveGrace(int graceTicks) {
-        return graceTicks <= 0 ? dormant() : new OrbitalWeaponLifecycle(OrbitalWeaponLifecycleState.RESERVE_GRACE, graceTicks, 0);
+    public static StellarErasureDeviceLifecycle reserveGrace(int graceTicks) {
+        return graceTicks <= 0 ? dormant() : new StellarErasureDeviceLifecycle(StellarErasureDeviceLifecycleState.RESERVE_GRACE, graceTicks, 0);
     }
 
-    public static OrbitalWeaponLifecycle redeploying(int redeploymentTicks) {
-        return redeploymentTicks <= 0 ? dormant() : new OrbitalWeaponLifecycle(OrbitalWeaponLifecycleState.REDEPLOYING, 0, redeploymentTicks);
+    public static StellarErasureDeviceLifecycle redeploying(int redeploymentTicks) {
+        return redeploymentTicks <= 0 ? dormant() : new StellarErasureDeviceLifecycle(StellarErasureDeviceLifecycleState.REDEPLOYING, 0, redeploymentTicks);
     }
 
-    private static OrbitalWeaponLifecycle redeployingWithGrace(
+    private static StellarErasureDeviceLifecycle redeployingWithGrace(
                                                                int redeploymentTicks,
                                                                int graceTicks) {
         if (redeploymentTicks <= 0) {
             return dormant();
         }
-        return graceTicks <= 0 ? redeploying(redeploymentTicks) : new OrbitalWeaponLifecycle(
-                OrbitalWeaponLifecycleState.REDEPLOYING,
+        return graceTicks <= 0 ? redeploying(redeploymentTicks) : new StellarErasureDeviceLifecycle(
+                StellarErasureDeviceLifecycleState.REDEPLOYING,
                 graceTicks,
                 redeploymentTicks);
     }
 
     /** Returns whether this record may confirm a new attack. */
     public boolean allowsNewAttacks() {
-        return this.state == OrbitalWeaponLifecycleState.DEPLOYED;
+        return this.state == StellarErasureDeviceLifecycleState.DEPLOYED;
     }
 
     /** Returns whether a primary projection still exists and therefore requires an anchor and maintenance. */
     public boolean hasProjection() {
-        return this.state != OrbitalWeaponLifecycleState.DORMANT;
+        return this.state != StellarErasureDeviceLifecycleState.DORMANT;
     }
 
     /** Returns whether an anchor teardown/rebuild countdown is active. */
     public boolean isRedeploying() {
-        return this.state == OrbitalWeaponLifecycleState.REDEPLOYING;
+        return this.state == StellarErasureDeviceLifecycleState.REDEPLOYING;
     }
 
     /** Returns whether this projection is consuming its frozen reserve-grace countdown. */
@@ -96,9 +96,9 @@ public record OrbitalWeaponLifecycle(
      * Reconciles deployment after one reserve tick. This is the only place that starts, resumes or expires a
      * deployment; callers pass the already-normalized reserve and immutable configuration snapshot.
      */
-    public OrbitalWeaponLifecycle reconcile(
+    public StellarErasureDeviceLifecycle reconcile(
                                             OrbitalEnergyReserve reserve,
-                                            DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                            DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         boolean thresholdReached = reserve.meetsDeploymentThreshold(settings);
         return switch (this.state) {
             case DORMANT -> thresholdReached ? deployed() : this;
@@ -108,7 +108,7 @@ public record OrbitalWeaponLifecycle(
         };
     }
 
-    private OrbitalWeaponLifecycle reconcileRedeployment(
+    private StellarErasureDeviceLifecycle reconcileRedeployment(
                                                          OrbitalEnergyReserve reserve,
                                                          boolean thresholdReached,
                                                          int configuredGraceTicks) {
@@ -127,15 +127,15 @@ public record OrbitalWeaponLifecycle(
     }
 
     /** Immediately enters grace when an attack escrow consumes the last unit of either reserve. */
-    public OrbitalWeaponLifecycle afterDebit(OrbitalEnergyReserve reserve, DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
-        if (this.state == OrbitalWeaponLifecycleState.DEPLOYED && reserve.hasZeroResource()) {
+    public StellarErasureDeviceLifecycle afterDebit(OrbitalEnergyReserve reserve, DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
+        if (this.state == StellarErasureDeviceLifecycleState.DEPLOYED && reserve.hasZeroResource()) {
             return reserveGrace(settings.reserveGraceTicks);
         }
         return this;
     }
 
     /** Starts a server-authoritative teardown/rebuild window after the primary anchor changes. */
-    public OrbitalWeaponLifecycle beginRedeployment(int redeploymentTicks) {
+    public StellarErasureDeviceLifecycle beginRedeployment(int redeploymentTicks) {
         if (redeploymentTicks <= 0 || !hasProjection()) {
             return this;
         }

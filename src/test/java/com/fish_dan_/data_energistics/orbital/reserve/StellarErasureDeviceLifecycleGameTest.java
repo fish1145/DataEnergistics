@@ -1,14 +1,14 @@
 package com.fish_dan_.data_energistics.orbital.reserve;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycleState;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
@@ -43,7 +43,7 @@ import java.util.UUID;
 
 @GameTestHolder(Data_Energistics.MODID)
 @PrefixGameTestTemplate(false)
-public final class OrbitalWeaponLifecycleGameTest {
+public final class StellarErasureDeviceLifecycleGameTest {
 
     private static final BlockPos CONTROL_CONSOLE = new BlockPos(1, 2, 2);
     private static final BlockPos DRIVE = new BlockPos(2, 2, 2);
@@ -54,14 +54,14 @@ public final class OrbitalWeaponLifecycleGameTest {
     private static final BlockPos FINAL_TARGET = new BlockPos(35, 20, 25);
     private static final String REDEPLOYMENT_BATCH = "orbital_redeployment_reserve_grace";
     private static LifecycleConfigurationSnapshot originalConfiguration = LifecycleConfigurationSnapshot.capture(
-            DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
+            DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice);
 
-    private OrbitalWeaponLifecycleGameTest() {}
+    private StellarErasureDeviceLifecycleGameTest() {}
 
     @BeforeBatch(batch = REDEPLOYMENT_BATCH)
     public static void configureRedeploymentScenario(ServerLevel level) {
         requireServerThread(level);
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         originalConfiguration = LifecycleConfigurationSnapshot.capture(settings);
         LifecycleConfigurationSnapshot.testConfiguration().applyTo(settings);
     }
@@ -69,17 +69,17 @@ public final class OrbitalWeaponLifecycleGameTest {
     @AfterBatch(batch = REDEPLOYMENT_BATCH)
     public static void restoreRedeploymentConfiguration(ServerLevel level) {
         requireServerThread(level);
-        originalConfiguration.applyTo(DataEnergisticsConfiguration.INSTANCE.orbitalWeapon);
+        originalConfiguration.applyTo(DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice);
     }
 
-    @TestHolder("orbital_weapon_lifecycle_deploys_drains_sleeps_and_redeploys")
+    @TestHolder("stellar_erasure_device_lifecycle_deploys_drains_sleeps_and_redeploys")
     @EmptyTemplate("5")
     @GameTest(template = "empty_5x5", timeoutTicks = 400)
     public static void deploysDrainsSleepsAndRedeploys(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         ServerPlayer owner = createPlayer(level, "orbital-lifecycle-owner");
 
         placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
@@ -88,8 +88,8 @@ public final class OrbitalWeaponLifecycleGameTest {
         installInfiniteCell(helper);
 
         UUID weaponId = weapons.ownedBy(owner.getUUID()).orElseThrow().weaponId();
-        long deploymentCelestialEnergy = deploymentTarget(
-                settings.celestialEnergyCapacity,
+        long deploymentStellarFlux = deploymentTarget(
+                settings.stellarFluxCapacity,
                 settings.deploymentThreshold);
 
         helper.startSequence()
@@ -98,17 +98,17 @@ public final class OrbitalWeaponLifecycleGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "The lifecycle test must use a real powered AE endpoint"))
                 .thenExecute(() -> {
-                    OrbitalWeaponRecord dormant = weapons.find(weaponId).orElseThrow();
+                    StellarErasureDeviceRecord dormant = weapons.find(weaponId).orElseThrow();
                     helper.assertValueEqual(
                             dormant.lifecycle().state(),
-                            OrbitalWeaponLifecycleState.DORMANT,
+                            StellarErasureDeviceLifecycleState.DORMANT,
                             "A newly provisioned orbital weapon must begin dormant");
 
-                    insertCelestialEnergy(helper, deploymentCelestialEnergy);
+                    insertStellarFlux(helper, deploymentStellarFlux);
                     weapons.chargeReserves(server);
-                    OrbitalWeaponRecord partiallyCharged = weapons.find(weaponId).orElseThrow();
+                    StellarErasureDeviceRecord partiallyCharged = weapons.find(weaponId).orElseThrow();
                     helper.assertTrue(
-                            partiallyCharged.reserve().celestialEnergy() > 0L && partiallyCharged.reserve().aeEnergy() > 0L,
+                            partiallyCharged.reserve().stellarFlux() > 0L && partiallyCharged.reserve().aeEnergy() > 0L,
                             "The real endpoint must transfer both independent reserves");
                     helper.assertFalse(
                             weapons.tryDebitReserve(server, weaponId, owner.getUUID(), 1L, 1L),
@@ -119,10 +119,10 @@ public final class OrbitalWeaponLifecycleGameTest {
                             "A dormant rejection must not mutate either reserve");
 
                     chargeUntilDeployed(weapons, server, weaponId, settings);
-                    OrbitalWeaponRecord deployed = weapons.find(weaponId).orElseThrow();
+                    StellarErasureDeviceRecord deployed = weapons.find(weaponId).orElseThrow();
                     helper.assertValueEqual(
                             deployed.lifecycle().state(),
-                            OrbitalWeaponLifecycleState.DEPLOYED,
+                            StellarErasureDeviceLifecycleState.DEPLOYED,
                             "Reaching both configured thresholds must deploy the orbital weapon");
                     helper.assertTrue(
                             deployed.reserve().meetsDeploymentThreshold(settings),
@@ -138,18 +138,18 @@ public final class OrbitalWeaponLifecycleGameTest {
                 .thenExecute(() -> {
                     OrbitalEnergyReserve beforeMaintenance = weapons.find(weaponId).orElseThrow().reserve();
                     weapons.chargeReserves(server);
-                    OrbitalWeaponRecord maintained = weapons.find(weaponId).orElseThrow();
+                    StellarErasureDeviceRecord maintained = weapons.find(weaponId).orElseThrow();
                     helper.assertValueEqual(
-                            beforeMaintenance.celestialEnergy() - maintained.reserve().celestialEnergy(),
-                            Math.min(beforeMaintenance.celestialEnergy(), settings.celestialEnergyUpkeepPerTick),
-                            "A deployed tick without input must consume configured Celestial Energy upkeep");
+                            beforeMaintenance.stellarFlux() - maintained.reserve().stellarFlux(),
+                            Math.min(beforeMaintenance.stellarFlux(), settings.stellarFluxUpkeepPerTick),
+                            "A deployed tick without input must consume configured Stellar Flux upkeep");
                     helper.assertValueEqual(
                             beforeMaintenance.aeEnergy() - maintained.reserve().aeEnergy(),
                             Math.min(beforeMaintenance.aeEnergy(), settings.aeEnergyUpkeepPerTick),
                             "A deployed tick without input must consume configured AE upkeep");
                     helper.assertValueEqual(
                             maintained.lifecycle().state(),
-                            OrbitalWeaponLifecycleState.DEPLOYED,
+                            StellarErasureDeviceLifecycleState.DEPLOYED,
                             "Losing an endpoint must not immediately deconstruct a funded projection");
 
                     helper.assertTrue(
@@ -157,11 +157,11 @@ public final class OrbitalWeaponLifecycleGameTest {
                                     server,
                                     weaponId,
                                     owner.getUUID(),
-                                    maintained.reserve().celestialEnergy(),
+                                    maintained.reserve().stellarFlux(),
                                     maintained.reserve().aeEnergy()),
                             "The deployed reserve transaction must be able to consume the final stored units");
-                    OrbitalWeaponRecord grace = weapons.find(weaponId).orElseThrow();
-                    OrbitalWeaponLifecycleState expectedGraceState = settings.reserveGraceTicks == 0 ? OrbitalWeaponLifecycleState.DORMANT : OrbitalWeaponLifecycleState.RESERVE_GRACE;
+                    StellarErasureDeviceRecord grace = weapons.find(weaponId).orElseThrow();
+                    StellarErasureDeviceLifecycleState expectedGraceState = settings.reserveGraceTicks == 0 ? StellarErasureDeviceLifecycleState.DORMANT : StellarErasureDeviceLifecycleState.RESERVE_GRACE;
                     helper.assertValueEqual(
                             grace.lifecycle().state(),
                             expectedGraceState,
@@ -175,7 +175,7 @@ public final class OrbitalWeaponLifecycleGameTest {
                     }
                     helper.assertValueEqual(
                             weapons.find(weaponId).orElseThrow().lifecycle().state(),
-                            OrbitalWeaponLifecycleState.DORMANT,
+                            StellarErasureDeviceLifecycleState.DORMANT,
                             "An unfunded projection must return to dormancy after its configured grace period");
                     placeBlock(helper, CREATIVE_ENERGY_CELL, AEBlocks.CREATIVE_ENERGY_CELL.block(), owner);
                 })
@@ -184,26 +184,26 @@ public final class OrbitalWeaponLifecycleGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "Restoring AE power must make the bound endpoint operational again"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, deploymentCelestialEnergy);
+                    insertStellarFlux(helper, deploymentStellarFlux);
                     chargeUntilDeployed(weapons, server, weaponId, settings);
                     helper.assertValueEqual(
                             weapons.find(weaponId).orElseThrow().lifecycle().state(),
-                            OrbitalWeaponLifecycleState.DEPLOYED,
+                            StellarErasureDeviceLifecycleState.DEPLOYED,
                             "A dormant weapon must redeploy after both reserves are replenished to threshold");
                 })
                 .thenSucceed();
     }
 
-    @TestHolder("orbital_weapon_redeployment_keeps_maintenance_and_reserve_grace")
+    @TestHolder("stellar_erasure_device_redeployment_keeps_maintenance_and_reserve_grace")
     @EmptyTemplate("50x32x50")
     @GameTest(template = "empty_50x32x50", batch = REDEPLOYMENT_BATCH, timeoutTicks = 500)
     public static void redeploymentKeepsMaintenanceAndReserveGrace(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "orbital-redeployment-owner");
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
 
         placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
         placeBlock(helper, DRIVE, AEBlocks.DRIVE.block(), owner);
@@ -232,7 +232,7 @@ public final class OrbitalWeaponLifecycleGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "The redeployment scenario must use real powered orbital endpoints"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, 1_000L);
+                    insertStellarFlux(helper, 1_000L);
                     chargeUntilDeployed(weapons, server, weaponId, settings);
                 })
                 .thenIdle(5)
@@ -251,7 +251,7 @@ public final class OrbitalWeaponLifecycleGameTest {
                 .thenIdle(12)
                 .thenExecute(() -> {
                     installInfiniteCell(helper);
-                    insertCelestialEnergy(helper, 1_000L);
+                    insertStellarFlux(helper, 1_000L);
                 })
                 .thenIdle(9)
                 .thenExecute(() -> attacks.tryConfirmKinetic(
@@ -281,14 +281,14 @@ public final class OrbitalWeaponLifecycleGameTest {
     }
 
     private static void chargeUntilDeployed(
-                                            OrbitalWeaponSavedData weapons,
+                                            StellarErasureDeviceSavedData weapons,
                                             MinecraftServer server,
                                             UUID weaponId,
-                                            DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                            DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         long requiredCalls = Math.max(
                 ceilingDivision(
-                        deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold),
-                        settings.celestialEnergyChargePerTick),
+                        deploymentTarget(settings.stellarFluxCapacity, settings.deploymentThreshold),
+                        settings.stellarFluxChargePerTick),
                 ceilingDivision(
                         deploymentTarget(settings.aeEnergyCapacity, settings.deploymentThreshold),
                         settings.aeEnergyChargePerTick));
@@ -326,7 +326,7 @@ public final class OrbitalWeaponLifecycleGameTest {
         drive.getInternalInventory().setItemDirect(0, ItemStack.EMPTY);
     }
 
-    private static void insertCelestialEnergy(GameTestHelper helper, long amount) {
+    private static void insertStellarFlux(GameTestHelper helper, long amount) {
         if (!(helper.getBlockEntity(CONTROL_CONSOLE) instanceof OrbitalControlConsoleBlockEntity console)) {
             throw new IllegalStateException("The lifecycle test console has no block entity");
         }
@@ -335,12 +335,12 @@ public final class OrbitalWeaponLifecycleGameTest {
             throw new IllegalStateException("The lifecycle test AE grid is not active");
         }
         long inserted = grid.getStorageService().getInventory().insert(
-                CelestialEnergyKey.of(),
+                StellarFluxKey.of(),
                 amount,
                 Actionable.MODULATE,
                 IActionSource.ofMachine(console));
         if (inserted != amount) {
-            throw new IllegalStateException("The lifecycle test could not seed Celestial Energy storage");
+            throw new IllegalStateException("The lifecycle test could not seed Stellar Flux storage");
         }
     }
 
@@ -389,19 +389,19 @@ public final class OrbitalWeaponLifecycleGameTest {
                                                   int shockwaveRadius) {
 
         private static LifecycleConfigurationSnapshot capture(
-                                                              DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                                              DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
             return new LifecycleConfigurationSnapshot(
-                    settings.celestialEnergyCapacity,
+                    settings.stellarFluxCapacity,
                     settings.aeEnergyCapacity,
-                    settings.celestialEnergyUpkeepPerTick,
+                    settings.stellarFluxUpkeepPerTick,
                     settings.aeEnergyUpkeepPerTick,
-                    settings.celestialEnergyChargePerTick,
+                    settings.stellarFluxChargePerTick,
                     settings.aeEnergyChargePerTick,
                     settings.reserveGraceTicks,
                     settings.deploymentThreshold,
                     settings.redeploymentTicks,
                     settings.attackWarningTicks,
-                    settings.kineticCelestialEnergyCost,
+                    settings.kineticStellarFluxCost,
                     settings.kineticAeEnergyCost,
                     settings.kineticCooldownTicks,
                     settings.kineticColumnRadius,
@@ -433,18 +433,18 @@ public final class OrbitalWeaponLifecycleGameTest {
                     2);
         }
 
-        private void applyTo(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
-            settings.celestialEnergyCapacity = this.celestialCapacity;
+        private void applyTo(DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
+            settings.stellarFluxCapacity = this.celestialCapacity;
             settings.aeEnergyCapacity = this.aeCapacity;
-            settings.celestialEnergyUpkeepPerTick = this.celestialUpkeep;
+            settings.stellarFluxUpkeepPerTick = this.celestialUpkeep;
             settings.aeEnergyUpkeepPerTick = this.aeUpkeep;
-            settings.celestialEnergyChargePerTick = this.celestialCharge;
+            settings.stellarFluxChargePerTick = this.celestialCharge;
             settings.aeEnergyChargePerTick = this.aeCharge;
             settings.reserveGraceTicks = this.reserveGraceTicks;
             settings.deploymentThreshold = this.deploymentThreshold;
             settings.redeploymentTicks = this.redeploymentTicks;
             settings.attackWarningTicks = this.warningTicks;
-            settings.kineticCelestialEnergyCost = this.kineticCelestialCost;
+            settings.kineticStellarFluxCost = this.kineticCelestialCost;
             settings.kineticAeEnergyCost = this.kineticAeCost;
             settings.kineticCooldownTicks = this.kineticCooldownTicks;
             settings.kineticColumnRadius = this.columnRadius;

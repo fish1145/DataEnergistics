@@ -5,7 +5,7 @@ import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnap
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlPresentation;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiTheme;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiTheme.Tone;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
 
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
@@ -29,19 +29,19 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /** Stable weapon rows: status updates do not replace the tree, input focus or scroll position. */
-public final class OrbitalWeaponListPanel {
+public final class StellarErasureDeviceListPanel {
 
     private static final String PREFIX = "screen.data_energistics.orbital_control_terminal.workspace.";
     public final UIElement root = new UIElement();
-    public final TextField search = OrbitalControlUiTheme.textInput("orbital_weapon_search", "", 4, 22, 120);
-    private final Label count = OrbitalControlUiTheme.label("orbital_weapon_count", Component.empty(),
+    public final TextField search = OrbitalControlUiTheme.textInput("stellar_erasure_device_search", "", 4, 22, 120);
+    private final Label count = OrbitalControlUiTheme.label("stellar_erasure_device_count", Component.empty(),
             4, 2, 120, 18, OrbitalControlUiTheme.ACCENT_TEXT, 9, TextWrap.HOVER_ROLL);
-    private final ScrollerView list = OrbitalControlUiTheme.scrollPanel("orbital_weapon_list");
+    private final ScrollerView list = OrbitalControlUiTheme.scrollPanel("stellar_erasure_device_list");
     private final Object2ObjectLinkedOpenHashMap<UUID, Button> rows = new Object2ObjectLinkedOpenHashMap<>();
     private List<UUID> order = List.of();
     private List<WeaponEntry> entries = List.of();
-    private final TextField name = OrbitalControlUiTheme.textInput("orbital_weapon_name", "", 4, 0, 120);
-    private final Button rename = OrbitalControlUiTheme.button("orbital_weapon_rename",
+    private final TextField name = OrbitalControlUiTheme.textInput("stellar_erasure_device_name", "", 4, 0, 120);
+    private final Button rename = OrbitalControlUiTheme.button("stellar_erasure_device_rename",
             Component.translatable(PREFIX + "rename"), 4, 0, 120, 20, Tone.ACCENT);
     private @Nullable BiConsumer<UUID, String> renaming;
     private @Nullable UUID selectedId;
@@ -49,18 +49,18 @@ public final class OrbitalWeaponListPanel {
     private boolean owner;
     private @Nullable Consumer<UUID> selection;
 
-    public OrbitalWeaponListPanel() {
-        root.setId("orbital_weapon_panel");
+    public StellarErasureDeviceListPanel() {
+        root.setId("stellar_erasure_device_panel");
         OrbitalControlUiTheme.stylePanel(root, Tone.PANEL_ALT);
         search.style(style -> style.tooltips(Component.translatable(PREFIX + "search_hint")));
         search.textFieldStyle(style -> style.placeholder(Component.translatable(PREFIX + "search_placeholder")));
         search.registerValueListener(ignored -> filter());
         list.viewContainer.layout(layout -> layout.widthPercent(100).flexDirection(FlexDirection.COLUMN).gapAll(3));
         name.textFieldStyle(style -> style.placeholder(Component.translatable(PREFIX + "name_placeholder")));
-        name.style(style -> style.tooltips(Component.translatable(PREFIX + "rename_hint", OrbitalWeaponRecord.MAX_NAME_LENGTH)));
+        name.style(style -> style.tooltips(Component.translatable(PREFIX + "rename_hint", StellarErasureDeviceRecord.MAX_NAME_LENGTH)));
         name.setTextValidator(value -> {
             try {
-                OrbitalWeaponRecord.normalizeName(value);
+                StellarErasureDeviceRecord.normalizeName(value);
                 return true;
             } catch (IllegalArgumentException exception) {
                 return false;
@@ -112,7 +112,7 @@ public final class OrbitalWeaponListPanel {
             rows.clear();
             order = nextOrder;
             for (UUID id : order) {
-                Button row = OrbitalControlUiTheme.button("orbital_weapon_" + id, Component.empty(), 0, 0, 116, 36, Tone.PANEL);
+                Button row = OrbitalControlUiTheme.button("stellar_erasure_device_" + id, Component.empty(), 0, 0, 116, 36, Tone.PANEL);
                 row.layout(layout -> layout.positionType(TaffyPosition.RELATIVE).widthPercent(100).height(36).flexShrink(0));
                 row.setOnClick(ignored -> {
                     if (selection != null) {
@@ -133,7 +133,7 @@ public final class OrbitalWeaponListPanel {
             row.text.textStyle(style -> style.textWrap(TextWrap.WRAP).fontSize(9));
             row.style(style -> style.tooltips(Component.literal(OrbitalControlPresentation.weaponName(weapon)),
                     Component.literal(weapon.weaponId().toString()),
-                    OrbitalControlPresentation.identity(weapon), OrbitalControlPresentation.celestialEnergy(weapon),
+                    OrbitalControlPresentation.identity(weapon), OrbitalControlPresentation.stellarFlux(weapon),
                     OrbitalControlPresentation.aeEnergy(weapon)));
             OrbitalControlUiTheme.styleButton(row, selected ? Tone.ACCENT : Tone.PANEL);
         }

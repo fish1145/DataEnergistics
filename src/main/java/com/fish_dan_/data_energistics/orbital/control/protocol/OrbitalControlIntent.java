@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.control.protocol;
 
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
 
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -55,7 +55,7 @@ public sealed interface OrbitalControlIntent permits
             case SelectWeapon select -> buffer.writeUUID(select.weaponId);
             case RenameWeapon rename -> {
                 buffer.writeUUID(rename.weaponId);
-                buffer.writeUtf(rename.name, OrbitalWeaponRecord.MAX_NAME_LENGTH);
+                buffer.writeUtf(rename.name, StellarErasureDeviceRecord.MAX_NAME_LENGTH);
             }
             case CancelOrAbortMode cancel -> buffer.writeVarInt(cancel.mode.wireCode());
             case RequestPreview preview -> OrbitalFireControlDraft.STREAM_CODEC.encode(buffer, preview.draft);
@@ -71,7 +71,7 @@ public sealed interface OrbitalControlIntent permits
         return switch (kind) {
             case CYCLE_WEAPON -> new CycleWeapon(buffer.readBoolean());
             case SELECT_WEAPON -> new SelectWeapon(buffer.readUUID());
-            case RENAME_WEAPON -> new RenameWeapon(buffer.readUUID(), buffer.readUtf(OrbitalWeaponRecord.MAX_NAME_LENGTH));
+            case RENAME_WEAPON -> new RenameWeapon(buffer.readUUID(), buffer.readUtf(StellarErasureDeviceRecord.MAX_NAME_LENGTH));
             case CANCEL_OR_ABORT_MODE -> new CancelOrAbortMode(
                     OrbitalAttackMode.fromWireCode(buffer.readVarInt()));
             case REQUEST_PREVIEW -> new RequestPreview(OrbitalFireControlDraft.STREAM_CODEC.decode(buffer));
@@ -101,14 +101,14 @@ public sealed interface OrbitalControlIntent permits
     record RenameWeapon(UUID weaponId, String name) implements OrbitalControlIntent {
 
         public RenameWeapon {
-            if (name.length() > OrbitalWeaponRecord.MAX_NAME_LENGTH) {
+            if (name.length() > StellarErasureDeviceRecord.MAX_NAME_LENGTH) {
                 throw new IllegalArgumentException("Weapon name exceeds its wire bound");
             }
         }
 
         private static final MapCodec<RenameWeapon> CODEC = RecordCodecBuilder.mapCodec(instance -> instance
                 .group(UUIDUtil.CODEC.fieldOf("weapon_id").forGetter(RenameWeapon::weaponId),
-                        Codec.string(0, OrbitalWeaponRecord.MAX_NAME_LENGTH).fieldOf("name").forGetter(RenameWeapon::name))
+                        Codec.string(0, StellarErasureDeviceRecord.MAX_NAME_LENGTH).fieldOf("name").forGetter(RenameWeapon::name))
                 .apply(instance, RenameWeapon::new));
     }
 

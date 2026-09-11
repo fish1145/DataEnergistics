@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackGeometry.KineticCraterProfile;
@@ -10,7 +10,7 @@ import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnap
 import com.fish_dan_.data_energistics.orbital.control.OrbitalTargetYMode;
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlSessionSnapshot;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
@@ -72,10 +72,10 @@ public final class OrbitalKineticAttackGameTest {
     public static void refundsWarningThenCommitsWorldEffectAndCooldown(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "kinetic-owner");
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         OrbitalAttackCost cost = OrbitalAttackCost.kinetic(settings);
         OrbitalAttackGeometry.Kinetic geometry = OrbitalAttackGeometry.Kinetic.fromSettings(settings);
 
@@ -98,7 +98,7 @@ public final class OrbitalKineticAttackGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "The kinetic confirmation must use a real powered target-dimension endpoint"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    insertStellarFlux(helper, requiredStellarFlux(settings, cost));
                     primeReserve(weapons, server, weaponId, settings, cost);
                     Zombie spawned = helper.spawn(EntityType.ZOMBIE, VICTIM);
                     spawned.setNoAi(true);
@@ -148,9 +148,9 @@ public final class OrbitalKineticAttackGameTest {
                             "The owner must be able to cancel a refundable warning");
                     OrbitalEnergyReserve afterRefund = weapons.find(weaponId).orElseThrow().reserve();
                     helper.assertValueEqual(
-                            afterRefund.celestialEnergy() - beforeRefund.celestialEnergy(),
-                            cost.celestialEnergy(),
-                            "Cancelling the warning must return its complete Celestial Energy escrow");
+                            afterRefund.stellarFlux() - beforeRefund.stellarFlux(),
+                            cost.stellarFlux(),
+                            "Cancelling the warning must return its complete Stellar Flux escrow");
                     helper.assertValueEqual(
                             afterRefund.aeEnergy() - beforeRefund.aeEnergy(),
                             cost.aeEnergy(),
@@ -256,10 +256,10 @@ public final class OrbitalKineticAttackGameTest {
     public static void rejectsStaleNonceThenExecutesCurrentPreview(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "fire-control-owner");
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         OrbitalAttackCost cost = OrbitalAttackCost.kinetic(settings);
         OrbitalAttackGeometry.Kinetic geometry = OrbitalAttackGeometry.Kinetic.fromSettings(settings);
 
@@ -280,7 +280,7 @@ public final class OrbitalKineticAttackGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "Fire control must use a real powered endpoint in the target dimension"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    insertStellarFlux(helper, requiredStellarFlux(settings, cost));
                     primeReserve(weapons, server, weaponId, settings, cost);
                     captureKineticPreview(owner, level, absoluteTarget);
                 })
@@ -341,10 +341,10 @@ public final class OrbitalKineticAttackGameTest {
     public static void keepsConfirmedGeometryAfterLiveConfigChanges(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "kinetic-snapshot-owner");
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         OrbitalAttackCost cost = OrbitalAttackCost.kinetic(settings);
         KineticConfigurationSnapshot original = KineticConfigurationSnapshot.capture(settings);
         KineticConfigurationSnapshot confirmed = new KineticConfigurationSnapshot(
@@ -394,7 +394,7 @@ public final class OrbitalKineticAttackGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "The kinetic snapshot test must use a real powered target-dimension endpoint"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    insertStellarFlux(helper, requiredStellarFlux(settings, cost));
                     primeReserve(weapons, server, weaponId, settings, cost);
                     Zombie inner = helper.spawn(EntityType.ZOMBIE, SNAPSHOT_INNER_VICTIM);
                     inner.setNoAi(true);
@@ -497,7 +497,7 @@ public final class OrbitalKineticAttackGameTest {
         return preview.nonce();
     }
 
-    private static void insertCelestialEnergy(GameTestHelper helper, long amount) {
+    private static void insertStellarFlux(GameTestHelper helper, long amount) {
         if (!(helper.getBlockEntity(CONTROL_CONSOLE) instanceof OrbitalControlConsoleBlockEntity console)) {
             throw new IllegalStateException("The kinetic test console has no block entity");
         }
@@ -506,28 +506,28 @@ public final class OrbitalKineticAttackGameTest {
             throw new IllegalStateException("The kinetic test AE grid is not active");
         }
         long inserted = grid.getStorageService().getInventory().insert(
-                CelestialEnergyKey.of(),
+                StellarFluxKey.of(),
                 amount,
                 Actionable.MODULATE,
                 IActionSource.ofMachine(console));
         if (inserted != amount) {
-            throw new IllegalStateException("The kinetic test could not seed Celestial Energy storage");
+            throw new IllegalStateException("The kinetic test could not seed Stellar Flux storage");
         }
     }
 
     private static void primeReserve(
-                                     OrbitalWeaponSavedData weapons,
+                                     StellarErasureDeviceSavedData weapons,
                                      MinecraftServer server,
                                      UUID weaponId,
-                                     DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
+                                     DataEnergisticsConfiguration.StellarErasureDeviceSchema settings,
                                      OrbitalAttackCost cost) {
-        long requiredCelestialEnergy = requiredCelestialEnergy(settings, cost);
+        long requiredStellarFlux = requiredStellarFlux(settings, cost);
         long requiredAeEnergy = Math.max(
                 Math.multiplyExact(cost.aeEnergy(), 2L),
                 deploymentTarget(settings.aeEnergyCapacity, settings.deploymentThreshold));
         for (int attempts = 0; attempts < 20_000; attempts++) {
             var weapon = weapons.find(weaponId).orElseThrow();
-            if (weapon.allowsNewAttacks() && weapon.reserve().canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
+            if (weapon.allowsNewAttacks() && weapon.reserve().canAfford(requiredStellarFlux, requiredAeEnergy)) {
                 return;
             }
             weapons.chargeReserves(server);
@@ -535,12 +535,12 @@ public final class OrbitalKineticAttackGameTest {
         throw new IllegalStateException("The real AE endpoint did not fund two kinetic attacks");
     }
 
-    private static long requiredCelestialEnergy(
-                                                DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
+    private static long requiredStellarFlux(
+                                                DataEnergisticsConfiguration.StellarErasureDeviceSchema settings,
                                                 OrbitalAttackCost cost) {
         return Math.max(
-                Math.multiplyExact(cost.celestialEnergy(), 2L),
-                deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold));
+                Math.multiplyExact(cost.stellarFlux(), 2L),
+                deploymentTarget(settings.stellarFluxCapacity, settings.deploymentThreshold));
     }
 
     private static long deploymentTarget(long capacity, double threshold) {
@@ -549,15 +549,15 @@ public final class OrbitalKineticAttackGameTest {
 
     private static void assertDebited(
                                       GameTestHelper helper,
-                                      OrbitalWeaponSavedData weapons,
+                                      StellarErasureDeviceSavedData weapons,
                                       UUID weaponId,
                                       OrbitalEnergyReserve before,
                                       OrbitalAttackCost cost) {
         OrbitalEnergyReserve after = weapons.find(weaponId).orElseThrow().reserve();
         helper.assertValueEqual(
-                before.celestialEnergy() - after.celestialEnergy(),
-                cost.celestialEnergy(),
-                "Kinetic confirmation must escrow its configured Celestial Energy cost");
+                before.stellarFlux() - after.stellarFlux(),
+                cost.stellarFlux(),
+                "Kinetic confirmation must escrow its configured Stellar Flux cost");
         helper.assertValueEqual(
                 before.aeEnergy() - after.aeEnergy(),
                 cost.aeEnergy(),
@@ -608,7 +608,7 @@ public final class OrbitalKineticAttackGameTest {
                                                 int shockwaveRadius) {
 
         private static KineticConfigurationSnapshot capture(
-                                                            DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                                            DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
             return new KineticConfigurationSnapshot(
                     settings.attackWarningTicks,
                     settings.kineticCooldownTicks,
@@ -619,7 +619,7 @@ public final class OrbitalKineticAttackGameTest {
                     settings.kineticShockwaveRadius);
         }
 
-        private void applyTo(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+        private void applyTo(DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
             settings.attackWarningTicks = this.attackWarningTicks;
             settings.kineticCooldownTicks = this.cooldownTicks;
             settings.kineticColumnRadius = this.columnRadius;

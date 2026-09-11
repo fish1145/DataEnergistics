@@ -17,14 +17,14 @@ import net.minecraft.network.chat.Component;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 /** Readable weapon details and task controls, kept separate from target editing. */
-public final class OrbitalWeaponStatusPanel {
+public final class StellarErasureDeviceStatusPanel {
 
-    public final ScrollerView root = OrbitalControlUiTheme.scrollPanel("orbital_weapon_status");
+    public final ScrollerView root = OrbitalControlUiTheme.scrollPanel("stellar_erasure_device_status");
     public final ObjectArrayList<ModeRow> modeRows = new ObjectArrayList<>();
-    private final Label details = OrbitalControlUiTheme.label("orbital_weapon_details", Component.empty(),
+    private final Label details = OrbitalControlUiTheme.label("stellar_erasure_device_details", Component.empty(),
             4, 4, 216, 110, OrbitalControlUiTheme.TEXT, 9, TextWrap.WRAP);
 
-    public OrbitalWeaponStatusPanel() {
+    public StellarErasureDeviceStatusPanel() {
         root.viewContainer.layout(layout -> layout.width(226).height(302));
         root.addScrollViewChild(details);
         for (OrbitalAttackMode mode : OrbitalAttackMode.values()) {
@@ -48,7 +48,7 @@ public final class OrbitalWeaponStatusPanel {
             details.setValue(OrbitalControlPresentation.weaponTitle(snapshot).copy().append("\n")
                     .append(OrbitalControlPresentation.identity(weapon)).append("\n")
                     .append(OrbitalControlPresentation.lifecycle(weapon)).append("\n")
-                    .append(OrbitalControlPresentation.celestialEnergy(weapon)).append("\n")
+                    .append(OrbitalControlPresentation.stellarFlux(weapon)).append("\n")
                     .append(OrbitalControlPresentation.aeEnergy(weapon)));
         }
         for (ModeRow row : modeRows) {

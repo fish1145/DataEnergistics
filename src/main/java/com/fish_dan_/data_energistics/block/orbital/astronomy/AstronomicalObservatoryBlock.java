@@ -24,7 +24,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Single-block observatory that converts AE grid power and an open night sky into Celestial Energy.
+ * Single-block observatory that converts AE grid power and an open night sky into Stellar Flux.
  */
 public final class AstronomicalObservatoryBlock extends AEBaseBlock implements EntityBlock {
 

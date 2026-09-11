@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.endpoint;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
@@ -48,7 +48,7 @@ public final class OrbitalUplinkBeaconGameTest {
     @GameTest(template = "empty_5x5")
     public static void requiresExistingWeaponAndReleasesBinding(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(level.getServer());
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(level.getServer());
         ServerPlayer owner = createPlayer(level, "uplink-owner");
 
         placeBlock(helper, UNBOUND_BEACON, DEBlocks.ORBITAL_UPLINK_BEACON.get(), owner);
@@ -96,7 +96,7 @@ public final class OrbitalUplinkBeaconGameTest {
     @GameTest(template = "empty_5x5", timeoutTicks = 400)
     public static void staysLoadedAndRecoversAfterPowerCycle(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(level.getServer());
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(level.getServer());
         ServerPlayer owner = createPlayer(level, "uplink-ticket-owner");
         placeBlock(helper, CONTROL_CONSOLE, DEBlocks.ORBITAL_CONTROL_CONSOLE.get(), owner);
         UUID weaponId = data.ownedBy(owner.getUUID()).orElseThrow().weaponId();

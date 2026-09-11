@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.orbital.control;
 
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -18,9 +18,9 @@ import java.util.UUID;
  * allowed.
  * </p>
  */
-public final class OrbitalWeaponAdministrationDispatcher {
+public final class StellarErasureDeviceAdministrationDispatcher {
 
-    private OrbitalWeaponAdministrationDispatcher() {}
+    private StellarErasureDeviceAdministrationDispatcher() {}
 
     /** Moves one endpoint to a dense owner-selected failover rank. */
     public static boolean setEndpointPriority(
@@ -32,7 +32,7 @@ public final class OrbitalWeaponAdministrationDispatcher {
         if (server == null || !server.isSameThread()) {
             return false;
         }
-        return OrbitalWeaponSavedData.get(server).setEndpointPriority(
+        return StellarErasureDeviceSavedData.get(server).setEndpointPriority(
                 server,
                 actor.getUUID(),
                 weaponId,
@@ -49,7 +49,7 @@ public final class OrbitalWeaponAdministrationDispatcher {
         if (server == null || !server.isSameThread()) {
             return false;
         }
-        return OrbitalWeaponSavedData.get(server).selectPrimaryAnchor(
+        return StellarErasureDeviceSavedData.get(server).selectPrimaryAnchor(
                 server,
                 actor.getUUID(),
                 weaponId,
@@ -66,7 +66,7 @@ public final class OrbitalWeaponAdministrationDispatcher {
         if (server == null || !server.isSameThread()) {
             return false;
         }
-        OrbitalWeaponSavedData.get(server).authorize(
+        StellarErasureDeviceSavedData.get(server).authorize(
                 server,
                 weaponId,
                 actor.getUUID(),
@@ -81,7 +81,7 @@ public final class OrbitalWeaponAdministrationDispatcher {
         if (server == null || !server.isSameThread()) {
             return false;
         }
-        OrbitalWeaponSavedData.get(server).revoke(
+        StellarErasureDeviceSavedData.get(server).revoke(
                 server,
                 weaponId,
                 actor.getUUID(),

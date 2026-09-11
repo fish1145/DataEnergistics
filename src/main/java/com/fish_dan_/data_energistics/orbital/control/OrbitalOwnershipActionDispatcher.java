@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.orbital.control;
 
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceAction;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalOwnershipTransfer;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -42,7 +42,7 @@ public final class OrbitalOwnershipActionDispatcher {
             return Optional.empty();
         }
         trackServer(server);
-        return OrbitalWeaponSavedData.get(server).requestOwnershipTransfer(
+        return StellarErasureDeviceSavedData.get(server).requestOwnershipTransfer(
                 server,
                 actor.getUUID(),
                 weaponId,
@@ -56,7 +56,7 @@ public final class OrbitalOwnershipActionDispatcher {
             return false;
         }
         trackServer(server);
-        return OrbitalWeaponSavedData.get(server).acceptOwnershipTransfer(
+        return StellarErasureDeviceSavedData.get(server).acceptOwnershipTransfer(
                 server,
                 recipient.getUUID(),
                 transferId);
@@ -72,9 +72,9 @@ public final class OrbitalOwnershipActionDispatcher {
             return Optional.empty();
         }
         trackServer(server);
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(server);
-        Optional<OrbitalWeaponRecord> weapon = data.find(weaponId);
-        if (weapon.isEmpty() || !weapon.orElseThrow().canPerform(actor.getUUID(), OrbitalWeaponAction.RETIRE)) {
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(server);
+        Optional<StellarErasureDeviceRecord> weapon = data.find(weaponId);
+        if (weapon.isEmpty() || !weapon.orElseThrow().canPerform(actor.getUUID(), StellarErasureDeviceAction.RETIRE)) {
             return Optional.empty();
         }
         long now = server.overworld().getGameTime();
@@ -103,7 +103,7 @@ public final class OrbitalOwnershipActionDispatcher {
         if (confirmation == null || !confirmation.playerId().equals(actor.getUUID()) || !confirmation.weaponId().equals(weaponId) || confirmation.expired(server.overworld().getGameTime())) {
             return false;
         }
-        return OrbitalWeaponSavedData.get(server).retire(server, actor.getUUID(), weaponId);
+        return StellarErasureDeviceSavedData.get(server).retire(server, actor.getUUID(), weaponId);
     }
 
     /** Removes expired confirmations and isolates capabilities when a new server instance is observed. */

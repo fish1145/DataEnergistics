@@ -36,7 +36,7 @@ public final class OrbitalAttackPreviewCalculation {
     private final ResourceKey<Level> dimension;
     private final BlockPos target;
     private final OrbitalAttackCost cost;
-    private final long availableCelestialEnergy;
+    private final long availableStellarFlux;
     private final long availableAeEnergy;
     private final long scheduledCoordinates;
     private final long scheduledBlocks;
@@ -56,7 +56,7 @@ public final class OrbitalAttackPreviewCalculation {
                                             ResourceKey<Level> dimension,
                                             BlockPos target,
                                             OrbitalAttackCost cost,
-                                            long availableCelestialEnergy,
+                                            long availableStellarFlux,
                                             long availableAeEnergy,
                                             long scheduledCoordinates,
                                             long scheduledBlocks,
@@ -70,7 +70,7 @@ public final class OrbitalAttackPreviewCalculation {
         this.dimension = dimension;
         this.target = target.immutable();
         this.cost = cost;
-        this.availableCelestialEnergy = availableCelestialEnergy;
+        this.availableStellarFlux = availableStellarFlux;
         this.availableAeEnergy = availableAeEnergy;
         this.scheduledCoordinates = scheduledCoordinates;
         this.scheduledBlocks = scheduledBlocks;
@@ -94,7 +94,7 @@ public final class OrbitalAttackPreviewCalculation {
                                                         @Nullable OrbitalDirectedEnergyDepth directedDepth,
                                                         OrbitalEnergyReserve reserve) {
         requireServerThread(level.getServer());
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = configuration.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = configuration.stellarErasureDevice;
         OrbitalAttackCost cost;
         long scheduledCoordinates = 0L;
         long scheduledBlocks;
@@ -152,7 +152,7 @@ public final class OrbitalAttackPreviewCalculation {
                 level.dimension(),
                 target,
                 cost,
-                reserve.celestialEnergy(),
+                reserve.stellarFlux(),
                 reserve.aeEnergy(),
                 scheduledCoordinates,
                 scheduledBlocks,
@@ -204,7 +204,7 @@ public final class OrbitalAttackPreviewCalculation {
         }
         return new OrbitalAttackPreviewEstimate(
                 this.cost,
-                this.availableCelestialEnergy,
+                this.availableStellarFlux,
                 this.availableAeEnergy,
                 this.scheduledCoordinates,
                 this.scheduledBlocks,

@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.orbital.astronomy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.orbital.astronomy.InterferenceArrayCoreBlock;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
@@ -61,7 +61,7 @@ public final class InterferenceArrayGameTest {
     @GameTest(template = "empty_50x32x50", timeoutTicks = 700)
     public static void producesAndStopsWhenMirrorPathOrSkyIsInvalid(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(level.getServer());
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(level.getServer());
         ServerPlayer owner = createPlayer(level, "interference-array-owner");
         long originalDayTime = level.getDayTime();
         boolean originalRaining = level.isRaining();
@@ -82,7 +82,7 @@ public final class InterferenceArrayGameTest {
                 .thenWaitUntil(() -> {
                     helper.assertTrue(
                             isCoreProducing(helper),
-                            "A formed four-mirror array with AE storage and power must produce Celestial Energy");
+                            "A formed four-mirror array with AE storage and power must produce Stellar Flux");
                     helper.assertTrue(
                             celestialReserve(data, weaponId) > 0L,
                             "High-tier production must reach the weapon reserve through the real AE network");
@@ -91,7 +91,7 @@ public final class InterferenceArrayGameTest {
                 .thenIdle(8)
                 .thenExecute(() -> helper.assertTrue(
                         celestialReserve(data, weaponId) > checkpoint.get(),
-                        "A valid four-mirror array must continue adding Celestial Energy"))
+                        "A valid four-mirror array must continue adding Stellar Flux"))
                 .thenExecute(() -> {
                     helper.assertTrue(
                             level.destroyBlock(helper.absolutePos(WAVEGUIDE_BREAK_PATH.get(1)), false),
@@ -105,7 +105,7 @@ public final class InterferenceArrayGameTest {
                 .thenExecute(() -> helper.assertValueEqual(
                         celestialReserve(data, weaponId),
                         checkpoint.get(),
-                        "A path-invalid array must not add Celestial Energy"))
+                        "A path-invalid array must not add Stellar Flux"))
                 .thenExecute(() -> placeBlock(
                         helper,
                         WAVEGUIDE_BREAK_PATH.get(1),
@@ -218,8 +218,8 @@ public final class InterferenceArrayGameTest {
                 state.getValue(InterferenceArrayCoreBlock.LIT);
     }
 
-    private static long celestialReserve(OrbitalWeaponSavedData data, UUID weaponId) {
-        return data.find(weaponId).orElseThrow().reserve().celestialEnergy();
+    private static long celestialReserve(StellarErasureDeviceSavedData data, UUID weaponId) {
+        return data.find(weaponId).orElseThrow().reserve().stellarFlux();
     }
 
     private static void setClearWeather(ServerLevel level) {

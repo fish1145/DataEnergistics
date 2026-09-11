@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.orbital.model;
 /**
  * Server-authoritative actions exposed by an orbital weapon control surface.
  */
-public enum OrbitalWeaponAction {
+public enum StellarErasureDeviceAction {
     VIEW_STATUS,
     AIM,
     FIRE,

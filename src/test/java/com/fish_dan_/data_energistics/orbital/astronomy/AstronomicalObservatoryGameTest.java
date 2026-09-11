@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.astronomy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
@@ -50,7 +50,7 @@ public final class AstronomicalObservatoryGameTest {
     @GameTest(template = "empty_5x5", timeoutTicks = 500)
     public static void obeysEnvironmentAndPreservesTransactions(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(level.getServer());
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(level.getServer());
         ServerPlayer owner = createPlayer(level, "observatory-owner");
         long originalDayTime = level.getDayTime();
         boolean originalRaining = level.isRaining();
@@ -75,7 +75,7 @@ public final class AstronomicalObservatoryGameTest {
                     helper.assertValueEqual(
                             celestialReserve(data, weaponId),
                             0L,
-                            "A storage-blocked observatory must not create or buffer Celestial Energy");
+                            "A storage-blocked observatory must not create or buffer Stellar Flux");
                 })
                 .thenExecute(() -> placeBlock(
                         helper,
@@ -89,7 +89,7 @@ public final class AstronomicalObservatoryGameTest {
                             "A powered observatory with an open night sky and storage must operate");
                     helper.assertTrue(
                             celestialReserve(data, weaponId) > 0L,
-                            "Produced Celestial Energy must travel through the real AE grid into the weapon reserve");
+                            "Produced Stellar Flux must travel through the real AE grid into the weapon reserve");
                 })
                 .thenExecute(() -> helper.setBlock(SKY_BLOCKER, Blocks.STONE))
                 .thenWaitUntil(() -> helper.assertFalse(
@@ -100,7 +100,7 @@ public final class AstronomicalObservatoryGameTest {
                 .thenExecute(() -> helper.assertValueEqual(
                         celestialReserve(data, weaponId),
                         checkpoint.get(),
-                        "A sky-blocked observatory must not add Celestial Energy"))
+                        "A sky-blocked observatory must not add Stellar Flux"))
                 .thenExecute(() -> helper.destroyBlock(SKY_BLOCKER))
                 .thenWaitUntil(() -> {
                     helper.assertTrue(
@@ -108,7 +108,7 @@ public final class AstronomicalObservatoryGameTest {
                             "Restoring the sky view must resume observation without replacing the block");
                     helper.assertTrue(
                             celestialReserve(data, weaponId) > checkpoint.get(),
-                            "Restoring the sky view must resume Celestial Energy delivery");
+                            "Restoring the sky view must resume Stellar Flux delivery");
                 })
                 .thenExecute(() -> level.setDayTime(6_000L))
                 .thenWaitUntil(() -> helper.assertFalse(
@@ -119,7 +119,7 @@ public final class AstronomicalObservatoryGameTest {
                 .thenExecute(() -> helper.assertValueEqual(
                         celestialReserve(data, weaponId),
                         checkpoint.get(),
-                        "Daytime must not add Celestial Energy"))
+                        "Daytime must not add Stellar Flux"))
                 .thenExecute(() -> {
                     level.setDayTime(14_000L);
                     setClearWeather(level);
@@ -141,7 +141,7 @@ public final class AstronomicalObservatoryGameTest {
                 .thenIdle(8)
                 .thenExecute(() -> {
                     long rainGain = celestialReserve(data, weaponId) - checkpoint.get();
-                    helper.assertTrue(rainGain > 0L, "Rain must still produce Celestial Energy");
+                    helper.assertTrue(rainGain > 0L, "Rain must still produce Stellar Flux");
                     helper.assertValueEqual(
                             rainGain * 4L,
                             clearWeatherGain.get(),
@@ -156,7 +156,7 @@ public final class AstronomicalObservatoryGameTest {
                 .thenExecute(() -> helper.assertValueEqual(
                         celestialReserve(data, weaponId),
                         checkpoint.get(),
-                        "A thunderstorm must not add Celestial Energy"))
+                        "A thunderstorm must not add Stellar Flux"))
                 .thenExecute(() -> {
                     setClearWeather(level);
                     helper.assertTrue(
@@ -171,7 +171,7 @@ public final class AstronomicalObservatoryGameTest {
                 .thenExecute(() -> helper.assertValueEqual(
                         celestialReserve(data, weaponId),
                         checkpoint.get(),
-                        "An unpowered observatory must not add Celestial Energy"))
+                        "An unpowered observatory must not add Stellar Flux"))
                 .thenExecute(() -> placeRegisteredBlock(helper, CREATIVE_ENERGY_CELL, CREATIVE_ENERGY_CELL_ID))
                 .thenIdle(40)
                 .thenWaitUntil(() -> {
@@ -217,8 +217,8 @@ public final class AstronomicalObservatoryGameTest {
         return state.hasProperty(BlockStateProperties.LIT) && state.getValue(BlockStateProperties.LIT);
     }
 
-    private static long celestialReserve(OrbitalWeaponSavedData data, UUID weaponId) {
-        return data.find(weaponId).orElseThrow().reserve().celestialEnergy();
+    private static long celestialReserve(StellarErasureDeviceSavedData data, UUID weaponId) {
+        return data.find(weaponId).orElseThrow().reserve().stellarFlux();
     }
 
     private static void setClearWeather(ServerLevel level) {

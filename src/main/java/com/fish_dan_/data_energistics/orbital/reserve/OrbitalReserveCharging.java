@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.orbital.reserve;
 
-import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalEndpointBlockEntity;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointAvailability;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
@@ -40,18 +40,18 @@ public final class OrbitalReserveCharging {
      * for this tick, even if the other resource remains unavailable.
      * </p>
      */
-    public static OrbitalWeaponRecord charge(
+    public static StellarErasureDeviceRecord charge(
                                              MinecraftServer server,
-                                             OrbitalWeaponRecord weapon,
-                                             DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                             StellarErasureDeviceRecord weapon,
+                                             DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         OrbitalEnergyReserve reserve = weapon.reserve().withinCapacity(settings);
-        long celestialEnergyRequest = Math.min(
-                reserve.celestialEnergySpace(settings),
-                settings.celestialEnergyChargePerTick);
+        long stellarFluxRequest = Math.min(
+                reserve.stellarFluxSpace(settings),
+                settings.stellarFluxChargePerTick);
         long aeEnergyRequest = Math.min(
                 reserve.aeEnergySpace(settings),
                 settings.aeEnergyChargePerTick);
-        if (celestialEnergyRequest == 0L && aeEnergyRequest == 0L) {
+        if (stellarFluxRequest == 0L && aeEnergyRequest == 0L) {
             return weapon.withReserve(reserve);
         }
 
@@ -66,7 +66,7 @@ public final class OrbitalReserveCharging {
             Optional<OrbitalEnergyReserve> transferred = transferFromGrid(
                     blockEntity.orElseThrow(),
                     reserve,
-                    celestialEnergyRequest,
+                    stellarFluxRequest,
                     aeEnergyRequest,
                     settings);
             if (transferred.isPresent()) {
@@ -79,27 +79,27 @@ public final class OrbitalReserveCharging {
     private static Optional<OrbitalEnergyReserve> transferFromGrid(
                                                                    OrbitalEndpointBlockEntity endpoint,
                                                                    OrbitalEnergyReserve reserve,
-                                                                   long celestialEnergyRequest,
+                                                                   long stellarFluxRequest,
                                                                    long aeEnergyRequest,
-                                                                   DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                                                   DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         IGrid grid = endpoint.getMainNode().getGrid();
         IActionSource actionSource = IActionSource.ofMachine(endpoint);
-        long availableCelestialEnergy = celestialEnergyRequest == 0L ? 0L : grid.getStorageService()
+        long availableStellarFlux = stellarFluxRequest == 0L ? 0L : grid.getStorageService()
                 .getInventory()
-                .extract(CelestialEnergyKey.of(), celestialEnergyRequest, Actionable.SIMULATE, actionSource);
+                .extract(StellarFluxKey.of(), stellarFluxRequest, Actionable.SIMULATE, actionSource);
         long availableAeEnergy = aeEnergyRequest == 0L ? 0L : wholeAeEnergy(
                 grid.getEnergyService().extractAEPower(
                         aeEnergyRequest,
                         Actionable.SIMULATE,
                         PowerMultiplier.ONE),
                 aeEnergyRequest);
-        if (availableCelestialEnergy == 0L && availableAeEnergy == 0L) {
+        if (availableStellarFlux == 0L && availableAeEnergy == 0L) {
             return Optional.empty();
         }
 
-        long transferredCelestialEnergy = availableCelestialEnergy == 0L ? 0L : grid.getStorageService()
+        long transferredStellarFlux = availableStellarFlux == 0L ? 0L : grid.getStorageService()
                 .getInventory()
-                .extract(CelestialEnergyKey.of(), availableCelestialEnergy, Actionable.MODULATE, actionSource);
+                .extract(StellarFluxKey.of(), availableStellarFlux, Actionable.MODULATE, actionSource);
         long transferredAeEnergy = availableAeEnergy == 0L ? 0L : wholeAeEnergy(
                 grid.getEnergyService().extractAEPower(
                         availableAeEnergy,
@@ -107,7 +107,7 @@ public final class OrbitalReserveCharging {
                         PowerMultiplier.ONE),
                 availableAeEnergy);
         return Optional.of(reserve.withTransfer(
-                transferredCelestialEnergy,
+                transferredStellarFlux,
                 transferredAeEnergy,
                 settings));
     }

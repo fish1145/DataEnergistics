@@ -29,7 +29,7 @@ public enum OrbitalDirectedEnergyDepth {
     }
 
     /** Resolves this stable wire profile to the current server value before geometry is frozen. */
-    public int configuredDepth(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+    public int configuredDepth(DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         return switch (this) {
             case DEPTH_32 -> settings.directedEnergyShallowDepth;
             case DEPTH_128 -> settings.directedEnergyMediumDepth;

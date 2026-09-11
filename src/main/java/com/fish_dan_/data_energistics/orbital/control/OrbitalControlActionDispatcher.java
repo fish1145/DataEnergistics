@@ -12,9 +12,9 @@ import com.fish_dan_.data_energistics.orbital.attack.OrbitalDirectedEnergyStrike
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalFireControlSessionSnapshot;
 import com.fish_dan_.data_energistics.orbital.control.session.OrbitalAttackPreviewCalculation;
 import com.fish_dan_.data_energistics.orbital.control.session.OrbitalPreviewCalculationCoordinator;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceAction;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -94,9 +94,9 @@ public final class OrbitalControlActionDispatcher {
         }
         DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
         boolean attackEnabled = switch (mode) {
-            case KINETIC -> configuration.orbitalWeapon.kineticAttackEnabled;
-            case DIRECTED_ENERGY -> configuration.orbitalWeapon.directedEnergyAttackEnabled;
-            case DIGITAL_ANNIHILATION -> configuration.orbitalWeapon.digitalAnnihilationAttackEnabled;
+            case KINETIC -> configuration.stellarErasureDevice.kineticAttackEnabled;
+            case DIRECTED_ENERGY -> configuration.stellarErasureDevice.directedEnergyAttackEnabled;
+            case DIGITAL_ANNIHILATION -> configuration.stellarErasureDevice.digitalAnnihilationAttackEnabled;
         };
         if (!attackEnabled) {
             return false;
@@ -105,7 +105,7 @@ public final class OrbitalControlActionDispatcher {
             try {
                 OrbitalDirectedEnergyStrike.validateRadius(
                         directedRadius,
-                        configuration.orbitalWeapon);
+                        configuration.stellarErasureDevice);
             } catch (IllegalArgumentException | IllegalStateException exception) {
                 return false;
             }
@@ -130,7 +130,7 @@ public final class OrbitalControlActionDispatcher {
         }
         BlockPos target = new BlockPos(targetX, targetY, targetZ);
         int boundaryRadius = switch (mode) {
-            case KINETIC -> OrbitalAttackGeometry.Kinetic.fromSettings(configuration.orbitalWeapon).maximumRadius();
+            case KINETIC -> OrbitalAttackGeometry.Kinetic.fromSettings(configuration.stellarErasureDevice).maximumRadius();
             case DIRECTED_ENERGY -> directedRadius;
             case DIGITAL_ANNIHILATION -> configuration.explosives.dataNuke.maxRadius;
         };
@@ -141,14 +141,14 @@ public final class OrbitalControlActionDispatcher {
             return false;
         }
 
-        OrbitalWeaponSavedData weaponData = OrbitalWeaponSavedData.get(server);
-        Optional<OrbitalWeaponRecord> weapon = weaponData.accessibleSelection(player.getUUID())
+        StellarErasureDeviceSavedData weaponData = StellarErasureDeviceSavedData.get(server);
+        Optional<StellarErasureDeviceRecord> weapon = weaponData.accessibleSelection(player.getUUID())
                 .selectedWeapon()
-                .filter(candidate -> candidate.canPerform(player.getUUID(), OrbitalWeaponAction.FIRE));
+                .filter(candidate -> candidate.canPerform(player.getUUID(), StellarErasureDeviceAction.FIRE));
         if (weapon.isEmpty()) {
             return false;
         }
-        OrbitalWeaponRecord selectedWeapon = weapon.orElseThrow();
+        StellarErasureDeviceRecord selectedWeapon = weapon.orElseThrow();
         UUID weaponId = selectedWeapon.weaponId();
         if (!weaponData.hasOnlineEndpoint(server, weaponId, dimensionId)) {
             player.displayClientMessage(
@@ -171,9 +171,9 @@ public final class OrbitalControlActionDispatcher {
                 if (!sourceValid.getAsBoolean() || configuration.revision() != configurationRevision) {
                     return false;
                 }
-                OrbitalWeaponRecord current = weaponData.find(weaponId).orElse(null);
+                StellarErasureDeviceRecord current = weaponData.find(weaponId).orElse(null);
                 return current != null &&
-                        current.canPerform(player.getUUID(), OrbitalWeaponAction.FIRE) &&
+                        current.canPerform(player.getUUID(), StellarErasureDeviceAction.FIRE) &&
                         stateRevision(current) == weaponRevision &&
                         weaponData.hasOnlineEndpoint(server, weaponId, dimensionId);
             };
@@ -291,8 +291,8 @@ public final class OrbitalControlActionDispatcher {
             return false;
         }
 
-        OrbitalWeaponSavedData weaponData = OrbitalWeaponSavedData.get(server);
-        Optional<OrbitalWeaponRecord> weapon = weaponData.find(preview.weaponId());
+        StellarErasureDeviceSavedData weaponData = StellarErasureDeviceSavedData.get(server);
+        Optional<StellarErasureDeviceRecord> weapon = weaponData.find(preview.weaponId());
         if (weapon.isEmpty() || stateRevision(weapon.orElseThrow()) != preview.stateRevision()) {
             player.displayClientMessage(
                     Component.translatable("message.data_energistics.orbital_control_terminal.preview_expired"),
@@ -384,7 +384,7 @@ public final class OrbitalControlActionDispatcher {
             return Optional.empty();
         }
         FIRE_CONTROL.discard(server, player.getUUID());
-        return OrbitalWeaponSavedData.get(server).selectNext(server, player.getUUID(), forward);
+        return StellarErasureDeviceSavedData.get(server).selectNext(server, player.getUUID(), forward);
     }
 
     /** Selects an accessible ID and invalidates the previous weapon's preview on the server thread. */
@@ -393,7 +393,7 @@ public final class OrbitalControlActionDispatcher {
         if (server == null || !server.isSameThread()) {
             return false;
         }
-        if (!OrbitalWeaponSavedData.get(server).selectWeapon(server, player.getUUID(), weaponId)) {
+        if (!StellarErasureDeviceSavedData.get(server).selectWeapon(server, player.getUUID(), weaponId)) {
             return false;
         }
         FIRE_CONTROL.discard(server, player.getUUID());
@@ -407,7 +407,7 @@ public final class OrbitalControlActionDispatcher {
             return false;
         }
         try {
-            OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+            StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
             UUID weaponId = weapons.preferredWeaponId(player.getUUID()).orElse(null);
             if (weaponId == null) {
                 return false;
@@ -450,7 +450,7 @@ public final class OrbitalControlActionDispatcher {
         return level.getWorldBorder().isWithinBounds(target) && level.getWorldBorder().isWithinBounds(target.offset(-radius, 0, -radius)) && level.getWorldBorder().isWithinBounds(target.offset(radius, 0, radius));
     }
 
-    private static long stateRevision(OrbitalWeaponRecord weapon) {
+    private static long stateRevision(StellarErasureDeviceRecord weapon) {
         long revision = 17L;
         revision = 31L * revision + weapon.ownerId().hashCode();
         revision = 31L * revision + weapon.delegatedRoles().hashCode();

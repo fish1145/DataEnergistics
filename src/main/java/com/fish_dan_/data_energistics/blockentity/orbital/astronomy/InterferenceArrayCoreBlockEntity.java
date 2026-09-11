@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.orbital.astronomy.InterferenceArrayCoreBlock;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.astronomy.AstronomyDimensionRules;
-import com.fish_dan_.data_energistics.orbital.astronomy.CelestialEnergyGridTransaction;
+import com.fish_dan_.data_energistics.orbital.astronomy.StellarFluxGridTransaction;
 import com.fish_dan_.data_energistics.orbital.astronomy.InterferenceArrayPattern;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
@@ -142,9 +142,9 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
             return false;
         }
 
-        long baseOutput = baseCelestialEnergy(settings, mirrorCount);
-        long celestialEnergy = AstronomyDimensionRules.celestialEnergyPerTick(serverLevel, settings, baseOutput);
-        if (celestialEnergy == 0L || !getMainNode().isActive()) {
+        long baseOutput = baseStellarFlux(settings, mirrorCount);
+        long stellarFlux = AstronomyDimensionRules.stellarFluxPerTick(serverLevel, settings, baseOutput);
+        if (stellarFlux == 0L || !getMainNode().isActive()) {
             return false;
         }
         IGrid grid = getMainNode().getGrid();
@@ -152,25 +152,25 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
             throw new IllegalStateException("Active interference array core lost its AE grid");
         }
 
-        long inserted = CelestialEnergyGridTransaction.commit(
+        long inserted = StellarFluxGridTransaction.commit(
                 grid,
                 IActionSource.ofMachine(this),
-                celestialEnergy,
+                stellarFlux,
                 requiredAeEnergy(settings, mirrorCount));
-        if (inserted < celestialEnergy) {
+        if (inserted < stellarFlux) {
             if (inserted > 0L && !this.insertionMismatchLogged) {
                 Data_Energistics.LOGGER.warn(
-                        "Interference array core at {} accepted only {} of {} simulated Celestial Energy",
+                        "Interference array core at {} accepted only {} of {} simulated Stellar Flux",
                         this.worldPosition,
                         inserted,
-                        celestialEnergy);
+                        stellarFlux);
                 this.insertionMismatchLogged = true;
             }
             return inserted > 0L;
         }
         if (this.insertionMismatchLogged) {
             Data_Energistics.LOGGER.info(
-                    "Recovered Celestial Energy insertion for interference array core at {}",
+                    "Recovered Stellar Flux insertion for interference array core at {}",
                     this.worldPosition);
             this.insertionMismatchLogged = false;
         }
@@ -209,18 +209,18 @@ public final class InterferenceArrayCoreBlockEntity extends AENetworkedBlockEnti
         }
     }
 
-    private static long baseCelestialEnergy(DataEnergisticsConfiguration.AstronomySchema settings, int mirrorCount) {
+    private static long baseStellarFlux(DataEnergisticsConfiguration.AstronomySchema settings, int mirrorCount) {
         long output = 0L;
         for (int mirror = 1; mirror <= mirrorCount; mirror++) {
             long mirrorOutput;
             if (mirror <= 4) {
-                mirrorOutput = settings.highTierMirrorCelestialEnergyPerTick1To4;
+                mirrorOutput = settings.highTierMirrorStellarFluxPerTick1To4;
             } else if (mirror <= 8) {
-                mirrorOutput = settings.highTierMirrorCelestialEnergyPerTick5To8;
+                mirrorOutput = settings.highTierMirrorStellarFluxPerTick5To8;
             } else if (mirror <= 12) {
-                mirrorOutput = settings.highTierMirrorCelestialEnergyPerTick9To12;
+                mirrorOutput = settings.highTierMirrorStellarFluxPerTick9To12;
             } else {
-                mirrorOutput = settings.highTierMirrorCelestialEnergyPerTick13To16;
+                mirrorOutput = settings.highTierMirrorStellarFluxPerTick13To16;
             }
             output = saturatedAdd(output, mirrorOutput);
         }

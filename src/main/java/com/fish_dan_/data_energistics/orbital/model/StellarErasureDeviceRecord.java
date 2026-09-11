@@ -21,13 +21,13 @@ import java.util.UUID;
  * record with lifecycle, reserve and attack state without changing the stable weapon identity.
  * </p>
  */
-public record OrbitalWeaponRecord(
+public record StellarErasureDeviceRecord(
                                   UUID weaponId,
                                   UUID ownerId,
                                   Map<UUID, OrbitalAccessRole> delegatedRoles,
                                   Map<OrbitalEndpointLocation, OrbitalEndpointRecord> endpoints,
                                   OrbitalEnergyReserve reserve,
-                                  OrbitalWeaponLifecycle lifecycle,
+                                  StellarErasureDeviceLifecycle lifecycle,
                                   @Nullable OrbitalEndpointLocation primaryAnchor,
                                   String customName) {
 
@@ -44,11 +44,11 @@ public record OrbitalWeaponRecord(
     }
 
     /** Returns a renamed record; stable identity and every operational field are preserved. */
-    public OrbitalWeaponRecord withName(String name) {
-        return new OrbitalWeaponRecord(weaponId, ownerId, delegatedRoles, endpoints, reserve, lifecycle, primaryAnchor, name);
+    public StellarErasureDeviceRecord withName(String name) {
+        return new StellarErasureDeviceRecord(weaponId, ownerId, delegatedRoles, endpoints, reserve, lifecycle, primaryAnchor, name);
     }
 
-    public OrbitalWeaponRecord {
+    public StellarErasureDeviceRecord {
         customName = normalizeName(customName);
         delegatedRoles = Map.copyOf(delegatedRoles);
         endpoints = Map.copyOf(endpoints);
@@ -71,14 +71,14 @@ public record OrbitalWeaponRecord(
     /**
      * Creates an unshared weapon record with a stable weapon identity.
      */
-    public static OrbitalWeaponRecord create(UUID weaponId, UUID ownerId) {
-        return new OrbitalWeaponRecord(
+    public static StellarErasureDeviceRecord create(UUID weaponId, UUID ownerId) {
+        return new StellarErasureDeviceRecord(
                 weaponId,
                 ownerId,
                 Map.of(),
                 Map.of(),
                 OrbitalEnergyReserve.empty(),
-                OrbitalWeaponLifecycle.dormant(),
+                StellarErasureDeviceLifecycle.dormant(),
                 null,
                 "");
     }
@@ -86,7 +86,7 @@ public record OrbitalWeaponRecord(
     /**
      * Evaluates a server-authoritative action against the current ownership snapshot.
      */
-    public boolean canPerform(UUID playerId, OrbitalWeaponAction action) {
+    public boolean canPerform(UUID playerId, StellarErasureDeviceAction action) {
         return OrbitalAccessPolicy.canPerform(this.ownerId, this.delegatedRoles, playerId, action);
     }
 
@@ -100,7 +100,7 @@ public record OrbitalWeaponRecord(
     /**
      * Returns a new record with the delegated role added or replaced.
      */
-    public OrbitalWeaponRecord withRole(UUID playerId, OrbitalAccessRole role) {
+    public StellarErasureDeviceRecord withRole(UUID playerId, OrbitalAccessRole role) {
         if (this.ownerId.equals(playerId)) {
             throw new IllegalArgumentException("The owner must not also have a delegated role");
         }
@@ -110,7 +110,7 @@ public record OrbitalWeaponRecord(
 
         Map<UUID, OrbitalAccessRole> updatedRoles = new Object2ObjectOpenHashMap<>(this.delegatedRoles);
         updatedRoles.put(playerId, role);
-        return new OrbitalWeaponRecord(
+        return new StellarErasureDeviceRecord(
                 this.weaponId,
                 this.ownerId,
                 updatedRoles,
@@ -124,7 +124,7 @@ public record OrbitalWeaponRecord(
     /**
      * Returns a new record without the player's delegated role.
      */
-    public OrbitalWeaponRecord withoutRole(UUID playerId) {
+    public StellarErasureDeviceRecord withoutRole(UUID playerId) {
         if (this.ownerId.equals(playerId)) {
             throw new IllegalArgumentException("Ownership cannot be revoked as a delegated role");
         }
@@ -134,7 +134,7 @@ public record OrbitalWeaponRecord(
 
         Map<UUID, OrbitalAccessRole> updatedRoles = new Object2ObjectOpenHashMap<>(this.delegatedRoles);
         updatedRoles.remove(playerId);
-        return new OrbitalWeaponRecord(
+        return new StellarErasureDeviceRecord(
                 this.weaponId,
                 this.ownerId,
                 updatedRoles,
@@ -162,7 +162,7 @@ public record OrbitalWeaponRecord(
     /**
      * Returns a new record with an endpoint added at its dimension-qualified location.
      */
-    public OrbitalWeaponRecord withEndpoint(OrbitalEndpointRecord endpoint) {
+    public StellarErasureDeviceRecord withEndpoint(OrbitalEndpointRecord endpoint) {
         OrbitalEndpointRecord existing = this.endpoints.get(endpoint.location());
         if (endpoint.equals(existing)) {
             return this;
@@ -170,7 +170,7 @@ public record OrbitalWeaponRecord(
 
         Map<OrbitalEndpointLocation, OrbitalEndpointRecord> updatedEndpoints = new Object2ObjectOpenHashMap<>(this.endpoints);
         updatedEndpoints.put(endpoint.location(), endpoint);
-        return new OrbitalWeaponRecord(
+        return new StellarErasureDeviceRecord(
                 this.weaponId,
                 this.ownerId,
                 this.delegatedRoles,
@@ -184,7 +184,7 @@ public record OrbitalWeaponRecord(
     /**
      * Returns a new record without the endpoint at the supplied location.
      */
-    public OrbitalWeaponRecord withoutEndpoint(OrbitalEndpointLocation location) {
+    public StellarErasureDeviceRecord withoutEndpoint(OrbitalEndpointLocation location) {
         if (!this.endpoints.containsKey(location)) {
             return this;
         }
@@ -192,7 +192,7 @@ public record OrbitalWeaponRecord(
         Map<OrbitalEndpointLocation, OrbitalEndpointRecord> updatedEndpoints = new Object2ObjectOpenHashMap<>(this.endpoints);
         updatedEndpoints.remove(location);
         OrbitalEndpointLocation updatedAnchor = location.equals(this.primaryAnchor) ? null : this.primaryAnchor;
-        return new OrbitalWeaponRecord(
+        return new StellarErasureDeviceRecord(
                 this.weaponId,
                 this.ownerId,
                 this.delegatedRoles,
@@ -206,11 +206,11 @@ public record OrbitalWeaponRecord(
     /**
      * Returns a new record containing the supplied persistent energy reserve.
      */
-    public OrbitalWeaponRecord withReserve(OrbitalEnergyReserve reserve) {
+    public StellarErasureDeviceRecord withReserve(OrbitalEnergyReserve reserve) {
         if (this.reserve.equals(reserve)) {
             return this;
         }
-        return new OrbitalWeaponRecord(
+        return new StellarErasureDeviceRecord(
                 this.weaponId,
                 this.ownerId,
                 this.delegatedRoles,
@@ -222,11 +222,11 @@ public record OrbitalWeaponRecord(
     }
 
     /** Returns a new record with the supplied deployment state. */
-    public OrbitalWeaponRecord withLifecycle(OrbitalWeaponLifecycle lifecycle) {
+    public StellarErasureDeviceRecord withLifecycle(StellarErasureDeviceLifecycle lifecycle) {
         if (this.lifecycle.equals(lifecycle)) {
             return this;
         }
-        return new OrbitalWeaponRecord(
+        return new StellarErasureDeviceRecord(
                 this.weaponId,
                 this.ownerId,
                 this.delegatedRoles,
@@ -238,11 +238,11 @@ public record OrbitalWeaponRecord(
     }
 
     /** Returns a new record with the owner-selected uplink beacon as the projection anchor. */
-    public OrbitalWeaponRecord withPrimaryAnchor(@Nullable OrbitalEndpointLocation primaryAnchor) {
+    public StellarErasureDeviceRecord withPrimaryAnchor(@Nullable OrbitalEndpointLocation primaryAnchor) {
         if (Objects.equals(this.primaryAnchor, primaryAnchor)) {
             return this;
         }
-        return new OrbitalWeaponRecord(
+        return new StellarErasureDeviceRecord(
                 this.weaponId,
                 this.ownerId,
                 this.delegatedRoles,

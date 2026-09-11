@@ -12,9 +12,9 @@ import com.fish_dan_.data_energistics.orbital.attack.entity.strike.OrbitalErasur
 import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalAttackWorkState;
 import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalTerrainWorkScheduler;
 import com.fish_dan_.data_energistics.orbital.attack.work.OrbitalTerrainWorkScheduler.ChunkReadiness;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceAction;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -203,7 +203,7 @@ public final class OrbitalAttackSavedData extends SavedData {
             return false;
         }
         discardPayload(server, current);
-        OrbitalWeaponSavedData.get(server).refundFaultedReserve(
+        StellarErasureDeviceSavedData.get(server).refundFaultedReserve(
                 server,
                 current.weaponId(),
                 current.celestialEscrow(),
@@ -220,7 +220,7 @@ public final class OrbitalAttackSavedData extends SavedData {
      *
      * <p>
      * The caller must be on the server thread. Access control is intentionally performed by the caller against the
-     * current {@link OrbitalWeaponRecord}; this method never exposes the complete attack store to a client.
+     * current {@link StellarErasureDeviceRecord}; this method never exposes the complete attack store to a client.
      * </p>
      */
     public List<OrbitalAttackRecord> forWeapon(UUID weaponId) {
@@ -266,7 +266,7 @@ public final class OrbitalAttackSavedData extends SavedData {
      * included; clients only receive deterministic geometry and coarse progress.
      */
     public List<OrbitalAttackVisualSnapshot> publicVisuals(ServerLevel level, long gameTime) {
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         List<OrbitalAttackVisualSnapshot> visuals = new ObjectArrayList<>();
         for (OrbitalAttackRecord storedAttack : this.attacks.values()) {
             BeamFrame frame = this.beamFrames.get(storedAttack.attackId());
@@ -337,17 +337,17 @@ public final class OrbitalAttackSavedData extends SavedData {
                                                            BlockPos target) {
         requireServerThread(server);
         DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = configuration.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = configuration.stellarErasureDevice;
         if (!settings.kineticAttackEnabled) {
             return Optional.empty();
         }
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
-        Optional<OrbitalWeaponRecord> foundWeapon = weapons.find(weaponId);
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
+        Optional<StellarErasureDeviceRecord> foundWeapon = weapons.find(weaponId);
         if (foundWeapon.isEmpty()) {
             return Optional.empty();
         }
-        OrbitalWeaponRecord weapon = foundWeapon.orElseThrow();
-        if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || !weapon.allowsNewAttacks() || hasAttackForMode(weaponId, OrbitalAttackMode.KINETIC)) {
+        StellarErasureDeviceRecord weapon = foundWeapon.orElseThrow();
+        if (!weapon.canPerform(actorId, StellarErasureDeviceAction.FIRE) || !weapon.allowsNewAttacks() || hasAttackForMode(weaponId, OrbitalAttackMode.KINETIC)) {
             return Optional.empty();
         }
 
@@ -381,7 +381,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 server,
                 weaponId,
                 actorId,
-                cost.celestialEnergy(),
+                cost.stellarFlux(),
                 cost.aeEnergy())) {
             return Optional.empty();
         }
@@ -403,20 +403,20 @@ public final class OrbitalAttackSavedData extends SavedData {
                                                                   @Nullable OrbitalDirectedEnergyDepth depth) {
         requireServerThread(server);
         DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = configuration.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = configuration.stellarErasureDevice;
         if (!settings.directedEnergyAttackEnabled) {
             return Optional.empty();
         }
         if (depth == null) {
             return Optional.empty();
         }
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
-        Optional<OrbitalWeaponRecord> foundWeapon = weapons.find(weaponId);
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
+        Optional<StellarErasureDeviceRecord> foundWeapon = weapons.find(weaponId);
         if (foundWeapon.isEmpty()) {
             return Optional.empty();
         }
-        OrbitalWeaponRecord weapon = foundWeapon.orElseThrow();
-        if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || !weapon.allowsNewAttacks() || hasAttackForMode(weaponId, OrbitalAttackMode.DIRECTED_ENERGY)) {
+        StellarErasureDeviceRecord weapon = foundWeapon.orElseThrow();
+        if (!weapon.canPerform(actorId, StellarErasureDeviceAction.FIRE) || !weapon.allowsNewAttacks() || hasAttackForMode(weaponId, OrbitalAttackMode.DIRECTED_ENERGY)) {
             return Optional.empty();
         }
         if (attackCapacityReached(settings)) {
@@ -462,7 +462,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 server,
                 weaponId,
                 actorId,
-                cost.celestialEnergy(),
+                cost.stellarFlux(),
                 cost.aeEnergy())) {
             return Optional.empty();
         }
@@ -483,17 +483,17 @@ public final class OrbitalAttackSavedData extends SavedData {
                                                                        BlockPos target) {
         requireServerThread(server);
         DataEnergisticsConfiguration configuration = DataEnergisticsConfiguration.INSTANCE;
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = configuration.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = configuration.stellarErasureDevice;
         if (!settings.digitalAnnihilationAttackEnabled) {
             return Optional.empty();
         }
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
-        Optional<OrbitalWeaponRecord> foundWeapon = weapons.find(weaponId);
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
+        Optional<StellarErasureDeviceRecord> foundWeapon = weapons.find(weaponId);
         if (foundWeapon.isEmpty()) {
             return Optional.empty();
         }
-        OrbitalWeaponRecord weapon = foundWeapon.orElseThrow();
-        if (!weapon.canPerform(actorId, OrbitalWeaponAction.FIRE) || !weapon.allowsNewAttacks() || hasAttackForMode(weaponId, OrbitalAttackMode.DIGITAL_ANNIHILATION)) {
+        StellarErasureDeviceRecord weapon = foundWeapon.orElseThrow();
+        if (!weapon.canPerform(actorId, StellarErasureDeviceAction.FIRE) || !weapon.allowsNewAttacks() || hasAttackForMode(weaponId, OrbitalAttackMode.DIGITAL_ANNIHILATION)) {
             return Optional.empty();
         }
         DataEnergisticsConfiguration.DataNukeSchema dataNuke = configuration.explosives.dataNuke;
@@ -527,7 +527,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 server,
                 weaponId,
                 actorId,
-                cost.celestialEnergy(),
+                cost.stellarFlux(),
                 cost.aeEnergy())) {
             return Optional.empty();
         }
@@ -575,9 +575,9 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (warning == null || warning.phase() != OrbitalAttackPhase.RESERVED_WARNING) {
             return false;
         }
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
-        OrbitalWeaponRecord weapon = weapons.find(warning.weaponId()).orElse(null);
-        if (weapon == null || !weapon.canPerform(actorId, OrbitalWeaponAction.CANCEL_WARNING_ATTACK)) {
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
+        StellarErasureDeviceRecord weapon = weapons.find(warning.weaponId()).orElse(null);
+        if (weapon == null || !weapon.canPerform(actorId, StellarErasureDeviceAction.CANCEL_WARNING_ATTACK)) {
             return false;
         }
         this.attacks.remove(attackId);
@@ -608,8 +608,8 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (current == null || (current.phase() != OrbitalAttackPhase.COMMITTED && current.phase() != OrbitalAttackPhase.DELIVERY)) {
             return false;
         }
-        OrbitalWeaponRecord weapon = OrbitalWeaponSavedData.get(server).find(current.weaponId()).orElse(null);
-        if (weapon == null || !weapon.canPerform(actorId, OrbitalWeaponAction.EMERGENCY_ABORT)) {
+        StellarErasureDeviceRecord weapon = StellarErasureDeviceSavedData.get(server).find(current.weaponId()).orElse(null);
+        if (weapon == null || !weapon.canPerform(actorId, StellarErasureDeviceAction.EMERGENCY_ABORT)) {
             return false;
         }
         discardPayload(server, current);
@@ -627,7 +627,7 @@ public final class OrbitalAttackSavedData extends SavedData {
         requireServerThread(server);
         this.beamFrames.clear();
         this.erasureStrikes.keySet().removeIf(attackId -> !this.attacks.containsKey(attackId));
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         long gameTime = server.overworld().getGameTime();
         boolean phaseTimesChanged = this.phaseStartedAt.keySet().removeIf(attackId -> !this.attacks.containsKey(attackId));
         for (OrbitalAttackRecord attack : this.attacks.values()) {
@@ -1385,7 +1385,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 .anyMatch(attack -> attack.weaponId().equals(weaponId) && attack.mode() == mode);
     }
 
-    private boolean attackCapacityReached(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+    private boolean attackCapacityReached(DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         long occupiedTasks = this.attacks.values().stream()
                 .filter(OrbitalAttackSavedData::occupiesWorkSlot)
                 .count();

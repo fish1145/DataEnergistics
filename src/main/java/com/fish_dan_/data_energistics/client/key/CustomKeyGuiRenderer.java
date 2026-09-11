@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.client.key;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
@@ -21,7 +21,7 @@ public final class CustomKeyGuiRenderer {
     private static final ResourceLocation DATA_FLOW_SPRITE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/key/data_flow");
     private static final ResourceLocation DATA_SPRITE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/key/data");
     private static final ResourceLocation ECHO_SPRITE = ResourceLocation.withDefaultNamespace("item/echo_shard");
-    // TODO: Replace this functional placeholder with a dedicated project-owned Celestial Energy sprite.
+    // TODO: Replace this functional placeholder with a dedicated project-owned Stellar Flux sprite.
     private static final ResourceLocation CELESTIAL_ENERGY_SPRITE = DATA_FLOW_SPRITE;
 
     private CustomKeyGuiRenderer() {}
@@ -45,8 +45,8 @@ public final class CustomKeyGuiRenderer {
             drawSprite(guiGraphics, x, y, echoSprite());
             return true;
         }
-        if (key instanceof CelestialEnergyKey) {
-            drawSprite(guiGraphics, x, y, celestialEnergySprite());
+        if (key instanceof StellarFluxKey) {
+            drawSprite(guiGraphics, x, y, stellarFluxSprite());
             return true;
         }
         return false;
@@ -64,7 +64,7 @@ public final class CustomKeyGuiRenderer {
         return Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(ECHO_SPRITE);
     }
 
-    public static TextureAtlasSprite celestialEnergySprite() {
+    public static TextureAtlasSprite stellarFluxSprite() {
         return Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(CELESTIAL_ENERGY_SPRITE);
     }
 

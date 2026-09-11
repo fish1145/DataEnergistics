@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.orbital.control.ui;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalAccess;
 import com.fish_dan_.data_energistics.orbital.control.OrbitalControlTerminalSnapshot;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import com.lowdragmc.lowdraglib2.gui.factory.PlayerUIMenuType;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
@@ -37,7 +37,7 @@ public final class OrbitalControlPlayerMenu {
 
     private static boolean hasWeaponAccess(ServerPlayer player) {
         MinecraftServer server = player.getServer();
-        return server != null && OrbitalWeaponSavedData.get(server).hasAccessibleWeapon(player.getUUID());
+        return server != null && StellarErasureDeviceSavedData.get(server).hasAccessibleWeapon(player.getUUID());
     }
 
     private record OrbitalPlayerUiHolder(Player player) implements PlayerUIMenuType.PlayerUIHolder {

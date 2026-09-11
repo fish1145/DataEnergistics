@@ -10,8 +10,8 @@ import com.fish_dan_.data_energistics.orbital.control.ui.map.OrbitalTacticalMapP
 import com.fish_dan_.data_energistics.orbital.control.ui.map.OrbitalTacticalMapPanel.MapProviderOption;
 import com.fish_dan_.data_energistics.orbital.control.ui.target.OrbitalModePicker;
 import com.fish_dan_.data_energistics.orbital.control.ui.target.OrbitalTargetPanel;
-import com.fish_dan_.data_energistics.orbital.control.ui.weapon.OrbitalWeaponListPanel;
-import com.fish_dan_.data_energistics.orbital.control.ui.weapon.OrbitalWeaponStatusPanel;
+import com.fish_dan_.data_energistics.orbital.control.ui.weapon.StellarErasureDeviceListPanel;
+import com.fish_dan_.data_energistics.orbital.control.ui.weapon.StellarErasureDeviceStatusPanel;
 
 import com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
@@ -35,9 +35,9 @@ public final class OrbitalControlDashboard {
     public static final int MAP_RADIUS = OrbitalTacticalMapPanel.RADIUS;
     private static final String PREFIX = "screen.data_energistics.orbital_control_terminal.";
     public final UIElement root = new UIElement();
-    public final OrbitalWeaponListPanel weapons = new OrbitalWeaponListPanel();
+    public final StellarErasureDeviceListPanel weapons = new StellarErasureDeviceListPanel();
     public final OrbitalTacticalMapPanel map = new OrbitalTacticalMapPanel();
-    public final OrbitalWeaponStatusPanel status = new OrbitalWeaponStatusPanel();
+    public final StellarErasureDeviceStatusPanel status = new StellarErasureDeviceStatusPanel();
     public final OrbitalTargetPanel target;
     public final Label feedback;
     public final Button hudLayout;

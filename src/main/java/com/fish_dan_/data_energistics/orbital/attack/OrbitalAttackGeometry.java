@@ -69,7 +69,7 @@ public sealed interface OrbitalAttackGeometry
         }
 
         /** Captures the mutable server configuration for one new preview or confirmed attack. */
-        public static Kinetic fromSettings(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+        public static Kinetic fromSettings(DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
             return new Kinetic(
                     settings.kineticColumnRadius,
                     settings.kineticColumnDepth,
@@ -188,7 +188,7 @@ public sealed interface OrbitalAttackGeometry
         public static DirectedEnergy fromSettings(
                                                   int radius,
                                                   OrbitalDirectedEnergyDepth depth,
-                                                  DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                                  DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
             return new DirectedEnergy(
                     radius,
                     depth,

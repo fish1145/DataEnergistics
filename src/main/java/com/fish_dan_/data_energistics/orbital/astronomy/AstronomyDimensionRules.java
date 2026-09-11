@@ -45,23 +45,23 @@ public final class AstronomyDimensionRules {
     }
 
     /**
-     * Calculates the whole Celestial Energy output for this dimension and current weather.
+     * Calculates the whole Stellar Flux output for this dimension and current weather.
      */
-    public static long celestialEnergyPerTick(
+    public static long stellarFluxPerTick(
                                               ServerLevel level,
                                               DataEnergisticsConfiguration.AstronomySchema settings) {
-        return celestialEnergyPerTick(level, settings, settings.lowTierCelestialEnergyPerTick);
+        return stellarFluxPerTick(level, settings, settings.lowTierStellarFluxPerTick);
     }
 
     /**
      * Applies this dimension's configured multiplier and current rain multiplier to a caller-provided base output.
      */
-    public static long celestialEnergyPerTick(
+    public static long stellarFluxPerTick(
                                               ServerLevel level,
                                               DataEnergisticsConfiguration.AstronomySchema settings,
                                               long baseOutput) {
         if (baseOutput < 0L) {
-            throw new IllegalArgumentException("Base Celestial Energy output must be non-negative: " + baseOutput);
+            throw new IllegalArgumentException("Base Stellar Flux output must be non-negative: " + baseOutput);
         }
         ResourceLocation dimensionId = level.dimension().location();
         double dimensionMultiplier = settings.dimensionMultipliers()

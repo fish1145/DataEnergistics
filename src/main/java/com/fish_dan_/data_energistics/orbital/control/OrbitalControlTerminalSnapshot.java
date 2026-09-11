@@ -5,9 +5,9 @@ import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackRecord;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycleState;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.UUIDUtil;
@@ -52,8 +52,8 @@ public record OrbitalControlTerminalSnapshot(
     private static final Codec<OrbitalAttackMode> ATTACK_MODE_CODEC = enumCodec(OrbitalAttackMode.class);
     private static final Codec<OrbitalAttackPhase> ATTACK_PHASE_CODEC = enumCodec(OrbitalAttackPhase.class);
     private static final Codec<OrbitalAccessRole> ACCESS_ROLE_CODEC = enumCodec(OrbitalAccessRole.class);
-    private static final Codec<OrbitalWeaponLifecycleState> LIFECYCLE_CODEC = enumCodec(
-            OrbitalWeaponLifecycleState.class);
+    private static final Codec<StellarErasureDeviceLifecycleState> LIFECYCLE_CODEC = enumCodec(
+            StellarErasureDeviceLifecycleState.class);
 
     public static final OrbitalControlTerminalSnapshot EMPTY = new OrbitalControlTerminalSnapshot(
             null,
@@ -85,10 +85,10 @@ public record OrbitalControlTerminalSnapshot(
     /** Captures the stable-ID ordered weapons currently visible to one server player. */
     public static OrbitalControlTerminalSnapshot capture(MinecraftServer server, UUID playerId) {
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
-        OrbitalWeaponSavedData weaponData = OrbitalWeaponSavedData.get(server);
-        OrbitalWeaponSavedData.AccessibleWeaponSelection selection = weaponData.accessibleSelection(playerId);
+        StellarErasureDeviceSavedData weaponData = StellarErasureDeviceSavedData.get(server);
+        StellarErasureDeviceSavedData.AccessibleWeaponSelection selection = weaponData.accessibleSelection(playerId);
         boolean truncated = selection.weapons().size() > MAX_WEAPONS;
-        List<OrbitalWeaponRecord> accessibleWeapons = selection.weapons()
+        List<StellarErasureDeviceRecord> accessibleWeapons = selection.weapons()
                 .stream()
                 .limit(MAX_WEAPONS)
                 .toList();
@@ -186,9 +186,9 @@ public record OrbitalControlTerminalSnapshot(
                               boolean owner,
                               @Nullable OrbitalAccessRole delegatedRole,
                               int endpointCount,
-                              OrbitalWeaponLifecycleState lifecycleState,
+                              StellarErasureDeviceLifecycleState lifecycleState,
                               int graceTicksRemaining,
-                              long celestialEnergy,
+                              long stellarFlux,
                               long aeEnergy,
                               List<AttackEntry> attacks,
                               String customName,
@@ -207,13 +207,13 @@ public record OrbitalControlTerminalSnapshot(
                         Codec.INT.fieldOf("endpoint_count").forGetter(WeaponEntry::endpointCount),
                         LIFECYCLE_CODEC.fieldOf("lifecycle_state").forGetter(WeaponEntry::lifecycleState),
                         Codec.INT.fieldOf("grace_ticks_remaining").forGetter(WeaponEntry::graceTicksRemaining),
-                        Codec.LONG.fieldOf("celestial_energy").forGetter(WeaponEntry::celestialEnergy),
+                        Codec.LONG.fieldOf("stellar_flux").forGetter(WeaponEntry::stellarFlux),
                         Codec.LONG.fieldOf("ae_energy").forGetter(WeaponEntry::aeEnergy),
                         AttackEntry.CODEC.listOf().fieldOf("attacks").forGetter(WeaponEntry::attacks),
-                        Codec.string(0, OrbitalWeaponRecord.MAX_NAME_LENGTH).fieldOf("custom_name").forGetter(WeaponEntry::customName),
+                        Codec.string(0, StellarErasureDeviceRecord.MAX_NAME_LENGTH).fieldOf("custom_name").forGetter(WeaponEntry::customName),
                         Codec.string(0, 64).fieldOf("owner_name").forGetter(WeaponEntry::ownerName))
                 .apply(instance, (weaponId, ownerId, owner, delegatedRole, endpointCount, lifecycleState,
-                                  graceTicksRemaining, celestialEnergy, aeEnergy, attacks, customName, ownerName) -> new WeaponEntry(
+                                  graceTicksRemaining, stellarFlux, aeEnergy, attacks, customName, ownerName) -> new WeaponEntry(
                                           weaponId,
                                           ownerId,
                                           owner,
@@ -221,12 +221,12 @@ public record OrbitalControlTerminalSnapshot(
                                           endpointCount,
                                           lifecycleState,
                                           graceTicksRemaining,
-                                          celestialEnergy,
+                                          stellarFlux,
                                           aeEnergy,
                                           attacks, customName, ownerName)));
 
         public WeaponEntry {
-            customName = OrbitalWeaponRecord.normalizeName(customName);
+            customName = StellarErasureDeviceRecord.normalizeName(customName);
             if (ownerName.length() > 64) {
                 throw new IllegalArgumentException("Owner profile name exceeds its wire bound");
             }
@@ -234,7 +234,7 @@ public record OrbitalControlTerminalSnapshot(
             if (attacks.size() > MAX_ATTACKS_PER_WEAPON) {
                 throw new IllegalArgumentException("Orbital terminal weapon exceeds its bounded attack limit");
             }
-            if (endpointCount < 0 || graceTicksRemaining < 0 || celestialEnergy < 0L || aeEnergy < 0L) {
+            if (endpointCount < 0 || graceTicksRemaining < 0 || stellarFlux < 0L || aeEnergy < 0L) {
                 throw new IllegalArgumentException("Orbital terminal reserve values must not be negative");
             }
             if (owner && delegatedRole != null) {
@@ -256,7 +256,7 @@ public record OrbitalControlTerminalSnapshot(
         }
 
         private static WeaponEntry from(
-                                        OrbitalWeaponRecord weapon,
+                                        StellarErasureDeviceRecord weapon,
                                         UUID playerId,
                                         String ownerName,
                                         List<OrbitalAttackRecord> attacks) {
@@ -269,7 +269,7 @@ public record OrbitalControlTerminalSnapshot(
                     weapon.endpoints().size(),
                     weapon.lifecycle().state(),
                     weapon.lifecycle().graceTicksRemaining(),
-                    weapon.reserve().celestialEnergy(),
+                    weapon.reserve().stellarFlux(),
                     weapon.reserve().aeEnergy(),
                     attacks.stream().limit(MAX_ATTACKS_PER_WEAPON).map(AttackEntry::from).toList(),
                     weapon.customName(), ownerName);
@@ -278,7 +278,7 @@ public record OrbitalControlTerminalSnapshot(
         private static void encode(RegistryFriendlyByteBuf buffer, WeaponEntry entry) {
             buffer.writeUUID(entry.weaponId);
             buffer.writeUUID(entry.ownerId);
-            buffer.writeUtf(entry.customName, OrbitalWeaponRecord.MAX_NAME_LENGTH);
+            buffer.writeUtf(entry.customName, StellarErasureDeviceRecord.MAX_NAME_LENGTH);
             buffer.writeUtf(entry.ownerName, 64);
             buffer.writeBoolean(entry.owner);
             if (!entry.owner) {
@@ -287,7 +287,7 @@ public record OrbitalControlTerminalSnapshot(
             buffer.writeVarInt(entry.endpointCount);
             buffer.writeVarInt(entry.lifecycleState.ordinal());
             buffer.writeVarInt(entry.graceTicksRemaining);
-            buffer.writeVarLong(entry.celestialEnergy);
+            buffer.writeVarLong(entry.stellarFlux);
             buffer.writeVarLong(entry.aeEnergy);
             buffer.writeVarInt(entry.attacks.size());
             for (AttackEntry attack : entry.attacks) {
@@ -298,7 +298,7 @@ public record OrbitalControlTerminalSnapshot(
         private static WeaponEntry decode(RegistryFriendlyByteBuf buffer) {
             UUID weaponId = buffer.readUUID();
             UUID ownerId = buffer.readUUID();
-            String customName = buffer.readUtf(OrbitalWeaponRecord.MAX_NAME_LENGTH);
+            String customName = buffer.readUtf(StellarErasureDeviceRecord.MAX_NAME_LENGTH);
             String ownerName = buffer.readUtf(64);
             boolean owner = buffer.readBoolean();
             OrbitalAccessRole delegatedRole = owner ? null : readEnum(
@@ -306,12 +306,12 @@ public record OrbitalControlTerminalSnapshot(
                     OrbitalAccessRole.values(),
                     "access role");
             int endpointCount = buffer.readVarInt();
-            OrbitalWeaponLifecycleState lifecycleState = readEnum(
+            StellarErasureDeviceLifecycleState lifecycleState = readEnum(
                     buffer,
-                    OrbitalWeaponLifecycleState.values(),
+                    StellarErasureDeviceLifecycleState.values(),
                     "lifecycle state");
             int graceTicksRemaining = buffer.readVarInt();
-            long celestialEnergy = buffer.readVarLong();
+            long stellarFlux = buffer.readVarLong();
             long aeEnergy = buffer.readVarLong();
             int attackCount = boundedCount(buffer, MAX_ATTACKS_PER_WEAPON, "attack");
             ObjectArrayList<AttackEntry> attacks = new ObjectArrayList<>(attackCount);
@@ -326,7 +326,7 @@ public record OrbitalControlTerminalSnapshot(
                     endpointCount,
                     lifecycleState,
                     graceTicksRemaining,
-                    celestialEnergy,
+                    stellarFlux,
                     aeEnergy,
                     attacks, customName, ownerName);
         }

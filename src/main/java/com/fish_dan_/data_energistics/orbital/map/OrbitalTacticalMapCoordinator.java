@@ -3,9 +3,9 @@ package com.fish_dan_.data_energistics.orbital.map;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceAction;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -65,9 +65,9 @@ public final class OrbitalTacticalMapCoordinator {
         if (radius < 0 || radius > 3 || nonce <= 0L || Math.abs((long) centerChunkX) > 2_000_000L || Math.abs((long) centerChunkZ) > 2_000_000L) {
             return Optional.empty();
         }
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
-        OrbitalWeaponRecord weapon = weapons.find(weaponId).orElse(null);
-        if (weapon == null || !weapon.canPerform(player.getUUID(), OrbitalWeaponAction.AIM) || !weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
+        StellarErasureDeviceRecord weapon = weapons.find(weaponId).orElse(null);
+        if (weapon == null || !weapon.canPerform(player.getUUID(), StellarErasureDeviceAction.AIM) || !weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
             return Optional.empty();
         }
 
@@ -168,7 +168,7 @@ public final class OrbitalTacticalMapCoordinator {
     /** Computes only public, chunk-local marker bits; this path never asks the chunk source to load terrain. */
     private static int markerFlags(
                                    ServerLevel level,
-                                   OrbitalWeaponRecord weapon,
+                                   StellarErasureDeviceRecord weapon,
                                    int chunkX,
                                    int chunkZ,
                                    LongSet publicAttackChunks) {

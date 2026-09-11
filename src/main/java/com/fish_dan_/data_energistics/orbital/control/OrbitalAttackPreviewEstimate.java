@@ -27,7 +27,7 @@ import org.jspecify.annotations.Nullable;
  */
 public record OrbitalAttackPreviewEstimate(
                                            OrbitalAttackCost cost,
-                                           long availableCelestialEnergy,
+                                           long availableStellarFlux,
                                            long availableAeEnergy,
                                            long scheduledCoordinates,
                                            long scheduledBlocks,
@@ -41,7 +41,7 @@ public record OrbitalAttackPreviewEstimate(
     public static final Codec<OrbitalAttackPreviewEstimate> CODEC = RecordCodecBuilder.create(instance -> instance
             .group(
                     OrbitalAttackCost.CODEC.fieldOf("cost").forGetter(OrbitalAttackPreviewEstimate::cost),
-                    Codec.LONG.fieldOf("available_celestial_energy").forGetter(OrbitalAttackPreviewEstimate::availableCelestialEnergy),
+                    Codec.LONG.fieldOf("available_stellar_flux").forGetter(OrbitalAttackPreviewEstimate::availableStellarFlux),
                     Codec.LONG.fieldOf("available_ae_energy").forGetter(OrbitalAttackPreviewEstimate::availableAeEnergy),
                     Codec.LONG.fieldOf("scheduled_coordinates").forGetter(OrbitalAttackPreviewEstimate::scheduledCoordinates),
                     Codec.LONG.fieldOf("scheduled_blocks").forGetter(OrbitalAttackPreviewEstimate::scheduledBlocks),
@@ -55,7 +55,7 @@ public record OrbitalAttackPreviewEstimate(
             OrbitalAttackPreviewEstimate::decode);
 
     public OrbitalAttackPreviewEstimate {
-        if (availableCelestialEnergy < 0L || availableAeEnergy < 0L || scheduledCoordinates < 0L || scheduledBlocks < 0L || effectRadius < 1 || affectedChunks < 1 || unloadedChunks < 0 || unloadedChunks > affectedChunks || minimumExecutionTicks < 1L) {
+        if (availableStellarFlux < 0L || availableAeEnergy < 0L || scheduledCoordinates < 0L || scheduledBlocks < 0L || effectRadius < 1 || affectedChunks < 1 || unloadedChunks < 0 || unloadedChunks > affectedChunks || minimumExecutionTicks < 1L) {
             throw new IllegalArgumentException("Invalid orbital attack preview estimate");
         }
     }
@@ -85,12 +85,12 @@ public record OrbitalAttackPreviewEstimate(
 
     /** Returns whether the reserve snapshot shown in this preview can cover both independent escrow resources. */
     public boolean affordable() {
-        return this.availableCelestialEnergy >= this.cost.celestialEnergy() && this.availableAeEnergy >= this.cost.aeEnergy();
+        return this.availableStellarFlux >= this.cost.stellarFlux() && this.availableAeEnergy >= this.cost.aeEnergy();
     }
 
     private static void encode(RegistryFriendlyByteBuf buffer, OrbitalAttackPreviewEstimate estimate) {
         OrbitalAttackCost.STREAM_CODEC.encode(buffer, estimate.cost);
-        buffer.writeVarLong(estimate.availableCelestialEnergy);
+        buffer.writeVarLong(estimate.availableStellarFlux);
         buffer.writeVarLong(estimate.availableAeEnergy);
         buffer.writeVarLong(estimate.scheduledCoordinates);
         buffer.writeVarLong(estimate.scheduledBlocks);

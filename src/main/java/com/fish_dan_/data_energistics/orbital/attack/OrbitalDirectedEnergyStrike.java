@@ -138,7 +138,7 @@ public final class OrbitalDirectedEnergyStrike {
     /** Validates a player-selected radius against the current server grid. */
     public static void validateRadius(
                                       int radius,
-                                      DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                      DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         int minimum = settings.directedEnergyMinimumRadius;
         int maximum = settings.directedEnergyMaximumRadius;
         int step = settings.directedEnergyRadiusStep;

@@ -7,10 +7,10 @@ import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiFactory
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiSource;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLimitException;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponAction;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceAction;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
 import com.fish_dan_.data_energistics.orbital.provisioning.ConsoleWeaponProvisioner;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
@@ -154,7 +154,7 @@ public final class OrbitalControlConsoleBlock extends AEBaseBlock implements Ent
 
         OrbitalEndpointLocation location = new OrbitalEndpointLocation(serverLevel.dimension().location(), pos);
         try {
-            OrbitalWeaponRecord weapon = ConsoleWeaponProvisioner.INSTANCE.provision(
+            StellarErasureDeviceRecord weapon = ConsoleWeaponProvisioner.INSTANCE.provision(
                     serverLevel.getServer(),
                     player.getUUID(),
                     location);
@@ -192,9 +192,9 @@ public final class OrbitalControlConsoleBlock extends AEBaseBlock implements Ent
         if (weaponId.isEmpty() || server == null) {
             return false;
         }
-        return OrbitalWeaponSavedData.get(server)
+        return StellarErasureDeviceSavedData.get(server)
                 .find(weaponId.orElseThrow())
-                .map(weapon -> weapon.canPerform(player.getUUID(), OrbitalWeaponAction.VIEW_STATUS))
+                .map(weapon -> weapon.canPerform(player.getUUID(), StellarErasureDeviceAction.VIEW_STATUS))
                 .orElse(false);
     }
 

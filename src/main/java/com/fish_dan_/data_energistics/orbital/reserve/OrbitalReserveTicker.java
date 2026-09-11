@@ -1,6 +1,6 @@
 package com.fish_dan_.data_energistics.orbital.reserve;
 
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -14,6 +14,6 @@ public final class OrbitalReserveTicker {
 
     @SubscribeEvent
     public void onServerTickPost(ServerTickEvent.Post event) {
-        OrbitalWeaponSavedData.get(event.getServer()).chargeReserves(event.getServer());
+        StellarErasureDeviceSavedData.get(event.getServer()).chargeReserves(event.getServer());
     }
 }

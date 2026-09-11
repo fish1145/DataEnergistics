@@ -23,7 +23,7 @@ import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlDashboard
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlDashboard.Page;
 import com.fish_dan_.data_energistics.orbital.control.ui.OrbitalControlUiSource;
 import com.fish_dan_.data_energistics.orbital.control.ui.map.OrbitalTacticalMapPanel.MapProviderOption;
-import com.fish_dan_.data_energistics.orbital.control.ui.weapon.OrbitalWeaponStatusPanel.ModeRow;
+import com.fish_dan_.data_energistics.orbital.control.ui.weapon.StellarErasureDeviceStatusPanel.ModeRow;
 import com.fish_dan_.data_energistics.orbital.map.OrbitalMapTile;
 
 import com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEmitter;

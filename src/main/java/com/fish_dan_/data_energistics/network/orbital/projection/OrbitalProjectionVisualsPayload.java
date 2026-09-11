@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.network.orbital.projection;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.client.render.orbital.OrbitalProjectionVisualClientState;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycleState;
 import com.fish_dan_.data_energistics.orbital.projection.OrbitalProjectionVisualSnapshot;
 
 import net.minecraft.core.BlockPos;
@@ -133,7 +133,7 @@ public record OrbitalProjectionVisualsPayload(
             UUID weaponId = buffer.readUUID();
             BlockPos anchor = BlockPos.STREAM_CODEC.decode(buffer);
             int projectionY = buffer.readInt();
-            OrbitalWeaponLifecycleState lifecycleState = readLifecycle(buffer.readVarInt());
+            StellarErasureDeviceLifecycleState lifecycleState = readLifecycle(buffer.readVarInt());
             projections.add(new OrbitalProjectionVisualSnapshot(
                     weaponId,
                     dimensionId,
@@ -147,11 +147,11 @@ public record OrbitalProjectionVisualsPayload(
         return new Decoded(revision, dimensionId, batchIndex, batchCount, totalCount, List.copyOf(projections));
     }
 
-    private static OrbitalWeaponLifecycleState readLifecycle(int ordinal) {
-        if (ordinal < 0 || ordinal >= OrbitalWeaponLifecycleState.values().length) {
+    private static StellarErasureDeviceLifecycleState readLifecycle(int ordinal) {
+        if (ordinal < 0 || ordinal >= StellarErasureDeviceLifecycleState.values().length) {
             throw new IllegalArgumentException("Orbital projection lifecycle ordinal is invalid");
         }
-        return OrbitalWeaponLifecycleState.values()[ordinal];
+        return StellarErasureDeviceLifecycleState.values()[ordinal];
     }
 
     private record Decoded(

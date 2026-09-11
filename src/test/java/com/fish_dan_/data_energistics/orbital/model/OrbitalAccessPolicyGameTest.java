@@ -38,42 +38,42 @@ public final class OrbitalAccessPolicyGameTest {
                         ownerId,
                         delegatedRoles,
                         ownerId,
-                        OrbitalWeaponAction.TRANSFER_OWNERSHIP),
+                        StellarErasureDeviceAction.TRANSFER_OWNERSHIP),
                 "The owner must retain ownership-management actions");
         helper.assertTrue(
                 OrbitalAccessPolicy.canPerform(
                         ownerId,
                         delegatedRoles,
                         operatorId,
-                        OrbitalWeaponAction.FIRE),
+                        StellarErasureDeviceAction.FIRE),
                 "An operator must be able to fire the weapon");
         helper.assertFalse(
                 OrbitalAccessPolicy.canPerform(
                         ownerId,
                         delegatedRoles,
                         operatorId,
-                        OrbitalWeaponAction.MANAGE_AUTHORIZATIONS),
+                        StellarErasureDeviceAction.MANAGE_AUTHORIZATIONS),
                 "An operator must not change the authorization list");
         helper.assertTrue(
                 OrbitalAccessPolicy.canPerform(
                         ownerId,
                         delegatedRoles,
                         observerId,
-                        OrbitalWeaponAction.VIEW_STATUS),
+                        StellarErasureDeviceAction.VIEW_STATUS),
                 "An observer must retain read-only access");
         helper.assertFalse(
                 OrbitalAccessPolicy.canPerform(
                         ownerId,
                         delegatedRoles,
                         observerId,
-                        OrbitalWeaponAction.AIM),
+                        StellarErasureDeviceAction.AIM),
                 "An observer must not aim the weapon");
         helper.assertFalse(
                 OrbitalAccessPolicy.canPerform(
                         ownerId,
                         delegatedRoles,
                         outsiderId,
-                        OrbitalWeaponAction.VIEW_STATUS),
+                        StellarErasureDeviceAction.VIEW_STATUS),
                 "An unauthorized player must not open weapon status");
 
         Set<UUID> exemptionSnapshot = OrbitalAccessPolicy.damageExemptionSnapshot(ownerId, delegatedRoles);

@@ -58,7 +58,7 @@ public final class OrbitalTerrainWorkScheduler {
     /**
      * Captures the current limits and opens a fresh global mutation budget for one server tick.
      */
-    public void beginTick(MinecraftServer server, DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+    public void beginTick(MinecraftServer server, DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
         requireServerThread(server);
         this.maxTicketsPerTask = settings.maxAttackChunkTicketsPerTask;
         this.maxTicketsGlobal = settings.maxAttackChunkTicketsGlobal;

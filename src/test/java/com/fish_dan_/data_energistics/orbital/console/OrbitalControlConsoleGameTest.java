@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.orbital.console;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
@@ -53,7 +53,7 @@ public final class OrbitalControlConsoleGameTest {
     @GameTest(template = "empty_5x5")
     public static void placementBindsOwnedWeaponAndRemovalReleasesEndpoint(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(level.getServer());
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(level.getServer());
         ServerPlayer owner = createPlayer(level, "console-owner");
         ServerPlayer delegatedPlayer = createPlayer(level, "console-guest");
 
@@ -77,7 +77,7 @@ public final class OrbitalControlConsoleGameTest {
                 "A second console placed by the same player must reuse the stable weapon identity");
 
         UUID sharedOwnerId = UUID.randomUUID();
-        OrbitalWeaponRecord sharedWeapon = data.createForOwner(level.getServer(), sharedOwnerId);
+        StellarErasureDeviceRecord sharedWeapon = data.createForOwner(level.getServer(), sharedOwnerId);
         data.authorize(
                 level.getServer(),
                 sharedWeapon.weaponId(),
@@ -91,7 +91,7 @@ public final class OrbitalControlConsoleGameTest {
                 "Delegated access must not cause a newly placed console to bind another player's weapon");
         helper.assertTrue(
                 data.accessibleTo(delegatedPlayer.getUUID()).stream()
-                        .map(OrbitalWeaponRecord::weaponId)
+                        .map(StellarErasureDeviceRecord::weaponId)
                         .toList()
                         .containsAll(List.of(sharedWeapon.weaponId(), delegatedOwnedWeaponId)),
                 "After placement, the player must retain both delegated access and their independently owned weapon");
@@ -113,7 +113,7 @@ public final class OrbitalControlConsoleGameTest {
     @GameTest(template = "empty_5x5")
     public static void dimensionLimitRejectsThenReleasesCapacity(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(level.getServer());
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(level.getServer());
         ServerPlayer owner = createPlayer(level, "console-limit");
 
         UUID weaponId = null;

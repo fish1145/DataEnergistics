@@ -10,7 +10,7 @@ package com.fish_dan_.data_energistics.orbital.model;
  * may simultaneously carry reserve grace while its rebuild countdown is paused.
  * </p>
  */
-public enum OrbitalWeaponLifecycleState {
+public enum StellarErasureDeviceLifecycleState {
     DORMANT,
     DEPLOYED,
     RESERVE_GRACE,

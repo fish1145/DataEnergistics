@@ -5,9 +5,9 @@ import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointRecord;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycle;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycle;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycleState;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
 
 import net.minecraft.core.BlockPos;
@@ -31,7 +31,7 @@ import java.util.UUID;
 /**
  * NBT boundary for orbital weapon records. Malformed external data is normalized here before it reaches runtime state.
  */
-final class OrbitalWeaponNbtCodec {
+final class StellarErasureDeviceNbtCodec {
 
     private static final Logger LOGGER = Data_Energistics.LOGGER;
     private static final String SCHEMA_VERSION_TAG = "schema_version";
@@ -48,7 +48,7 @@ final class OrbitalWeaponNbtCodec {
     private static final String KIND_TAG = "kind";
     private static final String PRIORITY_TAG = "priority";
     private static final String RESERVE_TAG = "reserve";
-    private static final String CELESTIAL_ENERGY_TAG = "celestial_energy";
+    private static final String CELESTIAL_ENERGY_TAG = "stellar_flux";
     private static final String AE_ENERGY_TAG = "ae_energy";
     private static final String LIFECYCLE_STATE_TAG = "lifecycle_state";
     private static final String GRACE_TICKS_TAG = "grace_ticks";
@@ -61,20 +61,20 @@ final class OrbitalWeaponNbtCodec {
             .thenComparingInt(endpoint -> endpoint.location().pos().getY())
             .thenComparingInt(endpoint -> endpoint.location().pos().getZ());
 
-    private OrbitalWeaponNbtCodec() {}
+    private StellarErasureDeviceNbtCodec() {}
 
-    static CompoundTag save(CompoundTag tag, Collection<OrbitalWeaponRecord> weapons) {
+    static CompoundTag save(CompoundTag tag, Collection<StellarErasureDeviceRecord> weapons) {
         tag.putInt(SCHEMA_VERSION_TAG, SCHEMA_VERSION);
         ListTag weaponList = new ListTag();
         weapons.stream()
-                .sorted(Comparator.comparing(OrbitalWeaponRecord::weaponId))
-                .map(OrbitalWeaponNbtCodec::writeWeapon)
+                .sorted(Comparator.comparing(StellarErasureDeviceRecord::weaponId))
+                .map(StellarErasureDeviceNbtCodec::writeWeapon)
                 .forEach(weaponList::add);
         tag.put(WEAPONS_TAG, weaponList);
         return tag;
     }
 
-    static List<OrbitalWeaponRecord> load(CompoundTag tag) {
+    static List<StellarErasureDeviceRecord> load(CompoundTag tag) {
         if (!tag.contains(SCHEMA_VERSION_TAG, Tag.TAG_INT)) {
             LOGGER.warn("Ignoring orbital weapon SavedData without a schema version");
             return List.of();
@@ -93,10 +93,10 @@ final class OrbitalWeaponNbtCodec {
             return List.of();
         }
 
-        List<OrbitalWeaponRecord> weapons = new ObjectArrayList<>();
+        List<StellarErasureDeviceRecord> weapons = new ObjectArrayList<>();
         for (Tag weaponTag : weaponList) {
             if (weaponTag instanceof CompoundTag weaponEntry) {
-                OrbitalWeaponRecord weapon = readWeapon(weaponEntry);
+                StellarErasureDeviceRecord weapon = readWeapon(weaponEntry);
                 if (weapon != null) {
                     weapons.add(weapon);
                 }
@@ -105,7 +105,7 @@ final class OrbitalWeaponNbtCodec {
         return List.copyOf(weapons);
     }
 
-    private static CompoundTag writeWeapon(OrbitalWeaponRecord weapon) {
+    private static CompoundTag writeWeapon(StellarErasureDeviceRecord weapon) {
         CompoundTag weaponTag = new CompoundTag();
         weaponTag.putUUID(WEAPON_ID_TAG, weapon.weaponId());
         weaponTag.putUUID(OWNER_ID_TAG, weapon.ownerId());
@@ -114,19 +114,19 @@ final class OrbitalWeaponNbtCodec {
         ListTag roleList = new ListTag();
         weapon.delegatedRoles().entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
-                .map(OrbitalWeaponNbtCodec::writeRole)
+                .map(StellarErasureDeviceNbtCodec::writeRole)
                 .forEach(roleList::add);
         weaponTag.put(DELEGATED_ROLES_TAG, roleList);
 
         ListTag endpointList = new ListTag();
         weapon.endpoints().values().stream()
                 .sorted(ENDPOINT_ORDER)
-                .map(OrbitalWeaponNbtCodec::writeEndpoint)
+                .map(StellarErasureDeviceNbtCodec::writeEndpoint)
                 .forEach(endpointList::add);
         weaponTag.put(ENDPOINTS_TAG, endpointList);
 
         CompoundTag reserveTag = new CompoundTag();
-        reserveTag.putLong(CELESTIAL_ENERGY_TAG, weapon.reserve().celestialEnergy());
+        reserveTag.putLong(CELESTIAL_ENERGY_TAG, weapon.reserve().stellarFlux());
         reserveTag.putLong(AE_ENERGY_TAG, weapon.reserve().aeEnergy());
         weaponTag.put(RESERVE_TAG, reserveTag);
         weaponTag.putString(LIFECYCLE_STATE_TAG, weapon.lifecycle().state().name());
@@ -157,7 +157,7 @@ final class OrbitalWeaponNbtCodec {
         return endpointTag;
     }
 
-    private static @Nullable OrbitalWeaponRecord readWeapon(CompoundTag weaponTag) {
+    private static @Nullable StellarErasureDeviceRecord readWeapon(CompoundTag weaponTag) {
         UUID weaponId = readUuid(weaponTag, WEAPON_ID_TAG, "weapon id");
         UUID ownerId = readUuid(weaponTag, OWNER_ID_TAG, "owner id");
         if (weaponId == null || ownerId == null) {
@@ -180,13 +180,13 @@ final class OrbitalWeaponNbtCodec {
         }
         readEndpoints(weaponId, endpointList, endpoints);
         OrbitalEnergyReserve reserve = readReserve(weaponId, weaponTag);
-        OrbitalWeaponLifecycle lifecycle = readLifecycle(weaponId, weaponTag);
+        StellarErasureDeviceLifecycle lifecycle = readLifecycle(weaponId, weaponTag);
         if (reserve == null || lifecycle == null) {
             return null;
         }
         OrbitalEndpointLocation primaryAnchor = readPrimaryAnchor(weaponId, weaponTag, endpoints);
         try {
-            return new OrbitalWeaponRecord(
+            return new StellarErasureDeviceRecord(
                     weaponId,
                     ownerId,
                     roles,
@@ -201,14 +201,14 @@ final class OrbitalWeaponNbtCodec {
         }
     }
 
-    private static @Nullable OrbitalWeaponLifecycle readLifecycle(UUID weaponId, CompoundTag weaponTag) {
+    private static @Nullable StellarErasureDeviceLifecycle readLifecycle(UUID weaponId, CompoundTag weaponTag) {
         if (!weaponTag.contains(LIFECYCLE_STATE_TAG, Tag.TAG_STRING) || !weaponTag.contains(GRACE_TICKS_TAG, Tag.TAG_INT) || !weaponTag.contains(REDEPLOY_TICKS_TAG, Tag.TAG_INT)) {
             LOGGER.warn("Ignoring orbital weapon {} with missing lifecycle fields", weaponId);
             return null;
         }
         try {
-            OrbitalWeaponLifecycleState state = OrbitalWeaponLifecycleState.valueOf(weaponTag.getString(LIFECYCLE_STATE_TAG));
-            return new OrbitalWeaponLifecycle(
+            StellarErasureDeviceLifecycleState state = StellarErasureDeviceLifecycleState.valueOf(weaponTag.getString(LIFECYCLE_STATE_TAG));
+            return new StellarErasureDeviceLifecycle(
                     state,
                     weaponTag.getInt(GRACE_TICKS_TAG),
                     weaponTag.getInt(REDEPLOY_TICKS_TAG));

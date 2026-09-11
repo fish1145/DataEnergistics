@@ -6,7 +6,7 @@ import com.fish_dan_.data_energistics.network.orbital.visual.OrbitalAttackVisual
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
 import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackVisualSnapshot;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycleState;
 import com.fish_dan_.data_energistics.orbital.projection.OrbitalProjectionVisualSnapshot;
 
 import net.minecraft.client.Minecraft;
@@ -95,7 +95,7 @@ public final class OrbitalWorldRenderPreview {
         var dimension = client.level.dimension().location();
         List<OrbitalProjectionVisualSnapshot> projections = view == 3 ? List.of() : List.of(
                 new OrbitalProjectionVisualSnapshot(new UUID(0, 1), dimension, anchor, projectionY,
-                        view == 1 ? OrbitalWeaponLifecycleState.REDEPLOYING : OrbitalWeaponLifecycleState.DEPLOYED,
+                        view == 1 ? StellarErasureDeviceLifecycleState.REDEPLOYING : StellarErasureDeviceLifecycleState.DEPLOYED,
                         view == 1 ? 1000 : 0, revision, 42));
         OrbitalProjectionVisualsPayload.batches(revision, dimension, projections).forEach(OrbitalProjectionVisualClientState::receive);
         List<OrbitalAttackVisualSnapshot> attacks = new ObjectArrayList<>();

@@ -20,7 +20,7 @@ public final class OrbitalAccessPolicy {
                                      UUID ownerId,
                                      Map<UUID, OrbitalAccessRole> delegatedRoles,
                                      UUID playerId,
-                                     OrbitalWeaponAction action) {
+                                     StellarErasureDeviceAction action) {
         if (ownerId.equals(playerId)) {
             return true;
         }

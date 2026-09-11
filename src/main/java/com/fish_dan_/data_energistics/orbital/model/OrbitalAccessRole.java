@@ -9,23 +9,23 @@ import java.util.Set;
 public enum OrbitalAccessRole {
 
     OPERATOR(EnumSet.of(
-            OrbitalWeaponAction.VIEW_STATUS,
-            OrbitalWeaponAction.AIM,
-            OrbitalWeaponAction.FIRE,
-            OrbitalWeaponAction.CANCEL_WARNING_ATTACK,
-            OrbitalWeaponAction.EMERGENCY_ABORT)),
-    OBSERVER(EnumSet.of(OrbitalWeaponAction.VIEW_STATUS));
+            StellarErasureDeviceAction.VIEW_STATUS,
+            StellarErasureDeviceAction.AIM,
+            StellarErasureDeviceAction.FIRE,
+            StellarErasureDeviceAction.CANCEL_WARNING_ATTACK,
+            StellarErasureDeviceAction.EMERGENCY_ABORT)),
+    OBSERVER(EnumSet.of(StellarErasureDeviceAction.VIEW_STATUS));
 
-    private final Set<OrbitalWeaponAction> allowedActions;
+    private final Set<StellarErasureDeviceAction> allowedActions;
 
-    OrbitalAccessRole(Set<OrbitalWeaponAction> allowedActions) {
+    OrbitalAccessRole(Set<StellarErasureDeviceAction> allowedActions) {
         this.allowedActions = Set.copyOf(allowedActions);
     }
 
     /**
      * Returns whether this delegated role permits the requested server action.
      */
-    public boolean allows(OrbitalWeaponAction action) {
+    public boolean allows(StellarErasureDeviceAction action) {
         return this.allowedActions.contains(action);
     }
 }

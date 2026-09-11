@@ -7,8 +7,8 @@ import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalHudSnapsho
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -46,14 +46,14 @@ public final class OrbitalControlTerminalGameTest {
     public static void namesSyncCachedOwnerAndRenameIntent(GameTestHelper helper) throws IOException {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(server);
         UUID owner = UUID.randomUUID();
         var directory = Files.createTempDirectory("orbital-owner-test-");
         var profiles = new GameProfileCache((names, callback) -> {
             throw new AssertionError("Resolving an owner UUID must never trigger a remote profile lookup");
         }, directory.resolve("profiles.json").toFile());
         profiles.add(new GameProfile(owner, "OrbitOwner"));
-        OrbitalWeaponRecord weapon = data.createForOwner(server, owner);
+        StellarErasureDeviceRecord weapon = data.createForOwner(server, owner);
         data.rename(server, weapon.weaponId(), owner, "天穹二号");
         OrbitalControlTerminalSnapshot captured = OrbitalControlTerminalSnapshot.capture(server, owner);
         var entry = captured.selectedWeapon().orElseThrow();
@@ -64,7 +64,7 @@ public final class OrbitalControlTerminalGameTest {
         helper.assertValueEqual(OrbitalControlTerminalSnapshot.ownerName(owner, online, profiles), "LiveOwner", "Online identity overrides an older cache entry");
         var namedEntry = new OrbitalControlTerminalSnapshot.WeaponEntry(entry.weaponId(), entry.ownerId(), entry.owner(),
                 entry.delegatedRole(), entry.endpointCount(), entry.lifecycleState(), entry.graceTicksRemaining(),
-                entry.celestialEnergy(), entry.aeEnergy(), entry.attacks(), entry.customName(), ownerName);
+                entry.stellarFlux(), entry.aeEnergy(), entry.attacks(), entry.customName(), ownerName);
         var snapshot = new OrbitalControlTerminalSnapshot(weapon.weaponId(), List.of(namedEntry), false);
         helper.assertValueEqual(snapshot.selectedWeapon().orElseThrow().customName(), "天穹二号", "Snapshot must carry the saved name");
         var encoded = OrbitalControlTerminalSnapshot.CODEC.encodeStart(JsonOps.INSTANCE, snapshot).getOrThrow();
@@ -100,10 +100,10 @@ public final class OrbitalControlTerminalGameTest {
     public static void cyclesPersistedServerSelection(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(server);
         ServerPlayer player = createPlayer(level, "selection-player");
-        OrbitalWeaponRecord owned = data.createForOwner(server, player.getUUID());
-        OrbitalWeaponRecord delegated = data.createForOwner(server, UUID.randomUUID());
+        StellarErasureDeviceRecord owned = data.createForOwner(server, player.getUUID());
+        StellarErasureDeviceRecord delegated = data.createForOwner(server, UUID.randomUUID());
         data.authorize(server, delegated.weaponId(), delegated.ownerId(), player.getUUID(), OrbitalAccessRole.OPERATOR);
 
         OrbitalControlTerminalSnapshot initial = OrbitalControlTerminalSnapshot.capture(server, player.getUUID());
@@ -130,10 +130,10 @@ public final class OrbitalControlTerminalGameTest {
     public static void directSelectionRejectsUnknownAndRevokedWeapons(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(server);
         ServerPlayer player = createPlayer(level, "direct-selection");
-        OrbitalWeaponRecord owned = data.createForOwner(server, player.getUUID());
-        OrbitalWeaponRecord delegated = data.createForOwner(server, UUID.randomUUID());
+        StellarErasureDeviceRecord owned = data.createForOwner(server, player.getUUID());
+        StellarErasureDeviceRecord delegated = data.createForOwner(server, UUID.randomUUID());
         data.authorize(server, delegated.weaponId(), delegated.ownerId(), player.getUUID(), OrbitalAccessRole.OBSERVER);
         helper.assertTrue(OrbitalControlActionDispatcher.selectWeapon(player, delegated.weaponId()),
                 "Accessible observer weapons must be directly selectable for inspection");
@@ -157,7 +157,7 @@ public final class OrbitalControlTerminalGameTest {
     public static void typedHudAndSelectionRoundTrip(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ServerPlayer player = createPlayer(level, "hud-packet");
-        OrbitalWeaponSavedData.get(level.getServer()).createForOwner(level.getServer(), player.getUUID());
+        StellarErasureDeviceSavedData.get(level.getServer()).createForOwner(level.getServer(), player.getUUID());
         var weapon = OrbitalControlTerminalSnapshot.capture(level.getServer(), player.getUUID()).selectedWeapon().orElseThrow();
         var hud = new OrbitalControlHudSnapshotPayload(42L, true, new OrbitalHudSnapshot(weapon));
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), level.registryAccess());
@@ -187,10 +187,10 @@ public final class OrbitalControlTerminalGameTest {
         ServerPlayer player = createPlayer(level, "console-projection");
         OrbitalEndpointLocation station = new OrbitalEndpointLocation(level.dimension().location(),
                 helper.absolutePos(new BlockPos(1, 2, 1)));
-        OrbitalWeaponRecord weapon = OrbitalWeaponSavedData.get(server).provisionForOwner(
+        StellarErasureDeviceRecord weapon = StellarErasureDeviceSavedData.get(server).provisionForOwner(
                 server, player.getUUID(), station, OrbitalEndpointKind.CONTROL_CONSOLE);
         helper.assertTrue(
-                OrbitalWeaponSavedData.get(server).publicVisualProjections(level, server.overworld().getGameTime()).stream()
+                StellarErasureDeviceSavedData.get(server).publicVisualProjections(level, server.overworld().getGameTime()).stream()
                         .anyMatch(snapshot -> snapshot.weaponId().equals(weapon.weaponId()) && snapshot.anchor().equals(station.pos())),
                 "A weapon station must provide a fallback projection anchor before a beacon is installed");
         helper.succeed();

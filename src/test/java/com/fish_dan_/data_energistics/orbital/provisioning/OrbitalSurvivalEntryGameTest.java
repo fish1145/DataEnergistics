@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.orbital.provisioning;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -53,7 +53,7 @@ public final class OrbitalSurvivalEntryGameTest {
     @GameTest(template = "empty_5x5", batch = "orbital_survival_entry")
     public static void recipesProvisionWeaponBeaconAndTerminal(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(level.getServer());
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(level.getServer());
         ServerPlayer owner = createPlayer(level);
 
         ItemStack console = craft(level, List.of(

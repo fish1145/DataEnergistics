@@ -99,8 +99,8 @@ public final class OrbitalPreviewCalculationCoordinator {
         long now = server.overworld().getGameTime();
         this.lastRequestedAt.object2LongEntrySet()
                 .removeIf(entry -> now - entry.getLongValue() >= REQUEST_HISTORY_TICKS);
-        int globalRemaining = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.previewChunkChecksGlobalTick;
-        int perTask = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.previewChunkChecksPerTaskTick;
+        int globalRemaining = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice.previewChunkChecksGlobalTick;
+        int perTask = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice.previewChunkChecksPerTaskTick;
         int queuedAtStart = this.calculations.size();
         for (int index = 0; index < queuedAtStart && globalRemaining > 0 && !this.calculations.isEmpty(); index++) {
             PendingPreview pending = this.calculations.removeFirst();

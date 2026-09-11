@@ -2,7 +2,7 @@ package com.fish_dan_.data_energistics.orbital.attack;
 
 import com.fish_dan_.data_energistics.network.orbital.projection.OrbitalProjectionVisualsPayload;
 import com.fish_dan_.data_energistics.network.orbital.visual.OrbitalAttackVisualsPayload;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -28,7 +28,7 @@ public final class OrbitalAttackVisualTicker {
         MinecraftServer server = event.getServer();
         long gameTime = server.overworld().getGameTime();
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
         Map<ResourceLocation, List<OrbitalAttackVisualsPayload>> attackBatches = new Object2ObjectOpenHashMap<>();
         Map<ResourceLocation, List<OrbitalProjectionVisualsPayload>> projectionBatches = new Object2ObjectOpenHashMap<>();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {

@@ -1,11 +1,11 @@
 package com.fish_dan_.data_energistics.orbital.attack;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
@@ -67,10 +67,10 @@ public final class OrbitalDirectedEnergyGameTest {
     public static void scansDiskAndResumesBudgetedWork(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "directed-energy-owner");
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         int radius = settings.directedEnergyMinimumRadius;
         OrbitalDirectedEnergyDepth depth = OrbitalDirectedEnergyDepth.DEPTH_32;
         long coordinateCount = OrbitalDirectedEnergyStrike.scheduledCoordinateCount(radius);
@@ -94,7 +94,7 @@ public final class OrbitalDirectedEnergyGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "The directed-energy confirmation must use a real powered target-dimension endpoint"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    insertStellarFlux(helper, requiredStellarFlux(settings, cost));
                     primeReserve(weapons, server, weaponId, settings, cost);
                     Zombie spawned = helper.spawn(EntityType.ZOMBIE, TARGET);
                     spawned.setNoAi(true);
@@ -176,10 +176,10 @@ public final class OrbitalDirectedEnergyGameTest {
     public static void usesConfiguredRadiusAndConfirmedDepth(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ServerPlayer owner = createPlayer(level, "directed-energy-snapshot-owner");
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         DirectedConfigurationSnapshot original = DirectedConfigurationSnapshot.capture(settings);
         DirectedConfigurationSnapshot confirmed = new DirectedConfigurationSnapshot(
                 1,
@@ -232,7 +232,7 @@ public final class OrbitalDirectedEnergyGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "The directed-energy snapshot test must use a real powered target-dimension endpoint"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost));
+                    insertStellarFlux(helper, requiredStellarFlux(settings, cost));
                     primeReserve(weapons, server, weaponId, settings, cost);
                     Zombie inner = helper.spawn(EntityType.ZOMBIE, SNAPSHOT_INNER_VICTIM);
                     inner.setNoAi(true);
@@ -299,7 +299,7 @@ public final class OrbitalDirectedEnergyGameTest {
         drive.getInternalInventory().setItemDirect(0, DEItems.DATA_CELL_INFINITY.toStack());
     }
 
-    private static void insertCelestialEnergy(GameTestHelper helper, long amount) {
+    private static void insertStellarFlux(GameTestHelper helper, long amount) {
         if (!(helper.getBlockEntity(CONTROL_CONSOLE) instanceof OrbitalControlConsoleBlockEntity console)) {
             throw new IllegalStateException("The directed-energy test console has no block entity");
         }
@@ -308,28 +308,28 @@ public final class OrbitalDirectedEnergyGameTest {
             throw new IllegalStateException("The directed-energy test AE grid is not active");
         }
         long inserted = grid.getStorageService().getInventory().insert(
-                CelestialEnergyKey.of(),
+                StellarFluxKey.of(),
                 amount,
                 Actionable.MODULATE,
                 IActionSource.ofMachine(console));
         if (inserted != amount) {
-            throw new IllegalStateException("The directed-energy test could not seed Celestial Energy storage");
+            throw new IllegalStateException("The directed-energy test could not seed Stellar Flux storage");
         }
     }
 
     private static void primeReserve(
-                                     OrbitalWeaponSavedData weapons,
+                                     StellarErasureDeviceSavedData weapons,
                                      MinecraftServer server,
                                      UUID weaponId,
-                                     DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
+                                     DataEnergisticsConfiguration.StellarErasureDeviceSchema settings,
                                      OrbitalAttackCost cost) {
-        long requiredCelestialEnergy = requiredCelestialEnergy(settings, cost);
+        long requiredStellarFlux = requiredStellarFlux(settings, cost);
         long requiredAeEnergy = Math.max(
                 Math.multiplyExact(cost.aeEnergy(), 2L),
                 deploymentTarget(settings.aeEnergyCapacity, settings.deploymentThreshold));
         for (int attempts = 0; attempts < 20_000; attempts++) {
             var weapon = weapons.find(weaponId).orElseThrow();
-            if (weapon.allowsNewAttacks() && weapon.reserve().canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
+            if (weapon.allowsNewAttacks() && weapon.reserve().canAfford(requiredStellarFlux, requiredAeEnergy)) {
                 return;
             }
             weapons.chargeReserves(server);
@@ -337,12 +337,12 @@ public final class OrbitalDirectedEnergyGameTest {
         throw new IllegalStateException("The real AE endpoint did not fund two directed-energy scans");
     }
 
-    private static long requiredCelestialEnergy(
-                                                DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
+    private static long requiredStellarFlux(
+                                                DataEnergisticsConfiguration.StellarErasureDeviceSchema settings,
                                                 OrbitalAttackCost cost) {
         return Math.max(
-                Math.multiplyExact(cost.celestialEnergy(), 2L),
-                deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold));
+                Math.multiplyExact(cost.stellarFlux(), 2L),
+                deploymentTarget(settings.stellarFluxCapacity, settings.deploymentThreshold));
     }
 
     private static long deploymentTarget(long capacity, double threshold) {
@@ -351,14 +351,14 @@ public final class OrbitalDirectedEnergyGameTest {
 
     private static void assertDebited(
                                       GameTestHelper helper,
-                                      OrbitalWeaponSavedData weapons,
+                                      StellarErasureDeviceSavedData weapons,
                                       UUID weaponId,
                                       OrbitalEnergyReserve before,
                                       OrbitalAttackCost cost) {
         OrbitalEnergyReserve after = weapons.find(weaponId).orElseThrow().reserve();
         helper.assertValueEqual(
-                before.celestialEnergy() - after.celestialEnergy(),
-                cost.celestialEnergy(),
+                before.stellarFlux() - after.stellarFlux(),
+                cost.stellarFlux(),
                 "Directed-energy confirmation must escrow its complete coordinate cost");
         helper.assertValueEqual(
                 before.aeEnergy() - after.aeEnergy(),
@@ -411,7 +411,7 @@ public final class OrbitalDirectedEnergyGameTest {
                                                  int deepDepth) {
 
         private static DirectedConfigurationSnapshot capture(
-                                                             DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+                                                             DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
             return new DirectedConfigurationSnapshot(
                     settings.attackWarningTicks,
                     settings.directedEnergyCooldownTicks,
@@ -423,7 +423,7 @@ public final class OrbitalDirectedEnergyGameTest {
                     settings.directedEnergyDeepDepth);
         }
 
-        private void applyTo(DataEnergisticsConfiguration.OrbitalWeaponSchema settings) {
+        private void applyTo(DataEnergisticsConfiguration.StellarErasureDeviceSchema settings) {
             settings.attackWarningTicks = this.attackWarningTicks;
             settings.directedEnergyCooldownTicks = this.cooldownTicks;
             settings.directedEnergyMinimumRadius = this.minimumRadius;

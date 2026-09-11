@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.orbital.storage;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
-import com.fish_dan_.data_energistics.ae2.key.CelestialEnergyKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalControlConsoleBlockEntity;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
@@ -58,12 +58,12 @@ public final class OrbitalOwnershipTransferGameTest {
     public static void requiresBothPlayersOnlineUntilAcceptance(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ExtendedGameTestHelper playerHelper = new ExtendedGameTestHelper(helper.testInfo);
         GameTestPlayer owner = playerHelper.makeTickingMockServerPlayerInLevel(GameType.SURVIVAL);
         GameTestPlayer recipient = playerHelper.makeTickingMockServerPlayerInLevel(GameType.SURVIVAL);
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
         BlockPos absoluteTarget = helper.absolutePos(FIRST_TARGET);
 
@@ -82,7 +82,7 @@ public final class OrbitalOwnershipTransferGameTest {
                         weapons.hasOnlineEndpoint(server, originalWeaponId, level.dimension().location()),
                         "The transfer test must use a real powered owner endpoint"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost, 1));
+                    insertStellarFlux(helper, requiredStellarFlux(settings, cost, 1));
                     primeReserve(weapons, server, originalWeaponId, settings, cost, 1);
                     OrbitalOwnershipTransfer transfer = weapons.requestOwnershipTransfer(
                             server,
@@ -131,13 +131,13 @@ public final class OrbitalOwnershipTransferGameTest {
     public static void transfersDormantWeaponAndPreservesCooldown(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         MinecraftServer server = level.getServer();
-        OrbitalWeaponSavedData weapons = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData weapons = StellarErasureDeviceSavedData.get(server);
         OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
         ExtendedGameTestHelper playerHelper = new ExtendedGameTestHelper(helper.testInfo);
         GameTestPlayer owner = playerHelper.makeTickingMockServerPlayerInLevel(GameType.SURVIVAL);
         GameTestPlayer recipient = playerHelper.makeTickingMockServerPlayerInLevel(GameType.SURVIVAL);
         GameTestPlayer successor = playerHelper.makeTickingMockServerPlayerInLevel(GameType.SURVIVAL);
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         OrbitalAttackCost cost = OrbitalAttackCost.digitalAnnihilation(settings);
         BlockPos absoluteFirstTarget = helper.absolutePos(FIRST_TARGET);
         BlockPos absoluteSecondTarget = helper.absolutePos(SECOND_TARGET);
@@ -168,7 +168,7 @@ public final class OrbitalOwnershipTransferGameTest {
                         weapons.hasOnlineEndpoint(server, weaponId, level.dimension().location()),
                         "The transferred dormant weapon must retain its real powered endpoint"))
                 .thenExecute(() -> {
-                    insertCelestialEnergy(helper, requiredCelestialEnergy(settings, cost, 2));
+                    insertStellarFlux(helper, requiredStellarFlux(settings, cost, 2));
                     primeReserve(weapons, server, weaponId, settings, cost, 2);
                     firstAttackId.set(launchRequiredTestDigitalAttack(
                             attacks,
@@ -260,7 +260,7 @@ public final class OrbitalOwnershipTransferGameTest {
         drive.getInternalInventory().setItemDirect(0, DEItems.DATA_CELL_INFINITY.toStack());
     }
 
-    private static void insertCelestialEnergy(GameTestHelper helper, long amount) {
+    private static void insertStellarFlux(GameTestHelper helper, long amount) {
         if (!(helper.getBlockEntity(OWNER_CONSOLE) instanceof OrbitalControlConsoleBlockEntity console)) {
             throw new IllegalStateException("The transfer test owner console has no block entity");
         }
@@ -269,31 +269,31 @@ public final class OrbitalOwnershipTransferGameTest {
             throw new IllegalStateException("The transfer test AE grid is not active");
         }
         long inserted = grid.getStorageService().getInventory().insert(
-                CelestialEnergyKey.of(),
+                StellarFluxKey.of(),
                 amount,
                 Actionable.MODULATE,
                 IActionSource.ofMachine(console));
         if (inserted != amount) {
-            throw new IllegalStateException("The transfer test could not seed Celestial Energy storage");
+            throw new IllegalStateException("The transfer test could not seed Stellar Flux storage");
         }
     }
 
     private static void primeReserve(
-                                     OrbitalWeaponSavedData weapons,
+                                     StellarErasureDeviceSavedData weapons,
                                      MinecraftServer server,
                                      UUID weaponId,
-                                     DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
+                                     DataEnergisticsConfiguration.StellarErasureDeviceSchema settings,
                                      OrbitalAttackCost cost,
                                      int attackCount) {
-        long requiredCelestialEnergy = Math.max(
-                Math.multiplyExact(cost.celestialEnergy(), attackCount),
-                deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold));
+        long requiredStellarFlux = Math.max(
+                Math.multiplyExact(cost.stellarFlux(), attackCount),
+                deploymentTarget(settings.stellarFluxCapacity, settings.deploymentThreshold));
         long requiredAeEnergy = Math.max(
                 Math.multiplyExact(cost.aeEnergy(), attackCount),
                 deploymentTarget(settings.aeEnergyCapacity, settings.deploymentThreshold));
         for (int attempts = 0; attempts < 20_000; attempts++) {
             var weapon = weapons.find(weaponId).orElseThrow();
-            if (weapon.allowsNewAttacks() && weapon.reserve().canAfford(requiredCelestialEnergy, requiredAeEnergy)) {
+            if (weapon.allowsNewAttacks() && weapon.reserve().canAfford(requiredStellarFlux, requiredAeEnergy)) {
                 return;
             }
             weapons.chargeReserves(server);
@@ -301,13 +301,13 @@ public final class OrbitalOwnershipTransferGameTest {
         throw new IllegalStateException("The real AE endpoint did not fund the transferable weapon");
     }
 
-    private static long requiredCelestialEnergy(
-                                                DataEnergisticsConfiguration.OrbitalWeaponSchema settings,
+    private static long requiredStellarFlux(
+                                                DataEnergisticsConfiguration.StellarErasureDeviceSchema settings,
                                                 OrbitalAttackCost cost,
                                                 int attackCount) {
         return Math.max(
-                Math.multiplyExact(cost.celestialEnergy(), attackCount),
-                deploymentTarget(settings.celestialEnergyCapacity, settings.deploymentThreshold));
+                Math.multiplyExact(cost.stellarFlux(), attackCount),
+                deploymentTarget(settings.stellarFluxCapacity, settings.deploymentThreshold));
     }
 
     private static OrbitalAttackRecord launchRequiredTestDigitalAttack(
@@ -328,7 +328,7 @@ public final class OrbitalOwnershipTransferGameTest {
                                                                           UUID weaponId,
                                                                           ServerLevel level,
                                                                           BlockPos target) {
-        DataEnergisticsConfiguration.OrbitalWeaponSchema settings = DataEnergisticsConfiguration.INSTANCE.orbitalWeapon;
+        DataEnergisticsConfiguration.StellarErasureDeviceSchema settings = DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice;
         int originalWarningTicks = settings.attackWarningTicks;
         int originalCooldownTicks = settings.digitalAnnihilationCooldownTicks;
         try {

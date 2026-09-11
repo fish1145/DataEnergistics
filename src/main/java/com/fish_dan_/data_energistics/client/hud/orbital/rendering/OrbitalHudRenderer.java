@@ -71,7 +71,7 @@ public final class OrbitalHudRenderer {
         ObjectArrayList<Component> rows = new ObjectArrayList<>(5);
         rows.add(Component.translatable(PREFIX + "title", OrbitalControlPresentation.weaponName(weapon))
                 .append(" · ").append(OrbitalControlPresentation.weaponState(weapon)));
-        rows.add(Component.translatable(PREFIX + "reserve", amount(weapon.celestialEnergy()), amount(weapon.aeEnergy())));
+        rows.add(Component.translatable(PREFIX + "reserve", amount(weapon.stellarFlux()), amount(weapon.aeEnergy())));
         int visible = Math.min(mode == DisplayMode.DETAIL ? 3 : 1, weapon.attacks().size());
         for (int index = 0; index < visible; index++) {
             Component state = OrbitalControlPresentation.modeRail(weapon, weapon.attacks().get(index).mode());

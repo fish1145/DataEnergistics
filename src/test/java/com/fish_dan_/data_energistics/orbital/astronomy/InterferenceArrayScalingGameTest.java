@@ -3,7 +3,7 @@ package com.fish_dan_.data_energistics.orbital.astronomy;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.block.orbital.astronomy.InterferenceArrayCoreBlock;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 import com.fish_dan_.data_energistics.registry.DEBlocks;
 
 import net.minecraft.core.BlockPos;
@@ -67,7 +67,7 @@ public final class InterferenceArrayScalingGameTest {
     @GameTest(template = "empty_50x32x50", timeoutTicks = 1_000)
     public static void scalesTiersAndTransfersExclusiveMirrors(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(level.getServer());
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(level.getServer());
         ServerPlayer firstOwner = createPlayer(level, "interference-array-first-owner");
         ServerPlayer secondOwner = createPlayer(level, "interference-array-second-owner");
         level.setDayTime(14_000L);
@@ -363,7 +363,7 @@ public final class InterferenceArrayScalingGameTest {
 
     private static void assertOneTickOutput(
                                             GameTestHelper helper,
-                                            OrbitalWeaponSavedData data,
+                                            StellarErasureDeviceSavedData data,
                                             UUID weaponId,
                                             AtomicLong checkpoint,
                                             AtomicBoolean raining,
@@ -379,7 +379,7 @@ public final class InterferenceArrayScalingGameTest {
 
     private static void checkpoint(
                                    ServerLevel level,
-                                   OrbitalWeaponSavedData data,
+                                   StellarErasureDeviceSavedData data,
                                    UUID weaponId,
                                    AtomicLong output,
                                    AtomicBoolean raining) {
@@ -387,8 +387,8 @@ public final class InterferenceArrayScalingGameTest {
         output.set(celestialReserve(data, weaponId));
     }
 
-    private static long celestialReserve(OrbitalWeaponSavedData data, UUID weaponId) {
-        return data.find(weaponId).orElseThrow().reserve().celestialEnergy();
+    private static long celestialReserve(StellarErasureDeviceSavedData data, UUID weaponId) {
+        return data.find(weaponId).orElseThrow().reserve().stellarFlux();
     }
 
     private static BlockPos mirror(int deltaX, int deltaZ) {

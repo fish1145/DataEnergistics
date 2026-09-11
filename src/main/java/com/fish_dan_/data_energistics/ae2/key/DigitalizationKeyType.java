@@ -13,7 +13,7 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 
 /**
- * AE key type shared by Data Flow, Echo and Celestial Energy so AE2 exposes one Digitalization visibility toggle.
+ * AE key type shared by Data Flow, Echo and Stellar Flux so AE2 exposes one Digitalization visibility toggle.
  */
 public final class DigitalizationKeyType extends AEKeyType {
 
@@ -46,7 +46,7 @@ public final class DigitalizationKeyType extends AEKeyType {
         return switch (resourceId) {
             case DATA_FLOW_PACKET_ID -> DataFlowKey.of();
             case ECHO_PACKET_ID -> EchoKey.of();
-            case CELESTIAL_ENERGY_PACKET_ID -> CelestialEnergyKey.of();
+            case CELESTIAL_ENERGY_PACKET_ID -> StellarFluxKey.of();
             default -> {
                 Data_Energistics.LOGGER.error("Received unknown Digitalization key packet id {}", resourceId);
                 yield null;
@@ -69,7 +69,7 @@ public final class DigitalizationKeyType extends AEKeyType {
             buffer.writeVarInt(DATA_FLOW_PACKET_ID);
         } else if (key instanceof EchoKey) {
             buffer.writeVarInt(ECHO_PACKET_ID);
-        } else if (key instanceof CelestialEnergyKey) {
+        } else if (key instanceof StellarFluxKey) {
             buffer.writeVarInt(CELESTIAL_ENERGY_PACKET_ID);
         } else {
             throw new IllegalArgumentException("Unsupported Digitalization key: " + key.getClass().getName());
@@ -83,8 +83,8 @@ public final class DigitalizationKeyType extends AEKeyType {
         if (resourceId.equals(EchoKey.ID)) {
             return DataResult.success(EchoKey.of());
         }
-        if (resourceId.equals(CelestialEnergyKey.ID)) {
-            return DataResult.success(CelestialEnergyKey.of());
+        if (resourceId.equals(StellarFluxKey.ID)) {
+            return DataResult.success(StellarFluxKey.of());
         }
         return DataResult.error(() -> "Unknown Digitalization resource id: " + resourceId);
     }

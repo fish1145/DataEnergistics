@@ -4,7 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointChunkTickets;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
 import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import appeng.api.networking.GridFlags;
 import appeng.api.orientation.BlockOrientation;
@@ -99,7 +99,7 @@ public abstract class OrbitalEndpointBlockEntity extends AENetworkedBlockEntity 
         }
 
         try {
-            boolean removed = OrbitalWeaponSavedData.get(level.getServer())
+            boolean removed = StellarErasureDeviceSavedData.get(level.getServer())
                     .removeEndpoint(level.getServer(), boundWeaponId, location);
             if (!removed) {
                 Data_Energistics.LOGGER.warn(

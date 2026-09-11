@@ -16,7 +16,7 @@ import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamScan;
 import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamScan.Segment;
 import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamSweep;
 import com.fish_dan_.data_energistics.orbital.attack.beam.OrbitalBeamVolume;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponLifecycleState;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycleState;
 import com.fish_dan_.data_energistics.orbital.projection.OrbitalProjectionVisualSnapshot;
 
 import net.minecraft.client.Minecraft;
@@ -188,15 +188,15 @@ public final class OrbitalWorldProjectionRenderer {
 
     private static void renderProjection(PoseStack poses, VertexConsumer consumer, ProjectionDraw draw,
                                          double time, int pass) {
-        OrbitalWeaponLifecycleState state = draw.snapshot().lifecycleState();
-        boolean redeploying = state == OrbitalWeaponLifecycleState.REDEPLOYING;
+        StellarErasureDeviceLifecycleState state = draw.snapshot().lifecycleState();
+        boolean redeploying = state == StellarErasureDeviceLifecycleState.REDEPLOYING;
         if ((pass == 0 && redeploying) || (pass == 1 && !redeploying)) {
             return;
         }
         boolean emissive = pass == 2;
         float pulse = pulse(time, draw.snapshot().randomSeed());
         float alpha = redeploying ? 0.32F + 0.25F * pulse : 1;
-        float brightness = state == OrbitalWeaponLifecycleState.RESERVE_GRACE ? 0.5F : 1;
+        float brightness = state == StellarErasureDeviceLifecycleState.RESERVE_GRACE ? 0.5F : 1;
         OrbitalModelRenderer renderer = new OrbitalModelRenderer(consumer, draw.detail() == Detail.FULL,
                 emissive, SKY_LIGHT, brightness, brightness, brightness,
                 emissive ? alpha * (0.7F + pulse * 0.3F) : alpha);

@@ -3,8 +3,8 @@ package com.fish_dan_.data_energistics.orbital.endpoint;
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.blockentity.orbital.OrbitalEndpointBlockEntity;
 import com.fish_dan_.data_energistics.configuration.schema.DataEnergisticsConfiguration;
-import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
-import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -32,7 +32,7 @@ import java.util.UUID;
  *
  * <p>
  * Tickets follow persistent placement state rather than instantaneous AE power. Startup reconciliation treats
- * {@link OrbitalWeaponSavedData} as authoritative, validates the physical block and weapon identity, restores missing
+ * {@link StellarErasureDeviceSavedData} as authoritative, validates the physical block and weapon identity, restores missing
  * tickets, and removes stale endpoint records.
  * </p>
  */
@@ -60,7 +60,7 @@ public final class OrbitalEndpointChunkTickets {
     public static void retain(ServerLevel level, OrbitalEndpointLocation location) {
         requireMatchingDimension(level, location);
         ChunkPos chunk = new ChunkPos(location.pos());
-        if (!DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.endpointChunkLoadingEnabled) {
+        if (!DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice.endpointChunkLoadingEnabled) {
             release(level, location);
             return;
         }
@@ -106,7 +106,7 @@ public final class OrbitalEndpointChunkTickets {
     }
 
     private static void validatePersistedTickets(ServerLevel level, TicketHelper ticketHelper) {
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(level.getServer());
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(level.getServer());
         Map<OrbitalEndpointLocation, UUID> bindings = data.endpointBindings();
         boolean enabled = chunkLoadingEnabled();
         for (Map.Entry<BlockPos, TicketSet> entry : ticketHelper.getBlockTickets().entrySet()) {
@@ -130,7 +130,7 @@ public final class OrbitalEndpointChunkTickets {
     }
 
     private static void reconcile(MinecraftServer server) {
-        OrbitalWeaponSavedData data = OrbitalWeaponSavedData.get(server);
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(server);
         for (Map.Entry<OrbitalEndpointLocation, UUID> entry : data.endpointBindings().entrySet()) {
             OrbitalEndpointLocation location = entry.getKey();
             UUID weaponId = entry.getValue();
@@ -162,14 +162,14 @@ public final class OrbitalEndpointChunkTickets {
 
     private static boolean matchesWorldBinding(
                                                ServerLevel level,
-                                               OrbitalWeaponSavedData data,
+                                               StellarErasureDeviceSavedData data,
                                                OrbitalEndpointLocation location,
                                                UUID weaponId) {
-        Optional<OrbitalWeaponRecord> weapon = data.weaponAt(location);
+        Optional<StellarErasureDeviceRecord> weapon = data.weaponAt(location);
         if (weapon.isEmpty()) {
             return false;
         }
-        OrbitalWeaponRecord boundWeapon = weapon.orElseThrow();
+        StellarErasureDeviceRecord boundWeapon = weapon.orElseThrow();
         if (!boundWeapon.weaponId().equals(weaponId)) {
             return false;
         }
@@ -197,7 +197,7 @@ public final class OrbitalEndpointChunkTickets {
 
     private static void removeStaleBinding(
                                            MinecraftServer server,
-                                           OrbitalWeaponSavedData data,
+                                           StellarErasureDeviceSavedData data,
                                            OrbitalEndpointLocation location,
                                            UUID weaponId) {
         try {
@@ -217,7 +217,7 @@ public final class OrbitalEndpointChunkTickets {
     }
 
     private static boolean chunkLoadingEnabled() {
-        return DataEnergisticsConfiguration.INSTANCE.orbitalWeapon.endpointChunkLoadingEnabled;
+        return DataEnergisticsConfiguration.INSTANCE.stellarErasureDevice.endpointChunkLoadingEnabled;
     }
 
     private static void requireMatchingDimension(ServerLevel level, OrbitalEndpointLocation location) {
