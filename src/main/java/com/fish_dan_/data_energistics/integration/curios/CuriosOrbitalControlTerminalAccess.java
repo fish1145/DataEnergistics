@@ -20,7 +20,6 @@ public final class CuriosOrbitalControlTerminalAccess {
 
     public static final String SLOT_ID = "data_energistics_orbital_terminal";
 
-    private static final int SLOT_INDEX = 0;
     private static final TagKey<Item> TERMINAL_SLOT_TAG = TagKey.create(
             Registries.ITEM,
             ResourceLocation.fromNamespaceAndPath(CuriosApi.MODID, SLOT_ID));
@@ -42,14 +41,14 @@ public final class CuriosOrbitalControlTerminalAccess {
         }
     }
 
-    /** Returns the active terminal stack from the dedicated slot without copying it. */
+    /** Returns the first terminal stack from any active Curios slot without restricting its slot type or index. */
     public static Optional<ItemStack> find(Player player) {
         if (failed) {
             return Optional.empty();
         }
         try {
             return CuriosApi.getCuriosInventory(player)
-                    .flatMap(handler -> handler.findCurio(SLOT_ID, SLOT_INDEX, false))
+                    .flatMap(handler -> handler.findFirstCurio(DEItems.ORBITAL_CONTROL_TERMINAL.get()))
                     .filter(result -> result.stack().is(DEItems.ORBITAL_CONTROL_TERMINAL.get()))
                     .map(SlotResult::stack);
         } catch (RuntimeException | LinkageError exception) {
