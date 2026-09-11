@@ -6,7 +6,7 @@
 			"type": "minecraft:fixed",
 			"biome": "data_energistics:meteorite_cluster"
 		},
-		"settings": "minecraft:overworld",
+		"settings": "data_energistics:meteorite_cluster",
 		"seed": 0
 	}
 }
