@@ -191,3 +191,18 @@ These keys may be displayed or moved as Wrapped Generic Stack items, but their i
 - A request that Trinity cannot take over but AE2 can process falls back to AE2 and is marked as such on the confirmation screen.
 - Trinity-only features, including cyclic execution and same-item dynamic outputs, never fall back to an incompatible ordinary AE2 CPU.
 - Third-party providers and workstations gain extended behavior only when their compatibility adapter loads successfully; missing optional mods do not prevent AE2 or Data Energistics from starting.
+
+---
+
+## Extended Crafting Amount Input
+
+The crafting amount field now accepts long integer expressions. The final result must be a positive integer no greater than `Long.MAX_VALUE` (`9,223,372,036,854,775,807`).
+
+Supported forms include:
+
+- Unit suffixes: `K`, `M`, `G`, `T`, `P`, and `E`, representing `10^3`, `10^6`, `10^9`, `10^12`, `10^15`, and `10^18`;
+- Scientific notation, such as `1E6` and `1.2e3`;
+- Mathematical expressions, such as `2^10`, `1M+500K`, and `(2G+500M)`;
+- An optional leading `=`, such as `=2^10`.
+
+The expression is evaluated first and then validated. Zero, negative, fractional, invalid, or out-of-range results show a localized error tooltip and cannot be confirmed.
