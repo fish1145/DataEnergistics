@@ -1,0 +1,7 @@
+{
+	"type": "minecraft:lake",
+	"config": {
+		"fluid": {"Name": "data_energistics:data_corrosion_liquid"},
+		"barrier": {"Name": "data_energistics:data_meteorite_0"}
+	}
+}
