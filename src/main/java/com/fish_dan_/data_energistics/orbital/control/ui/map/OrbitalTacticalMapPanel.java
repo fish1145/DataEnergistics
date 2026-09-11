@@ -42,6 +42,7 @@ public final class OrbitalTacticalMapPanel {
     private final boolean[] displayedTargets = new boolean[49];
     private final boolean[] displayedAreas = new boolean[49];
     private final boolean[] initializedCells = new boolean[49];
+    private boolean operable;
 
     public OrbitalTacticalMapPanel() {
         root.setId("orbital_tactical_workspace");
@@ -104,6 +105,7 @@ public final class OrbitalTacticalMapPanel {
     }
 
     public void setOperable(boolean operable) {
+        this.operable = operable;
         refresh.setActive(operable);
         recenter.setActive(operable);
         provider.setActive(operable);
@@ -115,6 +117,9 @@ public final class OrbitalTacticalMapPanel {
     public void updateProvider() {
         boolean external = provider.getValue() != null && !BUILTIN.equals(provider.getValue().id());
         externalMap.setDisplay(external);
+        // Provider candidates arrive asynchronously; keep the button's active state in sync with the
+        // latest provider instead of leaving the value from the previous operability update behind.
+        externalMap.setActive(this.operable && external);
         provider.setDisplay(provider.getCandidates().size() > 1);
         status.setDisplay(provider.getCandidates().size() <= 1);
     }
