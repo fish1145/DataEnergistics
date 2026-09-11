@@ -223,7 +223,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     /**
      * Captures the public primary-projection baseline for one dimension without exposing private weapon state. The
      * server tick that reconciles endpoint failover runs before the visual ticker, so this view never resurrects a
-     * failed anchor on the client.
+     * failed anchor on the client. Temporary AE availability does not hide a still-valid persisted projection.
      */
     public List<OrbitalProjectionVisualSnapshot> publicVisualProjections(ServerLevel level, long gameTime) {
         requireServerThread(level.getServer());
@@ -896,7 +896,9 @@ public final class OrbitalWeaponSavedData extends SavedData {
             return Optional.empty();
         }
         OrbitalEndpointRecord endpoint = weapon.endpoints().get(anchor);
-        if (endpoint == null || endpoint.kind() != OrbitalEndpointKind.UPLINK_BEACON || !OrbitalEndpointAvailability.isOnline(level.getServer(), weapon.weaponId(), endpoint)) {
+        // World rendering is a projection of persisted weapon state. AE power controls maintenance and firing,
+        // while a valid persisted beacon remains renderable during a temporary node or chunk availability gap.
+        if (endpoint == null || endpoint.kind() != OrbitalEndpointKind.UPLINK_BEACON) {
             return Optional.empty();
         }
         long randomSeed = (weapon.weaponId().getMostSignificantBits() ^ weapon.weaponId().getLeastSignificantBits()) & Long.MAX_VALUE;
