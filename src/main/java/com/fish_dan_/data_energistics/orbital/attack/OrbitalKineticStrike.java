@@ -89,11 +89,12 @@ public final class OrbitalKineticStrike {
         }
         long columnWork = segmentSize(columnHeight(level, target, geometry), column.coordinateCount());
         int craterTop = craterTopY(level, target, geometry);
+        int craterBottom = craterBottom(level, target, geometry);
         long next = cursor;
         int visited = 0;
         while (next < total && visited < mutationBudget) {
             BlockPos position = positionAt(level, target, geometry, column, crater, next);
-            if (next < columnWork || position.getY() >= target.getY() || geometry.containsCraterPosition(target, position, craterTop)) {
+            if (next < columnWork || geometry.containsCraterPosition(target, position, craterTop, craterBottom)) {
                 if (!chunkReady.test(new ChunkPos(position))) {
                     return new WorkSlice(next, total, false, true);
                 }

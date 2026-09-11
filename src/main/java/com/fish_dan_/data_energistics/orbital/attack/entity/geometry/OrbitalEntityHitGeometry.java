@@ -46,8 +46,8 @@ public final class OrbitalEntityHitGeometry {
             return false;
         }
         int y = (int) Math.min(top, Math.floor(body.maxY + CONTACT_EPSILON));
-        return y >= target.getY() || geometry.containsCraterPosition(target,
-                new BlockPos(target.getX() + (int) x, y, target.getZ() + (int) z), top);
+        return geometry.containsCraterPosition(target,
+                new BlockPos(target.getX() + (int) x, y, target.getZ() + (int) z), top, bottom);
     }
 
     private static double outsideDistance(double point, double minimum, double maximum) {

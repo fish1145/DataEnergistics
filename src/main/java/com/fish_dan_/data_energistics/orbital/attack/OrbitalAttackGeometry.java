@@ -113,18 +113,19 @@ public sealed interface OrbitalAttackGeometry
          * persisted cursors; the bowl only filters the blocks retained along its sloping sides.
          */
         public boolean containsCraterPosition(BlockPos target, BlockPos position) {
-            return containsCraterPosition(target, position, target.getY() - 1);
+            return containsCraterPosition(target, position, target.getY() - 1, target.getY() - craterDepth);
         }
 
-        public boolean containsCraterPosition(BlockPos target, BlockPos position, int craterTopY) {
+        public boolean containsCraterPosition(BlockPos target, BlockPos position, int craterTopY, int craterBottomY) {
             if (this.craterProfile == KineticCraterProfile.CYLINDER) {
                 return true;
             }
             long offsetX = position.getX() - (long) target.getX();
             long offsetZ = position.getZ() - (long) target.getZ();
-            int layer = Math.max(0, Math.min(this.craterDepth - 1, target.getY() - 1 - position.getY()));
+            long totalDepth = Math.max(1L, (long) craterTopY - craterBottomY + 1L);
+            int layer = Math.max(0, Math.min(Math.toIntExact(Math.min(Integer.MAX_VALUE, totalDepth - 1L)), craterTopY - position.getY()));
             long radiusSquared = (long) this.craterRadius * this.craterRadius;
-            return (offsetX * offsetX + offsetZ * offsetZ) * this.craterDepth <= radiusSquared * (this.craterDepth - layer);
+            return (offsetX * offsetX + offsetZ * offsetZ) * totalDepth <= radiusSquared * (totalDepth - layer);
         }
 
         /** Largest horizontal radius touched by the budgeted terrain worker. */
