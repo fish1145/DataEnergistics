@@ -7,8 +7,7 @@ import it.unimi.dsi.fastutil.objects.Reference2BooleanOpenHashMap;
 /** Tracks the AE2 amount widgets that should use long-expression validation. */
 public final class NumberEntryWidgetValidationRegistry {
 
-    private static final Reference2BooleanOpenHashMap<NumberEntryWidget> ENABLED =
-            new Reference2BooleanOpenHashMap<>();
+    private static final Reference2BooleanOpenHashMap<NumberEntryWidget> ENABLED = new Reference2BooleanOpenHashMap<>();
 
     private NumberEntryWidgetValidationRegistry() {}
 

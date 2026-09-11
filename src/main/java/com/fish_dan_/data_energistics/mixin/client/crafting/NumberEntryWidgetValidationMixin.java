@@ -56,5 +56,4 @@ public abstract class NumberEntryWidgetValidationMixin {
                     Component.translatable("gui.data_energistics.crafting.amount.invalid_expression")));
         }
     }
-
 }
