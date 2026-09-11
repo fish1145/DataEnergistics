@@ -231,7 +231,9 @@ public final class OrbitalWeaponSavedData extends SavedData {
         int projectionY = level.getMaxBuildHeight() + OrbitalProjectionVisualSnapshot.ALTITUDE_ABOVE_BUILD_LIMIT;
         return this.weapons.values().stream()
                 .sorted(Comparator.comparing(OrbitalWeaponRecord::weaponId))
-                .filter(weapon -> weapon.lifecycle().hasProjection())
+                // The persisted primary beacon owns the world model. Lifecycle affects its visual state and firing
+                // permissions, but must not hide a still-bound body while reserve reconciliation is in progress.
+                .filter(weapon -> weapon.primaryAnchor() != null)
                 .filter(weapon -> weapon.primaryAnchor() != null && weapon.primaryAnchor().dimensionId().equals(dimensionId))
                 .map(weapon -> projectionSnapshot(level, gameTime, projectionY, weapon))
                 .flatMap(Optional::stream)
