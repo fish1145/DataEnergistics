@@ -2,6 +2,7 @@ package com.fish_dan_.data_energistics.integration.viewer.jei.ingredient;
 
 import com.fish_dan_.data_energistics.client.crafting.tree.viewer.CraftingPlanIngredientViewer;
 import com.fish_dan_.data_energistics.client.screen.GenericStackLookupScreen;
+import com.fish_dan_.data_energistics.mixin.viewer.jei.BookmarkOverlayAccessor;
 
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
 import com.lowdragmc.lowdraglib2.integration.xei.jei.JEIUIEvents;
@@ -64,6 +65,20 @@ public final class CraftingPlanJeiIngredientViewer implements CraftingPlanIngred
     private static <T> Optional<? extends IClickableIngredient<?>> clickable(IClickableIngredientFactory factory,
                                                                              JeiGenericStackIngredientResolver.ResolvedIngredient<T> ingredient, Rect2i bounds) {
         return factory.createBuilder(ingredient.type(), ingredient.ingredient()).buildWithArea(bounds);
+    }
+
+    @Override
+    public boolean favorite(GenericStack stack) {
+        IJeiRuntime current = this.runtime.get();
+        if (current == null) return false;
+        favorite(current, JeiGenericStackIngredientResolver.resolve(stack));
+        return true;
+    }
+
+    private static <T> void favorite(IJeiRuntime runtime, JeiGenericStackIngredientResolver.ResolvedIngredient<T> ingredient) {
+        var bookmarks = ((BookmarkOverlayAccessor) runtime.getBookmarkOverlay()).data_energistics$getBookmarkList();
+        runtime.getIngredientManager().createTypedIngredient(ingredient.type(), ingredient.ingredient(), true)
+                .ifPresent(bookmarks::addIngredientBookmark);
     }
 
     private static <T> void show(IJeiRuntime runtime, JeiGenericStackIngredientResolver.ResolvedIngredient<T> ingredient,

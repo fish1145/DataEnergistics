@@ -107,7 +107,8 @@
 		"guideme.GuideNavBarRowMixin",
 		"jei.JeiEncodePatternTransferHandlerMixin",
 		"neoecoae.NeoECOAEClientMixin",
-		"viewer.jei.RecipeTransferServiceMixin"
+		"viewer.jei.RecipeTransferServiceMixin",
+		"viewer.jei.BookmarkOverlayAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

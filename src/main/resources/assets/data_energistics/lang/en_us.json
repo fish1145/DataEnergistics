@@ -338,6 +338,8 @@
 	"fluid.data_energistics.flowing_data_corrosion_liquid": "Data Corrosion Liquid",
 	"fluid.data_energistics.flowing_ender": "Ender",
 	"gui.data_energistics.craft_confirm.cancel": "Cancel",
+	"gui.data_energistics.craft_confirm.favorite_missing": "Favorite Missing",
+	"gui.data_energistics.craft_confirm.favorite_missing.tooltip": "Add missing materials to the recipe viewer's favorites and close this confirmation screen.",
 	"gui.data_energistics.craft_confirm.cpu": "Crafting CPU: %s",
 	"gui.data_energistics.craft_confirm.cpu_stats": "Storage: %s · Co-processors: %s",
 	"gui.data_energistics.craft_confirm.diagnostic": "Diagnostic: %s",

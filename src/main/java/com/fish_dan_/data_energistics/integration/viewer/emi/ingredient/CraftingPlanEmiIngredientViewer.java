@@ -9,6 +9,7 @@ import appeng.api.stacks.GenericStack;
 
 import dev.emi.emi.api.EmiApi;
 import dev.emi.emi.api.stack.EmiStackInteraction;
+import dev.emi.emi.runtime.EmiFavorites;
 import dev.emi.emi.runtime.EmiReloadManager;
 import org.jspecify.annotations.Nullable;
 
@@ -41,6 +42,13 @@ public final class CraftingPlanEmiIngredientViewer implements CraftingPlanIngred
         var ingredient = EmiGenericStackIngredientResolver.resolve(stack);
         if (recipes) EmiApi.displayRecipes(ingredient);
         else EmiApi.displayUses(ingredient);
+        return true;
+    }
+
+    @Override
+    public boolean favorite(GenericStack stack) {
+        if (!available()) return false;
+        EmiFavorites.addFavorite(EmiGenericStackIngredientResolver.resolve(stack));
         return true;
     }
 }
