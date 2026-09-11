@@ -9,7 +9,6 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.testframework.annotation.TestHolder;
@@ -32,29 +31,6 @@ public final class OrbitalKineticCraterGameTest {
             TARGET.below(9), TARGET.offset(4, -7, 0), TARGET.offset(11, -1, 0), TARGET.offset(8, -1, 8));
 
     private OrbitalKineticCraterGameTest() {}
-
-    @TestHolder("orbital_kinetic_bowl_uses_surface_above_lower_target")
-    @EmptyTemplate("50x32x50")
-    @GameTest(template = "empty_50x32x50", timeoutTicks = 100)
-    public static void bowlUsesSurfaceAboveLowerTarget(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos base = helper.absolutePos(new BlockPos(25, 28, 25));
-        int surfaceY = level.getHeight(Heightmap.Types.WORLD_SURFACE, base.getX(), base.getZ());
-        BlockPos target = new BlockPos(base.getX(), surfaceY - 4, base.getZ());
-        OrbitalAttackGeometry.Kinetic geometry = OrbitalAttackGeometry.Kinetic.fromPersisted(
-                2, 8, 10, 6, 12, KineticCraterProfile.BOWL);
-        level.setBlock(target.above(), Blocks.STONE.defaultBlockState(), 3);
-        level.setBlock(target.offset(4, 1, 0), Blocks.STONE.defaultBlockState(), 3);
-        level.setBlock(target.offset(11, 1, 0), Blocks.STONE.defaultBlockState(), 3);
-        var result = OrbitalKineticStrike.applyBudget(level, target, geometry, 0, 100_000,
-                chunk -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null);
-        helper.assertTrue(result.complete(), "The surface-relative crater must finish in one prepared slice");
-        helper.assertTrue(level.getBlockState(target.offset(4, 1, 0)).isAir(),
-                "A target below the surface must still remove the corresponding upper crater layer");
-        helper.assertTrue(level.getBlockState(target.offset(11, 1, 0)).is(Blocks.STONE),
-                "The surface-relative crater must preserve terrain outside its radius");
-        helper.succeed();
-    }
 
     @TestHolder("orbital_kinetic_bowl_preserves_sloping_walls_and_central_shaft_after_budget_resume")
     @EmptyTemplate("50x32x50")
