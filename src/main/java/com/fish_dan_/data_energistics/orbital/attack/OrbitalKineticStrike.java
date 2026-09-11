@@ -11,6 +11,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -87,11 +88,12 @@ public final class OrbitalKineticStrike {
             throw new IllegalArgumentException("Kinetic strike mutation budget must be positive");
         }
         long columnWork = segmentSize(columnHeight(level, target, geometry), column.coordinateCount());
+        int craterTop = craterTopY(level, target, geometry);
         long next = cursor;
         int visited = 0;
         while (next < total && visited < mutationBudget) {
             BlockPos position = positionAt(level, target, geometry, column, crater, next);
-            if (next < columnWork || geometry.containsCraterPosition(target, position)) {
+            if (next < columnWork || position.getY() >= target.getY() || geometry.containsCraterPosition(target, position, craterTop)) {
                 if (!chunkReady.test(new ChunkPos(position))) {
                     return new WorkSlice(next, total, false, true);
                 }
@@ -120,14 +122,15 @@ public final class OrbitalKineticStrike {
         int bottom = columnBottom(level, target, geometry);
         double top = OrbitalBeamScan.muzzle(target, level.getMaxBuildHeight() - 1).y;
         double columnExtent = geometry.columnRadius() + 0.5;
-        int craterBottom = (int) Math.max(level.getMinBuildHeight(), (long) target.getY() - geometry.craterDepth());
+        int craterTop = craterTopY(level, target, geometry);
+        int craterBottom = craterBottom(level, target, geometry);
         double craterExtent = geometry.craterRadius() + 0.5;
         AABB area = new AABB(center, center).inflate(geometry.shockwaveRadius())
                 .minmax(new AABB(center.x - craterExtent, craterBottom, center.z - craterExtent,
-                        center.x + craterExtent, target.getY(), center.z + craterExtent))
+                        center.x + craterExtent, craterTop + 1, center.z + craterExtent))
                 .inflate(OrbitalEntityHitGeometry.CONTACT_EPSILON);
         for (Entity entity : level.getEntities((Entity) null, area,
-                candidate -> OrbitalEntityHitGeometry.intersectsSphere(candidate.getBoundingBox(), center, geometry.shockwaveRadius()) || OrbitalEntityHitGeometry.intersectsCrater(candidate.getBoundingBox(), target, geometry, craterBottom))) {
+                candidate -> OrbitalEntityHitGeometry.intersectsSphere(candidate.getBoundingBox(), center, geometry.shockwaveRadius()) || OrbitalEntityHitGeometry.intersectsCrater(candidate.getBoundingBox(), target, geometry, craterBottom, craterTop))) {
             OrbitalEntityErasure.eraseHit(entity, strike);
         }
         AABB column = new AABB(center.x - columnExtent, bottom, center.z - columnExtent,
@@ -136,6 +139,17 @@ public final class OrbitalKineticStrike {
                 candidate -> OrbitalEntityHitGeometry.intersectsVerticalColumn(candidate.getBoundingBox(), center, geometry.columnRadius(), bottom, top))) {
             OrbitalEntityErasure.eraseHit(entity, strike);
         }
+    }
+
+    private static int craterTopY(ServerLevel level, BlockPos target, OrbitalAttackGeometry.Kinetic geometry) {
+        if (geometry.craterTopY() != OrbitalAttackGeometry.Kinetic.UNCAPTURED_CRATER_TOP) {
+            return geometry.craterTopY();
+        }
+        return Math.max(target.getY() - 1, level.getHeight(Heightmap.Types.WORLD_SURFACE, target.getX(), target.getZ()) - 1);
+    }
+
+    private static int craterBottom(ServerLevel level, BlockPos target, OrbitalAttackGeometry.Kinetic geometry) {
+        return (int) Math.max(level.getMinBuildHeight(), (long) target.getY() - geometry.craterDepth());
     }
 
     private static long segmentSize(int height, int offsetCount) {
@@ -159,10 +173,8 @@ public final class OrbitalKineticStrike {
                                     ServerLevel level,
                                     BlockPos target,
                                     OrbitalAttackGeometry.Kinetic geometry) {
-        int top = target.getY() - 1;
-        int bottom = (int) Math.max(
-                level.getMinBuildHeight(),
-                (long) target.getY() - geometry.craterDepth());
+        int top = craterTopY(level, target, geometry);
+        int bottom = craterBottom(level, target, geometry);
         return Math.max(0, top - bottom + 1);
     }
 
@@ -198,7 +210,7 @@ public final class OrbitalKineticStrike {
                 target,
                 index - columnCount,
                 crater,
-                target.getY() - 1);
+                craterTopY(level, target, geometry));
     }
 
     private static BlockPos segmentPosition(

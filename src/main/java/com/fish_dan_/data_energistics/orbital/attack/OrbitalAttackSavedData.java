@@ -30,6 +30,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.phys.AABB;
 
@@ -76,6 +77,7 @@ public final class OrbitalAttackSavedData extends SavedData {
     private static final String KINETIC_CRATER_RADIUS_TAG = "kinetic_crater_radius";
     private static final String KINETIC_CRATER_DEPTH_TAG = "kinetic_crater_depth";
     private static final String KINETIC_CRATER_PROFILE_TAG = "kinetic_crater_profile";
+    private static final String KINETIC_CRATER_TOP_TAG = "kinetic_crater_top";
     private static final String KINETIC_SHOCKWAVE_RADIUS_TAG = "kinetic_shockwave_radius";
     private static final String DIGITAL_WORK_INTERVAL_TAG = "digital_work_interval";
     private static final String DIGITAL_MAX_RADIUS_TAG = "digital_max_radius";
@@ -358,6 +360,9 @@ public final class OrbitalAttackSavedData extends SavedData {
         if (targetLevel == null || targetOutsideBounds(targetLevel, target, geometry.maximumRadius())) {
             return Optional.empty();
         }
+        geometry = geometry.withCraterTopY(Math.max(target.getY() - 1,
+                targetLevel.getHeight(Heightmap.Types.WORLD_SURFACE,
+                        target.getX(), target.getZ()) - 1));
         if (!weapons.hasOnlineEndpoint(server, weaponId, dimensionId)) {
             return Optional.empty();
         }
@@ -755,6 +760,7 @@ public final class OrbitalAttackSavedData extends SavedData {
                 tag.putInt(KINETIC_CRATER_RADIUS_TAG, kinetic.craterRadius());
                 tag.putInt(KINETIC_CRATER_DEPTH_TAG, kinetic.craterDepth());
                 tag.putString(KINETIC_CRATER_PROFILE_TAG, kinetic.craterProfile().name());
+                tag.putInt(KINETIC_CRATER_TOP_TAG, kinetic.craterTopY());
                 tag.putInt(KINETIC_SHOCKWAVE_RADIUS_TAG, kinetic.shockwaveRadius());
             }
             case OrbitalAttackGeometry.DirectedEnergy directedEnergy -> {
@@ -876,7 +882,8 @@ public final class OrbitalAttackSavedData extends SavedData {
                 tag.getInt(KINETIC_CRATER_RADIUS_TAG),
                 tag.getInt(KINETIC_CRATER_DEPTH_TAG),
                 tag.getInt(KINETIC_SHOCKWAVE_RADIUS_TAG),
-                craterProfile);
+                craterProfile,
+                tag.contains(KINETIC_CRATER_TOP_TAG, Tag.TAG_INT) ? tag.getInt(KINETIC_CRATER_TOP_TAG) : OrbitalAttackGeometry.Kinetic.UNCAPTURED_CRATER_TOP);
     }
 
     static OrbitalAttackGeometry.DirectedEnergy readDirectedEnergyGeometry(CompoundTag tag) {

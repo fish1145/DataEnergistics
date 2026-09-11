@@ -36,7 +36,8 @@ public sealed interface OrbitalAttackGeometry
                    int craterRadius,
                    int craterDepth,
                    int shockwaveRadius,
-                   KineticCraterProfile craterProfile)
+                   KineticCraterProfile craterProfile,
+                   int craterTopY)
             implements OrbitalAttackGeometry {
 
         public static final int DEFAULT_COLUMN_RADIUS = 8;
@@ -47,6 +48,12 @@ public sealed interface OrbitalAttackGeometry
         public static final int MAX_TERRAIN_RADIUS = 256;
         public static final int MAX_TERRAIN_DEPTH = 8_192;
         public static final int MAX_SHOCKWAVE_RADIUS = 256;
+        public static final int UNCAPTURED_CRATER_TOP = Integer.MIN_VALUE;
+
+        public Kinetic(int columnRadius, int columnDepth, int craterRadius, int craterDepth, int shockwaveRadius,
+                       KineticCraterProfile craterProfile) {
+            this(columnRadius, columnDepth, craterRadius, craterDepth, shockwaveRadius, craterProfile, UNCAPTURED_CRATER_TOP);
+        }
 
         public Kinetic {
             if (columnRadius < 1 || columnRadius > MAX_TERRAIN_RADIUS || craterRadius < 1 || craterRadius > MAX_TERRAIN_RADIUS) {
@@ -68,7 +75,7 @@ public sealed interface OrbitalAttackGeometry
                     settings.kineticCraterRadius,
                     settings.kineticCraterDepth,
                     settings.kineticShockwaveRadius,
-                    KineticCraterProfile.BOWL);
+                    KineticCraterProfile.BOWL, UNCAPTURED_CRATER_TOP);
         }
 
         /** Normalizes untrusted persisted numbers once at the SavedData boundary. */
@@ -78,14 +85,25 @@ public sealed interface OrbitalAttackGeometry
                                             int craterRadius,
                                             int craterDepth,
                                             int shockwaveRadius,
-                                            KineticCraterProfile craterProfile) {
+                                            KineticCraterProfile craterProfile,
+                                            int craterTopY) {
             return new Kinetic(
                     Math.clamp(columnRadius, 1, MAX_TERRAIN_RADIUS),
                     Math.clamp(columnDepth, 1, MAX_TERRAIN_DEPTH),
                     Math.clamp(craterRadius, 1, MAX_TERRAIN_RADIUS),
                     Math.clamp(craterDepth, 1, MAX_TERRAIN_DEPTH),
                     Math.clamp(shockwaveRadius, 1, MAX_SHOCKWAVE_RADIUS),
-                    craterProfile);
+                    craterProfile, craterTopY);
+        }
+
+        public static Kinetic fromPersisted(int columnRadius, int columnDepth, int craterRadius, int craterDepth,
+                                            int shockwaveRadius, KineticCraterProfile craterProfile) {
+            return fromPersisted(columnRadius, columnDepth, craterRadius, craterDepth, shockwaveRadius,
+                    craterProfile, UNCAPTURED_CRATER_TOP);
+        }
+
+        public Kinetic withCraterTopY(int topY) {
+            return new Kinetic(columnRadius, columnDepth, craterRadius, craterDepth, shockwaveRadius, craterProfile, topY);
         }
 
         /**
@@ -94,12 +112,16 @@ public sealed interface OrbitalAttackGeometry
          * persisted cursors; the bowl only filters the blocks retained along its sloping sides.
          */
         public boolean containsCraterPosition(BlockPos target, BlockPos position) {
+            return containsCraterPosition(target, position, target.getY() - 1);
+        }
+
+        public boolean containsCraterPosition(BlockPos target, BlockPos position, int craterTopY) {
             if (this.craterProfile == KineticCraterProfile.CYLINDER) {
                 return true;
             }
             long offsetX = position.getX() - (long) target.getX();
             long offsetZ = position.getZ() - (long) target.getZ();
-            int layer = target.getY() - 1 - position.getY();
+            int layer = Math.max(0, Math.min(this.craterDepth - 1, target.getY() - 1 - position.getY()));
             long radiusSquared = (long) this.craterRadius * this.craterRadius;
             return (offsetX * offsetX + offsetZ * offsetZ) * this.craterDepth <= radiusSquared * (this.craterDepth - layer);
         }

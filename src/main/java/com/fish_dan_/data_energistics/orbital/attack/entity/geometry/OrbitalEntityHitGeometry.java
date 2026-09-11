@@ -33,7 +33,11 @@ public final class OrbitalEntityHitGeometry {
 
     /** Reuses the captured crater profile; its highest intersected layer has the widest removed disk. */
     public static boolean intersectsCrater(AABB body, BlockPos target, OrbitalAttackGeometry.Kinetic geometry, int bottom) {
-        if (body.maxY < bottom - CONTACT_EPSILON || body.minY > target.getY() + CONTACT_EPSILON) {
+        return intersectsCrater(body, target, geometry, bottom, target.getY() - 1);
+    }
+
+    public static boolean intersectsCrater(AABB body, BlockPos target, OrbitalAttackGeometry.Kinetic geometry, int bottom, int top) {
+        if (body.maxY < bottom - CONTACT_EPSILON || body.minY > top + 1 + CONTACT_EPSILON) {
             return false;
         }
         double x = nearestColumnCell(body.minX - target.getX() - 0.5, body.maxX - target.getX() - 0.5);
@@ -41,8 +45,9 @@ public final class OrbitalEntityHitGeometry {
         if (x * x + z * z > (long) geometry.craterRadius() * geometry.craterRadius()) {
             return false;
         }
-        int y = (int) Math.min(target.getY() - 1, Math.floor(body.maxY + CONTACT_EPSILON));
-        return geometry.containsCraterPosition(target, new BlockPos(target.getX() + (int) x, y, target.getZ() + (int) z));
+        int y = (int) Math.min(top, Math.floor(body.maxY + CONTACT_EPSILON));
+        return y >= target.getY() || geometry.containsCraterPosition(target,
+                new BlockPos(target.getX() + (int) x, y, target.getZ() + (int) z), top);
     }
 
     private static double outsideDistance(double point, double minimum, double maximum) {
