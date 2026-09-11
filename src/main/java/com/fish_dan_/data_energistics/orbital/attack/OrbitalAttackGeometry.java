@@ -42,8 +42,9 @@ public sealed interface OrbitalAttackGeometry
 
         public static final int DEFAULT_COLUMN_RADIUS = 8;
         public static final int DEFAULT_COLUMN_DEPTH = 192;
-        public static final int DEFAULT_CRATER_RADIUS = 24;
-        public static final int DEFAULT_CRATER_DEPTH = 16;
+        /** The default impact footprint matches the 64-block shockwave envelope. */
+        public static final int DEFAULT_CRATER_RADIUS = 64;
+        public static final int DEFAULT_CRATER_DEPTH = 32;
         public static final int DEFAULT_SHOCKWAVE_RADIUS = 64;
         public static final int MAX_TERRAIN_RADIUS = 256;
         public static final int MAX_TERRAIN_DEPTH = 8_192;
