@@ -221,7 +221,7 @@ public final class OrbitalWeaponSavedData extends SavedData {
     }
 
     /**
-     * Captures the public primary-projection baseline for one dimension without exposing private weapon state. The
+     * Captures the public weapon-projection baseline for one dimension without exposing private weapon state. The
      * server tick that reconciles endpoint failover runs before the visual ticker, so this view never resurrects a
      * failed anchor on the client. Temporary AE availability does not hide a still-valid persisted projection.
      */
@@ -233,9 +233,9 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 .sorted(Comparator.comparing(OrbitalWeaponRecord::weaponId))
                 // The persisted primary beacon owns the world model. Lifecycle affects its visual state and firing
                 // permissions, but must not hide a still-bound body while reserve reconciliation is in progress.
-                .filter(weapon -> weapon.primaryAnchor() != null)
-                .filter(weapon -> weapon.primaryAnchor() != null && weapon.primaryAnchor().dimensionId().equals(dimensionId))
-                .map(weapon -> projectionSnapshot(level, gameTime, projectionY, weapon))
+                .map(weapon -> projectionAnchor(weapon, dimensionId))
+                .flatMap(Optional::stream)
+                .map(anchor -> projectionSnapshot(level, gameTime, projectionY, anchor.weapon(), anchor.location()))
                 .flatMap(Optional::stream)
                 .toList();
     }
@@ -892,15 +892,12 @@ public final class OrbitalWeaponSavedData extends SavedData {
                                                                                 ServerLevel level,
                                                                                 long gameTime,
                                                                                 int projectionY,
-                                                                                OrbitalWeaponRecord weapon) {
-        OrbitalEndpointLocation anchor = weapon.primaryAnchor();
-        if (anchor == null) {
-            return Optional.empty();
-        }
+                                                                                OrbitalWeaponRecord weapon,
+                                                                                OrbitalEndpointLocation anchor) {
         OrbitalEndpointRecord endpoint = weapon.endpoints().get(anchor);
         // World rendering is a projection of persisted weapon state. AE power controls maintenance and firing,
-        // while a valid persisted beacon remains renderable during a temporary node or chunk availability gap.
-        if (endpoint == null || endpoint.kind() != OrbitalEndpointKind.UPLINK_BEACON) {
+        // while a valid persisted endpoint remains renderable during a temporary node or chunk availability gap.
+        if (endpoint == null) {
             return Optional.empty();
         }
         long randomSeed = (weapon.weaponId().getMostSignificantBits() ^ weapon.weaponId().getLeastSignificantBits()) & Long.MAX_VALUE;
@@ -913,6 +910,22 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 weapon.lifecycle().redeploymentTicksRemaining(),
                 gameTime,
                 randomSeed));
+    }
+
+    /**
+     * Chooses the persisted beacon first and falls back to a control console in the viewed dimension. A console-only
+     * weapon is still a complete, usable weapon and must have a visible orbital body while it has no beacon yet.
+     */
+    private static Optional<ProjectionAnchor> projectionAnchor(OrbitalWeaponRecord weapon, ResourceLocation dimensionId) {
+        OrbitalEndpointLocation primary = weapon.primaryAnchor();
+        if (primary != null && primary.dimensionId().equals(dimensionId) && weapon.endpoints().containsKey(primary)) {
+            return Optional.of(new ProjectionAnchor(weapon, primary));
+        }
+        return weapon.endpoints().values().stream()
+                .filter(endpoint -> endpoint.location().dimensionId().equals(dimensionId))
+                .sorted(ENDPOINT_PRIORITY_ORDER)
+                .map(endpoint -> new ProjectionAnchor(weapon, endpoint.location()))
+                .findFirst();
     }
 
     /** Applies the first online beacon when a newly bound endpoint has not got an anchor yet. */
@@ -969,6 +982,8 @@ public final class OrbitalWeaponSavedData extends SavedData {
                 .findFirst()
                 .orElse(null);
     }
+
+    private record ProjectionAnchor(OrbitalWeaponRecord weapon, OrbitalEndpointLocation location) {}
 
     private OrbitalWeaponRecord filterConflictingEndpoints(OrbitalWeaponRecord weapon) {
         Map<OrbitalEndpointLocation, OrbitalEndpointRecord> acceptedEndpoints = new Object2ObjectLinkedOpenHashMap<>();

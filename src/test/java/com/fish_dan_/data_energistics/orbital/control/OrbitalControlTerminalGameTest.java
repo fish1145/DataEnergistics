@@ -4,10 +4,13 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlHudSnapshotPayload;
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalControlIntent;
 import com.fish_dan_.data_energistics.orbital.control.protocol.OrbitalHudSnapshot;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointKind;
+import com.fish_dan_.data_energistics.orbital.endpoint.OrbitalEndpointLocation;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
 import com.fish_dan_.data_energistics.orbital.model.OrbitalWeaponRecord;
 import com.fish_dan_.data_energistics.orbital.storage.OrbitalWeaponSavedData;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -114,6 +117,24 @@ public final class OrbitalControlTerminalGameTest {
         } finally {
             buffer.release();
         }
+        helper.succeed();
+    }
+
+    @TestHolder("orbital_control_console_provides_weapon_projection_anchor")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void consoleOnlyWeaponStillPublishesOrbitalProjection(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        MinecraftServer server = level.getServer();
+        ServerPlayer player = createPlayer(level, "console-projection");
+        OrbitalEndpointLocation station = new OrbitalEndpointLocation(level.dimension().location(),
+                helper.absolutePos(new BlockPos(1, 2, 1)));
+        OrbitalWeaponRecord weapon = OrbitalWeaponSavedData.get(server).provisionForOwner(
+                server, player.getUUID(), station, OrbitalEndpointKind.CONTROL_CONSOLE);
+        helper.assertTrue(
+                OrbitalWeaponSavedData.get(server).publicVisualProjections(level, server.overworld().getGameTime()).stream()
+                        .anyMatch(snapshot -> snapshot.weaponId().equals(weapon.weaponId()) && snapshot.anchor().equals(station.pos())),
+                "A weapon station must provide a fallback projection anchor before a beacon is installed");
         helper.succeed();
     }
 
