@@ -1,4 +1,5 @@
 {
+	"gui.data_energistics.crafting.amount.invalid_expression": "Enter an expression that evaluates to a positive integer no greater than 9,223,372,036,854,775,807.",
 	"gui.data_energistics.reusable_status.none": "Crafting Status",
 	"gui.data_energistics.reusable_status.running": "Resident Work Accepted",
 	"gui.data_energistics.reusable_status.waiting_input": "Waiting for Next Batch",

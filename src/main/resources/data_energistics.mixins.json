@@ -91,6 +91,7 @@
 		"client.crafting.CraftConfirmScreenMixin",
 		"client.crafting.CraftConfirmTableRendererMixin",
 		"client.crafting.NumberEntryWidgetAccessor",
+		"client.crafting.NumberEntryWidgetValidationMixin",
 		"client.gui.AEBaseScreenSlotHighlightMixin",
 		"client.gui.Ae2CustomKeyGuiMixin",
 		"client.gui.Ldlib2AeProtocolScreenMixin",
