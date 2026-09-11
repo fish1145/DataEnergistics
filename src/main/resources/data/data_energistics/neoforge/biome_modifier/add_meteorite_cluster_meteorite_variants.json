@@ -1,11 +1,11 @@
 {
-  "type": "neoforge:add_features",
-  "biomes": "data_energistics:meteorite_cluster",
-  "features": [
-    "data_energistics:meteorite_cluster_ae2_meteorite",
-    "data_energistics:meteorite_cluster_data_meteorite_0",
-    "data_energistics:meteorite_cluster_data_meteorite",
-    "data_energistics:meteorite_cluster_data_meteorite_2"
-  ],
-  "step": "underground_ores"
+	"type": "neoforge:add_features",
+	"biomes": "data_energistics:meteorite_cluster",
+	"features": [
+		"data_energistics:meteorite_cluster_ae2_meteorite",
+		"data_energistics:meteorite_cluster_data_meteorite_0",
+		"data_energistics:meteorite_cluster_data_meteorite",
+		"data_energistics:meteorite_cluster_data_meteorite_2"
+	],
+	"step": "underground_ores"
 }

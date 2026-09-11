@@ -1,9 +1,16 @@
 {
-  "feature": "data_energistics:meteorite_cluster_ae2_meteorite",
-  "placement": [
-    {"type": "minecraft:count", "count": 36},
-    {"type": "minecraft:in_square"},
-    {"type": "minecraft:height_range", "height": {"type": "minecraft:trapezoid", "min_inclusive": {"absolute": -32}, "max_inclusive": {"absolute": 220}}},
-    {"type": "minecraft:biome"}
-  ]
+	"feature": "data_energistics:meteorite_cluster_ae2_meteorite",
+	"placement": [
+		{ "type": "minecraft:count", "count": 36 },
+		{ "type": "minecraft:in_square" },
+		{
+			"type": "minecraft:height_range",
+			"height": {
+				"type": "minecraft:trapezoid",
+				"min_inclusive": { "absolute": -32 },
+				"max_inclusive": { "absolute": 220 }
+			}
+		},
+		{ "type": "minecraft:biome" }
+	]
 }

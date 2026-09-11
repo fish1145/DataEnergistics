@@ -3,11 +3,11 @@
 	"config": {
 		"fluid": {
 			"type": "minecraft:simple_state_provider",
-			"state": {"Name": "data_energistics:data_corrosion_liquid"}
+			"state": { "Name": "data_energistics:data_corrosion_liquid" }
 		},
 		"barrier": {
 			"type": "minecraft:simple_state_provider",
-			"state": {"Name": "data_energistics:data_meteorite_0"}
+			"state": { "Name": "data_energistics:data_meteorite_0" }
 		}
 	}
 }
