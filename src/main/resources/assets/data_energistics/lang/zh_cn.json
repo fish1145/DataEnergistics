@@ -1,4 +1,5 @@
 {
+	"gui.data_energistics.crafting.amount.invalid_expression": "请输入最终结果为正整数且不超过 9,223,372,036,854,775,807 的表达式。",
 	"gui.data_energistics.reusable_status.none": "合成状态",
 	"gui.data_energistics.reusable_status.running": "驻留任务已接单",
 	"gui.data_energistics.reusable_status.waiting_input": "等待续批／材料",

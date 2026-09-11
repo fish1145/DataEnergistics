@@ -27,7 +27,11 @@ public final class LongAmountExpressionParser {
         private int p;
 
         Parser(String input) {
-            s = input.replace(" ", "").toLowerCase(Locale.ROOT);
+            var normalized = input.trim();
+            if (normalized.startsWith("=")) {
+                normalized = normalized.substring(1);
+            }
+            s = normalized.replace(" ", "").toLowerCase(Locale.ROOT);
         }
 
         BigDecimal parse() {

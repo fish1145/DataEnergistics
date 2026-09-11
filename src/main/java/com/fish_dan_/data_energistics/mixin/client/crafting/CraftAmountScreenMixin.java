@@ -75,6 +75,8 @@ public abstract class CraftAmountScreenMixin extends AEBaseScreen<CraftAmountMen
         this.addToLeftToolbar(this.dataEnergistics$quantityModeButton);
 
         this.amountToCraft.setMaxValue(Long.MAX_VALUE);
+        ((NumberEntryWidgetValidationAccess) this.amountToCraft)
+                .dataEnergistics$enableExpressionValidation();
         ((NumberEntryWidgetAccessor) this.amountToCraft)
                 .dataEnergistics$textField()
                 .setMaxLength(Long.toString(Long.MAX_VALUE).length());
