@@ -30,8 +30,10 @@ public final class RailImpact {
         if (ammo == RailAmmunition.FE) {
             List<Vec3> points = new ObjectArrayList<>();
             points.add(center);
-            for (LivingEntity chained : level.getEntitiesOfClass(LivingEntity.class, ElementalGrenade.area(center, cards == 0 ? 4 : 7),
-                    entity -> entity != owner && entity.isAlive() && !entity.isSpectator())) {
+            int width = cards == 0 ? 12 : 17;
+            int maximumTargets = cards == 2 ? 16 : 8;
+            for (LivingEntity chained : level.getEntitiesOfClass(LivingEntity.class, ElementalGrenade.area(center, width),
+                    entity -> entity != owner && entity.isAlive() && !entity.isSpectator()).stream().limit(maximumTargets).toList()) {
                 WeaponDamage.hurt(chained, WeaponDamage.source(chained, owner), damage);
                 if (points.size() < 4096) points.add(chained.getBoundingBox().getCenter());
             }

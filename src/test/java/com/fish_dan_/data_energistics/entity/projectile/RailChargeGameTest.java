@@ -317,17 +317,22 @@ public final class RailChargeGameTest {
     @GameTest(template = "empty_5x5")
     public static void feImpact(GameTestHelper h) {
         for (int cards = 0; cards <= 2; cards++) {
-            Mob near = target(h, 2, 1, 2), far = target(h, 5, 1, 2), owner = target(h, 2, 1, 3);
+            Mob near = target(h, 2, 1, 2), far = target(h, 10, 1, 2), owner = target(h, 2, 1, 3);
+            List<Mob> crowd = new java.util.ArrayList<>();
+            for (int index = 0; index < 20; index++) crowd.add(target(h, 1 + index % 5, 1, 1 + index / 5));
             Vec3 impact = near.getBoundingBox().getCenter();
             var shot = round(h, player(h), new RailShot(RailAmmunition.FE, cards, 1));
             shot.setOwner(owner);
             shot.onHitBlock(new BlockHitResult(impact, Direction.UP, BlockPos.containing(impact), false));
             h.assertTrue(near.getHealth() == 1000 - (cards == 2 ? 19 : 11), "FE primary area damage");
-            h.assertTrue(far.getHealth() == (cards == 0 ? 1000 : 1000 - (cards == 2 ? 19 : 11)), "FE 4x4/7x7 boundary");
+            h.assertTrue(far.getHealth() == (cards == 0 ? 1000 : 1000 - (cards == 2 ? 19 : 11)), "FE 12x12/17x17 boundary");
+            long damaged = crowd.stream().filter(entity -> entity.getHealth() < 1000).count() + (near.getHealth() < 1000 ? 1 : 0) + (far.getHealth() < 1000 ? 1 : 0);
+            h.assertValueEqual((int) damaged, cards == 2 ? 16 : 8, "FE target count limit");
             h.assertTrue(owner.getHealth() == 1000, "FE damaged its shooter");
             near.discard();
             far.discard();
             owner.discard();
+            crowd.forEach(Mob::discard);
         }
         h.succeed();
     }
