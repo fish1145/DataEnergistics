@@ -1,0 +1,6 @@
+{
+	"type": "neoforge:add_features",
+	"biomes": "data_energistics:meteorite_cluster",
+	"features": "data_energistics:meteorite_cluster_data_meteorite",
+	"step": "underground_ores"
+}

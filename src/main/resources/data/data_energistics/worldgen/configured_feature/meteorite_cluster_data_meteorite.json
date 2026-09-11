@@ -1,0 +1,23 @@
+{
+	"type": "minecraft:scattered_ore",
+	"config": {
+		"discard_chance_on_air_exposure": 0.15,
+		"size": 12,
+		"targets": [
+			{
+				"state": {"Name": "data_energistics:data_meteorite_1"},
+				"target": {
+					"predicate_type": "minecraft:block_match",
+					"block": "minecraft:stone"
+				}
+			},
+			{
+				"state": {"Name": "data_energistics:data_meteorite_1"},
+				"target": {
+					"predicate_type": "minecraft:block_match",
+					"block": "minecraft:deepslate"
+				}
+			}
+		]
+	}
+}
