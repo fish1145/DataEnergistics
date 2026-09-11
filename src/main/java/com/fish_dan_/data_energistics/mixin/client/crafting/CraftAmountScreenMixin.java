@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.client.crafting;
 
 import com.fish_dan_.data_energistics.client.crafting.LongAmountExpressionParser;
+import com.fish_dan_.data_energistics.client.crafting.NumberEntryWidgetValidationRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;
 
@@ -75,8 +76,7 @@ public abstract class CraftAmountScreenMixin extends AEBaseScreen<CraftAmountMen
         this.addToLeftToolbar(this.dataEnergistics$quantityModeButton);
 
         this.amountToCraft.setMaxValue(Long.MAX_VALUE);
-        ((NumberEntryWidgetValidationAccess) this.amountToCraft)
-                .dataEnergistics$enableExpressionValidation();
+        NumberEntryWidgetValidationRegistry.enable(this.amountToCraft);
         ((NumberEntryWidgetAccessor) this.amountToCraft)
                 .dataEnergistics$textField()
                 .setMaxLength(Long.toString(Long.MAX_VALUE).length());

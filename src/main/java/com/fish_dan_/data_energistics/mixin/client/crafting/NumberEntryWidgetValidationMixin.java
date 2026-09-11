@@ -1,6 +1,7 @@
 package com.fish_dan_.data_energistics.mixin.client.crafting;
 
 import com.fish_dan_.data_energistics.client.crafting.LongAmountExpressionParser;
+import com.fish_dan_.data_energistics.client.crafting.NumberEntryWidgetValidationRegistry;
 
 import appeng.client.gui.widgets.ConfirmableTextField;
 import appeng.client.gui.widgets.NumberEntryWidget;
@@ -21,10 +22,7 @@ import java.util.List;
  * Replaces the amount widget's integer-only visual validation with the parser used by the crafting screen.
  */
 @Mixin(NumberEntryWidget.class)
-public abstract class NumberEntryWidgetValidationMixin implements NumberEntryWidgetValidationAccess {
-
-    @Unique
-    private boolean dataEnergistics$expressionValidation;
+public abstract class NumberEntryWidgetValidationMixin {
 
     @Shadow
     @Final
@@ -40,7 +38,7 @@ public abstract class NumberEntryWidgetValidationMixin implements NumberEntryWid
 
     @Inject(method = "validate", at = @At("RETURN"))
     private void dataEnergistics$validateExpression(CallbackInfo ci) {
-        if (!this.dataEnergistics$expressionValidation) {
+        if (!NumberEntryWidgetValidationRegistry.isEnabled((NumberEntryWidget) (Object) this)) {
             return;
         }
         dataEnergistics$applyExpressionValidation();
@@ -59,9 +57,4 @@ public abstract class NumberEntryWidgetValidationMixin implements NumberEntryWid
         }
     }
 
-    @Override
-    public void dataEnergistics$enableExpressionValidation() {
-        this.dataEnergistics$expressionValidation = true;
-        dataEnergistics$applyExpressionValidation();
-    }
 }
