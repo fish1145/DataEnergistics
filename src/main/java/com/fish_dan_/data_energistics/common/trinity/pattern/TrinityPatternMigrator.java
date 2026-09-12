@@ -985,14 +985,12 @@ public final class TrinityPatternMigrator {
                 this.storageSourceUncertain++;
                 return StorageCandidateOutcome.STOPPED;
             }
-            long extracted;
             try {
-                extracted = StorageHelper.poweredExtraction(
+                StorageHelper.poweredExtraction(
                         this.grid.getEnergyService(), this.storage, key, 1L,
                         this.actionSource, Actionable.MODULATE);
             } catch (RuntimeException failure) {
                 logStorageFailure(key, "storage pattern recycle extraction failed", failure);
-                extracted = -1L;
             }
             long encodedAfter = readStorageAmount(key);
             if (encodedAfter == expectedAmount - 1L) {
@@ -1500,20 +1498,10 @@ public final class TrinityPatternMigrator {
 
     private record SortEntry(TargetSlot target, ItemStack stack, @Nullable PatternSortKey sortKey) {}
 
-    private static final class SortSegment {
+    private record SortSegment(List<TargetSlot> targets, List<ItemStack> current, List<ItemStack> desired) {
 
         private static final Comparator<SortEntry> ORDER = Comparator
                 .comparing(SortEntry::sortKey, Comparator.nullsLast(Comparator.naturalOrder()));
-
-        private final List<TargetSlot> targets;
-        private final List<ItemStack> current;
-        private final List<ItemStack> desired;
-
-        private SortSegment(List<TargetSlot> targets, List<ItemStack> current, List<ItemStack> desired) {
-            this.targets = targets;
-            this.current = current;
-            this.desired = desired;
-        }
 
         private static SortSegment create(List<SortEntry> entries) {
             List<TargetSlot> targets = entries.stream().map(SortEntry::target).toList();
