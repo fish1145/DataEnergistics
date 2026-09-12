@@ -1,7 +1,7 @@
 {
 	"parent": "data_energistics:block/astronomical_observatory_off",
 	"textures": {
-		"side": "data_energistics:block/astronomy/observatory_on",
-		"top": "data_energistics:block/astronomy/observatory_on"
+		"side": "minecraft:block/white_concrete",
+		"top": "minecraft:block/white_concrete"
 	}
 }

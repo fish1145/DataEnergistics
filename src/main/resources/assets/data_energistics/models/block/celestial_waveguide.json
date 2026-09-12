@@ -1,10 +1,10 @@
 {
 	"parent": "block/block",
 	"textures": {
-		"end": "data_energistics:block/astronomy/waveguide",
-		"core": "data_energistics:block/astronomy/waveguide",
-		"side": "data_energistics:block/astronomy/waveguide",
-		"particle": "data_energistics:block/astronomy/waveguide"
+		"end": "minecraft:block/white_concrete",
+		"core": "minecraft:block/white_concrete",
+		"side": "minecraft:block/white_concrete",
+		"particle": "minecraft:block/white_concrete"
 	},
 	"elements": [
 		{

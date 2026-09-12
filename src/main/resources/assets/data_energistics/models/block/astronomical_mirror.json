@@ -1,11 +1,11 @@
 {
 	"parent": "block/block",
 	"textures": {
-		"base": "data_energistics:block/astronomy/mirror",
-		"side": "data_energistics:block/astronomy/mirror",
-		"top": "data_energistics:block/astronomy/mirror",
-		"lens": "data_energistics:block/astronomy/mirror",
-		"particle": "data_energistics:block/astronomy/mirror"
+		"base": "minecraft:block/white_concrete",
+		"side": "minecraft:block/white_concrete",
+		"top": "minecraft:block/white_concrete",
+		"lens": "minecraft:block/white_concrete",
+		"particle": "minecraft:block/white_concrete"
 	},
 	"elements": [
 		{

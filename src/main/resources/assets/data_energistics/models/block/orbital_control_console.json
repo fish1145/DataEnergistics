@@ -1,11 +1,11 @@
 {
 	"parent": "block/block",
 	"textures": {
-		"shell": "data_energistics:block/orbital/control_console",
-		"top": "data_energistics:block/orbital/control_console",
-		"screen": "data_energistics:block/orbital/control_console",
-		"core": "data_energistics:block/orbital/control_console",
-		"particle": "data_energistics:block/orbital/control_console"
+    "shell": "minecraft:block/white_concrete",
+    "top": "minecraft:block/white_concrete",
+    "screen": "minecraft:block/white_concrete",
+    "core": "minecraft:block/white_concrete",
+    "particle": "minecraft:block/white_concrete"
 	},
 	"elements": [
 		{

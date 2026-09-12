@@ -1,9 +1,9 @@
 {
 	"parent": "block/block",
 	"textures": {
-		"case": "data_energistics:item/orbital_control_terminal",
-		"screen": "data_energistics:item/orbital_control_terminal",
-		"particle": "data_energistics:item/orbital_control_terminal"
+    "case": "minecraft:block/white_concrete",
+    "screen": "minecraft:block/white_concrete",
+    "particle": "minecraft:block/white_concrete"
 	},
 	"elements": [
 		{

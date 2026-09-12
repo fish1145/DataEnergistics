@@ -1,11 +1,11 @@
 {
 	"parent": "block/block",
 	"textures": {
-		"base": "data_energistics:block/astronomy/interference_core",
-		"side": "data_energistics:block/astronomy/interference_core",
-		"top": "data_energistics:block/astronomy/interference_core",
-		"core": "data_energistics:block/astronomy/interference_core",
-		"particle": "data_energistics:block/astronomy/interference_core"
+		"base": "minecraft:block/white_concrete",
+		"side": "minecraft:block/white_concrete",
+		"top": "minecraft:block/white_concrete",
+		"core": "minecraft:block/white_concrete",
+		"particle": "minecraft:block/white_concrete"
 	},
 	"elements": [
 		{

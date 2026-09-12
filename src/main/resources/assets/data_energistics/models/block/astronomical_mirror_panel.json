@@ -1,9 +1,9 @@
 {
 	"parent": "block/block",
 	"textures": {
-		"frame": "data_energistics:block/astronomy/mirror_panel",
-		"panel": "data_energistics:block/astronomy/mirror_panel",
-		"particle": "data_energistics:block/astronomy/mirror_panel"
+		"frame": "minecraft:block/white_concrete",
+		"panel": "minecraft:block/white_concrete",
+		"particle": "minecraft:block/white_concrete"
 	},
 	"elements": [
 		{

@@ -1,10 +1,10 @@
 {
 	"parent": "block/block",
 	"textures": {
-		"shell": "data_energistics:block/orbital/uplink_beacon",
-		"top": "data_energistics:block/orbital/uplink_beacon",
-		"core": "data_energistics:block/orbital/uplink_beacon",
-		"particle": "data_energistics:block/orbital/uplink_beacon"
+    "shell": "minecraft:block/white_concrete",
+    "top": "minecraft:block/white_concrete",
+    "core": "minecraft:block/white_concrete",
+    "particle": "minecraft:block/white_concrete"
 	},
 	"elements": [
 		{
