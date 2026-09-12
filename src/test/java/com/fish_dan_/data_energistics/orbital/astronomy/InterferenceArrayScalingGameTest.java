@@ -257,7 +257,7 @@ public final class InterferenceArrayScalingGameTest {
                 "The compact 3x3x2 core pedestal must be valid");
         helper.assertValueEqual(
                 InterferenceArrayPattern.findConnectedMirrors(
-                                helper.getLevel(), helper.absolutePos(core), settings)
+                        helper.getLevel(), helper.absolutePos(core), settings)
                         .size(),
                 4,
                 "Four radial mirror units must be discovered through flat waveguide arms");

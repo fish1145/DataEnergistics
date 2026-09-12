@@ -1,9 +1,9 @@
 {
 	"parent": "block/block",
 	"textures": {
-    "case": "minecraft:block/white_concrete",
-    "screen": "minecraft:block/white_concrete",
-    "particle": "minecraft:block/white_concrete"
+		"case": "minecraft:block/white_concrete",
+		"screen": "minecraft:block/white_concrete",
+		"particle": "minecraft:block/white_concrete"
 	},
 	"elements": [
 		{

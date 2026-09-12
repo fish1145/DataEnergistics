@@ -38,8 +38,7 @@ public final class InterferenceArrayPattern {
      * compact form is preferred for new builds; the legacy form remains valid for existing worlds.
      */
     public static boolean hasValidCoreBase(ServerLevel level, BlockPos corePos) {
-        return hasValidBase(level, corePos, COMPACT_CORE_RADIUS, COMPACT_CORE_HEIGHT)
-                || hasValidBase(level, corePos, LEGACY_CORE_RADIUS, LEGACY_CORE_HEIGHT);
+        return hasValidBase(level, corePos, COMPACT_CORE_RADIUS, COMPACT_CORE_HEIGHT) || hasValidBase(level, corePos, LEGACY_CORE_RADIUS, LEGACY_CORE_HEIGHT);
     }
 
     private static boolean hasValidBase(ServerLevel level, BlockPos corePos, int radius, int height) {
@@ -79,9 +78,7 @@ public final class InterferenceArrayPattern {
 
         ObjectArrayFIFOQueue<WaveguideStep> pending = new ObjectArrayFIFOQueue<>();
         Set<BlockPos> visitedWaveguides = new ObjectOpenHashSet<>();
-        int portRadius = hasValidBase(level, corePos, COMPACT_CORE_RADIUS, COMPACT_CORE_HEIGHT)
-                ? COMPACT_CORE_RADIUS
-                : LEGACY_CORE_RADIUS;
+        int portRadius = hasValidBase(level, corePos, COMPACT_CORE_RADIUS, COMPACT_CORE_HEIGHT) ? COMPACT_CORE_RADIUS : LEGACY_CORE_RADIUS;
         for (BlockPos offset : portOffsets(portRadius)) {
             BlockPos port = corePos.offset(offset).immutable();
             pending.enqueue(new WaveguideStep(port, 0));

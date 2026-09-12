@@ -1,11 +1,11 @@
 {
 	"parent": "block/block",
 	"textures": {
-    "shell": "minecraft:block/white_concrete",
-    "top": "minecraft:block/white_concrete",
-    "screen": "minecraft:block/white_concrete",
-    "core": "minecraft:block/white_concrete",
-    "particle": "minecraft:block/white_concrete"
+		"shell": "minecraft:block/white_concrete",
+		"top": "minecraft:block/white_concrete",
+		"screen": "minecraft:block/white_concrete",
+		"core": "minecraft:block/white_concrete",
+		"particle": "minecraft:block/white_concrete"
 	},
 	"elements": [
 		{
