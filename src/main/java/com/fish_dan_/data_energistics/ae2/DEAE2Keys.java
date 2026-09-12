@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
 import com.fish_dan_.data_energistics.ae2.key.ManifestBinaryKeyType;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
@@ -25,7 +26,8 @@ public final class DEAE2Keys {
     private static final List<AEKey> KEYS = List.of(
             DataFlowKey.of(),
             DataKey.of(),
-            EchoKey.of());
+            EchoKey.of(),
+            StellarFluxKey.of());
 
     private DEAE2Keys() {}
 
@@ -39,6 +41,7 @@ public final class DEAE2Keys {
         IRegistryExtension<?> registry = (IRegistryExtension<?>) event.getRegistry();
         registry.addAlias(DataFlowKey.ID, DigitalizationKeyType.TYPE.getId());
         registry.addAlias(EchoKey.ID, DigitalizationKeyType.TYPE.getId());
+        registry.addAlias(StellarFluxKey.ID, DigitalizationKeyType.TYPE.getId());
         registry.addAlias(DataKey.ID, ManifestBinaryKeyType.TYPE.getId());
     }
 

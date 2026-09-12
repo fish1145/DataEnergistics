@@ -1,0 +1,10 @@
+{
+	"variants": {
+		"lit=false": {
+			"model": "data_energistics:block/astronomical_observatory_off"
+		},
+		"lit=true": {
+			"model": "data_energistics:block/astronomical_observatory_on"
+		}
+	}
+}

@@ -217,6 +217,22 @@ final class CommonCapabilityRegistrar {
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 DEBlockEntities.DATA_TELEPORT_ANCHOR_BLOCK_ENTITY.get(),
                 (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                DEBlockEntities.ORBITAL_CONTROL_CONSOLE_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                DEBlockEntities.ORBITAL_UPLINK_BEACON_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                DEBlockEntities.ASTRONOMICAL_OBSERVATORY_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
+        event.registerBlockEntity(
+                AECapabilities.IN_WORLD_GRID_NODE_HOST,
+                DEBlockEntities.INTERFERENCE_ARRAY_CORE_BLOCK_ENTITY.get(),
+                (blockEntity, context) -> blockEntity);
         event.registerBlock(
                 AECapabilities.IN_WORLD_GRID_NODE_HOST,
                 (level, pos, state, blockEntity, context) -> {

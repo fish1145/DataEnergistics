@@ -1,0 +1,8 @@
+{
+	"size": 1,
+	"order": 58,
+	"icon": "data_energistics:slot/empty_data_energistics_connector_slot",
+	"add_cosmetic": false,
+	"render_toggle": false,
+	"validators": ["data_energistics:orbital_terminal_slot"]
+}

@@ -14,6 +14,10 @@ displayURL = "${mod_url}"
 
 [[mixins]]
 config = "${mod_id}.mixins.json"
+[[mixins]]
+config = "${mod_id}.ftbchunks.mixins.json"
+[[mixins]]
+config = "${mod_id}.xaero.mixins.json"
 [[accessTransformers]]
 file = "META-INF/accesstransformer.cfg"
 
@@ -85,6 +89,34 @@ side = "BOTH"
 modId = "curios"
 type = "optional"
 versionRange = "[9.5.1+1.21.1,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.${ mod_id }]]
+modId = "journeymap"
+type = "optional"
+versionRange = "[${journeymap_version},)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.${ mod_id }]]
+modId = "xaeroworldmap"
+type = "optional"
+versionRange = "[1.40.2,1.40.3)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.${ mod_id }]]
+modId = "xaerolib"
+type = "optional"
+versionRange = "[${xaerolib_version},1.0.43)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.${ mod_id }]]
+modId = "ftbchunks"
+type = "optional"
+versionRange = "[${ftbchunks_version},2101.1.10)"
 ordering = "AFTER"
 side = "BOTH"
 

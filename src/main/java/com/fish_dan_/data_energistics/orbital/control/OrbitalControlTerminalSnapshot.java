@@ -1,0 +1,400 @@
+package com.fish_dan_.data_energistics.orbital.control;
+
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackMode;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackPhase;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackRecord;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackSavedData;
+import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycleState;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
+import com.fish_dan_.data_energistics.orbital.storage.StellarErasureDeviceSavedData;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.UUIDUtil;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.GameProfileCache;
+
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
+import org.jspecify.annotations.Nullable;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Immutable, bounded view state shared by the orbital console, handheld terminal and HUD presentation.
+ *
+ * <p>
+ * The server captures this value from UUID-indexed SavedData. LDLib2 synchronizes the typed record directly, so UI
+ * components bind fields instead of parsing or duplicating preformatted status text.
+ * </p>
+ */
+public record OrbitalControlTerminalSnapshot(
+                                             @Nullable UUID selectedWeaponId,
+                                             List<WeaponEntry> weapons,
+                                             boolean truncated) {
+
+    /** Maximum number of accessible weapons carried by one menu snapshot. */
+    public static final int MAX_WEAPONS = 128;
+    /** A weapon has three live mode slots; the larger bound also tolerates terminal history during transitions. */
+    public static final int MAX_ATTACKS_PER_WEAPON = 16;
+
+    private static final Codec<OrbitalAttackMode> ATTACK_MODE_CODEC = enumCodec(OrbitalAttackMode.class);
+    private static final Codec<OrbitalAttackPhase> ATTACK_PHASE_CODEC = enumCodec(OrbitalAttackPhase.class);
+    private static final Codec<OrbitalAccessRole> ACCESS_ROLE_CODEC = enumCodec(OrbitalAccessRole.class);
+    private static final Codec<StellarErasureDeviceLifecycleState> LIFECYCLE_CODEC = enumCodec(
+            StellarErasureDeviceLifecycleState.class);
+
+    public static final OrbitalControlTerminalSnapshot EMPTY = new OrbitalControlTerminalSnapshot(
+            null,
+            List.of(),
+            false);
+    public static final Codec<OrbitalControlTerminalSnapshot> CODEC = RecordCodecBuilder.create(instance -> instance
+            .group(
+                    UUIDUtil.CODEC.optionalFieldOf("selected_weapon_id").forGetter(snapshot -> Optional.ofNullable(snapshot.selectedWeaponId)),
+                    WeaponEntry.CODEC.listOf().fieldOf("weapons").forGetter(OrbitalControlTerminalSnapshot::weapons),
+                    Codec.BOOL.fieldOf("truncated").forGetter(OrbitalControlTerminalSnapshot::truncated))
+            .apply(instance, (selectedWeaponId, weapons, truncated) -> new OrbitalControlTerminalSnapshot(
+                    selectedWeaponId.orElse(null),
+                    weapons,
+                    truncated)));
+    public static final StreamCodec<RegistryFriendlyByteBuf, OrbitalControlTerminalSnapshot> STREAM_CODEC = StreamCodec.of(
+            OrbitalControlTerminalSnapshot::encode,
+            OrbitalControlTerminalSnapshot::decode);
+
+    public OrbitalControlTerminalSnapshot {
+        weapons = List.copyOf(weapons);
+        if (weapons.size() > MAX_WEAPONS) {
+            throw new IllegalArgumentException("Orbital terminal snapshot exceeds its bounded weapon limit");
+        }
+        if (selectedWeaponId != null && weapons.stream().noneMatch(entry -> entry.weaponId().equals(selectedWeaponId))) {
+            throw new IllegalArgumentException("Orbital terminal selection is not present in its weapon list");
+        }
+    }
+
+    /** Captures the stable-ID ordered weapons currently visible to one server player. */
+    public static OrbitalControlTerminalSnapshot capture(MinecraftServer server, UUID playerId) {
+        OrbitalAttackSavedData attacks = OrbitalAttackSavedData.get(server);
+        StellarErasureDeviceSavedData weaponData = StellarErasureDeviceSavedData.get(server);
+        StellarErasureDeviceSavedData.AccessibleWeaponSelection selection = weaponData.accessibleSelection(playerId);
+        boolean truncated = selection.weapons().size() > MAX_WEAPONS;
+        List<StellarErasureDeviceRecord> accessibleWeapons = selection.weapons()
+                .stream()
+                .limit(MAX_WEAPONS)
+                .toList();
+        ObjectSet<UUID> weaponIds = new ObjectOpenHashSet<>(accessibleWeapons.size());
+        accessibleWeapons.forEach(weapon -> weaponIds.add(weapon.weaponId()));
+        Map<UUID, List<OrbitalAttackRecord>> attacksByWeapon = attacks.forWeapons(weaponIds);
+        List<WeaponEntry> entries = accessibleWeapons.stream()
+                .map(weapon -> WeaponEntry.from(
+                        weapon,
+                        playerId,
+                        ownerName(server, weapon.ownerId()),
+                        attacksByWeapon.getOrDefault(weapon.weaponId(), List.of())))
+                .toList();
+        UUID preferred = selection.selectedWeaponId();
+        UUID selected = null;
+        if (preferred != null && weaponIds.contains(preferred)) {
+            selected = preferred;
+        } else if (!entries.isEmpty()) {
+            selected = entries.getFirst().weaponId();
+        }
+        return new OrbitalControlTerminalSnapshot(selected, entries, truncated);
+    }
+
+    private static String ownerName(MinecraftServer server, UUID ownerId) {
+        return ownerName(ownerId, server.getPlayerList().getPlayer(ownerId), server.getProfileCache());
+    }
+
+    /** Resolves display identity without a network lookup; dedicated test servers may have no profile cache. */
+    static String ownerName(UUID ownerId, @Nullable ServerPlayer player, @Nullable GameProfileCache profiles) {
+        if (player != null) {
+            return player.getGameProfile().getName();
+        }
+        return profiles == null ? "" : profiles.get(ownerId).map(profile -> profile.getName()).orElse("");
+    }
+
+    /** Returns the selected weapon view without exposing a nullable UI lookup. */
+    public Optional<WeaponEntry> selectedWeapon() {
+        if (this.selectedWeaponId == null) {
+            return Optional.empty();
+        }
+        return this.weapons.stream()
+                .filter(entry -> entry.weaponId().equals(this.selectedWeaponId))
+                .findFirst();
+    }
+
+    private static void encode(RegistryFriendlyByteBuf buffer, OrbitalControlTerminalSnapshot snapshot) {
+        buffer.writeBoolean(snapshot.selectedWeaponId != null);
+        if (snapshot.selectedWeaponId != null) {
+            buffer.writeUUID(snapshot.selectedWeaponId);
+        }
+        buffer.writeVarInt(snapshot.weapons.size());
+        for (WeaponEntry weapon : snapshot.weapons) {
+            WeaponEntry.encode(buffer, weapon);
+        }
+        buffer.writeBoolean(snapshot.truncated);
+    }
+
+    private static OrbitalControlTerminalSnapshot decode(RegistryFriendlyByteBuf buffer) {
+        UUID selectedWeaponId = buffer.readBoolean() ? buffer.readUUID() : null;
+        int weaponCount = boundedCount(buffer, MAX_WEAPONS, "weapon");
+        ObjectArrayList<WeaponEntry> weapons = new ObjectArrayList<>(weaponCount);
+        for (int index = 0; index < weaponCount; index++) {
+            weapons.add(WeaponEntry.decode(buffer));
+        }
+        return new OrbitalControlTerminalSnapshot(selectedWeaponId, weapons, buffer.readBoolean());
+    }
+
+    private static int boundedCount(RegistryFriendlyByteBuf buffer, int maximum, String description) {
+        int count = buffer.readVarInt();
+        if (count < 0 || count > maximum) {
+            throw new IllegalArgumentException("Orbital terminal " + description + " count exceeds " + maximum);
+        }
+        return count;
+    }
+
+    private static <E extends Enum<E>> Codec<E> enumCodec(Class<E> type) {
+        return Codec.STRING.xmap(name -> Enum.valueOf(type, name), Enum::name);
+    }
+
+    private static <E extends Enum<E>> E readEnum(
+                                                  RegistryFriendlyByteBuf buffer,
+                                                  E[] values,
+                                                  String description) {
+        int ordinal = buffer.readVarInt();
+        if (ordinal < 0 || ordinal >= values.length) {
+            throw new IllegalArgumentException("Invalid orbital terminal " + description + " ordinal " + ordinal);
+        }
+        return values[ordinal];
+    }
+
+    /** Selected-weapon data required by the overview, fire-control permissions and HUD. */
+    public record WeaponEntry(
+                              UUID weaponId,
+                              UUID ownerId,
+                              boolean owner,
+                              @Nullable OrbitalAccessRole delegatedRole,
+                              int endpointCount,
+                              StellarErasureDeviceLifecycleState lifecycleState,
+                              int graceTicksRemaining,
+                              long stellarFlux,
+                              long aeEnergy,
+                              List<AttackEntry> attacks,
+                              String customName,
+                              String ownerName) {
+
+        /** Bounded wire representation shared by the terminal and selected-weapon HUD. */
+        public static final StreamCodec<RegistryFriendlyByteBuf, WeaponEntry> STREAM_CODEC = StreamCodec.of(
+                WeaponEntry::encode, WeaponEntry::decode);
+
+        public static final Codec<WeaponEntry> CODEC = RecordCodecBuilder.create(instance -> instance
+                .group(
+                        UUIDUtil.CODEC.fieldOf("weapon_id").forGetter(WeaponEntry::weaponId),
+                        UUIDUtil.CODEC.fieldOf("owner_id").forGetter(WeaponEntry::ownerId),
+                        Codec.BOOL.fieldOf("owner").forGetter(WeaponEntry::owner),
+                        ACCESS_ROLE_CODEC.optionalFieldOf("delegated_role").forGetter(entry -> Optional.ofNullable(entry.delegatedRole)),
+                        Codec.INT.fieldOf("endpoint_count").forGetter(WeaponEntry::endpointCount),
+                        LIFECYCLE_CODEC.fieldOf("lifecycle_state").forGetter(WeaponEntry::lifecycleState),
+                        Codec.INT.fieldOf("grace_ticks_remaining").forGetter(WeaponEntry::graceTicksRemaining),
+                        Codec.LONG.fieldOf("stellar_flux").forGetter(WeaponEntry::stellarFlux),
+                        Codec.LONG.fieldOf("ae_energy").forGetter(WeaponEntry::aeEnergy),
+                        AttackEntry.CODEC.listOf().fieldOf("attacks").forGetter(WeaponEntry::attacks),
+                        Codec.string(0, StellarErasureDeviceRecord.MAX_NAME_LENGTH).fieldOf("custom_name").forGetter(WeaponEntry::customName),
+                        Codec.string(0, 64).fieldOf("owner_name").forGetter(WeaponEntry::ownerName))
+                .apply(instance, (weaponId, ownerId, owner, delegatedRole, endpointCount, lifecycleState,
+                                  graceTicksRemaining, stellarFlux, aeEnergy, attacks, customName, ownerName) -> new WeaponEntry(
+                                          weaponId,
+                                          ownerId,
+                                          owner,
+                                          delegatedRole.orElse(null),
+                                          endpointCount,
+                                          lifecycleState,
+                                          graceTicksRemaining,
+                                          stellarFlux,
+                                          aeEnergy,
+                                          attacks, customName, ownerName)));
+
+        public WeaponEntry {
+            customName = StellarErasureDeviceRecord.normalizeName(customName);
+            if (ownerName.length() > 64) {
+                throw new IllegalArgumentException("Owner profile name exceeds its wire bound");
+            }
+            attacks = List.copyOf(attacks);
+            if (attacks.size() > MAX_ATTACKS_PER_WEAPON) {
+                throw new IllegalArgumentException("Orbital terminal weapon exceeds its bounded attack limit");
+            }
+            if (endpointCount < 0 || graceTicksRemaining < 0 || stellarFlux < 0L || aeEnergy < 0L) {
+                throw new IllegalArgumentException("Orbital terminal reserve values must not be negative");
+            }
+            if (owner && delegatedRole != null) {
+                throw new IllegalArgumentException("An owner entry cannot also carry a delegated role");
+            }
+            if (!owner && delegatedRole == null) {
+                throw new IllegalArgumentException("A non-owner entry must carry its delegated role");
+            }
+        }
+
+        /** Owners and operators may use fire control and act on their selected mode task. */
+        public boolean canOperate() {
+            return this.owner || this.delegatedRole == OrbitalAccessRole.OPERATOR;
+        }
+
+        /** Returns the one persisted task for a mode, if that mode is active or cooling down. */
+        public Optional<AttackEntry> attack(OrbitalAttackMode mode) {
+            return this.attacks.stream().filter(attack -> attack.mode() == mode).findFirst();
+        }
+
+        private static WeaponEntry from(
+                                        StellarErasureDeviceRecord weapon,
+                                        UUID playerId,
+                                        String ownerName,
+                                        List<OrbitalAttackRecord> attacks) {
+            boolean owner = weapon.ownerId().equals(playerId);
+            return new WeaponEntry(
+                    weapon.weaponId(),
+                    weapon.ownerId(),
+                    owner,
+                    owner ? null : weapon.delegatedRoles().get(playerId),
+                    weapon.endpoints().size(),
+                    weapon.lifecycle().state(),
+                    weapon.lifecycle().graceTicksRemaining(),
+                    weapon.reserve().stellarFlux(),
+                    weapon.reserve().aeEnergy(),
+                    attacks.stream().limit(MAX_ATTACKS_PER_WEAPON).map(AttackEntry::from).toList(),
+                    weapon.customName(), ownerName);
+        }
+
+        private static void encode(RegistryFriendlyByteBuf buffer, WeaponEntry entry) {
+            buffer.writeUUID(entry.weaponId);
+            buffer.writeUUID(entry.ownerId);
+            buffer.writeUtf(entry.customName, StellarErasureDeviceRecord.MAX_NAME_LENGTH);
+            buffer.writeUtf(entry.ownerName, 64);
+            buffer.writeBoolean(entry.owner);
+            if (!entry.owner) {
+                buffer.writeVarInt(Objects.requireNonNull(entry.delegatedRole).ordinal());
+            }
+            buffer.writeVarInt(entry.endpointCount);
+            buffer.writeVarInt(entry.lifecycleState.ordinal());
+            buffer.writeVarInt(entry.graceTicksRemaining);
+            buffer.writeVarLong(entry.stellarFlux);
+            buffer.writeVarLong(entry.aeEnergy);
+            buffer.writeVarInt(entry.attacks.size());
+            for (AttackEntry attack : entry.attacks) {
+                AttackEntry.encode(buffer, attack);
+            }
+        }
+
+        private static WeaponEntry decode(RegistryFriendlyByteBuf buffer) {
+            UUID weaponId = buffer.readUUID();
+            UUID ownerId = buffer.readUUID();
+            String customName = buffer.readUtf(StellarErasureDeviceRecord.MAX_NAME_LENGTH);
+            String ownerName = buffer.readUtf(64);
+            boolean owner = buffer.readBoolean();
+            OrbitalAccessRole delegatedRole = owner ? null : readEnum(
+                    buffer,
+                    OrbitalAccessRole.values(),
+                    "access role");
+            int endpointCount = buffer.readVarInt();
+            StellarErasureDeviceLifecycleState lifecycleState = readEnum(
+                    buffer,
+                    StellarErasureDeviceLifecycleState.values(),
+                    "lifecycle state");
+            int graceTicksRemaining = buffer.readVarInt();
+            long stellarFlux = buffer.readVarLong();
+            long aeEnergy = buffer.readVarLong();
+            int attackCount = boundedCount(buffer, MAX_ATTACKS_PER_WEAPON, "attack");
+            ObjectArrayList<AttackEntry> attacks = new ObjectArrayList<>(attackCount);
+            for (int index = 0; index < attackCount; index++) {
+                attacks.add(AttackEntry.decode(buffer));
+            }
+            return new WeaponEntry(
+                    weaponId,
+                    ownerId,
+                    owner,
+                    delegatedRole,
+                    endpointCount,
+                    lifecycleState,
+                    graceTicksRemaining,
+                    stellarFlux,
+                    aeEnergy,
+                    attacks, customName, ownerName);
+        }
+    }
+
+    /** Public attack state needed by the overview, safety action and compact HUD. */
+    public record AttackEntry(
+                              UUID attackId,
+                              OrbitalAttackMode mode,
+                              OrbitalAttackPhase phase,
+                              ResourceLocation dimensionId,
+                              BlockPos target,
+                              int warningTicksRemaining,
+                              int cooldownTicksRemaining,
+                              long workCursor) {
+
+        public static final Codec<AttackEntry> CODEC = RecordCodecBuilder.create(instance -> instance
+                .group(
+                        UUIDUtil.CODEC.fieldOf("attack_id").forGetter(AttackEntry::attackId),
+                        ATTACK_MODE_CODEC.fieldOf("mode").forGetter(AttackEntry::mode),
+                        ATTACK_PHASE_CODEC.fieldOf("phase").forGetter(AttackEntry::phase),
+                        ResourceLocation.CODEC.fieldOf("dimension_id").forGetter(AttackEntry::dimensionId),
+                        BlockPos.CODEC.fieldOf("target").forGetter(AttackEntry::target),
+                        Codec.INT.fieldOf("warning_ticks_remaining").forGetter(AttackEntry::warningTicksRemaining),
+                        Codec.INT.fieldOf("cooldown_ticks_remaining").forGetter(AttackEntry::cooldownTicksRemaining),
+                        Codec.LONG.fieldOf("work_cursor").forGetter(AttackEntry::workCursor))
+                .apply(instance, AttackEntry::new));
+
+        public AttackEntry {
+            target = target.immutable();
+            if (warningTicksRemaining < 0 || cooldownTicksRemaining < 0 || workCursor < 0L) {
+                throw new IllegalArgumentException("Orbital terminal attack progress must not be negative");
+            }
+        }
+
+        private static AttackEntry from(OrbitalAttackRecord attack) {
+            return new AttackEntry(
+                    attack.attackId(),
+                    attack.mode(),
+                    attack.phase(),
+                    attack.dimensionId(),
+                    attack.target(),
+                    attack.warningTicksRemaining(),
+                    attack.cooldownTicksRemaining(),
+                    attack.workCursor());
+        }
+
+        private static void encode(RegistryFriendlyByteBuf buffer, AttackEntry entry) {
+            buffer.writeUUID(entry.attackId);
+            buffer.writeVarInt(entry.mode.ordinal());
+            buffer.writeVarInt(entry.phase.ordinal());
+            buffer.writeResourceLocation(entry.dimensionId);
+            buffer.writeBlockPos(entry.target);
+            buffer.writeVarInt(entry.warningTicksRemaining);
+            buffer.writeVarInt(entry.cooldownTicksRemaining);
+            buffer.writeVarLong(entry.workCursor);
+        }
+
+        private static AttackEntry decode(RegistryFriendlyByteBuf buffer) {
+            return new AttackEntry(
+                    buffer.readUUID(),
+                    readEnum(buffer, OrbitalAttackMode.values(), "attack mode"),
+                    readEnum(buffer, OrbitalAttackPhase.values(), "attack phase"),
+                    buffer.readResourceLocation(),
+                    buffer.readBlockPos(),
+                    buffer.readVarInt(),
+                    buffer.readVarInt(),
+                    buffer.readVarLong());
+        }
+    }
+}

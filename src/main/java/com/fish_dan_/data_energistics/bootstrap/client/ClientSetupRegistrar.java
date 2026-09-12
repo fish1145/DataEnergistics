@@ -3,6 +3,8 @@ package com.fish_dan_.data_energistics.bootstrap.client;
 import com.fish_dan_.data_energistics.configuration.client.ConfigurationClientRegistrar;
 import com.fish_dan_.data_energistics.integration.ModFlags;
 import com.fish_dan_.data_energistics.integration.curios.client.CuriosDollRendererRegistry;
+import com.fish_dan_.data_energistics.integration.map.ftbchunks.client.FtbChunksOrbitalAdapter;
+import com.fish_dan_.data_energistics.integration.map.xaero.client.XaeroWorldMapOrbitalAdapter;
 import com.fish_dan_.data_energistics.registry.DEStorageCells;
 
 final class ClientSetupRegistrar {
@@ -17,6 +19,12 @@ final class ClientSetupRegistrar {
         ClientItemModelPropertyRegistrar.register();
         if (ModFlags.isCuriosLoaded()) {
             CuriosDollRendererRegistry.register();
+        }
+        if (ModFlags.isXaeroWorldMapLoaded()) {
+            XaeroWorldMapOrbitalAdapter.register();
+        }
+        if (ModFlags.isFtbChunksLoaded()) {
+            FtbChunksOrbitalAdapter.register();
         }
         ClientGameEventRegistrar.register();
     }

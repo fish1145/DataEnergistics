@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.explosive.TntConfigurablePrimedEntity;
 import com.fish_dan_.data_energistics.entity.projectile.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.projectile.MatterConvergingBoltEntity;
+import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
 import com.fish_dan_.data_energistics.entity.projectile.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.entity.resource.DispersingDataEntity;
 
@@ -56,6 +57,12 @@ public final class DEEntities {
             .clientTrackingRange(10)
             .updateInterval(10)
             .build("digital_annihilator_primed"));
+    public static final DeferredHolder<EntityType<?>, EntityType<OrbitalAnnihilatorProjectileEntity>> ORBITAL_ANNIHILATOR_PROJECTILE = ENTITY_TYPES.register("orbital_annihilator_projectile", () -> EntityType.Builder
+            .<OrbitalAnnihilatorProjectileEntity>of(OrbitalAnnihilatorProjectileEntity::new, MobCategory.MISC)
+            .sized(0.25F, 0.8F)
+            .clientTrackingRange(64)
+            .updateInterval(1)
+            .build("orbital_annihilator_projectile"));
 
     private DEEntities() {}
 

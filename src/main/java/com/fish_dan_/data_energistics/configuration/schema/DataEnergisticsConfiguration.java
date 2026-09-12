@@ -2,6 +2,9 @@ package com.fish_dan_.data_energistics.configuration.schema;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
+import com.fish_dan_.data_energistics.orbital.attack.OrbitalAttackGeometry;
+
+import net.minecraft.resources.ResourceLocation;
 
 import dev.toma.configuration.Configuration;
 import dev.toma.configuration.config.Config;
@@ -9,6 +12,11 @@ import dev.toma.configuration.config.ConfigHolder;
 import dev.toma.configuration.config.Configurable;
 import dev.toma.configuration.config.UpdateRestrictions;
 import dev.toma.configuration.config.format.ConfigFormats;
+import it.unimi.dsi.fastutil.objects.Object2DoubleLinkedOpenHashMap;
+
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Defines the single localized YAML schema used by Data Energistics.
@@ -35,12 +43,103 @@ public final class DataEnergisticsConfiguration {
     public ExplosiveConfigs explosives = new ExplosiveConfigs();
 
     @Configurable
+    @Configurable.Comment({ "Astronomy production and dimension multipliers.", "天文观测产出与维度倍率设置。" })
+    public AstronomySchema astronomy = new AstronomySchema();
+
+    @Configurable
+    @Configurable.Comment({ "Orbital weapon reserves, deployment and endpoint limits.", "轨道武器储备、部署与端点限制。" })
+    public StellarErasureDeviceSchema stellarErasureDevice = new StellarErasureDeviceSchema();
+
+    @Configurable
     @Configurable.Comment({ "Trinity planning and dispatch settings.", "三位一体规划与派发设置。" })
     public TrinityConfigs trinity = new TrinityConfigs();
 
     @Configurable
     @Configurable.Comment({ "Developer and diagnostic settings.", "开发者与诊断设置。" })
     public DeveloperConfigs developer = new DeveloperConfigs();
+
+    /**
+     * Returns a deterministic fingerprint of configuration values that affect orbital previews and payloads.
+     *
+     * <p>
+     * The direct Configuration instance is mutable and does not expose the old immutable snapshot revision. A
+     * value fingerprint preserves preview invalidation when a hot-reloaded value changes without reintroducing a
+     * second configuration object graph.
+     * </p>
+     */
+    public long revision() {
+        AstronomySchema astronomySettings = this.astronomy;
+        StellarErasureDeviceSchema weaponSettings = this.stellarErasureDevice;
+        DataNukeSchema nukeSettings = this.explosives.dataNuke;
+        return Integer.toUnsignedLong(Objects.hash(
+                astronomySettings.lowTierStellarFluxPerTick,
+                astronomySettings.lowTierAeEnergyPerTick,
+                astronomySettings.highTierMirrorStellarFluxPerTick1To4,
+                astronomySettings.highTierMirrorStellarFluxPerTick5To8,
+                astronomySettings.highTierMirrorStellarFluxPerTick9To12,
+                astronomySettings.highTierMirrorStellarFluxPerTick13To16,
+                astronomySettings.highTierCoreAeEnergyPerTick,
+                astronomySettings.highTierMirrorAeEnergyPerTick,
+                astronomySettings.highTierMinimumMirrors,
+                astronomySettings.highTierMaximumMirrors,
+                astronomySettings.highTierMirrorHorizontalRange,
+                astronomySettings.highTierMirrorVerticalRange,
+                astronomySettings.highTierWaveguidePathLength,
+                astronomySettings.rainOutputMultiplier,
+                astronomySettings.observationWindowStartTick,
+                astronomySettings.observationWindowEndTick,
+                astronomySettings.defaultDimensionMultiplier,
+                Arrays.hashCode(astronomySettings.dimensionIds),
+                Arrays.hashCode(astronomySettings.dimensionMultiplierValues),
+                weaponSettings.stellarFluxCapacity,
+                weaponSettings.aeEnergyCapacity,
+                weaponSettings.stellarFluxUpkeepPerTick,
+                weaponSettings.aeEnergyUpkeepPerTick,
+                weaponSettings.stellarFluxChargePerTick,
+                weaponSettings.aeEnergyChargePerTick,
+                weaponSettings.reserveGraceTicks,
+                weaponSettings.deploymentThreshold,
+                weaponSettings.redeploymentTicks,
+                weaponSettings.maxEndpointsPerWeapon,
+                weaponSettings.maxEndpointsPerDimension,
+                weaponSettings.endpointChunkLoadingEnabled,
+                weaponSettings.maxAttackChunkTicketsPerTask,
+                weaponSettings.maxAttackChunkTicketsGlobal,
+                weaponSettings.maxAttackChunkGenerationPerDimension,
+                weaponSettings.maxAttackChunkGenerationGlobal,
+                weaponSettings.maxAttackBlockMutationsPerTaskTick,
+                weaponSettings.maxAttackBlockMutationsGlobalTick,
+                weaponSettings.maxCommittedAttackTasks,
+                weaponSettings.kineticAttackEnabled,
+                weaponSettings.directedEnergyAttackEnabled,
+                weaponSettings.digitalAnnihilationAttackEnabled,
+                weaponSettings.kineticColumnRadius,
+                weaponSettings.kineticColumnDepth,
+                weaponSettings.kineticCraterRadius,
+                weaponSettings.kineticCraterDepth,
+                weaponSettings.kineticShockwaveRadius,
+                weaponSettings.kineticStellarFluxCost,
+                weaponSettings.kineticAeEnergyCost,
+                weaponSettings.attackWarningTicks,
+                weaponSettings.kineticCooldownTicks,
+                weaponSettings.directedEnergyMinimumRadius,
+                weaponSettings.directedEnergyMaximumRadius,
+                weaponSettings.directedEnergyRadiusStep,
+                weaponSettings.directedEnergyShallowDepth,
+                weaponSettings.directedEnergyMediumDepth,
+                weaponSettings.directedEnergyDeepDepth,
+                weaponSettings.directedEnergyBaseStellarFluxCost,
+                weaponSettings.directedEnergyBaseAeEnergyCost,
+                weaponSettings.directedEnergyStellarFluxPerCoordinate,
+                weaponSettings.directedEnergyAeEnergyPerCoordinate,
+                weaponSettings.directedEnergyCooldownTicks,
+                weaponSettings.digitalAnnihilationStellarFluxCost,
+                weaponSettings.digitalAnnihilationAeEnergyCost,
+                weaponSettings.digitalAnnihilationCooldownTicks,
+                nukeSettings.workIntervalTicks,
+                nukeSettings.maxRadius,
+                nukeSettings.centerEntityConsumeRadius));
+    }
 
     public static final class MachineConfigs {
 
@@ -360,6 +459,397 @@ public final class DataEnergisticsConfiguration {
         @Configurable.Comment({ "Additional AE storage per energy card.", "每张能量卡提供的额外 AE 存储容量。" })
         @Configurable.DecimalRange(min = 0.0, max = Double.MAX_VALUE)
         public double energyCardCapacityBonusAE = 80000.0D;
+    }
+
+    public static final class AstronomySchema {
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Stellar Flux produced per clear-weather tick by one low-tier observatory.",
+                "单个低阶天文观测台在晴朗天气下每 tick 产出的耀星流。"
+        })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long lowTierStellarFluxPerTick = 8L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "AE energy consumed by one successful low-tier observation tick.",
+                "低阶天文观测台每次成功观测 tick 消耗的 AE 能量。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long lowTierAeEnergyPerTick = 4_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Stellar Flux produced per tick by each valid high-tier mirror from mirror 1 through 4.",
+                "高阶阵列第 1 至 4 个有效镜单元各自每 tick 产出的耀星流。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long highTierMirrorStellarFluxPerTick1To4 = 40L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Stellar Flux produced per tick by each valid high-tier mirror from mirror 5 through 8.",
+                "高阶阵列第 5 至 8 个有效镜单元各自每 tick 产出的耀星流。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long highTierMirrorStellarFluxPerTick5To8 = 30L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Stellar Flux produced per tick by each valid high-tier mirror from mirror 9 through 12.",
+                "高阶阵列第 9 至 12 个有效镜单元各自每 tick 产出的耀星流。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long highTierMirrorStellarFluxPerTick9To12 = 20L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Stellar Flux produced per tick by each valid high-tier mirror from mirror 13 through 16.",
+                "高阶阵列第 13 至 16 个有效镜单元各自每 tick 产出的耀星流。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long highTierMirrorStellarFluxPerTick13To16 = 10L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Fixed AE energy consumed per successful high-tier array tick.",
+                "高阶阵列每次成功工作 tick 固定消耗的 AE 能量。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long highTierCoreAeEnergyPerTick = 25_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Additional AE energy consumed per valid high-tier mirror and successful tick.",
+                "高阶阵列每个有效镜单元在每次成功工作 tick 额外消耗的 AE 能量。"
+        })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long highTierMirrorAeEnergyPerTick = 10_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Minimum valid mirrors required to operate.", "高阶阵列开始工作所需的最少有效镜单元数。" })
+        @Configurable.Range(min = 1, max = 16)
+        public int highTierMinimumMirrors = 4;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum mirrors claimed and used by one core.", "单个高阶阵列核心可绑定并使用的最大镜单元数。" })
+        @Configurable.Range(min = 1, max = 16)
+        public int highTierMaximumMirrors = 16;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Maximum horizontal distance from a high-tier core to a mirror center.",
+                "高阶阵列核心到镜单元中心的最大水平距离。"
+        })
+        @Configurable.Range(min = 1, max = 64)
+        public int highTierMirrorHorizontalRange = 32;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Maximum absolute height difference from a high-tier core to a mirror center.",
+                "高阶阵列核心到镜单元中心允许的最大高度差。"
+        })
+        @Configurable.Range(min = 0, max = 32)
+        public int highTierMirrorVerticalRange = 4;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Maximum waveguide path length from a high-tier core port to a mirror.",
+                "高阶阵列核心端口到镜单元的最大星能波导路径长度。"
+        })
+        @Configurable.Range(min = 1, max = 64)
+        public int highTierWaveguidePathLength = 32;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Output multiplier while raining.", "降雨时的产出倍率。" })
+        @Configurable.DecimalRange(min = 0.0D, max = 1.0D)
+        public double rainOutputMultiplier = 0.25D;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Inclusive observation-window start within a 24,000-tick day.",
+                "普通昼夜维度在 24000 tick 周期内的观测窗口起始值（包含）。"
+        })
+        @Configurable.Range(min = 0, max = 23_999)
+        public int observationWindowStartTick = 13_000;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Exclusive observation-window end within a 24,000-tick day.",
+                "普通昼夜维度在 24000 tick 周期内的观测窗口结束值（不包含）。"
+        })
+        @Configurable.Range(min = 1, max = 24_000)
+        public int observationWindowEndTick = 23_000;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Output multiplier for tagged observable dimensions without an explicit override.",
+                "未显式覆盖的可观测维度使用的产出倍率。"
+        })
+        @Configurable.DecimalRange(min = 0.0D, max = 1_000_000.0D)
+        public double defaultDimensionMultiplier = 1.0D;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Dimension ids paired by index with dimensionMultiplierValues.",
+                "与 dimensionMultiplierValues 按索引配对的维度 ID。"
+        })
+        public String[] dimensionIds = { "minecraft:overworld", "minecraft:the_end", "minecraft:the_nether" };
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({
+                "Per-dimension output multipliers paired by index with dimensionIds.",
+                "与 dimensionIds 按索引配对的维度产出倍率。"
+        })
+        @Configurable.DecimalRange(min = 0.0D, max = 1_000_000.0D)
+        public double[] dimensionMultiplierValues = { 1.0D, 2.0D, 0.0D };
+
+        public Map<ResourceLocation, Double> dimensionMultipliers() {
+            Object2DoubleLinkedOpenHashMap<ResourceLocation> result = new Object2DoubleLinkedOpenHashMap<>();
+            int count = Math.min(this.dimensionIds.length, this.dimensionMultiplierValues.length);
+            for (int index = 0; index < count; index++) {
+                ResourceLocation dimension = ResourceLocation.tryParse(this.dimensionIds[index]);
+                if (dimension != null) {
+                    result.put(dimension, this.dimensionMultiplierValues[index]);
+                }
+            }
+            return Map.copyOf(result);
+        }
+    }
+
+    public static final class StellarErasureDeviceSchema {
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum orbital Stellar Flux reserve.", "轨道耀星流储备上限。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long stellarFluxCapacity = 500_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum orbital AE energy reserve, separate from Stellar Flux.", "轨道 AE 能量储备上限，与耀星流相互独立。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long aeEnergyCapacity = 500_000_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Stellar Flux consumed per deployed tick.", "部署状态每 tick 消耗的耀星流。" })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long stellarFluxUpkeepPerTick = 100L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "AE energy consumed per deployed tick.", "部署状态每 tick 消耗的 AE 能量。" })
+        @Configurable.Range(min = 0L, max = Long.MAX_VALUE)
+        public long aeEnergyUpkeepPerTick = 250_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum Stellar Flux transferred by one endpoint per tick.", "单个端点每 tick 可传输的耀星流上限。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long stellarFluxChargePerTick = 20_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum AE energy transferred by one endpoint per tick.", "单个端点每 tick 可传输的 AE 能量上限。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long aeEnergyChargePerTick = 10_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Ticks at zero reserve before returning to dormancy.", "储备归零后返回休眠状态前的宽限 tick 数。" })
+        @Configurable.Range(min = 0, max = Integer.MAX_VALUE)
+        public int reserveGraceTicks = 12_000;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Fraction of both reserve capacities required to deploy.", "开始部署所需的两种储备容量比例。" })
+        @Configurable.DecimalRange(min = Double.MIN_NORMAL, max = 1.0D)
+        public double deploymentThreshold = 0.10D;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Ticks spent tearing down and rebuilding after changing the primary uplink beacon.", "切换主上行信标后拆解并重组投影所需的 tick 数。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int redeploymentTicks = 1_200;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum control consoles and uplink beacons bound to one weapon.", "单件武器可绑定的控制终端与上行信标总上限。" })
+        @Configurable.Range(min = 1, max = 1024)
+        public int maxEndpointsPerWeapon = 32;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum endpoints for one weapon in a single dimension.", "单件武器在同一维度内的端点上限。" })
+        @Configurable.Range(min = 1, max = 1024)
+        public int maxEndpointsPerDimension = 8;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Keep each bound endpoint chunk loaded.", "让每个已绑定端点强制加载自身区块。" })
+        public boolean endpointChunkLoadingEnabled = true;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum attack work chunk tickets held by one task.", "单个攻击任务同时持有的工作区块票据上限。" })
+        @Configurable.Range(min = 1, max = 64)
+        public int maxAttackChunkTicketsPerTask = 8;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum attack work chunk tickets held across the server.", "全服攻击工作区块票据总上限。" })
+        @Configurable.Range(min = 1, max = 1024)
+        public int maxAttackChunkTicketsGlobal = 64;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum concurrent attack chunk requests per dimension.", "每个维度同时执行的攻击区块请求上限。" })
+        @Configurable.Range(min = 1, max = 64)
+        public int maxAttackChunkGenerationPerDimension = 2;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum concurrent attack chunk requests across the server.", "全服同时执行的攻击区块请求上限。" })
+        @Configurable.Range(min = 1, max = 256)
+        public int maxAttackChunkGenerationGlobal = 8;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum terrain positions visited by one attack per tick.", "单个攻击任务每 tick 访问的地形位置上限。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int maxAttackBlockMutationsPerTaskTick = 8_192;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum terrain positions visited by all orbital attacks per tick.", "全服轨道攻击每 tick 访问的地形位置总上限。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int maxAttackBlockMutationsGlobalTick = 32_768;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum preview chunk cells checked by one player per tick.", "单名玩家的攻击预览每 tick 检查的区块单元上限。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int previewChunkChecksPerTaskTick = 4_096;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum preview chunk cells checked across the server per tick.", "全服攻击预览每 tick 检查的区块单元总上限。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int previewChunkChecksGlobalTick = 16_384;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum warning, committed and delivering orbital attack tasks.", "全服预警、已提交和投送中的轨道攻击任务上限。" })
+        @Configurable.Range(min = 1, max = 1024)
+        public int maxCommittedAttackTasks = 32;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Allow new kinetic attack confirmations. Existing attacks continue.", "允许确认新的动能攻击。已开始的攻击继续执行。" })
+        public boolean kineticAttackEnabled = true;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Allow new directed-energy attack confirmations. Existing attacks continue.", "允许确认新的定向能攻击。已开始的攻击继续执行。" })
+        public boolean directedEnergyAttackEnabled = true;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Allow new digital-annihilation attack confirmations. Existing attacks continue.", "允许确认新的数位湮灭攻击。已开始的攻击继续执行。" })
+        public boolean digitalAnnihilationAttackEnabled = true;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Radius of the kinetic strike's vertical clearing column.", "动能攻击垂直清除柱的半径。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.Kinetic.MAX_TERRAIN_RADIUS)
+        public int kineticColumnRadius = OrbitalAttackGeometry.Kinetic.DEFAULT_COLUMN_RADIUS;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Blocks cleared below the kinetic target by its vertical column.", "动能攻击垂直清除柱向目标下方延伸的深度。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.Kinetic.MAX_TERRAIN_DEPTH)
+        public int kineticColumnDepth = OrbitalAttackGeometry.Kinetic.DEFAULT_COLUMN_DEPTH;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Radius of the shallow crater below a kinetic impact.", "动能攻击命中点下方浅陨坑的半径。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.Kinetic.MAX_TERRAIN_RADIUS)
+        public int kineticCraterRadius = OrbitalAttackGeometry.Kinetic.DEFAULT_CRATER_RADIUS;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum depth of the bowl-shaped crater below a kinetic impact.", "动能攻击命中点下方碗状陨石坑的最大深度。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.Kinetic.MAX_TERRAIN_DEPTH)
+        public int kineticCraterDepth = OrbitalAttackGeometry.Kinetic.DEFAULT_CRATER_DEPTH;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Radius of the instantaneous kinetic impact shockwave.", "动能攻击瞬时冲击波的半径。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.Kinetic.MAX_SHOCKWAVE_RADIUS)
+        public int kineticShockwaveRadius = OrbitalAttackGeometry.Kinetic.DEFAULT_SHOCKWAVE_RADIUS;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Stellar Flux reserved by one kinetic strike.", "一次动能攻击预留的耀星流。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long kineticStellarFluxCost = 5_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "AE energy reserved by one kinetic strike.", "一次动能攻击预留的 AE 能量。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long kineticAeEnergyCost = 5_000_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Public warning duration before an attack commits.", "攻击提交前的公开预警时长。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int attackWarningTicks = 300;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Kinetic strike cooldown after its effect completes; zero disables cooldown.", "动能攻击效果完成后的冷却时长；设为零时无冷却。" })
+        @Configurable.Range(min = 0, max = Integer.MAX_VALUE)
+        public int kineticCooldownTicks = 0;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Minimum selectable directed-energy scan radius.", "定向能扫描可选的最小半径。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS)
+        public int directedEnergyMinimumRadius = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_MIN_RADIUS;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Maximum selectable directed-energy scan radius.", "定向能扫描可选的最大半径。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS)
+        public int directedEnergyMaximumRadius = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_MAX_RADIUS;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Radius increment measured from the configured directed-energy minimum.", "从定向能最小半径开始计算的半径步进。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_RADIUS)
+        public int directedEnergyRadiusStep = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_RADIUS_STEP;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Captured block depth of the shallow directed-energy profile.", "定向能浅层档冻结的方块深度。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_DEPTH)
+        public int directedEnergyShallowDepth = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_SHALLOW_DEPTH;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Captured block depth of the medium directed-energy profile.", "定向能中层档冻结的方块深度。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_DEPTH)
+        public int directedEnergyMediumDepth = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_MEDIUM_DEPTH;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Captured block depth of the deep directed-energy profile.", "定向能深层档冻结的方块深度。" })
+        @Configurable.Range(min = 1, max = OrbitalAttackGeometry.DirectedEnergy.MAX_SUPPORTED_DEPTH)
+        public int directedEnergyDeepDepth = OrbitalAttackGeometry.DirectedEnergy.DEFAULT_DEEP_DEPTH;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Fixed Stellar Flux base escrow for one directed-energy scan.", "一次定向能扫描固定预留的耀星流基础费用。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long directedEnergyBaseStellarFluxCost = 2_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Fixed AE base escrow for one directed-energy scan.", "一次定向能扫描固定预留的 AE 基础费用。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long directedEnergyBaseAeEnergyCost = 2_000_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Stellar Flux escrow per directed-energy disk coordinate.", "定向能扫描每个圆盘调度坐标的耀星流费用。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long directedEnergyStellarFluxPerCoordinate = 4L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "AE escrow per directed-energy disk coordinate.", "定向能扫描每个圆盘调度坐标的 AE 能量费用。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long directedEnergyAeEnergyPerCoordinate = 2_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Directed-energy cooldown after its scan completes.", "定向能扫描完成后的冷却时长。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int directedEnergyCooldownTicks = 100;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Stellar Flux reserved by one digital annihilation payload.", "一次数位湮灭体轨道载荷预留的耀星流。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long digitalAnnihilationStellarFluxCost = 80_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "AE energy reserved by one digital annihilation payload.", "一次数位湮灭体轨道载荷预留的 AE 能量。" })
+        @Configurable.Range(min = 1L, max = Long.MAX_VALUE)
+        public long digitalAnnihilationAeEnergyCost = 80_000_000_000L;
+
+        @Configurable(key = Configurable.LocalizationKey.FULL)
+        @Configurable.Comment({ "Digital annihilation cooldown after its payload completes.", "数位湮灭体载荷完成后的冷却时长。" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int digitalAnnihilationCooldownTicks = 72_000;
     }
 
     public static final class TrinityCraftingSchema {

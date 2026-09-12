@@ -40,7 +40,7 @@ import java.util.Set;
 public class PortableDigitalStorageCellItem extends PortableCellItem {
 
     public PortableDigitalStorageCellItem(StorageTier tier, Item.Properties properties, int color) {
-        super(DigitalizationKeyType.TYPE, 2, null, tier, properties.stacksTo(1), color);
+        super(DigitalizationKeyType.TYPE, 3, null, tier, properties.stacksTo(1), color);
     }
 
     @Override

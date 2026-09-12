@@ -11,6 +11,7 @@ import com.fish_dan_.data_energistics.client.render.entity.DataNukeRenderer;
 import com.fish_dan_.data_energistics.client.render.entity.DispersingDataRenderer;
 import com.fish_dan_.data_energistics.client.render.entity.LightBladeChargeRenderer;
 import com.fish_dan_.data_energistics.client.render.entity.MatterConvergingBoltRenderer;
+import com.fish_dan_.data_energistics.client.render.entity.OrbitalAnnihilatorRenderer;
 import com.fish_dan_.data_energistics.client.render.entity.ThrownLightSaberRenderer;
 import com.fish_dan_.data_energistics.registry.DEBlockEntities;
 import com.fish_dan_.data_energistics.registry.DEEntities;
@@ -37,5 +38,6 @@ final class ClientRendererRegistrar {
         event.registerEntityRenderer(DEEntities.THROWN_LIGHT_SABER.get(), ThrownLightSaberRenderer::new);
         event.registerEntityRenderer(DEEntities.TNT_CONFIGURABLE_PRIMED.get(), TntRenderer::new);
         event.registerEntityRenderer(DEEntities.DATA_NUKE_PRIMED.get(), DataNukeRenderer::new);
+        event.registerEntityRenderer(DEEntities.ORBITAL_ANNIHILATOR_PROJECTILE.get(), OrbitalAnnihilatorRenderer::new);
     }
 }
