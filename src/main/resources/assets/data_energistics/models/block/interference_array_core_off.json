@@ -1,11 +1,11 @@
 {
 	"parent": "block/block",
 	"textures": {
-		"base": "data_energistics:block/data_framework_ctm_off/full",
-		"side": "data_energistics:block/data_teleport_anchor/side_off",
-		"top": "data_energistics:block/data_teleport_anchor/top_off",
-		"core": "data_energistics:block/data_crystal_block",
-		"particle": "data_energistics:block/data_framework_ctm_off/full"
+		"base": "data_energistics:block/astronomy/interference_core",
+		"side": "data_energistics:block/astronomy/interference_core",
+		"top": "data_energistics:block/astronomy/interference_core",
+		"core": "data_energistics:block/astronomy/interference_core",
+		"particle": "data_energistics:block/astronomy/interference_core"
 	},
 	"elements": [
 		{

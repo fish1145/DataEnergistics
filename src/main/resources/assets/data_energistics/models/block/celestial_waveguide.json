@@ -1,10 +1,10 @@
 {
 	"parent": "block/block",
 	"textures": {
-		"end": "data_energistics:block/data_crystal_block",
-		"core": "data_energistics:block/orbital/construct",
-		"side": "data_energistics:block/data_framework_ctm_on/full",
-		"particle": "data_energistics:block/orbital/construct"
+		"end": "data_energistics:block/astronomy/waveguide",
+		"core": "data_energistics:block/astronomy/waveguide",
+		"side": "data_energistics:block/astronomy/waveguide",
+		"particle": "data_energistics:block/astronomy/waveguide"
 	},
 	"elements": [
 		{
@@ -36,20 +36,16 @@
 			"to": [10, 14, 10],
 			"faces": {
 				"north": {
-					"texture": "#core",
-					"uv": [8, 8, 12, 12]
+					"texture": "#core"
 				},
 				"east": {
-					"texture": "#core",
-					"uv": [8, 8, 12, 12]
+					"texture": "#core"
 				},
 				"south": {
-					"texture": "#core",
-					"uv": [8, 8, 12, 12]
+					"texture": "#core"
 				},
 				"west": {
-					"texture": "#core",
-					"uv": [8, 8, 12, 12]
+					"texture": "#core"
 				}
 			}
 		},

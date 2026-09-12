@@ -1,9 +1,9 @@
 {
 	"parent": "block/block",
 	"textures": {
-		"frame": "data_energistics:block/data_crystal_block",
-		"panel": "data_energistics:block/orbital/construct",
-		"particle": "data_energistics:block/data_crystal_block"
+		"frame": "data_energistics:block/astronomy/mirror_panel",
+		"panel": "data_energistics:block/astronomy/mirror_panel",
+		"particle": "data_energistics:block/astronomy/mirror_panel"
 	},
 	"elements": [
 		{
@@ -35,24 +35,19 @@
 			"to": [14, 4, 14],
 			"faces": {
 				"north": {
-					"texture": "#panel",
-					"uv": [12, 8, 16, 12]
+					"texture": "#panel"
 				},
 				"east": {
-					"texture": "#panel",
-					"uv": [12, 8, 16, 12]
+					"texture": "#panel"
 				},
 				"south": {
-					"texture": "#panel",
-					"uv": [12, 8, 16, 12]
+					"texture": "#panel"
 				},
 				"west": {
-					"texture": "#panel",
-					"uv": [12, 8, 16, 12]
+					"texture": "#panel"
 				},
 				"up": {
-					"texture": "#panel",
-					"uv": [12, 8, 16, 12]
+					"texture": "#panel"
 				}
 			}
 		}

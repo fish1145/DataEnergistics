@@ -1,11 +1,11 @@
 {
 	"parent": "block/block",
 	"textures": {
-		"base": "data_energistics:block/data_crystal_block",
-		"side": "data_energistics:block/data_teleport_anchor/side_on",
-		"top": "data_energistics:block/data_teleport_anchor/top_on",
-		"lens": "data_energistics:block/orbital/construct",
-		"particle": "data_energistics:block/data_crystal_block"
+		"base": "data_energistics:block/astronomy/mirror",
+		"side": "data_energistics:block/astronomy/mirror",
+		"top": "data_energistics:block/astronomy/mirror",
+		"lens": "data_energistics:block/astronomy/mirror",
+		"particle": "data_energistics:block/astronomy/mirror"
 	},
 	"elements": [
 		{
@@ -49,8 +49,7 @@
 					"texture": "#side"
 				},
 				"up": {
-					"texture": "#lens",
-					"uv": [4, 8, 8, 12]
+					"texture": "#lens"
 				}
 			}
 		},
@@ -59,20 +58,16 @@
 			"to": [16, 11, 16],
 			"faces": {
 				"north": {
-					"texture": "#lens",
-					"uv": [4, 8, 8, 12]
+					"texture": "#lens"
 				},
 				"east": {
-					"texture": "#lens",
-					"uv": [4, 8, 8, 12]
+					"texture": "#lens"
 				},
 				"south": {
-					"texture": "#lens",
-					"uv": [4, 8, 8, 12]
+					"texture": "#lens"
 				},
 				"west": {
-					"texture": "#lens",
-					"uv": [4, 8, 8, 12]
+					"texture": "#lens"
 				},
 				"up": {
 					"texture": "#top"
@@ -84,20 +79,16 @@
 			"to": [11, 16, 11],
 			"faces": {
 				"north": {
-					"texture": "#lens",
-					"uv": [4, 8, 8, 12]
+					"texture": "#lens"
 				},
 				"east": {
-					"texture": "#lens",
-					"uv": [4, 8, 8, 12]
+					"texture": "#lens"
 				},
 				"south": {
-					"texture": "#lens",
-					"uv": [4, 8, 8, 12]
+					"texture": "#lens"
 				},
 				"west": {
-					"texture": "#lens",
-					"uv": [4, 8, 8, 12]
+					"texture": "#lens"
 				},
 				"up": {
 					"texture": "#top"

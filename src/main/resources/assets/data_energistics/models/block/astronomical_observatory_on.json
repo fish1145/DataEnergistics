@@ -1,7 +1,7 @@
 {
 	"parent": "data_energistics:block/astronomical_observatory_off",
 	"textures": {
-		"side": "data_energistics:block/data_teleport_anchor/side_on",
-		"top": "data_energistics:block/data_teleport_anchor/top_on"
+		"side": "data_energistics:block/astronomy/observatory_on",
+		"top": "data_energistics:block/astronomy/observatory_on"
 	}
 }

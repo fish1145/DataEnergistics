@@ -1,7 +1,7 @@
 {
 	"parent": "data_energistics:block/interference_array_core_off",
 	"textures": {
-		"side": "data_energistics:block/data_teleport_anchor/side_on",
-		"top": "data_energistics:block/data_teleport_anchor/top_on"
+		"side": "data_energistics:block/astronomy/interference_core_on",
+		"top": "data_energistics:block/astronomy/interference_core_on"
 	}
 }
