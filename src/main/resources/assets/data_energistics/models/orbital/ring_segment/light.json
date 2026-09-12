@@ -1,0 +1,72 @@
+{
+	"credit": "Data Energistics orbital construct",
+	"ambientocclusion": false,
+	"textures": {
+		"atlas": "data_energistics:block/orbital/construct",
+		"particle": "data_energistics:block/orbital/construct"
+	},
+	"elements": [
+		{
+			"from": [4.2, 1.9, 1.2],
+			"to": [11.8, 2.1, 14.8],
+			"shade": false,
+			"faces": {
+				"north": {
+					"uv": [8.15, 8.15, 11.85, 11.85],
+					"texture": "#atlas"
+				},
+				"south": {
+					"uv": [8.15, 8.15, 11.85, 11.85],
+					"texture": "#atlas"
+				},
+				"east": {
+					"uv": [8.15, 8.15, 11.85, 11.85],
+					"texture": "#atlas"
+				},
+				"west": {
+					"uv": [8.15, 8.15, 11.85, 11.85],
+					"texture": "#atlas"
+				},
+				"up": {
+					"uv": [8.15, 8.15, 11.85, 11.85],
+					"texture": "#atlas"
+				},
+				"down": {
+					"uv": [8.15, 8.15, 11.85, 11.85],
+					"texture": "#atlas"
+				}
+			}
+		},
+		{
+			"from": [5, 15.95, 6],
+			"to": [11, 16.05, 10],
+			"shade": false,
+			"faces": {
+				"north": {
+					"uv": [4.15, 8.15, 7.85, 11.85],
+					"texture": "#atlas"
+				},
+				"south": {
+					"uv": [4.15, 8.15, 7.85, 11.85],
+					"texture": "#atlas"
+				},
+				"east": {
+					"uv": [4.15, 8.15, 7.85, 11.85],
+					"texture": "#atlas"
+				},
+				"west": {
+					"uv": [4.15, 8.15, 7.85, 11.85],
+					"texture": "#atlas"
+				},
+				"up": {
+					"uv": [4.15, 8.15, 7.85, 11.85],
+					"texture": "#atlas"
+				},
+				"down": {
+					"uv": [4.15, 8.15, 7.85, 11.85],
+					"texture": "#atlas"
+				}
+			}
+		}
+	]
+}

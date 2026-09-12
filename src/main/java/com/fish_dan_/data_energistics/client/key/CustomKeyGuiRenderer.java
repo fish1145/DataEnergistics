@@ -4,6 +4,7 @@ import com.fish_dan_.data_energistics.Data_Energistics;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 
 import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.AEKey;
@@ -20,6 +21,8 @@ public final class CustomKeyGuiRenderer {
     private static final ResourceLocation DATA_FLOW_SPRITE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/key/data_flow");
     private static final ResourceLocation DATA_SPRITE = ResourceLocation.fromNamespaceAndPath(Data_Energistics.MODID, "block/key/data");
     private static final ResourceLocation ECHO_SPRITE = ResourceLocation.withDefaultNamespace("item/echo_shard");
+    // TODO: Replace this functional placeholder with a dedicated project-owned Stellar Flux sprite.
+    private static final ResourceLocation CELESTIAL_ENERGY_SPRITE = DATA_FLOW_SPRITE;
 
     private CustomKeyGuiRenderer() {}
 
@@ -30,17 +33,24 @@ public final class CustomKeyGuiRenderer {
     }
 
     public static boolean drawCustom(GuiGraphics guiGraphics, int x, int y, AEKey key) {
-        if (key instanceof DataFlowKey) {
-            drawSprite(guiGraphics, x, y, dataFlowSprite());
-            return true;
-        }
-        if (key instanceof DataKey) {
-            drawSprite(guiGraphics, x, y, dataSprite());
-            return true;
-        }
-        if (key instanceof EchoKey) {
-            drawSprite(guiGraphics, x, y, echoSprite());
-            return true;
+        switch (key) {
+            case DataFlowKey dataFlowKey -> {
+                drawSprite(guiGraphics, x, y, dataFlowSprite());
+                return true;
+            }
+            case DataKey dataKey -> {
+                drawSprite(guiGraphics, x, y, dataSprite());
+                return true;
+            }
+            case EchoKey echoKey -> {
+                drawSprite(guiGraphics, x, y, echoSprite());
+                return true;
+            }
+            case StellarFluxKey stellarFluxKey -> {
+                drawSprite(guiGraphics, x, y, stellarFluxSprite());
+                return true;
+            }
+            default -> {}
         }
         return false;
     }
@@ -55,6 +65,10 @@ public final class CustomKeyGuiRenderer {
 
     public static TextureAtlasSprite echoSprite() {
         return Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(ECHO_SPRITE);
+    }
+
+    public static TextureAtlasSprite stellarFluxSprite() {
+        return Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(CELESTIAL_ENERGY_SPRITE);
     }
 
     private static void drawSprite(GuiGraphics guiGraphics, int x, int y, TextureAtlasSprite sprite) {

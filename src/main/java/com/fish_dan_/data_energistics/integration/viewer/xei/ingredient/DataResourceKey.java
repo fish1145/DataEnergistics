@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.DEAE2Keys;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DataKey;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 
 import appeng.api.stacks.AEKey;
 
@@ -23,7 +24,8 @@ public enum DataResourceKey {
 
     DATA(DataKey.ID, DataKey.of()),
     DATA_FLOW(DataFlowKey.ID, DataFlowKey.of()),
-    ECHO(EchoKey.ID, EchoKey.of());
+    ECHO(EchoKey.ID, EchoKey.of()),
+    CELESTIAL_ENERGY(StellarFluxKey.ID, StellarFluxKey.of());
 
     private final ResourceLocation id;
     private final AEKey aeKey;

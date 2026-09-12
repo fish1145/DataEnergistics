@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.client.key;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKey;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 
 import appeng.api.client.AEKeyRenderHandler;
 import appeng.client.gui.style.Blitter;
@@ -73,13 +74,11 @@ public final class DigitalizationKeyRenderHandler implements AEKeyRenderHandler<
     }
 
     private static TextureAtlasSprite sprite(DigitalizationKey key) {
-        if (key instanceof DataFlowKey) {
-            return CustomKeyGuiRenderer.dataFlowSprite();
-        }
-        if (key instanceof EchoKey) {
-            return CustomKeyGuiRenderer.echoSprite();
-        }
-        throw new IllegalArgumentException("Unsupported Digitalization key: " + key.getClass().getName());
+        return switch (key) {
+            case DataFlowKey dataFlowKey -> CustomKeyGuiRenderer.dataFlowSprite();
+            case EchoKey echoKey -> CustomKeyGuiRenderer.echoSprite();
+            case StellarFluxKey stellarFluxKey -> CustomKeyGuiRenderer.stellarFluxSprite();
+        };
     }
 
     private static void addFaceQuad(

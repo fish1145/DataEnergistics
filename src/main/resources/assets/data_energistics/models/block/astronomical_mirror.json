@@ -1,0 +1,99 @@
+{
+	"parent": "block/block",
+	"textures": {
+		"base": "minecraft:block/white_concrete",
+		"side": "minecraft:block/white_concrete",
+		"top": "minecraft:block/white_concrete",
+		"lens": "minecraft:block/white_concrete",
+		"particle": "minecraft:block/white_concrete"
+	},
+	"elements": [
+		{
+			"from": [1, 0, 1],
+			"to": [15, 4, 15],
+			"faces": {
+				"north": {
+					"texture": "#base"
+				},
+				"east": {
+					"texture": "#base"
+				},
+				"south": {
+					"texture": "#base"
+				},
+				"west": {
+					"texture": "#base"
+				},
+				"up": {
+					"texture": "#top"
+				},
+				"down": {
+					"texture": "#base"
+				}
+			}
+		},
+		{
+			"from": [2, 4, 2],
+			"to": [14, 9, 14],
+			"faces": {
+				"north": {
+					"texture": "#side"
+				},
+				"east": {
+					"texture": "#side"
+				},
+				"south": {
+					"texture": "#side"
+				},
+				"west": {
+					"texture": "#side"
+				},
+				"up": {
+					"texture": "#lens"
+				}
+			}
+		},
+		{
+			"from": [0, 9, 0],
+			"to": [16, 11, 16],
+			"faces": {
+				"north": {
+					"texture": "#lens"
+				},
+				"east": {
+					"texture": "#lens"
+				},
+				"south": {
+					"texture": "#lens"
+				},
+				"west": {
+					"texture": "#lens"
+				},
+				"up": {
+					"texture": "#top"
+				}
+			}
+		},
+		{
+			"from": [5, 11, 5],
+			"to": [11, 16, 11],
+			"faces": {
+				"north": {
+					"texture": "#lens"
+				},
+				"east": {
+					"texture": "#lens"
+				},
+				"south": {
+					"texture": "#lens"
+				},
+				"west": {
+					"texture": "#lens"
+				},
+				"up": {
+					"texture": "#top"
+				}
+			}
+		}
+	]
+}

@@ -1,0 +1,180 @@
+package com.fish_dan_.data_energistics.orbital.storage;
+
+import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.orbital.model.OrbitalAccessRole;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycle;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceLifecycleState;
+import com.fish_dan_.data_energistics.orbital.model.StellarErasureDeviceRecord;
+import com.fish_dan_.data_energistics.orbital.reserve.OrbitalEnergyReserve;
+
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.MinecraftServer;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.testframework.annotation.TestHolder;
+import net.neoforged.testframework.gametest.EmptyTemplate;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@GameTestHolder(Data_Energistics.MODID)
+@PrefixGameTestTemplate(false)
+public final class StellarErasureDeviceSavedDataGameTest {
+
+    private StellarErasureDeviceSavedDataGameTest() {}
+
+    @TestHolder("stellar_erasure_device_name_checks_owner_and_preserves_runtime_state")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void nameChecksOwnerAndPreservesRuntimeState(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(server);
+        UUID owner = UUID.randomUUID();
+        UUID operator = UUID.randomUUID();
+        StellarErasureDeviceRecord original = data.createForOwner(server, owner);
+        data.authorize(server, original.weaponId(), owner, operator, OrbitalAccessRole.OPERATOR);
+        helper.assertFalse(data.rename(server, original.weaponId(), operator, "Forged"), "Operators cannot rename another player's weapon");
+        helper.assertFalse(data.rename(server, UUID.randomUUID(), owner, "Missing"), "Unknown IDs must be rejected");
+        helper.assertTrue(data.rename(server, original.weaponId(), owner, "  天穹一号  "), "Owner rename must succeed");
+        StellarErasureDeviceRecord renamed = data.find(original.weaponId()).orElseThrow();
+        helper.assertValueEqual(renamed.customName(), "天穹一号", "Trim only boundary whitespace");
+        StellarErasureDeviceRecord active = renamed.withReserve(new OrbitalEnergyReserve(123, 456))
+                .withLifecycle(new StellarErasureDeviceLifecycle(StellarErasureDeviceLifecycleState.REDEPLOYING, 17, 37))
+                .withoutRole(operator).withRole(operator, OrbitalAccessRole.OBSERVER);
+        helper.assertValueEqual(active.customName(), renamed.customName(), "Runtime transitions must preserve the name");
+        helper.assertValueEqual(active.weaponId(), original.weaponId(), "Rename must preserve the stable ID");
+        helper.assertValueEqual(StellarErasureDeviceNbtCodec.load(StellarErasureDeviceNbtCodec.save(new CompoundTag(), List.of(active))).getFirst(),
+                active, "Names and runtime state must round-trip together");
+        for (String invalid : List.of("x".repeat(49), "bad\nname", "\nname", "§cname", "bad\u0000name")) {
+            try {
+                data.rename(server, original.weaponId(), owner, invalid);
+                helper.fail("Invalid name was accepted");
+            } catch (IllegalArgumentException expected) {
+                helper.assertValueEqual(data.find(original.weaponId()).orElseThrow(), renamed,
+                        "Rejected input must not mutate the weapon");
+            }
+        }
+        helper.assertTrue(data.rename(server, original.weaponId(), owner, "x".repeat(48)), "Maximum length is inclusive");
+        helper.assertTrue(data.rename(server, original.weaponId(), owner, "x".repeat(47)), "One below maximum is accepted");
+        helper.assertTrue(data.rename(server, original.weaponId(), owner, " "), "Blank names restore the default label");
+        helper.assertValueEqual(data.find(original.weaponId()).orElseThrow().customName(), "", "Default names remain empty in storage");
+        helper.succeed();
+    }
+
+    @TestHolder("stellar_erasure_device_ownership_routes_owned_and_delegated_access")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void routesOwnedAndDelegatedAccess(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        StellarErasureDeviceSavedData data = StellarErasureDeviceSavedData.get(server);
+        UUID ownerId = UUID.randomUUID();
+        UUID operatorId = UUID.randomUUID();
+        UUID observerId = UUID.randomUUID();
+        UUID outsiderId = UUID.randomUUID();
+
+        StellarErasureDeviceRecord sharedWeapon = data.createForOwner(server, ownerId);
+        StellarErasureDeviceRecord repeatedCreation = data.createForOwner(server, ownerId);
+        helper.assertValueEqual(
+                repeatedCreation.weaponId(),
+                sharedWeapon.weaponId(),
+                "Repeated placement by the same owner must reuse their weapon");
+
+        data.authorize(
+                server,
+                sharedWeapon.weaponId(),
+                ownerId,
+                operatorId,
+                OrbitalAccessRole.OPERATOR);
+        data.authorize(
+                server,
+                sharedWeapon.weaponId(),
+                ownerId,
+                observerId,
+                OrbitalAccessRole.OBSERVER);
+        StellarErasureDeviceRecord sharedWeaponWithAccess = data.find(sharedWeapon.weaponId()).orElseThrow();
+        helper.assertValueEqual(
+                data.accessibleTo(operatorId),
+                List.of(sharedWeaponWithAccess),
+                "An authorized player must be routed to the shared weapon");
+
+        StellarErasureDeviceRecord operatorOwnedWeapon = data.createForOwner(server, operatorId);
+        helper.assertFalse(
+                operatorOwnedWeapon.weaponId().equals(sharedWeapon.weaponId()),
+                "Delegated access must not prevent a player from creating an independent owned weapon");
+        helper.assertTrue(
+                data.accessibleTo(operatorId).containsAll(List.of(sharedWeaponWithAccess, operatorOwnedWeapon)),
+                "The control terminal must list both owned and delegated weapons");
+
+        assertUnauthorizedRoleChangeRejected(
+                helper,
+                data,
+                server,
+                sharedWeapon.weaponId(),
+                outsiderId,
+                observerId);
+
+        data.revoke(server, sharedWeapon.weaponId(), ownerId, operatorId);
+        helper.assertValueEqual(
+                data.accessibleTo(operatorId),
+                List.of(operatorOwnedWeapon),
+                "Revoking delegated access must leave the player's own weapon accessible");
+        helper.assertValueEqual(
+                data.ownedBy(ownerId).orElseThrow().weaponId(),
+                sharedWeapon.weaponId(),
+                "Authorization changes must not alter the owner index");
+        helper.succeed();
+    }
+
+    @TestHolder("stellar_erasure_device_lifecycle_round_trips_current_redeployment_grace")
+    @EmptyTemplate("5")
+    @GameTest(template = "empty_5x5")
+    public static void roundTripsCurrentRedeploymentGrace(GameTestHelper helper) {
+        StellarErasureDeviceLifecycle grace = new StellarErasureDeviceLifecycle(
+                StellarErasureDeviceLifecycleState.REDEPLOYING,
+                17,
+                37);
+        StellarErasureDeviceRecord source = new StellarErasureDeviceRecord(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                Map.of(),
+                Map.of(),
+                new OrbitalEnergyReserve(12_345L, 67_890L),
+                grace,
+                null,
+                "");
+
+        CompoundTag saved = StellarErasureDeviceNbtCodec.save(new CompoundTag(), List.of(source));
+        StellarErasureDeviceRecord restored = StellarErasureDeviceNbtCodec.load(saved).getFirst();
+        helper.assertValueEqual(
+                restored.lifecycle(),
+                grace,
+                "Saving and loading must preserve the active reserve-grace countdown");
+        helper.assertValueEqual(
+                restored.reserve(),
+                source.reserve(),
+                "Adding lifecycle persistence must not alter the independent reserve values");
+
+        helper.succeed();
+    }
+
+    private static void assertUnauthorizedRoleChangeRejected(
+                                                             GameTestHelper helper,
+                                                             StellarErasureDeviceSavedData data,
+                                                             MinecraftServer server,
+                                                             UUID weaponId,
+                                                             UUID actorId,
+                                                             UUID playerId) {
+        try {
+            data.authorize(server, weaponId, actorId, playerId, OrbitalAccessRole.OPERATOR);
+            helper.fail("An unauthorized player changed an orbital weapon role");
+        } catch (SecurityException expected) {
+            helper.assertValueEqual(
+                    data.find(weaponId).orElseThrow().delegatedRoles().get(playerId),
+                    OrbitalAccessRole.OBSERVER,
+                    "A rejected role change must leave the authorization state intact");
+        }
+    }
+}

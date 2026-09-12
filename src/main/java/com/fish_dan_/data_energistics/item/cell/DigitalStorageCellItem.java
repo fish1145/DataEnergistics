@@ -26,7 +26,7 @@ import java.util.Set;
 
 public class DigitalStorageCellItem extends BasicStorageCell {
 
-    private static final int TOTAL_TYPES = 2;
+    private static final int TOTAL_TYPES = 3;
 
     public DigitalStorageCellItem(Item.Properties properties, double idleDrain, int totalBytes) {
         super(properties.stacksTo(1), idleDrain, totalBytes, 8, TOTAL_TYPES, DigitalizationKeyType.TYPE);

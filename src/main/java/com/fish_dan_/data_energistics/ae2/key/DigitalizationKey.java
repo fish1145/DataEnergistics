@@ -14,9 +14,9 @@ import net.minecraft.world.level.Level;
 import java.util.List;
 
 /**
- * Common AE key space for the Data Flow and Echo resources exposed as Digitalization.
+ * Common AE key space for the Data Flow, Echo and Stellar Flux resources exposed as Digitalization.
  */
-public abstract sealed class DigitalizationKey extends AEKey permits DataFlowKey, EchoKey {
+public abstract sealed class DigitalizationKey extends AEKey permits StellarFluxKey, DataFlowKey, EchoKey {
 
     @Override
     public final AEKeyType getType() {

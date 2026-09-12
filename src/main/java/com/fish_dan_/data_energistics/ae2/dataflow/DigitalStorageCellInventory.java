@@ -3,6 +3,7 @@ package com.fish_dan_.data_energistics.ae2.dataflow;
 import com.fish_dan_.data_energistics.ae2.key.DataFlowKey;
 import com.fish_dan_.data_energistics.ae2.key.DigitalizationKeyType;
 import com.fish_dan_.data_energistics.ae2.key.EchoKey;
+import com.fish_dan_.data_energistics.ae2.key.StellarFluxKey;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.IncludeExclude;
@@ -26,6 +27,7 @@ import appeng.util.prioritylist.IPartitionList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
+import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -35,23 +37,25 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Persists the shared byte budget of a digital storage cell while accepting its native Data Flow and Echo key types.
+ * Persists the shared byte budget of a digital storage cell while accepting its native Digitalization resources.
  */
 public final class DigitalStorageCellInventory implements StorageCell {
 
     public static final Set<AEKeyType> SUPPORTED_KEY_TYPES = Set.of(DigitalizationKeyType.TYPE);
 
     private static final int MAX_STORED_TYPES = 63;
-    private static final int SUPPORTED_RESOURCE_COUNT = 2;
+    private static final int SUPPORTED_RESOURCE_COUNT = 3;
     private static final int AMOUNT_PER_BYTE = DigitalizationKeyType.TYPE.getAmountPerByte();
 
     private final ItemStack stack;
     private final IBasicCellItem cellItem;
     private final @Nullable ISaveProvider container;
     private final Map<AEKey, Long> storedAmounts;
+    @Getter
     private final ConfigInventory configInventory;
     private final IUpgradeInventory upgrades;
     private final IPartitionList partitionList;
+    @Getter
     private final IncludeExclude partitionListMode;
     private final int totalTypes;
     private final boolean hasVoidUpgrade;
@@ -184,7 +188,7 @@ public final class DigitalStorageCellInventory implements StorageCell {
     }
 
     /**
-     * Returns the cell byte capacity shared by Data Flow and Echo.
+     * Returns the cell byte capacity shared by all Digitalization resources.
      */
     public long getTotalBytes() {
         return cellItem.getBytes(stack);
@@ -217,14 +221,6 @@ public final class DigitalStorageCellInventory implements StorageCell {
 
     public boolean isFuzzy() {
         return partitionList instanceof FuzzyPriorityList;
-    }
-
-    public IncludeExclude getPartitionListMode() {
-        return partitionListMode;
-    }
-
-    public ConfigInventory getConfigInventory() {
-        return configInventory;
     }
 
     public IUpgradeInventory getUpgradesInventory() {
@@ -290,7 +286,7 @@ public final class DigitalStorageCellInventory implements StorageCell {
     }
 
     private static boolean supports(AEKey key) {
-        return key == DataFlowKey.of() || key == EchoKey.of();
+        return key == DataFlowKey.of() || key == EchoKey.of() || key == StellarFluxKey.of();
     }
 
     private long getFreeBytes() {

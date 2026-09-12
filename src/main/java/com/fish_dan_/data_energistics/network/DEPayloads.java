@@ -43,11 +43,11 @@ public final class DEPayloads {
     private DEPayloads() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("6");
-        registrar.versioned("9").playToServer(CannonChargePayload.TYPE, CannonChargePayload.STREAM_CODEC, CannonChargePayload::handle);
-        registrar.versioned("9").playToClient(RailChainPayload.TYPE, RailChainPayload.STREAM_CODEC, RailChainPayload::handle);
-        registrar.versioned("8").playToClient(ChromaticGlowPayload.TYPE, ChromaticGlowPayload.STREAM_CODEC, ChromaticGlowPayload::handle);
-        registrar.versioned("7").playToClient(TrinityCraftingStatusPayload.TYPE, TrinityCraftingStatusPayload.STREAM_CODEC, TrinityCraftingStatusPayload::handle);
+        PayloadRegistrar registrar = event.registrar("7");
+        registrar.playToServer(CannonChargePayload.TYPE, CannonChargePayload.STREAM_CODEC, CannonChargePayload::handle);
+        registrar.playToClient(RailChainPayload.TYPE, RailChainPayload.STREAM_CODEC, RailChainPayload::handle);
+        registrar.playToClient(ChromaticGlowPayload.TYPE, ChromaticGlowPayload.STREAM_CODEC, ChromaticGlowPayload::handle);
+        registrar.playToClient(TrinityCraftingStatusPayload.TYPE, TrinityCraftingStatusPayload.STREAM_CODEC, TrinityCraftingStatusPayload::handle);
         registrar.playToClient(CraftingPlanGraphPayload.TYPE, CraftingPlanGraphPayload.STREAM_CODEC, CraftingPlanGraphPayload::handle);
         registrar.playToServer(CraftingPlanTreeActionPayload.TYPE, CraftingPlanTreeActionPayload.STREAM_CODEC, CraftingPlanTreeActionPayload::handle);
         registrar.playToServer(

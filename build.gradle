@@ -48,6 +48,11 @@ sourceSets {
         runtimeClasspath += client.output + client.runtimeClasspath + extra.runtimeClasspath
     }
 
+    clienttest {
+        compileClasspath += client.output + extra.compileClasspath + test.output + test.compileClasspath
+        runtimeClasspath += client.output + client.runtimeClasspath + extra.runtimeClasspath + test.output + test.runtimeClasspath
+    }
+
 }
 
 configurations {
@@ -61,7 +66,7 @@ configurations {
     runtimeClasspath.extendsFrom localRuntime
     extraRuntimeClasspath.extendsFrom extraLocalRuntime
     clientRuntimeClasspath.extendsFrom clientLocalRuntime
-    extraClientRuntimeClasspath.extendsFrom clientExtraLocalRuntime
+    clientExtraRuntimeClasspath.extendsFrom clientExtraLocalRuntime
 
     renderNurseCfg {
         canBeConsumed = false
