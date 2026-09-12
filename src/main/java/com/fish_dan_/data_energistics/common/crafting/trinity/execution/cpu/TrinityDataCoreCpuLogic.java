@@ -3843,13 +3843,14 @@ final class TrinityDataCoreCpuLogic {
 
         var storage = grid.getStorageService().getInventory();
         IActionSource source = this.cpu.actionSource();
-        this.exactWorkingInventory.returnAll(storage, source);
+        boolean recoveredExact = this.exactWorkingInventory.returnAll(storage, source);
         for (var entry : this.inventory.list) {
             postChange(entry.getKey());
             long inserted = storage.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE, source);
             entry.setValue(entry.getLongValue() - inserted);
         }
         this.inventory.list.removeZeros();
+        this.cantStoreItems = !recoveredExact || !this.inventory.list.isEmpty();
         this.cpu.markDirty();
     }
 

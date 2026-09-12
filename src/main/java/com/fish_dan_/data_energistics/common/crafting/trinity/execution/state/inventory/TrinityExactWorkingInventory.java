@@ -25,6 +25,8 @@ import java.util.function.BiFunction;
 public final class TrinityExactWorkingInventory {
 
     private static final BigInteger MAX_PHYSICAL_AMOUNT = BigInteger.valueOf(Long.MAX_VALUE);
+    /** Limits synchronous cancellation/removal work while exact ownership crosses a long-only API. */
+    private static final int MAX_RECOVERY_TRANSFERS = 16;
     private static final int MAX_BIG_INTEGER_BYTES = 512;
     private static final String ENTRIES_TAG = "entries";
     private static final String KEY_TAG = "key";
@@ -134,27 +136,49 @@ public final class TrinityExactWorkingInventory {
         }
     }
 
-    /** Returns all exact overflow that the network currently accepts, retaining any rejected remainder. */
-    public void returnAll(MEStorage network, IActionSource source) {
+    /**
+     * Returns a bounded amount of exact overflow that the network currently accepts, retaining any remainder.
+     *
+     * <p>
+     * AE2 storage accepts only long-sized transfers. A potentially unbounded exact quantity must therefore be
+     * drained over multiple server ticks instead of monopolizing the cancellation or menu-removal call stack.
+     * </p>
+     *
+     * @return whether all exact overflow has been returned
+     */
+    public boolean returnAll(MEStorage network, IActionSource source) {
+        int transfers = 0;
         for (AEKey key : new ObjectArrayList<>(this.overflow.keySet())) {
             BigInteger remaining = this.overflow.get(key);
-            while (remaining.signum() > 0) {
+            while (remaining.signum() > 0 && transfers < MAX_RECOVERY_TRANSFERS) {
                 long chunk = remaining.min(MAX_PHYSICAL_AMOUNT).longValueExact();
                 long inserted = network.insert(key, chunk, Actionable.MODULATE, source);
-                if (inserted <= 0L || inserted > chunk) {
+                if (inserted < 0L || inserted > chunk) {
+                    throw new IllegalStateException("AE storage violated the exact working inventory insertion contract");
+                }
+                if (inserted == 0L) {
                     break;
                 }
                 remaining = remaining.subtract(BigInteger.valueOf(inserted));
+                transfers++;
+                if (inserted < chunk) {
+                    break;
+                }
             }
             put(key, remaining);
+            if (transfers >= MAX_RECOVERY_TRANSFERS) {
+                break;
+            }
         }
+        return this.overflow.isEmpty();
     }
 
     /** Offers all exact overflow to a durable idle-recovery sink in long-sized physical chunks. */
     public boolean recover(BiFunction<AEKey, Long, Long> recovery) {
+        int transfers = 0;
         for (AEKey key : new ObjectArrayList<>(this.overflow.keySet())) {
             BigInteger remaining = this.overflow.get(key);
-            while (remaining.signum() > 0) {
+            while (remaining.signum() > 0 && transfers < MAX_RECOVERY_TRANSFERS) {
                 long offered = remaining.min(MAX_PHYSICAL_AMOUNT).longValueExact();
                 long recovered = recovery.apply(key, offered);
                 if (recovered < 0L || recovered > offered) {
@@ -165,8 +189,15 @@ public final class TrinityExactWorkingInventory {
                     break;
                 }
                 remaining = remaining.subtract(BigInteger.valueOf(recovered));
+                transfers++;
+                if (recovered < offered) {
+                    break;
+                }
             }
             put(key, remaining);
+            if (transfers >= MAX_RECOVERY_TRANSFERS) {
+                break;
+            }
         }
         return this.overflow.isEmpty();
     }
