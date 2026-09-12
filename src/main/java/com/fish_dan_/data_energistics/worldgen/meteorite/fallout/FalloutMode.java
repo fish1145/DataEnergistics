@@ -12,16 +12,16 @@ import java.util.List;
 
 public enum FalloutMode {
 
-    NONE(new TagKey[0]),
-    DEFAULT(new TagKey[0]),
-    SAND(new TagKey[] { Biomes.IS_SANDY, BiomeTags.IS_BEACH }),
-    TERRACOTTA(new TagKey[] { BiomeTags.IS_BADLANDS }),
-    ICE_SNOW(new TagKey[] { Biomes.IS_COLD });
+    NONE(),
+    DEFAULT(),
+    SAND(Biomes.IS_SANDY, BiomeTags.IS_BEACH),
+    TERRACOTTA(BiomeTags.IS_BADLANDS),
+    ICE_SNOW(Biomes.IS_COLD);
 
     private final List<TagKey<Biome>> biomeTags;
 
     @SafeVarargs
-    private FalloutMode(TagKey<Biome>... biomeTags) {
+    FalloutMode(TagKey<Biome>... biomeTags) {
         this.biomeTags = ImmutableList.copyOf(biomeTags);
     }
 
