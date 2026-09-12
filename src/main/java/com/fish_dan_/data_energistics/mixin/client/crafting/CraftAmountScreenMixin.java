@@ -1,11 +1,12 @@
 package com.fish_dan_.data_energistics.mixin.client.crafting;
 
+import com.fish_dan_.data_energistics.client.crafting.LongAmountExpressionParser;
+import com.fish_dan_.data_energistics.client.crafting.NumberEntryWidgetValidationRegistry;
 import com.fish_dan_.data_energistics.common.crafting.trinity.planning.CraftingQuantityMode;
 import com.fish_dan_.data_energistics.menu.crafting.TrinityCraftAmountMenuState;
 
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
-import appeng.client.gui.NumberEntryType;
 import appeng.client.gui.me.crafting.CraftAmountScreen;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.NumberEntryWidget;
@@ -25,6 +26,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
+import java.util.OptionalLong;
 
 /**
  * Adds one AE2-style NET_NEW / FINAL_TOTAL selector to the amount dialog's left toolbar.
@@ -74,6 +76,7 @@ public abstract class CraftAmountScreenMixin extends AEBaseScreen<CraftAmountMen
         this.addToLeftToolbar(this.dataEnergistics$quantityModeButton);
 
         this.amountToCraft.setMaxValue(Long.MAX_VALUE);
+        NumberEntryWidgetValidationRegistry.enable(this.amountToCraft);
         ((NumberEntryWidgetAccessor) this.amountToCraft)
                 .dataEnergistics$textField()
                 .setMaxLength(Long.toString(Long.MAX_VALUE).length());
@@ -89,9 +92,9 @@ public abstract class CraftAmountScreenMixin extends AEBaseScreen<CraftAmountMen
             return;
         }
 
-        this.amountToCraft.setType(NumberEntryType.of(whatToCraft.what()));
-        this.amountToCraft.setLongValue(
-                ((TrinityCraftAmountMenuState) this.menu).data_energistics$initialAmount());
+        // Keep the field textual: parsing is handled by LongAmountExpressionParser,
+        // so AE2's integer-only filter must not reject units or expressions.
+        this.amountToCraft.setLongValue(((TrinityCraftAmountMenuState) this.menu).data_energistics$initialAmount());
         this.amountInitialized = true;
     }
 
@@ -100,17 +103,24 @@ public abstract class CraftAmountScreenMixin extends AEBaseScreen<CraftAmountMen
         TrinityCraftAmountMenuState state = (TrinityCraftAmountMenuState) this.menu;
         this.dataEnergistics$quantityModeButton.setState(
                 state.data_energistics$quantityMode() == CraftingQuantityMode.NET_NEW);
-        this.next.active = this.amountToCraft.getLongValue().orElse(0L) > 0L;
+        this.next.active = dataEnergistics$parsedAmount().isPresent();
     }
 
     @Inject(method = "confirm", at = @At("HEAD"), cancellable = true)
     private void dataEnergistics$confirmLongAmount(CallbackInfo ci) {
-        long amount = this.amountToCraft.getLongValue().orElse(0L);
-        if (amount > 0L) {
+        var parsed = dataEnergistics$parsedAmount();
+        if (parsed.isPresent()) {
+            long amount = parsed.getAsLong();
             ((TrinityCraftAmountMenuState) this.menu)
                     .data_energistics$confirm(amount, this.amountToCraft.startsWithEquals(), hasShiftDown());
         }
         ci.cancel();
+    }
+
+    @Unique
+    private OptionalLong dataEnergistics$parsedAmount() {
+        return LongAmountExpressionParser.parse(((NumberEntryWidgetAccessor) this.amountToCraft)
+                .dataEnergistics$textField().getValue());
     }
 
     @Unique

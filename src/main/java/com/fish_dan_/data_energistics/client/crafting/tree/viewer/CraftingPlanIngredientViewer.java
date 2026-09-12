@@ -25,4 +25,11 @@ public interface CraftingPlanIngredientViewer {
 
     /** Opens recipes/uses without changing the plan; returns false if this native runtime is unavailable. */
     boolean show(GenericStack stack, boolean recipes);
+
+    /**
+     * Adds a non-null material to native favorites on the client thread without opening another screen.
+     * Existing favorites remain present. Returns false when the runtime is unavailable; invalid ingredients
+     * follow the native viewer's validation. Does not change the plan.
+     */
+    boolean favorite(GenericStack stack);
 }

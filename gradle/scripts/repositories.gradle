@@ -4,19 +4,22 @@ repositories {
     }
     mavenLocal()
     mavenCentral()
-    exclusiveContent { // Mystical Agriculture and Cucumber
-        forRepository { maven { url = "https://maven.blakesmods.com" } }
-        filter {
-            includeGroup("com.blakebr0.cucumber")
-            includeGroup("com.blakebr0.mysticalagriculture")
-        }
-    }
     // force gradle to download FastUtil & LWJGL from the central maven so we can get source artifacts
     exclusiveContent { // Force
         forRepository { mavenCentral() }
         filter {
             includeGroup("it.unimi.dsi")
             includeGroup("org.lwjgl")
+            includeGroupAndSubgroups("io.netty")
+            includeGroup("com.google.guava")
+            includeGroup("io.netty")
+        }
+    }
+    exclusiveContent { // Mystical Agriculture and Cucumber
+        forRepository { maven { url = "https://maven.blakesmods.com" } }
+        filter {
+            includeGroup("com.blakebr0.cucumber")
+            includeGroup("com.blakebr0.mysticalagriculture")
         }
     }
     maven { // JEI mirror, AE2

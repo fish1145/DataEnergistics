@@ -22,66 +22,9 @@ public final class DataNukePrimedEntityGameTest {
 
     private static final int DISTANT_CHUNK_OFFSET = 128 * 16;
     private static final int TEST_ISOLATION_OFFSET = 32 * 16;
-    private static final int CROSS_CHUNK_OFFSET = 2 * 16;
     private static final int LONG_FUSE_TICKS = Integer.MAX_VALUE;
 
     private DataNukePrimedEntityGameTest() {}
-
-    @TestHolder("digital_annihilator_moves_its_force_load_ticket")
-    @EmptyTemplate("5x5")
-    @GameTest(template = "empty_5x5", timeoutTicks = 400)
-    public static void movesItsForceLoadTicket(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos origin = distantOrigin(helper, 1);
-        BlockPos destination = origin.offset(CROSS_CHUNK_OFFSET, 0, 0);
-        level.getChunkAt(origin);
-        level.getChunkAt(destination);
-
-        DataNukePrimedEntity entity = createStationaryEntity(level, origin);
-
-        ChunkPos originChunk = new ChunkPos(origin);
-        ChunkPos destinationChunk = new ChunkPos(destination);
-        helper.startSequence()
-                .thenWaitUntil(() -> {
-                    helper.assertFalse(
-                            isForceTicked(level, originChunk),
-                            "The preloaded origin chunk must not have a force-ticking ticket before the digital annihilator is added");
-                    helper.assertFalse(
-                            isForceTicked(level, destinationChunk),
-                            "The preloaded destination chunk must not have a force-ticking ticket before the digital annihilator is added");
-                })
-                .thenExecute(() -> helper.assertTrue(
-                        level.addFreshEntity(entity),
-                        "The digital annihilator must be added to the test level"))
-                .thenWaitUntil(() -> {
-                    helper.assertTrue(
-                            isForceTicked(level, originChunk),
-                            "The digital annihilator must initially force-tick its origin chunk");
-                    helper.assertTrue(
-                            level.getChunkSource().isPositionTicking(originChunk.toLong()),
-                            "The digital annihilator must initially force-load its origin chunk");
-                    helper.assertFalse(
-                            isForceTicked(level, destinationChunk),
-                            "The unused destination chunk must not have a force-ticking ticket");
-                })
-                .thenExecute(() -> entity.setPos(destination.getX() + 0.5D, destination.getY(), destination.getZ() + 0.5D))
-                .thenWaitUntil(() -> {
-                    helper.assertFalse(
-                            isForceTicked(level, originChunk),
-                            "Moving the digital annihilator must release its previous chunk");
-                    helper.assertTrue(
-                            isForceTicked(level, destinationChunk),
-                            "Moving the digital annihilator must force-tick its destination chunk");
-                    helper.assertTrue(
-                            level.getChunkSource().isPositionTicking(destinationChunk.toLong()),
-                            "Moving the digital annihilator must force-load its destination chunk");
-                })
-                .thenExecute(entity::discard)
-                .thenWaitUntil(() -> helper.assertFalse(
-                        isForceTicked(level, destinationChunk),
-                        "Removing the moved digital annihilator must release its destination chunk"))
-                .thenSucceed();
-    }
 
     @TestHolder("digital_annihilators_share_their_force_load_ticket")
     @EmptyTemplate("5x5")

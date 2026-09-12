@@ -96,6 +96,7 @@
 		"client.crafting.CraftConfirmScreenMixin",
 		"client.crafting.CraftConfirmTableRendererMixin",
 		"client.crafting.NumberEntryWidgetAccessor",
+		"client.crafting.NumberEntryWidgetValidationMixin",
 		"client.gui.AEBaseScreenSlotHighlightMixin",
 		"client.gui.Ae2CustomKeyGuiMixin",
 		"client.gui.Ldlib2AeProtocolScreenMixin",
@@ -113,7 +114,8 @@
 		"guideme.GuideNavBarRowMixin",
 		"jei.JeiEncodePatternTransferHandlerMixin",
 		"neoecoae.NeoECOAEClientMixin",
-		"viewer.jei.RecipeTransferServiceMixin"
+		"viewer.jei.RecipeTransferServiceMixin",
+		"viewer.jei.BookmarkOverlayAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1
