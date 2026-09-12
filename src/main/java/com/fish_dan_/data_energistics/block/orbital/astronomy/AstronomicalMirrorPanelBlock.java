@@ -1,30 +1,22 @@
 package com.fish_dan_.data_energistics.block.orbital.astronomy;
 
-import com.fish_dan_.data_energistics.blockentity.orbital.astronomy.AstronomicalMirrorBlockEntity;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.EntityBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-/**
- * Center and exclusive-claim anchor of one 3x3 high-tier observation mirror.
- */
-public final class AstronomicalMirrorBlock extends Block implements EntityBlock {
+/** Structural panel forming the raised rim of a 3x3 astronomical mirror aperture. */
+public final class AstronomicalMirrorPanelBlock extends Block {
 
     private static final VoxelShape SHAPE = Shapes.or(
-            Block.box(1, 0, 1, 15, 4, 15),
-            Block.box(2, 4, 2, 14, 9, 14),
-            Block.box(0, 9, 0, 16, 11, 16),
-            Block.box(5, 11, 5, 11, 16, 11));
+            Block.box(0, 0, 0, 16, 2, 16),
+            Block.box(2, 2, 2, 14, 4, 14));
 
-    public AstronomicalMirrorBlock(BlockBehaviour.Properties properties) {
+    public AstronomicalMirrorPanelBlock(BlockBehaviour.Properties properties) {
         super(properties);
     }
 
@@ -36,10 +28,5 @@ public final class AstronomicalMirrorBlock extends Block implements EntityBlock 
     @Override
     public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
-    }
-
-    @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new AstronomicalMirrorBlockEntity(pos, state);
     }
 }

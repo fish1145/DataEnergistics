@@ -21,7 +21,9 @@ import com.fish_dan_.data_energistics.block.machine.DataTeleportAnchorBlock;
 import com.fish_dan_.data_energistics.block.orbital.OrbitalControlConsoleBlock;
 import com.fish_dan_.data_energistics.block.orbital.OrbitalUplinkBeaconBlock;
 import com.fish_dan_.data_energistics.block.orbital.astronomy.AstronomicalMirrorBlock;
+import com.fish_dan_.data_energistics.block.orbital.astronomy.AstronomicalMirrorPanelBlock;
 import com.fish_dan_.data_energistics.block.orbital.astronomy.AstronomicalObservatoryBlock;
+import com.fish_dan_.data_energistics.block.orbital.astronomy.CelestialWaveguideBlock;
 import com.fish_dan_.data_energistics.block.orbital.astronomy.InterferenceArrayCoreBlock;
 import com.fish_dan_.data_energistics.block.patternprovider.AdaptivePatternProviderBlock;
 import com.fish_dan_.data_energistics.block.sanctum.DataSanctumBlock;
@@ -127,13 +129,15 @@ public final class DEBlocks {
             "orbital_control_console",
             OrbitalControlConsoleBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
-                    .requiresCorrectToolForDrops());
+                    .requiresCorrectToolForDrops()
+                    .noOcclusion());
 
     public static final DeferredBlock<Block> ORBITAL_UPLINK_BEACON = BLOCKS.registerBlock(
             "orbital_uplink_beacon",
             OrbitalUplinkBeaconBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
-                    .requiresCorrectToolForDrops());
+                    .requiresCorrectToolForDrops()
+                    .noOcclusion());
 
     public static final DeferredBlock<Block> ASTRONOMICAL_OBSERVATORY = BLOCKS.registerBlock(
             "astronomical_observatory",
@@ -156,14 +160,16 @@ public final class DEBlocks {
                     .requiresCorrectToolForDrops()
                     .noOcclusion());
 
-    public static final DeferredBlock<Block> ASTRONOMICAL_MIRROR_PANEL = BLOCKS.registerSimpleBlock(
+    public static final DeferredBlock<Block> ASTRONOMICAL_MIRROR_PANEL = BLOCKS.registerBlock(
             "astronomical_mirror_panel",
+            AstronomicalMirrorPanelBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_BLOCK)
                     .requiresCorrectToolForDrops()
                     .noOcclusion());
 
-    public static final DeferredBlock<Block> CELESTIAL_WAVEGUIDE = BLOCKS.registerSimpleBlock(
+    public static final DeferredBlock<Block> CELESTIAL_WAVEGUIDE = BLOCKS.registerBlock(
             "celestial_waveguide",
+            CelestialWaveguideBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.QUARTZ_BLOCK)
                     .requiresCorrectToolForDrops()
                     .noOcclusion());

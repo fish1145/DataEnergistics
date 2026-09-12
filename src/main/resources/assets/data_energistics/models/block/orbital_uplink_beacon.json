@@ -1,3 +1,34 @@
 {
-	"parent": "data_energistics:block/data_teleport_anchor_off"
+  "parent": "block/block",
+  "textures": {
+    "shell": "data_energistics:block/data_teleport_anchor/side_off",
+    "top": "data_energistics:block/data_teleport_anchor/top_off",
+    "core": "data_energistics:block/orbital/construct",
+    "particle": "data_energistics:block/data_teleport_anchor/side_off"
+  },
+  "elements": [
+    { "from": [1, 0, 1], "to": [15, 3, 15], "faces": {
+      "north": { "texture": "#shell" }, "east": { "texture": "#shell" },
+      "south": { "texture": "#shell" }, "west": { "texture": "#shell" },
+      "up": { "texture": "#top" }, "down": { "texture": "#shell" }
+    } },
+    { "from": [4, 3, 4], "to": [12, 13, 12], "faces": {
+      "north": { "texture": "#shell" }, "east": { "texture": "#shell" },
+      "south": { "texture": "#shell" }, "west": { "texture": "#shell" },
+      "up": { "texture": "#top" }
+    } },
+    { "from": [6, 4, 6], "to": [10, 13, 10], "faces": {
+      "north": { "texture": "#core", "uv": [4, 8, 8, 12] },
+      "east": { "texture": "#core", "uv": [4, 8, 8, 12] },
+      "south": { "texture": "#core", "uv": [4, 8, 8, 12] },
+      "west": { "texture": "#core", "uv": [4, 8, 8, 12] }
+    } },
+    { "from": [2, 13, 2], "to": [14, 16, 14], "faces": {
+      "north": { "texture": "#core", "uv": [8, 8, 12, 12] },
+      "east": { "texture": "#core", "uv": [8, 8, 12, 12] },
+      "south": { "texture": "#core", "uv": [8, 8, 12, 12] },
+      "west": { "texture": "#core", "uv": [8, 8, 12, 12] },
+      "up": { "texture": "#core", "uv": [8, 8, 12, 12] }
+    } }
+  ]
 }
