@@ -5,8 +5,8 @@ import com.fish_dan_.data_energistics.entity.explosive.DataNukePrimedEntity;
 import com.fish_dan_.data_energistics.entity.explosive.TntConfigurablePrimedEntity;
 import com.fish_dan_.data_energistics.entity.projectile.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.projectile.MatterConvergingBoltEntity;
-import com.fish_dan_.data_energistics.entity.projectile.RailRoundEntity;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
+import com.fish_dan_.data_energistics.entity.projectile.RailRoundEntity;
 import com.fish_dan_.data_energistics.entity.projectile.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.entity.resource.DispersingDataEntity;
 
@@ -65,8 +65,6 @@ public final class DEEntities {
             .clientTrackingRange(64)
             .updateInterval(1)
             .build("orbital_annihilator_projectile"));
-
-
 
     private DEEntities() {}
 
