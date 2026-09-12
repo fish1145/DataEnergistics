@@ -1,9 +1,13 @@
 package com.fish_dan_.data_energistics.network;
 
+import com.fish_dan_.data_energistics.network.action.CannonChargePayload;
+import com.fish_dan_.data_energistics.network.action.ChromaticGlowPayload;
 import com.fish_dan_.data_energistics.network.action.DataTeleportAnchorKnifeTeleportPayload;
 import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotBucketModePayload;
 import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotScrollPayload;
+import com.fish_dan_.data_energistics.network.action.MatterConvergingCrossbowModePayload;
 import com.fish_dan_.data_energistics.network.action.MeVacuumLaunchPayload;
+import com.fish_dan_.data_energistics.network.action.RailChainPayload;
 import com.fish_dan_.data_energistics.network.crafting.tree.action.CraftingPlanTreeActionPayload;
 import com.fish_dan_.data_energistics.network.crafting.tree.protocol.CraftingPlanGraphPayload;
 import com.fish_dan_.data_energistics.network.meteorite.DataMeteoriteCompassRequestPayload;
@@ -47,6 +51,9 @@ public final class DEPayloads {
 
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("7");
+        registrar.playToServer(CannonChargePayload.TYPE, CannonChargePayload.STREAM_CODEC, CannonChargePayload::handle);
+        registrar.playToClient(RailChainPayload.TYPE, RailChainPayload.STREAM_CODEC, RailChainPayload::handle);
+        registrar.playToClient(ChromaticGlowPayload.TYPE, ChromaticGlowPayload.STREAM_CODEC, ChromaticGlowPayload::handle);
         registrar.playToClient(TrinityCraftingStatusPayload.TYPE, TrinityCraftingStatusPayload.STREAM_CODEC, TrinityCraftingStatusPayload::handle);
         registrar.playToClient(CraftingPlanGraphPayload.TYPE, CraftingPlanGraphPayload.STREAM_CODEC, CraftingPlanGraphPayload::handle);
         registrar.playToServer(CraftingPlanTreeActionPayload.TYPE, CraftingPlanTreeActionPayload.STREAM_CODEC, CraftingPlanTreeActionPayload::handle);
@@ -94,6 +101,10 @@ public final class DEPayloads {
                 MeVacuumLaunchPayload.TYPE,
                 MeVacuumLaunchPayload.STREAM_CODEC,
                 MeVacuumLaunchPayload::handle);
+        registrar.playToServer(
+                MatterConvergingCrossbowModePayload.TYPE,
+                MatterConvergingCrossbowModePayload.STREAM_CODEC,
+                MatterConvergingCrossbowModePayload::handle);
         registrar.playToServer(
                 DigitalStorageDepotScrollPayload.TYPE,
                 DigitalStorageDepotScrollPayload.STREAM_CODEC,

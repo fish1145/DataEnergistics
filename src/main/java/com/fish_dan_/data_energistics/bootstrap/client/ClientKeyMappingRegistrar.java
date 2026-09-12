@@ -16,5 +16,7 @@ final class ClientKeyMappingRegistrar {
         event.register(DEKeyMappings.TOGGLE_ORBITAL_CONTROL_HUD);
         event.register(DEKeyMappings.PREVIOUS_TRINITY_CYCLE);
         event.register(DEKeyMappings.NEXT_TRINITY_CYCLE);
+        event.register(DEKeyMappings.TOGGLE_CROSSBOW_RAIL);
+        event.register(DEKeyMappings.TOGGLE_CROSSBOW_ARMS);
     }
 }

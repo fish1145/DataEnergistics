@@ -19,6 +19,7 @@ import com.fish_dan_.data_energistics.client.screen.machine.MePatternBufferScree
 import com.fish_dan_.data_energistics.client.screen.machine.MeVacuumScreen;
 import com.fish_dan_.data_energistics.client.screen.machine.OrderPackageScreen;
 import com.fish_dan_.data_energistics.client.screen.patternencoding.UniversalPatternEncodingTermScreen;
+import com.fish_dan_.data_energistics.client.screen.powered.MatterConvergingCrossbowConfigScreen;
 import com.fish_dan_.data_energistics.client.screen.storage.CompositeWarehouseScreen;
 import com.fish_dan_.data_energistics.client.screen.storage.DigitalStorageDepotScreen;
 import com.fish_dan_.data_energistics.client.screen.storage.MeCompositeInputWarehouseScreen;
@@ -40,6 +41,8 @@ final class ClientScreenRegistrar {
 
     static void register(RegisterMenuScreensEvent event) {
         event.register(DEMenus.CRAFTING_PLAN_TREE.get(), CraftingPlanTreeScreen::new);
+        InitScreens.register(event, DEMenus.MATTER_CONVERGING_CROSSBOW_CONFIG.get(), MatterConvergingCrossbowConfigScreen::new,
+                "/screens/star_shard_config.json");
         InitScreens.register(event, DEMenus.DATA_RIPPER.get(), DataRipperScreen::new, "/screens/data_ripper.json");
         InitScreens.register(event, DEMenus.DATA_DISTRIBUTION_TOWER.get(), DataDistributionTowerScreen::new, "/screens/data_distribution_tower.json");
         InitScreens.register(event, DEMenus.DATA_EXTRACTOR.get(), DataExtractorScreen::new, "/screens/data_extractor.json");

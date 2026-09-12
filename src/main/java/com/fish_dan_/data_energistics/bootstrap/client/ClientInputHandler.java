@@ -1,14 +1,19 @@
 package com.fish_dan_.data_energistics.bootstrap.client;
 
 import com.fish_dan_.data_energistics.client.hud.orbital.OrbitalControlHudClientState;
+import com.fish_dan_.data_energistics.client.input.cannon.CannonChargeInput;
 import com.fish_dan_.data_energistics.client.map.orbital.OrbitalMapSelectionClientSession;
 import com.fish_dan_.data_energistics.client.registry.DEKeyMappings;
 import com.fish_dan_.data_energistics.item.depot.DigitalStorageDepotBlockItem;
+import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowItem;
+import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumItem;
 import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotBucketModePayload;
 import com.fish_dan_.data_energistics.network.action.DigitalStorageDepotScrollPayload;
+import com.fish_dan_.data_energistics.network.action.MatterConvergingCrossbowModePayload;
 import com.fish_dan_.data_energistics.network.action.MeVacuumLaunchPayload;
 import com.fish_dan_.data_energistics.network.orbital.control.OrbitalControlOpenPayload;
+import com.fish_dan_.data_energistics.registry.DEDataComponents;
 import com.fish_dan_.data_energistics.registry.DEMobEffects;
 
 import net.minecraft.client.Minecraft;
@@ -56,6 +61,11 @@ final class ClientInputHandler {
             return;
         }
 
+        if (event.isAttack() && CannonChargeInput.cannonHand(minecraft.player) != null) {
+            event.setCanceled(true);
+            event.setSwingHand(false);
+            return;
+        }
         if (!event.isAttack() || !tryLaunchMeVacuum(minecraft)) {
             return;
         }
@@ -175,5 +185,25 @@ final class ClientInputHandler {
 
     static void toggleOrbitalHud() {
         OrbitalControlHudClientState.toggleUserEnabled();
+    }
+
+    static void handleCrossbowModeKeys(Minecraft minecraft) {
+        if (minecraft.screen != null || minecraft.player == null) return;
+        boolean rail = DEKeyMappings.TOGGLE_CROSSBOW_RAIL.consumeClick();
+        boolean arms = DEKeyMappings.TOGGLE_CROSSBOW_ARMS.consumeClick();
+        if (!rail && !arms) return;
+        ItemStack stack = minecraft.player.getMainHandItem();
+        boolean offHand = false;
+        if (!(stack.getItem() instanceof MatterConvergingCrossbowItem)) {
+            stack = minecraft.player.getOffhandItem();
+            offHand = true;
+        }
+        if (!(stack.getItem() instanceof MatterConvergingCrossbowItem)) return;
+        MatterConvergingCrossbowMode requested = arms ? MatterConvergingCrossbowMode.CROSSBOW : MatterConvergingCrossbowMode.RAIL;
+        MatterConvergingCrossbowMode current = MatterConvergingCrossbowMode.fromId(
+                stack.getOrDefault(DEDataComponents.MATTER_CONVERGING_CROSSBOW_MODE.get(), MatterConvergingCrossbowMode.GRENADE.id()));
+        MatterConvergingCrossbowMode mode = current == requested ? MatterConvergingCrossbowMode.GRENADE : requested;
+        CannonChargeInput.cancel();
+        PacketDistributor.sendToServer(new MatterConvergingCrossbowModePayload(offHand, mode));
     }
 }

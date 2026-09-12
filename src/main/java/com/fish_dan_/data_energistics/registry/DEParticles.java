@@ -19,6 +19,9 @@ public final class DEParticles {
 
     private DEParticles() {}
 
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> RAIL_STEAM = PARTICLE_TYPES.register(
+            "rail_steam", () -> new SimpleParticleType(false));
+
     public static void register(IEventBus modEventBus) {
         PARTICLE_TYPES.register(modEventBus);
     }

@@ -19,6 +19,7 @@ import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlo
 import com.fish_dan_.data_energistics.blockentity.trinity.TrinityDataCoreBlockEntity;
 import com.fish_dan_.data_energistics.common.beam.BeamEndpoint;
 import com.fish_dan_.data_energistics.item.order.OrderPackageMenuHost;
+import com.fish_dan_.data_energistics.item.powered.cannon.storage.CannonCellMenuHost;
 import com.fish_dan_.data_energistics.item.vacuum.MeVacuumMenuHost;
 import com.fish_dan_.data_energistics.menu.beam.BeamFormerMenu;
 import com.fish_dan_.data_energistics.menu.crafting.tree.CraftingPlanTreeMenu;
@@ -33,6 +34,7 @@ import com.fish_dan_.data_energistics.menu.machine.DataSolarPanelMenu;
 import com.fish_dan_.data_energistics.menu.machine.DataSolarPanelMenuHost;
 import com.fish_dan_.data_energistics.menu.machine.DataTeleportAnchorMenu;
 import com.fish_dan_.data_energistics.menu.patternprovider.AdaptivePatternProviderMenu;
+import com.fish_dan_.data_energistics.menu.powered.MatterConvergingCrossbowConfigMenu;
 import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumInterfaceMenu;
 import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumLargeInterfaceMenu;
 import com.fish_dan_.data_energistics.menu.sanctum.DataSanctumStatusMenu;
@@ -69,6 +71,11 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class DEMenus {
 
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, Data_Energistics.MODID);
+    public static final DeferredHolder<MenuType<?>, MenuType<MatterConvergingCrossbowConfigMenu>> MATTER_CONVERGING_CROSSBOW_CONFIG = MENUS.register(
+            "star_shard_config", () -> MenuTypeBuilder
+                    .create(MatterConvergingCrossbowConfigMenu::new, CannonCellMenuHost.class)
+                    .withMenuTitle(host -> host.getItemStack().getHoverName())
+                    .buildUnregistered(Data_Energistics.id("star_shard_config")));
 
     public static final DeferredHolder<MenuType<?>, MenuType<CraftingPlanTreeMenu>> CRAFTING_PLAN_TREE = MENUS.register("crafting_plan_tree", () -> IMenuTypeExtension.create(CraftingPlanTreeMenu::fromNetwork));
 

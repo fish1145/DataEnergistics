@@ -346,7 +346,7 @@ public final class DEItems {
             "radix_containment_sphere",
             () -> new RadixContainmentSphereItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<MatterConvergingCrossbowItem> MATTER_CONVERGING_CROSSBOW = ITEMS.register(
-            "matter_converging_crossbow",
+            "star_shard",
             () -> new MatterConvergingCrossbowItem(new Item.Properties()));
     public static final DeferredItem<DataRipperPartItem> DATA_RIPPER = ITEMS.register("data_ripper",
             () -> new DataRipperPartItem(new Item.Properties()));
@@ -364,8 +364,9 @@ public final class DEItems {
         ITEMS.register(modEventBus);
     }
 
-    /** Preserves the disk IDs written by 3.1.3 without restoring older, unrelated registry aliases. */
+    /** Preserves the item ID written by 3.2.2 while the current registry uses the grenade mode ID. */
     private static void registerDigitalStorageCellAliases() {
+        ITEMS.addAlias(Data_Energistics.id("dark_string_data_settlement_tool"), Data_Energistics.id("star_shard"));
         String[] tiers = { "1k", "4k", "16k", "64k", "256k", "1m", "4m", "16m", "64m", "256m" };
         for (String tier : tiers) {
             ITEMS.addAlias(

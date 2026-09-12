@@ -198,7 +198,7 @@ public final class DataEnergisticsEmiPlugin implements EmiPlugin {
                 DEItems.MATTER_CONVERGING_CROSSBOW.get(),
                 EmiPort.getEnchantmentRegistry().get(Enchantments.POWER.location()),
                 1,
-                syntheticEmiRecipeId(Data_Energistics.id("emi/anvil/matter_converging_crossbow_power"))));
+                syntheticEmiRecipeId(Data_Energistics.id("emi/anvil/star_shard_power"))));
         registry.addDeferredRecipes(consumer -> registerAe2ChargerWorkstations(registry));
     }
 

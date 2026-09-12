@@ -19,13 +19,29 @@ public final class RadixLossEffectLogic {
     private RadixLossEffectLogic() {}
 
     public static void applyOrBurst(LivingEntity target, int durationTicks, @Nullable Entity attacker, float weaponDamage) {
+        applyOrBurst(target, durationTicks, attacker, weaponDamage, false);
+    }
+
+    /** The rail override is per application; it never changes another weapon's radix-loss rules. */
+    public static void applyOrBurst(LivingEntity target, int durationTicks, @Nullable Entity attacker, float weaponDamage,
+                                    boolean railMaximumHealthDamage) {
+        applyOrBurst(target, durationTicks, attacker, weaponDamage, railMaximumHealthDamage, 1);
+    }
+
+    public static void applyOrBurst(LivingEntity target, int durationTicks, @Nullable Entity attacker, float weaponDamage,
+                                    boolean railMaximumHealthDamage, float charge) {
         MobEffectInstance existingEffect = target.getEffect(DEMobEffects.RADIX_LOSS);
         if (existingEffect == null) {
             target.addEffect(new MobEffectInstance(DEMobEffects.RADIX_LOSS, durationTicks, 0, false, true, true));
             return;
         }
 
-        dealWeaponBonusDamage(target, attacker, weaponDamage, existingEffect.getAmplifier() + 1);
+        if (railMaximumHealthDamage) {
+            target.invulnerableTime = 0;
+            target.hurt(createDamageSource(target, attacker), target.getMaxHealth() * 0.15F * (existingEffect.getAmplifier() + 1) * charge);
+        } else {
+            dealWeaponBonusDamage(target, attacker, weaponDamage, existingEffect.getAmplifier() + 1);
+        }
         if (!target.isAlive()) {
             return;
         }
@@ -33,6 +49,7 @@ public final class RadixLossEffectLogic {
         int nextAmplifier = existingEffect.getAmplifier() + 1;
         if (nextAmplifier >= MAX_AMPLIFIER) {
             target.removeEffect(DEMobEffects.RADIX_LOSS);
+            if (railMaximumHealthDamage) target.invulnerableTime = 0;
             dealBurstDamage(target, attacker);
             return;
         }

@@ -6,6 +6,7 @@ import com.fish_dan_.data_energistics.entity.explosive.TntConfigurablePrimedEnti
 import com.fish_dan_.data_energistics.entity.projectile.LightBladeChargeEntity;
 import com.fish_dan_.data_energistics.entity.projectile.MatterConvergingBoltEntity;
 import com.fish_dan_.data_energistics.entity.projectile.OrbitalAnnihilatorProjectileEntity;
+import com.fish_dan_.data_energistics.entity.projectile.RailRoundEntity;
 import com.fish_dan_.data_energistics.entity.projectile.ThrownLightSaberEntity;
 import com.fish_dan_.data_energistics.entity.resource.DispersingDataEntity;
 
@@ -57,6 +58,7 @@ public final class DEEntities {
             .clientTrackingRange(10)
             .updateInterval(10)
             .build("digital_annihilator_primed"));
+
     public static final DeferredHolder<EntityType<?>, EntityType<OrbitalAnnihilatorProjectileEntity>> ORBITAL_ANNIHILATOR_PROJECTILE = ENTITY_TYPES.register("orbital_annihilator_projectile", () -> EntityType.Builder
             .<OrbitalAnnihilatorProjectileEntity>of(OrbitalAnnihilatorProjectileEntity::new, MobCategory.MISC)
             .sized(0.25F, 0.8F)
@@ -65,6 +67,10 @@ public final class DEEntities {
             .build("orbital_annihilator_projectile"));
 
     private DEEntities() {}
+
+    public static final DeferredHolder<EntityType<?>, EntityType<RailRoundEntity>> RAIL_ROUND = ENTITY_TYPES.register("star_shard_round", () -> EntityType.Builder
+            .<RailRoundEntity>of(RailRoundEntity::new, MobCategory.MISC)
+            .sized(0.25F, 0.25F).clientTrackingRange(8).updateInterval(1).setShouldReceiveVelocityUpdates(false).build("star_shard_round"));
 
     public static void register(IEventBus modEventBus) {
         ENTITY_TYPES.register(modEventBus);

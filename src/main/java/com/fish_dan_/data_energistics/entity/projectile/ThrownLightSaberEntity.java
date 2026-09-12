@@ -1,5 +1,8 @@
 package com.fish_dan_.data_energistics.entity.projectile;
 
+import com.fish_dan_.data_energistics.entity.projectile.cannon.CannonShot;
+import com.fish_dan_.data_energistics.item.powered.MatterConvergingCrossbowMode;
+import com.fish_dan_.data_energistics.item.powered.cannon.CannonBallistics;
 import com.fish_dan_.data_energistics.registry.DEEntities;
 import com.fish_dan_.data_energistics.registry.DEItems;
 
@@ -58,6 +61,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     private static final EntityDataAccessor<Boolean> ID_FOIL = SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> ID_HOMING = SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Integer> ID_SABER_ENERGY_CARD_COUNT = SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> ID_FIRING_MODE = SynchedEntityData.defineId(ThrownLightSaberEntity.class, EntityDataSerializers.INT);
 
     private boolean dealtDamage;
     public int clientSideReturnTridentTickCount;
@@ -65,6 +69,15 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     private ItemStack weaponStack = ItemStack.EMPTY;
     private float dataDustDamageRatio = BASE_DATA_DUST_DAMAGE_RATIO;
     private boolean dataDustDamageRatioOverride;
+    private CannonShot cannonShot = CannonShot.CROSSBOW;
+    private boolean consumableCrystal;
+
+    public void setConsumableCrystal(boolean consumable) {
+        this.consumableCrystal = consumable;
+        if (consumable) this.pickup = Pickup.DISALLOWED;
+    }
+
+    private double cannonTravelDistance;
 
     public ThrownLightSaberEntity(EntityType<? extends ThrownLightSaberEntity> entityType, Level level) {
         super(entityType, level);
@@ -95,10 +108,26 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         builder.define(ID_FOIL, false);
         builder.define(ID_HOMING, false);
         builder.define(ID_SABER_ENERGY_CARD_COUNT, 0);
+        builder.define(ID_FIRING_MODE, MatterConvergingCrossbowMode.CROSSBOW.id());
+    }
+
+    public void configureCannonShot(CannonShot shot) {
+        this.cannonShot = shot;
+        this.entityData.set(ID_FIRING_MODE, shot.mode().id());
+        if (shot.mode() != MatterConvergingCrossbowMode.CROSSBOW) {
+            this.setNoGravity(shot.mode() == MatterConvergingCrossbowMode.RAIL && !this.dealtDamage);
+            this.setHoming(false);
+        }
+    }
+
+    @Override
+    protected double getDefaultGravity() {
+        return MatterConvergingCrossbowMode.fromId(this.entityData.get(ID_FIRING_MODE)) == MatterConvergingCrossbowMode.GRENADE ? CannonBallistics.GRENADE_GRAVITY : super.getDefaultGravity();
     }
 
     @Override
     public void tick() {
+        Vec3 previousPosition = this.position();
         if (this.inGroundTime > 4) {
             this.dealtDamage = true;
         }
@@ -141,6 +170,18 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         }
 
         super.tick();
+        if (this.consumableCrystal && (this.dealtDamage || this.inGround || this.tickCount > 1200)) {
+            this.discard();
+            return;
+        }
+        if (this.cannonShot.mode() != MatterConvergingCrossbowMode.CROSSBOW && !this.dealtDamage && !this.isNoPhysics()) {
+            this.cannonTravelDistance += previousPosition.distanceTo(this.position());
+            if (this.cannonTravelDistance >= 256.0D) {
+                // A spent rail saber must land or return through Loyalty, not remain suspended forever.
+                this.dealtDamage = true;
+                this.setNoGravity(false);
+            }
+        }
     }
 
     @Override
@@ -159,6 +200,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
             damage = EnchantmentHelper.modifyDamage(serverLevel, this.getWeaponItem(),
                     livingTarget != null ? livingTarget : target, damageSource, damage);
         }
+        damage *= this.cannonShot.damageScale();
 
         this.dealtDamage = true;
         this.resetTargetInvulnerability(target);
@@ -196,6 +238,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
 
         this.setDeltaMovement(this.getDeltaMovement().multiply(-0.01D, -0.1D, -0.01D));
         this.playSound(SoundEvents.TRIDENT_HIT, 1.0F, 1.0F);
+        if (this.consumableCrystal) this.discard();
     }
 
     @Override
@@ -255,7 +298,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
 
     /** Overrides the true-damage ratio for a projectile launched by the matter-converging crossbow. */
     public void setDataDustDamageRatio(float damageRatio) {
-        this.dataDustDamageRatio = Mth.clamp(damageRatio, 0.01F, 0.05F);
+        this.dataDustDamageRatio = Mth.clamp(damageRatio, 0.01F, this.consumableCrystal ? 0.10F : 0.05F);
         this.dataDustDamageRatioOverride = true;
     }
 
@@ -293,6 +336,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
 
     @Override
     protected boolean tryPickup(Player player) {
+        if (this.consumableCrystal) return false;
         return super.tryPickup(player) || this.isNoPhysics() && this.ownedBy(player) && player.getInventory().add(this.getPickupItem());
     }
 
@@ -304,6 +348,9 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        this.cannonShot.save(tag);
+        tag.putBoolean("ConsumableCrystal", this.consumableCrystal);
+        tag.putDouble("CannonTravelDistance", this.cannonTravelDistance);
         tag.putBoolean(TAG_DEALT_DAMAGE, this.dealtDamage);
         tag.putBoolean("Homing", this.isHoming());
         tag.putInt("SaberEnergyCardCount", this.getSaberEnergyCardCount());
@@ -317,7 +364,9 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        this.setConsumableCrystal(tag.getBoolean("ConsumableCrystal"));
         this.dealtDamage = tag.getBoolean(TAG_DEALT_DAMAGE);
+        this.cannonTravelDistance = Math.max(0.0D, tag.getDouble("CannonTravelDistance"));
         ItemStack origin = this.getPickupItemStackOrigin();
         this.setSaberStack(origin == null ? ItemStack.EMPTY : origin);
         this.entityData.set(ID_LOYALTY, this.getLoyaltyFromItem(this.saberStack));
@@ -335,6 +384,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
         if (!this.weaponStack.isEmpty()) {
             this.entityData.set(ID_SABER_ENERGY_CARD_COUNT, this.getSaberEnergyCardCount(this.weaponStack));
         }
+        this.configureCannonShot(CannonShot.load(tag));
         this.refreshDimensions();
     }
 
@@ -448,11 +498,11 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
     }
 
     private float getSpeedDamageMultiplier() {
-        return Math.max(0.0F, (float) this.getDeltaMovement().length());
+        return this.cannonShot.damageSpeed(Math.max(0.0F, (float) this.getDeltaMovement().length()));
     }
 
     private void applyDataDustDamage(LivingEntity target, @Nullable Entity owner) {
-        float damage = target.getMaxHealth() * this.getDataDustDamageRatio();
+        float damage = target.getMaxHealth() * this.getDataDustDamageRatio() * this.cannonShot.damageScale();
         if (damage <= 0.0F) {
             return;
         }
@@ -480,7 +530,7 @@ public class ThrownLightSaberEntity extends AbstractArrow implements ItemSupplie
 
     private float getDataDustDamageRatio() {
         if (this.dataDustDamageRatioOverride) {
-            return Mth.clamp(this.dataDustDamageRatio, 0.01F, 0.05F);
+            return Mth.clamp(this.dataDustDamageRatio, 0.01F, this.consumableCrystal ? 0.10F : 0.05F);
         }
         return BASE_DATA_DUST_DAMAGE_RATIO + this.getSaberEnergyCardCount() * DATA_DUST_DAMAGE_RATIO_PER_CARD;
     }

@@ -18,6 +18,9 @@ dependencies {
     compileOnly(forge.mystical.agriculture)
     compileOnly(forge.ato)
 
+    // Optional cannon ammunition integration
+    compileOnly(forge.draconic.evolution)
+
     // AE2
     accessCompileOnly(forge.ae2)
     testCompileOnly(forge.ae2)

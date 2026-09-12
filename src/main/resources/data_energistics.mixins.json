@@ -84,6 +84,10 @@
 		"extendedaeplus.EaepPlayerListMixin"
 	],
 	"client": [
+		"client.render.crossbow.CrossbowHumanoidHoldMixin",
+		"client.render.crossbow.ChromaticGlowMixin",
+		"client.render.crossbow.CrossbowFirstPersonAnimationMixin",
+		"client.render.crossbow.CrossbowThirdPersonAnimationMixin",
 		"client.render.BeamFormerPartRenderMixin",
 		"client.render.BeamCableBusRenderBoundsMixin",
 		"advancedae.AdvancedAePatternProviderScreenMixin",

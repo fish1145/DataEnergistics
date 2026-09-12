@@ -1,0 +1,8 @@
+{
+	"values": [
+		"minecraft:tnt",
+		{ "id": "ae2:tiny_tnt", "required": false },
+		{ "id": "#c:tnt", "required": false },
+		{ "id": "#c:tnts", "required": false }
+	]
+}

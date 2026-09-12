@@ -326,7 +326,7 @@ public final class DataEnergisticsJeiPlugin implements IModPlugin {
                         baseCrossbow,
                         List.of(powerBook),
                         List.of(enchantedCrossbow),
-                        Data_Energistics.id("anvil/matter_converging_crossbow_power"))));
+                        Data_Energistics.id("anvil/star_shard_power"))));
     }
 
     @Override
