@@ -237,6 +237,33 @@ public final class InterferenceArrayScalingGameTest {
                 .thenSucceed();
     }
 
+    @TestHolder("interference_array_accepts_compact_radial_layout")
+    @EmptyTemplate("50x32x50")
+    @GameTest(template = "empty_50x32x50", timeoutTicks = 40)
+    public static void acceptsCompactRadialLayout(GameTestHelper helper) {
+        BlockPos core = new BlockPos(10, 2, 10);
+        buildCompactCore(helper, core);
+        for (BlockPos mirror : List.of(
+                new BlockPos(10, 3, 15),
+                new BlockPos(10, 3, 5),
+                new BlockPos(15, 3, 10),
+                new BlockPos(5, 3, 10))) {
+            buildCompactArm(helper, core, mirror);
+            addMirrors(helper, List.of(mirror));
+        }
+        DataEnergisticsConfiguration.AstronomySchema settings = DataEnergisticsConfiguration.INSTANCE.astronomy;
+        helper.assertTrue(
+                InterferenceArrayPattern.hasValidCoreBase(helper.getLevel(), helper.absolutePos(core)),
+                "The compact 3x3x2 core pedestal must be valid");
+        helper.assertValueEqual(
+                InterferenceArrayPattern.findConnectedMirrors(
+                                helper.getLevel(), helper.absolutePos(core), settings)
+                        .size(),
+                4,
+                "Four radial mirror units must be discovered through flat waveguide arms");
+        helper.succeed();
+    }
+
     private static void buildCoreBase(GameTestHelper helper, BlockPos core) {
         for (int y = 0; y < 3; y++) {
             for (int x = -2; x <= 2; x++) {
@@ -254,6 +281,47 @@ public final class InterferenceArrayScalingGameTest {
             }
         }
         placeBlock(helper, core, DEBlocks.INTERFERENCE_ARRAY_CORE.get());
+    }
+
+    private static void buildCompactCore(GameTestHelper helper, BlockPos core) {
+        for (int y = 0; y < 2; y++) {
+            for (int x = -1; x <= 1; x++) {
+                for (int z = -1; z <= 1; z++) {
+                    if (x == 0 && y == 0 && z == 0) {
+                        continue;
+                    }
+                    boolean port = y == 1 &&
+                            ((Math.abs(x) == 1 && z == 0) || (x == 0 && Math.abs(z) == 1));
+                    placeBlock(
+                            helper,
+                            core.offset(x, y, z),
+                            port ? DEBlocks.CELESTIAL_WAVEGUIDE.get() : DEBlocks.DATA_FRAMEWORK.get());
+                }
+            }
+        }
+        placeBlock(helper, core, DEBlocks.INTERFERENCE_ARRAY_CORE.get());
+    }
+
+    private static void buildCompactArm(GameTestHelper helper, BlockPos core, BlockPos mirror) {
+        int deltaX = mirror.getX() - core.getX();
+        int deltaZ = mirror.getZ() - core.getZ();
+        if (deltaX != 0) {
+            int direction = Integer.signum(deltaX);
+            for (int x = 2; x <= Math.abs(deltaX) - 2; x++) {
+                placeBlock(
+                        helper,
+                        new BlockPos(core.getX() + direction * x, core.getY() + 1, core.getZ()),
+                        DEBlocks.CELESTIAL_WAVEGUIDE.get());
+            }
+        } else {
+            int direction = Integer.signum(deltaZ);
+            for (int z = 2; z <= Math.abs(deltaZ) - 2; z++) {
+                placeBlock(
+                        helper,
+                        new BlockPos(core.getX(), core.getY() + 1, core.getZ() + direction * z),
+                        DEBlocks.CELESTIAL_WAVEGUIDE.get());
+            }
+        }
     }
 
     private static void buildWaveguideArms(GameTestHelper helper) {
