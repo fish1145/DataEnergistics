@@ -55,21 +55,21 @@ public class MeteoriteStructurePiece extends StructurePiece {
     }
 
     public boolean isFinalized() {
-        return this.settings.getCraterType() != null;
+        return this.settings.craterType() != null;
     }
 
     protected void addAdditionalSaveData(StructurePieceSerializationContext context, CompoundTag tag) {
-        tag.putFloat("r", this.settings.getMeteoriteRadius());
-        tag.putLong("c", this.settings.getPos().asLong());
-        tag.putByte("t", (byte) this.settings.getCraterType().ordinal());
-        tag.putByte("f", (byte) this.settings.getFallout().ordinal());
-        tag.putBoolean("p", this.settings.isPureCrater());
-        tag.putBoolean("l", this.settings.isCraterLake());
+        tag.putFloat("r", this.settings.meteoriteRadius());
+        tag.putLong("c", this.settings.pos().asLong());
+        tag.putByte("t", (byte) this.settings.craterType().ordinal());
+        tag.putByte("f", (byte) this.settings.fallout().ordinal());
+        tag.putBoolean("p", this.settings.pureCrater());
+        tag.putBoolean("l", this.settings.craterLake());
     }
 
     public void postProcess(WorldGenLevel level, StructureManager structureManager, ChunkGenerator chunkGenerator, RandomSource rand, BoundingBox bounds, ChunkPos chunkPos, BlockPos blockPos) {
         MeteoritePlacer.place(level, this.settings, bounds, rand);
-        BlockPos center = this.settings.getPos();
+        BlockPos center = this.settings.pos();
         if (bounds.isInside(center)) {
             ServerLevel serverLevel = level.getLevel();
             MinecraftServer server = serverLevel.getServer();

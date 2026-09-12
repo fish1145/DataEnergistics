@@ -5,50 +5,11 @@ import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutMode;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 
-public final class PlacedMeteoriteSettings {
-
-    private final BlockPos pos;
-    private final float meteoriteRadius;
-    private final CraterType craterType;
-    private final FalloutMode fallout;
-    private final boolean pureCrater;
-    private final boolean craterLake;
-
-    public PlacedMeteoriteSettings(BlockPos pos, float meteoriteRadius, CraterType craterType, FalloutMode fallout, boolean pureCrater, boolean craterLake) {
-        this.pos = pos;
-        this.craterType = craterType;
-        this.meteoriteRadius = meteoriteRadius;
-        this.fallout = fallout;
-        this.pureCrater = pureCrater;
-        this.craterLake = craterLake;
-    }
-
-    public BlockPos getPos() {
-        return this.pos;
-    }
-
-    public CraterType getCraterType() {
-        return this.craterType;
-    }
-
-    public float getMeteoriteRadius() {
-        return this.meteoriteRadius;
-    }
-
-    public FalloutMode getFallout() {
-        return this.fallout;
-    }
+public record PlacedMeteoriteSettings(BlockPos pos, float meteoriteRadius, CraterType craterType, FalloutMode fallout,
+                                      boolean pureCrater, boolean craterLake) {
 
     public boolean shouldPlaceCrater() {
         return this.craterType != CraterType.NONE;
-    }
-
-    public boolean isPureCrater() {
-        return this.pureCrater;
-    }
-
-    public boolean isCraterLake() {
-        return this.craterLake;
     }
 
     public CompoundTag write(CompoundTag tag) {
