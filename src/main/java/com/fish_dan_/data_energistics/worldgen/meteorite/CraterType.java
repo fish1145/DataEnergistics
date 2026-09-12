@@ -3,6 +3,9 @@ package com.fish_dan_.data_energistics.worldgen.meteorite;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
+import lombok.Getter;
+
+@Getter
 public enum CraterType {
 
     NONE((Block) null),
@@ -17,9 +20,5 @@ public enum CraterType {
 
     CraterType(Block filler) {
         this.filler = filler;
-    }
-
-    public Block getFiller() {
-        return this.filler;
     }
 }

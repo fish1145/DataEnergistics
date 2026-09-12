@@ -11,9 +11,6 @@ import com.fish_dan_.data_energistics.worldgen.meteorite.fallout.FalloutSnow;
 
 import appeng.core.AEConfig;
 import appeng.core.definitions.AEBlocks;
-import appeng.decorative.AEDecorativeBlock;
-import appeng.decorative.solid.BuddingCertusQuartzBlock;
-import appeng.decorative.solid.CertusQuartzClusterBlock;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -75,26 +72,26 @@ public final class MeteoritePlacer {
         this.boundingBox = boundingBox;
         this.level = level;
         this.random = random;
-        this.pos = settings.getPos();
-        this.x = settings.getPos().getX();
-        this.y = settings.getPos().getY();
-        this.z = settings.getPos().getZ();
-        this.meteoriteSize = settings.getMeteoriteRadius();
+        this.pos = settings.pos();
+        this.x = settings.pos().getX();
+        this.y = settings.pos().getY();
+        this.z = settings.pos().getZ();
+        this.meteoriteSize = settings.meteoriteRadius();
         this.placeCrater = settings.shouldPlaceCrater();
-        this.craterType = settings.getCraterType();
-        this.pureCrater = settings.isPureCrater();
-        this.craterLake = settings.isCraterLake();
+        this.craterType = settings.craterType();
+        this.pureCrater = settings.pureCrater();
+        this.craterLake = settings.craterLake();
         this.squaredMeteoriteSize = this.meteoriteSize * this.meteoriteSize;
         double realCrater = this.meteoriteSize * 2.0F + 5.0F;
         this.crater = realCrater * realCrater;
-        this.skyStone = ((AEDecorativeBlock) AEBlocks.SKY_STONE_BLOCK.block()).defaultBlockState();
+        this.skyStone = AEBlocks.SKY_STONE_BLOCK.block().defaultBlockState();
         this.crackedMeteorite = DEBlocks.ENDER_COHESION_METEORITE_0.get().defaultBlockState();
         this.exposedMeteorite = DEBlocks.ENDER_COHESION_METEORITE_1.get().defaultBlockState();
         this.shatteredMeteorite = DEBlocks.ENDER_COHESION_METEORITE_2.get().defaultBlockState();
         this.certusMotherRocks = this.getCertusMotherRocks();
         this.dataMotherRocks = this.getDataMotherRocks();
         this.quartzGrowthStages = this.getQuartzGrowthStages();
-        this.type = this.getFallout(level, boundingBox.getCenter(), settings.getFallout());
+        this.type = this.getFallout(level, boundingBox.getCenter(), settings.fallout());
     }
 
     private List<BlockState> getCertusMotherRocks() {
@@ -103,7 +100,7 @@ public final class MeteoritePlacer {
                 AEBlocks.CHIPPED_BUDDING_QUARTZ,
                 AEBlocks.FLAWED_BUDDING_QUARTZ,
                 AEBlocks.FLAWLESS_BUDDING_QUARTZ)
-                .map(def -> ((BuddingCertusQuartzBlock) def.block()).defaultBlockState())
+                .map(def -> def.block().defaultBlockState())
                 .toList();
     }
 
@@ -120,7 +117,7 @@ public final class MeteoritePlacer {
 
     private List<BlockState> getQuartzGrowthStages() {
         return Stream.of(AEBlocks.SMALL_QUARTZ_BUD, AEBlocks.MEDIUM_QUARTZ_BUD, AEBlocks.LARGE_QUARTZ_BUD, AEBlocks.QUARTZ_CLUSTER)
-                .map(def -> ((CertusQuartzClusterBlock) def.block()).defaultBlockState()
+                .map(def -> def.block().defaultBlockState()
                         .setValue(AmethystClusterBlock.FACING, Direction.UP))
                 .toList();
     }
