@@ -139,29 +139,34 @@ public final class DEBlocks {
             "astronomical_observatory",
             AstronomicalObservatoryBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
-                    .requiresCorrectToolForDrops());
+                    .requiresCorrectToolForDrops()
+                    .lightLevel(state -> state.getValue(AstronomicalObservatoryBlock.LIT) ? 8 : 0));
 
     public static final DeferredBlock<Block> INTERFERENCE_ARRAY_CORE = BLOCKS.registerBlock(
             "interference_array_core",
             InterferenceArrayCoreBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
-                    .requiresCorrectToolForDrops());
+                    .requiresCorrectToolForDrops()
+                    .lightLevel(state -> state.getValue(InterferenceArrayCoreBlock.LIT) ? 8 : 0));
 
     public static final DeferredBlock<Block> ASTRONOMICAL_MIRROR = BLOCKS.registerBlock(
             "astronomical_mirror",
             AstronomicalMirrorBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_BLOCK)
-                    .requiresCorrectToolForDrops());
+                    .requiresCorrectToolForDrops()
+                    .noOcclusion());
 
     public static final DeferredBlock<Block> ASTRONOMICAL_MIRROR_PANEL = BLOCKS.registerSimpleBlock(
             "astronomical_mirror_panel",
             BlockBehaviour.Properties.ofFullCopy(Blocks.AMETHYST_BLOCK)
-                    .requiresCorrectToolForDrops());
+                    .requiresCorrectToolForDrops()
+                    .noOcclusion());
 
     public static final DeferredBlock<Block> CELESTIAL_WAVEGUIDE = BLOCKS.registerSimpleBlock(
             "celestial_waveguide",
             BlockBehaviour.Properties.ofFullCopy(Blocks.QUARTZ_BLOCK)
-                    .requiresCorrectToolForDrops());
+                    .requiresCorrectToolForDrops()
+                    .noOcclusion());
 
     public static final DeferredBlock<Block> DATA_SANCTUM = BLOCKS.registerBlock(
             "data_sanctum",
