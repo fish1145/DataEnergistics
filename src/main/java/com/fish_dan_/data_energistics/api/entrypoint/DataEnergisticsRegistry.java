@@ -8,6 +8,7 @@ import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeId
 import com.fish_dan_.data_energistics.api.registry.reusable.ReusableInputRegistry;
 import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchRegistry;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistry;
+import com.fish_dan_.data_energistics.api.registry.tower.energy.TowerEnergyIntegrationRegistry;
 import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegistry;
 
 /**
@@ -19,6 +20,11 @@ import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegist
  * </p>
  */
 public interface DataEnergisticsRegistry {
+
+    /** Returns the transaction-local energy adapter registry; legacy registrars must opt into this facet. */
+    default TowerEnergyIntegrationRegistry towerEnergyIntegrations() {
+        throw new UnsupportedOperationException("This legacy registrar does not support tower energy integrations");
+    }
 
     /**
      * @return universal-terminal declaration facet

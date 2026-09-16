@@ -45,6 +45,8 @@ bhc = "1.21.1-1.4.1"
 
 ## cursemaven ##
 ato = "7825464"
+titanium = "8760562"
+if = "8370717"
 spark = "6225208"
 geckolib = "8350073"
 glodium = "5821676"
@@ -118,6 +120,8 @@ bhc                 = { module = "maven.modrinth:baubley-heart-canisters", versi
 
 geckolib            = { module = "curse.maven:geckolib-388172", version.ref = "geckolib" }
 ato                 = { module = "curse.maven:ato-405593", version.ref = "ato" }
+titanium            = { module = "curse.maven:titanium-287342", version.ref = "titanium" }
+if                  = { module = "curse.maven:industrial-foregoing-266515", version.ref = "if" }
 glodium             = { module = "curse.maven:glodium-957920", version.ref = "glodium" }
 ae2ji               = { module = "curse.maven:ae2-jei-integration-1074338", version.ref = "ae2ji" }
 ae2ct               = { module = "curse.maven:ae2-crafting-tree-1086241", version.ref = "ae2ct" }

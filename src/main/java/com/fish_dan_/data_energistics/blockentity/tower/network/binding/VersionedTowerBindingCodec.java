@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.binding;
 
+import com.fish_dan_.data_energistics.api.registry.connector.EnergyTransferDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
 
 import net.minecraft.core.BlockPos;
@@ -24,7 +25,7 @@ import java.util.Set;
 public final class VersionedTowerBindingCodec {
 
     /** Current persistent binding schema. */
-    public static final int CURRENT_VERSION = 2;
+    public static final int CURRENT_VERSION = 3;
 
     /** Version tag identifying the supported binding representation. */
     public static final String VERSION_TAG = "tower_bindings_version";
@@ -40,7 +41,7 @@ public final class VersionedTowerBindingCodec {
      */
     public List<TowerBinding> read(CompoundTag root) {
         int version = root.getInt(VERSION_TAG);
-        if (version != CURRENT_VERSION) {
+        if (version != 2 && version != CURRENT_VERSION) {
             throw new IllegalArgumentException("Unsupported tower binding version: " + version);
         }
         return readVersioned(root);
@@ -65,6 +66,7 @@ public final class VersionedTowerBindingCodec {
             bindingTag.putString("source", binding.source().name());
             bindingTag.putLong("fifo", binding.fifoSequence());
             bindingTag.putBoolean("enabled", binding.enabled());
+            bindingTag.putString("energy_direction", binding.energyDirection().name());
 
             ObjectArrayList<TowerDeviceKey> orderedDeviceKeys = new ObjectArrayList<>(binding.disabledDeviceKeys());
             orderedDeviceKeys.sort(Comparator.naturalOrder());
@@ -112,11 +114,24 @@ public final class VersionedTowerBindingCodec {
             }
             boolean enabled = !bindingTag.contains("enabled") || bindingTag.getBoolean("enabled");
             Set<TowerDeviceKey> disabledDeviceKeys = readDeviceKeys(bindingTag);
+            EnergyTransferDirection direction = readEnergyDirection(bindingTag);
             bindings.add(new TowerBinding(
-                    dimensionId, anchor, kind, source, fifoSequence, enabled, disabledDeviceKeys));
+                    dimensionId, anchor, kind, source, fifoSequence, enabled, disabledDeviceKeys, direction));
         }
         bindings.sort(Comparator.comparingLong(TowerBinding::fifoSequence));
         return List.copyOf(bindings);
+    }
+
+    private static EnergyTransferDirection readEnergyDirection(CompoundTag bindingTag) {
+        String value = bindingTag.getString("energy_direction");
+        if (value.isEmpty()) {
+            return EnergyTransferDirection.INPUT;
+        }
+        try {
+            return EnergyTransferDirection.valueOf(value);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Tower binding has an invalid energy direction", exception);
+        }
     }
 
     private static TowerBindingKind readBindingKind(CompoundTag bindingTag) {

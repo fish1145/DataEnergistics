@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.ae2.patternprovider.adaptive.AdaptivePatte
 import com.fish_dan_.data_energistics.ae2.sanctum.DataSanctumLargeInterfaceHost;
 import com.fish_dan_.data_energistics.api.registry.connector.ConnectorEndpoint;
 import com.fish_dan_.data_energistics.api.registry.connector.ConnectorMode;
+import com.fish_dan_.data_energistics.api.registry.connector.EnergyTransferDirection;
 import com.fish_dan_.data_energistics.block.tower.DataDistributionTowerBlock;
 import com.fish_dan_.data_energistics.blockentity.patternprovider.AdaptivePatternProviderBlockEntity;
 import com.fish_dan_.data_energistics.blockentity.sanctum.DataSanctumInterfaceBlockEntity;
@@ -64,6 +65,16 @@ public class RemoteLinkConnectorItem extends Item {
             player.displayClientMessage(Component.translatable(KEY_PREFIX + ".unbound_current"), true);
             return InteractionResultHolder.success(stack);
         }
+        if (data.targetType() == ConnectorHostType.TOWER && !player.isShiftKeyDown()) {
+            DataDistributionTowerBlockEntity tower = resolveSelectedTower(level, data);
+            if (tower == null || !tower.connectionMode().allowsFeTargets()) {
+                return InteractionResultHolder.pass(stack);
+            }
+            EnergyTransferDirection next = data.energyDirection().opposite();
+            stack.set(DEDataComponents.DATA_DISTRIBUTION_CONNECTOR.get(), data.withEnergyDirection(next));
+            player.displayClientMessage(Component.translatable(KEY_PREFIX + ".energy_direction." + next.name().toLowerCase(Locale.ROOT)), true);
+            return InteractionResultHolder.success(stack);
+        }
         ConnectorEndpoint endpoint = resolveEndpoint(level, data);
         if (endpoint == null) {
             return InteractionResultHolder.pass(stack);
@@ -113,6 +124,14 @@ public class RemoteLinkConnectorItem extends Item {
 
         if (player.isShiftKeyDown() && level.getBlockEntity(clickedPos) instanceof AdaptivePatternProviderBlockEntity) {
             return bindAdaptiveProvider(stack, player, level, clickedPos);
+        }
+        RemoteLinkConnectorData selection = getConnectorData(stack);
+        if (player.isShiftKeyDown() && selection.targetType() == ConnectorHostType.TOWER && selection.hasSelection() && !clickedState.is(DEBlocks.DATA_DISTRIBUTION_TOWER.get())) {
+            DataDistributionTowerBlockEntity tower = resolveSelectedTower(level, selection);
+            if (tower != null && tower.removeTargetFromConnector(clickedPos)) {
+                player.displayClientMessage(Component.translatable(KEY_PREFIX + ".unbound_target"), true);
+                return InteractionResult.SUCCESS;
+            }
         }
         if (clickedState.is(DEBlocks.DATA_DISTRIBUTION_TOWER.get()) && player.isShiftKeyDown()) {
             return bindTower(stack, player, level, clickedPos, clickedState);
@@ -264,7 +283,8 @@ public class RemoteLinkConnectorItem extends Item {
             return InteractionResult.FAIL;
         }
 
-        DataDistributionTowerBlockEntity.ConnectorBindResult result = tower.bindTargetFromConnector(clickedPos);
+        DataDistributionTowerBlockEntity.ConnectorBindResult result = tower.bindTargetFromConnector(
+                clickedPos, data.energyDirection());
         if (!result.success()) {
             if (showFailureMessages) {
                 player.displayClientMessage(Component.translatable(switch (result.failure()) {
@@ -364,6 +384,14 @@ public class RemoteLinkConnectorItem extends Item {
         return fluids != null;
     }
 
+    @Nullable
+    private static DataDistributionTowerBlockEntity resolveSelectedTower(Level level, RemoteLinkConnectorData data) {
+        if (!level.dimension().location().toString().equals(data.dimensionId()) || !level.isLoaded(data.getTowerPos())) {
+            return null;
+        }
+        return level.getBlockEntity(data.getTowerPos()) instanceof DataDistributionTowerBlockEntity tower ? tower : null;
+    }
+
     private InteractionResult connectInterface(ItemStack stack, Player player, Level level, BlockPos target,
                                                Direction side, boolean feedback) {
         var data = getConnectorData(stack);
@@ -389,6 +417,9 @@ public class RemoteLinkConnectorItem extends Item {
     }
 
     public static @Nullable ConnectorEndpoint resolveEndpoint(Level level, RemoteLinkConnectorData data) {
+        if (data.targetType() == ConnectorHostType.TOWER) {
+            return resolveSelectedTower(level, data) == null ? null : new TowerConnectorEndpoint(resolveSelectedTower(level, data), data);
+        }
         if (!data.hasSelection() || data.providerSide() != -1 || !level.dimension().location().toString().equals(data.providerDimensionId()) ||
                 !level.getChunkSource().hasChunk(SectionPos.blockToSectionCoord(data.getProviderPos().getX()), SectionPos.blockToSectionCoord(data.getProviderPos().getZ()))) {
             return null;

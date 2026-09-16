@@ -1,12 +1,11 @@
 package com.fish_dan_.data_energistics.blockentity.tower.energy;
 
 import com.fish_dan_.data_energistics.Data_Energistics;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.access.UnlimitedEnergyAccess.EnergySnapshot;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.access.UnlimitedEnergyAccessException;
 import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointContext;
 import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointIntegration;
 import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointIntegrationRegistry;
-import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess.EnergySnapshot;
-import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccessException;
 import com.fish_dan_.data_energistics.util.ThrowableIsolation;
 
 import appeng.blockentity.grid.AENetworkedBlockEntity;
@@ -62,7 +61,7 @@ public final class TowerEnergyTransferEngine {
         this.context = context;
         this.endpointResolver = endpointResolver;
         this.integrations = integrations;
-        this.appFluxEnergySupportLoaded = ModFlags.isAppFluxEnergySupportLoaded();
+        this.appFluxEnergySupportLoaded = this.integrations.has("appflux-network");
         this.gridEnergyAccess = new AppFluxTowerGridEnergyAccess();
         this.extractRoundRobinCursor.defaultReturnValue(0);
         this.receiveRoundRobinCursor.defaultReturnValue(0);

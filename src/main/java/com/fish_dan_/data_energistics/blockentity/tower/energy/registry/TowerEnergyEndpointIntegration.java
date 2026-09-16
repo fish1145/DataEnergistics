@@ -1,7 +1,7 @@
 package com.fish_dan_.data_energistics.blockentity.tower.energy.registry;
 
 import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDirection;
-import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess.EnergySnapshot;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.access.UnlimitedEnergyAccess.EnergySnapshot;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

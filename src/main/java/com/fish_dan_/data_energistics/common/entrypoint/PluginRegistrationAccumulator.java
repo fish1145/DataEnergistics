@@ -21,7 +21,9 @@ import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchRe
 import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchTermRegistration;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistry;
+import com.fish_dan_.data_energistics.api.registry.tower.energy.TowerEnergyIntegrationRegistry;
 import com.fish_dan_.data_energistics.api.registry.virtual.VirtualCraftingRegistry;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointIntegration;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -58,6 +60,7 @@ final class PluginRegistrationAccumulator {
     private final Object2ObjectMap<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters = new Object2ObjectLinkedOpenHashMap<>();
     private final Object2ObjectMap<ResourceLocation, ReusableInputRuleAdapter> reusableInputAdapters = new Object2ObjectLinkedOpenHashMap<>();
     private volatile boolean frozen;
+    private final Object2ObjectMap<String, TowerEnergyEndpointIntegration> towerEnergyIntegrations = new Object2ObjectLinkedOpenHashMap<>();
 
     /**
      * Creates an isolated registration transaction for exactly one discovered plugin.
@@ -166,6 +169,12 @@ final class PluginRegistrationAccumulator {
             }
         }
 
+        for (String integrationId : staging.towerEnergyIntegrations.keySet()) {
+            if (this.towerEnergyIntegrations.containsKey(integrationId)) {
+                throw new IllegalStateException("Duplicate tower energy integration ID '" + integrationId + "' from " + staging.description());
+            }
+        }
+
         this.universalTerminals.putAll(staging.universalTerminals);
         this.patternProviders.putAll(staging.patternProviders);
         staging.patternProviders.values().forEach(registration -> this.patternProviderIdentities.put(
@@ -185,6 +194,7 @@ final class PluginRegistrationAccumulator {
         this.virtualCraftingOutputAdapters.addAll(staging.virtualCraftingOutputAdapters);
         this.dynamicCraftingOutputAdapters.putAll(staging.dynamicCraftingOutputAdapters);
         this.reusableInputAdapters.putAll(staging.reusableInputAdapters);
+        this.towerEnergyIntegrations.putAll(staging.towerEnergyIntegrations);
         staging.markCommitted();
     }
 
@@ -204,7 +214,8 @@ final class PluginRegistrationAccumulator {
                 this.trinityPatternSearchTerms,
                 this.virtualCraftingOutputAdapters,
                 this.dynamicCraftingOutputAdapters,
-                this.reusableInputAdapters);
+                this.reusableInputAdapters,
+                this.towerEnergyIntegrations.values());
         this.frozen = true;
         return snapshot;
     }
@@ -245,6 +256,15 @@ final class PluginRegistrationAccumulator {
         private final TrinityPatternSearchRegistry trinityPatternSearchRegistry = new StagedTrinityPatternSearchRegistry();
         private final VirtualCraftingRegistry virtualCraftingRegistry = new StagedVirtualCraftingRegistry();
         private final DynamicCraftingOutputRegistry dynamicCraftingOutputRegistry = new StagedDynamicCraftingOutputRegistry();
+        private final Object2ObjectMap<String, TowerEnergyEndpointIntegration> towerEnergyIntegrations = new Object2ObjectLinkedOpenHashMap<>();
+        private final TowerEnergyIntegrationRegistry towerEnergyIntegrationRegistry = integration -> {
+            requireOpen();
+            var staged = requireStagedValue(integration, "Tower energy integration");
+            String id = requireStagedValue(staged.id(), "Tower energy integration ID");
+            if (this.towerEnergyIntegrations.putIfAbsent(id, staged) != null) {
+                throw new IllegalStateException("Duplicate tower energy integration ID '" + id + "' in " + description());
+            }
+        };
         private State state = State.OPEN;
 
         /**
@@ -307,6 +327,11 @@ final class PluginRegistrationAccumulator {
             };
         }
 
+        @Override
+        public TowerEnergyIntegrationRegistry towerEnergyIntegrations() {
+            return this.towerEnergyIntegrationRegistry;
+        }
+
         /**
          * Closes and clears a failed transaction without touching already committed plugins.
          */
@@ -326,6 +351,7 @@ final class PluginRegistrationAccumulator {
             this.virtualCraftingOutputAdapters.clear();
             this.dynamicCraftingOutputAdapters.clear();
             this.reusableInputAdapters.clear();
+            this.towerEnergyIntegrations.clear();
         }
 
         /**

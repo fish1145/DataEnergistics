@@ -25,10 +25,6 @@ public final class ModFlags {
         return isAe2WtLibLoaded();
     }
 
-    public static boolean isCreateLoaded() {
-        return isLoaded("create");
-    }
-
     public static boolean isCuriosLoaded() {
         return isLoaded("curios");
     }
@@ -41,18 +37,6 @@ public final class ModFlags {
         return isLoaded("ftbchunks");
     }
 
-    public static boolean isAppliedCreateLoaded() {
-        return isLoaded("appliedcreate");
-    }
-
-    public static boolean isAppliedCreateMechanicalProviderSupportLoaded() {
-        return isCreateLoaded() && isAppliedCreateLoaded();
-    }
-
-    public static boolean isMekanismLoaded() {
-        return isLoaded("mekanism");
-    }
-
     public static boolean isAppFluxLoaded() {
         return isLoaded("appflux");
     }
@@ -61,36 +45,12 @@ public final class ModFlags {
         return isAppFluxLoaded();
     }
 
-    public static boolean isOritechLoaded() {
-        return isLoaded("oritech");
-    }
-
-    public static boolean isOritechEnergySupportLoaded() {
-        return isOritechLoaded();
-    }
-
-    public static boolean isModernIndustrializationLoaded() {
-        return isLoaded("modern_industrialization");
-    }
-
-    public static boolean isModernIndustrializationEnergySupportLoaded() {
-        return isModernIndustrializationLoaded();
-    }
-
-    public static boolean isBrandonsCoreLoaded() {
-        return isLoaded("brandonscore");
-    }
-
     public static boolean isDraconicEvolutionLoaded() {
         return isLoaded("draconicevolution");
     }
 
     public static boolean isNeoEcoAeLoaded() {
         return isLoaded("neoecoae");
-    }
-
-    public static boolean isNeoEcoAeTowerSupportLoaded() {
-        return isNeoEcoAeLoaded();
     }
 
     private static boolean isLoaded(String modId) {

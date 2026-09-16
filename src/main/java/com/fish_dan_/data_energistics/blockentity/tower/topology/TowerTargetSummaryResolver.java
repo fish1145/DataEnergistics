@@ -4,8 +4,8 @@ import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlo
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.BoundTargetSummary;
 import com.fish_dan_.data_energistics.blockentity.tower.DataDistributionTowerBlockEntity.TargetKind;
 import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.tower.crafting.AeCraftingDisplayBridge;
-import com.fish_dan_.data_energistics.integration.tower.energy.neoecoae.NeoEcoAeTowerBridge;
+import com.fish_dan_.data_energistics.integration.ae.crafting.AeCraftingDisplayBridge;
+import com.fish_dan_.data_energistics.integration.ae.neoecoae.NeoEcoAeTowerBridge;
 
 import appeng.api.AECapabilities;
 import appeng.api.parts.IPart;
@@ -163,7 +163,7 @@ public final class TowerTargetSummaryResolver {
      * @return true when the target is noise or a non-preferred subsystem component
      */
     public boolean shouldHideFromBoundTargetDisplay(@Nullable BlockEntity blockEntity) {
-        if (ModFlags.isNeoEcoAeTowerSupportLoaded() && this.neoEcoAeBridge.isSubsystemComponent(blockEntity)) {
+        if (ModFlags.isNeoEcoAeLoaded() && this.neoEcoAeBridge.isSubsystemComponent(blockEntity)) {
             return !this.neoEcoAeBridge.isPreferredSubsystemHost(blockEntity);
         }
         return isAeCraftingNoiseTarget(blockEntity);

@@ -5,6 +5,7 @@ import com.fish_dan_.data_energistics.api.registry.connector.ConnectorEndpoint;
 import com.fish_dan_.data_energistics.api.registry.connector.ConnectorLink;
 import com.fish_dan_.data_energistics.api.registry.connector.ConnectorMode;
 import com.fish_dan_.data_energistics.client.render.overlay.connector.ConnectorLinkGeometry;
+import com.fish_dan_.data_energistics.item.connector.ConnectorHostType;
 import com.fish_dan_.data_energistics.item.connector.RemoteLinkConnectorData;
 import com.fish_dan_.data_energistics.item.connector.RemoteLinkConnectorItem;
 
@@ -72,11 +73,15 @@ public final class RemoteLinkRenderer {
             return;
         }
         RemoteLinkConnectorData data = RemoteLinkConnectorItem.readData(stack);
-        if (!data.hasSelection() || data.providerSide() != -1 || !(data.isAdaptiveProvider() || data.isInterface()) || !level.dimension().location().toString().equals(data.providerDimensionId())) {
+        if (!data.hasSelection()) {
             return;
         }
 
-        BlockPos provider = data.getProviderPos();
+        if (data.providerSide() != -1 || !(data.targetType() == ConnectorHostType.TOWER || data.isAdaptiveProvider() || data.isInterface()) || !level.dimension().location().toString().equals(data.targetType() == ConnectorHostType.TOWER ? data.dimensionId() : data.providerDimensionId())) {
+            return;
+        }
+
+        BlockPos provider = data.targetType() == ConnectorHostType.TOWER ? data.getTowerPos() : data.getProviderPos();
         ConnectorEndpoint endpoint = RemoteLinkConnectorItem.resolveEndpoint(level, data);
         Vec3 source = new Vec3(0.5D, 0.5D, 0.5D);
         Vec3 camera = event.getCamera().getPosition();

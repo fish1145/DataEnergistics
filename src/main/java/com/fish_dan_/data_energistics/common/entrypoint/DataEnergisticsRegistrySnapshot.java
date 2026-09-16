@@ -13,6 +13,7 @@ import com.fish_dan_.data_energistics.api.registry.recipe.TrinityPatternRecipeId
 import com.fish_dan_.data_energistics.api.registry.reusable.ReusableInputRules;
 import com.fish_dan_.data_energistics.api.registry.search.TrinityPatternSearchTermRegistration;
 import com.fish_dan_.data_energistics.api.registry.terminal.UniversalTerminalRegistration;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.registry.TowerEnergyEndpointIntegration;
 import com.fish_dan_.data_energistics.common.crafting.trinity.reusable.rules.FrozenReusableInputRules;
 import com.fish_dan_.data_energistics.common.trinity.TrinityPatternRecipeIdResolvers;
 
@@ -49,6 +50,7 @@ public final class DataEnergisticsRegistrySnapshot {
     private final ObjectList<DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters;
     private final ReusableInputRules reusableInputRules;
     private final boolean hasReusableInputRules;
+    private final ObjectList<TowerEnergyEndpointIntegration> towerEnergyIntegrations;
 
     /**
      * Freezes all registration values without retaining a mutable staging collection.
@@ -63,7 +65,8 @@ public final class DataEnergisticsRegistrySnapshot {
                                     Map<ResourceLocation, TrinityPatternSearchTermRegistration> trinityPatternSearchTerms,
                                     Collection<VirtualCraftingOutputAdapter> virtualCraftingOutputAdapters,
                                     Map<ResourceLocation, DynamicCraftingOutputAdapter> dynamicCraftingOutputAdapters,
-                                    Map<ResourceLocation, ReusableInputRuleAdapter> reusableInputAdapters) {
+                                    Map<ResourceLocation, ReusableInputRuleAdapter> reusableInputAdapters,
+                                    Collection<TowerEnergyEndpointIntegration> towerEnergyIntegrations) {
         this.universalTerminalRegistrations = immutableList(universalTerminalRegistrations);
         this.patternProviderRegistrations = immutableList(patternProviderRegistrations);
         this.patternProviderWorkstationSourceRegistrations = immutableList(
@@ -77,6 +80,12 @@ public final class DataEnergisticsRegistrySnapshot {
         this.dynamicCraftingOutputAdapters = immutableList(dynamicCraftingOutputAdapters.values());
         this.reusableInputRules = new FrozenReusableInputRules(immutableList(reusableInputAdapters.values()));
         this.hasReusableInputRules = !reusableInputAdapters.isEmpty();
+        this.towerEnergyIntegrations = immutableList(towerEnergyIntegrations);
+    }
+
+    /** Returns only committed energy adapters, frozen after common-setup registration. */
+    public ObjectList<TowerEnergyEndpointIntegration> towerEnergyIntegrations() {
+        return this.towerEnergyIntegrations;
     }
 
     private static <T> ObjectList<T> immutableList(Collection<T> values) {

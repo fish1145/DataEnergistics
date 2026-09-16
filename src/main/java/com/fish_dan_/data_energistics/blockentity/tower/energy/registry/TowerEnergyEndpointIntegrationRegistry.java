@@ -1,16 +1,8 @@
 package com.fish_dan_.data_energistics.blockentity.tower.energy.registry;
 
-import com.fish_dan_.data_energistics.integration.ModFlags;
-import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.tower.energy.VerifiedUnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.tower.energy.appflux.AppliedFluxEnergyEndpointIntegration;
-import com.fish_dan_.data_energistics.integration.tower.energy.brandonscore.BrandonsCoreEnergyBridge;
-import com.fish_dan_.data_energistics.integration.tower.energy.brandonscore.BrandonsCoreEnergyEndpointIntegration;
-import com.fish_dan_.data_energistics.integration.tower.energy.mekanism.MekanismEnergyEndpointIntegration;
-import com.fish_dan_.data_energistics.integration.tower.energy.modernindustrialization.ModernIndustrializationEnergyBridge;
-import com.fish_dan_.data_energistics.integration.tower.energy.modernindustrialization.ModernIndustrializationEnergyEndpointIntegration;
-import com.fish_dan_.data_energistics.integration.tower.energy.oritech.OritechEnergyBridge;
-import com.fish_dan_.data_energistics.integration.tower.energy.oritech.OritechEnergyEndpointIntegration;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.access.UnlimitedEnergyAccess;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.access.VerifiedUnlimitedEnergyAccess;
+import com.fish_dan_.data_energistics.common.entrypoint.DataEnergisticsEntrypointLoader;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -55,22 +47,8 @@ public final class TowerEnergyEndpointIntegrationRegistry {
     private static TowerEnergyEndpointIntegrationRegistry buildDefault() {
         UnlimitedEnergyAccess unlimitedEnergy = new VerifiedUnlimitedEnergyAccess();
         Builder builder = builder();
-        if (ModFlags.isBrandonsCoreLoaded()) {
-            builder.register(new BrandonsCoreEnergyEndpointIntegration(new BrandonsCoreEnergyBridge()));
-        }
-        if (ModFlags.isModernIndustrializationEnergySupportLoaded()) {
-            builder.register(new ModernIndustrializationEnergyEndpointIntegration(
-                    new ModernIndustrializationEnergyBridge()));
-        }
-        if (ModFlags.isMekanismLoaded()) {
-            builder.register(new MekanismEnergyEndpointIntegration());
-        }
-        if (ModFlags.isAppFluxEnergySupportLoaded()) {
-            builder.register(new AppliedFluxEnergyEndpointIntegration());
-        }
-        if (ModFlags.isOritechEnergySupportLoaded()) {
-            builder.register(new OritechEnergyEndpointIntegration(
-                    new OritechEnergyBridge(), unlimitedEnergy));
+        for (TowerEnergyEndpointIntegration integration : DataEnergisticsEntrypointLoader.snapshot().towerEnergyIntegrations()) {
+            builder.register(integration);
         }
         return builder.register(new NeoForgeEnergyEndpointIntegration(unlimitedEnergy)).build();
     }
@@ -116,11 +94,8 @@ public final class TowerEnergyEndpointIntegrationRegistry {
                 "No registered tower energy integration supports " + context.storage().getClass().getName());
     }
 
-    /**
-     * Resolves the physical backing identity through the registered strategy.
-     */
-    public Object backingIdentity(TowerEnergyEndpointContext context) {
-        return resolve(context).backingIdentity(context);
+    public boolean has(String id) {
+        return this.integrations.stream().anyMatch(integration -> integration.id().equals(id));
     }
 
     /**
@@ -136,9 +111,6 @@ public final class TowerEnergyEndpointIntegrationRegistry {
          * Adds one operation and optional capability lookup strategy.
          */
         public Builder register(TowerEnergyEndpointIntegration integration) {
-            if (integration == null) {
-                throw new IllegalArgumentException("Tower energy integration cannot be null");
-            }
             this.integrations.add(integration);
             return this;
         }

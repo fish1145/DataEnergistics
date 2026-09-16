@@ -1,9 +1,9 @@
 package com.fish_dan_.data_energistics.blockentity.tower.energy.registry;
 
 import com.fish_dan_.data_energistics.blockentity.tower.energy.TowerEnergyDirection;
-import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess;
-import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccess.EnergySnapshot;
-import com.fish_dan_.data_energistics.integration.tower.energy.UnlimitedEnergyAccessException;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.access.UnlimitedEnergyAccess;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.access.UnlimitedEnergyAccess.EnergySnapshot;
+import com.fish_dan_.data_energistics.blockentity.tower.energy.access.UnlimitedEnergyAccessException;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

@@ -1,5 +1,6 @@
 package com.fish_dan_.data_energistics.blockentity.tower.network.binding;
 
+import com.fish_dan_.data_energistics.api.registry.connector.EnergyTransferDirection;
 import com.fish_dan_.data_energistics.blockentity.tower.network.domain.TowerDeviceKey;
 
 import net.minecraft.core.BlockPos;
@@ -27,7 +28,15 @@ public record TowerBinding(ResourceLocation dimensionId,
                            TowerBindingSource source,
                            long fifoSequence,
                            boolean enabled,
-                           Set<TowerDeviceKey> disabledDeviceKeys) {
+                           Set<TowerDeviceKey> disabledDeviceKeys,
+                           EnergyTransferDirection energyDirection) {
+
+    public TowerBinding(ResourceLocation dimensionId, BlockPos anchor, TowerBindingKind kind,
+                        TowerBindingSource source, long fifoSequence, boolean enabled,
+                        Set<TowerDeviceKey> disabledDeviceKeys) {
+        this(dimensionId, anchor, kind, source, fifoSequence, enabled, disabledDeviceKeys,
+                EnergyTransferDirection.INPUT);
+    }
 
     /**
      * Validates and defensively copies a binding.
@@ -38,6 +47,7 @@ public record TowerBinding(ResourceLocation dimensionId,
         }
         anchor = anchor.immutable();
         disabledDeviceKeys = Set.copyOf(disabledDeviceKeys);
+        energyDirection = energyDirection == null ? EnergyTransferDirection.INPUT : energyDirection;
     }
 
     /**
@@ -54,7 +64,8 @@ public record TowerBinding(ResourceLocation dimensionId,
                 this.source,
                 this.fifoSequence,
                 nextEnabled,
-                this.disabledDeviceKeys);
+                this.disabledDeviceKeys,
+                this.energyDirection);
     }
 
     /**
@@ -78,7 +89,8 @@ public record TowerBinding(ResourceLocation dimensionId,
                 this.source,
                 this.fifoSequence,
                 this.enabled,
-                nextKeys);
+                nextKeys,
+                this.energyDirection);
     }
 
     /**
@@ -95,6 +107,12 @@ public record TowerBinding(ResourceLocation dimensionId,
                 this.source,
                 this.fifoSequence,
                 this.enabled,
-                this.disabledDeviceKeys);
+                this.disabledDeviceKeys,
+                this.energyDirection);
+    }
+
+    public TowerBinding withEnergyDirection(EnergyTransferDirection direction) {
+        return new TowerBinding(this.dimensionId, this.anchor, this.kind, this.source, this.fifoSequence,
+                this.enabled, this.disabledDeviceKeys, direction);
     }
 }

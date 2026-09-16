@@ -1,5 +1,7 @@
 package com.fish_dan_.data_energistics.item.connector;
 
+import com.fish_dan_.data_energistics.api.registry.connector.EnergyTransferDirection;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -18,10 +20,11 @@ public record RemoteLinkConnectorData(
                                       int providerSide,
                                       int selectedBindingIndex,
                                       int selectedSlot,
-                                      boolean allLinksSelected) {
+                                      boolean allLinksSelected,
+                                      EnergyTransferDirection energyDirection) {
 
     public static final RemoteLinkConnectorData EMPTY = new RemoteLinkConnectorData(
-            "", 0L, false, ConnectorHostType.TOWER, "", 0L, -1, 0, 0, false);
+            "", 0L, false, ConnectorHostType.TOWER, "", 0L, -1, 0, 0, false, EnergyTransferDirection.INPUT);
 
     public static final Codec<RemoteLinkConnectorData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.STRING.optionalFieldOf("dimension_id", "").forGetter(RemoteLinkConnectorData::dimensionId),
@@ -36,7 +39,10 @@ public record RemoteLinkConnectorData(
             Codec.INT.optionalFieldOf("provider_side", -1).forGetter(RemoteLinkConnectorData::providerSide),
             Codec.INT.optionalFieldOf("selected_binding_index", 0).forGetter(RemoteLinkConnectorData::selectedBindingIndex),
             Codec.INT.optionalFieldOf("selected_slot", 0).forGetter(RemoteLinkConnectorData::selectedSlot),
-            Codec.BOOL.optionalFieldOf("all_links_selected", false).forGetter(RemoteLinkConnectorData::allLinksSelected))
+            Codec.BOOL.optionalFieldOf("all_links_selected", false).forGetter(RemoteLinkConnectorData::allLinksSelected),
+            Codec.STRING.optionalFieldOf("energy_direction", EnergyTransferDirection.INPUT.name())
+                    .xmap(EnergyTransferDirection::valueOf, EnergyTransferDirection::name)
+                    .forGetter(RemoteLinkConnectorData::energyDirection))
             .apply(instance, RemoteLinkConnectorData::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, RemoteLinkConnectorData> STREAM_CODEC = StreamCodec.of(
@@ -54,6 +60,7 @@ public record RemoteLinkConnectorData(
         ByteBufCodecs.VAR_INT.encode(buffer, data.selectedBindingIndex());
         buffer.writeVarInt(data.selectedSlot());
         buffer.writeBoolean(data.allLinksSelected());
+        ByteBufCodecs.STRING_UTF8.encode(buffer, data.energyDirection().name());
     }
 
     private static RemoteLinkConnectorData decode(RegistryFriendlyByteBuf buffer) {
@@ -67,7 +74,7 @@ public record RemoteLinkConnectorData(
                 ByteBufCodecs.VAR_INT.decode(buffer),
                 ByteBufCodecs.VAR_INT.decode(buffer),
                 buffer.readVarInt(),
-                buffer.readBoolean());
+                buffer.readBoolean(), EnergyTransferDirection.valueOf(ByteBufCodecs.STRING_UTF8.decode(buffer)));
     }
 
     public RemoteLinkConnectorData {
@@ -92,7 +99,7 @@ public record RemoteLinkConnectorData(
 
     public RemoteLinkConnectorData withTower(String dimensionId, BlockPos towerPos) {
         return new RemoteLinkConnectorData(
-                dimensionId, towerPos.asLong(), true, ConnectorHostType.TOWER, "", 0L, -1, 0, 0, false);
+                dimensionId, towerPos.asLong(), true, ConnectorHostType.TOWER, "", 0L, -1, 0, 0, false, EnergyTransferDirection.INPUT);
     }
 
     public RemoteLinkConnectorData withAdaptiveProvider(
@@ -105,7 +112,7 @@ public record RemoteLinkConnectorData(
                 dimensionId,
                 providerPos.asLong(),
                 providerSide,
-                0, 0, false);
+                0, 0, false, EnergyTransferDirection.INPUT);
     }
 
     public RemoteLinkConnectorData clear() {
@@ -126,22 +133,27 @@ public record RemoteLinkConnectorData(
 
     public RemoteLinkConnectorData withInterface(String dimensionId, BlockPos position, int side) {
         return new RemoteLinkConnectorData("", 0L, true, ConnectorHostType.EXTREME_INTERFACE,
-                dimensionId, position.asLong(), side, 0, 0, false);
+                dimensionId, position.asLong(), side, 0, 0, false, EnergyTransferDirection.INPUT);
     }
 
     public RemoteLinkConnectorData withSelectedSlot(int slot) {
         return new RemoteLinkConnectorData(dimensionId, towerPos, selected, targetType,
-                providerDimensionId, providerPos, providerSide, selectedBindingIndex, slot, allLinksSelected);
+                providerDimensionId, providerPos, providerSide, selectedBindingIndex, slot, allLinksSelected, energyDirection);
     }
 
     public RemoteLinkConnectorData selectAllLinks() {
         return new RemoteLinkConnectorData(dimensionId, towerPos, selected, targetType,
-                providerDimensionId, providerPos, providerSide, selectedBindingIndex, selectedSlot, true);
+                providerDimensionId, providerPos, providerSide, selectedBindingIndex, selectedSlot, true, energyDirection);
     }
 
     public RemoteLinkConnectorData withSelectedBindingIndex(int index) {
         return new RemoteLinkConnectorData(
                 this.dimensionId, this.towerPos, this.selected, this.targetType,
-                this.providerDimensionId, this.providerPos, this.providerSide, index, selectedSlot, false);
+                this.providerDimensionId, this.providerPos, this.providerSide, index, selectedSlot, false, energyDirection);
+    }
+
+    public RemoteLinkConnectorData withEnergyDirection(EnergyTransferDirection direction) {
+        return new RemoteLinkConnectorData(dimensionId, towerPos, selected, targetType, providerDimensionId,
+                providerPos, providerSide, selectedBindingIndex, selectedSlot, allLinksSelected, direction);
     }
 }
